@@ -36,7 +36,8 @@ COPY . .
 
 # Instala las dependencias de PHP como 'root'
 RUN if [ -f composer.lock ]; then rm composer.lock; fi \
-    && composer update
+    && composer install --no-dev --optimize-autoloader \
+    && composer dump-autoload --optimize
 
 # Crea el archivo .env automáticamente si no existe
 RUN if [ ! -f .env ]; then \

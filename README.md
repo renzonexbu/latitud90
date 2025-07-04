@@ -1,66 +1,278 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🏔️ Latitud90 - Sistema de Gestión Turística
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de gestión turística desarrollado con Laravel 10, Vue.js 3, e Inertia.js para la administración de programas turísticos, pasajeros, pagos y reservas.
 
-## About Laravel
+## 🚀 Características principales
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Panel Administrativo**: Gestión completa de programas turísticos
+- **Gestión de Pasajeros**: Registro y seguimiento de pasajeros
+- **Procesamiento de Pagos**: Integración con Transbank y Khipu
+- **Reservas**: Sistema de reservas y contratos
+- **Dashboard**: Estadísticas y reportes
+- **Responsive Design**: Interfaz moderna con Tailwind CSS
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🛠️ Stack Tecnológico
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Backend**: Laravel 10 + PHP 8.2
+- **Frontend**: Vue.js 3 + Inertia.js
+- **Base de Datos**: MySQL
+- **Estilos**: Tailwind CSS
+- **Build Tool**: Vite
+- **Containerización**: Docker + Docker Compose
 
-## Learning Laravel
+## 📋 Requisitos del Sistema
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- Docker Desktop
+- Docker Compose
+- Git
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## 🔧 Instalación y Configuración
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/FranciscoArenas/latitud90.git
+cd latitud90
+```
 
-## Laravel Sponsors
+### 2. Configurar archivo de entorno
+```bash
+# Copiar archivo de ejemplo
+cp .env.example .env
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Editar las variables de entorno necesarias
+# DB_HOST=db
+# DB_DATABASE=laravel
+# DB_USERNAME=laravel
+# DB_PASSWORD=secret
+```
 
-### Premium Partners
+### 3. Construir y ejecutar con Docker
+```bash
+# Construir e iniciar los contenedores
+docker-compose up --build -d
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+# Ejecutar el script de inicialización completo
+docker-compose exec app ./start.sh
+```
 
-## Contributing
+### 4. Acceder a la aplicación
+- **URL**: http://localhost:8086
+- **Usuario admin**: admin@example.com
+- **Contraseña**: password
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🚀 Script de Inicio Automatizado
 
-## Code of Conduct
+El script `start.sh` ejecuta automáticamente todos los pasos necesarios:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Pasos incluidos:
+1. **📁 Configuración de permisos** - Storage y cache
+2. **🔐 Generación de clave** - APP_KEY automática
+3. **📦 Dependencias Composer** - Instalación optimizada
+4. **⚡ Autoloader** - Optimización de Composer
+5. **🎨 Dependencias Node.js** - Frontend dependencies
+6. **🔨 Compilación assets** - Vite build process
+7. **🗄️ Migraciones** - Base de datos actualizada
+8. **🌱 Seeders** - Datos de prueba con factories
+9. **⚙️ Caché configuración** - Optimización para producción
+10. **🧹 Limpieza cache** - Routes, views, config
+11. **🔗 Storage link** - Enlace simbólico para archivos
+12. **✅ Verificación** - Estado de la aplicación
+13. **🚀 Servidor** - Laravel en puerto 8086
 
-## Security Vulnerabilities
+## 🗄️ Base de Datos
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Migraciones
+```bash
+# Ejecutar migraciones
+docker-compose exec app php artisan migrate
 
-## License
+# Resetear y migrar desde cero
+docker-compose exec app php artisan migrate:fresh
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Seeders y Factories
+```bash
+# Ejecutar todos los seeders
+docker-compose exec app php artisan db:seed
+
+# Ejecutar seeder específico
+docker-compose exec app php artisan db:seed --class=AdminDemoSeeder
+
+# Resetear base de datos con seeders
+docker-compose exec app php artisan migrate:fresh --seed
+```
+
+### Datos de Prueba Incluidos
+- **10 usuarios** generados con factories
+- **Usuario de prueba**: test@example.com
+- **Usuario admin**: admin@example.com / password
+- **4 programas turísticos** básicos (AdminDemoSeeder)
+- **8 programas adicionales** (EnhancedDemoSeeder)
+- **45 pasajeros** con datos realistas chilenos
+- **48 pagos** con diferentes estados y métodos
+
+## 🎨 Frontend y Assets
+
+### Compilación de Assets
+```bash
+# Desarrollo (con hot reload)
+docker-compose exec app npm run dev
+
+# Producción
+docker-compose exec app npm run build
+
+# Instalar dependencias
+docker-compose exec app npm install
+```
+
+### Tecnologías Frontend
+- **Vue.js 3**: Framework progresivo
+- **Inertia.js**: SPA sin API
+- **Tailwind CSS**: Utility-first CSS
+- **Vite**: Build tool moderno
+- **Headless UI**: Componentes accesibles
+
+## 📊 Funcionalidades del Sistema
+
+### Panel Administrativo
+- Dashboard con estadísticas
+- Gestión de programas turísticos
+- Administración de pasajeros
+- Procesamiento de pagos
+- Generación de reportes
+
+### Gestión de Programas
+- Crear/editar programas turísticos
+- Configurar precios y fechas
+- Gestionar cupos y disponibilidad
+- Imágenes y descripción detallada
+
+### Gestión de Pasajeros
+- Registro de pasajeros
+- Documentación requerida
+- Historial de viajes
+- Estados de reserva
+
+### Procesamiento de Pagos
+- Integración con Transbank
+- Integración con Khipu
+- Gestión de cuotas
+- Estados de pago
+- Links de pago
+
+## 🔧 Comandos Útiles
+
+### Docker
+```bash
+# Iniciar contenedores
+docker-compose up -d
+
+# Detener contenedores
+docker-compose down
+
+# Ver logs
+docker-compose logs -f app
+
+# Acceder al contenedor
+docker-compose exec app bash
+```
+
+### Laravel Artisan
+```bash
+# Limpiar caché
+docker-compose exec app php artisan cache:clear
+docker-compose exec app php artisan config:clear
+docker-compose exec app php artisan route:clear
+docker-compose exec app php artisan view:clear
+
+# Generar clave de aplicación
+docker-compose exec app php artisan key:generate
+
+# Crear enlace simbólico
+docker-compose exec app php artisan storage:link
+
+# Ver estado de la aplicación
+docker-compose exec app php artisan about
+```
+
+## 🔐 Configuración de Pagos
+
+### Transbank
+```env
+TRANSBANK_COMMERCE_CODE=597055555532
+TRANSBANK_API_KEY=579B532A7440BB0C9079DED94D31EA1615BACEB56610332264630D42D0A36B1C
+TRANSBANK_ENVIRONMENT=integration
+```
+
+### Khipu
+```env
+KHIPU_RECEIVER_ID=tu_receiver_id
+KHIPU_SECRET=tu_secret
+KHIPU_BASE_URL=https://khipu.com/api/2.0
+```
+
+## 📝 Estructura del Proyecto
+
+```
+latitud90/
+├── app/
+│   ├── Http/Controllers/    # Controladores
+│   ├── Models/             # Modelos Eloquent
+│   └── Services/           # Servicios de pago
+├── database/
+│   ├── migrations/         # Migraciones
+│   ├── seeders/           # Seeders
+│   └── factories/         # Factories
+├── resources/
+│   ├── js/                # Vue.js components
+│   ├── css/               # Estilos
+│   └── views/             # Blade templates
+├── routes/                # Rutas
+├── docker-compose.yml     # Configuración Docker
+├── start.sh              # Script de inicio
+└── README.md             # Este archivo
+```
+
+## 🚀 Inicio Rápido
+
+```bash
+# 1. Clonar repositorio
+git clone https://github.com/FranciscoArenas/latitud90.git
+cd latitud90
+
+# 2. Configurar entorno
+cp .env.example .env
+
+# 3. Iniciar con Docker
+docker-compose up --build -d
+
+# 4. Ejecutar script de configuración
+docker-compose exec app ./start.sh
+
+# 5. Acceder a la aplicación
+# http://localhost:8086
+# admin@example.com / password
+```
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit tus cambios (`git commit -am 'Agrega nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 📞 Soporte
+
+Para soporte técnico o consultas:
+- Email: soporte@latitud90.com
+- Documentación: [Wiki del proyecto](https://github.com/FranciscoArenas/latitud90/wiki)
+- Issues: [GitHub Issues](https://github.com/FranciscoArenas/latitud90/issues)
+
+---
+
+**Desarrollado con ❤️ para Latitud90**

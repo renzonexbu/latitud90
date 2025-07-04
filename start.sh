@@ -1,63 +1,82 @@
 #!/bin/bash
 
-echo "Starting Laravel application setup..."
+# Configuración de manejo de errores
+set -e  # Salir si cualquier comando falla
 
-# Build frontend assets
-echo "Building frontend assets with Vite..."
-npm run build
-if [ $? -ne 0 ]; then
-    echo "ERROR: npm run build failed"
-    exit 1
+# Script de inicio para Laravel con Docker
+echo "🚀 Iniciando aplicación Laravel..."
+echo "=================================================="
+
+# Arreglar permisos de storage y cache
+echo "📁 Configurando permisos..."
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+
+# Generar clave de aplicación si no existe
+if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "" ]; then
+    echo "🔐 Generando clave de aplicación..."
+    php artisan key:generate --force
 fi
-echo "✓ Frontend build completed successfully"
 
-# Wait for database
-echo "Waiting for database connection..."
-sleep 15
+echo "=================================================="
 
-# Test database connection
-echo "Testing database connection..."
-php artisan tinker --execute="DB::connection()->getPdo();" 2>/dev/null
-while [ $? -ne 0 ]; do
-    echo "Database not ready, waiting 5 more seconds..."
-    sleep 5
-    php artisan tinker --execute="DB::connection()->getPdo();" 2>/dev/null
-done
-echo "✓ Database connection established"
+# Instalar/actualizar dependencias de Composer
+echo "📦 Instalando dependencias de Composer..."
+composer install --optimize-autoloader --no-dev
 
-# Clear any cached config
-echo "Clearing Laravel cache..."
-php artisan config:clear
+# Verificar autoloader de Composer
+echo "⚡ Optimizando autoloader..."
+composer dump-autoload --optimize
+
+echo "=================================================="
+
+# Instalar dependencias de Node.js
+echo "🎨 Instalando dependencias de Node.js..."
+npm install
+
+# Compilar assets de frontend
+echo "🔨 Compilando assets de frontend..."
+npm run build
+
+echo "=================================================="
+
+# Ejecutar migraciones
+echo "🗄️  Ejecutando migraciones..."
+php artisan migrate --force
+
+# Ejecutar seeders para cargar datos de prueba
+echo "🌱 Ejecutando seeders (datos de prueba y factories)..."
+php artisan db:seed --force
+
+echo "=================================================="
+
+# Configurar caché de configuración para producción
+echo "⚙️  Configurando caché de configuración..."
+php artisan config:cache
+
+# Limpiar y optimizar cache
+echo "🧹 Optimizando aplicación..."
+php artisan route:clear
+php artisan view:clear
 php artisan cache:clear
 
-# Generate application key if needed
-echo "Ensuring application key is set..."
-php artisan key:generate --force
-
-# Run migrations and seeder
-echo "Running database migrations..."
-php artisan migrate --force
-if [ $? -ne 0 ]; then
-    echo "ERROR: Migration failed"
-    exit 1
-fi
-echo "✓ Migrations completed successfully"
-
-echo "Running AdminDemoSeeder..."
-php artisan db:seed --class=AdminDemoSeeder --force
-if [ $? -ne 0 ]; then
-    echo "ERROR: AdminDemoSeeder failed"
-    exit 1
+# Crear enlace simbólico si no existe
+if [ ! -L public/storage ]; then
+    echo "🔗 Creando enlace simbólico de storage..."
+    php artisan storage:link
 fi
 
-echo "Running EnhancedDemoSeeder..."
-php artisan db:seed --class=EnhancedDemoSeeder --force
-if [ $? -ne 0 ]; then
-    echo "WARNING: EnhancedDemoSeeder failed, but continuing"
-fi
-echo "✓ Seeders completed successfully"
+echo "=================================================="
 
-# Start the Laravel development server
-echo "Starting Laravel server on port 8086..."
-echo "🚀 Application will be available at http://localhost:8086"
+# Verificar que la aplicación esté lista
+echo "✅ Verificando estado de la aplicación..."
+php artisan about --only=environment
+
+echo "=================================================="
+
+# Iniciar el servidor
+echo "🚀 Iniciando servidor Laravel en el puerto 8086..."
+echo "📱 Accede a la aplicación en: http://localhost:8086"
+echo "👤 Usuario admin: admin@example.com / password"
+echo "=================================================="
 php artisan serve --host=0.0.0.0 --port=8086
