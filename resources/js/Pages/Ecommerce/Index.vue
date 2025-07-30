@@ -52,6 +52,9 @@
     <!-- Hero Section -->
     <HeroSection id=""></HeroSection>
 
+    <!-- Logo Carousel -->
+    <LogoCarousel></LogoCarousel>
+
     <!-- Experiences Section -->
     <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
 
@@ -92,6 +95,7 @@
   import FaqSection from "@/Components/FaqSection.vue";
   import Modal from "@/Components/Modal.vue";
   import WelcomePaymentModal from "@/Components/WelcomePaymentModal.vue";
+  import LogoCarousel from "@/Components/LogoCarousel.vue";
 
   export default {
     components: {
@@ -109,7 +113,8 @@
       Modal,
       WelcomePaymentModal,
       Link,
-      Head
+      Head,
+      LogoCarousel
     },
     props: {
       programs: Object,
