@@ -1,0 +1,95 @@
+/* Figma Styles of your File */
+:root {
+  /* Colors */
+  /* Fonts */
+  --titulo-font-family: Nexa-XBold, sans-serif;
+  --titulo-font-size: 30px;
+  --titulo-line-height: 36px;
+  --titulo-font-weight: 400;
+  --titulo-font-style: normal;
+  --subtitle-font-family: Nexa-Regular, sans-serif;
+  --subtitle-font-size: 24px;
+  --subtitle-line-height: 28px;
+  --subtitle-font-weight: 400;
+  --subtitle-font-style: normal;
+  --subtitulo-s-font-family: Nexa-Regular, sans-serif;
+  --subtitulo-s-font-size: 20px;
+  --subtitulo-s-line-height: 28px;
+  --subtitulo-s-font-weight: 400;
+  --subtitulo-s-font-style: normal;
+  --ttulo-xl-font-family: Nexa-Black, sans-serif;
+  --ttulo-xl-font-size: 40px;
+  --ttulo-xl-line-height: 96%;
+  --ttulo-xl-font-weight: 900;
+  --ttulo-xl-font-style: normal;
+  --cuerpo-de-texto-xl-font-family: Nexa-Regular, sans-serif;
+  --cuerpo-de-texto-xl-font-size: 18px;
+  --cuerpo-de-texto-xl-line-height: 22px;
+  --cuerpo-de-texto-xl-font-weight: 400;
+  --cuerpo-de-texto-xl-font-style: normal;
+  --cuerpo-de-texto-l-font-family: Nexa-Regular, sans-serif;
+  --cuerpo-de-texto-l-font-size: 16px;
+  --cuerpo-de-texto-l-line-height: 22px;
+  --cuerpo-de-texto-l-font-weight: 400;
+  --cuerpo-de-texto-l-font-style: normal;
+  --cuerpo-de-texto-m-font-family: Nexa-Regular, sans-serif;
+  --cuerpo-de-texto-m-font-size: 14px;
+  --cuerpo-de-texto-m-line-height: 18px;
+  --cuerpo-de-texto-m-font-weight: 400;
+  --cuerpo-de-texto-m-font-style: normal;
+  --cuerpo-de-texto-s-font-family: Nexa-Bold, sans-serif;
+  --cuerpo-de-texto-s-font-size: 12px;
+  --cuerpo-de-texto-s-line-height: 13px;
+  --cuerpo-de-texto-s-font-weight: 700;
+  --cuerpo-de-texto-s-font-style: normal;
+  --cuerpo-de-texto-xs-font-family: Nexa-Regular, sans-serif;
+  --cuerpo-de-texto-xs-font-size: 10px;
+  --cuerpo-de-texto-xs-line-height: 14px;
+  --cuerpo-de-texto-xs-font-weight: 400;
+  --cuerpo-de-texto-xs-font-style: normal;
+
+  /* Effects */
+  --sombra-box-shadow: 0px 4px 11.6px 0px rgba(163, 163, 163, 0.11);
+}
+
+/* Figma Color Variables of your File */
+:root,
+[data-global-mode="desktop"] {
+  /* desktop */
+  --colores-op2-amarillo: #ffb232;
+  --colores-op2-rojo: #d54a42;
+  --colores-op2-turquesa: #007e93;
+  --colores-neutro-blanco: #ffffff;
+  --colores-neutro-gris-2: #d3d3d3;
+  --colores-op2-naranja: #fd671a;
+  --colores-op2-verde-oscuro: #1c4f4a;
+  --colores-neutro-negro: #434343;
+  --colores-neutro-gris-3: #c7c7c7;
+  --colores-neutro-gris-4: #5b5b5b;
+  --colores-primario-azul-oscuro: #1a4b75;
+  --colores-primario-verde: #4b8d7f;
+  --colores-primario-amarillo: #fbbd51;
+  --colores-primario-rojo: #d54b44;
+  --colores-primario-turquesa: #007e93;
+  --colores-neutro-gris-1: #f9f9f9;
+}
+
+[data-global-mode="mobile"] {
+  /* mobile */
+  --colores-op2-amarillo: #fabd4f;
+  --colores-op2-rojo: #d54a42;
+  --colores-op2-turquesa: #007e93;
+  --colores-neutro-blanco: #ffffff;
+  --colores-neutro-gris-2: #f0f0f0;
+  --colores-op2-naranja: #fd671a;
+  --colores-op2-verde-oscuro: #1c4f4a;
+  --colores-neutro-negro: #434343;
+  --colores-neutro-gris-3: #c7c7c7;
+  --colores-neutro-gris-4: #5b5b5b;
+  --colores-primario-azul-oscuro: #1a4b75;
+  --colores-primario-verde: #4b8d7f;
+  --colores-primario-amarillo: #fbbd51;
+  --colores-primario-rojo: #d54b44;
+  --colores-primario-turquesa: #007e93;
+  --colores-neutro-gris-1: #f9f9f9;
+} 
