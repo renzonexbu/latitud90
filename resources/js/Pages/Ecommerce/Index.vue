@@ -7,50 +7,12 @@
     
     <!-- Header -->
     <Header class="bg-transparent text-blanco shadow-none"> </Header>
-    <!-- Hero Section -->
-    <!-- <div class="relative py-24">
-      <div
-        class="rounded-lg absolute inset-0 bg-[url('/resources/images/dashboard.png')] bg-cover bg-center">
-        <div class="opacity-75"></div>
-      </div>
-      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
-        <h1
-          class="text-white text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight font-nexa">
-          Bienvenido<span
-            class="text-2xl md:text-4xl lg:text-5xl text-amber-400 font-quincy font-medium">
-            al portal</span
-          ><br />
-          <span
-            class="text-2xl md:text-4xl lg:text-5xl text-amber-400 font-quincy font-medium"
-            >de pago</span
-          >
-          Latitud 90.
-        </h1>
-
-        <div class="max-w-lg py-3">
-          <div
-            class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="¿A dónde te gustaría ir?"
-              class="flex-1 px-4 py-3 rounded-full border-0 focus:ring-2 focus:ring-indigo-500"
-              @keypress.enter="performSearch" />
-            <button
-              @click="performSearch"
-              class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-turquesa hover:bg-turquesa text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200">
-              Buscar
-            </button>
-          </div>
-        </div>
-
-        <p class="text-xl text-indigo-100 mb-8 max-w-3xl mx-auto">
-          Ingrese el número Rut del alumno
-        </p>
-      </div>
-    </div> -->
-    <!-- Hero Section -->
+    
+    <!-- Hero Section (80vh) -->
     <HeroSection id=""></HeroSection>
+
+    <!-- Logo Carousel (20vh) -->
+    <LogoCarousel />
 
     <!-- Experiences Section -->
     <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
@@ -84,6 +46,7 @@
   import Contact from "@/Components/Contact.vue";
   import Slider from "@/Components/ImageSlider.vue";
   import HeroSection from "@/Components/HeroSection.vue";
+  import LogoCarousel from "@/Components/LogoCarousel.vue";
   import AboutSection from "@/Components/AboutSection.vue";
   import ExperienceSection from "@/Components/ExperienceSection.vue";
   import SchoolsSection from "@/Components/SchoolsSection.vue";
@@ -100,6 +63,7 @@
       Contact,
       Slider,
       HeroSection,
+      LogoCarousel,
       AboutSection,
       ExperienceSection,
       SchoolsSection,

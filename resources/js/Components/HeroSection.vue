@@ -1,12 +1,36 @@
 <template>
-  <div class="relative py-20 md:py-32">
+  <div class="relative h-[80vh] rounded-3xl overflow-hidden mx-4 my-4">
     <div
-      class="rounded-lg absolute inset-0 bg-[url('/resources/images/dashboard.png')] bg-cover bg-center">
+      class="absolute inset-0 bg-[url('/resources/images/dashboard.png')] bg-cover bg-center rounded-3xl">
       <!-- Overlay para la imagen de fondo -->
-      <div class="absolute inset-0 bg-black opacity-30"></div>
+      <div class="absolute inset-0 bg-black opacity-30 rounded-3xl"></div>
     </div>
 
-    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
+    <!-- Esferas decorativas -->
+    <div class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col">
+      <div class="w-[70px] h-[98px] relative">
+        <svg width="103" height="103" viewBox="0 0 52 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="51.5" cy="51.8203" r="51.5" transform="rotate(-90 51.5 51.8203)" fill="#FBBD51"/>
+        </svg>
+      </div>
+      <div class="w-[70px] h-[98px] relative">
+        <svg width="103" height="103" viewBox="0 0 52 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="51.5" cy="51.8203" r="51.5" transform="rotate(-90 51.5 51.8203)" fill="#FBBD51"/>
+        </svg>
+      </div>
+      <div class="w-[70px] h-[98px] relative">
+        <svg width="103" height="103" viewBox="0 0 52 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="51.5" cy="51.8203" r="51.5" transform="rotate(-90 51.5 51.8203)" fill="#FBBD51"/>
+        </svg>
+      </div>
+      <div class="w-[70px] h-[98px] relative">
+        <svg width="103" height="103" viewBox="0 0 52 104" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="51.5" cy="51.8203" r="51.5" transform="rotate(-90 51.5 51.8203)" fill="#FBBD51"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center text-left">
       <h1
         class="text-white text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight">
         Bienvenido<span
