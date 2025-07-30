@@ -9,7 +9,8 @@
       </button>
     </div>
 
-    <div class="frame-1000006103">
+    <!-- Contenedor desktop -->
+    <div class="frame-1000006103 desktop-content">
       <!-- Título -->
       <div class="bienvenido-a-la-plataforma-de-pago-de-lat-90">
         Bienvenido a la plataforma de pago de Lat90
@@ -27,7 +28,7 @@
               <div class="_1">1</div>
             </div>
             <div class="busca-al-alumno-mediante-su-rut">
-              Busca al alumno mediante su RUT
+              Busca al viajero mediante su RUT
             </div>
           </div>
 
@@ -66,6 +67,41 @@
       <!-- Botón de acción -->
       <div class="boton-s" @click="$emit('close')">
         <div class="placeholder">Empezar ahora</div>
+      </div>
+    </div>
+
+    <!-- Contenedor mobile -->
+    <div class="mobile-content">
+      <div class="mobile-inner-container">
+        <!-- Título mobile -->
+        <div class="mobile-title">
+          Bienvenido a la plataforma de pago de Lat90
+        </div>
+
+        <!-- Pasos mobile -->
+        <div class="mobile-steps">
+          <div class="mobile-step">
+            <div class="mobile-step-number">1</div>
+            <div class="mobile-step-text">Busca al viajero mediante su RUT</div>
+          </div>
+          <div class="mobile-step">
+            <div class="mobile-step-number">2</div>
+            <div class="mobile-step-text">Seleccione el programa a pagar</div>
+          </div>
+          <div class="mobile-step">
+            <div class="mobile-step-number">3</div>
+            <div class="mobile-step-text">Elige el modo de pago</div>
+          </div>
+          <div class="mobile-step">
+            <div class="mobile-step-number">4</div>
+            <div class="mobile-step-text">Paga y Listo</div>
+          </div>
+        </div>
+
+        <!-- Botón mobile -->
+        <div class="mobile-button" @click="$emit('close')">
+          Empezar ahora
+        </div>
       </div>
     </div>
   </div>
@@ -278,62 +314,164 @@
   white-space: nowrap;
 }
 
+/* Mobile content styles */
+.mobile-content {
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 46px 36px 32.5px 35px;
+  box-sizing: border-box;
+}
+
+.mobile-inner-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.mobile-title {
+  color: var(--Colores-Primario-Turquesa, #007E93);
+  text-align: center;
+  font-family: Nexa;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 18px;
+  align-self: stretch;
+}
+
+.mobile-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  position: relative;
+  flex: 1;
+}
+
+.mobile-steps::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 38px;
+  bottom: 60px;
+  width: 2px;
+  background-color: var(--colores-op2-turquesa, #007e93);
+  z-index: 1;
+}
+
+.mobile-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.mobile-step-number {
+  background: var(--colores-op2-turquesa, #007e93);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--Colores-Neutro-Blanco, #FFF);
+  font-family: Nexa;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.117px;
+  flex-shrink: 0;
+}
+
+.mobile-step-text {
+  color: var(--Colores-OP2-Turquesa, #007E93);
+  text-align: left;
+  font-family: Nexa;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 18px;
+  flex: 1;
+}
+
+.mobile-button {
+  background: var(--colores-op2-amarillo, #ffb232);
+  border-radius: 47px;
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-family: "Nexa-Bold", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  width: 100%;
+}
+
+.mobile-button:hover {
+  background: #e6a029;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .pop-up {
-    padding: 20px 15px;
-    gap: 10px;
-    width: 95vw;
-    min-height: 400px;
-    max-height: 90vh;
-  }
-
-  .frame-1000006103 {
-    gap: 30px;
-    width: 100%;
-  }
-
-  .bienvenido-a-la-plataforma-de-pago-de-lat-90 {
-    width: 100%;
-    font-size: 18px;
-    line-height: 22px;
-  }
-
-  .group-1000005851 {
-    width: 100%;
-    height: auto;
-    position: relative;
-  }
-
-  .vector-10 {
+  .desktop-content {
     display: none;
   }
-
-  .frame-1000006102 {
-    position: relative;
-    left: 0;
-    top: 0;
-    flex-direction: column;
-    gap: 20px;
+  
+  .mobile-content {
+    display: flex;
+  }
+  
+  .pop-up {
+    padding: 0;
+    gap: 0;
+    width: 95vw;
+    height: 440px;
+    max-height: 440px;
+    overflow: hidden;
   }
 
-  .frame-1000006085,
-  .frame-1000006086,
-  .frame-1000006087,
-  .frame-1000006088 {
-    width: 100%;
-    flex-direction: row;
-    gap: 12px;
-    justify-content: flex-start;
+  .mynaui-letter-x-circle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: auto;
+    z-index: 10;
   }
 
-  .busca-al-alumno-mediante-su-rut,
-  .seleccione-el-programa-a-pagar,
-  .elige-el-medo-de-pago,
-  .paga-y-listo {
-    text-align: left;
-    font-size: 14px;
-    line-height: 18px;
+  .mynaui-letter-x-circle svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .close-button svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mobile-button {
+    width: 95%;
+    margin: 0 auto;
+  }
+}
+
+/* Ajustes específicos para diferentes tamaños de pantalla mobile */
+@media (min-width: 449px) and (max-width: 768px) {
+  .mobile-steps::before {
+    bottom: 75px;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 768px) {
+  .mobile-steps::before {
+    bottom: 85px;
   }
 }
 </style> 
