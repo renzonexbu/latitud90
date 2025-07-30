@@ -1,5 +1,10 @@
 <template>
   <div class="min-h-screen bg-gray-50 w-full p-3">
+    <!-- Modal de Bienvenida -->
+    <Modal :show="showWelcomeModal" maxWidth="7xl" @close="showWelcomeModal = false">
+      <WelcomePaymentModal @close="showWelcomeModal = false" />
+    </Modal>
+    
     <!-- Header -->
     <Header class="bg-transparent text-blanco shadow-none"> </Header>
     <!-- Hero Section -->
@@ -85,6 +90,8 @@
   import CoursesSection from "@/Components/CoursesSection.vue";
   import TestimonialsSection from "@/Components/TestimonialsSection.vue";
   import FaqSection from "@/Components/FaqSection.vue";
+  import Modal from "@/Components/Modal.vue";
+  import WelcomePaymentModal from "@/Components/WelcomePaymentModal.vue";
 
   export default {
     components: {
@@ -99,6 +106,8 @@
       CoursesSection,
       TestimonialsSection,
       FaqSection,
+      Modal,
+      WelcomePaymentModal,
       Link,
       Head
     },
@@ -196,9 +205,12 @@
         return pages;
       };
 
+      const showWelcomeModal = ref(true);
+
       return {
         searchQuery,
         filters,
+        showWelcomeModal,
         formatServiceType,
         formatPrice,
         formatDate,
