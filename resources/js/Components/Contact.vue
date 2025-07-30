@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col md:flex-row bg-white">
+  <div class="min-h-screen flex flex-col md:flex-row bg-[#F9F9F9]">
     <!-- Imagen a la izquierda -->
     <div
       class="hidden md:block md:w-1/2 h-screen rounded-l-3xl overflow-hidden">
@@ -10,7 +10,7 @@
     </div>
     <!-- Formulario a la derecha -->
     <div
-      class="w-full md:w-1/2 flex items-center justify-center bg-white rounded-r-3xl p-8 md:p-16">
+      class="w-full md:w-1/2 flex items-center justify-center bg-[#F9F9F9] rounded-r-3xl p-8 md:p-16">
       <form class="w-full max-w-xl">
         <h2 class="text-4xl font-bold text-[#17939A] mb-2">Contactanos</h2>
         <p class="text-[#17939A] mb-4">

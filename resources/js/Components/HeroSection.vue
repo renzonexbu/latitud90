@@ -149,6 +149,11 @@
 <style scoped>
   /* Estilos adicionales si son necesarios */
   
+  /* Color de fondo para toda la sección */
+  .relative.h-\[80vh\].rounded-3xl.overflow-hidden.mx-4.my-4 {
+    background-color: #F9F9F9;
+  }
+  
   /* Estilos específicos para mobile */
   @media (max-width: 768px) {
     /* Centrar lupa dentro del input en mobile */

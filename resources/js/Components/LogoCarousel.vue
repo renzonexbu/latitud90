@@ -144,7 +144,6 @@ const logos = ref([
 
 /* Asegurar que el contenedor principal no tenga limitaciones */
 .w-full {
-  width: 100vw !important;
-  margin-left: calc(-50vw + 50%);
+  width: 100% !important;
 }
 </style> 
