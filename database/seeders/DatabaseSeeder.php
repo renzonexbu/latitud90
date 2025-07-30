@@ -22,8 +22,10 @@ class DatabaseSeeder extends Seeder
 
         // Ejecutar seeders específicos con datos de demostración
         $this->call([
-            AdminDemoSeeder::class,
-            EnhancedDemoSeeder::class,
+            CountrySeeder::class,
+            DocumentSeeder::class,
+            PaymentMethodSeeder::class,
+            PaymentModeSeeder::class,
         ]);
     }
 }
