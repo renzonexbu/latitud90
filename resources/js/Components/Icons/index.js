@@ -12,6 +12,8 @@ export { default as MenuIcon } from "./MenuIcon.vue";
 export { default as ChevronDownIcon } from "./ChevronDownIcon.vue";
 export { default as CalendarIcon } from "./CalendarIcon.vue";
 export { default as ExclamationIcon } from "./ExclamationIcon.vue";
+export { default as AyudaIcon } from "./AyudaIcon.vue";
+export { default as UserIcon } from "./UserIcon.vue";
 
 // Componente wrapper genérico
 export { default as SvgIcon } from "./SvgIcon.vue";
