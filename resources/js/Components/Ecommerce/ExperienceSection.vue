@@ -14,7 +14,7 @@
               <div class="flip-card-front">
                 <div class="overflow-hidden rounded-lg">
                   <img
-                    src="../../images/experiences/patagonia.png"
+                    src="../../../images/experiences/patagonia.png"
                     alt="Patagonia"
                     class="w-full h-auto object-cover" />
                 </div>
@@ -54,7 +54,7 @@
               <div class="flip-card-front">
                 <div class="overflow-hidden rounded-lg">
                   <img
-                    src="../../images/experiences/waterfall.png"
+                    src="../../../images/experiences/waterfall.png"
                     alt="Cascada"
                     class="w-full h-auto object-cover" />
                 </div>
@@ -94,7 +94,7 @@
               <div class="flip-card-front">
                 <div class="overflow-hidden rounded-lg">
                   <img
-                    src="../../images/experiences/mountain.png"
+                    src="../../../images/experiences/mountain.png"
                     alt="Montaña"
                     class="w-full h-auto object-cover" />
                 </div>

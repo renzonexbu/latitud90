@@ -20,10 +20,10 @@
 </template>
 
 <script setup>
-  import Header from "@/Components/Header.vue";
+  import Header from "@/Components/Ecommerce/Header.vue";
   import Stepper from "@/Components/Stepper.vue";
   import { defineProps } from "vue";
-  import Footer from "@/Components/Footer.vue";
+  import Footer from "@/Components/Ecommerce/Footer.vue";
 
   const props = defineProps({
     step: {

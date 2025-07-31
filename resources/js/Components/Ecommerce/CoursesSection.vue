@@ -176,11 +176,11 @@
 
 <script>
 // Importar las imágenes como assets con Vite
-import banner1 from "../../images/banners/banner_1.webp";
-import banner2 from "../../images/banners/banner_2.webp";
-import banner3 from "../../images/banners/banner_3.webp";
-import banner4 from "../../images/banners/banner_4.webp";
-import banner5 from "../../images/banners/banner_5.webp";
+import banner1 from "../../../images/banners/banner_1.webp";
+import banner2 from "../../../images/banners/banner_2.webp";
+import banner3 from "../../../images/banners/banner_3.webp";
+import banner4 from "../../../images/banners/banner_4.webp";
+import banner5 from "../../../images/banners/banner_5.webp";
 
 export default {
     name: "CoursesSection",

@@ -300,8 +300,8 @@
 <script>
   import { Head } from "@inertiajs/vue3";
   import { ref } from "vue";
-  import Header from "@/Components/Header.vue";
-  import Footer from "@/Components/Footer.vue";
+  import Header from "@/Components/Ecommerce/Header.vue";
+  import Footer from "@/Components/Ecommerce/Footer.vue";
 
   export default {
     components: {
