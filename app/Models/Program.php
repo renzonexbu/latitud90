@@ -12,7 +12,7 @@ class Program extends Model
     protected $fillable = [
         'name',
         'description',
-        'service_type',
+        'service_type_id',
         'destination',
         'departure_date',
         'return_date',
@@ -34,31 +34,47 @@ class Program extends Model
         'active' => 'boolean'
     ];
 
+    public function serviceType()
+    {
+        return $this->belongsTo(ServiceType::class);
+    }
+
     public function commercialExecutive()
     {
         return $this->belongsTo(User::class, 'commercial_executive_id');
     }
 
-    public function passengers()
+    public function participants()
     {
-        return $this->hasMany(Passenger::class);
+        return $this->hasMany(Participant::class);
     }
 
-    // Nueva relación many-to-many con passengers
-    public function enrolledPassengers()
+    public function features()
     {
-        return $this->belongsToMany(Passenger::class)
-                    ->withPivot('individual_price', 'price_adjustments', 'adjustment_reason', 'status', 'registration_date')
+        return $this->belongsToMany(Feature::class, 'programs_features')
+                    ->withPivot('type')
                     ->withTimestamps();
     }
 
-    public function getActivePassengersAttribute()
+    public function requirements()
     {
-        return $this->passengers()->where('status', 'active')->count();
+        return $this->belongsToMany(Requirement::class, 'programs_requirements')
+                    ->withPivot('type')
+                    ->withTimestamps();
+    }
+
+    public function orders()
+    {
+        return $this->hasManyThrough(Order::class, Participant::class);
+    }
+
+    public function getActiveParticipantsAttribute()
+    {
+        return $this->participants()->where('status', 'confirmed')->count();
     }
 
     public function getTotalRevenueAttribute()
     {
-        return $this->passengers()->sum('individual_price');
+        return $this->participants()->sum('individual_price');
     }
 }

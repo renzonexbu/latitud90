@@ -10,40 +10,52 @@ class Payment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'passenger_id',
-        'program_id',
-        'amount',
-        'payment_method',
-        'payment_type',
-        'installment_number',
-        'total_installments',
-        'transaction_id',
-        'authorization_number',
+        'order_id',
+        'buy_order',
+        'session_id',
+        'token',
+        'authorization_code',
+        'response_code',
+        'vci',
+        'transaction_date',
+        'accounting_date',
+        'card_number',
+        'card_type',
+        'installments_number',
         'status',
         'gateway_response',
-        'invoice_number',
-        'payer_name',
-        'payer_email'
+        'commerce_code',
+        'amount',
+        'balance',
+        'error_message'
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'gateway_response' => 'json'
+        'balance' => 'decimal:2',
+        'gateway_response' => 'json',
+        'transaction_date' => 'datetime',
+        'accounting_date' => 'datetime'
     ];
 
-    public function passenger()
+    public function order()
     {
-        return $this->belongsTo(Passenger::class);
+        return $this->belongsTo(Order::class);
     }
 
-    public function program()
+    public function getIsCompletedAttribute()
     {
-        return $this->belongsTo(Program::class);
+        return $this->status === 'completed';
     }
 
-    public function getIsApprovedAttribute()
+    public function getIsAuthorizedAttribute()
     {
-        return $this->status === 'approved';
+        return $this->status === 'authorized';
+    }
+
+    public function getIsFailedAttribute()
+    {
+        return $this->status === 'failed';
     }
 
     public function getFormattedAmountAttribute()
