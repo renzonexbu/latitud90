@@ -1,69 +1,59 @@
 <template>
   <div class="min-h-screen bg-gray-50 w-full p-3">
+    <!-- Modal de Bienvenida -->
+    <Modal :show="showWelcomeModal" maxWidth="7xl" @close="showWelcomeModal = false">
+      <WelcomePaymentModal @close="showWelcomeModal = false" />
+    </Modal>
+    
     <!-- Header -->
     <Header class="bg-transparent text-blanco shadow-none"> </Header>
     <!-- Hero Section -->
-    <!-- <div class="relative py-24">
-      <div
-        class="rounded-lg absolute inset-0 bg-[url('/resources/images/dashboard.png')] bg-cover bg-center">
-        <div class="opacity-75"></div>
-      </div>
-      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
-        <h1
-          class="text-white text-3xl md:text-5xl lg:text-6xl font-extrabold leading-tight font-nexa">
-          Bienvenido<span
-            class="text-2xl md:text-4xl lg:text-5xl text-amber-400 font-quincy font-medium">
-            al portal</span
-          ><br />
-          <span
-            class="text-2xl md:text-4xl lg:text-5xl text-amber-400 font-quincy font-medium"
-            >de pago</span
-          >
-          Latitud 90.
-        </h1>
-
-        <div class="max-w-lg py-3">
-          <div
-            class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="¿A dónde te gustaría ir?"
-              class="flex-1 px-4 py-3 rounded-full border-0 focus:ring-2 focus:ring-indigo-500"
-              @keypress.enter="performSearch" />
-            <button
-              @click="performSearch"
-              class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-turquesa hover:bg-turquesa text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200">
-              Buscar
-            </button>
-          </div>
-        </div>
-
-        <p class="text-xl text-indigo-100 mb-8 max-w-3xl mx-auto">
-          Ingrese el número Rut del alumno
-        </p>
-      </div>
-    </div> -->
-    <!-- Hero Section -->
     <HeroSection id=""></HeroSection>
 
+    <!-- Logo Carousel -->
+    <div class="section-spacing">
+      <LogoCarousel></LogoCarousel>
+    </div>
+
+    <!-- Transform Section -->
+    <div class="section-spacing">
+      <TransformSection></TransformSection>
+    </div>
+
+    <!-- About Section -->
+    <div class="section-spacing">
+      <AboutSection></AboutSection>
+    </div>
+
     <!-- Experiences Section -->
-    <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
+    <div class="section-spacing">
+      <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
+    </div>
 
     <!-- Schools Section -->
-    <SchoolsSection></SchoolsSection>
+    <div class="section-spacing">
+      <SchoolsSection></SchoolsSection>
+    </div>
 
     <!-- Courses Section -->
-    <CoursesSection></CoursesSection>
+    <div class="section-spacing">
+      <CoursesSection></CoursesSection>
+    </div>
 
     <!-- Testimonials Section -->
-    <TestimonialsSection></TestimonialsSection>
+    <div class="section-spacing">
+      <TestimonialsSection></TestimonialsSection>
+    </div>
 
     <!-- FAQ Section -->
-    <FaqSection></FaqSection>
+    <div class="section-spacing">
+      <FaqSection></FaqSection>
+    </div>
 
     <!-- Contact Section -->
-    <Contact></Contact>
+    <div class="section-spacing">
+      <Contact></Contact>
+    </div>
 
     <!-- Footer -->
     <Footer class="rounded-lg"></Footer>
@@ -85,6 +75,10 @@
   import CoursesSection from "@/Components/CoursesSection.vue";
   import TestimonialsSection from "@/Components/TestimonialsSection.vue";
   import FaqSection from "@/Components/FaqSection.vue";
+  import Modal from "@/Components/Modal.vue";
+  import WelcomePaymentModal from "@/Components/WelcomePaymentModal.vue";
+  import LogoCarousel from "@/Components/LogoCarousel.vue";
+  import TransformSection from "@/Components/TransformSection.vue";
 
   export default {
     components: {
@@ -99,8 +93,12 @@
       CoursesSection,
       TestimonialsSection,
       FaqSection,
+      Modal,
+      WelcomePaymentModal,
       Link,
-      Head
+      Head,
+      LogoCarousel,
+      TransformSection
     },
     props: {
       programs: Object,
@@ -196,9 +194,12 @@
         return pages;
       };
 
+      const showWelcomeModal = ref(true);
+
       return {
         searchQuery,
         filters,
+        showWelcomeModal,
         formatServiceType,
         formatPrice,
         formatDate,
@@ -217,5 +218,9 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  
+  .section-spacing {
+    margin: 50px 30px;
   }
 </style>

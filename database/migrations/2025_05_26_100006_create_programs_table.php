@@ -11,11 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::create('service_types', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+        });
+
         Schema::create('programs', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->text('description');
-            $table->enum('service_type', ['tours', 'excursiones', 'intercambio', 'cruceros']);
+            $table->foreignId('service_type_id')->constrained('service_types');
             $table->string('destination');
             $table->date('departure_date');
             $table->date('return_date');

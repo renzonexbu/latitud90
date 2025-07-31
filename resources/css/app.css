@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Figma Variables */
+@import './variables.css';
+
 @font-face {
   font-family: "Nexa";
   src: url("/resources/css/fonts/Nexa/NexaBlack.otf") format("opentype");

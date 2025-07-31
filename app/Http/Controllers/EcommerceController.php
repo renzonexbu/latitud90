@@ -31,57 +31,19 @@ class EcommerceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Program::with(['passengers' => function($query) {
-            $query->where('status', '!=', 'cancelled');
-        }])->where('active', true);
-
-        // Filtros
-        if ($request->service_type) {
-            $query->where('service_type', $request->service_type);
-        }
-
-        if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%')
-                  ->orWhere('destination', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        if ($request->price_min) {
-            $query->where('base_price', '>=', $request->price_min);
-        }
-
-        if ($request->price_max) {
-            $query->where('base_price', '<=', $request->price_max);
-        }
-
-        if ($request->departure_date_from) {
-            $query->where('departure_date', '>=', $request->departure_date_from);
-        }
-
-        if ($request->departure_date_to) {
-            $query->where('departure_date', '<=', $request->departure_date_to);
-        }
-
-        $programs = $query->orderBy('departure_date', 'asc')
-                          ->paginate(12)
-                          ->withQueryString();
-
-        // Agregar disponibilidad a cada programa
-        $programs->getCollection()->transform(function ($program) {
-            $program->available_spots = $program->capacity - $program->passengers->count();
-            $program->is_available = $program->available_spots > 0;
-            return $program;
-        });
-
-        $serviceTypes = Program::distinct()->pluck('service_type')->filter();
+        // Temporalmente deshabilitado para desarrollo frontend
+        // TODO: Restaurar cuando la base de datos esté lista
 
         return Inertia::render('Ecommerce/Index', [
-            'programs' => $programs,
-            'filters' => $request->only(['service_type', 'search', 'price_min', 'price_max', 'departure_date_from', 'departure_date_to']),
-            'serviceTypes' => $serviceTypes
+            'programs' => [],
+            'filters' => [],
+            'serviceTypes' => []
         ]);
+    }
+
+    public function termsAndConditions()
+    {
+        return Inertia::render('Ecommerce/TermsAndConditions');
     }
 
     /**
