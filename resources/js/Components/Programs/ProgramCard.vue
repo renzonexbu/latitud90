@@ -1,5 +1,5 @@
 <template>
-    <div class="relative w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg">
+    <div class="relative w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105" @click="$emit('click', program)">
         <!-- Background Image -->
         <img 
             src="/images/programs/card-viaje-pruebas.png" 
@@ -100,6 +100,7 @@ export default {
             required: true
         }
     },
+    emits: ['click'],
     methods: {
         formatPrice(price) {
             return new Intl.NumberFormat("es-CL", {

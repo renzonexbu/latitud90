@@ -5,7 +5,8 @@
             <ProgramCard 
                 v-for="program in paginatedPrograms" 
                 :key="program.id" 
-                :program="program" 
+                :program="program"
+                @click="handleProgramClick(program)"
             />
         </div>
         
@@ -20,6 +21,7 @@
 </template>
 
 <script>
+import { router } from '@inertiajs/vue3';
 import ProgramCard from './ProgramCard.vue';
 import ProgramsPagination from './ProgramsPagination.vue';
 
@@ -179,6 +181,15 @@ export default {
     methods: {
         handlePageChange(page) {
             this.currentPage = page;
+        },
+        handleProgramClick(program) {
+            // Solo programas 1 y 2 van al edit de los programas reales del seeder
+            if (program.id === 1 || program.id === 2) {
+                router.visit(route('admin.programs.edit', program.id));
+            } else {
+                // Los otros programas solo muestran un mensaje por ahora
+                alert(`Programa "${program.name}" - Esta funcionalidad estará disponible próximamente`);
+            }
         }
     }
 };

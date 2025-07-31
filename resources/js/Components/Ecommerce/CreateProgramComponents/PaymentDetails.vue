@@ -6,6 +6,57 @@
                     Detalle administrativo
                 </div>
 
+                <!-- Estado de Pago (solo en modo edit) -->
+                <div v-if="mode === 'edit'" class="payment-status-section">
+                    <div class="payment-status-card">
+                        <div class="payment-status-content">
+                            <div class="payment-status-row">
+                                <!-- Percentage -->
+                                <div class="payment-percentage">
+                                    {{ paymentStatus.paymentPercentage }}%
+                                </div>
+                                
+                                <!-- Remaining Amount and Total -->
+                                <div class="payment-amounts">
+                                    <span class="remaining-text">Resto pagar</span>
+                                    <div class="amounts-row">
+                                        <div class="remaining-amount">
+                                            {{ formatPrice(paymentStatus.remainingAmount) }}
+                                        </div>
+                                        <div class="total-amount">
+                                            /{{ formatPrice(paymentStatus.totalAmount) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="payment-progress-bar">
+                                <div 
+                                    class="payment-progress-fill"
+                                    :style="{ width: `${paymentStatus.paymentPercentage}%` }"
+                                >
+                                    <div class="progress-stripes">
+                                        <svg width="100%" height="100%" viewBox="0 0 100 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <defs>
+                                                <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                                                    <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                                                </pattern>
+                                            </defs>
+                                            <rect width="100%" height="100%" fill="url(#diagonalHatch)"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ver Estados de Pagos Button -->
+                            <button type="button" class="payment-states-button" @click="viewPaymentStates">
+                                Ver estados de pagos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Acordeón 1: Precio del viaje -->
                 <div class="accordion-section">
                     <div
@@ -474,6 +525,20 @@ const props = defineProps({
             max_installments: "",
         }),
     },
+    mode: {
+        type: String,
+        default: 'create',
+        validator: (value) => ['create', 'edit'].includes(value)
+    },
+    paymentStatus: {
+        type: Object,
+        default: () => ({
+            paymentPercentage: 0,
+            paidAmount: 0,
+            totalAmount: 0,
+            remainingAmount: 0
+        })
+    }
 });
 
 // Emits
@@ -531,7 +596,22 @@ const handlePaymentOptionClick = (option) => {
     }
 };
 
-// Las cuotas ahora se manejan mediante select, no necesitan funciones adicionales
+// Función para formatear precios
+const formatPrice = (price) => {
+    return new Intl.NumberFormat("es-CL", {
+        style: "currency",
+        currency: "CLP",
+    })
+        .format(price)
+        .replace("CLP", "")
+        .trim();
+};
+
+// Función para ver estados de pagos
+const viewPaymentStates = () => {
+    // TODO: Implementar vista de estados de pagos
+    alert('Función "Ver estados de pagos" - Por implementar');
+};
 </script>
 
 <style scoped>
@@ -942,5 +1022,126 @@ const handlePaymentOptionClick = (option) => {
 
 .installments-select {
     margin-top: 15px;
+}
+
+/* Payment Status Styles */
+.payment-status-section {
+    margin-bottom: 20px;
+    width: 100%;
+}
+
+.payment-status-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.payment-status-content {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+}
+
+.payment-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.payment-percentage {
+    color: #4B8D7F;
+    font-family: 'Nexa', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 22px;
+}
+
+.payment-amounts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.remaining-text {
+    color: #4B8D7F;
+    font-family: 'Nexa', sans-serif;
+    font-size: 10px;
+    font-weight: normal;
+    line-height: 12px;
+}
+
+.amounts-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.remaining-amount {
+    color: #4B8D7F;
+    font-family: 'Nexa', sans-serif;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 24px;
+}
+
+.total-amount {
+    color: #4B8D7F;
+    font-family: 'Nexa', sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 13px;
+}
+
+.payment-progress-bar {
+    border-radius: 100px;
+    border: 3px solid #E5E5E5;
+    background: white;
+    height: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.payment-progress-fill {
+    background: #4B8D7F;
+    border-radius: 100px;
+    height: 16px;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    overflow: hidden;
+}
+
+.progress-stripes {
+    display: flex;
+    align-items: center;
+    height: auto;
+    position: absolute;
+    left: -3px;
+    top: -2px;
+    overflow: visible;
+}
+
+.payment-states-button {
+    background: #F2A741;
+    border-radius: 25px;
+    border: none;
+    padding: 12px 20px;
+    color: white;
+    font-family: 'Nexa', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.payment-states-button:hover {
+    background: #E09630;
+    transform: translateY(-1px);
 }
 </style>

@@ -365,12 +365,31 @@
                                     <div class="itinerario">
                                         Itinerario
                                     </div>
+                                    
+                                    <!-- Archivo existente (solo en modo edit) -->
+                                    <div v-if="mode === 'edit' && existingFiles.itinerary_file" class="existing-file">
+                                        <a 
+                                            :href="`/storage/${existingFiles.itinerary_file}`" 
+                                            target="_blank" 
+                                            class="existing-file-link"
+                                        >
+                                            📄 Ver archivo actual
+                                        </a>
+                                        <button 
+                                            type="button"
+                                            @click="removeExistingFile('itinerary')"
+                                            class="remove-existing-file"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                    
                                     <label
                                         class="primary-button"
                                         for="itinerary-file"
                                     >
                                         <div class="button-text">
-                                            Adjunte aqui el PDF
+                                            {{ mode === 'edit' && existingFiles.itinerary_file ? 'Cambiar PDF' : 'Adjunte aqui el PDF' }}
                                         </div>
                                         <svg
                                             class="paperclip-icon"
@@ -500,10 +519,27 @@ const props = defineProps({
             equipment_file: null,
         }),
     },
+    mode: {
+        type: String,
+        default: 'create',
+        validator: (value) => ['create', 'edit'].includes(value)
+    },
+    existingImages: {
+        type: Array,
+        default: () => []
+    },
+    existingFiles: {
+        type: Object,
+        default: () => ({
+            itinerary_file: null,
+            coverage_file: null,
+            equipment_file: null
+        })
+    }
 });
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'update:images']);
+const emit = defineEmits(['update:modelValue', 'update:images', 'remove:existingImage', 'remove:existingFile']);
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
@@ -515,6 +551,18 @@ const itineraryOpen = ref(false);
 
 // Estado para las imágenes
 const selectedImages = ref([]);
+
+// Cargar imágenes existentes en modo edit
+if (props.mode === 'edit' && props.existingImages.length > 0) {
+    selectedImages.value = props.existingImages.map((image, index) => ({
+        id: `existing-${index}`,
+        file: null, // No hay archivo para imágenes existentes
+        preview: image.url ? `/storage/${image.url}` : image,
+        name: image.name || `Imagen ${index + 1}`,
+        isExisting: true,
+        originalId: image.id || null
+    }));
+}
 
 // Watch para sincronizar con el padre
 watch(
@@ -581,7 +629,23 @@ const handleImageUpload = (event) => {
 
 // Función para remover una imagen
 const removeImage = (index) => {
+    const imageToRemove = selectedImages.value[index];
+    
+    if (imageToRemove.isExisting) {
+        console.log(`Marcando imagen existente para eliminar: ${imageToRemove.originalId}`);
+        // En modo edit, emitir evento para marcar imagen como eliminada
+        emit('remove:existingImage', imageToRemove.originalId);
+    }
+    
     selectedImages.value.splice(index, 1);
+    emitImages();
+    console.log(`Imagen ${index + 1} eliminada`);
+};
+
+// Función para eliminar archivo existente
+const removeExistingFile = (fileType) => {
+    console.log(`Marcando archivo existente para eliminar: ${fileType}`);
+    emit('remove:existingFile', fileType);
 };
 
 // Función para formatear el tamaño del archivo
@@ -1366,5 +1430,46 @@ const formatFileSize = (bytes) => {
     line-height: var(--cuerpo-de-texto-s-line-height, 13px);
     font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
     position: relative;
+}
+
+/* Estilos para archivos existentes en modo edit */
+.existing-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background-color: #f0f9ff;
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+}
+
+.existing-file-link {
+    color: #0284c7;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.existing-file-link:hover {
+    color: #0369a1;
+    text-decoration: underline;
+}
+
+.remove-existing-file {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.remove-existing-file:hover {
+    background-color: #fee2e2;
 }
 </style>
