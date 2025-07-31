@@ -164,7 +164,7 @@ import {
     UserIcon,
 } from "@/Components/Icons";
 
-import images from "../../../images/index.js";
+import images from "../../images/index.js";
 
 export default {
     name: "AdminLayout",
