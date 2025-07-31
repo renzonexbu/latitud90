@@ -46,9 +46,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 0" class="paragraph">
-                Puedes solicitar el descuento contactando a nuestro servicio de
-                atención al cliente con la documentación necesaria que acredite el
-                parentesco.
+                A través de su ejecutivo comercial.
               </div>
             </transition>
           </div>
@@ -89,8 +87,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 1" class="paragraph">
-                En caso de elegir esta opción de pago debes escribir a
-                pagos@latitud90.com
+                En caso de elegir esta opción de pago debes escribir a pagos@latitud90.com.
               </div>
             </transition>
           </div>
@@ -128,8 +125,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 2" class="paragraph">
-                Recibirás un correo electrónico de confirmación una vez que tu
-                pago haya sido procesado correctamente.
+                La confirmación es automática, a través de la recepción de la boleta a la dirección electrónica informada al momento del pago.
               </div>
             </transition>
           </div>
@@ -169,9 +165,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 3" class="paragraph">
-                Sí, cualquier persona puede realizar el pago en nombre del
-                estudiante, solo necesitarás proporcionar la información del
-                alumno en el proceso de pago.
+                Si puede hacerlo, siempre que conozca los datos del participante al cual pagara o abonara.
               </div>
             </transition>
           </div>
@@ -211,10 +205,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 4" class="paragraph">
-                El plazo de pago depende de las condiciones específicas de cada
-                viaje. Te recomendamos revisar la información proporcionada por tu
-                colegio o contactar directamente con nuestro equipo de atención al
-                cliente.
+                La fecha límite para comenzar el pago está indicada en el documento “FORMAS DE PAGO”.
               </div>
             </transition>
           </div>
@@ -255,9 +246,7 @@
             </div>
             <transition name="accordion">
               <div v-if="openFaq === 5" class="paragraph">
-                Si experimentas problemas con tu pago, por favor comunícate
-                inmediatamente con nuestro equipo de soporte a través de
-                pagos@latitud90.com para que podamos ayudarte a resolverlo.
+                Verifique si el límite diario de su banco le permite pagar el monto que intenta abonar. Tenga presente que por tema de seguridad bancaria, el monto de la primera transferencia o pago estará limitada.
               </div>
             </transition>
           </div>
