@@ -203,26 +203,14 @@
                         <div
                             class="_1-integridad-lo-que-somos-2-trascendencia-el-legado-3-excelencia-el-d-a-a-d-a"
                         >
-                            <span>
-                                <span
-                                    class="_1-integridad-lo-que-somos-2-trascendencia-el-legado-3-excelencia-el-d-a-a-d-a-span"
-                                >
-                                    1 ) I
-                                </span>
-                                <span
-                                    class="_1-integridad-lo-que-somos-2-trascendencia-el-legado-3-excelencia-el-d-a-a-d-a-span2"
-                                >
-                                    ntegridad - lo que somos
-                                    <br />
-                                    2) Trascendencia - el legado
-                                    <br />
-                                    3)Excelencia - el día a día
-                                </span>
-                                <span
-                                    class="_1-integridad-lo-que-somos-2-trascendencia-el-legado-3-excelencia-el-d-a-a-d-a-span"
-                                >
-                                    ,
-                                </span>
+                            <span
+                                class="_1-integridad-lo-que-somos-2-trascendencia-el-legado-3-excelencia-el-d-a-a-d-a-span2"
+                            >
+                                1) Integridad - lo que somos
+                                <br />
+                                2) Trascendencia - el legado
+                                <br />
+                                3) Excelencia - el día a día
                             </span>
                         </div>
                     </div>

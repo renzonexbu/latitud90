@@ -28,15 +28,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 0"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Al acceder y utilizar los servicios de Latitud 90, usted acepta estar sujeto a estos términos y condiciones. 
-                Si no está de acuerdo con alguna parte de estos términos, no debe utilizar nuestros servicios.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 0"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Al acceder y utilizar los servicios de Latitud 90, usted acepta estar sujeto a estos términos y condiciones. 
+                  Si no está de acuerdo con alguna parte de estos términos, no debe utilizar nuestros servicios.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 2 -->
@@ -57,15 +59,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 1"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Latitud 90 ofrece servicios de viajes educativos, tours, excursiones, intercambios estudiantiles y cruceros. 
-                Nos reservamos el derecho de modificar, suspender o discontinuar cualquier aspecto de nuestros servicios en cualquier momento.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 1"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Latitud 90 ofrece servicios de viajes educativos, tours, excursiones, intercambios estudiantiles y cruceros. 
+                  Nos reservamos el derecho de modificar, suspender o discontinuar cualquier aspecto de nuestros servicios en cualquier momento.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 3 -->
@@ -86,15 +90,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 2"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Las reservas están sujetas a disponibilidad. Los pagos deben realizarse según las condiciones especificadas 
-                para cada programa. Los precios están sujetos a cambios sin previo aviso hasta que se confirme la reserva.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 2"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Las reservas están sujetas a disponibilidad. Los pagos deben realizarse según las condiciones especificadas 
+                  para cada programa. Los precios están sujetos a cambios sin previo aviso hasta que se confirme la reserva.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 4 -->
@@ -115,15 +121,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 3"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Las políticas de cancelación varían según el programa. Consulte las condiciones específicas de cada viaje. 
-                Los reembolsos están sujetos a las políticas de nuestros proveedores y pueden incurrir en cargos administrativos.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 3"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Las políticas de cancelación varían según el programa. Consulte las condiciones específicas de cada viaje. 
+                  Los reembolsos están sujetos a las políticas de nuestros proveedores y pueden incurrir en cargos administrativos.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 5 -->
@@ -144,15 +152,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 4"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Los viajeros son responsables de obtener la documentación necesaria, incluyendo pasaportes, visas y vacunas requeridas. 
-                También deben cumplir con las leyes y regulaciones del país de destino.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 4"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Los viajeros son responsables de obtener la documentación necesaria, incluyendo pasaportes, visas y vacunas requeridas. 
+                  También deben cumplir con las leyes y regulaciones del país de destino.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 6 -->
@@ -173,15 +183,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 5"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Latitud 90 no será responsable por daños indirectos, incidentales o consecuentes que puedan surgir del uso 
-                de nuestros servicios, excepto donde la ley lo requiera.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 5"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Latitud 90 no será responsable por daños indirectos, incidentales o consecuentes que puedan surgir del uso 
+                  de nuestros servicios, excepto donde la ley lo requiera.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 7 -->
@@ -202,15 +214,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 6"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Su privacidad es importante para nosotros. Consulte nuestra Política de Privacidad para obtener información 
-                sobre cómo recopilamos, usamos y protegemos su información personal.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 6"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Su privacidad es importante para nosotros. Consulte nuestra Política de Privacidad para obtener información 
+                  sobre cómo recopilamos, usamos y protegemos su información personal.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 8 -->
@@ -231,15 +245,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 7"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Nos reservamos el derecho de modificar estos términos y condiciones en cualquier momento. 
-                Los cambios entrarán en vigor inmediatamente después de su publicación en nuestro sitio web.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 7"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Nos reservamos el derecho de modificar estos términos y condiciones en cualquier momento. 
+                  Los cambios entrarán en vigor inmediatamente después de su publicación en nuestro sitio web.
+                </p>
+              </div>
+            </transition>
           </div>
 
           <!-- Término 9 -->
@@ -260,15 +276,17 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div 
-              v-show="openAccordion === 8"
-              class="px-6 pb-4 bg-white"
-            >
-              <p class="text-gray-700 leading-relaxed">
-                Si tiene alguna pregunta sobre estos términos y condiciones, puede contactarnos a través de 
-                nuestros canales de atención al cliente disponibles en nuestro sitio web.
-              </p>
-            </div>
+            <transition name="accordion" mode="out-in">
+              <div 
+                v-show="openAccordion === 8"
+                class="accordion-content"
+              >
+                <p class="text-gray-700 leading-relaxed">
+                  Si tiene alguna pregunta sobre estos términos y condiciones, puede contactarnos a través de 
+                  nuestros canales de atención al cliente disponibles en nuestro sitio web.
+                </p>
+              </div>
+            </transition>
           </div>
         </div>
       </div>
@@ -314,6 +332,35 @@
   
   .transition-colors {
     transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+  }
+
+  /* Estilos del contenido del acordeón */
+  .accordion-content {
+    padding: 0 1.5rem 1rem 1.5rem;
+    background-color: white;
+    overflow: hidden;
+  }
+
+  /* Transiciones del acordeón */
+  .accordion-enter-active,
+  .accordion-leave-active {
+    transition: all 0.3s ease-in-out;
+    max-height: 200px;
+    opacity: 1;
+  }
+
+  .accordion-enter-from,
+  .accordion-leave-to {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .accordion-enter-to,
+  .accordion-leave-from {
+    max-height: 200px;
+    opacity: 1;
   }
 
   /* Estilos del título */

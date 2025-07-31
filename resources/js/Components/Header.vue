@@ -235,7 +235,7 @@
 <script setup>
 import logoSrc from "@images/logo.svg";
 import logoColorSrc from "@images/logo-color.svg";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { usePage } from "@inertiajs/vue3";
 
 defineProps({
@@ -254,6 +254,21 @@ const isIndexPage = computed(() => {
 const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
+
+// Cerrar menú móvil cuando se cambie a desktop
+const handleResize = () => {
+    if (window.innerWidth > 768 && mobileMenuOpen.value) {
+        mobileMenuOpen.value = false;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', handleResize);
+});
 </script>
 
 <style scoped>
@@ -363,20 +378,33 @@ const toggleMobileMenu = () => {
 }
 
 /* Transiciones para el menú móvil */
-.mobile-menu-enter-active {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+.mobile-menu-enter-active,
+.mobile-menu-leave-active {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mobile-menu-enter-from {
     opacity: 0;
-    transform: translateY(-30px) scale(0.95);
+    transform: translateY(-20px) scale(0.95);
+}
+
+.mobile-menu-leave-to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+}
+
+.mobile-menu-enter-to,
+.mobile-menu-leave-from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }
 
 /* Estilos específicos para mobile */
 @media (max-width: 768px) {
     .header-off {
         justify-content: space-between;
-        margin: 13px 10px !important;
+        margin: 13px 20px !important;
+        padding: 13px 30px !important;
     }
 
     .capa-1 {
@@ -394,14 +422,18 @@ const toggleMobileMenu = () => {
 
     /* Estilos para el menú móvil completo */
     .mobile-menu-container {
-        position: relative;
-        z-index: 50;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        width: 100%;
     }
 
     .mobile-header {
         margin: 13px 20px !important;
         border-radius: 20px;
-        height: 80px;
+        height: 104px;
         display: flex;
         align-items: center;
         justify-content: space-between;

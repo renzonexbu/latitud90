@@ -189,7 +189,7 @@
                 <p class="mb-4 md:mb-0 text-center"
                    style="color: var(--Blanco, #FEFEFF); text-align: center; font-feature-settings: 'liga' off, 'clig' off; font-family: Nexa; font-size: 16px; font-style: normal; font-weight: 400; line-height: 22px;"
                 >
-                    Copyright © 2025 Latiud90| Términos y condiciones
+                    Copyright © 2025 Latiud90| <a href="/terminos-y-condiciones" class="underline">Términos y condiciones</a>
                 </p>
                 <div class="flex space-x-4">
                     <a
@@ -459,7 +459,7 @@
                     >
                         Copyright © 2025 Latiud90
                         <br />
-                        Términos y condiciones
+                        <a href="/terminos-y-condiciones" class="underline">Términos y condiciones</a>
                     </div>
                 </div>
             </div>

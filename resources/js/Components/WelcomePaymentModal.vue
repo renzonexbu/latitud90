@@ -440,8 +440,8 @@
 
   .mynaui-letter-x-circle {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 15px;
+    right: 15px;
     width: auto;
     z-index: 10;
   }
@@ -467,11 +467,21 @@
   .mobile-steps::before {
     bottom: 75px;
   }
+  
+  .pop-up {
+    width: 85vw;
+    max-width: 400px;
+  }
 }
 
 @media (min-width: 600px) and (max-width: 768px) {
   .mobile-steps::before {
     bottom: 85px;
+  }
+  
+  .pop-up {
+    width: 80vw;
+    max-width: 450px;
   }
 }
 </style> 
