@@ -10,6 +10,6 @@
 |
 */
 include __DIR__.'/ecommerce.php';
-include __DIR__.'/admin.php';
+include __DIR__.'/admin/init.php';
 
 require __DIR__.'/auth.php';

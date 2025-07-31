@@ -46,6 +46,7 @@
                         stroke-color="currentColor"
                     />
                 </NavLink>
+                <!-- NavLink temporalmente comentado - ruta passengers no disponible
                 <NavLink
                     :href="route('admin.passengers.index')"
                     :active="route().current('admin.passengers.*')"
@@ -61,6 +62,7 @@
                         stroke-color="currentColor"
                     />
                 </NavLink>
+                -->
                 <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"

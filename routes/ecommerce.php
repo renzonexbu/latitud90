@@ -11,9 +11,9 @@ Route::get('/terminos-y-condiciones', [EcommerceController::class, 'termsAndCond
 Route::get('/programa/{program}', [EcommerceController::class, 'show'])->name('ecommerce.show');
 Route::get('/reserva/{program}', [EcommerceController::class, 'reservation'])->name('ecommerce.reservation');
 Route::post('/reserva/{program}', [EcommerceController::class, 'storeReservation'])->name('ecommerce.store-reservation');
-Route::get('/pago/{passenger}', [EcommerceController::class, 'payment'])->name('ecommerce.payment');
-Route::post('/procesar-pago/{payment}', [EcommerceController::class, 'processPayment'])->name('ecommerce.process-payment');
-Route::get('/confirmacion/{passenger}', [EcommerceController::class, 'confirmation'])->name('ecommerce.confirmation');
+// Route::get('/pago/{passenger}', [EcommerceController::class, 'payment'])->name('ecommerce.payment');
+// Route::post('/procesar-pago/{payment}', [EcommerceController::class, 'processPayment'])->name('ecommerce.process-payment');
+// Route::get('/confirmacion/{passenger}', [EcommerceController::class, 'confirmation'])->name('ecommerce.confirmation');
 Route::get('/buscar-reserva', [EcommerceController::class, 'findReservation'])->name('ecommerce.find-reservation');
 Route::post('/buscar-reserva', [EcommerceController::class, 'searchReservation'])->name('ecommerce.search-reservation');
 Route::get('/buscar-viajes', [EcommerceController::class, 'searchByRut'])->name('ecommerce.search-by-rut');
@@ -21,7 +21,7 @@ Route::get('/buscar-viajes', [EcommerceController::class, 'searchByRut'])->name(
 // Rutas del nuevo flujo de pago por pasos
 Route::get('/payment/method', [EcommerceController::class, 'paymentMethod'])->name('payment.method');
 Route::post('/payment/setup', [EcommerceController::class, 'setupPayment'])->name('payment.setup');
-Route::get('/payment/gateway/{passenger}', [EcommerceController::class, 'paymentGateway'])->name('payment.gateway');
+// Route::get('/payment/gateway/{passenger}', [EcommerceController::class, 'paymentGateway'])->name('payment.gateway');
 
 // Rutas de pasarelas de pago
 Route::get('/payment/return/{payment}', [PaymentGatewayController::class, 'return'])->name('payment.return');

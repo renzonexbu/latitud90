@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Passenger;
+use App\Models\Participant;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

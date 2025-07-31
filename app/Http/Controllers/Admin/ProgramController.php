@@ -13,42 +13,10 @@ class ProgramController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Program::query()
-            ->withCount(['passengers as total_passengers' => function ($query) {
-                $query->where('status', '!=', 'cancelled');
-            }]);
-
-        // Búsqueda por nombre o destino
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('destination', 'like', "%{$search}%");
-            });
-        }
-
-        // Filtro por tipo de servicio
-        if ($request->filled('service_type')) {
-            $query->where('service_type', $request->service_type);
-        }
-
-        // Filtro por estado
-        if ($request->filled('status')) {
-            $query->where('active', (bool) $request->status);
-        }
-
-        $programs = $query->orderBy('departure_date', 'desc')
-            ->paginate(10)
-            ->appends($request->query());
-
-        // Calcular los lugares disponibles correctamente
-        $programs->getCollection()->transform(function ($program) {
-            $program->available_spots = $program->capacity - $program->total_passengers;
-            return $program;
-        });
-
+        // Por ahora retornamos datos vacíos
+        // Aquí se implementará la lógica de consulta cuando esté listo
         return Inertia::render('Admin/Programs/Index', [
-            'programs' => $programs,
+            'programs' => [],
             'filters' => $request->only(['search', 'service_type', 'status']),
         ]);
     }
@@ -60,32 +28,8 @@ class ProgramController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'service_type' => 'required|in:tours,excursiones,intercambio,cruceros',
-            'destination' => 'required|string|max:255',
-            'departure_date' => 'required|date',
-            'return_date' => 'required|date|after_or_equal:departure_date',
-            'duration_days' => 'required|integer|min:1',
-            'capacity' => 'required|integer|min:1',
-            'base_price' => 'required|numeric|min:0',
-            'includes' => 'nullable|string',
-            'excludes' => 'nullable|string',
-            'requirements' => 'nullable|string',
-            'itinerary' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'active' => 'boolean'
-        ]);
-
-        // Manejar subida de imagen
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('programs', 'public');
-            $validated['image_url'] = $imagePath;
-        }
-
-        $program = Program::create($validated);
-
+        // Por ahora solo redirigimos al index
+        // Aquí se implementará la lógica de guardado cuando esté listo
         return redirect()->route('admin.programs.index')
             ->with('success', 'Programa creado exitosamente.');
     }

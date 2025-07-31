@@ -1,409 +1,1621 @@
 <template>
-  <AdminLayout>
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div class="md:grid md:grid-cols-3 md:gap-6">
-        <div class="md:col-span-1">
-          <div class="px-4 sm:px-0">
-            <h3 class="text-lg font-medium leading-6 text-gray-900">
-              Crear Programa
-            </h3>
-            <p class="mt-1 text-sm text-gray-600">
-              Crea un nuevo programa de viaje, tour, excursión, intercambio o
-              crucero.
-            </p>
-          </div>
-        </div>
-        <div class="mt-5 md:mt-0 md:col-span-2">
-          <form
-            @submit.prevent="submit"
-            enctype="multipart/form-data">
-            <div class="shadow sm:rounded-md sm:overflow-hidden">
-              <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
-                <!-- Información básica -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6">
-                    <label
-                      for="name"
-                      class="block text-sm font-medium text-gray-700"
-                      >Nombre del Programa</label
-                    >
-                    <input
-                      type="text"
-                      id="name"
-                      v-model="form.name"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.name }" />
-                    <div
-                      v-if="form.errors.name"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.name }}
-                    </div>
-                  </div>
+    <AdminLayout>
+        <Head title="Crear Programa" />
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="service_type"
-                      class="block text-sm font-medium text-gray-700"
-                      >Tipo de Servicio</label
-                    >
-                    <select
-                      id="service_type"
-                      v-model="form.service_type"
-                      class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      :class="{ 'border-red-500': form.errors.service_type }">
-                      <option value="">Seleccionar tipo</option>
-                      <option value="tours">Tours</option>
-                      <option value="excursiones">Excursiones</option>
-                      <option value="intercambio">Intercambio</option>
-                      <option value="cruceros">Cruceros</option>
-                    </select>
-                    <div
-                      v-if="form.errors.service_type"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.service_type }}
-                    </div>
-                  </div>
+        <div class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="creacion-de-viaje">
+                    <div class="program-form-container">
+                        <div class="program-form-header">
+                            <div class="descripci-n-del-programa">
+                                Descripción del Programa
+                            </div>
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="destination"
-                      class="block text-sm font-medium text-gray-700"
-                      >Destino</label
-                    >
-                    <input
-                      type="text"
-                      id="destination"
-                      v-model="form.destination"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.destination }" />
-                    <div
-                      v-if="form.errors.destination"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.destination }}
-                    </div>
-                  </div>
+                            <!-- Acordeón 1: Detalle del programa -->
+                            <div class="accordion-section">
+                                <div
+                                    class="accordion-header"
+                                    @click="detailsOpen = !detailsOpen"
+                                >
+                                    <div class="accordion-title">
+                                        Detalle del programa
+                                    </div>
+                                    <svg
+                                        class="accordion-arrow"
+                                        :class="{ rotated: detailsOpen }"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="26"
+                                        height="14"
+                                        viewBox="0 0 26 14"
+                                        fill="none"
+                                    >
+                                        <g clip-path="url(#clip0_833_13975)">
+                                            <path
+                                                d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
+                                                fill="#007E93"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_833_13975">
+                                                <rect
+                                                    width="12.6173"
+                                                    height="25.2128"
+                                                    fill="white"
+                                                    transform="translate(26 0.691406) rotate(90)"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <transition name="accordion-slide">
+                                    <div
+                                        v-if="detailsOpen"
+                                        class="accordion-content"
+                                    >
+                                        <div class="name-field-row">
+                                            <div class="field-container">
+                                                <div class="field-wrapper">
+                                                    <div
+                                                        class="nombre-del-programa"
+                                                    >
+                                                        Nombre del programa
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="form.name"
+                                                        placeholder="Nombre"
+                                                        class="input-text"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="destination-date-row">
+                                            <div class="field-container">
+                                                <div class="field-wrapper">
+                                                    <div class="destino">
+                                                        Destino *
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="
+                                                            form.destination
+                                                        "
+                                                        placeholder="000000000"
+                                                        class="input-text"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="field-container">
+                                                <div class="field-wrapper">
+                                                    <div
+                                                        class="fecha-de-salida"
+                                                    >
+                                                        Fecha de salida
+                                                    </div>
+                                                    <input
+                                                        type="date"
+                                                        v-model="
+                                                            form.departure_date
+                                                        "
+                                                        placeholder="00/00/0000"
+                                                        class="input-text"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="description-field-row">
+                                            <div class="field-wrapper">
+                                                <div
+                                                    class="descripci-n-del-viaje"
+                                                >
+                                                    Descripción del viaje
+                                                </div>
+                                                <textarea
+                                                    v-model="form.description"
+                                                    placeholder="Escriba aqui las condiciones medicas que presenta el alumno, si no tiene no es obligatorio completar."
+                                                    class="input-text2"
+                                                ></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="images-section-row">
+                                            <div class="images-section-wrapper">
+                                                <div class="images-header">
+                                                    <div class="imagenes">
+                                                        Imagenes
+                                                    </div>
+                                                    <div
+                                                        class="maximo-2-mb-por-foto"
+                                                    >
+                                                        Maximo 2MB por foto
+                                                    </div>
+                                                </div>
 
-                  <div class="col-span-6">
-                    <label
-                      for="description"
-                      class="block text-sm font-medium text-gray-700"
-                      >Descripción</label
-                    >
-                    <textarea
-                      id="description"
-                      v-model="form.description"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.description
-                      }"></textarea>
-                    <div
-                      v-if="form.errors.description"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.description }}
+                                                <!-- Input de imágenes mejorado -->
+                                                <label
+                                                    class="image-upload-area"
+                                                    for="program-images"
+                                                >
+                                                    <div
+                                                        class="upload-placeholder"
+                                                    >
+                                                        <svg
+                                                            class="upload-icon"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            width="24"
+                                                            height="24"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                        >
+                                                            <path
+                                                                d="M12 15V3M12 3L8 7M12 3L16 7"
+                                                                stroke="#007E93"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                            />
+                                                            <path
+                                                                d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                                                                stroke="#007E93"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                            />
+                                                        </svg>
+                                                        <div
+                                                            class="upload-text"
+                                                        >
+                                                            <div
+                                                                class="upload-main-text"
+                                                            >
+                                                                Adjunta las
+                                                                imágenes que
+                                                                quieras mostrar
+                                                                en el programa
+                                                            </div>
+                                                            <div
+                                                                class="upload-sub-text"
+                                                            >
+                                                                PNG, JPG hasta
+                                                                2MB cada una
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    id="program-images"
+                                                    multiple
+                                                    accept="image/*"
+                                                    style="display: none"
+                                                    @change="handleImageUpload"
+                                                />
+
+                                                <!-- Preview de imágenes seleccionadas -->
+                                                <div
+                                                    v-if="
+                                                        selectedImages.length >
+                                                        0
+                                                    "
+                                                    class="images-preview"
+                                                >
+                                                    <div
+                                                        v-for="(
+                                                            image, index
+                                                        ) in selectedImages"
+                                                        :key="index"
+                                                        class="image-preview-item"
+                                                    >
+                                                        <img
+                                                            :src="image.url"
+                                                            :alt="image.name"
+                                                            class="preview-image"
+                                                        />
+                                                        <div class="image-info">
+                                                            <div
+                                                                class="image-name"
+                                                            >
+                                                                {{ image.name }}
+                                                            </div>
+                                                            <div
+                                                                class="image-size"
+                                                            >
+                                                                {{
+                                                                    formatFileSize(
+                                                                        image.size
+                                                                    )
+                                                                }}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            @click="
+                                                                removeImage(
+                                                                    index
+                                                                )
+                                                            "
+                                                            class="remove-image-btn"
+                                                        >
+                                                            <svg
+                                                                width="16"
+                                                                height="16"
+                                                                viewBox="0 0 16 16"
+                                                                fill="none"
+                                                            >
+                                                                <path
+                                                                    d="M12 4L4 12M4 4L12 12"
+                                                                    stroke="#666"
+                                                                    stroke-width="1.5"
+                                                                    stroke-linecap="round"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </transition>
+                            </div>
+
+                            <!-- Separador -->
+                            <img class="group-785" src="group-7850.svg" />
+
+                            <!-- Acordeón 2: Pilares -->
+                            <div class="accordion-section">
+                                <div
+                                    class="accordion-header"
+                                    @click="pillarsOpen = !pillarsOpen"
+                                >
+                                    <div class="accordion-title">Pilares</div>
+                                    <svg
+                                        class="accordion-arrow"
+                                        :class="{ rotated: pillarsOpen }"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="26"
+                                        height="14"
+                                        viewBox="0 0 26 14"
+                                        fill="none"
+                                    >
+                                        <g clip-path="url(#clip0_833_13975_2)">
+                                            <path
+                                                d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
+                                                fill="#007E93"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_833_13975_2">
+                                                <rect
+                                                    width="12.6173"
+                                                    height="25.2128"
+                                                    fill="white"
+                                                    transform="translate(26 0.691406) rotate(90)"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <transition name="accordion-slide">
+                                    <div
+                                        v-if="pillarsOpen"
+                                        class="accordion-content"
+                                    >
+                                        <div class="pillars-description">
+                                            En el desarrollo de nuestros
+                                            programas incorporamos de manera
+                                            transversal 4 pilares fundamentales:
+                                        </div>
+                                        <div class="pillars-grid">
+                                            <div class="pillars-left-column">
+                                                <div class="pillar-item">
+                                                    <div class="pillar-number">
+                                                        1
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="
+                                                            form.pilar_aventura
+                                                        "
+                                                        placeholder="Aventura"
+                                                        class="input-text4"
+                                                    />
+                                                </div>
+                                                <div class="pillar-item">
+                                                    <div class="pillar-number">
+                                                        2
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="
+                                                            form.pilar_entretenimiento
+                                                        "
+                                                        placeholder="Entretenimiento"
+                                                        class="input-text4"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div class="pillars-right-column">
+                                                <div class="pillar-item">
+                                                    <div class="pillar-number">
+                                                        3
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="
+                                                            form.pilar_educacion
+                                                        "
+                                                        placeholder="Educación"
+                                                        class="input-text4"
+                                                    />
+                                                </div>
+                                                <div class="pillar-item">
+                                                    <div class="pillar-number">
+                                                        4
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        v-model="
+                                                            form.pilar_seguridad
+                                                        "
+                                                        placeholder="Seguridad"
+                                                        class="input-text4"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </transition>
+                            </div>
+
+                            <!-- Separador -->
+                            <img class="group-786" src="group-7860.svg" />
+
+                            <!-- Acordeón 3: Que vamos a hacer -->
+                            <div class="accordion-section">
+                                <div
+                                    class="accordion-header"
+                                    @click="itineraryOpen = !itineraryOpen"
+                                >
+                                    <div class="accordion-title">
+                                        Que vamos a hacer
+                                    </div>
+                                    <svg
+                                        class="accordion-arrow"
+                                        :class="{ rotated: itineraryOpen }"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="26"
+                                        height="14"
+                                        viewBox="0 0 26 14"
+                                        fill="none"
+                                    >
+                                        <g clip-path="url(#clip0_833_13975_3)">
+                                            <path
+                                                d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
+                                                fill="#007E93"
+                                            />
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_833_13975_3">
+                                                <rect
+                                                    width="12.6173"
+                                                    height="25.2128"
+                                                    fill="white"
+                                                    transform="translate(26 0.691406) rotate(90)"
+                                                />
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <transition name="accordion-slide">
+                                    <div
+                                        v-if="itineraryOpen"
+                                        class="accordion-content"
+                                    >
+                                        <div
+                                            class="itinerary-description-field"
+                                        >
+                                            <div class="field-wrapper">
+                                                <div
+                                                    class="escribe-una-breve-descripci-n-del-itinerario"
+                                                >
+                                                    Escribe una breve
+                                                    descripción del itinerario.
+                                                </div>
+                                                <textarea
+                                                    v-model="form.itinerary"
+                                                    placeholder="Escriba aqui la descripción del itinerario."
+                                                    class="input-text5"
+                                                ></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="pdf-upload-grid">
+                                            <div class="pdf-upload-item">
+                                                <div class="itinerario">
+                                                    Itinerario
+                                                </div>
+                                                <label
+                                                    class="primary-button"
+                                                    for="itinerary-file"
+                                                >
+                                                    <div class="button-text">
+                                                        Adjunte aqui el PDF
+                                                    </div>
+                                                    <svg
+                                                        class="paperclip-icon"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="21"
+                                                        height="20"
+                                                        viewBox="0 0 21 20"
+                                                        fill="none"
+                                                    >
+                                                        <path
+                                                            d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
+                                                            stroke="#C7C7C7"
+                                                            stroke-width="1.25"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                        />
+                                                    </svg>
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    id="itinerary-file"
+                                                    accept=".pdf"
+                                                    style="display: none"
+                                                    @change="
+                                                        handleFileUpload(
+                                                            'itinerary',
+                                                            $event
+                                                        )
+                                                    "
+                                                />
+                                            </div>
+                                            <div class="pdf-upload-item">
+                                                <div
+                                                    class="cobertura-de-asistencia-en-viaje"
+                                                >
+                                                    Cobertura de asistencia en
+                                                    viaje
+                                                </div>
+                                                <label
+                                                    class="primary-button"
+                                                    for="coverage-file"
+                                                >
+                                                    <div class="button-text">
+                                                        Adjunte aqui el PDF
+                                                    </div>
+                                                    <svg
+                                                        class="paperclip-icon"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="21"
+                                                        height="20"
+                                                        viewBox="0 0 21 20"
+                                                        fill="none"
+                                                    >
+                                                        <path
+                                                            d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
+                                                            stroke="#C7C7C7"
+                                                            stroke-width="1.25"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                        />
+                                                    </svg>
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    id="coverage-file"
+                                                    accept=".pdf"
+                                                    style="display: none"
+                                                    @change="
+                                                        handleFileUpload(
+                                                            'coverage',
+                                                            $event
+                                                        )
+                                                    "
+                                                />
+                                            </div>
+                                            <div class="pdf-upload-item">
+                                                <div class="lista-de-equip">
+                                                    Lista de equip
+                                                </div>
+                                                <label
+                                                    class="primary-button"
+                                                    for="equipment-file"
+                                                >
+                                                    <div class="button-text">
+                                                        Adjunte aqui el PDF
+                                                    </div>
+                                                    <svg
+                                                        class="paperclip-icon"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="21"
+                                                        height="20"
+                                                        viewBox="0 0 21 20"
+                                                        fill="none"
+                                                    >
+                                                        <path
+                                                            d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
+                                                            stroke="#C7C7C7"
+                                                            stroke-width="1.25"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                        />
+                                                    </svg>
+                                                </label>
+                                                <input
+                                                    type="file"
+                                                    id="equipment-file"
+                                                    accept=".pdf"
+                                                    style="display: none"
+                                                    @change="
+                                                        handleFileUpload(
+                                                            'equipment',
+                                                            $event
+                                                        )
+                                                    "
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </transition>
+                            </div>
+                        </div>
+
+                        <!-- Botón de guardar después del último acordeón -->
+                        <div class="submit-button-container">
+                            <button
+                                @click="submit"
+                                :disabled="form.processing"
+                                class="fluent-edit-settings-24-regular"
+                            >
+                                <div class="placeholder5">
+                                    {{
+                                        form.processing
+                                            ? "Guardando..."
+                                            : "Guardar cambios"
+                                    }}
+                                </div>
+                            </button>
+                        </div>
                     </div>
-                  </div>
                 </div>
-
-                <!-- Fechas y duración -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="departure_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Salida</label
-                    >
-                    <input
-                      type="date"
-                      id="departure_date"
-                      v-model="form.departure_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.departure_date
-                      }" />
-                    <div
-                      v-if="form.errors.departure_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.departure_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="return_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Regreso</label
-                    >
-                    <input
-                      type="date"
-                      id="return_date"
-                      v-model="form.return_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.return_date }" />
-                    <div
-                      v-if="form.errors.return_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.return_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="duration_days"
-                      class="block text-sm font-medium text-gray-700"
-                      >Duración (días)</label
-                    >
-                    <input
-                      type="number"
-                      id="duration_days"
-                      v-model="form.duration_days"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.duration_days
-                      }" />
-                    <div
-                      v-if="form.errors.duration_days"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.duration_days }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Capacidad y precio -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="capacity"
-                      class="block text-sm font-medium text-gray-700"
-                      >Capacidad (personas)</label
-                    >
-                    <input
-                      type="number"
-                      id="capacity"
-                      v-model="form.capacity"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.capacity }" />
-                    <div
-                      v-if="form.errors.capacity"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.capacity }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="base_price"
-                      class="block text-sm font-medium text-gray-700"
-                      >Precio Base (CLP)</label
-                    >
-                    <input
-                      type="number"
-                      id="base_price"
-                      v-model="form.base_price"
-                      min="0"
-                      step="0.01"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.base_price }" />
-                    <div
-                      v-if="form.errors.base_price"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.base_price }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Imagen -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700"
-                    >Imagen del Programa</label
-                  >
-                  <div
-                    class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                      <div
-                        v-if="imagePreview"
-                        class="mb-4">
-                        <img
-                          :src="imagePreview"
-                          alt="Preview"
-                          class="mx-auto h-32 w-auto object-cover rounded-lg" />
-                      </div>
-                      <svg
-                        v-else
-                        class="mx-auto h-12 w-12 text-gray-400"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48">
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round" />
-                      </svg>
-                      <div class="flex text-sm text-gray-600">
-                        <label
-                          for="image"
-                          class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                          <span>Subir imagen</span>
-                          <input
-                            id="image"
-                            type="file"
-                            accept="image/*"
-                            class="sr-only"
-                            @change="handleImageChange" />
-                        </label>
-                        <p class="pl-1">o arrastrar y soltar</p>
-                      </div>
-                      <p class="text-xs text-gray-500">
-                        PNG, JPG, GIF hasta 2MB
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    v-if="form.errors.image"
-                    class="mt-2 text-sm text-red-600">
-                    {{ form.errors.image }}
-                  </div>
-                </div>
-
-                <!-- Información adicional -->
-                <div class="space-y-4">
-                  <div>
-                    <label
-                      for="includes"
-                      class="block text-sm font-medium text-gray-700"
-                      >Incluye</label
-                    >
-                    <textarea
-                      id="includes"
-                      v-model="form.includes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios incluidos en el programa..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="excludes"
-                      class="block text-sm font-medium text-gray-700"
-                      >No Incluye</label
-                    >
-                    <textarea
-                      id="excludes"
-                      v-model="form.excludes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios no incluidos..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="requirements"
-                      class="block text-sm font-medium text-gray-700"
-                      >Requisitos</label
-                    >
-                    <textarea
-                      id="requirements"
-                      v-model="form.requirements"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Requisitos para participar..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="itinerary"
-                      class="block text-sm font-medium text-gray-700"
-                      >Itinerario</label
-                    >
-                    <textarea
-                      id="itinerary"
-                      v-model="form.itinerary"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Descripción detallada del itinerario..."></textarea>
-                  </div>
-                </div>
-
-                <!-- Estado activo -->
-                <div class="flex items-center">
-                  <input
-                    id="active"
-                    v-model="form.active"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                  <label
-                    for="active"
-                    class="ml-2 block text-sm text-gray-900">
-                    Programa activo (visible para los clientes)
-                  </label>
-                </div>
-              </div>
-              <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
-                <Link
-                  :href="route('admin.programs.index')"
-                  class="mr-3 bg-white border border-gray-300 rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                  Cancelar
-                </Link>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  class="bg-indigo-600 border border-transparent rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
-                  {{ form.processing ? "Creando..." : "Crear Programa" }}
-                </button>
-              </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  </AdminLayout>
+    </AdminLayout>
 </template>
 
 <script setup>
-  import { ref } from "vue";
-  import { Link, useForm } from "@inertiajs/vue3";
-  import AdminLayout from "@/Layouts/AdminLayout.vue";
+import { Head, useForm } from "@inertiajs/vue3";
+import { ref } from "vue";
+import AdminLayout from "@/Layouts/AdminLayout.vue";
 
-  const imagePreview = ref(null);
-
-  const form = useForm({
+const form = useForm({
     name: "",
-    description: "",
-    service_type: "",
     destination: "",
     departure_date: "",
-    return_date: "",
-    duration_days: "",
-    capacity: "",
-    base_price: "",
-    includes: "",
-    excludes: "",
-    requirements: "",
+    description: "",
+    pilar_aventura: "",
+    pilar_entretenimiento: "",
+    pilar_educacion: "",
+    pilar_seguridad: "",
     itinerary: "",
-    image: null,
-    active: true
-  });
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+    active: true,
+});
 
-  const handleImageChange = (event) => {
+// Estados para los acordeones
+const detailsOpen = ref(true); // Abierto por defecto
+const pillarsOpen = ref(false);
+const itineraryOpen = ref(false);
+
+// Estado para las imágenes
+const selectedImages = ref([]);
+
+// Función para manejar la carga de archivos PDF
+const handleFileUpload = (type, event) => {
     const file = event.target.files[0];
-    if (file) {
-      form.image = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imagePreview.value = e.target.result;
-      };
-      reader.readAsDataURL(file);
+    if (file && file.type === "application/pdf") {
+        form[`${type}_file`] = file;
+        // Opcional: mostrar nombre del archivo seleccionado
+        console.log(`Archivo ${type} seleccionado:`, file.name);
+    } else {
+        alert("Por favor seleccione un archivo PDF válido.");
+        event.target.value = "";
     }
-  };
+};
 
-  const submit = () => {
-    form.post(route("admin.programs.store"), {
-      onSuccess: () => {
-        // Redirige automáticamente después del éxito
-      }
+// Función para manejar la carga de imágenes
+const handleImageUpload = (event) => {
+    const files = Array.from(event.target.files);
+
+    files.forEach((file) => {
+        // Validar tipo de archivo
+        if (!file.type.startsWith("image/")) {
+            alert(`${file.name} no es una imagen válida.`);
+            return;
+        }
+
+        // Validar tamaño (2MB = 2 * 1024 * 1024 bytes)
+        if (file.size > 2 * 1024 * 1024) {
+            alert(`${file.name} es demasiado grande. El tamaño máximo es 2MB.`);
+            return;
+        }
+
+        // Crear URL para preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            selectedImages.value.push({
+                file: file,
+                url: e.target.result,
+                name: file.name,
+                size: file.size,
+            });
+        };
+        reader.readAsDataURL(file);
     });
-  };
+
+    // Limpiar el input para permitir seleccionar los mismos archivos de nuevo
+    event.target.value = "";
+};
+
+// Función para remover una imagen
+const removeImage = (index) => {
+    selectedImages.value.splice(index, 1);
+};
+
+// Función para formatear el tamaño del archivo
+const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+const submit = () => {
+    // Agregar las imágenes al formulario antes de enviar
+    const imageFiles = selectedImages.value.map((img) => img.file);
+    form.images = imageFiles;
+
+    form.post(route("admin.programs.store"));
+};
 </script>
+
+<style scoped>
+.creacion-de-viaje,
+.creacion-de-viaje * {
+    box-sizing: border-box;
+}
+.creacion-de-viaje {
+    background: var(--colores-neutro-blanco, #ffffff);
+    border-radius: 20px;
+    padding: 30px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    box-shadow: var(
+        --sombra-box-shadow,
+        0px 4px 11.6px 0px rgba(163, 163, 163, 0.11)
+    );
+    overflow: hidden;
+}
+
+/* Program Form Container */
+.program-form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    width: 611px;
+    position: relative;
+}
+
+/* Program Form Header */
+.program-form-header {
+    display: flex;
+    flex-direction: column;
+    gap: 19px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+/* Accordion Styles */
+.accordion-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+    margin-bottom: 30px;
+    z-index: 1;
+}
+
+.accordion-header {
+    padding: 12px 0px 12px 0px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.accordion-header:hover {
+    background-color: rgba(0, 126, 147, 0.05);
+    border-radius: 8px;
+}
+
+.accordion-title {
+    color: var(--Colores-OP2-Turquesa, #007e93);
+    font-family: Nexa;
+    font-size: var(--Numeros-Cuerpo-de-texto-XL, 18px);
+    font-style: normal;
+    font-weight: 700;
+    line-height: 22px; /* 122.222% */
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.accordion-content {
+    display: flex;
+    flex-direction: column;
+    gap: 23px;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+    padding: 20px 0;
+}
+
+/* Transiciones de acordeón mejoradas */
+.accordion-slide-enter-active,
+.accordion-slide-leave-active {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: top;
+    overflow: visible;
+}
+
+.accordion-slide-enter-from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-20px) scaleY(0.8);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.accordion-slide-enter-to {
+    opacity: 1;
+    max-height: 5000px;
+    transform: translateY(0) scaleY(1);
+    padding-top: 20px;
+    padding-bottom: 30px;
+}
+
+.accordion-slide-leave-from {
+    opacity: 1;
+    max-height: 5000px;
+    transform: translateY(0) scaleY(1);
+    padding-top: 20px;
+    padding-bottom: 30px;
+}
+
+.accordion-slide-leave-to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-20px) scaleY(0.8);
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.accordion-arrow {
+    flex-shrink: 0;
+    width: 18px;
+    height: 32px;
+    position: relative;
+    overflow: visible;
+    transition: transform 0.3s ease;
+    transform: rotate(0deg);
+}
+
+.accordion-arrow.rotated {
+    transform: rotate(180deg);
+}
+
+.descripci-n-del-programa {
+    color: var(--colores-op2-turquesa, #007e93);
+    text-align: left;
+    font-family: var(--subtitle-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--subtitle-font-size, 24px);
+    line-height: var(--subtitle-line-height, 28px);
+    font-weight: var(--subtitle-font-weight, 700);
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+}
+
+/* Name Field Row */
+.name-field-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.field-container {
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+    align-items: flex-end;
+    justify-content: center;
+    flex: 1;
+    position: relative;
+}
+
+.field-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex: 1;
+    position: relative;
+}
+
+.nombre-del-programa {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+    align-self: stretch;
+}
+
+.input-text {
+    background: #ffffff;
+    border-radius: 8px;
+    border-style: solid;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 8px 16px 8px 16px;
+    align-self: stretch;
+    flex-shrink: 0;
+    height: 46px;
+    position: relative;
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    outline: none;
+    width: 100%;
+}
+
+.input-text:focus {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+}
+
+.placeholder {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    position: relative;
+    width: 122px;
+    height: 22px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    border: none;
+    outline: none;
+    background: transparent;
+}
+
+.vector {
+    flex-shrink: 0;
+    width: 17.45px;
+    height: 18px;
+    position: relative;
+    overflow: visible;
+}
+
+/* Destination Date Row */
+.destination-date-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.destino {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+    align-self: stretch;
+}
+
+.vector2 {
+    flex-shrink: 0;
+    width: 17.45px;
+    height: 18px;
+    position: relative;
+    overflow: visible;
+}
+
+.fecha-de-salida {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+    align-self: stretch;
+}
+
+.vector3 {
+    flex-shrink: 0;
+    width: 17.45px;
+    height: 18px;
+    position: relative;
+    overflow: visible;
+}
+
+/* Description Field Row */
+.description-field-row {
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+    align-items: flex-end;
+    justify-content: center;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.descripci-n-del-viaje {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+    align-self: stretch;
+}
+
+.input-text2 {
+    background: #ffffff;
+    border-radius: 8px;
+    border-style: solid;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 8px 16px 8px 16px;
+    flex-shrink: 0;
+    width: 611px;
+    height: 134px;
+    position: relative;
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    resize: none;
+    outline: none;
+}
+
+.input-text2:focus {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+}
+
+.placeholder2 {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    position: relative;
+    width: 365px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border: none;
+    outline: none;
+    background: transparent;
+    resize: none;
+}
+
+.frame-1410121478 {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+    height: auto;
+    position: relative;
+    overflow: visible;
+}
+
+/* Images Section Row */
+.images-section-row {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+    align-items: flex-end;
+    justify-content: center;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.images-section-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex: 1;
+    min-height: 120px;
+    position: relative;
+    width: 100%;
+}
+
+.images-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.imagenes {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+}
+
+.maximo-2-mb-por-foto {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+}
+
+/* Image Upload Styles */
+.image-upload-area {
+    background: #ffffff;
+    border-radius: 8px;
+    border-style: dashed;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    flex-shrink: 0;
+    min-height: 120px;
+    width: 100%;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 10px;
+}
+
+.image-upload-area:hover {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    background-color: rgba(0, 126, 147, 0.02);
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.upload-icon {
+    flex-shrink: 0;
+}
+
+.upload-text {
+    text-align: center;
+}
+
+.upload-main-text {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 14px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    margin-bottom: 4px;
+}
+
+.upload-sub-text {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    font-family: var(
+        --cuerpo-de-texto-s-font-family,
+        "Nexa-Regular",
+        sans-serif
+    );
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 16px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 400);
+}
+
+/* Image Preview Styles */
+.images-preview {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.image-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.preview-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.image-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.image-name {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    font-family: "Nexa-Bold", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.image-size {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    font-family: "Nexa-Regular", sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.remove-image-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-image-btn:hover {
+    background-color: rgba(255, 0, 0, 0.1);
+}
+
+.group-785 {
+    flex-shrink: 0;
+    width: 242px;
+    height: 12px;
+    position: relative;
+    overflow: visible;
+}
+
+/* Pillars Section Row */
+
+.pillars-description {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(
+        --cuerpo-de-texto-m-font-family,
+        "Nexa-Regular",
+        sans-serif
+    );
+    font-size: var(--cuerpo-de-texto-m-font-size, 14px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 400);
+    position: relative;
+    align-self: stretch;
+    margin-bottom: 25px;
+}
+
+.pillars-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.pillars-left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex: 1;
+    position: relative;
+}
+
+.pillar-item {
+    display: flex;
+    flex-direction: row;
+    gap: 7px;
+    align-items: center;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.pillar-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    position: relative;
+    background-color: var(--colores-primario-turquesa, #007e93);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-family: "Nexa-Bold", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.input-text4 {
+    background: #ffffff;
+    border-radius: 8px;
+    border-style: solid;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 8px 16px 8px 16px;
+    flex: 1;
+    height: 46px;
+    position: relative;
+    color: var(--colores-primario-turquesa, #007e93);
+    text-align: left;
+    font-family: var(
+        --cuerpo-de-texto-l-font-family,
+        "Nexa-Regular",
+        sans-serif
+    );
+    font-size: var(--cuerpo-de-texto-l-font-size, 14px);
+    line-height: var(--cuerpo-de-texto-l-line-height, 22px);
+    font-weight: var(--cuerpo-de-texto-l-font-weight, 400);
+    outline: none;
+}
+
+.input-text4:focus {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    box-shadow: 0 0 0 2px rgba(0, 126, 147, 0.1);
+}
+
+.placeholder4 {
+    color: var(--colores-primario-turquesa, #007e93);
+    text-align: left;
+    font-family: var(
+        --cuerpo-de-texto-l-font-family,
+        "Nexa-Regular",
+        sans-serif
+    );
+    font-size: var(--cuerpo-de-texto-l-font-size, 14px);
+    line-height: var(--cuerpo-de-texto-l-line-height, 22px);
+    font-weight: var(--cuerpo-de-texto-l-font-weight, 400);
+    position: relative;
+    width: 122px;
+    height: 22px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    border: none;
+    outline: none;
+    background: transparent;
+}
+
+.vector4 {
+    flex-shrink: 0;
+    width: 17.45px;
+    height: 18px;
+    position: relative;
+    overflow: visible;
+}
+
+.pillars-right-column {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex: 1;
+    position: relative;
+}
+
+.group-786 {
+    flex-shrink: 0;
+    width: 242px;
+    height: 12px;
+    position: relative;
+    overflow: visible;
+}
+
+/* Itinerary Section Row */
+
+.itinerary-description-field {
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+    align-items: flex-end;
+    justify-content: center;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.escribe-una-breve-descripci-n-del-itinerario {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+    align-self: stretch;
+}
+
+.input-text5 {
+    background: #ffffff;
+    border-radius: 8px;
+    border-style: solid;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 8px 16px 8px 16px;
+    align-self: stretch;
+    flex-shrink: 0;
+    height: 134px;
+    position: relative;
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
+    resize: none;
+    outline: none;
+}
+
+.input-text5:focus {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+}
+
+.frame-14101214783 {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    flex-shrink: 0;
+    height: auto;
+    position: relative;
+    overflow: visible;
+}
+
+.pdf-upload-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.pdf-upload-item {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    position: relative;
+}
+
+.itinerario {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+}
+
+.primary-button {
+    background: var(--blanco, #fefeff);
+    border-radius: 4px;
+    border-style: dashed;
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-width: 1px;
+    padding: 18px 10px 18px 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    align-self: stretch;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.primary-button:hover {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    background-color: rgba(0, 126, 147, 0.05);
+}
+
+.button-text {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    text-align: center;
+    font-family: "Nexa-Regular", sans-serif;
+    font-size: 14px;
+    line-height: 22px;
+    font-weight: 400;
+    position: relative;
+}
+
+.paperclip-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    position: relative;
+    overflow: visible;
+    aspect-ratio: 1;
+}
+
+.cobertura-de-asistencia-en-viaje {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+}
+
+.lista-de-equip {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    text-align: left;
+    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
+    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
+    position: relative;
+}
+
+/* Submit Button Container */
+.submit-button-container {
+    align-self: stretch;
+    flex-shrink: 0;
+    height: 56px;
+    position: static;
+}
+
+.fluent-edit-settings-24-regular {
+    background: var(--colores-op2-turquesa, #007e93);
+    border-radius: 112.89px;
+    padding: 14px 18px 14px 18px;
+    display: flex;
+    flex-direction: row;
+    gap: 11.29px;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 611px;
+    position: relative;
+    overflow: hidden;
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.fluent-edit-settings-24-regular:hover {
+    background: var(--colores-op2-turquesa-dark, #006b7a);
+}
+
+.fluent-edit-settings-24-regular:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.placeholder5 {
+    color: #ffffff;
+    text-align: center;
+    font-family: var(--cuerpo-de-texto-xl-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-xl-font-size, 16px);
+    line-height: var(--cuerpo-de-texto-xl-line-height, 22px);
+    font-weight: var(--cuerpo-de-texto-xl-font-weight, 700);
+    position: relative;
+    width: 207px;
+    height: 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+</style>
