@@ -110,7 +110,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.37;
+  opacity: 0.7;
   background: lightgray -14.977px -45px / 127.297% 114.95% no-repeat;
   background-blend-mode: overlay;
 }
@@ -453,8 +453,13 @@
   
   .contact-image {
     width: 100%;
-    height: 200px;
+    height: 250px;
     border-radius: 20px 20px 0 0;
+  }
+  
+  .contact-img {
+    object-fit: cover;
+    object-position: center;
   }
   
   .container {

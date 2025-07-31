@@ -187,7 +187,6 @@
       background: #FBBD51 !important;
       border-radius: 77.927px 77.927px 0 0 !important;
       flex-shrink: 0 !important;
-      margin: 0 2px !important;
     }
 
     /* Ajustar distribución del navbar mobile */

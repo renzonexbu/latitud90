@@ -31,7 +31,7 @@
                             <input
                                 type="email"
                                 placeholder="Ingresa su email aqui."
-                                class="border-none outline-none bg-transparent"
+                                class="border-none outline-none bg-transparent rounded-full"
                                 style="color: var(--colores-neutro-negro, #434343); text-align: left; font-family: 'Nexa-Regular', sans-serif; font-size: 14px; line-height: 20px; font-weight: 400; position: relative;"
                             />
                         </div>
@@ -269,7 +269,7 @@
                                 <input
                                     type="email"
                                     placeholder="Ingresa su email aqui."
-                                    class="border-none outline-none bg-transparent"
+                                    class="border-none outline-none bg-transparent rounded-full"
                                     style="color: var(--colores-neutro-negro, #434343); text-align: left; font-family: 'Nexa-Regular', sans-serif; font-size: 12px; line-height: 20px; font-weight: 400; position: relative;"
                                 />
                             </div>
