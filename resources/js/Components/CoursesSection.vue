@@ -1,5 +1,5 @@
 <template>
-  <section class="py-12 relative overflow-hidden">
+  <section class="py-12 relative overflow-hidden rounded-lg">
     <div
       class="absolute inset-0 bg-gradient-to-r from-teal-600 to-blue-500 opacity-80"></div>
     <div

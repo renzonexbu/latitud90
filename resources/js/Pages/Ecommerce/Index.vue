@@ -221,6 +221,6 @@
   }
   
   .section-spacing {
-    margin: 50px 0;
+    margin: 50px 30px;
   }
 </style>
