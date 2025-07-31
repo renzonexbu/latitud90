@@ -185,7 +185,7 @@ const flipCard = (index) => {
   .flip-card-title {
     font-size: 25px !important;
     letter-spacing: 0.309px !important;
-    margin-top: 100px !important;
+    margin-top: 90px !important;
     margin-bottom: 15px !important;
   }
   

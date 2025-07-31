@@ -11,31 +11,49 @@
     <HeroSection id=""></HeroSection>
 
     <!-- Logo Carousel -->
-    <LogoCarousel></LogoCarousel>
+    <div class="section-spacing">
+      <LogoCarousel></LogoCarousel>
+    </div>
 
     <!-- Transform Section -->
-    <TransformSection></TransformSection>
+    <div class="section-spacing">
+      <TransformSection></TransformSection>
+    </div>
 
     <!-- About Section -->
-    <AboutSection></AboutSection>
+    <div class="section-spacing">
+      <AboutSection></AboutSection>
+    </div>
 
     <!-- Experiences Section -->
-    <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
+    <div class="section-spacing">
+      <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
+    </div>
 
     <!-- Schools Section -->
-    <SchoolsSection></SchoolsSection>
+    <div class="section-spacing">
+      <SchoolsSection></SchoolsSection>
+    </div>
 
     <!-- Courses Section -->
-    <CoursesSection></CoursesSection>
+    <div class="section-spacing">
+      <CoursesSection></CoursesSection>
+    </div>
 
     <!-- Testimonials Section -->
-    <TestimonialsSection></TestimonialsSection>
+    <div class="section-spacing">
+      <TestimonialsSection></TestimonialsSection>
+    </div>
 
     <!-- FAQ Section -->
-    <FaqSection></FaqSection>
+    <div class="section-spacing">
+      <FaqSection></FaqSection>
+    </div>
 
     <!-- Contact Section -->
-    <Contact></Contact>
+    <div class="section-spacing">
+      <Contact></Contact>
+    </div>
 
     <!-- Footer -->
     <Footer class="rounded-lg"></Footer>
@@ -200,5 +218,9 @@
     line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  
+  .section-spacing {
+    margin: 50px 0;
   }
 </style>

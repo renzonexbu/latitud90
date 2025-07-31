@@ -333,7 +333,7 @@
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
-  margin: 100px 0;
+  margin: 0;
 }
 
 .faq-container {
@@ -561,7 +561,7 @@
     padding: 40px 20px;
     flex-direction: column;
     gap: 1.5rem;
-    margin: 50px 0;
+    margin: 0;
   }
   
   .faq-container {

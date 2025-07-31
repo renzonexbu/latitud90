@@ -358,7 +358,7 @@
 
   .mobile-author-section {
     display: block !important;
-    margin-top: 64px !important;
+    margin-top: 0 !important;
   }
 
   .mobile-author-name {
