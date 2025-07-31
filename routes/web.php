@@ -25,6 +25,7 @@ use Inertia\Inertia;
 // Rutas públicas de ecommerce
 Route::get('/', [EcommerceController::class, 'index'])->name('ecommerce.index');
 Route::get('/ecommerce', [EcommerceController::class, 'index'])->name('ecommerce.home');
+Route::get('/terminos-y-condiciones', [EcommerceController::class, 'termsAndConditions'])->name('ecommerce.terms-and-conditions');
 Route::get('/programa/{program}', [EcommerceController::class, 'show'])->name('ecommerce.show');
 Route::get('/reserva/{program}', [EcommerceController::class, 'reservation'])->name('ecommerce.reservation');
 Route::post('/reserva/{program}', [EcommerceController::class, 'storeReservation'])->name('ecommerce.store-reservation');

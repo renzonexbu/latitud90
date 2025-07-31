@@ -41,6 +41,11 @@ class EcommerceController extends Controller
         ]);
     }
 
+    public function termsAndConditions()
+    {
+        return Inertia::render('Ecommerce/TermsAndConditions');
+    }
+
     /**
      * Mostrar detalles de un programa específico
      */
