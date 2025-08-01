@@ -23,6 +23,8 @@ return new class extends Migration
             $table->string('country');
             $table->date('birth_date');
             $table->text('address');
+            $table->string('relationship')->default('Familiar');
+            $table->foreignId('participant_id')->constrained('participants');
             $table->timestamps();
         });
     }

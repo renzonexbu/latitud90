@@ -10,6 +10,8 @@ class Participant extends Model
     use HasFactory;
 
     protected $fillable = [
+        'course_id',
+        'institution_id',
         'first_name',
         'last_name',
         'email',
@@ -38,19 +40,22 @@ class Participant extends Model
 
     public function emergencyContacts()
     {
-        return $this->belongsToMany(EmergencyContact::class, 'participants_emergency_contact')
-                    ->withTimestamps();
+        return $this->hasMany(EmergencyContact::class);
     }
 
     public function medicalConditions()
     {
-        return $this->belongsToMany(MedicalCondition::class, 'participants_medical_conditions')
-                    ->withTimestamps();
+        return $this->hasMany(MedicalCondition::class);
     }
 
-    public function program()
+    public function course()
     {
-        return $this->belongsTo(Program::class);
+        return $this->belongsTo(Course::class);
+    }
+
+    public function institution()
+    {
+        return $this->belongsTo(Institution::class);
     }
 
     public function orders()

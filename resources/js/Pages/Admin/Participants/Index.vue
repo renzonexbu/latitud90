@@ -68,6 +68,9 @@
         <!-- Create Participant Modal -->
         <CreateParticipantModal 
             :show="showCreateModal" 
+            :courses="courses"
+            :institutions="institutions"
+            :errors="errors"
             @close="closeCreateModal" 
         />
   </AdminLayout>
@@ -103,6 +106,18 @@ export default {
             default: () => ({ data: [] }),
         },
         filters: {
+            type: Object,
+            default: () => ({}),
+        },
+        courses: {
+            type: Array,
+            default: () => [],
+        },
+        institutions: {
+            type: Array,
+            default: () => [],
+        },
+        errors: {
             type: Object,
             default: () => ({}),
         },

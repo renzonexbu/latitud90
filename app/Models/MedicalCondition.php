@@ -12,12 +12,12 @@ class MedicalCondition extends Model
     protected $table = 'medical_conditions';
 
     protected $fillable = [
-        'description'
+        'description',
+        'participant_id'
     ];
 
-    public function participants()
+    public function participant()
     {
-        return $this->belongsToMany(Participant::class, 'participants_medical_conditions')
-                    ->withTimestamps();
+        return $this->belongsTo(Participant::class);
     }
 } 

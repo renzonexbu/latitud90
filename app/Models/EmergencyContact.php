@@ -21,17 +21,18 @@ class EmergencyContact extends Model
         'document_number',
         'country',
         'birth_date',
-        'address'
+        'address',
+        'relationship',
+        'participant_id'
     ];
 
     protected $casts = [
         'birth_date' => 'date'
     ];
 
-    public function participants()
+    public function participant()
     {
-        return $this->belongsToMany(Participant::class, 'participants_emergency_contact')
-                    ->withTimestamps();
+        return $this->belongsTo(Participant::class);
     }
 
     public function getFullNameAttribute()

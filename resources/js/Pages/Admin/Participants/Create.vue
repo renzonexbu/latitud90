@@ -26,7 +26,7 @@
             </div>
 
             <!-- Form Content - Two Columns -->
-            <div class="flex flex-row gap-8">
+            <form @submit.prevent="saveParticipant" class="flex flex-row gap-8">
                 <!-- Left Column - Datos del participante -->
                 <div class="flex-1">
                     <div class="space-y-6">
@@ -47,8 +47,12 @@
                                             v-model="form.first_name"
                                             type="text"
                                             placeholder="Nombre"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.first_name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors.first_name" class="text-red-500 text-xs mt-1">{{ errors.first_name }}</span>
                                     </div>
                                     
                                     <div>
@@ -59,8 +63,12 @@
                                             v-model="form.last_name"
                                             type="text"
                                             placeholder="Apellido"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.last_name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors.last_name" class="text-red-500 text-xs mt-1">{{ errors.last_name }}</span>
                                     </div>
                                 </div>
 
@@ -74,8 +82,20 @@
                                             v-model="form.document_number"
                                             type="text"
                                             placeholder="000000000"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            @input="formatRut"
+                                            @blur="validateRut"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.document_number ? 'border-red-500' : 'border-[#5b5b5b]',
+                                                rutValidation.isValid === false ? 'border-red-500' : '',
+                                                rutValidation.isValid === true ? 'border-green-500' : ''
+                                            ]"
                                         />
+                                        <span v-if="errors.document_number" class="text-red-500 text-xs mt-1">{{ errors.document_number }}</span>
+                                        <span v-if="rutValidation.message" :class="[
+                                            'text-xs mt-1',
+                                            rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                                        ]">{{ rutValidation.message }}</span>
                                     </div>
                                     
                                     <div>
@@ -86,8 +106,12 @@
                                             v-model="form.birth_date"
                                             type="date"
                                             placeholder="00/00/0000"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.birth_date ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors.birth_date" class="text-red-500 text-xs mt-1">{{ errors.birth_date }}</span>
                                     </div>
                                 </div>
 
@@ -101,30 +125,43 @@
                                             v-model="form.email"
                                             type="email"
                                             placeholder="Email"
-                                            class="w-full h-[46px] bg-white rounded border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded border px-4 py-2 text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]',
+                                                errors.email ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors.email" class="text-red-500 text-xs mt-1">{{ errors.email }}</span>
                                     </div>
                                     
+                                    <!-- Teléfono -->
                                     <div>
                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            Numero de telefono
+                                            Teléfono
                                         </label>
                                         <div class="flex">
-                                            <div class="w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2">
-                                                <div class="w-6 h-6 bg-red-500 rounded-sm flex items-center justify-center">
-                                                    🇨🇱
-                                                </div>
-                                                <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none">
-                                                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                </svg>
-                                            </div>
+                                            <select 
+                                                v-model="form.code_phone"
+                                                :class="[
+                                                    'w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                    errors.phone ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
+                                            >
+                                                <option value="+56">🇨🇱</option>
+                                                <option value="+54">🇦🇷</option>
+                                                <option value="+51">🇵🇪</option>
+                                                <option value="+598">🇺🇾</option>
+                                            </select>
                                             <input 
                                                 v-model="form.phone"
                                                 type="tel"
-                                                placeholder="+56 9-- --- ---"
-                                                class="flex-1 h-[46px] bg-white border border-[#5b5b5b] rounded-r px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                                placeholder="9-- --- ---"
+                                                :class="[
+                                                    'flex-1 h-[46px] bg-white border rounded-r px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                    errors.phone ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
                                             />
                                         </div>
+                                        <span v-if="errors.phone" class="text-red-500 text-xs mt-1">{{ errors.phone }}</span>
                                     </div>
                                 </div>
 
@@ -134,13 +171,38 @@
                                         Institución*
                                     </label>
                                     <select 
-                                        v-model="form.institution"
-                                        class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                        v-model="form.institution_id"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                            errors.institution_id ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
                                     >
                                         <option value="">Seleccione una institución</option>
-                                        <option value="pedro-valdivia">Pedro de Valdivia</option>
-                                        <option value="san-patricio">Colegio San Patricio</option>
+                                        <option v-for="institution in institutions" :key="institution.id" :value="institution.id">
+                                            {{ institution.name }}
+                                        </option>
                                     </select>
+                                    <span v-if="errors.institution_id" class="text-red-500 text-xs mt-1">{{ errors.institution_id }}</span>
+                                </div>
+
+                                <!-- Curso -->
+                                <div>
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
+                                        Curso*
+                                    </label>
+                                    <select 
+                                        v-model="form.course_id"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                            errors.course_id ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">Seleccione un curso</option>
+                                        <option v-for="course in courses" :key="course.id" :value="course.id">
+                                            {{ course.institution_name }} - {{ course.education_level }} {{ course.grade }}° {{ course.shift }}
+                                        </option>
+                                    </select>
+                                    <span v-if="errors.course_id" class="text-red-500 text-xs mt-1">{{ errors.course_id }}</span>
                                 </div>
 
                                 <!-- Nivel de educación y detalles -->
@@ -151,7 +213,10 @@
                                         </label>
                                         <select 
                                             v-model="form.education_level"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                                                                    :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                            errors.education_level ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
                                         >
                                             <option value="">Seleccione un nivel</option>
                                             <option value="preescolar">Preescolar</option>
@@ -159,6 +224,7 @@
                                             <option value="secundaria">Secundaria</option>
                                             <option value="universitaria">Universitaria</option>
                                         </select>
+                                        <span v-if="errors.education_level" class="text-red-500 text-xs mt-1">{{ errors.education_level }}</span>
                                     </div>
                                     <div class="grid grid-cols-3 gap-2">
                                         <div>
@@ -167,13 +233,17 @@
                                             </label>
                                             <select 
                                                 v-model="form.year"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                                                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                errors.year ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                             >
                                                 <option value="">2025</option>
                                                 <option value="2024">2024</option>
                                                 <option value="2025">2025</option>
                                                 <option value="2026">2026</option>
                                             </select>
+                                            <span v-if="errors.year" class="text-red-500 text-xs mt-1">{{ errors.year }}</span>
                                         </div>
                                         <div>
                                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
@@ -181,7 +251,10 @@
                                             </label>
                                             <select 
                                                 v-model="form.grade"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                                                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                errors.grade ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                             >
                                                 <option value="">---</option>
                                                 <option value="1">1°</option>
@@ -191,6 +264,7 @@
                                                 <option value="5">5°</option>
                                                 <option value="6">6°</option>
                                             </select>
+                                            <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
                                         </div>
                                         <div>
                                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
@@ -198,13 +272,17 @@
                                             </label>
                                             <select 
                                                 v-model="form.shift"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                                                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                errors.shift ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                             >
                                                 <option value="">---</option>
                                                 <option value="mañana">Mañana</option>
                                                 <option value="tarde">Tarde</option>
                                                 <option value="noche">Noche</option>
                                             </select>
+                                            <span v-if="errors.shift" class="text-red-500 text-xs mt-1">{{ errors.shift }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -246,8 +324,12 @@
                                             v-model="form.emergency_contact_name"
                                             type="text"
                                             placeholder="Nombre"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors['emergency_contacts.0.first_name'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors['emergency_contacts.0.first_name']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.first_name'] }}</span>
                                     </div>
                                     
                                     <div>
@@ -258,8 +340,12 @@
                                             v-model="form.emergency_contact_last_name"
                                             type="text"
                                             placeholder="Apellido"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors['emergency_contacts.0.last_name'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors['emergency_contacts.0.last_name']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.last_name'] }}</span>
                                     </div>
                                 </div>
 
@@ -270,7 +356,10 @@
                                     </label>
                                     <select 
                                         v-model="form.emergency_contact_relationship"
-                                        class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                            errors['emergency_contacts.0.relationship'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
                                     >
                                         <option value="">Seleccione la relación con el alumno</option>
                                         <option value="padre">Padre</option>
@@ -280,6 +369,34 @@
                                         <option value="hermano">Hermano/a</option>
                                         <option value="otro">Otro</option>
                                     </select>
+                                    <span v-if="errors['emergency_contacts.0.relationship']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.relationship'] }}</span>
+                                </div>
+
+                                <!-- Email y Teléfono contacto -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
+                                            RUT*
+                                        </label>
+                                        <input 
+                                            v-model="form.emergency_contact_document_number"
+                                            type="text"
+                                            placeholder="000000000"
+                                            @input="formatEmergencyContactRut"
+                                            @blur="validateEmergencyContactRut"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors['emergency_contacts.0.document_number'] ? 'border-red-500' : 'border-[#5b5b5b]',
+                                                emergencyContactRutValidation.isValid === false ? 'border-red-500' : '',
+                                                emergencyContactRutValidation.isValid === true ? 'border-green-500' : ''
+                                            ]"
+                                        />
+                                        <span v-if="errors['emergency_contacts.0.document_number']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.document_number'] }}</span>
+                                        <span v-if="emergencyContactRutValidation.message" :class="[
+                                            'text-xs mt-1',
+                                            emergencyContactRutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                                        ]">{{ emergencyContactRutValidation.message }}</span>
+                                    </div>
                                 </div>
 
                                 <!-- Email y Teléfono contacto -->
@@ -292,36 +409,50 @@
                                             v-model="form.emergency_contact_email"
                                             type="email"
                                             placeholder="Email"
-                                            class="w-full h-[46px] bg-white rounded border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded border px-4 py-2 text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]',
+                                                errors['emergency_contacts.0.email'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         />
+                                        <span v-if="errors['emergency_contacts.0.email']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.email'] }}</span>
                                     </div>
                                     
                                     <div>
                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            Numero de telefono*
+                                            Teléfono*
                                         </label>
                                         <div class="flex">
-                                            <div class="w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2">
-                                                <div class="w-6 h-6 bg-red-500 rounded-sm flex items-center justify-center">
-                                                    🇨🇱
-                                                </div>
-                                                <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none">
-                                                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                </svg>
-                                            </div>
+                                            <select 
+                                                v-model="form.emergency_contact_code_phone"
+                                                :class="[
+                                                    'w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                    errors['emergency_contacts.0.phone'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
+                                            >
+                                                <option value="+56">🇨🇱</option>
+                                                <option value="+54">🇦🇷</option>
+                                                <option value="+51">🇵🇪</option>
+                                                <option value="+598">🇺🇾</option>
+                                            </select>
                                             <input 
                                                 v-model="form.emergency_contact_phone"
                                                 type="tel"
-                                                placeholder="+56 9-- --- ---"
-                                                class="flex-1 h-[46px] bg-white border border-[#5b5b5b] rounded-r px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                                placeholder="9-- --- ---"
+                                                :class="[
+                                                    'flex-1 h-[46px] bg-white border rounded-r px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                    errors['emergency_contacts.0.phone'] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
                                             />
                                         </div>
+                                        <span v-if="errors['emergency_contacts.0.phone']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.phone'] }}</span>
                                     </div>
                                 </div>
 
                                 <!-- Agregar otro contacto -->
                                 <button 
+                                    v-if="additionalContacts.length < 2"
                                     @click="addEmergencyContact"
+                                    type="button"
                                     class="w-full h-[46px] bg-transparent rounded-lg border-2 border-dashed border-[#c7c7c7] flex items-center justify-center gap-3 hover:border-[#007e93] transition-colors"
                                 >
                                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -340,6 +471,7 @@
                                         </h4>
                                         <button 
                                             @click="removeEmergencyContact(index)"
+                                            type="button"
                                             class="text-red-500 hover:text-red-700 p-1"
                                         >
                                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -358,8 +490,12 @@
                                                 v-model="contact.name"
                                                 type="text"
                                                 placeholder="Nombre"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                                :class="[
+                                                    'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                    errors[`emergency_contacts.${index + 1}.first_name`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
                                             />
+                                            <span v-if="errors[`emergency_contacts.${index + 1}.first_name`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.first_name`] }}</span>
                                         </div>
                                         
                                         <div>
@@ -370,8 +506,12 @@
                                                 v-model="contact.last_name"
                                                 type="text"
                                                 placeholder="Apellido"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                                :class="[
+                                                    'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                    errors[`emergency_contacts.${index + 1}.last_name`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
                                             />
+                                            <span v-if="errors[`emergency_contacts.${index + 1}.last_name`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.last_name`] }}</span>
                                         </div>
                                     </div>
 
@@ -382,7 +522,10 @@
                                         </label>
                                         <select 
                                             v-model="contact.relationship"
-                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                errors[`emergency_contacts.${index + 1}.relationship`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
                                         >
                                             <option value="">Seleccione la relación con el alumno</option>
                                             <option value="padre">Padre</option>
@@ -392,6 +535,32 @@
                                             <option value="hermano">Hermano/a</option>
                                             <option value="otro">Otro</option>
                                         </select>
+                                        <span v-if="errors[`emergency_contacts.${index + 1}.relationship`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.relationship`] }}</span>
+                                    </div>
+
+                                    <!-- RUT contacto adicional -->
+                                    <div>
+                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
+                                            RUT*
+                                        </label>
+                                        <input 
+                                            v-model="contact.document_number"
+                                            type="text"
+                                            placeholder="000000000"
+                                            @input="formatAdditionalContactRut(index)"
+                                            @blur="validateAdditionalContactRut(index)"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors[`emergency_contacts.${index + 1}.document_number`] ? 'border-red-500' : 'border-[#5b5b5b]',
+                                                contact.rutValidation && contact.rutValidation.isValid === false ? 'border-red-500' : '',
+                                                contact.rutValidation && contact.rutValidation.isValid === true ? 'border-green-500' : ''
+                                            ]"
+                                        />
+                                        <span v-if="errors[`emergency_contacts.${index + 1}.document_number`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.document_number`] }}</span>
+                                        <span v-if="contact.rutValidation && contact.rutValidation.message" :class="[
+                                            'text-xs mt-1',
+                                            contact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                                        ]">{{ contact.rutValidation.message }}</span>
                                     </div>
 
                                     <!-- Email y Teléfono contacto adicional -->
@@ -404,30 +573,42 @@
                                                 v-model="contact.email"
                                                 type="email"
                                                 placeholder="Email"
-                                                class="w-full h-[46px] bg-white rounded border border-[#5b5b5b] px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                                :class="[
+                                                    'w-full h-[46px] bg-white rounded border px-4 py-2 text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]',
+                                                    errors[`emergency_contacts.${index + 1}.email`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                ]"
                                             />
+                                            <span v-if="errors[`emergency_contacts.${index + 1}.email`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.email`] }}</span>
                                         </div>
                                         
                                         <div>
                                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                                Numero de telefono*
+                                                Teléfono*
                                             </label>
                                             <div class="flex">
-                                                <div class="w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2">
-                                                    <div class="w-6 h-6 bg-red-500 rounded-sm flex items-center justify-center">
-                                                        🇨🇱
-                                                    </div>
-                                                    <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none">
-                                                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                                    </svg>
-                                                </div>
+                                                <select 
+                                                    v-model="contact.code_phone"
+                                                    :class="[
+                                                        'w-[70px] h-[46px] bg-white border border-[#5b5b5b] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
+                                                        errors[`emergency_contacts.${index + 1}.phone`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                    ]"
+                                                >
+                                                    <option value="+56">🇨🇱</option>
+                                                    <option value="+54">🇦🇷</option>
+                                                    <option value="+51">🇵🇪</option>
+                                                    <option value="+598">🇺🇾</option>
+                                                </select>
                                                 <input 
                                                     v-model="contact.phone"
                                                     type="tel"
-                                                    placeholder="+56 9-- --- ---"
-                                                    class="flex-1 h-[46px] bg-white border border-[#5b5b5b] rounded-r px-4 py-2 text-[#c7c7c7] text-left font-nexa-regular text-[14px] leading-[22px] outline-none placeholder-[#c7c7c7]"
+                                                    placeholder="9-- --- ---"
+                                                    :class="[
+                                                        'flex-1 h-[46px] bg-white border rounded-r px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                        errors[`emergency_contacts.${index + 1}.phone`] ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                    ]"
                                                 />
                                             </div>
+                                            <span v-if="errors[`emergency_contacts.${index + 1}.phone`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.phone`] }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -498,16 +679,18 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </form>
 
             <!-- Save button -->
             <div class="mt-8">
                 <button 
                     @click="saveParticipant"
-                    class="bg-[#007e93] rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center w-full hover:bg-[#006580] transition-colors"
+                    :disabled="isSubmitting"
+                    class="bg-[#007e93] rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center w-full hover:bg-[#006580] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                    <div v-if="isSubmitting" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     <div class="text-white text-center font-nexa-bold text-[16px] leading-[22px] font-bold">
-                        Guardar cambios
+                        {{ isSubmitting ? 'Guardando...' : 'Guardar cambios' }}
                     </div>
                 </button>
             </div>
@@ -517,6 +700,7 @@
 
 <script>
 import { CrossIcon } from "@/Components/Icons";
+import { router } from "@inertiajs/vue3";
 
 export default {
     name: "CreateParticipantModal",
@@ -527,10 +711,23 @@ export default {
         show: {
             type: Boolean,
             default: false
+        },
+        courses: {
+            type: Array,
+            default: () => []
+        },
+        institutions: {
+            type: Array,
+            default: () => []
+        },
+        errors: {
+            type: Object,
+            default: () => ({})
         }
     },
     data() {
         return {
+            isSubmitting: false,
             form: {
                 // Datos del participante
                 first_name: "",
@@ -539,19 +736,34 @@ export default {
                 birth_date: "",
                 email: "",
                 phone: "",
-                institution: "",
+                code_phone: "+56",
+                institution_id: "",
+                course_id: "",
                 education_level: "",
                 year: "2025",
                 grade: "",
                 shift: "",
                 medical_conditions: "",
+                individual_price: 4000, // Precio por defecto
+                price_adjustments: 0,
+                adjustment_reason: "",
+                country: "Chile",
+                document_type: "RUT",
+                address: "",
+                dietary_restrictions: "",
                 
-                // Contacto de emergencia
+                // Contacto de emergencia principal
                 emergency_contact_name: "",
                 emergency_contact_last_name: "",
                 emergency_contact_relationship: "",
                 emergency_contact_email: "",
                 emergency_contact_phone: "",
+                emergency_contact_code_phone: "+56",
+                emergency_contact_document_type: "RUT",
+                emergency_contact_document_number: "",
+                emergency_contact_country: "Chile",
+                emergency_contact_birth_date: "",
+                emergency_contact_address: "",
                 
                 // Programa
                 associated_program: "Ruta de lagos | Bariloche Arg-Sur de CL",
@@ -559,30 +771,375 @@ export default {
                 start_date: "2025-09-01",
                 end_date: "2025-09-01"
             },
-            additionalContacts: []
+            additionalContacts: [],
+            rutValidation: {
+                isValid: null,
+                message: ""
+            },
+            emergencyContactRutValidation: {
+                isValid: null,
+                message: ""
+            }
         };
     },
     methods: {
         closeModal() {
             this.$emit('close');
+            this.resetForm();
         },
-        saveParticipant() {
-            console.log('Saving participant:', this.form);
-            console.log('Additional contacts:', this.additionalContacts);
-            // Here you would typically send the data to the server
-            this.closeModal();
-        },
-        addEmergencyContact() {
-            this.additionalContacts.push({
-                name: "",
+        
+        resetForm() {
+            this.form = {
+                first_name: "",
                 last_name: "",
-                relationship: "",
+                document_number: "",
+                birth_date: "",
                 email: "",
-                phone: ""
-            });
+                phone: "",
+                code_phone: "+56",
+                institution_id: "",
+                course_id: "",
+                education_level: "",
+                year: "2025",
+                grade: "",
+                shift: "",
+                medical_conditions: "",
+                individual_price: 4000,
+                price_adjustments: 0,
+                adjustment_reason: "",
+                country: "Chile",
+                document_type: "RUT",
+                address: "",
+                dietary_restrictions: "",
+                
+                emergency_contact_name: "",
+                emergency_contact_last_name: "",
+                emergency_contact_relationship: "",
+                emergency_contact_email: "",
+                emergency_contact_phone: "",
+                emergency_contact_code_phone: "+56",
+                emergency_contact_document_type: "RUT",
+                emergency_contact_document_number: "",
+                emergency_contact_country: "Chile",
+                emergency_contact_birth_date: "",
+                emergency_contact_address: "",
+                
+                associated_program: "Ruta de lagos | Bariloche Arg-Sur de CL",
+                has_benefit: "No, Se reparte grupal",
+                start_date: "2025-09-01",
+                end_date: "2025-09-01"
+            };
+            this.additionalContacts = [];
+            this.isSubmitting = false;
+            this.rutValidation = {
+                isValid: null,
+                message: ""
+            };
+            this.emergencyContactRutValidation = {
+                isValid: null,
+                message: ""
+            };
         },
+        
+        async saveParticipant() {
+            this.isSubmitting = true;
+            
+            try {
+                // Preparar datos del participante
+                const participantData = {
+                    course_id: this.form.course_id,
+                    institution_id: this.form.institution_id,
+                    first_name: this.form.first_name,
+                    last_name: this.form.last_name,
+                    email: this.form.email,
+                    code_phone: this.form.code_phone,
+                    phone: this.form.phone,
+                    document_type: this.form.document_type,
+                    document_number: this.form.document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
+                    country: this.form.country,
+                    birth_date: this.form.birth_date,
+                    address: this.form.address,
+                    dietary_restrictions: this.form.dietary_restrictions,
+                    medical_conditions: this.form.medical_conditions,
+                    individual_price: this.form.individual_price,
+                    price_adjustments: this.form.price_adjustments,
+                    adjustment_reason: this.form.adjustment_reason,
+                };
+
+                // Preparar contactos de emergencia
+                const emergencyContacts = [
+                    {
+                        first_name: this.form.emergency_contact_name,
+                        last_name: this.form.emergency_contact_last_name,
+                        email: this.form.emergency_contact_email,
+                        code_phone: this.form.emergency_contact_code_phone,
+                        phone: this.form.emergency_contact_phone,
+                        document_type: this.form.emergency_contact_document_type,
+                        document_number: this.form.emergency_contact_document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
+                        country: this.form.emergency_contact_country,
+                        birth_date: this.form.emergency_contact_birth_date,
+                        address: this.form.emergency_contact_address,
+                        relationship: this.form.emergency_contact_relationship,
+                    }
+                ];
+
+                // Agregar contactos adicionales
+                this.additionalContacts.forEach(contact => {
+                    emergencyContacts.push({
+                        first_name: contact.name,
+                        last_name: contact.last_name,
+                        email: contact.email,
+                        code_phone: contact.code_phone || "+56",
+                        phone: contact.phone,
+                        document_type: "RUT",
+                        document_number: contact.document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
+                        country: "Chile",
+                        birth_date: "",
+                        address: "",
+                        relationship: contact.relationship,
+                    });
+                });
+
+                // Preparar condiciones médicas (si se especifican)
+                const medicalConditions = this.form.medical_conditions ? [
+                    { description: this.form.medical_conditions }
+                ] : [];
+
+                // Enviar datos al servidor
+                await router.post(route('admin.participants.store'), {
+                    ...participantData,
+                    emergency_contacts: emergencyContacts,
+                    medical_conditions: medicalConditions
+                }, {
+                    onSuccess: () => {
+                        this.closeModal();
+                    },
+                    onError: (errors) => {
+                        console.error('Errores de validación:', errors);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error al guardar participante:', error);
+            } finally {
+                this.isSubmitting = false;
+            }
+        },
+        
+        addEmergencyContact() {
+            if (this.additionalContacts.length < 2) {
+                this.additionalContacts.push({
+                    name: "",
+                    last_name: "",
+                    relationship: "",
+                    email: "",
+                    phone: "",
+                    code_phone: "+56",
+                    document_number: "",
+                    rutValidation: {
+                        isValid: null,
+                        message: ""
+                    }
+                });
+            }
+        },
+        
         removeEmergencyContact(index) {
             this.additionalContacts.splice(index, 1);
+        },
+
+        formatRut() {
+            // Remover todos los caracteres no numéricos excepto K
+            let rut = this.form.document_number.replace(/[^0-9kK]/g, '');
+            
+            if (rut.length > 0) {
+                rut = rut.toUpperCase();
+                
+                // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+                if (rut.length > 1) {
+                    const body = rut.slice(0, -1);
+                    const dv = rut.slice(-1);
+                    
+                    // Formatear el cuerpo con puntos
+                    let formattedBody = '';
+                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                        if (j > 0 && j % 3 === 0) {
+                            formattedBody = '.' + formattedBody;
+                        }
+                        formattedBody = body[i] + formattedBody;
+                    }
+                    
+                    // Combinar cuerpo formateado con dígito verificador
+                    this.form.document_number = `${formattedBody}-${dv}`;
+                } else {
+                    this.form.document_number = rut;
+                }
+            }
+        },
+
+        validateRut() {
+            const rut = this.form.document_number.replace(/\./g, '').replace(/-/g, '');
+            
+            if (rut.length === 0) {
+                this.rutValidation.isValid = null;
+                this.rutValidation.message = '';
+                return;
+            }
+            
+            // Validar formato básico
+            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+                this.rutValidation.isValid = false;
+                this.rutValidation.message = 'Formato de RUT inválido';
+                return;
+            }
+            
+            // Separar cuerpo y dígito verificador
+            const body = rut.slice(0, -1);
+            const dv = rut.slice(-1).toUpperCase();
+            
+            // Validar que el cuerpo tenga al menos 7 dígitos
+            if (body.length < 7) {
+                this.rutValidation.isValid = false;
+                this.rutValidation.message = 'RUT debe tener al menos 7 dígitos';
+                return;
+            }
+            
+            // Calcular dígito verificador
+            const dvCalculado = this.calculateDv(body);
+            
+            // Comparar dígitos verificadores
+            this.rutValidation.isValid = dv === dvCalculado;
+            this.rutValidation.message = this.rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
+        },
+
+        calculateDv(body) {
+            let sum = 0;
+            let factor = 2;
+            for (let i = body.length - 1; i >= 0; i--) {
+                sum += body[i] * factor;
+                factor = factor === 7 ? 2 : factor + 1;
+            }
+            const dv = 11 - (sum % 11);
+            return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
+        },
+
+        formatEmergencyContactRut() {
+            // Remover todos los caracteres no numéricos excepto K
+            let rut = this.form.emergency_contact_document_number.replace(/[^0-9kK]/g, '');
+            
+            if (rut.length > 0) {
+                rut = rut.toUpperCase();
+                
+                // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+                if (rut.length > 1) {
+                    const body = rut.slice(0, -1);
+                    const dv = rut.slice(-1);
+                    
+                    // Formatear el cuerpo con puntos
+                    let formattedBody = '';
+                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                        if (j > 0 && j % 3 === 0) {
+                            formattedBody = '.' + formattedBody;
+                        }
+                        formattedBody = body[i] + formattedBody;
+                    }
+                    
+                    // Combinar cuerpo formateado con dígito verificador
+                    this.form.emergency_contact_document_number = `${formattedBody}-${dv}`;
+                } else {
+                    this.form.emergency_contact_document_number = rut;
+                }
+            }
+        },
+
+        validateEmergencyContactRut() {
+            const rut = this.form.emergency_contact_document_number.replace(/\./g, '').replace(/-/g, '');
+            
+            if (rut.length === 0) {
+                this.emergencyContactRutValidation.isValid = null;
+                this.emergencyContactRutValidation.message = '';
+                return;
+            }
+            
+            // Validar formato básico
+            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+                this.emergencyContactRutValidation.isValid = false;
+                this.emergencyContactRutValidation.message = 'Formato de RUT inválido';
+                return;
+            }
+            
+            // Separar cuerpo y dígito verificador
+            const body = rut.slice(0, -1);
+            const dv = rut.slice(-1).toUpperCase();
+            
+            // Validar que el cuerpo tenga al menos 7 dígitos
+            if (body.length < 7) {
+                this.emergencyContactRutValidation.isValid = false;
+                this.emergencyContactRutValidation.message = 'RUT debe tener al menos 7 dígitos';
+                return;
+            }
+            
+            // Calcular dígito verificador
+            const dvCalculado = this.calculateDv(body);
+            
+            // Comparar dígitos verificadores
+            this.emergencyContactRutValidation.isValid = dv === dvCalculado;
+            this.emergencyContactRutValidation.message = this.emergencyContactRutValidation.isValid ? 'RUT válido' : 'RUT inválido';
+        },
+
+        formatAdditionalContactRut(index) {
+            let rut = this.additionalContacts[index].document_number.replace(/[^0-9kK]/g, '');
+            
+            if (rut.length > 0) {
+                rut = rut.toUpperCase();
+                
+                if (rut.length > 1) {
+                    const body = rut.slice(0, -1);
+                    const dv = rut.slice(-1);
+                    
+                    let formattedBody = '';
+                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                        if (j > 0 && j % 3 === 0) {
+                            formattedBody = '.' + formattedBody;
+                        }
+                        formattedBody = body[i] + formattedBody;
+                    }
+                    
+                    this.additionalContacts[index].document_number = `${formattedBody}-${dv}`;
+                } else {
+                    this.additionalContacts[index].document_number = rut;
+                }
+            }
+        },
+
+        validateAdditionalContactRut(index) {
+            const rut = this.additionalContacts[index].document_number.replace(/\./g, '').replace(/-/g, '');
+            
+            if (rut.length === 0) {
+                this.additionalContacts[index].rutValidation.isValid = null;
+                this.additionalContacts[index].rutValidation.message = '';
+                return;
+            }
+            
+            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+                this.additionalContacts[index].rutValidation.isValid = false;
+                this.additionalContacts[index].rutValidation.message = 'Formato de RUT inválido';
+                return;
+            }
+            
+            const body = rut.slice(0, -1);
+            const dv = rut.slice(-1).toUpperCase();
+            
+            if (body.length < 7) {
+                this.additionalContacts[index].rutValidation.isValid = false;
+                this.additionalContacts[index].rutValidation.message = 'RUT debe tener al menos 7 dígitos';
+                return;
+            }
+            
+            const dvCalculado = this.calculateDv(body);
+            
+            this.additionalContacts[index].rutValidation.isValid = dv === dvCalculado;
+            this.additionalContacts[index].rutValidation.message = this.additionalContacts[index].rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
         }
     }
 };
@@ -595,5 +1152,52 @@ export default {
 
 .font-nexa-regular {
     font-family: 'Nexa-Regular', sans-serif;
+}
+
+/* Estilos para campos con error */
+input.error, select.error, textarea.error {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+}
+
+/* Estilos para inputs cuando tienen contenido */
+input:not(:placeholder-shown):not(.error),
+select:not(.error),
+textarea:not(:placeholder-shown):not(.error) {
+    color: var(--Colores-OP2-Turquesa, #007E93) !important;
+    font-family: Nexa;
+    font-size: var(--Numeros-Cuerpo-de-texto-M, 12px);
+    font-style: normal;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+/* Estilos para inputs con placeholder (vacíos) */
+input::placeholder,
+textarea::placeholder {
+    color: #c7c7c7 !important;
+}
+
+/* Estilos para selects vacíos */
+select option:first-child {
+    color: #c7c7c7;
+}
+
+select:not([value]):not(.error) {
+    color: #c7c7c7;
+}
+
+/* Animación de carga */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 </style>

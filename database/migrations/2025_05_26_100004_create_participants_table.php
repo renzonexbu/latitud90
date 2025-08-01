@@ -33,20 +33,6 @@ return new class extends Migration
             $table->text('adjustment_reason')->nullable();
             $table->timestamps();
         });
-
-        Schema::create('participants_emergency_contact', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
-            $table->foreignId('emergency_contact_id')->constrained('emergency_contact');
-            $table->timestamps();
-        });
-
-        Schema::create('participants_medical_conditions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
-            $table->foreignId('medical_condition_id')->constrained('medical_conditions');
-            $table->timestamps();
-        });
     }
 
     /**
@@ -54,8 +40,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('participants_medical_conditions');
-        Schema::dropIfExists('participants_emergency_contact');
         Schema::dropIfExists('participants');
     }
 };

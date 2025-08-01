@@ -3,12 +3,22 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateParticipantRequest;
 use App\Models\Participant;
+use App\Models\Institution;
+use App\Services\Admin\Participants\CreateParticipantService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ParticipantsController extends Controller
 {
+    protected $createParticipantService;
+
+    public function __construct(CreateParticipantService $createParticipantService)
+    {
+        $this->createParticipantService = $createParticipantService;
+    }
+
     /**
      * Display a listing of participants.
      */
@@ -18,8 +28,19 @@ class ParticipantsController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
+        $courses = \App\Models\Course::with('program')
+            ->where('status', 'active')
+            ->orderBy('institution_name')
+            ->get();
+
+        $institutions = Institution::active()
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Participants/Index', [
             'participants' => $participants,
+            'courses' => $courses,
+            'institutions' => $institutions,
             'filters' => request()->only(['search', 'institution', 'level', 'program', 'status'])
         ]);
     }
@@ -29,40 +50,52 @@ class ParticipantsController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Admin/Participants/Create');
+        $courses = \App\Models\Course::with('program')
+            ->where('status', 'active')
+            ->orderBy('institution_name')
+            ->get();
+
+        $institutions = Institution::active()
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Admin/Participants/Create', [
+            'courses' => $courses,
+            'institutions' => $institutions
+        ]);
     }
 
     /**
      * Store a newly created participant in storage.
      */
-    public function store(Request $request)
+    public function store(CreateParticipantRequest $request)
     {
-        $validated = $request->validate([
-            'course_id' => 'required|exists:courses,id',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'code_phone' => 'required|string|max:10',
-            'phone' => 'required|string|max:20',
-            'document_type' => 'required|string|max:50',
-            'document_number' => 'required|string|max:20',
-            'country' => 'required|string|max:100',
-            'birth_date' => 'required|date',
-            'address' => 'nullable|string',
-            'dietary_restrictions' => 'nullable|string',
-            'medical_conditions' => 'nullable|string',
-            'individual_price' => 'required|numeric|min:0',
-            'price_adjustments' => 'nullable|numeric',
-            'adjustment_reason' => 'nullable|string',
-        ]);
+        try {
+            // Separar los datos
+            $participantData = array_intersect_key($request->validated(), array_flip([
+                'course_id', 'institution_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
+                'document_type', 'document_number', 'country', 'birth_date', 'address',
+                'dietary_restrictions', 'medical_conditions', 'individual_price',
+                'price_adjustments', 'adjustment_reason'
+            ]));
 
-        $validated['status'] = 'pending_payment';
-        $validated['registration_date'] = now();
+            $emergencyContactsData = $request->validated()['emergency_contacts'] ?? [];
+            $medicalConditionsData = $request->validated()['medical_conditions'] ?? [];
 
-        Participant::create($validated);
+            // Crear participante usando el servicio
+            $participant = $this->createParticipantService->execute(
+                $participantData,
+                $emergencyContactsData,
+                $medicalConditionsData
+            );
 
-        return redirect()->route('admin.participants.index')
-            ->with('message', 'Participante creado exitosamente.');
+            return redirect()->route('admin.participants.index')
+                ->with('message', 'Participante creado exitosamente.');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al crear el participante: ' . $e->getMessage()])
+                        ->withInput();
+        }
     }
 
     /**
