@@ -109,7 +109,11 @@
                                             v-model="formData.total_price"
                                             placeholder="--------"
                                             class="admin-input-text"
+                                            :class="{ 'border-red-500': errors.total_price }"
                                         />
+                                        <span v-if="errors.total_price" class="text-red-500 text-sm mt-1">
+                                            {{ errors.total_price }}
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="field-container">
@@ -121,7 +125,11 @@
                                             type="date"
                                             v-model="formData.final_payment_date"
                                             class="admin-input-text"
+                                            :class="{ 'border-red-500': errors.final_payment_date }"
                                         />
+                                        <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
+                                            {{ errors.final_payment_date }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -135,15 +143,20 @@
                                         v-model="formData.sales_person"
                                         placeholder="Nombre"
                                         class="admin-input-text"
+                                        :class="{ 'border-red-500': errors.sales_person }"
                                     />
+                                    <span v-if="errors.sales_person" class="text-red-500 text-sm mt-1">
+                                        {{ errors.sales_person }}
+                                    </span>
                                 </div>
                             </div>
+
                         </div>
                     </transition>
                 </div>
 
                 <!-- Separador -->
-                <div class="separator-line"></div>
+                <AccordionSeparator />
 
                 <!-- Acordeón 2: Quienes viajan -->
                 <div class="accordion-section">
@@ -303,7 +316,7 @@
                 </div>
 
                 <!-- Separador -->
-                <div class="separator-line"></div>
+                <AccordionSeparator />
 
                 <!-- Acordeón 3: Forma de pago -->
                 <div class="accordion-section">
@@ -504,6 +517,7 @@
 
 <script setup>
 import { ref, watch, defineEmits } from "vue";
+import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
 const props = defineProps({
@@ -529,6 +543,10 @@ const props = defineProps({
         type: String,
         default: 'create',
         validator: (value) => ['create', 'edit'].includes(value)
+    },
+    errors: {
+        type: Object,
+        default: () => ({})
     },
     paymentStatus: {
         type: Object,
@@ -784,16 +802,6 @@ const viewPaymentStates = () => {
 
 .accordion-arrow.rotated {
     transform: rotate(180deg);
-}
-
-/* Separators */
-.separator-line {
-    width: 100%;
-    height: 12px;
-    background-image: url('group-7860.svg');
-    background-repeat: no-repeat;
-    background-position: center;
-    margin: 20px 0;
 }
 
 /* Field Containers */

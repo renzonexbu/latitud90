@@ -9,10 +9,14 @@
                     <ProgramDescription
                         v-model="programData"
                         @update:images="updateImages"
+                        :errors="errors"
                     />
 
                     <!-- Componente de Detalle Administrativo -->
-                    <PaymentDetails v-model="paymentData" />
+                    <PaymentDetails 
+                        v-model="paymentData" 
+                        :errors="errors"
+                    />
                 </div>
 
                 <!-- Botón de guardar centrado debajo de ambos cards -->
@@ -40,6 +44,14 @@ import { ref } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
+
+// Props
+const props = defineProps({
+    errors: {
+        type: Object,
+        default: () => ({})
+    }
+});
 
 const form = useForm({
     // Campos del programa

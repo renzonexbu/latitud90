@@ -30,10 +30,10 @@
         <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
             <!-- Program Info -->
             <div class="text-white mb-3">
-                <h3 class="text-lg font-bold mb-2">{{ program.name }}</h3>
+                <h3 class="text-lg font-bold mb-2 line-clamp-2">{{ program.name }}</h3>
                 <div class="flex items-center justify-between text-sm">
-                    <span>{{ program.destination }}</span>
-                    <span class="font-bold">{{ formatPrice(program.price) }}</span>
+                    <span class="flex-1 truncate mr-2">{{ program.destination }}</span>
+                    <span class="font-bold text-right whitespace-nowrap">{{ formatPrice(program.price) }}</span>
                 </div>
                 <div class="flex items-center mt-2 text-xs opacity-90">
                     <span>{{ program.duration }} días</span>
@@ -55,10 +55,10 @@
                                 
                                 <!-- Money Values -->
                                 <div class="flex flex-row items-end justify-end flex-shrink-0 relative">
-                                    <div class="text-[#4B8D7F] text-left font-nexa text-[20px] font-normal font-bold leading-[24px] relative w-[83px] h-[22px]">
+                                    <div class="text-[#4B8D7F] text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative min-w-0">
                                         {{ formatPrice(program.paidAmount) }}
                                     </div>
-                                    <div class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative w-[53px] h-[12px] ml-6">
+                                    <div class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2">
                                         /{{ formatPrice(program.totalAmount) }}
                                     </div>
                                 </div>
@@ -113,4 +113,28 @@ export default {
         }
     }
 };
-</script> 
+</script>
+
+<style scoped>
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Asegurar que los precios no se salgan */
+.text-right {
+    text-align: right;
+}
+
+.whitespace-nowrap {
+    white-space: nowrap;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style> 

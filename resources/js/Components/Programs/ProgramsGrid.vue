@@ -1,7 +1,13 @@
 <template>
     <div>
+        <!-- No Programs Message -->
+        <div v-if="!programs || !programs.data || programs.data.length === 0" class="text-center py-12">
+            <div class="text-gray-500 text-lg mb-4">No hay programas disponibles</div>
+            <div class="text-gray-400 text-sm">Crea tu primer programa para comenzar</div>
+        </div>
+        
         <!-- Programs Grid - 3x2 layout -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <ProgramCard 
                 v-for="program in paginatedPrograms" 
                 :key="program.id" 
@@ -12,9 +18,10 @@
         
         <!-- Pagination -->
         <ProgramsPagination 
-            :current-page="currentPage"
-            :total-programs="programs.length"
-            :programs-per-page="6"
+            v-if="programs && programs.data && programs.data.length > 0"
+            :current-page="programs.current_page || 1"
+            :total-programs="programs.total || 0"
+            :programs-per-page="programs.per_page || 6"
             @page-changed="handlePageChange"
         />
     </div>
@@ -31,165 +38,64 @@ export default {
         ProgramCard,
         ProgramsPagination
     },
+    props: {
+        programs: {
+            type: Object,
+            required: true
+        }
+    },
     data() {
         return {
             currentPage: 1,
-            programsPerPage: 6,
-            programs: [
-                {
-                    id: 1,
-                    name: "Aventura en la Patagonia",
-                    destination: "Patagonia Chilena",
-                    price: 450000,
-                    duration: 7,
-                    participants: 12,
-                    paymentPercentage: 75,
-                    paidAmount: 337500,
-                    totalAmount: 450000
-                },
-                {
-                    id: 2,
-                    name: "Exploración Torres del Paine",
-                    destination: "Torres del Paine",
-                    price: 380000,
-                    duration: 5,
-                    participants: 8,
-                    paymentPercentage: 50,
-                    paidAmount: 190000,
-                    totalAmount: 380000
-                },
-                {
-                    id: 3,
-                    name: "Ruta de los Lagos",
-                    destination: "Región de los Lagos",
-                    price: 320000,
-                    duration: 6,
-                    participants: 15,
-                    paymentPercentage: 25,
-                    paidAmount: 80000,
-                    totalAmount: 320000
-                },
-                {
-                    id: 4,
-                    name: "Desierto de Atacama",
-                    destination: "San Pedro de Atacama",
-                    price: 280000,
-                    duration: 4,
-                    participants: 10,
-                    paymentPercentage: 90,
-                    paidAmount: 252000,
-                    totalAmount: 280000
-                },
-                {
-                    id: 5,
-                    name: "Isla de Pascua Misteriosa",
-                    destination: "Isla de Pascua",
-                    price: 520000,
-                    duration: 8,
-                    participants: 6,
-                    paymentPercentage: 30,
-                    paidAmount: 156000,
-                    totalAmount: 520000
-                },
-                {
-                    id: 6,
-                    name: "Valle del Elqui",
-                    destination: "Valle del Elqui",
-                    price: 250000,
-                    duration: 3,
-                    participants: 20,
-                    paymentPercentage: 100,
-                    paidAmount: 250000,
-                    totalAmount: 250000
-                },
-                {
-                    id: 7,
-                    name: "Chiloé Mágico",
-                    destination: "Archipiélago de Chiloé",
-                    price: 290000,
-                    duration: 5,
-                    participants: 14,
-                    paymentPercentage: 60,
-                    paidAmount: 174000,
-                    totalAmount: 290000
-                },
-                {
-                    id: 8,
-                    name: "Araucanía Andina",
-                    destination: "Araucanía",
-                    price: 310000,
-                    duration: 4,
-                    participants: 16,
-                    paymentPercentage: 40,
-                    paidAmount: 124000,
-                    totalAmount: 310000
-                },
-                {
-                    id: 9,
-                    name: "Rapa Nui Cultural",
-                    destination: "Isla de Pascua",
-                    price: 480000,
-                    duration: 7,
-                    participants: 8,
-                    paymentPercentage: 15,
-                    paidAmount: 72000,
-                    totalAmount: 480000
-                },
-                {
-                    id: 10,
-                    name: "Glaciares del Sur",
-                    destination: "Región de Magallanes",
-                    price: 420000,
-                    duration: 6,
-                    participants: 10,
-                    paymentPercentage: 80,
-                    paidAmount: 336000,
-                    totalAmount: 420000
-                },
-                {
-                    id: 11,
-                    name: "Vinos del Valle",
-                    destination: "Valle del Maipo",
-                    price: 180000,
-                    duration: 2,
-                    participants: 25,
-                    paymentPercentage: 65,
-                    paidAmount: 117000,
-                    totalAmount: 180000
-                },
-                {
-                    id: 12,
-                    name: "Aventura en la Cordillera",
-                    destination: "Cordillera de los Andes",
-                    price: 350000,
-                    duration: 5,
-                    participants: 12,
-                    paymentPercentage: 45,
-                    paidAmount: 157500,
-                    totalAmount: 350000
-                }
-            ]
+            programsPerPage: 6
         };
     },
     computed: {
         paginatedPrograms() {
-            const startIndex = (this.currentPage - 1) * this.programsPerPage;
-            const endIndex = startIndex + this.programsPerPage;
-            return this.programs.slice(startIndex, endIndex);
+            // Si no hay programas, retornar array vacío
+            if (!this.programs || !this.programs.data || this.programs.data.length === 0) {
+                return [];
+            }
+            
+            // Usar la paginación del backend si está disponible
+            if (this.programs.data) {
+                return this.programs.data.map(program => ({
+                    ...program,
+                    // Agregar campos calculados para compatibilidad con el card
+                    price: program.trip_price,
+                    duration: this.calculateDuration(program.departure_date),
+                    participants: 0, // Por ahora 0, se puede calcular después
+                    paymentPercentage: 0, // Por ahora 0, se puede calcular después
+                    paidAmount: 0, // Por ahora 0, se puede calcular después
+                    totalAmount: program.trip_price
+                }));
+            }
+            
+            return [];
         }
     },
     methods: {
         handlePageChange(page) {
-            this.currentPage = page;
+            // Usar la paginación del backend
+            router.get(route('admin.programs.index'), { page }, {
+                preserveState: true,
+                replace: true,
+            });
         },
         handleProgramClick(program) {
-            // Solo programas 1 y 2 van al edit de los programas reales del seeder
-            if (program.id === 1 || program.id === 2) {
-                router.visit(route('admin.programs.edit', program.id));
-            } else {
-                // Los otros programas solo muestran un mensaje por ahora
-                alert(`Programa "${program.name}" - Esta funcionalidad estará disponible próximamente`);
-            }
+            // Ir al edit del programa
+            router.visit(route('admin.programs.edit', program.id));
+        },
+        calculateDuration(departureDate) {
+            if (!departureDate) return 0;
+            
+            const today = new Date();
+            const departure = new Date(departureDate);
+            const diffTime = departure.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Por ahora retornar un valor fijo, se puede calcular basado en la lógica del negocio
+            return 7; // 7 días por defecto
         }
     }
 };

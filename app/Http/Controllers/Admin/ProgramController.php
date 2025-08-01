@@ -3,21 +3,37 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateProgramRequest;
 use App\Models\Program;
-use App\Models\User;
+use App\Models\PaymentMode;
+use App\Services\Admin\Programs\CreateProgramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
 {
+    public function __construct(
+        private CreateProgramService $createProgramService
+    ) {}
+
     public function index(Request $request)
     {
-        // Por ahora retornamos datos vacíos
-        // Aquí se implementará la lógica de consulta cuando esté listo
+        $programs = Program::with(['paymentMode'])
+            ->when($request->search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%")
+                      ->orWhere('destination', 'like', "%{$search}%");
+            })
+            ->when($request->status, function ($query, $status) {
+                $query->where('active', $status === 'active');
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('Admin/Programs/Index', [
-            'programs' => [],
-            'filters' => $request->only(['search', 'service_type', 'status']),
+            'programs' => $programs,
+            'filters' => $request->only(['search', 'status']),
         ]);
     }
 
@@ -26,12 +42,16 @@ class ProgramController extends Controller
         return Inertia::render('Admin/Programs/Create');
     }
 
-    public function store(Request $request)
+    public function store(CreateProgramRequest $request)
     {
-        // Por ahora solo redirigimos al index
-        // Aquí se implementará la lógica de guardado cuando esté listo
-        return redirect()->route('admin.programs.index')
-            ->with('success', 'Programa creado exitosamente.');
+        try {
+            $program = $this->createProgramService->execute($request->validated());
+            
+            return redirect()->route('admin.programs.index')
+                ->with('success', 'Programa creado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al crear el programa: ' . $e->getMessage()]);
+        }
     }
 
     public function show(Program $program)
@@ -54,31 +74,42 @@ class ProgramController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'service_type' => 'required|in:tours,excursiones,intercambio,cruceros',
             'destination' => 'required|string|max:255',
-            'departure_date' => 'required|date',
-            'return_date' => 'required|date|after_or_equal:departure_date',
-            'duration_days' => 'required|integer|min:1',
-            'capacity' => 'required|integer|min:1',
-            'base_price' => 'required|numeric|min:0',
-            'includes' => 'nullable|string',
-            'excludes' => 'nullable|string',
-            'requirements' => 'nullable|string',
-            'itinerary' => 'nullable|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'departure_date' => 'required|date|after:today',
+            'trip_description' => 'required|string|max:2000',
+            'images_folder' => 'nullable|string|max:255',
+            'pillars' => 'nullable|string|max:500',
+            'itinerary_description' => 'nullable|string|max:1000',
+            'itinerary_file' => 'nullable|file|mimes:pdf|max:10240',
+            'travel_assistance_coverage' => 'nullable|file|mimes:pdf|max:10240',
+            'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
+            'trip_price' => 'required|numeric|min:0',
+            'final_payment_date' => 'required|date|after:today',
+            'seller_name' => 'required|string|max:255',
+            'payment_mode_id' => 'required|exists:payment_modes,id',
             'active' => 'boolean'
         ]);
 
-        // Manejar subida de imagen
-        if ($request->hasFile('image')) {
-            // Eliminar imagen anterior si existe
-            if ($program->image_url) {
-                Storage::disk('public')->delete($program->image_url);
+        // Manejar subida de archivos
+        if ($request->hasFile('itinerary_file')) {
+            if ($program->itinerary_file) {
+                Storage::disk('public')->delete($program->itinerary_file);
             }
+            $validated['itinerary_file'] = $request->file('itinerary_file')->store('programs/files', 'public');
+        }
 
-            $imagePath = $request->file('image')->store('programs', 'public');
-            $validated['image_url'] = $imagePath;
+        if ($request->hasFile('travel_assistance_coverage')) {
+            if ($program->travel_assistance_coverage) {
+                Storage::disk('public')->delete($program->travel_assistance_coverage);
+            }
+            $validated['travel_assistance_coverage'] = $request->file('travel_assistance_coverage')->store('programs/files', 'public');
+        }
+
+        if ($request->hasFile('equipment_list')) {
+            if ($program->equipment_list) {
+                Storage::disk('public')->delete($program->equipment_list);
+            }
+            $validated['equipment_list'] = $request->file('equipment_list')->store('programs/files', 'public');
         }
 
         $program->update($validated);
@@ -89,9 +120,15 @@ class ProgramController extends Controller
 
     public function destroy(Program $program)
     {
-        // Eliminar imagen si existe
-        if ($program->image_url) {
-            Storage::disk('public')->delete($program->image_url);
+        // Eliminar archivos asociados si existen
+        if ($program->itinerary_file) {
+            Storage::disk('public')->delete($program->itinerary_file);
+        }
+        if ($program->travel_assistance_coverage) {
+            Storage::disk('public')->delete($program->travel_assistance_coverage);
+        }
+        if ($program->equipment_list) {
+            Storage::disk('public')->delete($program->equipment_list);
         }
 
         $program->delete();
@@ -140,11 +177,17 @@ class ProgramController extends Controller
                 $message = 'Programas desactivados exitosamente.';
                 break;
             case 'delete':
-                // Eliminar imágenes asociadas
+                // Eliminar archivos asociados
                 $programsToDelete = $programs->get();
                 foreach ($programsToDelete as $program) {
-                    if ($program->image_url) {
-                        Storage::disk('public')->delete($program->image_url);
+                    if ($program->itinerary_file) {
+                        Storage::disk('public')->delete($program->itinerary_file);
+                    }
+                    if ($program->travel_assistance_coverage) {
+                        Storage::disk('public')->delete($program->travel_assistance_coverage);
+                    }
+                    if ($program->equipment_list) {
+                        Storage::disk('public')->delete($program->equipment_list);
                     }
                 }
                 $programs->delete();

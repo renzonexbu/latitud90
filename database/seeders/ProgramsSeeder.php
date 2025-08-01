@@ -3,11 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Program;
-use App\Models\ServiceType;
-use App\Models\Feature;
-use App\Models\Requirement;
+use App\Models\PaymentMode;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ProgramsSeeder extends Seeder
@@ -17,175 +14,92 @@ class ProgramsSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear Service Types
-        $tours = ServiceType::firstOrCreate(['name' => 'Tours'], [
-            'description' => 'Viajes turísticos organizados',
-            'active' => true
-        ]);
+        // Obtener el primer payment mode disponible
+        $paymentMode = PaymentMode::first();
         
-        $excursiones = ServiceType::firstOrCreate(['name' => 'Excursiones'], [
-            'description' => 'Excursiones de día completo',
-            'active' => true
-        ]);
-
-        // Crear Features (para includes/excludes)
-        $features = [
-            // Includes
-            ['name' => 'Transporte terrestre', 'description' => 'Transporte en bus o van'],
-            ['name' => 'Alojamiento', 'description' => 'Hospedaje durante el viaje'],
-            ['name' => 'Todas las comidas', 'description' => 'Desayuno, almuerzo y cena'],
-            ['name' => 'Guía especializado', 'description' => 'Guía turístico profesional'],
-            ['name' => 'Equipo de trekking', 'description' => 'Equipo básico para caminatas'],
-            ['name' => 'Seguro de viaje', 'description' => 'Seguro básico de accidentes'],
-            ['name' => 'Transporte 4x4', 'description' => 'Vehículo todo terreno'],
-            ['name' => 'Entradas a parques', 'description' => 'Tickets de acceso'],
-            
-            // Excludes  
-            ['name' => 'Vuelos', 'description' => 'Pasajes aéreos'],
-            ['name' => 'Equipamiento personal', 'description' => 'Ropa y equipo personal'],
-            ['name' => 'Bebidas alcohólicas', 'description' => 'Alcohol no incluido'],
-            ['name' => 'Propinas', 'description' => 'Gratificaciones'],
-            ['name' => 'Gastos personales', 'description' => 'Compras individuales'],
-            ['name' => 'Medicamentos', 'description' => 'Medicinas personales'],
-        ];
-
-        foreach ($features as $feature) {
-            Feature::firstOrCreate(['name' => $feature['name']], $feature);
-        }
-
-        // Crear Requirements
-        $requirements = [
-            ['name' => 'Condición física buena', 'description' => 'Estado físico adecuado'],
-            ['name' => 'Experiencia en trekking', 'description' => 'Conocimiento básico de caminatas'],
-            ['name' => 'Documentos vigentes', 'description' => 'Cédula de identidad válida'],
-            ['name' => 'Seguro médico', 'description' => 'Cobertura de salud'],
-            ['name' => 'Ropa de montaña', 'description' => 'Vestimenta adecuada'],
-            ['name' => 'Adaptación a altura', 'description' => 'Acostumbrarse a la altitud'],
-            ['name' => 'Protección solar', 'description' => 'Bloqueador y gafas'],
-        ];
-
-        foreach ($requirements as $requirement) {
-            Requirement::firstOrCreate(['name' => $requirement['name']], $requirement);
+        if (!$paymentMode) {
+            // Si no hay payment modes, crear uno por defecto
+            $paymentMode = PaymentMode::create([
+                'name' => 'Pago en cuotas',
+                'description' => 'Pago dividido en cuotas mensuales',
+                'active' => true
+            ]);
         }
 
         // Programa 1: Aventura en Patagonia
-        $program1 = Program::create([
+        Program::create([
             'name' => 'Aventura en Patagonia - Torres del Paine',
-            'description' => 'Un viaje épico por uno de los paisajes más impresionantes de Chile. Explora glaciares milenarios, lagos turquesas y montañas imponentes en el corazón de la Patagonia.',
-            'service_type_id' => $tours->id,
             'destination' => 'Torres del Paine, Patagonia',
             'departure_date' => Carbon::now()->addDays(45)->format('Y-m-d'),
-            'return_date' => Carbon::now()->addDays(52)->format('Y-m-d'),
-            'duration_days' => 7,
-            'capacity' => 25,
-            'base_price' => 1850000.00,
-            'itinerary' => 'Día 1: Llegada a Puerto Natales y traslado al parque. Día 2-3: Trekking Base Torres. Día 4-5: Navegación Grey. Día 6: Mirador Cuernos. Día 7: Retorno.',
+            'trip_description' => 'Un viaje épico por uno de los paisajes más impresionantes de Chile. Explora glaciares milenarios, lagos turquesas y montañas imponentes en el corazón de la Patagonia. Este programa incluye trekking por senderos únicos, navegación por lagos cristalinos y la oportunidad de observar fauna nativa en su hábitat natural.',
+            'images_folder' => 'programs/patagonia-torres-paine',
+            'pillars' => 'Aventura, Educación, Seguridad, Entretenimiento',
+            'itinerary_description' => 'Día 1: Llegada a Puerto Natales y traslado al parque nacional. Día 2-3: Trekking Base Torres con vistas panorámicas. Día 4-5: Navegación por el Lago Grey hasta el glaciar. Día 6: Mirador Cuernos del Paine. Día 7: Retorno con recuerdos inolvidables.',
+            'itinerary_file' => 'programs/files/itinerario-patagonia.pdf',
+            'travel_assistance_coverage' => 'programs/files/cobertura-patagonia.pdf',
+            'equipment_list' => 'programs/files/equipo-patagonia.pdf',
+            'trip_price' => 1850000.00,
+            'final_payment_date' => Carbon::now()->addDays(30)->format('Y-m-d'),
+            'seller_name' => 'María González',
+            'payment_mode_id' => $paymentMode->id,
             'active' => true,
         ]);
-
-        // Relacionar Features (includes) con Programa 1
-        $includesP1 = ['Transporte terrestre', 'Alojamiento', 'Todas las comidas', 'Guía especializado', 'Equipo de trekking', 'Seguro de viaje'];
-        foreach ($includesP1 as $featureName) {
-            $feature = Feature::where('name', $featureName)->first();
-            if ($feature) {
-                DB::table('programs_features')->insert([
-                    'program_id' => $program1->id,
-                    'feature_id' => $feature->id,
-                    'type' => 'include',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-
-        // Relacionar Features (excludes) con Programa 1
-        $excludesP1 = ['Vuelos', 'Equipamiento personal', 'Bebidas alcohólicas', 'Propinas', 'Gastos personales'];
-        foreach ($excludesP1 as $featureName) {
-            $feature = Feature::where('name', $featureName)->first();
-            if ($feature) {
-                DB::table('programs_features')->insert([
-                    'program_id' => $program1->id,
-                    'feature_id' => $feature->id,
-                    'type' => 'exclude',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-
-        // Relacionar Requirements con Programa 1
-        $requirementsP1 = ['Condición física buena', 'Experiencia en trekking', 'Documentos vigentes', 'Seguro médico', 'Ropa de montaña'];
-        foreach ($requirementsP1 as $reqName) {
-            $requirement = Requirement::where('name', $reqName)->first();
-            if ($requirement) {
-                DB::table('programs_requirements')->insert([
-                    'program_id' => $program1->id,
-                    'requirement_id' => $requirement->id,
-                    'type' => 'include',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
 
         // Programa 2: Descubriendo el Norte
-        $program2 = Program::create([
+        Program::create([
             'name' => 'Descubriendo el Norte - Atacama y Altiplano',
-            'description' => 'Sumérgete en la magia del desierto más árido del mundo. Descubre géiseres, lagunas de colores, pueblos andinos y cielos estrellados únicos.',
-            'service_type_id' => $excursiones->id,
             'destination' => 'San Pedro de Atacama, Desierto de Atacama',
             'departure_date' => Carbon::now()->addDays(30)->format('Y-m-d'),
-            'return_date' => Carbon::now()->addDays(35)->format('Y-m-d'),
-            'duration_days' => 5,
-            'capacity' => 18,
-            'base_price' => 1250000.00,
-            'itinerary' => 'Día 1: Llegada y Valle de la Luna. Día 2: Géiseres del Tatio y Machuca. Día 3: Lagunas Altiplánicas. Día 4: Salar de Atacama. Día 5: Retorno.',
+            'trip_description' => 'Sumérgete en la magia del desierto más árido del mundo. Descubre géiseres activos, lagunas de colores únicos, pueblos andinos auténticos y cielos estrellados que te dejarán sin aliento. Una experiencia que combina aventura, cultura y conexión con la naturaleza.',
+            'images_folder' => 'programs/atacama-altiplano',
+            'pillars' => 'Educación, Aventura, Seguridad',
+            'itinerary_description' => 'Día 1: Llegada y exploración del Valle de la Luna. Día 2: Madrugada a los Géiseres del Tatio y visita al pueblo de Machuca. Día 3: Tour por las Lagunas Altiplánicas. Día 4: Salar de Atacama y observación astronómica. Día 5: Retorno con experiencias únicas.',
+            'itinerary_file' => 'programs/files/itinerario-atacama.pdf',
+            'travel_assistance_coverage' => 'programs/files/cobertura-atacama.pdf',
+            'equipment_list' => 'programs/files/equipo-atacama.pdf',
+            'trip_price' => 1250000.00,
+            'final_payment_date' => Carbon::now()->addDays(20)->format('Y-m-d'),
+            'seller_name' => 'Carlos Mendoza',
+            'payment_mode_id' => $paymentMode->id,
             'active' => true,
         ]);
 
-        // Relacionar Features (includes) con Programa 2
-        $includesP2 = ['Transporte 4x4', 'Alojamiento', 'Guía especializado', 'Entradas a parques'];
-        foreach ($includesP2 as $featureName) {
-            $feature = Feature::where('name', $featureName)->first();
-            if ($feature) {
-                DB::table('programs_features')->insert([
-                    'program_id' => $program2->id,
-                    'feature_id' => $feature->id,
-                    'type' => 'include',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
+        // Programa 3: Expedición Antártica
+        Program::create([
+            'name' => 'Expedición Antártica - Continente Blanco',
+            'destination' => 'Península Antártica',
+            'departure_date' => Carbon::now()->addDays(90)->format('Y-m-d'),
+            'trip_description' => 'Una aventura única al continente más remoto del planeta. Navega entre icebergs gigantes, observa colonias de pingüinos, ballenas y focas en su hábitat natural. Una experiencia que pocos pueden vivir y que te marcará para siempre.',
+            'images_folder' => 'programs/expedicion-antartica',
+            'pillars' => 'Aventura, Educación, Seguridad, Entretenimiento',
+            'itinerary_description' => 'Día 1-2: Vuelo a Punta Arenas y navegación por el Estrecho de Magallanes. Día 3-5: Cruce del Pasaje de Drake. Día 6-10: Exploración de la Península Antártica con desembarcos diarios. Día 11-13: Retorno con recuerdos inolvidables.',
+            'itinerary_file' => 'programs/files/itinerario-antartica.pdf',
+            'travel_assistance_coverage' => 'programs/files/cobertura-antartica.pdf',
+            'equipment_list' => 'programs/files/equipo-antartica.pdf',
+            'trip_price' => 3500000.00,
+            'final_payment_date' => Carbon::now()->addDays(60)->format('Y-m-d'),
+            'seller_name' => 'Ana Rodríguez',
+            'payment_mode_id' => $paymentMode->id,
+            'active' => true,
+        ]);
 
-        // Relacionar Features (excludes) con Programa 2
-        $excludesP2 = ['Vuelos', 'Medicamentos', 'Gastos personales'];
-        foreach ($excludesP2 as $featureName) {
-            $feature = Feature::where('name', $featureName)->first();
-            if ($feature) {
-                DB::table('programs_features')->insert([
-                    'program_id' => $program2->id,
-                    'feature_id' => $feature->id,
-                    'type' => 'exclude',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-
-        // Relacionar Requirements con Programa 2
-        $requirementsP2 = ['Adaptación a altura', 'Protección solar', 'Documentos vigentes'];
-        foreach ($requirementsP2 as $reqName) {
-            $requirement = Requirement::where('name', $reqName)->first();
-            if ($requirement) {
-                DB::table('programs_requirements')->insert([
-                    'program_id' => $program2->id,
-                    'requirement_id' => $requirement->id,
-                    'type' => 'include',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
+        // Programa 4: Ruta de los Vinos
+        Program::create([
+            'name' => 'Ruta de los Vinos - Valle del Maipo',
+            'destination' => 'Valle del Maipo, Región Metropolitana',
+            'departure_date' => Carbon::now()->addDays(15)->format('Y-m-d'),
+            'trip_description' => 'Descubre los mejores vinos de Chile en un recorrido por las viñas más prestigiosas del Valle del Maipo. Degusta vinos premiados, aprende sobre el proceso de elaboración y disfruta de la gastronomía local en un ambiente sofisticado.',
+            'images_folder' => 'programs/ruta-vinos-maipo',
+            'pillars' => 'Educación, Entretenimiento, Seguridad',
+            'itinerary_description' => 'Día 1: Visita a Viña Concha y Toro con degustación premium. Día 2: Tour por Viña Santa Rita y almuerzo en su restaurante. Día 3: Experiencia en Viña Undurraga con cata de vinos boutique.',
+            'itinerary_file' => 'programs/files/itinerario-vinos.pdf',
+            'travel_assistance_coverage' => 'programs/files/cobertura-vinos.pdf',
+            'equipment_list' => 'programs/files/equipo-vinos.pdf',
+            'trip_price' => 850000.00,
+            'final_payment_date' => Carbon::now()->addDays(10)->format('Y-m-d'),
+            'seller_name' => 'Patricia Silva',
+            'payment_mode_id' => $paymentMode->id,
+            'active' => true,
+        ]);
     }
 }

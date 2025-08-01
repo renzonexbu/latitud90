@@ -58,7 +58,11 @@
                                             v-model="formData.name"
                                             placeholder="Nombre"
                                             class="input-text"
+                                            :class="{ 'border-red-500': errors.name }"
                                         />
+                                        <span v-if="errors.name" class="text-red-500 text-sm mt-1">
+                                            {{ errors.name }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -73,7 +77,11 @@
                                             v-model="formData.destination"
                                             placeholder="000000000"
                                             class="input-text"
+                                            :class="{ 'border-red-500': errors.destination }"
                                         />
+                                        <span v-if="errors.destination" class="text-red-500 text-sm mt-1">
+                                            {{ errors.destination }}
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="field-container">
@@ -86,7 +94,11 @@
                                             v-model="formData.departure_date"
                                             placeholder="00/00/0000"
                                             class="input-text"
+                                            :class="{ 'border-red-500': errors.departure_date }"
                                         />
+                                        <span v-if="errors.departure_date" class="text-red-500 text-sm mt-1">
+                                            {{ errors.departure_date }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -99,7 +111,11 @@
                                         v-model="formData.description"
                                         placeholder="Escriba aqui las condiciones medicas que presenta el alumno, si no tiene no es obligatorio completar."
                                         class="input-text2"
+                                        :class="{ 'border-red-500': errors.description }"
                                     ></textarea>
+                                    <span v-if="errors.description" class="text-red-500 text-sm mt-1">
+                                        {{ errors.description }}
+                                    </span>
                                 </div>
                             </div>
                             <div class="images-section-row">
@@ -213,7 +229,7 @@
                 </div>
 
                 <!-- Separador -->
-                <img class="group-785" src="group-7850.svg" />
+                <AccordionSeparator />
 
                 <!-- Acordeón 2: Pilares -->
                 <div class="accordion-section">
@@ -305,7 +321,7 @@
                 </div>
 
                 <!-- Separador -->
-                <img class="group-786" src="group-7860.svg" />
+                <AccordionSeparator />
 
                 <!-- Acordeón 3: Que vamos a hacer -->
                 <div class="accordion-section">
@@ -499,6 +515,7 @@
 
 <script setup>
 import { ref, watch, defineEmits } from "vue";
+import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
 const props = defineProps({
@@ -523,6 +540,10 @@ const props = defineProps({
         type: String,
         default: 'create',
         validator: (value) => ['create', 'edit'].includes(value)
+    },
+    errors: {
+        type: Object,
+        default: () => ({})
     },
     existingImages: {
         type: Array,
@@ -884,7 +905,7 @@ const formatFileSize = (bytes) => {
     flex-shrink: 0;
     height: 46px;
     position: relative;
-    color: var(--colores-neutro-gris-3, #c7c7c7);
+    color: var(--colores-op2-turquesa, #007e93);
     text-align: left;
     font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
     font-size: var(--cuerpo-de-texto-m-font-size, 12px);
@@ -894,9 +915,13 @@ const formatFileSize = (bytes) => {
     width: 100%;
 }
 
+.input-text::placeholder {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+}
+
 .input-text:focus {
     border-color: var(--colores-op2-turquesa, #007e93);
-    color: var(--colores-neutro-gris-4, #5b5b5b);
+    color: var(--colores-op2-turquesa, #007e93);
 }
 
 /* Destination Date Row */
@@ -967,7 +992,7 @@ const formatFileSize = (bytes) => {
     width: 611px;
     height: 134px;
     position: relative;
-    color: var(--colores-neutro-gris-3, #c7c7c7);
+    color: var(--colores-op2-turquesa, #007e93);
     text-align: left;
     font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
     font-size: var(--cuerpo-de-texto-m-font-size, 12px);
@@ -977,9 +1002,13 @@ const formatFileSize = (bytes) => {
     outline: none;
 }
 
+.input-text2::placeholder {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+}
+
 .input-text2:focus {
     border-color: var(--colores-op2-turquesa, #007e93);
-    color: var(--colores-neutro-gris-4, #5b5b5b);
+    color: var(--colores-op2-turquesa, #007e93);
 }
 
 /* Images Section Row */
@@ -1168,14 +1197,6 @@ const formatFileSize = (bytes) => {
     background-color: rgba(255, 0, 0, 0.1);
 }
 
-.group-785 {
-    flex-shrink: 0;
-    width: 242px;
-    height: 12px;
-    position: relative;
-    overflow: visible;
-}
-
 /* Pillars Section Row */
 
 .pillars-description {
@@ -1253,7 +1274,7 @@ const formatFileSize = (bytes) => {
     flex: 1;
     height: 46px;
     position: relative;
-    color: var(--colores-primario-turquesa, #007e93);
+    color: var(--colores-op2-turquesa, #007e93);
     text-align: left;
     font-family: var(
         --cuerpo-de-texto-l-font-family,
@@ -1264,6 +1285,10 @@ const formatFileSize = (bytes) => {
     line-height: var(--cuerpo-de-texto-l-line-height, 22px);
     font-weight: var(--cuerpo-de-texto-l-font-weight, 400);
     outline: none;
+}
+
+.input-text4::placeholder {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
 }
 
 .input-text4:focus {
@@ -1279,14 +1304,6 @@ const formatFileSize = (bytes) => {
     justify-content: flex-start;
     flex: 1;
     position: relative;
-}
-
-.group-786 {
-    flex-shrink: 0;
-    width: 242px;
-    height: 12px;
-    position: relative;
-    overflow: visible;
 }
 
 /* Itinerary Section Row */
@@ -1324,7 +1341,7 @@ const formatFileSize = (bytes) => {
     flex-shrink: 0;
     height: 134px;
     position: relative;
-    color: var(--colores-neutro-gris-3, #c7c7c7);
+    color: var(--colores-op2-turquesa, #007e93);
     text-align: left;
     font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
     font-size: var(--cuerpo-de-texto-m-font-size, 12px);
@@ -1334,9 +1351,13 @@ const formatFileSize = (bytes) => {
     outline: none;
 }
 
+.input-text5::placeholder {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+}
+
 .input-text5:focus {
     border-color: var(--colores-op2-turquesa, #007e93);
-    color: var(--colores-neutro-gris-4, #5b5b5b);
+    color: var(--colores-op2-turquesa, #007e93);
 }
 
 .pdf-upload-grid {

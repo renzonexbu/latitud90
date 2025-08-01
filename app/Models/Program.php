@@ -11,37 +11,32 @@ class Program extends Model
 
     protected $fillable = [
         'name',
-        'description',
-        'service_type_id',
         'destination',
         'departure_date',
-        'return_date',
-        'duration_days',
-        'capacity',
-        'base_price',
-        'includes',
-        'excludes',
-        'requirements',
-        'itinerary',
-        'image_url',
+        'trip_description',
+        'images_folder',
+        'pillars',
+        'itinerary_description',
+        'itinerary_file',
+        'travel_assistance_coverage',
+        'equipment_list',
+        'trip_price',
+        'final_payment_date',
+        'seller_name',
+        'payment_mode_id',
         'active'
     ];
 
     protected $casts = [
         'departure_date' => 'date',
-        'return_date' => 'date',
-        'base_price' => 'decimal:2',
+        'final_payment_date' => 'date',
+        'trip_price' => 'decimal:2',
         'active' => 'boolean'
     ];
 
-    public function serviceType()
+    public function paymentMode()
     {
-        return $this->belongsTo(ServiceType::class);
-    }
-
-    public function commercialExecutive()
-    {
-        return $this->belongsTo(User::class, 'commercial_executive_id');
+        return $this->belongsTo(PaymentMode::class);
     }
 
     public function participants()

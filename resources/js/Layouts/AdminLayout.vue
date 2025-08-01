@@ -76,7 +76,7 @@
                         stroke-color="currentColor"
                     />
                 </NavLink>
-                <NavLink
+                <!-- <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
                     class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
@@ -105,7 +105,7 @@
                         "
                         fill-color="currentColor"
                     />
-                </NavLink>
+                </NavLink> -->
             </nav>
 
             <!-- User Info Section -->

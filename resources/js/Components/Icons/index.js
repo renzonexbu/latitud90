@@ -21,6 +21,7 @@ export { default as CalendarIcon } from "./CalendarIcon.vue";
 export { default as ExclamationIcon } from "./ExclamationIcon.vue";
 export { default as AyudaIcon } from "./AyudaIcon.vue";
 export { default as UserIcon } from "./UserIcon.vue";
+export { default as AccordionSeparator } from "./AccordionSeparator.vue";
 
 // Componente wrapper genérico
 export { default as SvgIcon } from "./SvgIcon.vue";
