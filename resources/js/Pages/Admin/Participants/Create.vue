@@ -376,33 +376,6 @@
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            RUT*
-                                        </label>
-                                        <input 
-                                            v-model="form.emergency_contact_document_number"
-                                            type="text"
-                                            placeholder="000000000"
-                                            @input="formatEmergencyContactRut"
-                                            @blur="validateEmergencyContactRut"
-                                            :class="[
-                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                errors['emergency_contacts.0.document_number'] ? 'border-red-500' : 'border-[#5b5b5b]',
-                                                emergencyContactRutValidation.isValid === false ? 'border-red-500' : '',
-                                                emergencyContactRutValidation.isValid === true ? 'border-green-500' : ''
-                                            ]"
-                                        />
-                                        <span v-if="errors['emergency_contacts.0.document_number']" class="text-red-500 text-xs mt-1">{{ errors['emergency_contacts.0.document_number'] }}</span>
-                                        <span v-if="emergencyContactRutValidation.message" :class="[
-                                            'text-xs mt-1',
-                                            emergencyContactRutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
-                                        ]">{{ emergencyContactRutValidation.message }}</span>
-                                    </div>
-                                </div>
-
-                                <!-- Email y Teléfono contacto -->
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
                                             Email*
                                         </label>
                                         <input 
@@ -536,31 +509,6 @@
                                             <option value="otro">Otro</option>
                                         </select>
                                         <span v-if="errors[`emergency_contacts.${index + 1}.relationship`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.relationship`] }}</span>
-                                    </div>
-
-                                    <!-- RUT contacto adicional -->
-                                    <div>
-                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            RUT*
-                                        </label>
-                                        <input 
-                                            v-model="contact.document_number"
-                                            type="text"
-                                            placeholder="000000000"
-                                            @input="formatAdditionalContactRut(index)"
-                                            @blur="validateAdditionalContactRut(index)"
-                                            :class="[
-                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                errors[`emergency_contacts.${index + 1}.document_number`] ? 'border-red-500' : 'border-[#5b5b5b]',
-                                                contact.rutValidation && contact.rutValidation.isValid === false ? 'border-red-500' : '',
-                                                contact.rutValidation && contact.rutValidation.isValid === true ? 'border-green-500' : ''
-                                            ]"
-                                        />
-                                        <span v-if="errors[`emergency_contacts.${index + 1}.document_number`]" class="text-red-500 text-xs mt-1">{{ errors[`emergency_contacts.${index + 1}.document_number`] }}</span>
-                                        <span v-if="contact.rutValidation && contact.rutValidation.message" :class="[
-                                            'text-xs mt-1',
-                                            contact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
-                                        ]">{{ contact.rutValidation.message }}</span>
                                     </div>
 
                                     <!-- Email y Teléfono contacto adicional -->
@@ -759,8 +707,6 @@ export default {
                 emergency_contact_email: "",
                 emergency_contact_phone: "",
                 emergency_contact_code_phone: "+56",
-                emergency_contact_document_type: "RUT",
-                emergency_contact_document_number: "",
                 emergency_contact_country: "Chile",
                 emergency_contact_birth_date: "",
                 emergency_contact_address: "",
@@ -776,10 +722,7 @@ export default {
                 isValid: null,
                 message: ""
             },
-            emergencyContactRutValidation: {
-                isValid: null,
-                message: ""
-            }
+
         };
     },
     methods: {
@@ -818,8 +761,6 @@ export default {
                 emergency_contact_email: "",
                 emergency_contact_phone: "",
                 emergency_contact_code_phone: "+56",
-                emergency_contact_document_type: "RUT",
-                emergency_contact_document_number: "",
                 emergency_contact_country: "Chile",
                 emergency_contact_birth_date: "",
                 emergency_contact_address: "",
@@ -835,10 +776,7 @@ export default {
                 isValid: null,
                 message: ""
             };
-            this.emergencyContactRutValidation = {
-                isValid: null,
-                message: ""
-            };
+
         },
         
         async saveParticipant() {
@@ -874,11 +812,9 @@ export default {
                         email: this.form.emergency_contact_email,
                         code_phone: this.form.emergency_contact_code_phone,
                         phone: this.form.emergency_contact_phone,
-                        document_type: this.form.emergency_contact_document_type,
-                        document_number: this.form.emergency_contact_document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
                         country: this.form.emergency_contact_country,
-                        birth_date: this.form.emergency_contact_birth_date,
-                        address: this.form.emergency_contact_address,
+                        birth_date: this.form.emergency_contact_birth_date || null,
+                        address: this.form.emergency_contact_address || null,
                         relationship: this.form.emergency_contact_relationship,
                     }
                 ];
@@ -891,19 +827,15 @@ export default {
                         email: contact.email,
                         code_phone: contact.code_phone || "+56",
                         phone: contact.phone,
-                        document_type: "RUT",
-                        document_number: contact.document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
                         country: "Chile",
-                        birth_date: "",
-                        address: "",
+                        birth_date: null,
+                        address: null,
                         relationship: contact.relationship,
                     });
                 });
 
-                // Preparar condiciones médicas (si se especifican)
-                const medicalConditions = this.form.medical_conditions ? [
-                    { description: this.form.medical_conditions }
-                ] : [];
+                // Preparar condiciones médicas (como string, no array)
+                const medicalConditions = this.form.medical_conditions || '';
 
                 // Enviar datos al servidor
                 await router.post(route('admin.participants.store'), {
@@ -934,12 +866,7 @@ export default {
                     relationship: "",
                     email: "",
                     phone: "",
-                    code_phone: "+56",
-                    document_number: "",
-                    rutValidation: {
-                        isValid: null,
-                        message: ""
-                    }
+                    code_phone: "+56"
                 });
             }
         },
@@ -1023,124 +950,7 @@ export default {
             return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
         },
 
-        formatEmergencyContactRut() {
-            // Remover todos los caracteres no numéricos excepto K
-            let rut = this.form.emergency_contact_document_number.replace(/[^0-9kK]/g, '');
-            
-            if (rut.length > 0) {
-                rut = rut.toUpperCase();
-                
-                // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
-                if (rut.length > 1) {
-                    const body = rut.slice(0, -1);
-                    const dv = rut.slice(-1);
-                    
-                    // Formatear el cuerpo con puntos
-                    let formattedBody = '';
-                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
-                        if (j > 0 && j % 3 === 0) {
-                            formattedBody = '.' + formattedBody;
-                        }
-                        formattedBody = body[i] + formattedBody;
-                    }
-                    
-                    // Combinar cuerpo formateado con dígito verificador
-                    this.form.emergency_contact_document_number = `${formattedBody}-${dv}`;
-                } else {
-                    this.form.emergency_contact_document_number = rut;
-                }
-            }
-        },
-
-        validateEmergencyContactRut() {
-            const rut = this.form.emergency_contact_document_number.replace(/\./g, '').replace(/-/g, '');
-            
-            if (rut.length === 0) {
-                this.emergencyContactRutValidation.isValid = null;
-                this.emergencyContactRutValidation.message = '';
-                return;
-            }
-            
-            // Validar formato básico
-            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-                this.emergencyContactRutValidation.isValid = false;
-                this.emergencyContactRutValidation.message = 'Formato de RUT inválido';
-                return;
-            }
-            
-            // Separar cuerpo y dígito verificador
-            const body = rut.slice(0, -1);
-            const dv = rut.slice(-1).toUpperCase();
-            
-            // Validar que el cuerpo tenga al menos 7 dígitos
-            if (body.length < 7) {
-                this.emergencyContactRutValidation.isValid = false;
-                this.emergencyContactRutValidation.message = 'RUT debe tener al menos 7 dígitos';
-                return;
-            }
-            
-            // Calcular dígito verificador
-            const dvCalculado = this.calculateDv(body);
-            
-            // Comparar dígitos verificadores
-            this.emergencyContactRutValidation.isValid = dv === dvCalculado;
-            this.emergencyContactRutValidation.message = this.emergencyContactRutValidation.isValid ? 'RUT válido' : 'RUT inválido';
-        },
-
-        formatAdditionalContactRut(index) {
-            let rut = this.additionalContacts[index].document_number.replace(/[^0-9kK]/g, '');
-            
-            if (rut.length > 0) {
-                rut = rut.toUpperCase();
-                
-                if (rut.length > 1) {
-                    const body = rut.slice(0, -1);
-                    const dv = rut.slice(-1);
-                    
-                    let formattedBody = '';
-                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
-                        if (j > 0 && j % 3 === 0) {
-                            formattedBody = '.' + formattedBody;
-                        }
-                        formattedBody = body[i] + formattedBody;
-                    }
-                    
-                    this.additionalContacts[index].document_number = `${formattedBody}-${dv}`;
-                } else {
-                    this.additionalContacts[index].document_number = rut;
-                }
-            }
-        },
-
-        validateAdditionalContactRut(index) {
-            const rut = this.additionalContacts[index].document_number.replace(/\./g, '').replace(/-/g, '');
-            
-            if (rut.length === 0) {
-                this.additionalContacts[index].rutValidation.isValid = null;
-                this.additionalContacts[index].rutValidation.message = '';
-                return;
-            }
-            
-            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-                this.additionalContacts[index].rutValidation.isValid = false;
-                this.additionalContacts[index].rutValidation.message = 'Formato de RUT inválido';
-                return;
-            }
-            
-            const body = rut.slice(0, -1);
-            const dv = rut.slice(-1).toUpperCase();
-            
-            if (body.length < 7) {
-                this.additionalContacts[index].rutValidation.isValid = false;
-                this.additionalContacts[index].rutValidation.message = 'RUT debe tener al menos 7 dígitos';
-                return;
-            }
-            
-            const dvCalculado = this.calculateDv(body);
-            
-            this.additionalContacts[index].rutValidation.isValid = dv === dvCalculado;
-            this.additionalContacts[index].rutValidation.message = this.additionalContacts[index].rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
-        }
+        
     }
 };
 </script>

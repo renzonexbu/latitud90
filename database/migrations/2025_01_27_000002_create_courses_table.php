@@ -21,9 +21,10 @@ return new class extends Migration
             $table->string('contact_email');
             $table->string('contact_phone');
             $table->foreignId('program_id')->nullable()->constrained('programs')->onDelete('set null');
-            $table->date('end_date');
+            $table->date('end_date')->nullable();
             $table->enum('status', ['active', 'completed', 'cancelled'])->default('active');
             $table->string('students_file_path')->nullable();
+            $table->string('students_file_name')->nullable();
             $table->integer('total_students')->default(0);
             $table->decimal('collected_amount', 10, 2)->default(0);
             $table->decimal('target_amount', 10, 2)->nullable();

@@ -4,22 +4,20 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
 use App\Models\EmergencyContact;
-use App\Models\MedicalCondition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CreateParticipantService
 {
     /**
-     * Crear un nuevo participante con sus contactos de emergencia y condiciones médicas
+     * Crear un nuevo participante con sus contactos de emergencia
      *
      * @param array $participantData
      * @param array $emergencyContactsData
-     * @param array $medicalConditionsData
      * @return Participant
      * @throws \Exception
      */
-    public function execute(array $participantData, array $emergencyContactsData = [], array $medicalConditionsData = [])
+    public function execute(array $participantData, array $emergencyContactsData = [])
     {
         try {
             DB::beginTransaction();
@@ -32,10 +30,7 @@ class CreateParticipantService
                 $this->createEmergencyContacts($participant, $emergencyContactsData);
             }
 
-            // Crear condiciones médicas
-            if (!empty($medicalConditionsData)) {
-                $this->createMedicalConditions($participant, $medicalConditionsData);
-            }
+
 
             DB::commit();
 
@@ -91,19 +86,5 @@ class CreateParticipantService
         }
     }
 
-    /**
-     * Crear condiciones médicas para el participante
-     *
-     * @param Participant $participant
-     * @param array $medicalConditionsData
-     * @return void
-     */
-    private function createMedicalConditions(Participant $participant, array $medicalConditionsData): void
-    {
-        foreach ($medicalConditionsData as $conditionData) {
-            $conditionData['participant_id'] = $participant->id;
-            
-            MedicalCondition::create($conditionData);
-        }
-    }
+
 }

@@ -3,56 +3,91 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateCourseRequest;
+use App\Models\Course;
 use App\Models\Program;
-use App\Models\User;
+use App\Services\Admin\Courses\CreateCourseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class CoursesController extends Controller
 {
+    protected $createCourseService;
+
+    public function __construct(CreateCourseService $createCourseService)
+    {
+        $this->createCourseService = $createCourseService;
+    }
+
     public function index(Request $request)
     {
-        // Por ahora retornamos datos vacíos
-        // Aquí se implementará la lógica de consulta cuando esté listo
+        $courses = Course::with(['program', 'createdBy'])
+            ->when($request->search, function ($query, $search) {
+                $query->where('institution_name', 'like', "%{$search}%")
+                    ->orWhere('education_level', 'like', "%{$search}%")
+                    ->orWhere('grade', 'like', "%{$search}%");
+            })
+            ->when($request->status, function ($query, $status) {
+                $query->where('status', $status);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
+        $programs = Program::where('active', true)->get();
+        
         return Inertia::render('Admin/Courses/Index', [
-            'courses' => [],
-            'filters' => $request->only(['search', 'category', 'status']),
+            'courses' => $courses,
+            'filters' => $request->only(['search', 'status']),
+            'programs' => $programs,
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Admin/Courses/Create');
+        $programs = Program::where('active', true)->get();
+        
+        return Inertia::render('Admin/Courses/Create', [
+            'programs' => $programs,
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(CreateCourseRequest $request)
     {
-        // Por ahora solo redirigimos al index
-        // Aquí se implementará la lógica de guardado cuando esté listo
-        return redirect()->route('admin.courses.index')
-            ->with('success', 'Curso creado exitosamente.');
+        try {
+            $validatedData = $request->validated();
+            
+            $course = $this->createCourseService->execute($validatedData);
+            
+            return redirect()->route('admin.courses.index')
+                ->with('success', 'Curso creado exitosamente.');
+                
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al crear el curso: ' . $e->getMessage()]);
+        }
     }
 
-    public function show($course)
+    public function show(Course $course)
     {
-        // Por ahora retornamos vista básica
-        // Aquí se implementará la lógica de consulta cuando esté listo
+        $course->load(['program', 'createdBy', 'participants']);
+        
         return Inertia::render('Admin/Courses/Show', [
-            'course' => []
+            'course' => $course
         ]);
     }
 
-    public function edit($course)
+    public function edit(Course $course)
     {
-        // Por ahora retornamos vista básica
-        // Aquí se implementará la lógica de consulta cuando esté listo
+        $programs = Program::where('active', true)->get();
+        
         return Inertia::render('Admin/Courses/Edit', [
-            'course' => []
+            'course' => $course,
+            'programs' => $programs,
         ]);
     }
 
-    public function update(Request $request, $course)
+    public function update(Request $request, Course $course)
     {
         // Por ahora solo redirigimos al index
         // Aquí se implementará la lógica de actualización cuando esté listo
@@ -60,19 +95,36 @@ class CoursesController extends Controller
             ->with('success', 'Curso actualizado exitosamente.');
     }
 
-    public function destroy($course)
+    public function destroy(Course $course)
     {
-        // Por ahora solo redirigimos al index
-        // Aquí se implementará la lógica de eliminación cuando esté listo
-        return redirect()->route('admin.courses.index')
-            ->with('success', 'Curso eliminado exitosamente.');
+        try {
+            // Delete associated file if exists
+            if ($course->students_file_path) {
+                Storage::disk('public')->delete($course->students_file_path);
+            }
+            
+            $course->delete();
+            
+            return redirect()->route('admin.courses.index')
+                ->with('success', 'Curso eliminado exitosamente.');
+                
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al eliminar el curso: ' . $e->getMessage()]);
+        }
     }
 
-    public function toggleStatus($course)
+    public function toggleStatus(Course $course)
     {
-        // Por ahora solo redirigimos al index
-        // Aquí se implementará la lógica de toggle de status cuando esté listo
-        return redirect()->route('admin.courses.index')
-            ->with('success', 'Estado del curso actualizado exitosamente.');
+        try {
+            $course->update([
+                'status' => $course->status === 'active' ? 'inactive' : 'active'
+            ]);
+            
+            return redirect()->route('admin.courses.index')
+                ->with('success', 'Estado del curso actualizado exitosamente.');
+                
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al actualizar el estado del curso: ' . $e->getMessage()]);
+        }
     }
 }

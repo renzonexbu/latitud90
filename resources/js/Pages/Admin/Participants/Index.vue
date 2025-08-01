@@ -3,7 +3,12 @@
         <Head title="Gestión de Participantes" />
 
     <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div class="max-w-full mx-auto sm:px-6 lg:px-8">
+                <!-- Success Message -->
+                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
+                </div>
+
                 <!-- Header -->
                 <ParticipantsHeader
                     subtitle="Visualización de participantes"
@@ -20,7 +25,7 @@
               </div>
 
                 <!-- Participants List -->
-                <div v-if="participants.data.length === 0 && sampleParticipants.length === 0" 
+                <div v-if="participants.data.length === 0" 
                      class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
                     <div class="text-center py-12">
                         <div class="text-gray-400 mb-4">
@@ -46,7 +51,7 @@
                 <div v-else class="space-y-6">
                     <div class="bg-white rounded-[20px] p-0 overflow-hidden">
                         <ParticipantsTable 
-                            :participants="sampleParticipants" 
+                            :participants="participants.data" 
                             @edit-participant="handleEditParticipant"
                             @contact-whatsapp="handleWhatsAppContact"
                         />
@@ -54,9 +59,9 @@
                         <!-- Pagination -->
                         <div class="p-4">
                             <ParticipantsPagination
-                                :current-page="1"
-                                :total-participants="sampleParticipants.length || 0"
-                                :participants-per-page="10"
+                                :current-page="participants.current_page"
+                                :total-participants="participants.total"
+                                :participants-per-page="participants.per_page"
                                 @page-changed="handlePageChanged"
                             />
             </div>
@@ -77,7 +82,7 @@
 </template>
 
 <script>
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
   import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue";
 import ParticipantsFilters from "@/Components/Participants/ParticipantsFilters.vue";
@@ -89,14 +94,18 @@ import _ from "lodash";
 
 export default {
     name: "ParticipantsIndex",
+    setup() {
+        const page = usePage();
+        return { page };
+    },
     components: {
         Head,
         Link,
         AdminLayout,
         ParticipantsHeader,
         ParticipantsFilters,
-        ParticipantsPagination,
         ParticipantsTable,
+        ParticipantsPagination,
         CreateParticipantModal,
         PersonsIcon,
     },
@@ -126,165 +135,6 @@ export default {
         return {
             showCreateModal: false
         };
-    },
-    computed: {
-        sampleParticipants() {
-            // Datos de ejemplo basados en el Figma
-            return [
-                {
-                    id: 1,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'pending_payment',
-                    payment_percentage: 80,
-                    paid_amount: 3000
-                },
-                {
-                    id: 2,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'confirmed',
-                    payment_percentage: 100,
-                    paid_amount: 4000
-                },
-                {
-                    id: 3,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'pending_payment',
-                    payment_percentage: 10,
-                    paid_amount: 1000
-                },
-                {
-                    id: 4,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'confirmed',
-                    payment_percentage: 100,
-                    paid_amount: 4000
-                },
-                {
-                    id: 5,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'pending_payment',
-                    payment_percentage: 80,
-                    paid_amount: 1000
-                },
-                {
-                    id: 6,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'pending_payment',
-                    payment_percentage: 10,
-                    paid_amount: 1000
-                },
-                {
-                    id: 7,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'cancelled',
-                    payment_percentage: 0,
-                    paid_amount: 0
-                },
-                {
-                    id: 8,
-                    document_number: '0000000',
-                    first_name: 'Lorena',
-                    last_name: 'Villagómez',
-                    course: {
-                        institution_name: 'Pedro de Valdivia Providencia',
-                        education_level: 'Preescolar',
-                        grade: '5',
-                        shift: 'mañana',
-                        program: {
-                            name: 'Ruta de lagos',
-                            destination: 'Bariloche Arg- CL'
-                        }
-                    },
-                    status: 'confirmed',
-                    payment_percentage: 100,
-                    paid_amount: 1000
-                }
-            ];
-        }
     },
     methods: {
         handleFiltersChanged(newFilters) {
@@ -318,5 +168,15 @@ export default {
             this.showCreateModal = false;
         },
     },
-  };
+};
 </script>
+
+<style scoped>
+.bg-turquesa {
+    background-color: #007e93;
+}
+
+.bg-turquesa-dark {
+    background-color: #006b7d;
+}
+</style>

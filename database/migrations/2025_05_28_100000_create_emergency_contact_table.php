@@ -18,11 +18,9 @@ return new class extends Migration
             $table->string('email');
             $table->string('code_phone');
             $table->string('phone');
-            $table->string('document_type');
-            $table->string('document_number');
-            $table->string('country');
-            $table->date('birth_date');
-            $table->text('address');
+            $table->string('country')->nullable();
+            $table->date('birth_date')->nullable();
+            $table->text('address')->nullable();
             $table->string('relationship')->default('Familiar');
             $table->foreignId('participant_id')->constrained('participants');
             $table->timestamps();

@@ -3,7 +3,7 @@
         <Head title="Gestión de Cursos" />
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-full mx-auto sm:px-6 lg:px-8">
                 <!-- Header -->
                 <CoursesHeader
                     subtitle="Visualización de cursos"
@@ -22,7 +22,7 @@
                 </div>
 
                 <!-- Courses List -->
-                <div v-if="courses.length === 0 && sampleCourses.length === 0" class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
+                <div v-if="(!courses.data && courses.length === 0) || (courses.data && courses.data.length === 0)" class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
                     <div class="text-center py-12">
                         <div class="text-gray-400 mb-4">
                             <BackpackIcon class="w-16 h-16 mx-auto" />
@@ -46,15 +46,15 @@
                 <!-- Courses Table -->
                 <div v-else class="space-y-6">
                     <CoursesTable 
-                        :courses="sampleCourses" 
+                        :courses="courses.data || (Array.isArray(courses) ? courses : [])" 
                         @edit-course="handleEditCourse"
                     />
                     
                     <!-- Pagination -->
                     <CoursesPagination
-                        :current-page="1"
-                        :total-courses="sampleCourses.length"
-                        :courses-per-page="6"
+                        :current-page="courses.current_page || 1"
+                        :total-courses="courses.total || courses.length"
+                        :courses-per-page="courses.per_page || 10"
                         @page-changed="handlePageChanged"
                     />
                 </div>
@@ -64,13 +64,30 @@
         <!-- Create Course Modal -->
         <CreateCourseModal 
             :show="showCreateModal" 
+            :programs="programs"
+            :errors="errors"
             @close="closeCreateModal" 
         />
+
+        <!-- Success Message -->
+        <div v-if="$page.props.flash.success" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                {{ $page.props.flash.success }}
+                <button @click="closeSuccessMessage" class="ml-2 hover:bg-green-600 rounded p-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </AdminLayout>
 </template>
 
 <script>
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import CoursesHeader from "@/Components/Courses/CoursesHeader.vue";
 import CoursesFilters from "@/Components/Courses/CoursesFilters.vue";
@@ -82,6 +99,10 @@ import _ from "lodash";
 
 export default {
     name: "CoursesIndex",
+    setup() {
+        const $page = usePage();
+        return { $page };
+    },
     components: {
         Head,
         Link,
@@ -103,117 +124,27 @@ export default {
             type: Object,
             default: () => ({}),
         },
+        programs: {
+            type: Array,
+            default: () => [],
+        },
+        errors: {
+            type: Object,
+            default: () => ({}),
+        },
     },
     data() {
         return {
             showCreateModal: false
         };
     },
-    computed: {
-        sampleCourses() {
-            // Datos de ejemplo basados en el Figma
-            return [
-                {
-                    id: 1,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Preescolar',
-                    grade: '5',
-                    shift: 'Tarde',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 20,
-                    totalCollected: '4.000 USD'
-                },
-                {
-                    id: 2,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Primaria',
-                    grade: '6',
-                    shift: 'Mañana',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 90,
-                    totalCollected: '20.000 USD'
-                },
-                {
-                    id: 3,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Secundaria',
-                    grade: '1',
-                    shift: 'Mañana',
-                    year: '2023',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'completed',
-                    percentage: 100,
-                    totalCollected: '20.000 USD'
-                },
-                {
-                    id: 4,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Primaria',
-                    grade: '5',
-                    shift: 'Tarde',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 80,
-                    totalCollected: '18.000 USD'
-                },
-                {
-                    id: 5,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Preescolar',
-                    grade: '4',
-                    shift: 'Tarde',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 20,
-                    totalCollected: '4.000 USD'
-                },
-                {
-                    id: 6,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Preescolar',
-                    grade: '2',
-                    shift: 'Tarde',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 100,
-                    totalCollected: '24.000 USD'
-                },
-                {
-                    id: 7,
-                    institution: 'Pedro de Valdivia Providencia',
-                    level: 'Preescolar',
-                    grade: '1',
-                    shift: 'Mañana',
-                    year: '2025',
-                    program: 'Ruta de lagos',
-                    destination: 'Bariloche Arg- CL',
-                    students: '20',
-                    status: 'active',
-                    percentage: 0,
-                    totalCollected: '4.000 USD'
-                }
-            ];
-        }
+    mounted() {
+        console.log('Courses data:', this.courses);
+        console.log('Courses type:', typeof this.courses);
+        console.log('Courses length:', this.courses?.length);
+        console.log('Courses data property:', this.courses?.data);
     },
+
     methods: {
         handleFiltersChanged(newFilters) {
             router.get(route("admin.courses.index"), newFilters, {
@@ -239,6 +170,10 @@ export default {
         },
         closeCreateModal() {
             this.showCreateModal = false;
+        },
+        closeSuccessMessage() {
+            // Clear the flash message
+            this.$page.props.flash.success = null;
         },
     },
 };

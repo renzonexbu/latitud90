@@ -2,37 +2,37 @@
     <div class="rounded-[20px] border border-gray-300 overflow-hidden">
         <!-- Table Header -->
         <div class="bg-turquesa rounded-t-[20px] px-6 py-4 flex items-center justify-between h-[75px]">
-            <div class="text-white font-nexa-bold text-sm w-[150px]">
+            <div class="text-white font-nexa-bold text-sm w-[200px]">
                 Nombre de institución
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[90px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
                 Nivel
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[53px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[80px]">
                 Grado
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[90px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
                 Turno
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[39px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[60px]">
                 Año
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[150px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[200px]">
                 Programa
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[150px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[200px]">
                 Destino
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[90px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
                 Alumnos
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[110px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[140px]">
                 Estado
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[121px]">
+            <div class="text-white font-nexa-bold text-sm text-center w-[160px]">
                 Total recolectado
             </div>
-            <div class="w-[18px] h-[20px] flex-shrink-0">
+            <div class="w-[60px] h-[20px] flex-shrink-0">
                 <!-- Empty space for actions column -->
             </div>
         </div>
@@ -47,55 +47,55 @@
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 ]"
             >
-                <div class="text-verde-oscuro font-nexa-bold text-sm w-[150px]">
-                    {{ course.institution }}
+                <div class="text-verde-oscuro font-nexa-bold text-sm w-[200px]">
+                    {{ course.institution_name }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[90px]">
-                    {{ course.level }}
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
+                    {{ course.education_level }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[53px]">
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[80px]">
                     {{ course.grade }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[90px]">
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
                     {{ course.shift }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[39px]">
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[60px]">
                     {{ course.year }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[150px]">
-                    {{ course.program }}
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
+                    {{ course.program?.name || 'Sin programa' }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[150px]">
-                    {{ course.destination }}
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
+                    {{ course.program?.destination || 'N/A' }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[90px]">
-                    {{ course.students }}
+                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
+                    {{ course.total_students || 0 }}
                 </div>
-                <div class="w-[100px] flex justify-center">
+                <div class="w-[140px] flex justify-center">
                     <div 
                         :class="[
-                            'rounded-xl px-2.5 py-1.5 flex items-center justify-center w-[100px]',
-                            getStatusChipClass(course.status, course.percentage)
+                            'rounded-xl px-2.5 py-1.5 flex items-center justify-center w-[120px]',
+                            getStatusChipClass(course.status)
                         ]"
                     >
                         <span 
                             :class="[
                                 'font-nexa-xbold text-sm text-center',
-                                getStatusTextClass(course.status, course.percentage)
+                                getStatusTextClass(course.status)
                             ]"
                         >
-                            {{ getStatusText(course.status, course.percentage) }}
+                            {{ getStatusText(course.status) }}
                         </span>
                     </div>
                 </div>
-                <div class="text-verde-oscuro font-nexa-xbold text-sm text-center w-[121px]">
-                    {{ course.totalCollected }}
+                <div class="text-verde-oscuro font-nexa-xbold text-sm text-center w-[160px]">
+                    {{ formatCurrency(course.collected_amount) }}
                 </div>
-                <div class="w-[18px] h-[20px] flex-shrink-0">
+                <div class="w-[60px] h-[20px] flex-shrink-0">
                     <button 
                         @click="editCourse(course.id)"
                         class="p-1 hover:bg-gray-100 rounded transition-colors"
-                        :title="`Editar ${course.institution}`"
+                        :title="`Editar ${course.institution_name}`"
                     >
                         <EditPencilIcon fill-color="#C7C7C7" />
                     </button>
@@ -124,34 +124,42 @@ export default {
             // Emit event to parent component or navigate to edit page
             this.$emit('edit-course', courseId);
         },
-        getStatusChipClass(status, percentage) {
-            if (status === 'completed') {
-                return 'bg-[#1a4b75]'; // Azul oscuro para finalizado
-            }
-            
-            if (percentage === 0) {
-                return 'bg-[#d9d9d9]'; // Gris para 0%
-            } else if (percentage <= 30) {
-                return 'bg-[#ffb232]'; // Amarillo para porcentajes bajos
-            } else if (percentage <= 70) {
-                return 'bg-[#d54a42]'; // Rojo para porcentajes medios
-            } else {
-                return 'bg-[#4b8d7f]'; // Verde para porcentajes altos
+        getStatusChipClass(status) {
+            switch (status) {
+                case 'completed':
+                    return 'bg-[#1a4b75]'; // Azul oscuro para finalizado
+                case 'cancelled':
+                    return 'bg-[#d54a42]'; // Rojo para cancelado
+                case 'active':
+                default:
+                    return 'bg-[#4b8d7f]'; // Verde para activo
             }
         },
         
-        getStatusTextClass(status, percentage) {
-            if (status === 'completed') {
-                return 'text-[#edfcff]';
-            }
+        getStatusTextClass(status) {
             return 'text-white';
         },
         
-        getStatusText(status, percentage) {
-            if (status === 'completed') {
-                return 'Finalizado';
+        getStatusText(status) {
+            switch (status) {
+                case 'completed':
+                    return 'Finalizado';
+                case 'cancelled':
+                    return 'Cancelado';
+                case 'active':
+                default:
+                    return 'Activo';
             }
-            return `${percentage}%`;
+        },
+        
+        formatCurrency(amount) {
+            if (!amount) return '$0';
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
         }
     }
 };

@@ -13,17 +13,14 @@ class Institution extends Model
         'name',
         'type',
         'address',
-        'city',
-        'region',
         'phone',
         'email',
         'website',
-        'description',
-        'is_active',
+        'active',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
+        'active' => 'boolean',
     ];
 
     /**
@@ -39,7 +36,7 @@ class Institution extends Model
      */
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('active', true);
     }
 
     /**

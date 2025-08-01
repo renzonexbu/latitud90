@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateParticipantRequest;
+use App\Models\Course;
 use App\Models\Participant;
 use App\Models\Institution;
 use App\Services\Admin\Participants\CreateParticipantService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ParticipantsController extends Controller
@@ -24,11 +26,11 @@ class ParticipantsController extends Controller
      */
     public function index()
     {
-        $participants = Participant::with(['course', 'course.program'])
+        $participants = Participant::with(['course', 'course.program', 'institution'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $courses = \App\Models\Course::with('program')
+        $courses = Course::with('program')
             ->where('status', 'active')
             ->orderBy('institution_name')
             ->get();
@@ -71,7 +73,7 @@ class ParticipantsController extends Controller
     public function store(CreateParticipantRequest $request)
     {
         try {
-            // Separar los datos
+            // Separar los datos del participante
             $participantData = array_intersect_key($request->validated(), array_flip([
                 'course_id', 'institution_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
                 'document_type', 'document_number', 'country', 'birth_date', 'address',
@@ -79,18 +81,21 @@ class ParticipantsController extends Controller
                 'price_adjustments', 'adjustment_reason'
             ]));
 
+            // Asegurar que medical_conditions sea un string, no un array
+            if (isset($participantData['medical_conditions']) && is_array($participantData['medical_conditions'])) {
+                $participantData['medical_conditions'] = implode(', ', array_column($participantData['medical_conditions'], 'description'));
+            }
+
             $emergencyContactsData = $request->validated()['emergency_contacts'] ?? [];
-            $medicalConditionsData = $request->validated()['medical_conditions'] ?? [];
 
             // Crear participante usando el servicio
             $participant = $this->createParticipantService->execute(
                 $participantData,
-                $emergencyContactsData,
-                $medicalConditionsData
+                $emergencyContactsData
             );
 
             return redirect()->route('admin.participants.index')
-                ->with('message', 'Participante creado exitosamente.');
+                ->with('success', 'Participante creado exitosamente.');
 
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al crear el participante: ' . $e->getMessage()])

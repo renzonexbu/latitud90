@@ -48,16 +48,13 @@ class CreateParticipantRequest extends FormRequest
             'emergency_contacts.*.email' => 'required|email|max:255',
             'emergency_contacts.*.code_phone' => 'required|string|max:10',
             'emergency_contacts.*.phone' => 'required|string|max:20',
-            'emergency_contacts.*.document_type' => 'required|string|max:50',
-            'emergency_contacts.*.document_number' => 'required|string|max:20',
             'emergency_contacts.*.country' => 'required|string|max:100',
-            'emergency_contacts.*.birth_date' => 'required|date|before:today',
-            'emergency_contacts.*.address' => 'required|string',
+            'emergency_contacts.*.birth_date' => 'nullable|date|before:today',
+            'emergency_contacts.*.address' => 'nullable|string',
             'emergency_contacts.*.relationship' => 'required|string|max:100',
 
-            // Condiciones médicas
-            'medical_conditions' => 'nullable|array',
-            'medical_conditions.*.description' => 'required|string|max:500',
+            // Condiciones médicas (como string, no array)
+            'medical_conditions' => 'nullable|string|max:1000',
         ];
     }
 
@@ -97,16 +94,15 @@ class CreateParticipantRequest extends FormRequest
             'emergency_contacts.*.email.email' => 'El email del contacto de emergencia debe tener un formato válido.',
             'emergency_contacts.*.code_phone.required' => 'El código de país del contacto de emergencia es obligatorio.',
             'emergency_contacts.*.phone.required' => 'El teléfono del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.document_type.required' => 'El tipo de documento del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.document_number.required' => 'El número de documento del contacto de emergencia es obligatorio.',
             'emergency_contacts.*.country.required' => 'El país del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.birth_date.required' => 'La fecha de nacimiento del contacto de emergencia es obligatoria.',
+            'emergency_contacts.*.birth_date.date' => 'La fecha de nacimiento del contacto de emergencia debe tener un formato válido.',
             'emergency_contacts.*.birth_date.before' => 'La fecha de nacimiento del contacto de emergencia debe ser anterior a hoy.',
-            'emergency_contacts.*.address.required' => 'La dirección del contacto de emergencia es obligatoria.',
+            'emergency_contacts.*.address.string' => 'La dirección del contacto de emergencia debe ser texto.',
             'emergency_contacts.*.relationship.required' => 'La relación con el alumno es obligatoria.',
 
             // Mensajes para condiciones médicas
-            'medical_conditions.*.description.required' => 'La descripción de la condición médica es obligatoria.',
+            'medical_conditions.string' => 'Las condiciones médicas deben ser texto.',
+            'medical_conditions.max' => 'Las condiciones médicas no pueden exceder 1000 caracteres.',
         ];
     }
 } 

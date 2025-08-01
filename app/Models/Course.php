@@ -21,6 +21,7 @@ class Course extends Model
         'end_date',
         'status',
         'students_file_path',
+        'students_file_name',
         'total_students',
         'collected_amount',
         'target_amount',

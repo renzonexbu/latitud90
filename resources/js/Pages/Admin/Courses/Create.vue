@@ -28,215 +28,263 @@
             </div>
 
             <!-- Content -->
-            <div class="flex flex-col gap-5">
-                <!-- Datos Section -->
-                <div class="flex flex-col gap-[19px]">
-                    <div class="text-[#007e93] text-left font-nexa-bold text-[18px] leading-[22px] font-bold">
-                        Datos
+            <form @submit.prevent="saveCourse">
+                <div class="flex flex-col gap-5">
+                    <!-- Datos Section -->
+                    <div class="flex flex-col gap-[19px]">
+                        <div class="text-[#007e93] text-left font-nexa-bold text-[18px] leading-[22px] font-bold">
+                            Datos
+                        </div>
+                        
+                        <div class="flex flex-col gap-[26px]">
+                            <!-- Nombre de institución -->
+                            <div class="flex flex-col gap-[10px]">
+                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                    Nombre de institución
+                                </label>
+                                <input 
+                                    v-model="form.institutionName"
+                                    type="text"
+                                    placeholder="Escriba el nombre de la institución"
+                                    :class="[
+                                        'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
+                                        errors.institutionName ? 'border-red-500' : 'border-[#5b5b5b]'
+                                    ]"
+                                />
+                                <span v-if="errors.institutionName" class="text-red-500 text-xs mt-1">{{ errors.institutionName }}</span>
+                            </div>
+
+                            <!-- Row with dropdowns -->
+                            <div class="flex flex-row gap-3">
+                                <!-- Nivel educación -->
+                                <div class="flex flex-col gap-[7px] flex-1">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Nivel de educación
+                                    </label>
+                                    <select 
+                                        v-model="form.educationLevel"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none',
+                                            errors.educationLevel ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">Seleccione un nivel</option>
+                                        <option value="preescolar">Preescolar</option>
+                                        <option value="primaria">Primaria</option>
+                                        <option value="secundaria">Secundaria</option>
+                                        <option value="universitaria">Universitaria</option>
+                                    </select>
+                                    <span v-if="errors.educationLevel" class="text-red-500 text-xs mt-1">{{ errors.educationLevel }}</span>
+                                </div>
+
+                                <!-- Año -->
+                                <div class="flex flex-col gap-[7px] flex-shrink-0">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Año
+                                    </label>
+                                    <select 
+                                        v-model="form.year"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[80px]',
+                                            errors.year ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">2025</option>
+                                        <option value="2023">2023</option>
+                                        <option value="2024">2024</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2026">2026</option>
+                                    </select>
+                                    <span v-if="errors.year" class="text-red-500 text-xs mt-1">{{ errors.year }}</span>
+                                </div>
+
+                                <!-- Grado -->
+                                <div class="flex flex-col gap-[7px] flex-shrink-0">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Grado
+                                    </label>
+                                    <select 
+                                        v-model="form.grade"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[70px]',
+                                            errors.grade ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">---</option>
+                                        <option value="1">1°</option>
+                                        <option value="2">2°</option>
+                                        <option value="3">3°</option>
+                                        <option value="4">4°</option>
+                                        <option value="5">5°</option>
+                                        <option value="6">6°</option>
+                                    </select>
+                                    <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
+                                </div>
+
+                                <!-- Turno -->
+                                <div class="flex flex-col gap-[7px] flex-shrink-0">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Turno
+                                    </label>
+                                    <select 
+                                        v-model="form.shift"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[80px]',
+                                            errors.shift ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">---</option>
+                                        <option value="mañana">Mañana</option>
+                                        <option value="tarde">Tarde</option>
+                                        <option value="noche">Noche</option>
+                                    </select>
+                                    <span v-if="errors.shift" class="text-red-500 text-xs mt-1">{{ errors.shift }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Contact row -->
+                            <div class="flex flex-row gap-[18px]">
+                                <!-- Mail de contacto -->
+                                <div class="flex flex-col gap-[10px] flex-1">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Mail de contacto
+                                    </label>
+                                    <input 
+                                        v-model="form.contactEmail"
+                                        type="email"
+                                        placeholder="Mail@gmail.com"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
+                                            errors.contactEmail ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    />
+                                    <span v-if="errors.contactEmail" class="text-red-500 text-xs mt-1">{{ errors.contactEmail }}</span>
+                                </div>
+
+                                <!-- Número de contacto -->
+                                <div class="flex flex-col gap-[10px] flex-1">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Número de contacto
+                                    </label>
+                                    <input 
+                                        v-model="form.contactPhone"
+                                        type="tel"
+                                        placeholder="000000000"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
+                                            errors.contactPhone ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    />
+                                    <span v-if="errors.contactPhone" class="text-red-500 text-xs mt-1">{{ errors.contactPhone }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Program and date row -->
+                            <div class="flex flex-row gap-[18px]">
+                                <!-- Programa asociado -->
+                                <div class="flex flex-col gap-[10px] flex-1">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Programa asociado
+                                    </label>
+                                    <select 
+                                        v-model="form.associatedProgram"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none',
+                                            errors.associatedProgram ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">Seleccione un programa</option>
+                                        <option 
+                                            v-for="program in programs" 
+                                            :key="program.id" 
+                                            :value="program.name"
+                                        >
+                                            {{ program.name }}
+                                        </option>
+                                    </select>
+                                    <span v-if="errors.associatedProgram" class="text-red-500 text-xs mt-1">{{ errors.associatedProgram }}</span>
+                                </div>
+
+                                <!-- Fecha de finalización -->
+                                <div class="flex flex-col gap-[10px] w-[123px]">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Fecha de finalización
+                                    </label>
+                                    <input 
+                                        v-model="form.endDate"
+                                        type="date"
+                                        :class="[
+                                            'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none',
+                                            errors.endDate ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    />
+                                    <span v-if="errors.endDate" class="text-red-500 text-xs mt-1">{{ errors.endDate }}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="flex flex-col gap-[26px]">
-                        <!-- Nombre de institución -->
+
+                    <!-- Separator line -->
+                    <div class="w-full h-px bg-gray-300 my-5"></div>
+
+                    <!-- Carga de alumnos Section -->
+                    <div class="flex flex-col gap-[19px]">
+                        <div class="text-[#007e93] text-left font-nexa-regular text-[18px] leading-[22px] font-normal">
+                            Carga de alumnos
+                        </div>
+                        
                         <div class="flex flex-col gap-[10px]">
-                            <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                Nombre de institución
-                            </label>
-                            <input 
-                                v-model="form.institutionName"
-                                type="text"
-                                placeholder="Escriba el nombre de la institución"
-                                class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#007e93]"
-                            />
-                        </div>
-
-                        <!-- Row with dropdowns -->
-                        <div class="flex flex-row gap-3">
-                            <!-- Nivel educación -->
-                            <div class="flex flex-col gap-[7px] flex-1">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Nivel de educación
-                                </label>
-                                <select 
-                                    v-model="form.educationLevel"
-                                    class="bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none"
-                                >
-                                    <option value="">Seleccione un nivel</option>
-                                    <option value="preescolar">Preescolar</option>
-                                    <option value="primaria">Primaria</option>
-                                    <option value="secundaria">Secundaria</option>
-                                    <option value="universitaria">Universitaria</option>
-                                </select>
-                            </div>
-
-                            <!-- Año -->
-                            <div class="flex flex-col gap-[7px] flex-shrink-0">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Año
-                                </label>
-                                <select 
-                                    v-model="form.year"
-                                    class="bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[80px]"
-                                >
-                                    <option value="">2025</option>
-                                    <option value="2023">2023</option>
-                                    <option value="2024">2024</option>
-                                    <option value="2025">2025</option>
-                                    <option value="2026">2026</option>
-                                </select>
-                            </div>
-
-                            <!-- Grado -->
-                            <div class="flex flex-col gap-[7px] flex-shrink-0">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Grado
-                                </label>
-                                <select 
-                                    v-model="form.grade"
-                                    class="bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[70px]"
-                                >
-                                    <option value="">---</option>
-                                    <option value="1">1°</option>
-                                    <option value="2">2°</option>
-                                    <option value="3">3°</option>
-                                    <option value="4">4°</option>
-                                    <option value="5">5°</option>
-                                    <option value="6">6°</option>
-                                </select>
-                            </div>
-
-                            <!-- Turno -->
-                            <div class="flex flex-col gap-[7px] flex-shrink-0">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Turno
-                                </label>
-                                <select 
-                                    v-model="form.shift"
-                                    class="bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[80px]"
-                                >
-                                    <option value="">---</option>
-                                    <option value="mañana">Mañana</option>
-                                    <option value="tarde">Tarde</option>
-                                    <option value="noche">Noche</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Contact row -->
-                        <div class="flex flex-row gap-[18px]">
-                            <!-- Mail de contacto -->
-                            <div class="flex flex-col gap-[10px] flex-1">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Mail de contacto
-                                </label>
+                                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                 Adjunta la lista de alumnos
+                             </label>
+                            <div class="relative">
                                 <input 
-                                    v-model="form.contactEmail"
-                                    type="email"
-                                    placeholder="Mail@gmail.com"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#007e93]"
+                                    type="file"
+                                    ref="fileInput"
+                                    @change="handleFileUpload"
+                                    accept=".xlsx,.xls,.csv"
+                                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
+                                <div class="bg-white rounded-lg border-dashed border border-[#5b5b5b] p-4 flex flex-col items-center justify-center h-[107px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] hover:border-[#007e93] hover:bg-gray-50 transition-colors">
+                                    <div v-if="!form.studentsFile" class="text-[#5b5b5b] text-center font-nexa-regular text-[12px] leading-[18px] font-normal">
+                                        Adjunta el archivo excel aquí
+                                    </div>
+                                    <div v-else class="text-center">
+                                        <div class="text-[#007e93] font-nexa-bold text-[12px] leading-[18px] font-bold mb-1">
+                                            📁 {{ form.studentsFile.name }}
+                                        </div>
+                                        <div class="text-[#5b5b5b] font-nexa-regular text-[10px] leading-[14px] font-normal">
+                                            {{ formatFileSize(form.studentsFile.size) }}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-
-                            <!-- Número de contacto -->
-                            <div class="flex flex-col gap-[10px] flex-1">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Número de contacto
-                                </label>
-                                <input 
-                                    v-model="form.contactPhone"
-                                    type="tel"
-                                    placeholder="000000000"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#007e93]"
-                                />
-                            </div>
-                        </div>
-
-                        <!-- Program and date row -->
-                        <div class="flex flex-row gap-[18px]">
-                            <!-- Programa asociado -->
-                            <div class="flex flex-col gap-[10px] flex-1">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Programa asociado
-                                </label>
-                                <select 
-                                    v-model="form.associatedProgram"
-                                    class="bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none"
-                                >
-                                    <option value="">Seleccione un programa</option>
-                                    <option value="ruta-lagos">Ruta de lagos | Bariloche Arg-Sur de CL</option>
-                                </select>
-                            </div>
-
-                            <!-- Fecha de finalización -->
-                            <div class="flex flex-col gap-[10px] w-[123px]">
-                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                    Fecha de finalización
-                                </label>
-                                <input 
-                                    v-model="form.endDate"
-                                    type="date"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5b5b5b] p-4 text-[#007e93] text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
-                                />
-                            </div>
+                            <span v-if="errors.studentsFile" class="text-red-500 text-xs mt-1">{{ errors.studentsFile }}</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Separator line -->
-                <div class="w-full h-px bg-gray-300 my-5"></div>
-
-                <!-- Carga de alumnos Section -->
-                <div class="flex flex-col gap-[19px]">
-                    <div class="text-[#007e93] text-left font-nexa-regular text-[18px] leading-[22px] font-normal">
-                        Carga de alumnos
-                    </div>
-                    
-                    <div class="flex flex-col gap-[10px]">
-                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                            Adjunta la lista de alumnos
-                        </label>
-                        <div class="relative">
-                            <input 
-                                type="file"
-                                ref="fileInput"
-                                @change="handleFileUpload"
-                                accept=".xlsx,.xls,.csv"
-                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            />
-                            <div class="bg-white rounded-lg border-dashed border border-[#5b5b5b] p-4 flex flex-col items-center justify-center h-[107px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] hover:border-[#007e93] hover:bg-gray-50 transition-colors">
-                                <div v-if="!form.studentsFile" class="text-[#5b5b5b] text-center font-nexa-regular text-[12px] leading-[18px] font-normal">
-                                    Adjunta el archivo excel aquí
-                                </div>
-                                <div v-else class="text-center">
-                                    <div class="text-[#007e93] font-nexa-bold text-[12px] leading-[18px] font-bold mb-1">
-                                        📁 {{ form.studentsFile.name }}
-                                    </div>
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[10px] leading-[14px] font-normal">
-                                        {{ formatFileSize(form.studentsFile.size) }}
-                                    </div>
-                                </div>
-                            </div>
+                <!-- Save button -->
+                <div class="mt-8">
+                    <button 
+                        type="submit"
+                        :disabled="isSubmitting"
+                        class="bg-[#007e93] rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center w-full hover:bg-[#006580] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <div v-if="isSubmitting" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <div class="text-white text-center font-nexa-bold text-[16px] leading-[22px] font-bold">
+                            {{ isSubmitting ? 'Guardando...' : 'Guardar cambios' }}
                         </div>
-                    </div>
+                    </button>
                 </div>
-            </div>
-
-            <!-- Save button -->
-            <div class="mt-8">
-                <button 
-                    @click="saveChanges"
-                    class="bg-[#007e93] rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center w-full hover:bg-[#006580] transition-colors"
-                >
-                    <div class="text-white text-center font-nexa-bold text-[16px] leading-[22px] font-bold">
-                        Guardar cambios
-                    </div>
-                </button>
-            </div>
+            </form>
         </div>
     </div>
 </template>
 
 <script>
 import { CrossIcon } from "@/Components/Icons";
+import { router } from '@inertiajs/vue3';
 
 export default {
     name: "CreateCourseModal",
@@ -247,10 +295,19 @@ export default {
         show: {
             type: Boolean,
             default: false
+        },
+        errors: {
+            type: Object,
+            default: () => ({})
+        },
+        programs: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
         return {
+            isSubmitting: false,
             form: {
                 institutionName: "",
                 educationLevel: "",
@@ -268,6 +325,7 @@ export default {
     methods: {
         closeModal() {
             this.$emit('close');
+            this.resetForm();
         },
         handleFileUpload(event) {
             const file = event.target.files[0];
@@ -294,12 +352,26 @@ export default {
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         },
-        removeFile() {
-            this.form.studentsFile = null;
-            this.$refs.fileInput.value = '';
+        resetForm() {
+            this.form = {
+                institutionName: "",
+                educationLevel: "",
+                year: "2025",
+                grade: "",
+                shift: "",
+                contactEmail: "",
+                contactPhone: "",
+                associatedProgram: "",
+                endDate: "",
+                studentsFile: null
+            };
+            this.isSubmitting = false;
+            if (this.$refs.fileInput) {
+                this.$refs.fileInput.value = '';
+            }
         },
-        saveChanges() {
-            console.log('Saving course:', this.form);
+        saveCourse() {
+            this.isSubmitting = true;
             
             // Create FormData for file upload
             const formData = new FormData();
@@ -311,9 +383,18 @@ export default {
                 }
             });
             
-            // Here you would typically send the FormData to the server
-            console.log('FormData ready for upload');
-            this.closeModal();
+            router.post(route('admin.courses.store'), formData, {
+                onSuccess: () => {
+                    this.closeModal();
+                },
+                onError: (errors) => {
+                    console.error('Validation errors:', errors);
+                    this.isSubmitting = false;
+                },
+                onFinish: () => {
+                    this.isSubmitting = false;
+                }
+            });
         }
     }
 };
@@ -326,5 +407,19 @@ export default {
 
 .font-nexa-regular {
     font-family: 'Nexa-Regular', sans-serif;
+}
+
+/* Input text color when typing */
+input:not([type="file"]), select {
+    color: var(--Colores-OP2-Turquesa, #007E93);
+    font-family: Nexa;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+/* Placeholder color */
+input::placeholder {
+    color: #c7c7c7;
 }
 </style>

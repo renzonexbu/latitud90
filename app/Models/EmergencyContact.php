@@ -17,8 +17,6 @@ class EmergencyContact extends Model
         'email',
         'code_phone',
         'phone',
-        'document_type',
-        'document_number',
         'country',
         'birth_date',
         'address',

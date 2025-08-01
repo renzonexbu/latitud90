@@ -4,35 +4,35 @@
         <div class="flex flex-col gap-0">
             <!-- Table Header -->
             <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]">
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[74px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
                     RUT
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Nombre
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Apellido
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                     Institución
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
                     Nivel
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                     Programa
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                     Destino
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Estado de pago
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Total pagado
                 </div>
                 <!-- Columna de acciones (vacía en header) -->
-                <div class="w-[50px]">
+                <div class="w-[80px]">
                 </div>
             </div>
 
@@ -45,44 +45,45 @@
                         'px-5 py-[14px] flex items-center justify-between',
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]'
                     ]"
-                >
+                >   
                     <!-- RUT -->
-                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[74px]">
-                        {{ participant.document_number }}
+                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                        {{ formatRut(participant.document_number) }}
                     </div>
                     
                     <!-- Nombre -->
-                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                         {{ participant.first_name }}
                     </div>
                     
                     <!-- Apellido -->
-                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                         {{ participant.last_name }}
                     </div>
                     
                     <!-- Institución -->
-                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[129px]">
-                        {{ participant.course?.institution_name || 'N/A' }}
+                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
+                        {{ participant.institution?.name || `ID: ${participant.institution_id || 'N/A'}` }}
+                        <!-- Debug: {{ JSON.stringify(participant.institution) }} -->
                     </div>
                     
                     <!-- Nivel -->
-                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                        {{ formatEducationLevel(participant.course) }}
+                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                        {{ formatEducationLevel(participant) }}
                     </div>
                     
                     <!-- Programa -->
-                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
+                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                         {{ participant.course?.program?.name || 'N/A' }}
                     </div>
                     
                     <!-- Destino -->
-                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
+                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                         {{ participant.course?.program?.destination || 'N/A' }}
                     </div>
                     
                     <!-- Estado de pago -->
-                    <div class="flex justify-center items-center w-[102px]">
+                    <div class="flex justify-center items-center w-[120px]">
                         <div 
                             :class="[
                                 'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[14px] leading-[13px] text-center flex items-center justify-center',
@@ -94,8 +95,8 @@
                     </div>
                     
                     <!-- Total pagado -->
-                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
-                        {{ formatPayment(participant.paid_amount) }}
+                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                        {{ formatPayment(participant.individual_price) }}
                     </div>
                     
                     <!-- Acciones -->
@@ -143,10 +144,34 @@ export default {
             default: () => []
         }
     },
+    mounted() {
+        // Debug temporal para verificar los datos
+        console.log('Participants data:', this.participants);
+        if (this.participants.length > 0) {
+            console.log('First participant:', this.participants[0]);
+            console.log('Institution data:', this.participants[0].institution);
+        }
+    },
     methods: {
-        formatEducationLevel(course) {
-            if (!course) return 'N/A';
-            return `${course.education_level}\n${course.grade} | ${course.shift}`;
+        formatRut(rut) {
+            if (!rut) return 'N/A';
+            
+            // Limpiar el RUT de puntos y guiones
+            let rutLimpio = rut.toString().replace(/\./g, '').replace(/-/g, '');
+            
+            // Separar número y dígito verificador
+            let dv = rutLimpio.slice(-1);
+            let numero = rutLimpio.slice(0, -1);
+            
+            // Formatear con puntos y guión
+            let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            
+            return `${numeroFormateado}-${dv}`;
+        },
+        
+        formatEducationLevel(participant) {
+            if (!participant.course) return 'N/A';
+            return `${participant.course.education_level}\n${participant.course.grade} | ${participant.course.shift}`;
         },
         
         getPaymentStatusClass(status, percentage = 0) {
@@ -183,7 +208,7 @@ export default {
             if (!amount || amount === 0) {
                 return '----';
             }
-            return `$${amount}`;
+            return `$${parseInt(amount).toLocaleString()}`;
         }
     }
 };
