@@ -1,8 +1,8 @@
 <template>
-    <div class="min-h-screen flex bg-gray-100">
+    <div class="h-screen flex bg-gray-100 overflow-hidden">
         <!-- Sidebar -->
         <aside
-            class="mt-3 mb-3 ml-6 rounded-[20px] w-[102px] bg-white shadow-md flex flex-col"
+            class="mt-3 mb-3 ml-6 rounded-[20px] w-[102px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)]"
         >
             <!-- Logo Section -->
             <div class="flex items-center justify-center py-6">
@@ -62,11 +62,26 @@
                     />
                 </NavLink>
                 <NavLink
+                    :href="route('admin.participants.index')"
+                    :active="route().current('admin.participants.*')"
+                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                >
+                    <PersonsIcon
+                        class="w-10 h-10 transition-colors"
+                        :class="
+                            route().current('admin.participants.*')
+                                ? 'text-turquesa'
+                                : 'text-gray-400'
+                        "
+                        stroke-color="currentColor"
+                    />
+                </NavLink>
+                <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
                     class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
                 >
-                    <PersonsIcon
+                    <PaymentsIcon
                         class="w-10 h-10 transition-colors"
                         :class="
                             route().current('admin.payments.*')
@@ -115,8 +130,8 @@
         </aside>
 
         <!-- Page Content -->
-        <div class="flex-1">
-            <main>
+        <div class="flex-1 flex flex-col h-full">
+            <main class="flex-1 overflow-y-auto">
                 <slot />
             </main>
 
@@ -160,6 +175,7 @@ import {
     LuggageIcon,
     SchoolIcon,
     PersonsIcon,
+    PaymentsIcon,
     EditIcon,
     AyudaIcon,
     UserIcon,
@@ -180,6 +196,7 @@ export default {
         LuggageIcon,
         SchoolIcon,
         PersonsIcon,
+        PaymentsIcon,
         EditIcon,
         AyudaIcon,
         UserIcon,

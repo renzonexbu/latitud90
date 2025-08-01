@@ -1,50 +1,45 @@
 <template>
     <svg 
         xmlns="http://www.w3.org/2000/svg" 
+        fill="none" 
         :width="width" 
         :height="height" 
-        viewBox="0 0 12 12" 
-        fill="none"
-        :class="computedClass"
+        viewBox="0 0 24 24" 
+        :stroke-width="strokeWidth" 
+        :stroke="strokeColor" 
+        :class="class"
     >
         <path 
-            d="M10 2L1.03125 10.9688M1.03125 2L10 10.9688" 
-            :stroke="strokeColor" 
-            :stroke-width="strokeWidth" 
             stroke-linecap="round" 
-            stroke-linejoin="round"
+            stroke-linejoin="round" 
+            d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" 
         />
     </svg>
 </template>
 
 <script>
 export default {
-    name: "CrossIcon",
+    name: "PaymentsIcon",
     props: {
         width: {
             type: [String, Number],
-            default: "8.969"
+            default: 24
         },
         height: {
             type: [String, Number],
-            default: "8.969"
+            default: 24
         },
         strokeColor: {
             type: String,
-            default: "#FFF"
+            default: "currentColor"
         },
         strokeWidth: {
             type: [String, Number],
-            default: "2.07"
+            default: "1.5"
         },
         class: {
             type: String,
             default: ""
-        }
-    },
-    computed: {
-        computedClass() {
-            return `cursor-pointer hover:opacity-75 transition-opacity ${this.class}`;
         }
     }
 };
