@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('course_id')->constrained('courses')->onDelete('cascade');
             $table->string('first_name');
             $table->string('last_name');
             $table->string('email');
@@ -46,7 +47,6 @@ return new class extends Migration
             $table->foreignId('medical_condition_id')->constrained('medical_conditions');
             $table->timestamps();
         });
-        
     }
 
     /**
@@ -54,6 +54,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('participants_medical_conditions');
+        Schema::dropIfExists('participants_emergency_contact');
         Schema::dropIfExists('participants');
     }
 };

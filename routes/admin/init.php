@@ -31,6 +31,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de programas
     include __DIR__.'/program.php';
 
+    // Gestión de cursos
+    include __DIR__.'/courses.php';
+
     // Gestión de pasajeros - Comentado temporalmente
     // Route::resource('passengers', PassengerController::class);
     // Route::patch('passengers/{passenger}/update-status', [PassengerController::class, 'updateStatus'])->name('passengers.update-status');

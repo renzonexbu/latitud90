@@ -16,7 +16,8 @@ class DatabaseSeeder extends Seeder
             DocumentSeeder::class,
             PaymentMethodSeeder::class,
             PaymentModeSeeder::class,
-            UserSeeder::class,
+            UserSeeder::class,  
+            ProgramsSeeder::class,
         ]);
     }
 }

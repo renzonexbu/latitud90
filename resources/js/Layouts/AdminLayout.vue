@@ -46,23 +46,21 @@
                         stroke-color="currentColor"
                     />
                 </NavLink>
-                <!-- NavLink temporalmente comentado - ruta passengers no disponible
                 <NavLink
-                    :href="route('admin.passengers.index')"
-                    :active="route().current('admin.passengers.*')"
+                    :href="route('admin.courses.index')"
+                    :active="route().current('admin.courses.*')"
                     class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
                 >
-                    <SchoolIcon
+                    <LuggageIcon
                         class="w-10 h-10 transition-colors"
                         :class="
-                            route().current('admin.passengers.*')
+                            route().current('admin.courses.*')
                                 ? 'text-turquesa'
                                 : 'text-gray-400'
                         "
                         stroke-color="currentColor"
                     />
                 </NavLink>
-                -->
                 <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
@@ -159,6 +157,7 @@ import ResponsiveNavLink from "@/Components/ResponsiveNavLink.vue";
 import {
     HouseIcon,
     BackpackIcon,
+    LuggageIcon,
     SchoolIcon,
     PersonsIcon,
     EditIcon,
@@ -178,6 +177,7 @@ export default {
         ResponsiveNavLink,
         HouseIcon,
         BackpackIcon,
+        LuggageIcon,
         SchoolIcon,
         PersonsIcon,
         EditIcon,
