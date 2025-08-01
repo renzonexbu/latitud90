@@ -29,14 +29,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     })->name('dashboard');
 
     // Gestión de programas
-    include __DIR__.'/program.php';
+    include __DIR__ . '/program.php';
 
     // Gestión de cursos
-    include __DIR__.'/courses.php';
+    include __DIR__ . '/courses.php';
 
     // Gestión de participantes
-    include __DIR__.'/participants.php';
-include __DIR__.'/payments.php';
+    include __DIR__ . '/participants.php';
+    
+    include __DIR__ . '/payments.php';
 
     // Gestión de pasajeros - Comentado temporalmente
     // Route::resource('passengers', PassengerController::class);
