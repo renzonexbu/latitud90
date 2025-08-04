@@ -1,5 +1,5 @@
 <template>
-    <div class="h-screen flex bg-gray-100 overflow-hidden">
+    <div class="h-screen flex overflow-hidden" :style="`background-image: url('${backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat;`">
         <!-- Sidebar -->
         <aside
             class="mt-3 mb-3 ml-6 rounded-[20px] w-[102px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)]"
@@ -112,19 +112,45 @@
             <div class="border-t border-gray-200">
                 <div class="flex flex-col items-center space-y-4 py-4">
                     <NavLink
-                        :href="route('profile.edit')"
+                        :href="route('admin.profile.edit')"
                         class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
                     >
                         <AyudaIcon />
                     </NavLink>
-                    <NavLink
-                        :href="route('logout')"
-                        method="post"
-                        as="button"
-                        class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
-                    >
-                        <UserIcon />
-                    </NavLink>
+                    <div class="relative user-dropdown-container">
+                        <button
+                            @click="showingUserDropdown = !showingUserDropdown"
+                            class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
+                        >
+                            <UserIcon />
+                        </button>
+                        
+                        <!-- User Dropdown -->
+                        <div
+                            v-show="showingUserDropdown"
+                            class="absolute bottom-full left-full ml-2 mb-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50"
+                        >
+                            <div class="py-1">
+                                <NavLink
+                                    :href="route('admin.profile.edit')"
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    @click="showingUserDropdown = false"
+                                >
+                                    Ver perfil
+                                </NavLink>
+                                <NavLink
+                                    :href="route('logout')"
+                                    method="post"
+                                    as="button"
+                                    class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    @click="showingUserDropdown = false"
+                                    :data="{ redirect: '/login' }"
+                                >
+                                    Cerrar sesión
+                                </NavLink>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -182,6 +208,7 @@ import {
 } from "@/Components/Icons";
 
 import images from "../../images/index.js";
+import backgroundImage from "../../images/admin/background.png";
 
 export default {
     name: "AdminLayout",
@@ -204,8 +231,25 @@ export default {
     data() {
         return {
             showingNavigationDropdown: false,
+            showingUserDropdown: false,
             images,
+            backgroundImage,
         };
+    },
+    mounted() {
+        // Cerrar dropdown cuando se hace clic fuera
+        document.addEventListener('click', this.closeUserDropdown);
+    },
+    beforeUnmount() {
+        document.removeEventListener('click', this.closeUserDropdown);
+    },
+    methods: {
+        closeUserDropdown(event) {
+            const dropdown = this.$el.querySelector('.user-dropdown-container');
+            if (dropdown && !dropdown.contains(event.target)) {
+                this.showingUserDropdown = false;
+            }
+        }
     },
 };
 </script>

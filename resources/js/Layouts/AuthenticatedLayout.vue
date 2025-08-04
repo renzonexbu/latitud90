@@ -13,7 +13,7 @@
     PersonsIcon,
     EditIcon
   } from "@/Components/Icons";
-  import images from "/images/index.js";
+
 
   const showingNavigationDropdown = ref(false);
 </script>

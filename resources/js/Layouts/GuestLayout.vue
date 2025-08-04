@@ -1,17 +1,14 @@
 <script setup>
   import ApplicationLogo from "@/Components/Icons/ApplicationLogo.vue";
   import { Link } from "@inertiajs/vue3";
-  import AyudaIcon from "@/Components/Icons/AyudaIcon.vue";
+  import backgroundImage from "../../images/admin/background.png";
 </script>
 
 <template>
   <div
-    class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
-    <AyudaIcon
-      class="absolute inset-0 -z-10"
-      width="100%"
-      height="100%"
-      opacity="0.1" />
+    class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0"
+    :style="`background-image: url('${backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat;`">
+
     <div
       class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-2xl">
       <div class="flex-row text-center justify-center mb-6">

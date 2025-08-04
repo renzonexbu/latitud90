@@ -37,7 +37,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de participantes
     include __DIR__ . '/participants.php';
     
+    // Gestión de pagos
     include __DIR__ . '/payments.php';
+
+    // Gestión de perfil
+    include __DIR__ . '/profile.php';
+    
+
 
     // Gestión de pasajeros - Comentado temporalmente
     // Route::resource('passengers', PassengerController::class);
