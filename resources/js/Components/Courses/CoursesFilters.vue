@@ -28,6 +28,20 @@
                 </button>
             </div>
 
+            <!-- Institution Dropdown -->
+            <div class="relative w-[200px]">
+                <select
+                    v-model="filters.institution"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+                    @change="performSearch"
+                >
+                    <option value="">Institución</option>
+                    <option v-for="institution in uniqueInstitutions" :key="institution" :value="institution">
+                        {{ capitalizeWords(institution) }}
+                    </option>
+                </select>
+            </div>
+
             <!-- Education Level Dropdown -->
             <div class="relative w-[180px]">
                 <select
@@ -36,10 +50,9 @@
                     @change="performSearch"
                 >
                     <option value="">Nivel educación</option>
-                    <option value="preescolar">Preescolar</option>
-                    <option value="primaria">Primaria</option>
-                    <option value="secundaria">Secundaria</option>
-                    <option value="universitaria">Universitaria</option>
+                    <option v-for="level in uniqueLevels" :key="level" :value="level">
+                        {{ capitalizeWords(level) }}
+                    </option>
                 </select>
             </div>
 
@@ -51,12 +64,9 @@
                     @change="performSearch"
                 >
                     <option value="">Grado</option>
-                    <option value="1">1°</option>
-                    <option value="2">2°</option>
-                    <option value="3">3°</option>
-                    <option value="4">4°</option>
-                    <option value="5">5°</option>
-                    <option value="6">6°</option>
+                    <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
+                        {{ grade }}
+                    </option>
                 </select>
             </div>
 
@@ -68,9 +78,9 @@
                     @change="performSearch"
                 >
                     <option value="">Turno</option>
-                    <option value="mañana">Mañana</option>
-                    <option value="tarde">Tarde</option>
-                    <option value="noche">Noche</option>
+                    <option v-for="turno in uniqueTurnos" :key="turno" :value="turno">
+                        {{ capitalizeWords(turno) }}
+                    </option>
                 </select>
             </div>
 
@@ -82,12 +92,22 @@
                     @change="performSearch"
                 >
                     <option value="">Año</option>
-                    <option value="2023">2023</option>
-                    <option value="2024">2024</option>
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
+                    <option v-for="year in uniqueYears" :key="year" :value="year">
+                        {{ year }}
+                    </option>
                 </select>
             </div>
+
+            <!-- Clear Filters Button -->
+            <button
+                @click="clearFilters"
+                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Limpiar filtros
+            </button>
         </div>
     </div>
 </template>
@@ -101,12 +121,17 @@ export default {
         initialFilters: {
             type: Object,
             default: () => ({})
+        },
+        courses: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
         return {
             filters: {
                 search: this.initialFilters.search || "",
+                institution: this.initialFilters.institution || "",
                 level: this.initialFilters.level || "",
                 grade: this.initialFilters.grade || "",
                 turno: this.initialFilters.turno || "",
@@ -114,10 +139,70 @@ export default {
             }
         };
     },
+    computed: {
+        // Obtener instituciones únicas de los cursos
+        uniqueInstitutions() {
+            const institutions = this.courses
+                .map(course => course.institution?.name)
+                .filter(institution => institution && institution.trim() !== '');
+            return [...new Set(institutions)].sort();
+        },
+        
+        // Obtener niveles educativos únicos
+        uniqueLevels() {
+            const levels = this.courses
+                .map(course => course.education_level)
+                .filter(level => level && level.trim() !== '');
+            return [...new Set(levels)].sort();
+        },
+        
+        // Obtener grados únicos
+        uniqueGrades() {
+            const grades = this.courses
+                .map(course => course.grade)
+                .filter(grade => grade && grade.toString().trim() !== '');
+            return [...new Set(grades)].sort();
+        },
+        
+        // Obtener turnos únicos
+        uniqueTurnos() {
+            const turnos = this.courses
+                .map(course => course.shift)
+                .filter(turno => turno && turno.trim() !== '');
+            return [...new Set(turnos)].sort();
+        },
+        
+        // Obtener años únicos
+        uniqueYears() {
+            const years = this.courses
+                .map(course => course.year)
+                .filter(year => year && year.toString().trim() !== '');
+            return [...new Set(years)].sort();
+        }
+    },
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
-        }, 300)
+        }, 300),
+        
+        clearFilters() {
+            this.filters = {
+                search: "",
+                institution: "",
+                level: "",
+                grade: "",
+                turno: "",
+                year: "",
+            };
+            this.performSearch();
+        },
+        
+        capitalizeWords(string) {
+            if (!string) return '';
+            return string.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        }
     }
 };
 </script>

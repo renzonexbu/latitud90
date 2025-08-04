@@ -58,4 +58,31 @@ class Course extends Model
     {
         return "{$this->institution->name} - {$this->education_level} {$this->grade}° {$this->shift}";
     }
+
+    public function getPaymentPercentageAttribute()
+    {
+        if (!$this->program || !$this->program->trip_price) {
+            return null; // Retorna null para mostrar "---"
+        }
+        
+        $collectedAmount = $this->collected_amount ?? 0;
+        $totalPrice = $this->program->trip_price;
+        
+        if ($totalPrice <= 0) {
+            return null; // Retorna null para mostrar "---"
+        }
+        
+        return round(($collectedAmount / $totalPrice) * 100, 0);
+    }
+
+    public function getPaymentPercentageTextAttribute()
+    {
+        $percentage = $this->payment_percentage;
+        
+        if ($percentage === null) {
+            return '---'; // Solo cuando no hay programa asociado
+        }
+        
+        return $percentage . '%'; // Incluye 0% cuando hay programa pero no hay monto recolectado
+    }
 } 

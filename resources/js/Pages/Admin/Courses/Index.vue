@@ -4,6 +4,11 @@
 
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8">
+                <!-- Success Message -->
+                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
+                </div>
+
                 <!-- Header -->
                 <CoursesHeader
                     subtitle="Visualización de cursos"
@@ -16,13 +21,14 @@
                     class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6"
                 >
                     <CoursesFilters
-                        :initial-filters="filters"
+                        :initial-filters="localFilters"
+                        :courses="allCourses"
                         @filters-changed="handleFiltersChanged"
                     />
                 </div>
 
                 <!-- Courses List -->
-                <div v-if="(!courses.data && courses.length === 0) || (courses.data && courses.data.length === 0)" class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
+                <div v-if="(!filteredCourses.data && filteredCourses.length === 0) || (filteredCourses.data && filteredCourses.data.length === 0)" class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
                     <div class="text-center py-12">
                         <div class="text-gray-400 mb-4">
                             <BackpackIcon class="w-16 h-16 mx-auto" />
@@ -46,15 +52,15 @@
                 <!-- Courses Table -->
                 <div v-else class="space-y-6">
                     <CoursesTable 
-                        :courses="courses.data || (Array.isArray(courses) ? courses : [])" 
+                        :courses="filteredCourses.data || (Array.isArray(filteredCourses) ? filteredCourses : [])" 
                         @edit-course="handleEditCourse"
                     />
                     
                     <!-- Pagination -->
                     <CoursesPagination
-                        :current-page="courses.current_page || 1"
-                        :total-courses="courses.total || courses.length"
-                        :courses-per-page="courses.per_page || 10"
+                        :current-page="filteredCourses.current_page || 1"
+                        :total-courses="filteredCourses.total || filteredCourses.length"
+                        :courses-per-page="filteredCourses.per_page || 10"
                         @page-changed="handlePageChanged"
                     />
                 </div>
@@ -152,8 +158,93 @@ export default {
     data() {
         return {
             showCreateModal: false,
-            showCreateInstitutionModal: false
+            showCreateInstitutionModal: false,
+            localFilters: {
+                search: "",
+                institution: "",
+                level: "",
+                grade: "",
+                turno: "",
+                year: "",
+            },
         };
+    },
+    computed: {
+        // Todos los cursos sin filtrar (para los dropdowns)
+        allCourses() {
+            if (!this.courses || !this.courses.data) return [];
+            
+            return this.courses.data.map(course => ({
+                ...course,
+                // Agregar los accessors calculados
+                payment_percentage: course.payment_percentage,
+                payment_percentage_text: course.payment_percentage_text,
+            }));
+        },
+        
+        // Cursos filtrados
+        filteredCourses() {
+            let filtered = [...this.allCourses];
+            
+            // Filtro por búsqueda
+            if (this.localFilters.search) {
+                const searchTerm = this.localFilters.search.toLowerCase();
+                filtered = filtered.filter(course => 
+                    course.institution?.name?.toLowerCase().includes(searchTerm) ||
+                    course.education_level?.toLowerCase().includes(searchTerm) ||
+                    course.grade?.toString().includes(searchTerm)
+                );
+            }
+            
+            // Filtro por institución
+            if (this.localFilters.institution) {
+                filtered = filtered.filter(course => 
+                    course.institution?.name === this.localFilters.institution
+                );
+            }
+            
+            // Filtro por nivel educativo
+            if (this.localFilters.level) {
+                filtered = filtered.filter(course => 
+                    course.education_level === this.localFilters.level
+                );
+            }
+            
+            // Filtro por grado
+            if (this.localFilters.grade) {
+                filtered = filtered.filter(course => 
+                    course.grade?.toString() === this.localFilters.grade
+                );
+            }
+            
+            // Filtro por turno
+            if (this.localFilters.turno) {
+                filtered = filtered.filter(course => 
+                    course.shift === this.localFilters.turno
+                );
+            }
+            
+            // Filtro por año
+            if (this.localFilters.year) {
+                filtered = filtered.filter(course => 
+                    course.year?.toString() === this.localFilters.year
+                );
+            }
+            
+            // Simular paginación
+            const itemsPerPage = 10;
+            const currentPage = 1;
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            
+            return {
+                data: filtered.slice(startIndex, endIndex),
+                current_page: currentPage,
+                total: filtered.length,
+                per_page: itemsPerPage,
+                last_page: Math.ceil(filtered.length / itemsPerPage),
+            };
+        },
     },
     mounted() {
         console.log('Courses data:', this.courses);
@@ -164,19 +255,12 @@ export default {
 
     methods: {
         handleFiltersChanged(newFilters) {
-            router.get(route("admin.courses.index"), newFilters, {
-                preserveState: true,
-                replace: true,
-            });
+            this.localFilters = newFilters;
+            // No hacemos router.get aquí para mantener todo interno
         },
         handlePageChanged(page) {
-            router.get(route("admin.courses.index"), { 
-                ...this.filters, 
-                page 
-            }, {
-                preserveState: true,
-                replace: true,
-            });
+            // Por ahora mantenemos la paginación simple
+            console.log('Page changed to:', page);
         },
         handleEditCourse(courseId) {
             // Navigate to edit course page

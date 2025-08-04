@@ -38,6 +38,16 @@ class CoursesController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        // Asegurar que los programas se carguen con todos los campos necesarios
+        $courses->getCollection()->transform(function ($course) {
+            if ($course->program) {
+                $course->program->makeVisible(['trip_price', 'name', 'destination']);
+            }
+            // Agregar los accessors calculados
+            $course->append(['payment_percentage', 'payment_percentage_text']);
+            return $course;
+        });
+
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
         return Inertia::render('Admin/Courses/Index', [
