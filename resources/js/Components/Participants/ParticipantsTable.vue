@@ -63,8 +63,7 @@
                     
                     <!-- Institución -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ participant.institution?.name || `ID: ${participant.institution_id || 'N/A'}` }}
-                        <!-- Debug: {{ JSON.stringify(participant.institution) }} -->
+                        {{ participant.course?.institution?.name || `ID: ${participant.course?.institution_id || 'N/A'}` }}
                     </div>
                     
                     <!-- Nivel -->
@@ -96,7 +95,7 @@
                     
                     <!-- Total pagado -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                        {{ formatPayment(participant.individual_price) }}
+                        $0
                     </div>
                     
                     <!-- Acciones -->
@@ -145,12 +144,7 @@ export default {
         }
     },
     mounted() {
-        // Debug temporal para verificar los datos
-        console.log('Participants data:', this.participants);
-        if (this.participants.length > 0) {
-            console.log('First participant:', this.participants[0]);
-            console.log('Institution data:', this.participants[0].institution);
-        }
+        // Componente montado
     },
     methods: {
         formatRut(rut) {

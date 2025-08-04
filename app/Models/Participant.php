@@ -52,11 +52,6 @@ class Participant extends Model
         return $this->belongsTo(Course::class);
     }
 
-    public function institution()
-    {
-        return $this->hasOneThrough(Institution::class, Course::class, 'id', 'id', 'course_id', 'institution_id');
-    }
-
     public function orders()
     {
         return $this->hasMany(Order::class);

@@ -18,7 +18,6 @@ class Course extends Model
         'contact_email',
         'contact_phone',
         'program_id',
-        'course_id',
         'end_date',
         'status',
         'students_file_path',
@@ -43,11 +42,6 @@ class Course extends Model
     public function program()
     {
         return $this->belongsTo(Program::class);
-    }
-
-    public function programs()
-    {
-        return $this->hasMany(Program::class);
     }
 
     public function participants()

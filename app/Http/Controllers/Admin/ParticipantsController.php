@@ -26,7 +26,7 @@ class ParticipantsController extends Controller
      */
     public function index()
     {
-        $participants = Participant::with(['course', 'course.program', 'course.institution'])
+        $participants = Participant::with(['course', 'course.institution', 'course.program'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 

@@ -40,7 +40,6 @@ class CoursesController extends Controller
 
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
-        
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
             'filters' => $request->only(['search', 'status']),
@@ -63,7 +62,20 @@ class CoursesController extends Controller
         try {
             $validatedData = $request->validated();
             
-            $course = $this->createCourseService->execute($validatedData);
+            // Preparar los datos para el servicio
+            $courseData = [
+                'institutionId' => $validatedData['institutionId'],
+                'educationLevel' => $validatedData['educationLevel'],
+                'year' => $validatedData['year'],
+                'grade' => $validatedData['grade'],
+                'shift' => $validatedData['shift'],
+                'contactEmail' => $validatedData['contactEmail'],
+                'contactPhone' => $validatedData['contactPhone'],
+                'endDate' => $validatedData['endDate'] ?? null,
+                'studentsFile' => $request->file('students_file') ?? null,
+            ];
+            
+            $course = $this->createCourseService->execute($courseData);
             
             return redirect()->route('admin.courses.index')
                 ->with('success', 'Curso creado exitosamente.');

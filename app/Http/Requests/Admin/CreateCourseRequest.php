@@ -31,7 +31,7 @@ class CreateCourseRequest extends FormRequest
             'contactPhone' => 'required|string|max:20',
             'associatedProgram' => 'nullable|string|max:255',
             'endDate' => 'nullable|date|after:today',
-            'studentsFile' => 'nullable|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
+            'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
         ];
     }
 
@@ -76,9 +76,9 @@ class CreateCourseRequest extends FormRequest
             'endDate.date' => 'La fecha de finalización debe tener un formato válido.',
             'endDate.after' => 'La fecha de finalización debe ser posterior a hoy.',
             
-            'studentsFile.file' => 'El archivo de estudiantes debe ser un archivo válido.',
-            'studentsFile.mimes' => 'El archivo de estudiantes debe ser un archivo Excel (.xlsx, .xls) o CSV.',
-            'studentsFile.max' => 'El archivo de estudiantes no puede ser mayor a 10MB.',
+            'students_file.file' => 'El archivo de estudiantes debe ser un archivo válido.',
+            'students_file.mimes' => 'El archivo de estudiantes debe ser un archivo Excel (.xlsx, .xls) o CSV.',
+            'students_file.max' => 'El archivo de estudiantes no puede ser mayor a 10MB.',
         ];
     }
 } 

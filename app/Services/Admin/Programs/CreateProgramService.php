@@ -74,7 +74,7 @@ class CreateProgramService
                 ]);
                 
                 // Crear el curso
-                $course = $this->createCourse($programData);
+                $course = $this->createCourse($programData, $program);
                 
                 Log::info('Curso creado exitosamente', [
                     'course_id' => $course->id,
@@ -281,7 +281,7 @@ class CreateProgramService
     /**
      * Create a new course based on program data.
      */
-    private function createCourse(array $programData): Course
+    private function createCourse(array $programData, Program $program): Course
     {
         return Course::create([
             'institution_id' => $programData['institution_id'],
@@ -291,7 +291,7 @@ class CreateProgramService
             'shift' => $programData['shift'],
             'contact_email' => $programData['contact_email'] ?? '',
             'contact_phone' => $programData['contact_phone'] ?? '',
-            'program_id' => null, // Se asignará después
+            'program_id' => $program->id, // Asignar el program_id correctamente
             'end_date' => $programData['final_payment_date'] ?? null,
             'status' => 'active',
             'created_by' => auth()->id(),
@@ -343,6 +343,8 @@ class CreateProgramService
             
             // Mapear headers a campos de participantes
             $participantCount = 0;
+            $participants = []; // Array para almacenar los participantes creados
+            
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
@@ -363,7 +365,7 @@ class CreateProgramService
                     'apellido' => $participantData['Apellido'] ?? 'N/A'
                 ]);
                 
-                // Crear participante
+                // Crear participante (sin precio individual por ahora)
                 $participant = Participant::create([
                     'course_id' => $course->id,
                     'first_name' => $participantData['Nombre'] ?? '',
@@ -372,7 +374,7 @@ class CreateProgramService
                     'code_phone' => '+56', // Código por defecto para Chile
                     'phone' => $participantData['Teléfono'] ?? '',
                     'document_type' => $this->getDocumentType($participantData),
-                    'document_number' => $participantData['RUT'] ?? '',
+                    'document_number' => $this->cleanRut($participantData['RUT'] ?? ''),
                     'country' => 'CL', // Chile por defecto
                     'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
                     'address' => $participantData['Dirección'] ?? null,
@@ -380,9 +382,11 @@ class CreateProgramService
                     'medical_conditions' => $participantData['Condición médica'] ?? null,
                     'status' => 'pending_payment',
                     'registration_date' => now(),
-                    'individual_price' => $program->trip_price,
+                    'individual_price' => 0, // Se calculará después
                     'price_adjustments' => 0,
                 ]);
+                
+                $participants[] = $participant; // Guardar referencia al participante
                 
                 Log::info('Participante creado', [
                     'participant_id' => $participant->id,
@@ -420,6 +424,22 @@ class CreateProgramService
                 }
                 
                 $participantCount++;
+            }
+            
+            // Calcular el precio individual después de procesar todos los participantes
+            if ($participantCount > 0) {
+                $individualPrice = $program->trip_price / $participantCount;
+                
+                Log::info('Calculando precio individual', [
+                    'program_price' => $program->trip_price,
+                    'participant_count' => $participantCount,
+                    'individual_price' => $individualPrice
+                ]);
+                
+                // Actualizar el precio individual de todos los participantes
+                foreach ($participants as $participant) {
+                    $participant->update(['individual_price' => $individualPrice]);
+                }
             }
             
             Log::info('Procesamiento completado', [
@@ -461,6 +481,15 @@ class CreateProgramService
         
         // Por defecto, asumir que es un RUT
         return 'RUT';
+    }
+
+    /**
+     * Clean RUT by removing dots and dashes.
+     */
+    private function cleanRut(string $rut): string
+    {
+        // Quitar puntos y guiones, mantener solo números y dígito verificador
+        return str_replace(['.', '-'], '', $rut);
     }
 
     /**

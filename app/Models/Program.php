@@ -47,7 +47,7 @@ class Program extends Model
 
     public function participants()
     {
-        return $this->hasMany(Participant::class);
+        return $this->hasManyThrough(Participant::class, Course::class, 'program_id', 'course_id', 'id', 'id');
     }
 
     public function features()

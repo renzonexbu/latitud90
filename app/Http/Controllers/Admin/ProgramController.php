@@ -20,7 +20,7 @@ class ProgramController extends Controller
 
     public function index(Request $request)
     {
-        $programs = Program::with(['paymentMode'])
+        $programs = Program::with(['paymentMode', 'course', 'participants'])
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('destination', 'like', "%{$search}%");
@@ -61,7 +61,7 @@ class ProgramController extends Controller
 
     public function show(Program $program)
     {
-        $program->load(['passengers']);
+        $program->load(['course', 'participants']);
 
         return Inertia::render('Admin/Programs/Show', [
             'program' => $program
@@ -151,14 +151,14 @@ class ProgramController extends Controller
 
     public function passengers(Program $program)
     {
-        $passengers = $program->passengers()
+        $participants = $program->participants()
             ->with(['payments'])
             ->where('status', '!=', 'cancelled')
             ->paginate(10);
 
         return Inertia::render('Admin/Programs/Passengers', [
             'program' => $program,
-            'passengers' => $passengers,
+            'participants' => $participants,
         ]);
     }
 
