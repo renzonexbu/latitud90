@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateCourseRequest;
 use App\Models\Course;
+use App\Models\Institution;
 use App\Models\Program;
 use App\Services\Admin\Courses\CreateCourseService;
 use Illuminate\Http\Request;
@@ -22,11 +23,13 @@ class CoursesController extends Controller
 
     public function index(Request $request)
     {
-        $courses = Course::with(['program', 'createdBy'])
+        $courses = Course::with(['program', 'createdBy', 'institution'])
             ->when($request->search, function ($query, $search) {
-                $query->where('institution_name', 'like', "%{$search}%")
-                    ->orWhere('education_level', 'like', "%{$search}%")
-                    ->orWhere('grade', 'like', "%{$search}%");
+                $query->whereHas('institution', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                })
+                ->orWhere('education_level', 'like', "%{$search}%")
+                ->orWhere('grade', 'like', "%{$search}%");
             })
             ->when($request->status, function ($query, $status) {
                 $query->where('status', $status);
@@ -36,11 +39,13 @@ class CoursesController extends Controller
             ->withQueryString();
 
         $programs = Program::where('active', true)->get();
+        $institutions = Institution::active()->orderBy('name')->get();
         
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
             'filters' => $request->only(['search', 'status']),
             'programs' => $programs,
+            'institutions' => $institutions,
         ]);
     }
 

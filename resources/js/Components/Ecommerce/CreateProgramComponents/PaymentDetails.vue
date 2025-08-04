@@ -201,15 +201,27 @@
                         >
                             <div class="institution-field-row">
                                 <div class="field-wrapper">
-                                    <div class="field-label">
-                                        Nombre de institución
+                                    <div class="flex justify-between items-center">
+                                        <div class="field-label">
+                                            Nombre de institución
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            @click="createNewInstitution"
+                                            class="text-[#007e93] text-xs font-nexa-bold hover:underline"
+                                        >
+                                            + Crear nueva institución
+                                        </button>
                                     </div>
-                                    <input
-                                        type="text"
-                                        v-model="formData.institution_name"
-                                        placeholder="Escriba el nombre de la institución"
+                                    <select
+                                        v-model="formData.institution_id"
                                         class="admin-input-text"
-                                    />
+                                    >
+                                        <option value="">Seleccione una institución</option>
+                                        <option v-for="institution in institutions" :key="institution.id" :value="institution.id">
+                                            {{ institution.name }}
+                                        </option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="education-details-row">
@@ -528,6 +540,7 @@ const props = defineProps({
             final_payment_date: "",
             sales_person: "",
             institution_name: "",
+            institution_id: "",
             education_level: "",
             shift: "",
             grade: "",
@@ -556,11 +569,15 @@ const props = defineProps({
             totalAmount: 0,
             remainingAmount: 0
         })
+    },
+    institutions: {
+        type: Array,
+        default: () => []
     }
 });
 
 // Emits
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'create-institution']);
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
@@ -580,6 +597,21 @@ watch(
         emit('update:modelValue', newValue);
     },
     { deep: true }
+);
+
+// Watch para sincronizar el nombre de la institución cuando se seleccione una del select
+watch(
+    () => formData.value.institution_id,
+    (newInstitutionId) => {
+        if (newInstitutionId) {
+            const selectedInstitution = props.institutions.find(inst => inst.id == newInstitutionId);
+            if (selectedInstitution) {
+                formData.value.institution_name = selectedInstitution.name;
+            }
+        } else {
+            formData.value.institution_name = "";
+        }
+    }
 );
 
 // Función para manejar la carga de archivos de estudiantes
@@ -612,6 +644,11 @@ const handlePaymentOptionClick = (option) => {
         // Si no está seleccionado, lo selecciona
         formData.value.payment_option = option;
     }
+};
+
+// Función para crear una nueva institución
+const createNewInstitution = () => {
+    emit('create-institution');
 };
 
 // Función para formatear precios

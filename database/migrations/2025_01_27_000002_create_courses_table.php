@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('courses', function (Blueprint $table) {
             $table->id();
-            $table->string('institution_name');
+            $table->foreignId('institution_id')->constrained('institutions')->onDelete('cascade');
             $table->enum('education_level', ['preescolar', 'primaria', 'secundaria', 'universitaria']);
             $table->string('year', 4);
             $table->string('grade');

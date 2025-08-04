@@ -11,7 +11,6 @@ class Participant extends Model
 
     protected $fillable = [
         'course_id',
-        'institution_id',
         'first_name',
         'last_name',
         'email',
@@ -55,7 +54,7 @@ class Participant extends Model
 
     public function institution()
     {
-        return $this->belongsTo(Institution::class);
+        return $this->hasOneThrough(Institution::class, Course::class, 'id', 'id', 'course_id', 'institution_id');
     }
 
     public function orders()

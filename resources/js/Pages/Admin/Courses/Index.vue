@@ -65,8 +65,18 @@
         <CreateCourseModal 
             :show="showCreateModal" 
             :programs="programs"
+            :institutions="institutions"
             :errors="errors"
-            @close="closeCreateModal" 
+            @close="closeCreateModal"
+            @create-institution="openCreateInstitutionModal"
+        />
+
+        <!-- Create Institution Modal -->
+        <CreateInstitutionModal 
+            :show="showCreateInstitutionModal" 
+            :errors="errors"
+            @close="closeCreateInstitutionModal"
+            @institution-created="handleInstitutionCreated"
         />
 
         <!-- Success Message -->
@@ -94,6 +104,7 @@ import CoursesFilters from "@/Components/Courses/CoursesFilters.vue";
 import CoursesPagination from "@/Components/Courses/CoursesPagination.vue";
 import CoursesTable from "@/Components/Courses/CoursesTable.vue";
 import CreateCourseModal from "./Create.vue";
+import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
 import { BackpackIcon, CourseIcon } from "@/Components/Icons";
 import _ from "lodash";
 
@@ -112,6 +123,7 @@ export default {
         CoursesPagination,
         CoursesTable,
         CreateCourseModal,
+        CreateInstitutionModal,
         BackpackIcon,
         CourseIcon,
     },
@@ -128,6 +140,10 @@ export default {
             type: Array,
             default: () => [],
         },
+        institutions: {
+            type: Array,
+            default: () => [],
+        },
         errors: {
             type: Object,
             default: () => ({}),
@@ -135,7 +151,8 @@ export default {
     },
     data() {
         return {
-            showCreateModal: false
+            showCreateModal: false,
+            showCreateInstitutionModal: false
         };
     },
     mounted() {
@@ -174,6 +191,20 @@ export default {
         closeSuccessMessage() {
             // Clear the flash message
             this.$page.props.flash.success = null;
+        },
+        openCreateInstitutionModal() {
+            this.showCreateInstitutionModal = true;
+        },
+        closeCreateInstitutionModal() {
+            this.showCreateInstitutionModal = false;
+        },
+        handleInstitutionCreated(newInstitution) {
+            // Add the new institution to the list
+            this.institutions.push(newInstitution);
+            // Close the modal
+            this.closeCreateInstitutionModal();
+            // Show success message
+            this.$page.props.flash.success = 'Institución creada exitosamente.';
         },
     },
 };

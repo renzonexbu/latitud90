@@ -26,13 +26,13 @@ class ParticipantsController extends Controller
      */
     public function index()
     {
-        $participants = Participant::with(['course', 'course.program', 'institution'])
+        $participants = Participant::with(['course', 'course.program', 'course.institution'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        $courses = Course::with('program')
+        $courses = Course::with(['program', 'institution'])
             ->where('status', 'active')
-            ->orderBy('institution_name')
+            ->orderBy('institution_id')
             ->get();
 
         $institutions = Institution::active()
@@ -52,9 +52,9 @@ class ParticipantsController extends Controller
      */
     public function create()
     {
-        $courses = \App\Models\Course::with('program')
+        $courses = \App\Models\Course::with(['program', 'institution'])
             ->where('status', 'active')
-            ->orderBy('institution_name')
+            ->orderBy('institution_id')
             ->get();
 
         $institutions = Institution::active()
@@ -75,7 +75,7 @@ class ParticipantsController extends Controller
         try {
             // Separar los datos del participante
             $participantData = array_intersect_key($request->validated(), array_flip([
-                'course_id', 'institution_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
+                'course_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
                 'document_type', 'document_number', 'country', 'birth_date', 'address',
                 'dietary_restrictions', 'medical_conditions', 'individual_price',
                 'price_adjustments', 'adjustment_reason'

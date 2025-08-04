@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\PassengerController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportController;
-use App\Http\Controllers\ProfileController;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
@@ -13,12 +12,7 @@ Route::get('/dashboard', function () {
     return redirect()->route('admin.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// Rutas de perfil de usuario
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+
 
 // Rutas de administración
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {

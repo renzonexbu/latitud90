@@ -16,6 +16,8 @@
                     <PaymentDetails 
                         v-model="paymentData" 
                         :errors="errors"
+                        :institutions="localInstitutions"
+                        @create-institution="openCreateInstitutionModal"
                     />
                 </div>
 
@@ -35,6 +37,14 @@
                 </div>
             </div>
         </div>
+
+        <!-- Create Institution Modal -->
+        <CreateInstitutionModal 
+            :show="showCreateInstitutionModal" 
+            :errors="errors"
+            @close="closeCreateInstitutionModal"
+            @institution-created="handleInstitutionCreated"
+        />
     </AdminLayout>
 </template>
 
@@ -44,12 +54,17 @@ import { ref } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
+import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
 
 // Props
 const props = defineProps({
     errors: {
         type: Object,
         default: () => ({})
+    },
+    institutions: {
+        type: Array,
+        default: () => []
     }
 });
 
@@ -73,6 +88,7 @@ const form = useForm({
     final_payment_date: "",
     sales_person: "",
     institution_name: "",
+    institution_id: "",
     education_level: "",
     shift: "",
     grade: "",
@@ -107,6 +123,7 @@ const paymentData = ref({
     final_payment_date: "",
     sales_person: "",
     institution_name: "",
+    institution_id: "",
     education_level: "",
     shift: "",
     grade: "",
@@ -121,9 +138,35 @@ const paymentData = ref({
 // Estado para las imágenes
 const selectedImages = ref([]);
 
+// Estado para el modal de creación de institución
+const showCreateInstitutionModal = ref(false);
+
+// Estado local para las instituciones (para poder modificarlas)
+const localInstitutions = ref([...props.institutions]);
+
 // Función para actualizar las imágenes desde el componente
 const updateImages = (images) => {
     selectedImages.value = images;
+};
+
+// Función para abrir el modal de creación de institución
+const openCreateInstitutionModal = () => {
+    showCreateInstitutionModal.value = true;
+};
+
+// Función para cerrar el modal de creación de institución
+const closeCreateInstitutionModal = () => {
+    showCreateInstitutionModal.value = false;
+};
+
+// Función para manejar la creación de una nueva institución
+const handleInstitutionCreated = (newInstitution) => {
+    // Agregar la nueva institución a la lista local
+    localInstitutions.value.push(newInstitution);
+    // Actualizar el ID de la institución en el formulario
+    paymentData.value.institution_id = newInstitution.id;
+    // Cerrar el modal
+    closeCreateInstitutionModal();
 };
 
 const submit = () => {

@@ -6,11 +6,11 @@
         @click.self="closeModal"
     >
         <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[580px] w-full modal-content">
+        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-8 max-w-[580px] w-full max-h-[90vh] overflow-y-auto">
             <!-- Header -->
-            <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
-                <div class="flex flex-row gap-[20px] items-start justify-end w-full">
-                    <div class="text-[#434343] text-center font-nexa-bold text-[24px] leading-[28px] font-bold flex-1 flex items-end justify-center">
+            <div class="flex flex-col gap-[26px] items-end justify-center mb-8">
+                <div class="flex flex-row gap-[26px] items-start justify-end w-full">
+                    <div class="text-[#434343] text-center font-nexa-bold text-[24px] leading-[28px] font-bold w-[385px] h-[31px] flex items-end justify-center">
                         Crear curso
                     </div>
                     <button 
@@ -28,46 +28,30 @@
             </div>
 
             <!-- Content -->
-            <form @submit.prevent="saveCourse" class="modal-form">
-                <div class="flex flex-col gap-4">
+            <form @submit.prevent="saveCourse">
+                <div class="flex flex-col gap-5">
                     <!-- Datos Section -->
-                    <div class="flex flex-col gap-[15px]">
+                    <div class="flex flex-col gap-[19px]">
                         <div class="text-[#007e93] text-left font-nexa-bold text-[18px] leading-[22px] font-bold">
                             Datos
                         </div>
                         
-                        <div class="flex flex-col gap-[20px]">
-                            <!-- Institución -->
+                        <div class="flex flex-col gap-[26px]">
+                            <!-- Nombre de institución -->
                             <div class="flex flex-col gap-[10px]">
-                                <div class="flex justify-between items-center">
-                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                        Institución
-                                    </label>
-                                    <button 
-                                        type="button"
-                                        @click="$emit('create-institution')"
-                                        class="text-[#007e93] text-xs font-nexa-bold hover:underline"
-                                    >
-                                        + Crear nueva institución
-                                    </button>
-                                </div>
-                                <select 
-                                    v-model="form.institutionId"
+                                <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                    Nombre de institución
+                                </label>
+                                <input 
+                                    v-model="form.institutionName"
+                                    type="text"
+                                    placeholder="Escriba el nombre de la institución"
                                     :class="[
-                                        'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none',
-                                        errors.institutionId ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
+                                        errors.institutionName ? 'border-red-500' : 'border-[#5b5b5b]'
                                     ]"
-                                >
-                                    <option value="">Seleccione una institución</option>
-                                    <option 
-                                        v-for="institution in institutions" 
-                                        :key="institution.id" 
-                                        :value="institution.id"
-                                    >
-                                        {{ institution.name }}
-                                    </option>
-                                </select>
-                                <span v-if="errors.institutionId" class="text-red-500 text-xs mt-1">{{ errors.institutionId }}</span>
+                                />
+                                <span v-if="errors.institutionName" class="text-red-500 text-xs mt-1">{{ errors.institutionName }}</span>
                             </div>
 
                             <!-- Row with dropdowns -->
@@ -241,10 +225,10 @@
                     </div>
 
                     <!-- Separator line -->
-                    <div class="w-full h-px bg-gray-300 my-4"></div>
+                    <div class="w-full h-px bg-gray-300 my-5"></div>
 
                     <!-- Carga de alumnos Section -->
-                    <div class="flex flex-col gap-[15px]">
+                    <div class="flex flex-col gap-[19px]">
                         <div class="text-[#007e93] text-left font-nexa-regular text-[18px] leading-[22px] font-normal">
                             Carga de alumnos
                         </div>
@@ -261,7 +245,7 @@
                                     accept=".xlsx,.xls,.csv"
                                     class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
-                                <div class="bg-white rounded-lg border-dashed border border-[#5b5b5b] p-4 flex flex-col items-center justify-center h-[80px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] hover:border-[#007e93] hover:bg-gray-50 transition-colors">
+                                <div class="bg-white rounded-lg border-dashed border border-[#5b5b5b] p-4 flex flex-col items-center justify-center h-[107px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] hover:border-[#007e93] hover:bg-gray-50 transition-colors">
                                     <div v-if="!form.studentsFile" class="text-[#5b5b5b] text-center font-nexa-regular text-[12px] leading-[18px] font-normal">
                                         Adjunta el archivo excel aquí
                                     </div>
@@ -281,7 +265,7 @@
                 </div>
 
                 <!-- Save button -->
-                <div class="mt-6 flex-shrink-0">
+                <div class="mt-8">
                     <button 
                         type="submit"
                         :disabled="isSubmitting"
@@ -319,17 +303,13 @@ export default {
         programs: {
             type: Array,
             default: () => []
-        },
-        institutions: {
-            type: Array,
-            default: () => []
         }
     },
     data() {
         return {
             isSubmitting: false,
             form: {
-                institutionId: "",
+                institutionName: "",
                 educationLevel: "",
                 year: "2025",
                 grade: "",
@@ -341,21 +321,6 @@ export default {
                 studentsFile: null
             }
         };
-    },
-    watch: {
-        'form.institutionId': function(newInstitutionId) {
-            if (newInstitutionId) {
-                const selectedInstitution = this.institutions.find(inst => inst.id == newInstitutionId);
-                if (selectedInstitution) {
-                    this.form.contactEmail = selectedInstitution.email || "";
-                    this.form.contactPhone = selectedInstitution.phone || "";
-                }
-            } else {
-                // Si no hay institución seleccionada, limpiar los campos
-                this.form.contactEmail = "";
-                this.form.contactPhone = "";
-            }
-        }
     },
     methods: {
         closeModal() {
@@ -389,7 +354,7 @@ export default {
         },
         resetForm() {
             this.form = {
-                institutionId: "",
+                institutionName: "",
                 educationLevel: "",
                 year: "2025",
                 grade: "",
@@ -456,69 +421,5 @@ input:not([type="file"]), select {
 /* Placeholder color */
 input::placeholder {
     color: #c7c7c7;
-}
-
-/* Modal responsive styles */
-.modal-content {
-    max-height: calc(100vh - 2rem);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.modal-form {
-    flex: 1;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-}
-
-/* Custom scrollbar for modal */
-.modal-form::-webkit-scrollbar {
-    width: 6px;
-}
-
-.modal-form::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.modal-form::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-}
-
-.modal-form::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Responsive adjustments */
-@media (max-height: 700px) {
-    .modal-content {
-        max-height: calc(100vh - 1rem);
-    }
-    
-    .modal-content .p-6 {
-        padding: 1rem;
-    }
-    
-    .modal-content .mb-6 {
-        margin-bottom: 1rem;
-    }
-    
-    .modal-content .mt-6 {
-        margin-top: 1rem;
-    }
-    
-    .modal-content .gap-4 {
-        gap: 0.75rem;
-    }
-    
-    .modal-content .gap-\[20px\] {
-        gap: 1rem;
-    }
-    
-    .modal-content .gap-\[15px\] {
-        gap: 0.75rem;
-    }
 }
 </style>

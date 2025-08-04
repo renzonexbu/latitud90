@@ -41,7 +41,7 @@ class CreateCourseService
         }
 
         return Course::create([
-            'institution_name' => $data['institutionName'],
+            'institution_id' => $data['institutionId'],
             'education_level' => $data['educationLevel'],
             'year' => $data['year'],
             'grade' => $data['grade'],

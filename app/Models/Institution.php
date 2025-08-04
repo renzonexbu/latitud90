@@ -32,6 +32,14 @@ class Institution extends Model
     }
 
     /**
+     * Get the courses that belong to this institution.
+     */
+    public function courses()
+    {
+        return $this->hasMany(Course::class);
+    }
+
+    /**
      * Scope a query to only include active institutions.
      */
     public function scopeActive($query)

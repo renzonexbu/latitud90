@@ -122,7 +122,14 @@
                             @click="showingUserDropdown = !showingUserDropdown"
                             class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
                         >
-                            <UserIcon />
+                            <UserIcon
+                                class="w-10 h-10 transition-colors"
+                                :class="
+                                    route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
+                                        ? 'text-turquesa'
+                                        : 'text-gray-400'
+                                "
+                            />
                         </button>
                         
                         <!-- User Dropdown -->

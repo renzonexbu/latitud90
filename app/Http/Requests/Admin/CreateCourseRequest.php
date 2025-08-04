@@ -22,7 +22,7 @@ class CreateCourseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'institutionName' => 'required|string|max:255',
+            'institutionId' => 'required|exists:institutions,id',
             'educationLevel' => 'required|in:preescolar,primaria,secundaria,universitaria',
             'year' => 'required|string|max:4',
             'grade' => 'required|string|max:10',
@@ -43,9 +43,8 @@ class CreateCourseRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'institutionName.required' => 'El nombre de la institución es obligatorio.',
-            'institutionName.string' => 'El nombre de la institución debe ser texto.',
-            'institutionName.max' => 'El nombre de la institución no puede tener más de 255 caracteres.',
+            'institutionId.required' => 'La institución es obligatoria.',
+            'institutionId.exists' => 'La institución seleccionada no existe.',
             
             'educationLevel.required' => 'El nivel de educación es obligatorio.',
             'educationLevel.in' => 'El nivel de educación seleccionado no es válido.',

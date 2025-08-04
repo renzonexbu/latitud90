@@ -10,7 +10,7 @@ class Course extends Model
     use HasFactory;
 
     protected $fillable = [
-        'institution_name',
+        'institution_id',
         'education_level',
         'year',
         'grade',
@@ -34,6 +34,11 @@ class Course extends Model
         'target_amount' => 'decimal:2'
     ];
 
+    public function institution()
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
     public function program()
     {
         return $this->belongsTo(Program::class);
@@ -51,6 +56,6 @@ class Course extends Model
 
     public function getFullNameAttribute()
     {
-        return "{$this->institution_name} - {$this->education_level} {$this->grade}° {$this->shift}";
+        return "{$this->institution->name} - {$this->education_level} {$this->grade}° {$this->shift}";
     }
 } 

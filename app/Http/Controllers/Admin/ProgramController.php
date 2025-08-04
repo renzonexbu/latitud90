@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateProgramRequest;
+use App\Models\Institution;
 use App\Models\Program;
 use App\Models\PaymentMode;
 use App\Services\Admin\Programs\CreateProgramService;
@@ -39,7 +40,11 @@ class ProgramController extends Controller
 
     public function create()
     {
-        return Inertia::render('Admin/Programs/Create');
+        $institutions = Institution::orderBy('name')->get();
+        
+        return Inertia::render('Admin/Programs/Create', [
+            'institutions' => $institutions,
+        ]);
     }
 
     public function store(CreateProgramRequest $request)

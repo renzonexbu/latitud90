@@ -199,7 +199,7 @@
                                     >
                                         <option value="">Seleccione un curso</option>
                                         <option v-for="course in courses" :key="course.id" :value="course.id">
-                                            {{ course.institution_name }} - {{ course.education_level }} {{ course.grade }}° {{ course.shift }}
+                                            {{ course.institution?.name || 'Sin institución' }} - {{ course.education_level }} {{ course.grade }}° {{ course.shift }}
                                         </option>
                                     </select>
                                     <span v-if="errors.course_id" class="text-red-500 text-xs mt-1">{{ errors.course_id }}</span>

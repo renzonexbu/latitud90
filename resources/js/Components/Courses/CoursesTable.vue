@@ -48,7 +48,7 @@
                 ]"
             >
                 <div class="text-verde-oscuro font-nexa-bold text-sm w-[200px]">
-                    {{ course.institution_name }}
+                                            {{ course.institution?.name || 'Sin institución' }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
                     {{ course.education_level }}
@@ -95,7 +95,7 @@
                     <button 
                         @click="editCourse(course.id)"
                         class="p-1 hover:bg-gray-100 rounded transition-colors"
-                        :title="`Editar ${course.institution_name}`"
+                        :title="`Editar ${course.institution?.name || 'curso'}`"
                     >
                         <EditPencilIcon fill-color="#C7C7C7" />
                     </button>

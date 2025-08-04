@@ -24,7 +24,6 @@ class CreateParticipantRequest extends FormRequest
         return [
             // Datos del participante
             'course_id' => 'required|exists:courses,id',
-            'institution_id' => 'required|exists:institutions,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:participants,email',
@@ -68,8 +67,6 @@ class CreateParticipantRequest extends FormRequest
         return [
             'course_id.required' => 'Debe seleccionar un curso.',
             'course_id.exists' => 'El curso seleccionado no existe.',
-            'institution_id.required' => 'Debe seleccionar una institución.',
-            'institution_id.exists' => 'La institución seleccionada no existe.',
             'first_name.required' => 'El nombre es obligatorio.',
             'last_name.required' => 'El apellido es obligatorio.',
             'email.email' => 'El email debe tener un formato válido.',
