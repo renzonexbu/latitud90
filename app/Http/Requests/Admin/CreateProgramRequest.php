@@ -40,12 +40,13 @@ class CreateProgramRequest extends FormRequest
             'seller_name' => 'required_without:sales_person|string|max:255',
             'sales_person' => 'required_without:seller_name|string|max:255', // Campo del frontend
             
-            // Campos opcionales del detalle administrativo
+            // Campos del detalle administrativo con validaciones de dependencias
+            'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'nullable|string|in:mañana,tarde,noche',
-            'grade' => 'nullable|string|max:10',
-            'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
+            'education_level' => 'required_with:institution_id|nullable|string|in:inicial,primario,secundario,universitario',
+            'shift' => 'required_with:institution_id|nullable|string|in:mañana,tarde,noche',
+            'grade' => 'required_with:institution_id|nullable|string|max:10',
+            'students_file' => 'required_with:education_level,shift,grade|nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
@@ -124,6 +125,13 @@ class CreateProgramRequest extends FormRequest
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
             'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
             'max_installments.in' => 'El número máximo de cuotas seleccionado no es válido.',
+            
+            // Mensajes para validaciones de dependencias
+            'institution_id.exists' => 'La institución seleccionada no existe.',
+            'education_level.required_with' => 'El nivel de educación es obligatorio cuando se selecciona una institución.',
+            'shift.required_with' => 'El turno es obligatorio cuando se selecciona una institución.',
+            'grade.required_with' => 'El grado es obligatorio cuando se selecciona una institución.',
+            'students_file.required_with' => 'El archivo de estudiantes es obligatorio cuando se completan los datos del curso.',
         ];
     }
 } 

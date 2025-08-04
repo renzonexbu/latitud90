@@ -24,6 +24,7 @@ class Program extends Model
         'final_payment_date',
         'seller_name',
         'payment_mode_id',
+        'course_id',
         'active'
     ];
 
@@ -37,6 +38,11 @@ class Program extends Model
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
     }
 
     public function participants()

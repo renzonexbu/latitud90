@@ -31,6 +31,11 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
+
+        // Agregar el campo course_id a la tabla programs
+        Schema::table('programs', function (Blueprint $table) {
+            $table->foreignId('course_id')->nullable()->constrained('courses')->onDelete('set null');
+        });
     }
 
     /**
@@ -38,6 +43,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Eliminar el campo course_id de la tabla programs
+        Schema::table('programs', function (Blueprint $table) {
+            $table->dropForeign(['course_id']);
+            $table->dropColumn('course_id');
+        });
+
         Schema::dropIfExists('courses');
     }
 };
