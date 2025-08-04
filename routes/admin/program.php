@@ -11,3 +11,4 @@ Route::post('programs/bulk-price-update', [ProgramController::class, 'bulkPriceU
 // Route::get('programs/{program}/passengers', [ProgramController::class, 'passengers'])->name('programs.passengers');
 Route::get('programs/{program}/payments', [ProgramController::class, 'payments'])->name('programs.payments');
 Route::get('programs/{program}/export', [ProgramController::class, 'export'])->name('programs.export');
+Route::get('programs/{program}/files', [ProgramController::class, 'files'])->name('programs.files');

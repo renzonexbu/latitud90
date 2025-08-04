@@ -27,6 +27,8 @@ class CreateProgramRequest extends FormRequest
             'trip_description' => 'required_without:description|string|max:2000',
             'description' => 'required_without:trip_description|string|max:2000', // Campo del frontend
             'images_folder' => 'nullable|string|max:255',
+            'images' => 'required|array|min:1', // Al menos una imagen es obligatoria
+            'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
             'pillars' => 'nullable|string|max:500',
             'itinerary_description' => 'nullable|string|max:1000',
             'itinerary_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
@@ -99,6 +101,14 @@ class CreateProgramRequest extends FormRequest
             'sales_person.string' => 'El nombre del vendedor debe ser texto.',
             'seller_name.max' => 'El nombre del vendedor no puede exceder 255 caracteres.',
             'sales_person.max' => 'El nombre del vendedor no puede exceder 255 caracteres.',
+            
+            // Mensajes para imágenes
+            'images.required' => 'Debe seleccionar al menos una imagen para el programa.',
+            'images.array' => 'Las imágenes deben ser enviadas como un array.',
+            'images.min' => 'Debe seleccionar al menos una imagen para el programa.',
+            'images.*.file' => 'Cada imagen debe ser un archivo válido.',
+            'images.*.mimes' => 'Las imágenes deben ser en formato JPEG, JPG, PNG, GIF o WEBP.',
+            'images.*.max' => 'Cada imagen no puede exceder 5MB.',
             
             // Mensajes para archivos
             'itinerary_file.file' => 'El archivo de itinerario debe ser un archivo válido.',

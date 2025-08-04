@@ -51,10 +51,9 @@
                     @change="performSearch"
                 >
                     <option value="">Destino</option>
-                    <option value="patagonia">Patagonia</option>
-                    <option value="santiago">Santiago</option>
-                    <option value="valparaiso">Valparaíso</option>
-                    <option value="puerto-montt">Puerto Montt</option>
+                    <option v-for="destination in uniqueDestinations" :key="destination" :value="destination">
+                        {{ destination }}
+                    </option>
                 </select>
             </div>
 
@@ -83,11 +82,10 @@
                         @change="performSearch"
                     >
                         <option value="">Institución</option>
-                        <option value="universidad-chile">Universidad de Chile</option>
-                        <option value="universidad-catolica">Universidad Católica</option>
-                        <option value="universidad-santiago">Universidad de Santiago</option>
+                        <option v-for="institution in uniqueInstitutions" :key="institution" :value="institution">
+                            {{ institution }}
+                        </option>
                     </select>
-
                 </div>
                 
                 <!-- Separator -->
@@ -101,11 +99,10 @@
                         @change="performSearch"
                     >
                         <option value="">Nivel</option>
-                        <option value="basico">Básico</option>
-                        <option value="intermedio">Intermedio</option>
-                        <option value="avanzado">Avanzado</option>
+                        <option v-for="level in uniqueLevels" :key="level" :value="level">
+                            {{ level }}
+                        </option>
                     </select>
-
                 </div>
 
                 <!-- Separator -->
@@ -119,14 +116,23 @@
                         @change="performSearch"
                     >
                         <option value="">Grado</option>
-                        <option value="1">1°</option>
-                        <option value="2">2°</option>
-                        <option value="3">3°</option>
-                        <option value="4">4°</option>
+                        <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
+                            {{ grade }}
+                        </option>
                     </select>
-
                 </div>
             </div>
+
+            <!-- Clear Filters Button -->
+            <button
+                @click="clearFilters"
+                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Limpiar filtros
+            </button>
         </div>
     </div>
 </template>
@@ -140,6 +146,10 @@ export default {
         initialFilters: {
             type: Object,
             default: () => ({})
+        },
+        programs: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
@@ -155,6 +165,39 @@ export default {
             showActivePrograms: true
         };
     },
+    computed: {
+        // Obtener destinos únicos de los programas
+        uniqueDestinations() {
+            const destinations = this.programs
+                .map(program => program.destination)
+                .filter(destination => destination && destination.trim() !== '');
+            return [...new Set(destinations)].sort();
+        },
+        
+        // Obtener instituciones únicas de los programas
+        uniqueInstitutions() {
+            const institutions = this.programs
+                .map(program => program.course?.institution?.name)
+                .filter(institution => institution && institution.trim() !== '');
+            return [...new Set(institutions)].sort();
+        },
+        
+        // Obtener niveles educativos únicos
+        uniqueLevels() {
+            const levels = this.programs
+                .map(program => program.course?.education_level)
+                .filter(level => level && level.trim() !== '');
+            return [...new Set(levels)].sort();
+        },
+        
+        // Obtener grados únicos
+        uniqueGrades() {
+            const grades = this.programs
+                .map(program => program.course?.grade)
+                .filter(grade => grade && grade.toString().trim() !== '');
+            return [...new Set(grades)].sort();
+        }
+    },
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', {
@@ -162,8 +205,21 @@ export default {
                 active: this.showActivePrograms
             });
         }, 300),
+        
         toggleActivePrograms() {
             this.showActivePrograms = !this.showActivePrograms;
+            this.performSearch();
+        },
+        
+        clearFilters() {
+            this.filters = {
+                search: "",
+                destination: "",
+                paymentPercentage: "",
+                institution: "",
+                level: "",
+                grade: "",
+            };
             this.performSearch();
         }
     }

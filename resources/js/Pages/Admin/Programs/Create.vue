@@ -9,13 +9,13 @@
                     <ProgramDescription
                         v-model="programData"
                         @update:images="updateImages"
-                        :errors="errors"
+                        :errors="{ ...errors, ...localErrors }"
                     />
 
                     <!-- Componente de Detalle Administrativo -->
                     <PaymentDetails 
                         v-model="paymentData" 
-                        :errors="errors"
+                        :errors="{ ...errors, ...localErrors }"
                         :institutions="localInstitutions"
                         @create-institution="openCreateInstitutionModal"
                     />
@@ -144,6 +144,35 @@ const showCreateInstitutionModal = ref(false);
 // Estado local para las instituciones (para poder modificarlas)
 const localInstitutions = ref([...props.institutions]);
 
+// Estado para errores de validación local
+const localErrors = ref({});
+
+// Función para limpiar errores locales
+const clearLocalErrors = () => {
+    localErrors.value = {};
+};
+
+// Función para validar el formulario
+const validateForm = () => {
+    clearLocalErrors();
+    const errors = {};
+    
+    // Validar que el nombre del programa sea obligatorio
+    if (!programData.value.name || programData.value.name.trim() === '') {
+        errors.name = 'El nombre del programa es obligatorio';
+    }
+    
+    // Validar que al menos una imagen sea obligatoria
+    if (!selectedImages.value || selectedImages.value.length === 0) {
+        errors.images = 'Debe seleccionar al menos una imagen para el programa';
+    }
+    
+    // Asignar errores locales
+    localErrors.value = errors;
+    
+    return Object.keys(errors).length === 0;
+};
+
 // Función para actualizar las imágenes desde el componente
 const updateImages = (images) => {
     selectedImages.value = images;
@@ -170,6 +199,16 @@ const handleInstitutionCreated = (newInstitution) => {
 };
 
 const submit = () => {
+    // Validar el formulario
+    if (!validateForm()) {
+        // Hacer scroll al primer error
+        const firstErrorElement = document.querySelector('.error-message');
+        if (firstErrorElement) {
+            firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+    }
+
     // Sincronizar los datos del programa con el formulario
     Object.keys(programData.value).forEach((key) => {
         form[key] = programData.value[key];

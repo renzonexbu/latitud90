@@ -11,6 +11,7 @@ use App\Services\Admin\Programs\CreateProgramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class ProgramController extends Controller
 {
@@ -20,7 +21,7 @@ class ProgramController extends Controller
 
     public function index(Request $request)
     {
-        $programs = Program::with(['paymentMode', 'course', 'participants'])
+        $programs = Program::with(['paymentMode', 'course.institution', 'participants'])
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('destination', 'like', "%{$search}%");
@@ -31,6 +32,11 @@ class ProgramController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
+        // Cargar las imágenes para cada programa
+        $programs->getCollection()->transform(function ($program) {
+            $program->images = $program->images;
+            return $program;
+        });
 
         return Inertia::render('Admin/Programs/Index', [
             'programs' => $programs,
@@ -65,6 +71,23 @@ class ProgramController extends Controller
 
         return Inertia::render('Admin/Programs/Show', [
             'program' => $program
+        ]);
+    }
+
+    /**
+     * Show program files and images
+     */
+    public function files(Program $program)
+    {
+        return response()->json([
+            'program' => [
+                'id' => $program->id,
+                'name' => $program->name,
+                'itinerary_file' => $program->itinerary_file_url,
+                'travel_assistance_coverage' => $program->travel_assistance_coverage_url,
+                'equipment_list' => $program->equipment_list_url,
+                'images' => $program->images,
+            ]
         ]);
     }
 

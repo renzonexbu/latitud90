@@ -37,26 +37,34 @@ class CreateProgramService
             }
             $programData['pillars'] = implode(', ', $pillars);
 
-            // Procesar archivos si se proporcionaron
-            $programData = $this->processFiles($programData);
-
-            // Crear el programa
+            // Crear el programa primero (sin archivos por ahora)
             $program = Program::create([
                 'name' => $programData['name'],
                 'destination' => $programData['destination'],
                 'departure_date' => $programData['departure_date'],
                 'trip_description' => $programData['description'] ?? $programData['trip_description'],
-                'images_folder' => $programData['images_folder'] ?? null,
+                'images_folder' => null, // Se actualizará después
                 'pillars' => $programData['pillars'] ?? null,
                 'itinerary_description' => $programData['itinerary'] ?? null,
-                'itinerary_file' => $programData['itinerary_file_path'] ?? null,
-                'travel_assistance_coverage' => $programData['coverage_file_path'] ?? null,
-                'equipment_list' => $programData['equipment_file_path'] ?? null,
+                'itinerary_file' => null, // Se actualizará después
+                'travel_assistance_coverage' => null, // Se actualizará después
+                'equipment_list' => null, // Se actualizará después
                 'trip_price' => $programData['total_price'] ?? $programData['trip_price'],
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => $programData['sales_person'] ?? $programData['seller_name'],
                 'payment_mode_id' => $this->getPaymentModeId($programData),
                 'active' => $programData['active'] ?? true,
+            ]);
+
+            // Procesar archivos después de crear el programa para poder usar su ID
+            $processedData = $this->processFiles($programData, $program);
+            
+            // Actualizar el programa con las rutas de los archivos
+            $program->update([
+                'images_folder' => $processedData['images_folder'] ?? null,
+                'itinerary_file' => $processedData['itinerary_file_path'] ?? null,
+                'travel_assistance_coverage' => $processedData['coverage_file_path'] ?? null,
+                'equipment_list' => $processedData['equipment_file_path'] ?? null,
             ]);
 
             // Lógica para crear curso y participantes si se proporcionan los datos
@@ -121,37 +129,52 @@ class CreateProgramService
     /**
      * Process uploaded files and store them.
      */
-    private function processFiles(array $programData): array
+    private function processFiles(array $programData, Program $program = null): array
     {
+        // Si no tenemos el programa aún, creamos un identificador temporal
+        $programId = $program ? $program->id : uniqid('temp_');
+        $timestamp = now()->format('Y_m_d_H_i_s');
+        
+        // Crear la carpeta base del programa
+        $programFolder = "programs/{$programId}";
+        
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
-            $path = $programData['itinerary_file']->store('programs/files', 'public');
-            $programData['itinerary_file_path'] = $path;
+            $pdfPath = "{$programFolder}/pdfs/itinerario_{$programId}_{$timestamp}.pdf";
+            $fullPath = $programData['itinerary_file']->storeAs($pdfPath, null, 'public');
+            // Guardar solo la ruta relativa en la base de datos
+            $programData['itinerary_file_path'] = $fullPath;
         }
 
         // Procesar archivo de cobertura
         if (isset($programData['coverage_file']) && $programData['coverage_file']) {
-            $path = $programData['coverage_file']->store('programs/files', 'public');
-            $programData['coverage_file_path'] = $path;
+            $pdfPath = "{$programFolder}/pdfs/cobertura_{$programId}_{$timestamp}.pdf";
+            $fullPath = $programData['coverage_file']->storeAs($pdfPath, null, 'public');
+            // Guardar solo la ruta relativa en la base de datos
+            $programData['coverage_file_path'] = $fullPath;
         }
 
         // Procesar archivo de lista de equipo
         if (isset($programData['equipment_file']) && $programData['equipment_file']) {
-            $path = $programData['equipment_file']->store('programs/files', 'public');
-            $programData['equipment_file_path'] = $path;
+            $pdfPath = "{$programFolder}/pdfs/equipo_{$programId}_{$timestamp}.pdf";
+            $fullPath = $programData['equipment_file']->storeAs($pdfPath, null, 'public');
+            // Guardar solo la ruta relativa en la base de datos
+            $programData['equipment_file_path'] = $fullPath;
         }
 
         // Procesar imágenes si se proporcionaron
         if (isset($programData['images']) && is_array($programData['images'])) {
             $imagePaths = [];
-            foreach ($programData['images'] as $image) {
+            foreach ($programData['images'] as $index => $image) {
                 if ($image && $image->isValid()) {
-                    $path = $image->store('programs/images', 'public');
-                    $imagePaths[] = $path;
+                    $imagePath = "{$programFolder}/images/imagen_{$programId}_{$timestamp}_{$index}.{$image->getClientOriginalExtension()}";
+                    $fullPath = $image->storeAs($imagePath, null, 'public');
+                    $imagePaths[] = $fullPath;
                 }
             }
             if (!empty($imagePaths)) {
-                $programData['images_folder'] = 'programs/images/' . uniqid();
+                // Guardar solo la ruta de la carpeta de imágenes (sin el nombre del archivo)
+                $programData['images_folder'] = $programFolder . '/images';
             }
         }
 

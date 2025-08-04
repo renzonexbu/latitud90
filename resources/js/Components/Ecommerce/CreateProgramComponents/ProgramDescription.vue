@@ -12,9 +12,7 @@
                         class="accordion-header"
                         @click="detailsOpen = !detailsOpen"
                     >
-                        <div class="accordion-title">
-                            Detalle del programa
-                        </div>
+                        <div class="accordion-title">Detalle del programa</div>
                         <svg
                             class="accordion-arrow"
                             :class="{ rotated: detailsOpen }"
@@ -43,24 +41,26 @@
                         </svg>
                     </div>
                     <transition name="accordion-slide">
-                        <div
-                            v-if="detailsOpen"
-                            class="accordion-content"
-                        >
+                        <div v-if="detailsOpen" class="accordion-content">
                             <div class="name-field-row">
                                 <div class="field-container">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
-                                            Nombre del programa
+                                            Nombre del programa *
                                         </div>
                                         <input
                                             type="text"
                                             v-model="formData.name"
                                             placeholder="Nombre"
                                             class="input-text"
-                                            :class="{ 'border-red-500': errors.name }"
+                                            :class="{
+                                                'border-red-500': errors.name,
+                                            }"
                                         />
-                                        <span v-if="errors.name" class="text-red-500 text-sm mt-1">
+                                        <span
+                                            v-if="errors.name"
+                                            class="text-red-500 text-sm mt-1"
+                                        >
                                             {{ errors.name }}
                                         </span>
                                     </div>
@@ -69,17 +69,21 @@
                             <div class="destination-date-row">
                                 <div class="field-container">
                                     <div class="field-wrapper">
-                                        <div class="destino">
-                                            Destino *
-                                        </div>
+                                        <div class="destino">Destino *</div>
                                         <input
                                             type="text"
                                             v-model="formData.destination"
-                                            placeholder="000000000"
+                                            placeholder="Libertad 22 - Santiago"
                                             class="input-text"
-                                            :class="{ 'border-red-500': errors.destination }"
+                                            :class="{
+                                                'border-red-500':
+                                                    errors.destination,
+                                            }"
                                         />
-                                        <span v-if="errors.destination" class="text-red-500 text-sm mt-1">
+                                        <span
+                                            v-if="errors.destination"
+                                            class="text-red-500 text-sm mt-1"
+                                        >
                                             {{ errors.destination }}
                                         </span>
                                     </div>
@@ -94,9 +98,15 @@
                                             v-model="formData.departure_date"
                                             placeholder="00/00/0000"
                                             class="input-text"
-                                            :class="{ 'border-red-500': errors.departure_date }"
+                                            :class="{
+                                                'border-red-500':
+                                                    errors.departure_date,
+                                            }"
                                         />
-                                        <span v-if="errors.departure_date" class="text-red-500 text-sm mt-1">
+                                        <span
+                                            v-if="errors.departure_date"
+                                            class="text-red-500 text-sm mt-1"
+                                        >
                                             {{ errors.departure_date }}
                                         </span>
                                     </div>
@@ -111,9 +121,15 @@
                                         v-model="formData.description"
                                         placeholder="Escriba aqui las condiciones medicas que presenta el alumno, si no tiene no es obligatorio completar."
                                         class="input-text2"
-                                        :class="{ 'border-red-500': errors.description }"
+                                        :class="{
+                                            'border-red-500':
+                                                errors.description,
+                                        }"
                                     ></textarea>
-                                    <span v-if="errors.description" class="text-red-500 text-sm mt-1">
+                                    <span
+                                        v-if="errors.description"
+                                        class="text-red-500 text-sm mt-1"
+                                    >
                                         {{ errors.description }}
                                     </span>
                                 </div>
@@ -121,9 +137,7 @@
                             <div class="images-section-row">
                                 <div class="images-section-wrapper">
                                     <div class="images-header">
-                                        <div class="imagenes">
-                                            Imagenes
-                                        </div>
+                                        <div class="imagenes">Imagenes *</div>
                                         <div class="maximo-2-mb-por-foto">
                                             Maximo 2MB por foto
                                         </div>
@@ -161,7 +175,8 @@
                                             <div class="upload-text">
                                                 <div class="upload-main-text">
                                                     Adjunta las imágenes que
-                                                    quieras mostrar en el programa
+                                                    quieras mostrar en el
+                                                    programa
                                                 </div>
                                                 <div class="upload-sub-text">
                                                     PNG, JPG hasta 2MB cada una
@@ -184,7 +199,9 @@
                                         class="images-preview"
                                     >
                                         <div
-                                            v-for="(image, index) in selectedImages"
+                                            v-for="(
+                                                image, index
+                                            ) in selectedImages"
                                             :key="index"
                                             class="image-preview-item"
                                         >
@@ -198,7 +215,11 @@
                                                     {{ image.name }}
                                                 </div>
                                                 <div class="image-size">
-                                                    {{ formatFileSize(image.size) }}
+                                                    {{
+                                                        formatFileSize(
+                                                            image.size
+                                                        )
+                                                    }}
                                                 </div>
                                             </div>
                                             <button
@@ -266,13 +287,11 @@
                         </svg>
                     </div>
                     <transition name="accordion-slide">
-                        <div
-                            v-if="pillarsOpen"
-                            class="accordion-content"
-                        >
+                        <div v-if="pillarsOpen" class="accordion-content">
                             <div class="pillars-description">
-                                En el desarrollo de nuestros programas incorporamos de manera
-                                transversal 4 pilares fundamentales:
+                                En el desarrollo de nuestros programas
+                                incorporamos de manera transversal 4 pilares
+                                fundamentales:
                             </div>
                             <div class="pillars-grid">
                                 <div class="pillars-left-column">
@@ -289,7 +308,9 @@
                                         <div class="pillar-number">2</div>
                                         <input
                                             type="text"
-                                            v-model="formData.pilar_entretenimiento"
+                                            v-model="
+                                                formData.pilar_entretenimiento
+                                            "
                                             placeholder="Entretenimiento"
                                             class="input-text4"
                                         />
@@ -329,9 +350,7 @@
                         class="accordion-header"
                         @click="itineraryOpen = !itineraryOpen"
                     >
-                        <div class="accordion-title">
-                            Que vamos a hacer
-                        </div>
+                        <div class="accordion-title">Que vamos a hacer</div>
                         <svg
                             class="accordion-arrow"
                             :class="{ rotated: itineraryOpen }"
@@ -360,14 +379,12 @@
                         </svg>
                     </div>
                     <transition name="accordion-slide">
-                        <div
-                            v-if="itineraryOpen"
-                            class="accordion-content"
-                        >
+                        <div v-if="itineraryOpen" class="accordion-content">
                             <div class="itinerary-description-field">
                                 <div class="field-wrapper">
                                     <div class="escribe-descripcion-itinerario">
-                                        Escribe una breve descripción del itinerario.
+                                        Escribe una breve descripción del
+                                        itinerario.
                                     </div>
                                     <textarea
                                         v-model="formData.itinerary"
@@ -378,34 +395,45 @@
                             </div>
                             <div class="pdf-upload-grid">
                                 <div class="pdf-upload-item">
-                                    <div class="itinerario">
-                                        Itinerario
-                                    </div>
-                                    
+                                    <div class="itinerario">Itinerario</div>
+
                                     <!-- Archivo existente (solo en modo edit) -->
-                                    <div v-if="mode === 'edit' && existingFiles.itinerary_file" class="existing-file">
-                                        <a 
-                                            :href="`/storage/${existingFiles.itinerary_file}`" 
-                                            target="_blank" 
+                                    <div
+                                        v-if="
+                                            mode === 'edit' &&
+                                            existingFiles.itinerary_file
+                                        "
+                                        class="existing-file"
+                                    >
+                                        <a
+                                            :href="`/storage/${existingFiles.itinerary_file}`"
+                                            target="_blank"
                                             class="existing-file-link"
                                         >
                                             📄 Ver archivo actual
                                         </a>
-                                        <button 
+                                        <button
                                             type="button"
-                                            @click="removeExistingFile('itinerary')"
+                                            @click="
+                                                removeExistingFile('itinerary')
+                                            "
                                             class="remove-existing-file"
                                         >
                                             ✕
                                         </button>
                                     </div>
-                                    
+
                                     <label
                                         class="primary-button"
                                         for="itinerary-file"
                                     >
                                         <div class="button-text">
-                                            {{ mode === 'edit' && existingFiles.itinerary_file ? 'Cambiar PDF' : 'Adjunte aqui el PDF' }}
+                                            {{
+                                                mode === "edit" &&
+                                                existingFiles.itinerary_file
+                                                    ? "Cambiar PDF"
+                                                    : "Adjunte aqui el PDF"
+                                            }}
                                         </div>
                                         <svg
                                             class="paperclip-icon"
@@ -429,11 +457,66 @@
                                         id="itinerary-file"
                                         accept=".pdf"
                                         style="display: none"
-                                        @change="handleFileUpload('itinerary', $event)"
+                                        @change="
+                                            handleFileUpload(
+                                                'itinerary',
+                                                $event
+                                            )
+                                        "
                                     />
+
+                                    <!-- Preview del archivo PDF seleccionado -->
+                                    <div
+                                        v-if="formData.itinerary_file"
+                                        class="pdf-preview"
+                                    >
+                                        <div class="pdf-preview-item">
+                                            <div class="pdf-icon">📄</div>
+                                            <div class="pdf-info">
+                                                <div class="pdf-name">
+                                                    {{
+                                                        formData.itinerary_file
+                                                            .name
+                                                    }}
+                                                </div>
+                                                <div class="pdf-size">
+                                                    {{
+                                                        formatFileSize(
+                                                            formData
+                                                                .itinerary_file
+                                                                .size
+                                                        )
+                                                    }}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                @click="
+                                                    removePdfFile('itinerary')
+                                                "
+                                                class="remove-pdf-btn"
+                                            >
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M12 4L4 12M4 4L12 12"
+                                                        stroke="#666"
+                                                        stroke-width="1.5"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="pdf-upload-item">
-                                    <div class="cobertura-de-asistencia-en-viaje">
+                                    <div
+                                        class="cobertura-de-asistencia-en-viaje"
+                                    >
                                         Cobertura de asistencia en viaje
                                     </div>
                                     <label
@@ -465,8 +548,58 @@
                                         id="coverage-file"
                                         accept=".pdf"
                                         style="display: none"
-                                        @change="handleFileUpload('coverage', $event)"
+                                        @change="
+                                            handleFileUpload('coverage', $event)
+                                        "
                                     />
+
+                                    <!-- Preview del archivo PDF seleccionado -->
+                                    <div
+                                        v-if="formData.coverage_file"
+                                        class="pdf-preview"
+                                    >
+                                        <div class="pdf-preview-item">
+                                            <div class="pdf-icon">📄</div>
+                                            <div class="pdf-info">
+                                                <div class="pdf-name">
+                                                    {{
+                                                        formData.coverage_file
+                                                            .name
+                                                    }}
+                                                </div>
+                                                <div class="pdf-size">
+                                                    {{
+                                                        formatFileSize(
+                                                            formData
+                                                                .coverage_file
+                                                                .size
+                                                        )
+                                                    }}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                @click="
+                                                    removePdfFile('coverage')
+                                                "
+                                                class="remove-pdf-btn"
+                                            >
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M12 4L4 12M4 4L12 12"
+                                                        stroke="#666"
+                                                        stroke-width="1.5"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="pdf-upload-item">
                                     <div class="lista-de-equipo">
@@ -501,8 +634,61 @@
                                         id="equipment-file"
                                         accept=".pdf"
                                         style="display: none"
-                                        @change="handleFileUpload('equipment', $event)"
+                                        @change="
+                                            handleFileUpload(
+                                                'equipment',
+                                                $event
+                                            )
+                                        "
                                     />
+
+                                    <!-- Preview del archivo PDF seleccionado -->
+                                    <div
+                                        v-if="formData.equipment_file"
+                                        class="pdf-preview"
+                                    >
+                                        <div class="pdf-preview-item">
+                                            <div class="pdf-icon">📄</div>
+                                            <div class="pdf-info">
+                                                <div class="pdf-name">
+                                                    {{
+                                                        formData.equipment_file
+                                                            .name
+                                                    }}
+                                                </div>
+                                                <div class="pdf-size">
+                                                    {{
+                                                        formatFileSize(
+                                                            formData
+                                                                .equipment_file
+                                                                .size
+                                                        )
+                                                    }}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                @click="
+                                                    removePdfFile('equipment')
+                                                "
+                                                class="remove-pdf-btn"
+                                            >
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 16 16"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M12 4L4 12M4 4L12 12"
+                                                        stroke="#666"
+                                                        stroke-width="1.5"
+                                                        stroke-linecap="round"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -538,29 +724,34 @@ const props = defineProps({
     },
     mode: {
         type: String,
-        default: 'create',
-        validator: (value) => ['create', 'edit'].includes(value)
+        default: "create",
+        validator: (value) => ["create", "edit"].includes(value),
     },
     errors: {
         type: Object,
-        default: () => ({})
+        default: () => ({}),
     },
     existingImages: {
         type: Array,
-        default: () => []
+        default: () => [],
     },
     existingFiles: {
         type: Object,
         default: () => ({
             itinerary_file: null,
             coverage_file: null,
-            equipment_file: null
-        })
-    }
+            equipment_file: null,
+        }),
+    },
 });
 
 // Emits
-const emit = defineEmits(['update:modelValue', 'update:images', 'remove:existingImage', 'remove:existingFile']);
+const emit = defineEmits([
+    "update:modelValue",
+    "update:images",
+    "remove:existingImage",
+    "remove:existingFile",
+]);
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
@@ -574,14 +765,14 @@ const itineraryOpen = ref(false);
 const selectedImages = ref([]);
 
 // Cargar imágenes existentes en modo edit
-if (props.mode === 'edit' && props.existingImages.length > 0) {
+if (props.mode === "edit" && props.existingImages.length > 0) {
     selectedImages.value = props.existingImages.map((image, index) => ({
         id: `existing-${index}`,
         file: null, // No hay archivo para imágenes existentes
         preview: image.url ? `/storage/${image.url}` : image,
         name: image.name || `Imagen ${index + 1}`,
         isExisting: true,
-        originalId: image.id || null
+        originalId: image.id || null,
     }));
 }
 
@@ -589,7 +780,7 @@ if (props.mode === 'edit' && props.existingImages.length > 0) {
 watch(
     formData,
     (newValue) => {
-        emit('update:modelValue', newValue);
+        emit("update:modelValue", newValue);
     },
     { deep: true }
 );
@@ -597,7 +788,7 @@ watch(
 watch(
     selectedImages,
     (newImages) => {
-        emit('update:images', newImages);
+        emit("update:images", newImages);
     },
     { deep: true }
 );
@@ -605,11 +796,30 @@ watch(
 // Función para manejar la carga de archivos PDF
 const handleFileUpload = (type, event) => {
     const file = event.target.files[0];
-    if (file && file.type === "application/pdf") {
+    if (file) {
+        // Validar tipo de archivo
+        if (file.type !== "application/pdf") {
+            alert("Por favor seleccione un archivo PDF válido.");
+            event.target.value = "";
+            return;
+        }
+
+        // Validar tamaño (10MB = 10 * 1024 * 1024 bytes)
+        if (file.size > 10 * 1024 * 1024) {
+            alert(
+                `${file.name} es demasiado grande. El tamaño máximo es 10MB.`
+            );
+            event.target.value = "";
+            return;
+        }
+
         formData.value[`${type}_file`] = file;
-        console.log(`Archivo ${type} seleccionado:`, file.name);
+        console.log(
+            `Archivo ${type} seleccionado:`,
+            file.name,
+            `(${formatFileSize(file.size)})`
+        );
     } else {
-        alert("Por favor seleccione un archivo PDF válido.");
         event.target.value = "";
     }
 };
@@ -651,13 +861,15 @@ const handleImageUpload = (event) => {
 // Función para remover una imagen
 const removeImage = (index) => {
     const imageToRemove = selectedImages.value[index];
-    
+
     if (imageToRemove.isExisting) {
-        console.log(`Marcando imagen existente para eliminar: ${imageToRemove.originalId}`);
+        console.log(
+            `Marcando imagen existente para eliminar: ${imageToRemove.originalId}`
+        );
         // En modo edit, emitir evento para marcar imagen como eliminada
-        emit('remove:existingImage', imageToRemove.originalId);
+        emit("remove:existingImage", imageToRemove.originalId);
     }
-    
+
     selectedImages.value.splice(index, 1);
     emitImages();
     console.log(`Imagen ${index + 1} eliminada`);
@@ -666,7 +878,13 @@ const removeImage = (index) => {
 // Función para eliminar archivo existente
 const removeExistingFile = (fileType) => {
     console.log(`Marcando archivo existente para eliminar: ${fileType}`);
-    emit('remove:existingFile', fileType);
+    emit("remove:existingFile", fileType);
+};
+
+// Función para remover un archivo PDF seleccionado
+const removePdfFile = (fileType) => {
+    formData.value[`${fileType}_file`] = null;
+    console.log(`Archivo ${fileType} eliminado`);
 };
 
 // Función para formatear el tamaño del archivo
@@ -1492,5 +1710,72 @@ const formatFileSize = (bytes) => {
 
 .remove-existing-file:hover {
     background-color: #fee2e2;
+}
+
+/* PDF Preview Styles */
+.pdf-preview {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.pdf-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.pdf-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    color: var(--colores-op2-turquesa, #007e93);
+}
+
+.pdf-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pdf-name {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    font-family: "Nexa-Bold", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.pdf-size {
+    color: var(--colores-neutro-gris-3, #c7c7c7);
+    font-family: "Nexa-Regular", sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.remove-pdf-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-pdf-btn:hover {
+    background-color: rgba(255, 0, 0, 0.1);
 }
 </style>

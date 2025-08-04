@@ -21,14 +21,15 @@
                     class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6"
                 >
                     <ProgramsFilters
-                        :initial-filters="filters"
+                        :initial-filters="localFilters"
+                        :programs="allPrograms"
                         @filters-changed="handleFiltersChanged"
                     />
                 </div>
 
                 <!-- Programs Grid -->
                 <div class="bg-white overflow-hidden shadow-sm rounded-lg p-6">
-                    <ProgramsGrid :programs="programs" />
+                    <ProgramsGrid :programs="filteredPrograms" />
                 </div>
             </div>
         </div>
@@ -69,19 +70,106 @@ export default {
     },
     data() {
         return {
-            filters: {
-                search: this.filters.search || "",
-                destination: this.filters.destination || "",
-                paymentPercentage: this.filters.paymentPercentage || "",
-                institution: this.filters.institution || "",
-                level: this.filters.level || "",
-                grade: this.filters.grade || "",
-                active:
-                    this.filters.active !== undefined
-                        ? this.filters.active
-                        : true,
+            localFilters: {
+                search: "",
+                destination: "",
+                paymentPercentage: "",
+                institution: "",
+                level: "",
+                grade: "",
+                active: true,
             },
         };
+    },
+    computed: {
+        // Todos los programas sin filtrar (para los dropdowns)
+        allPrograms() {
+            if (!this.programs || !this.programs.data) return [];
+            
+            return this.programs.data.map(program => ({
+                ...program,
+                price: program.trip_price,
+                duration: this.calculateDuration(program.departure_date),
+                participants: 0,
+                paymentPercentage: 0,
+                paidAmount: 0,
+                totalAmount: program.trip_price,
+            }));
+        },
+        
+        // Programas filtrados
+        filteredPrograms() {
+            let filtered = [...this.allPrograms];
+            
+            // Filtro por búsqueda
+            if (this.localFilters.search) {
+                const searchTerm = this.localFilters.search.toLowerCase();
+                filtered = filtered.filter(program => 
+                    program.name.toLowerCase().includes(searchTerm) ||
+                    program.destination.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Filtro por destino
+            if (this.localFilters.destination) {
+                filtered = filtered.filter(program => 
+                    program.destination === this.localFilters.destination
+                );
+            }
+            
+            // Filtro por institución
+            if (this.localFilters.institution) {
+                filtered = filtered.filter(program => 
+                    program.course?.institution?.name === this.localFilters.institution
+                );
+            }
+            
+            // Filtro por nivel educativo
+            if (this.localFilters.level) {
+                filtered = filtered.filter(program => 
+                    program.course?.education_level === this.localFilters.level
+                );
+            }
+            
+            // Filtro por grado
+            if (this.localFilters.grade) {
+                filtered = filtered.filter(program => 
+                    program.course?.grade === this.localFilters.grade
+                );
+            }
+            
+            // Filtro por porcentaje de pago (simulado)
+            if (this.localFilters.paymentPercentage) {
+                // Por ahora filtramos por un porcentaje simulado
+                const percentage = parseInt(this.localFilters.paymentPercentage);
+                filtered = filtered.filter(program => {
+                    // Simular porcentaje de pago basado en algún criterio
+                    const simulatedPercentage = Math.floor(Math.random() * 100);
+                    return simulatedPercentage >= percentage;
+                });
+            }
+            
+            // Filtro por programas activos/inactivos
+            if (this.localFilters.active !== undefined) {
+                filtered = filtered.filter(program => 
+                    program.active === this.localFilters.active
+                );
+            }
+            
+            // Simular paginación
+            const itemsPerPage = 6;
+            const currentPage = 1;
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            
+            return {
+                data: filtered.slice(startIndex, endIndex),
+                current_page: currentPage,
+                total: filtered.length,
+                per_page: itemsPerPage,
+                last_page: Math.ceil(filtered.length / itemsPerPage),
+            };
+        },
     },
     methods: {
         formatDate(date) {
@@ -101,11 +189,16 @@ export default {
                 .trim();
         },
         handleFiltersChanged(newFilters) {
-            this.filters = newFilters;
-            router.get(route("admin.programs.index"), this.filters, {
-                preserveState: true,
-                replace: true,
-            });
+            this.localFilters = newFilters;
+            // No hacemos router.get aquí para mantener todo interno
+        },
+        calculateDuration(departureDate) {
+            if (!departureDate) return 0;
+            const today = new Date();
+            const departure = new Date(departureDate);
+            const diffTime = departure.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return 7; // 7 días por defecto
         },
         toggleStatus(program) {
             if (
