@@ -48,10 +48,26 @@ class CoursesController extends Controller
             return $course;
         });
 
+        // Obtener todos los cursos para los filtros (sin paginación)
+        $allCourses = Course::with(['program', 'createdBy', 'institution'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Aplicar las mismas transformaciones a todos los cursos
+        $allCourses->transform(function ($course) {
+            if ($course->program) {
+                $course->program->makeVisible(['trip_price', 'name', 'destination']);
+            }
+            // Agregar los accessors calculados
+            $course->append(['payment_percentage', 'payment_percentage_text']);
+            return $course;
+        });
+
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
+            'allCourses' => $allCourses,
             'filters' => $request->only(['search', 'status']),
             'programs' => $programs,
             'institutions' => $institutions,

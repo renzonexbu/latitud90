@@ -138,6 +138,10 @@ export default {
             type: Array,
             default: () => [],
         },
+        allCourses: {
+            type: Array,
+            default: () => [],
+        },
         filters: {
             type: Object,
             default: () => ({}),
@@ -159,6 +163,7 @@ export default {
         return {
             showCreateModal: false,
             showCreateInstitutionModal: false,
+            currentPage: 1,
             localFilters: {
                 search: "",
                 institution: "",
@@ -170,18 +175,6 @@ export default {
         };
     },
     computed: {
-        // Todos los cursos sin filtrar (para los dropdowns)
-        allCourses() {
-            if (!this.courses || !this.courses.data) return [];
-            
-            return this.courses.data.map(course => ({
-                ...course,
-                // Agregar los accessors calculados
-                payment_percentage: course.payment_percentage,
-                payment_percentage_text: course.payment_percentage_text,
-            }));
-        },
-        
         // Cursos filtrados
         filteredCourses() {
             let filtered = [...this.allCourses];
@@ -231,15 +224,14 @@ export default {
                 );
             }
             
-            // Simular paginación
+            // Paginación
             const itemsPerPage = 10;
-            const currentPage = 1;
-            const startIndex = (currentPage - 1) * itemsPerPage;
+            const startIndex = (this.currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             
             return {
                 data: filtered.slice(startIndex, endIndex),
-                current_page: currentPage,
+                current_page: this.currentPage,
                 total: filtered.length,
                 per_page: itemsPerPage,
                 last_page: Math.ceil(filtered.length / itemsPerPage),
@@ -256,11 +248,12 @@ export default {
     methods: {
         handleFiltersChanged(newFilters) {
             this.localFilters = newFilters;
+            this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
             // No hacemos router.get aquí para mantener todo interno
         },
         handlePageChanged(page) {
-            // Por ahora mantenemos la paginación simple
-            console.log('Page changed to:', page);
+            this.currentPage = page;
+            // No hacemos router.get aquí para mantener todo interno
         },
         handleEditCourse(courseId) {
             // Navigate to edit course page

@@ -63,7 +63,7 @@
                     
                     <!-- Institución -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ participant.course?.institution?.name || `ID: ${participant.course?.institution_id || 'N/A'}` }}
+                        {{ capitalizeWords(participant.course?.institution?.name || `ID: ${participant.course?.institution_id || 'N/A'}`) }}
                     </div>
                     
                     <!-- Nivel -->
@@ -73,12 +73,12 @@
                     
                     <!-- Programa -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ participant.course?.program?.name || 'N/A' }}
+                        {{ capitalizeWords(participant.course?.program?.name || 'N/A') }}
                     </div>
                     
                     <!-- Destino -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ participant.course?.program?.destination || 'N/A' }}
+                        {{ capitalizeWords(participant.course?.program?.destination || 'N/A') }}
                     </div>
                     
                     <!-- Estado de pago -->
@@ -100,19 +100,25 @@
                     
                     <!-- Acciones -->
                     <div class="flex gap-2 items-center justify-center">
-                        <!-- WhatsApp Button -->
-                        <button 
-                            @click="$emit('contact-whatsapp', participant)"
-                            class="hover:opacity-75 transition-opacity"
-                            style="width: 24px; height: 24px; aspect-ratio: 1/1;"
-                        >
-                            <WhatsAppIcon 
-                                :width="24"
-                                :height="24"
-                                fill-color="#C7C7C7"
-                                class="cursor-pointer hover:opacity-75"
-                            />
-                        </button>
+                        <!-- WhatsApp Button with Tooltip -->
+                        <div class="relative group">
+                            <button 
+                                class="hover:opacity-75 transition-opacity"
+                                style="width: 24px; height: 24px; aspect-ratio: 1/1;"
+                            >
+                                <WhatsAppIcon 
+                                    :width="24"
+                                    :height="24"
+                                    fill-color="#C7C7C7"
+                                    class="cursor-pointer hover:opacity-75"
+                                />
+                            </button>
+                            <!-- Tooltip -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+                                {{ formatPhoneNumber(participant) }}
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                            </div>
+                        </div>
                         
                         <!-- Edit Button -->
                         <button 
@@ -165,7 +171,9 @@ export default {
         
         formatEducationLevel(participant) {
             if (!participant.course) return 'N/A';
-            return `${participant.course.education_level}\n${participant.course.grade} | ${participant.course.shift}`;
+            const level = this.capitalizeWords(participant.course.education_level);
+            const shift = this.capitalizeWords(participant.course.shift);
+            return `${level}\n${participant.course.grade} | ${shift}`;
         },
         
         getPaymentStatusClass(status, percentage = 0) {
@@ -203,6 +211,27 @@ export default {
                 return '----';
             }
             return `$${parseInt(amount).toLocaleString()}`;
+        },
+        
+        capitalizeWords(string) {
+            if (!string) return '';
+            return string.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        },
+
+        formatPhoneNumber(participant) {
+            if (!participant.phone) return 'N/A';
+            const phone = participant.phone.replace(/\D/g, ''); // Remove non-digits
+            const code = participant.code_phone || '+56';
+            
+            if (phone.length === 8) {
+                return `${code} 9 ${phone.slice(0, 4)} ${phone.slice(4)}`;
+            } else if (phone.length === 9) {
+                return `${code} 9 ${phone.slice(0, 5)} ${phone.slice(5)}`;
+            } else {
+                return `${code} ${phone}`;
+            }
         }
     }
 };

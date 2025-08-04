@@ -38,8 +38,20 @@ class ProgramController extends Controller
             return $program;
         });
 
+        // Obtener todos los programas para los filtros (sin paginación)
+        $allPrograms = Program::with(['paymentMode', 'course.institution', 'participants'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // Cargar las imágenes para todos los programas
+        $allPrograms->transform(function ($program) {
+            $program->images = $program->images;
+            return $program;
+        });
+
         return Inertia::render('Admin/Programs/Index', [
             'programs' => $programs,
+            'allPrograms' => $allPrograms,
             'filters' => $request->only(['search', 'status']),
         ]);
     }

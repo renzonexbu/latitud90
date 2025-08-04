@@ -19,13 +19,14 @@
                 <!-- Filters -->
                 <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
                     <ParticipantsFilters
-                        :initial-filters="filters"
+                        :initial-filters="localFilters"
+                        :participants="allParticipantsData"
                         @filters-changed="handleFiltersChanged"
                     />
               </div>
 
                 <!-- Participants List -->
-                <div v-if="participants.data.length === 0" 
+                <div v-if="filteredParticipants.data.length === 0" 
                      class="bg-white overflow-hidden shadow-sm rounded-[20px] p-6">
                     <div class="text-center py-12">
                         <div class="text-gray-400 mb-4">
@@ -51,17 +52,16 @@
                 <div v-else class="space-y-6">
                     <div class="bg-white rounded-[20px] p-0 overflow-hidden">
                         <ParticipantsTable 
-                            :participants="participants.data" 
+                            :participants="filteredParticipants.data" 
                             @edit-participant="handleEditParticipant"
-                            @contact-whatsapp="handleWhatsAppContact"
                         />
                         
                         <!-- Pagination -->
                         <div class="p-4">
                             <ParticipantsPagination
-                                :current-page="participants.current_page"
-                                :total-participants="participants.total"
-                                :participants-per-page="participants.per_page"
+                                :current-page="filteredParticipants.current_page || 1"
+                                :total-participants="filteredParticipants.total || filteredParticipants.length"
+                                :participants-per-page="filteredParticipants.per_page || 10"
                                 @page-changed="handlePageChanged"
                             />
             </div>
@@ -114,6 +114,10 @@ export default {
             type: Object,
             default: () => ({ data: [] }),
         },
+        allParticipants: {
+            type: Array,
+            default: () => [],
+        },
         filters: {
             type: Object,
             default: () => ({}),
@@ -133,33 +137,105 @@ export default {
     },
     data() {
         return {
-            showCreateModal: false
+            showCreateModal: false,
+            currentPage: 1,
+            localFilters: {
+                search: "",
+                program: "",
+                institution: "",
+                level: "",
+                grade: "",
+                turno: "",
+                paymentStatus: "",
+            }
         };
+    },
+    computed: {
+        allParticipantsData() {
+            return this.allParticipants || [];
+        },
+        filteredParticipants() {
+            let filtered = this.allParticipantsData;
+
+            // Filtro de búsqueda
+            if (this.localFilters.search) {
+                const searchTerm = this.localFilters.search.toLowerCase();
+                filtered = filtered.filter(participant => 
+                    participant.first_name?.toLowerCase().includes(searchTerm) ||
+                    participant.last_name?.toLowerCase().includes(searchTerm) ||
+                    participant.document_number?.toLowerCase().includes(searchTerm) ||
+                    participant.course?.institution?.name?.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            // Filtro por programa
+            if (this.localFilters.program) {
+                filtered = filtered.filter(participant => 
+                    participant.course?.program?.name === this.localFilters.program
+                );
+            }
+
+            // Filtro por institución
+            if (this.localFilters.institution) {
+                filtered = filtered.filter(participant => 
+                    participant.course?.institution?.name === this.localFilters.institution
+                );
+            }
+
+            // Filtro por nivel educativo
+            if (this.localFilters.level) {
+                filtered = filtered.filter(participant => 
+                    participant.course?.education_level === this.localFilters.level
+                );
+            }
+
+            // Filtro por grado
+            if (this.localFilters.grade) {
+                filtered = filtered.filter(participant => 
+                    participant.course?.grade?.toString() === this.localFilters.grade.toString()
+                );
+            }
+
+            // Filtro por turno
+            if (this.localFilters.turno) {
+                filtered = filtered.filter(participant => 
+                    participant.course?.shift === this.localFilters.turno
+                );
+            }
+
+            // Filtro por estado de pago
+            if (this.localFilters.paymentStatus) {
+                filtered = filtered.filter(participant => 
+                    participant.status === this.localFilters.paymentStatus
+                );
+            }
+
+            // Paginación
+            const perPage = 10;
+            const startIndex = (this.currentPage - 1) * perPage;
+            const endIndex = startIndex + perPage;
+            const paginatedData = filtered.slice(startIndex, endIndex);
+
+            return {
+                data: paginatedData,
+                current_page: this.currentPage,
+                total: filtered.length,
+                per_page: perPage,
+                last_page: Math.ceil(filtered.length / perPage)
+            };
+        }
     },
     methods: {
         handleFiltersChanged(newFilters) {
-            router.get(route("admin.participants.index"), newFilters, {
-                preserveState: true,
-                replace: true,
-            });
+            this.localFilters = newFilters;
+            this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
+            // No hacemos router.get aquí para mantener todo interno
         },
         handlePageChanged(page) {
-            router.get(route("admin.participants.index"), { 
-                ...this.filters, 
-                page 
-            }, {
-                preserveState: true,
-                replace: true,
-            });
+            this.currentPage = page;
         },
         handleEditParticipant(participantId) {
             router.visit(route("admin.participants.edit", participantId));
-        },
-        handleWhatsAppContact(participant) {
-            const phone = `${participant.code_phone}${participant.phone}`;
-            const message = `Hola ${participant.first_name}, te contacto sobre tu participación en el programa ${participant.course?.program?.name || 'N/A'}.`;
-            const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
         },
         openCreateModal() {
             this.showCreateModal = true;

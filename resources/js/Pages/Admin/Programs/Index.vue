@@ -22,7 +22,7 @@
                 >
                     <ProgramsFilters
                         :initial-filters="localFilters"
-                        :programs="allPrograms"
+                        :programs="allProgramsData"
                         @filters-changed="handleFiltersChanged"
                     />
                 </div>
@@ -63,6 +63,10 @@ export default {
             type: Object,
             required: true,
         },
+        allPrograms: {
+            type: Array,
+            default: () => [],
+        },
         filters: {
             type: Object,
             default: () => ({}),
@@ -70,6 +74,7 @@ export default {
     },
     data() {
         return {
+            currentPage: 1,
             localFilters: {
                 search: "",
                 destination: "",
@@ -83,10 +88,10 @@ export default {
     },
     computed: {
         // Todos los programas sin filtrar (para los dropdowns)
-        allPrograms() {
-            if (!this.programs || !this.programs.data) return [];
+        allProgramsData() {
+            if (!this.allPrograms || this.allPrograms.length === 0) return [];
             
-            return this.programs.data.map(program => ({
+            return this.allPrograms.map(program => ({
                 ...program,
                 price: program.trip_price,
                 duration: this.calculateDuration(program.departure_date),
@@ -99,7 +104,7 @@ export default {
         
         // Programas filtrados
         filteredPrograms() {
-            let filtered = [...this.allPrograms];
+            let filtered = [...this.allProgramsData];
             
             // Filtro por búsqueda
             if (this.localFilters.search) {
@@ -156,15 +161,14 @@ export default {
                 );
             }
             
-            // Simular paginación
+            // Paginación
             const itemsPerPage = 6;
-            const currentPage = 1;
-            const startIndex = (currentPage - 1) * itemsPerPage;
+            const startIndex = (this.currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             
             return {
                 data: filtered.slice(startIndex, endIndex),
-                current_page: currentPage,
+                current_page: this.currentPage,
                 total: filtered.length,
                 per_page: itemsPerPage,
                 last_page: Math.ceil(filtered.length / itemsPerPage),
@@ -190,6 +194,7 @@ export default {
         },
         handleFiltersChanged(newFilters) {
             this.localFilters = newFilters;
+            this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
             // No hacemos router.get aquí para mantener todo interno
         },
         calculateDuration(departureDate) {

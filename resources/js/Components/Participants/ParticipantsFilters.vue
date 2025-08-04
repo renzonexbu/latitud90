@@ -28,7 +28,7 @@
         </div>
 
         <!-- Filtros Row -->
-        <div class="flex flex-row gap-[15px] items-center justify-start w-[1144px] relative">
+        <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
             <!-- Programa de viaje -->
             <div class="relative flex-1">
                 <select
@@ -37,9 +37,9 @@
                     @change="performSearch"
                 >
                     <option value="">Programa de viaje</option>
-                    <option value="ruta-lagos">Ruta de lagos</option>
-                    <option value="patagonia">Patagonia</option>
-                    <option value="norte-grande">Norte Grande</option>
+                    <option v-for="program in uniquePrograms" :key="program" :value="program">
+                        {{ capitalizeWords(program) }}
+                    </option>
                 </select>
             </div>
 
@@ -51,9 +51,9 @@
                     @change="performSearch"
                 >
                     <option value="">Institución</option>
-                    <option value="pedro-valdivia">Pedro de Valdivia</option>
-                    <option value="colegio-maria">Colegio María</option>
-                    <option value="liceo-jose">Liceo José</option>
+                    <option v-for="institution in uniqueInstitutions" :key="institution" :value="institution">
+                        {{ capitalizeWords(institution) }}
+                    </option>
                 </select>
             </div>
 
@@ -65,10 +65,9 @@
                     @change="performSearch"
                 >
                     <option value="">Nivel de educación</option>
-                    <option value="preescolar">Preescolar</option>
-                    <option value="primaria">Primaria</option>
-                    <option value="secundaria">Secundaria</option>
-                    <option value="universitaria">Universitaria</option>
+                    <option v-for="level in uniqueLevels" :key="level" :value="level">
+                        {{ capitalizeWords(level) }}
+                    </option>
                 </select>
             </div>
 
@@ -80,12 +79,9 @@
                     @change="performSearch"
                 >
                     <option value="">Grado</option>
-                    <option value="1">1°</option>
-                    <option value="2">2°</option>
-                    <option value="3">3°</option>
-                    <option value="4">4°</option>
-                    <option value="5">5°</option>
-                    <option value="6">6°</option>
+                    <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
+                        {{ grade }}
+                    </option>
                 </select>
             </div>
 
@@ -97,9 +93,9 @@
                     @change="performSearch"
                 >
                     <option value="">Turno</option>
-                    <option value="mañana">Mañana</option>
-                    <option value="tarde">Tarde</option>
-                    <option value="noche">Noche</option>
+                    <option v-for="turno in uniqueTurnos" :key="turno" :value="turno">
+                        {{ capitalizeWords(turno) }}
+                    </option>
                 </select>
             </div>
 
@@ -116,6 +112,17 @@
                     <option value="cancelled">Liberado</option>
                 </select>
             </div>
+
+            <!-- Clear Filters Button -->
+            <button
+                @click="clearFilters"
+                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Limpiar filtros
+            </button>
         </div>
     </div>
 </template>
@@ -129,6 +136,10 @@ export default {
         initialFilters: {
             type: Object,
             default: () => ({})
+        },
+        participants: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
@@ -144,10 +155,71 @@ export default {
             }
         };
     },
+    computed: {
+        // Obtener programas únicos de los participantes
+        uniquePrograms() {
+            const programs = this.participants
+                .map(participant => participant.course?.program?.name)
+                .filter(program => program && program.trim() !== '');
+            return [...new Set(programs)].sort();
+        },
+        
+        // Obtener instituciones únicas
+        uniqueInstitutions() {
+            const institutions = this.participants
+                .map(participant => participant.course?.institution?.name)
+                .filter(institution => institution && institution.trim() !== '');
+            return [...new Set(institutions)].sort();
+        },
+        
+        // Obtener niveles educativos únicos
+        uniqueLevels() {
+            const levels = this.participants
+                .map(participant => participant.course?.education_level)
+                .filter(level => level && level.trim() !== '');
+            return [...new Set(levels)].sort();
+        },
+        
+        // Obtener grados únicos
+        uniqueGrades() {
+            const grades = this.participants
+                .map(participant => participant.course?.grade)
+                .filter(grade => grade && grade.toString().trim() !== '');
+            return [...new Set(grades)].sort();
+        },
+        
+        // Obtener turnos únicos
+        uniqueTurnos() {
+            const turnos = this.participants
+                .map(participant => participant.course?.shift)
+                .filter(turno => turno && turno.trim() !== '');
+            return [...new Set(turnos)].sort();
+        }
+    },
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
-        }, 300)
+        }, 300),
+        
+        clearFilters() {
+            this.filters = {
+                search: "",
+                program: "",
+                institution: "",
+                level: "",
+                grade: "",
+                turno: "",
+                paymentStatus: "",
+            };
+            this.performSearch();
+        },
+        
+        capitalizeWords(string) {
+            if (!string) return '';
+            return string.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        }
     }
 };
 </script>

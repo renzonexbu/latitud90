@@ -30,6 +30,11 @@ class ParticipantsController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
+        // Obtener todos los participantes para los filtros (sin paginación)
+        $allParticipants = Participant::with(['course', 'course.institution', 'course.program'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         $courses = Course::with(['program', 'institution'])
             ->where('status', 'active')
             ->orderBy('institution_id')
@@ -41,6 +46,7 @@ class ParticipantsController extends Controller
 
         return Inertia::render('Admin/Participants/Index', [
             'participants' => $participants,
+            'allParticipants' => $allParticipants,
             'courses' => $courses,
             'institutions' => $institutions,
             'filters' => request()->only(['search', 'institution', 'level', 'program', 'status'])
