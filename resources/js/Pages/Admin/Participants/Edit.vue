@@ -25,11 +25,11 @@
                            </div>
                          </div>
                          <div class="flex flex-row gap-[10px] items-center justify-start flex-shrink-0 relative">
-                          <div class="bg-azul-oscuro rounded-[50px] px-4 py-2 flex flex-row gap-0 items-center justify-start flex-shrink-0 h-[40px] relative">
+                          <button @click="openEmergencyContactsModal" class="bg-azul-oscuro rounded-[50px] px-4 py-2 flex flex-row gap-0 items-center justify-start flex-shrink-0 h-[40px] relative hover:bg-azul-oscuro-dark transition-colors">
                             <div class="text-white text-left font-nexa-bold text-[12px] leading-[18px] font-bold relative flex items-end justify-start">
                               Ver contacto de emergencia
                             </div>
-                          </div>
+                          </button>
                           <button @click="openMedicalModal" class="bg-rojo rounded-[112.89px] border border-rojo border-solid p-[8px_7px] flex flex-row gap-[14px] items-center justify-start flex-shrink-0 relative overflow-hidden hover:bg-red-600 transition-colors">
                             <div class="flex-shrink-0 w-6 h-6 relative overflow-hidden aspect-square">
                               <!-- Health Icon -->
@@ -195,6 +195,14 @@
       :errors="errors"
       @close="closeMedicalModal"
     />
+
+    <!-- Emergency Contacts Modal -->
+    <EmergencyContactsModal
+      :show="showEmergencyContactsModal"
+      :participant="participant"
+      :errors="errors"
+      @close="closeEmergencyContactsModal"
+    />
   </AdminLayout>
 </template>
 
@@ -204,6 +212,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue";
 import EditParticipantModal from "@/Components/Participants/EditParticipantModal.vue";
 import MedicalConditionsModal from "@/Components/Participants/MedicalConditionsModal.vue";
+import EmergencyContactsModal from "@/Components/Participants/EmergencyContactsModal.vue";
 import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
 import { ref, computed } from "vue";
 
@@ -271,6 +280,7 @@ const calculateDuration = (departureDate) => {
 // Modal state
 const showEditModal = ref(false);
 const showMedicalModal = ref(false);
+const showEmergencyContactsModal = ref(false);
 
 // Modal functions
 const openEditModal = () => {
@@ -287,7 +297,15 @@ const openMedicalModal = () => {
 
 const closeMedicalModal = () => {
   showMedicalModal.value = false;
-  };
+};
+
+const openEmergencyContactsModal = () => {
+  showEmergencyContactsModal.value = true;
+};
+
+const closeEmergencyContactsModal = () => {
+  showEmergencyContactsModal.value = false;
+};
 </script>
 
 <style scoped>

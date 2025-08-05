@@ -1,5 +1,5 @@
 <template>
-    <div class="h-screen flex overflow-hidden" :style="`background-image: url('${backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat;`">
+    <div class="h-screen flex overflow-hidden" :style="`background-color: #F9F9F9; background-image: url('${backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat;`">
         <!-- Sidebar -->
         <aside
             class="mt-3 mb-3 ml-6 rounded-[20px] w-[102px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)]"

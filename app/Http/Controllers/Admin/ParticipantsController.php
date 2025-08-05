@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\CreateParticipantRequest;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\Institution;
+use App\Models\EmergencyContact;
 use App\Services\Admin\Participants\CreateParticipantService;
 use App\Services\Admin\Participants\UpdateParticipatService;
 use App\Services\Admin\Participants\UpdateMedicalConditionsService;
@@ -135,7 +136,7 @@ class ParticipantsController extends Controller
      */
     public function edit(Participant $participant)
     {
-        $participant->load(['course', 'course.institution', 'course.program']);
+        $participant->load(['course', 'course.institution', 'course.program', 'emergencyContacts']);
         
         // Buscar todos los programas relacionados al RUT del participante
         $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
@@ -204,6 +205,139 @@ class ParticipantsController extends Controller
             ]);
 
             return back()->withErrors(['error' => 'Error al actualizar las condiciones médicas: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update emergency contacts of a participant.
+     */
+    public function updateEmergencyContacts(Request $request, Participant $participant)
+    {
+        try {
+            $validated = $request->validate([
+                'emergency_contacts' => 'required|string', // JSON string
+            ]);
+
+            $emergencyContactsData = json_decode($validated['emergency_contacts'], true);
+
+            if (!is_array($emergencyContactsData)) {
+                throw new \Exception('Formato de datos inválido');
+            }
+
+            // Crear nuevos contactos de emergencia
+            foreach ($emergencyContactsData as $contactData) {
+                EmergencyContact::create([
+                    'participant_id' => $participant->id,
+                    'first_name' => $contactData['first_name'],
+                    'last_name' => $contactData['last_name'],
+                    'email' => $contactData['email'],
+                    'code_phone' => $contactData['code_phone'],
+                    'phone' => $contactData['phone'],
+                    'country' => $contactData['country'],
+                    'birth_date' => $contactData['birth_date'] ?? null,
+                    'address' => $contactData['address'] ?? null,
+                    'relationship' => $contactData['relationship'],
+                ]);
+            }
+
+            return back()->with('success', 'Contacto de emergencia agregado exitosamente.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en controlador al actualizar contactos de emergencia', [
+                'participant_id' => $participant->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors(['error' => 'Error al agregar el contacto de emergencia: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update a specific emergency contact.
+     */
+    public function updateEmergencyContact(Request $request, Participant $participant)
+    {
+        try {
+            $validated = $request->validate([
+                'contact_id' => 'required|exists:emergency_contact,id',
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'email' => 'required|email|max:255',
+                'code_phone' => 'required|string|max:10',
+                'phone' => 'required|string|max:20',
+                'country' => 'required|string|max:100',
+                'birth_date' => 'nullable|date|before:today',
+                'address' => 'nullable|string',
+                'relationship' => 'required|string|max:100',
+            ]);
+
+            $contact = EmergencyContact::findOrFail($validated['contact_id']);
+            
+            // Verificar que el contacto pertenece al participante
+            if ($contact->participant_id !== $participant->id) {
+                throw new \Exception('El contacto no pertenece a este participante');
+            }
+
+            $contact->update([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'code_phone' => $validated['code_phone'],
+                'phone' => $validated['phone'],
+                'country' => $validated['country'],
+                'birth_date' => $validated['birth_date'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'relationship' => $validated['relationship'],
+            ]);
+
+            return back()->with('success', 'Contacto de emergencia actualizado exitosamente.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en controlador al actualizar contacto de emergencia', [
+                'participant_id' => $participant->id,
+                'contact_id' => $request->contact_id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors(['error' => 'Error al actualizar el contacto de emergencia: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete a specific emergency contact.
+     */
+    public function deleteEmergencyContact(Request $request, Participant $participant)
+    {
+        try {
+            $validated = $request->validate([
+                'contact_id' => 'required|exists:emergency_contact,id',
+            ]);
+
+            $contact = EmergencyContact::findOrFail($validated['contact_id']);
+            
+            // Verificar que el contacto pertenece al participante
+            if ($contact->participant_id !== $participant->id) {
+                throw new \Exception('El contacto no pertenece a este participante');
+            }
+
+            // Verificar que no sea el último contacto de emergencia
+            $totalContacts = EmergencyContact::where('participant_id', $participant->id)->count();
+            if ($totalContacts <= 1) {
+                throw new \Exception('No se puede eliminar el último contacto de emergencia. Debe mantener al menos un contacto.');
+            }
+
+            $contact->delete();
+
+            return back()->with('success', 'Contacto de emergencia eliminado exitosamente.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en controlador al eliminar contacto de emergencia', [
+                'participant_id' => $participant->id,
+                'contact_id' => $request->contact_id ?? null,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors(['error' => 'Error al eliminar el contacto de emergencia: ' . $e->getMessage()]);
         }
     }
 

@@ -6,9 +6,9 @@
         @click.self="closeModal"
     >
         <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-8 max-w-[1200px] w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-[20px] border border-[#d3d3d3] max-w-[1200px] w-full max-h-[90vh] flex flex-col">
             <!-- Header -->
-            <div class="flex flex-row justify-center items-center relative mb-8">
+            <div class="flex flex-row justify-center items-center relative p-8 border-b border-gray-200">
                 <div class="text-[#434343] text-center font-nexa-bold text-[24px] leading-[28px] font-bold flex-1">
                     Crear nuevo participante
                 </div>
@@ -26,7 +26,8 @@
             </div>
 
             <!-- Form Content - Two Columns -->
-            <form @submit.prevent="saveParticipant" class="flex flex-row gap-8">
+            <div class="p-8 overflow-y-auto flex-1">
+                <form @submit.prevent="saveParticipant" class="flex flex-row gap-8">
                 <!-- Left Column - Datos del participante -->
                 <div class="flex-1">
                     <div class="space-y-6">
@@ -628,9 +629,10 @@
                     </div>
                 </div>
             </form>
+            </div>
 
             <!-- Save button -->
-            <div class="mt-8">
+            <div class="p-8 border-t border-gray-200">
                 <button 
                     @click="saveParticipant"
                     :disabled="isSubmitting"

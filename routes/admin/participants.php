@@ -14,3 +14,8 @@ Route::get('participants/export', [ParticipantsController::class, 'export'])->na
 
 // Medical conditions route
 Route::put('participants/{participant}/medical-conditions', [ParticipantsController::class, 'updateMedicalConditions'])->name('participants.update-medical-conditions');
+
+// Emergency contacts routes
+Route::put('participants/{participant}/emergency-contacts', [ParticipantsController::class, 'updateEmergencyContacts'])->name('participants.update-emergency-contacts');
+Route::put('participants/{participant}/emergency-contact', [ParticipantsController::class, 'updateEmergencyContact'])->name('participants.update-emergency-contact');
+Route::delete('participants/{participant}/emergency-contact', [ParticipantsController::class, 'deleteEmergencyContact'])->name('participants.delete-emergency-contact');
