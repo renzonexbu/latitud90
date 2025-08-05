@@ -212,6 +212,8 @@
                                             type="button"
                                             @click="createNewInstitution"
                                             class="text-[#007e93] text-xs font-nexa-bold hover:underline"
+                                            :disabled="props.hasExistingCourse"
+                                            :class="{ 'opacity-50 cursor-not-allowed': props.hasExistingCourse }"
                                         >
                                             + Crear nueva institución
                                         </button>
@@ -219,6 +221,8 @@
                                     <select
                                         v-model="formData.institution_id"
                                         class="admin-input-text"
+                                        :disabled="props.hasExistingCourse"
+                                        :class="{ 'opacity-50 cursor-not-allowed': props.hasExistingCourse }"
                                     >
                                         <option value="">Seleccione una institución</option>
                                         <option v-for="institution in institutions" :key="institution.id" :value="institution.id">
@@ -245,9 +249,7 @@
                                             <option value="secundario">Secundario</option>
                                             <option value="universitario">Universitario</option>
                                         </select>
-                                        <span v-if="!canEnableCourseFields()" class="text-red-500 text-xs mt-1">
-                                            Primero selecciona una institución
-                                        </span>
+
                                     </div>
                                 </div>
                                 <div class="field-container-small">
@@ -266,9 +268,7 @@
                                             <option value="tarde">Tarde</option>
                                             <option value="noche">Noche</option>
                                         </select>
-                                        <span v-if="!canEnableCourseFields()" class="text-red-500 text-xs mt-1">
-                                            Primero selecciona una institución
-                                        </span>
+
                                     </div>
                                 </div>
                                 <div class="field-container-small">
@@ -290,9 +290,7 @@
                                             <option value="5">5°</option>
                                             <option value="6">6°</option>
                                         </select>
-                                        <span v-if="!canEnableCourseFields()" class="text-red-500 text-xs mt-1">
-                                            Primero selecciona una institución
-                                        </span>
+            
                                     </div>
                                 </div>
                             </div>
@@ -315,9 +313,7 @@
                                         <option value="porcentaje_20">Descuento 20%</option>
                                         <option value="monto_fijo">Monto fijo</option>
                                     </select>
-                                    <span v-if="!canEnableCourseFields()" class="text-red-500 text-xs mt-1">
-                                        Primero selecciona una institución
-                                    </span>
+       
                                     
                                     <!-- Input para monto fijo (solo visible cuando se selecciona monto_fijo) -->
                                     <div v-if="formData.discount_type === 'monto_fijo' && canEnableCourseFields()" class="discount-amount-field">
@@ -645,6 +641,10 @@ const props = defineProps({
     hasParticipants: {
         type: Boolean,
         default: false
+    },
+    hasExistingCourse: {
+        type: Boolean,
+        default: false
     }
 });
 
@@ -674,18 +674,24 @@ const formattedDiscountAmount = ref('');
 const formatCurrency = (value) => {
     if (!value) return '';
     
+    // Convertir a string y manejar decimales
+    let stringValue = value.toString();
+    
+    // Si tiene decimales, tomar solo la parte entera
+    if (stringValue.includes('.')) {
+        stringValue = stringValue.split('.')[0];
+    }
+    
     // Remover todos los caracteres no numéricos
-    const numericValue = value.toString().replace(/\D/g, '');
+    const numericValue = stringValue.replace(/\D/g, '');
     
     if (numericValue === '') return '';
     
-    // Formatear como moneda chilena
+    // Formatear solo con separador de miles, sin símbolo de moneda
     return new Intl.NumberFormat('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
-    }).format(numericValue);
+    }).format(parseInt(numericValue));
 };
 
 // Función para limpiar formato de moneda y obtener solo números
@@ -744,33 +750,94 @@ const handleDiscountAmountInput = (event) => {
 // Función para manejar blur del precio
 const handlePriceBlur = () => {
     if (formData.value.total_price) {
-        formattedPrice.value = formatCurrency(formData.value.total_price);
+        // Convertir a string y manejar decimales
+        let stringValue = formData.value.total_price.toString();
+        
+        // Si tiene decimales, tomar solo la parte entera
+        if (stringValue.includes('.')) {
+            stringValue = stringValue.split('.')[0];
+        }
+        
+        // Remover caracteres no numéricos y formatear
+        const numericValue = stringValue.replace(/\D/g, '');
+        formattedPrice.value = formatCurrency(numericValue);
+        
+        // Actualizar el valor en formData sin decimales
+        formData.value.total_price = numericValue;
     }
 };
 
 // Función para manejar blur del monto de descuento
 const handleDiscountAmountBlur = () => {
     if (formData.value.discount_amount) {
-        formattedDiscountAmount.value = formatCurrency(formData.value.discount_amount);
+        // Convertir a string y manejar decimales
+        let stringValue = formData.value.discount_amount.toString();
+        
+        // Si tiene decimales, tomar solo la parte entera
+        if (stringValue.includes('.')) {
+            stringValue = stringValue.split('.')[0];
+        }
+        
+        // Remover caracteres no numéricos y formatear
+        const numericValue = stringValue.replace(/\D/g, '');
+        formattedDiscountAmount.value = formatCurrency(numericValue);
+        
+        // Actualizar el valor en formData sin decimales
+        formData.value.discount_amount = numericValue;
     }
 };
 
 // Inicializar el precio formateado
 const initializeFormattedPrice = () => {
     if (formData.value.total_price) {
-        formattedPrice.value = formatCurrency(formData.value.total_price);
+        // Convertir a string y manejar decimales
+        let stringValue = formData.value.total_price.toString();
+        
+        // Si tiene decimales, tomar solo la parte entera
+        if (stringValue.includes('.')) {
+            stringValue = stringValue.split('.')[0];
+        }
+        
+        // Remover caracteres no numéricos y formatear
+        const numericValue = stringValue.replace(/\D/g, '');
+        formattedPrice.value = formatCurrency(numericValue);
+        
+        // Actualizar el valor en formData sin decimales
+        formData.value.total_price = numericValue;
     }
 };
 
 // Inicializar el monto de descuento formateado
 const initializeFormattedDiscountAmount = () => {
     if (formData.value.discount_amount) {
-        formattedDiscountAmount.value = formatCurrency(formData.value.discount_amount);
+        // Convertir a string y manejar decimales
+        let stringValue = formData.value.discount_amount.toString();
+        
+        // Si tiene decimales, tomar solo la parte entera
+        if (stringValue.includes('.')) {
+            stringValue = stringValue.split('.')[0];
+        }
+        
+        // Remover caracteres no numéricos y formatear
+        const numericValue = stringValue.replace(/\D/g, '');
+        formattedDiscountAmount.value = formatCurrency(numericValue);
+        
+        // Actualizar el valor en formData sin decimales
+        formData.value.discount_amount = numericValue;
     }
 };
 
 // Inicializar cuando el componente se monta
 onMounted(() => {
+    // En modo edit, sincronizar los valores del modelValue
+    if (props.mode === 'edit') {
+        Object.keys(props.modelValue).forEach((key) => {
+            if (props.modelValue[key] !== undefined) {
+                formData.value[key] = props.modelValue[key];
+            }
+        });
+    }
+    
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     // Emitir el estado inicial
@@ -782,6 +849,25 @@ watch(
     formData,
     (newValue) => {
         emit('update:modelValue', newValue);
+    },
+    { deep: true, immediate: true }
+);
+
+// Watch para sincronizar cambios del modelValue (especialmente en modo edit)
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        if (props.mode === 'edit') {
+            // En modo edit, sincronizar los valores del modelValue con formData
+            Object.keys(newValue).forEach((key) => {
+                if (newValue[key] !== undefined) {
+                    formData.value[key] = newValue[key];
+                }
+            });
+            // Reinicializar los valores formateados después de sincronizar
+            initializeFormattedPrice();
+            initializeFormattedDiscountAmount();
+        }
     },
     { deep: true, immediate: true }
 );
@@ -843,6 +929,11 @@ const shouldShowExcelInput = () => {
 
 // Función para verificar si se pueden habilitar los campos de curso
 const canEnableCourseFields = () => {
+    // Si ya existe un curso, no permitir modificar estos campos
+    if (props.hasExistingCourse) {
+        return false;
+    }
+    // Solo habilitar si hay una institución seleccionada
     return !!formData.value.institution_id;
 };
 
@@ -1464,6 +1555,7 @@ const viewPaymentStates = () => {
 
 .edit-group-button-container {
     margin-top: 20px;
+    width: 100%;
 }
 
 .edit-group-button {

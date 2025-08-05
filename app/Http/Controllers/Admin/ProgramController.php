@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateProgramRequest;
+use App\Http\Requests\Admin\UpdateProgramRequest;
 use App\Models\Institution;
 use App\Models\Program;
 use App\Models\PaymentMode;
 use App\Services\Admin\Programs\CreateProgramService;
+use App\Services\Admin\Programs\UpdateProgramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -16,7 +18,8 @@ use Illuminate\Support\Facades\Log;
 class ProgramController extends Controller
 {
     public function __construct(
-        private CreateProgramService $createProgramService
+        private CreateProgramService $createProgramService,
+        private UpdateProgramService $updateProgramService
     ) {}
 
     public function index(Request $request)
@@ -141,52 +144,16 @@ class ProgramController extends Controller
         ]);
     }
 
-    public function update(Request $request, Program $program)
+    public function update(UpdateProgramRequest $request, Program $program)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'destination' => 'required|string|max:255',
-            'departure_date' => 'required|date|after:today',
-            'trip_description' => 'required|string|max:2000',
-            'images_folder' => 'nullable|string|max:255',
-            'pillars' => 'nullable|string|max:500',
-            'itinerary_description' => 'nullable|string|max:1000',
-            'itinerary_file' => 'nullable|file|mimes:pdf|max:10240',
-            'travel_assistance_coverage' => 'nullable|file|mimes:pdf|max:10240',
-            'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
-            'trip_price' => 'required|numeric|min:0',
-            'final_payment_date' => 'required|date|after:today',
-            'seller_name' => 'required|string|max:255',
-            'payment_mode_id' => 'required|exists:payment_modes,id',
-            'active' => 'boolean'
-        ]);
-
-        // Manejar subida de archivos
-        if ($request->hasFile('itinerary_file')) {
-            if ($program->itinerary_file) {
-                Storage::disk('public')->delete($program->itinerary_file);
-            }
-            $validated['itinerary_file'] = $request->file('itinerary_file')->store('programs/files', 'public');
+        try {
+            $program = $this->updateProgramService->execute($request->validated(), $program);
+            
+            return redirect()->route('admin.programs.index')
+                ->with('success', 'Programa actualizado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al actualizar el programa: ' . $e->getMessage()]);
         }
-
-        if ($request->hasFile('travel_assistance_coverage')) {
-            if ($program->travel_assistance_coverage) {
-                Storage::disk('public')->delete($program->travel_assistance_coverage);
-            }
-            $validated['travel_assistance_coverage'] = $request->file('travel_assistance_coverage')->store('programs/files', 'public');
-        }
-
-        if ($request->hasFile('equipment_list')) {
-            if ($program->equipment_list) {
-                Storage::disk('public')->delete($program->equipment_list);
-            }
-            $validated['equipment_list'] = $request->file('equipment_list')->store('programs/files', 'public');
-        }
-
-        $program->update($validated);
-
-        return redirect()->route('admin.programs.index')
-            ->with('success', 'Programa actualizado exitosamente.');
     }
 
     public function destroy(Program $program)

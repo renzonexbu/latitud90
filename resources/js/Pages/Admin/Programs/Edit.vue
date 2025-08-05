@@ -23,6 +23,7 @@
                         :payment-status="paymentStatus"
                         :institutions="institutions"
                         :has-participants="program.participants && program.participants.length > 0"
+                        :has-existing-course="hasExistingCourse"
                         @edit-group="handleEditGroup"
                     />
                 </div>
@@ -48,7 +49,7 @@
 
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
@@ -75,13 +76,24 @@ const mapEducationLevel = (level) => {
 // Función para mapear payment_mode_id a opciones del frontend
 const mapPaymentOption = (paymentModeId) => {
     if (!paymentModeId) return "";
-    
-    // Según el seeder: 1 = Pago Total, 2 = Cuota Lat90
+    // Mapping según los ids reales de la tabla payment_modes
     const mapping = {
         1: 'full_payment',
-        2: 'installments'
+        2: 'installments',
+        3: 'installments', // Asumiendo que el ID 3 también es para cuotas
     };
     return mapping[paymentModeId] || "";
+};
+
+// Función para mapear payment_method_id a opciones del frontend
+const mapPaymentMethod = (paymentMethodId) => {
+    const mapping = {
+        1: 'todos_medios',
+        2: 'solo_tarjeta',
+        3: 'solo_transferencia',
+        4: 'solo_contado',
+    };
+    return mapping[paymentMethodId] || "";
 };
 
 const form = useForm({
@@ -111,10 +123,11 @@ const form = useForm({
     students_file: null,
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
+    discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
     payment_option: mapPaymentOption(props.program.payment_mode_id),
-    full_payment_method: props.program.payment_method?.name || "",
-    installments_payment_method: props.program.payment_method?.name || "",
-    max_installments: props.program.max_installments || "",
+    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
     active: props.program.active || true,
     // Control de archivos e imágenes existentes
     imagesToDelete: [],
@@ -150,10 +163,11 @@ const paymentData = ref({
     students_file: null,
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
+    discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
     payment_option: mapPaymentOption(props.program.payment_mode_id),
-    full_payment_method: props.program.payment_method?.name || "",
-    installments_payment_method: props.program.payment_method?.name || "",
-    max_installments: props.program.max_installments || "",
+    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
 });
 
 // Imágenes existentes (desde la base de datos)
@@ -207,6 +221,10 @@ console.log('Datos de pago cargados:', {
     education_level_mapped: mapEducationLevel(props.program.course?.education_level),
     institution_name: props.program.course?.institution?.name,
     shift: props.program.course?.shift,
+    payment_mode_id: props.program.payment_mode_id,
+    payment_method_id: props.program.payment_method_id,
+    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
+    payment_method_mapped: mapPaymentMethod(props.program.payment_method_id),
     grade: props.program.course?.grade,
     payment_mode_id: props.program.payment_mode_id,
     payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
@@ -226,6 +244,11 @@ const paymentStatus = ref({
 
 // Estado para las nuevas imágenes
 const selectedImages = ref([]);
+
+// Verificar si ya existe un curso (para deshabilitar campos)
+const hasExistingCourse = computed(() => {
+    return props.program.course !== null && props.program.course !== undefined;
+});
 
 // Función para procesar los pilares desde la base de datos
 const processPillars = (pillarsString) => {
@@ -275,38 +298,124 @@ const handleEditGroup = () => {
 };
 
 const submit = () => {
-    // Sincronizar los datos del programa con el formulario
-    Object.keys(programData.value).forEach((key) => {
-        if (
-            key !== "itinerary_file" &&
-            key !== "coverage_file" &&
-            key !== "equipment_file"
-        ) {
-            form[key] = programData.value[key];
-        }
-    });
+    // Función para comparar valores y solo enviar si cambiaron
+    const shouldSendField = (newValue, originalValue, fieldName) => {
+        // Si el valor nuevo está vacío y el original también, no enviar
+        if (!newValue && !originalValue) return false;
+        
+        // Si el valor nuevo es igual al original, no enviar
+        if (newValue === originalValue) return false;
+        
+        // Si hay un valor nuevo, enviarlo
+        return newValue !== undefined && newValue !== null;
+    };
 
-    // Sincronizar los datos del detalle administrativo con el formulario
-    Object.keys(paymentData.value).forEach((key) => {
-        if (key !== "students_file") {
-            form[key] = paymentData.value[key];
+    // Función para formatear valores según el tipo esperado
+    const formatValue = (value, fieldName) => {
+        if (value === undefined || value === null) return null;
+        
+        switch (fieldName) {
+            case 'max_installments':
+                return value.toString();
+            case 'total_price':
+            case 'discount_amount':
+                // Asegurar que sea string sin decimales si son .00
+                let stringValue = value.toString();
+                if (stringValue.includes('.00')) {
+                    stringValue = stringValue.split('.')[0];
+                }
+                return stringValue;
+            default:
+                return value;
         }
-    });
+    };
 
-    // Agregar las nuevas imágenes al formulario
+    // Campos del programa - solo enviar si cambiaron
+    if (shouldSendField(programData.value.name, props.program.name, 'name')) {
+        form.name = programData.value.name;
+    }
+    if (shouldSendField(programData.value.destination, props.program.destination, 'destination')) {
+        form.destination = programData.value.destination;
+    }
+    if (shouldSendField(programData.value.departure_date, props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : null, 'departure_date')) {
+        form.departure_date = programData.value.departure_date;
+    }
+    if (shouldSendField(programData.value.description, props.program.trip_description, 'description')) {
+        form.description = programData.value.description;
+    }
+    if (shouldSendField(programData.value.itinerary, props.program.itinerary_description, 'itinerary')) {
+        form.itinerary = programData.value.itinerary;
+    }
+    if (shouldSendField(programData.value.pilar_1, props.program.pillars?.split(',')[0]?.trim() || '', 'pilar_1')) {
+        form.pilar_1 = programData.value.pilar_1;
+    }
+    if (shouldSendField(programData.value.pilar_2, props.program.pillars?.split(',')[1]?.trim() || '', 'pilar_2')) {
+        form.pilar_2 = programData.value.pilar_2;
+    }
+    if (shouldSendField(programData.value.pilar_3, props.program.pillars?.split(',')[2]?.trim() || '', 'pilar_3')) {
+        form.pilar_3 = programData.value.pilar_3;
+    }
+    if (shouldSendField(programData.value.pilar_4, props.program.pillars?.split(',')[3]?.trim() || '', 'pilar_4')) {
+        form.pilar_4 = programData.value.pilar_4;
+    }
+
+    // Campos del detalle administrativo - solo enviar si cambiaron
+    if (shouldSendField(paymentData.value.total_price, props.program.trip_price, 'total_price')) {
+        form.total_price = formatValue(paymentData.value.total_price, 'total_price');
+    }
+    if (shouldSendField(paymentData.value.final_payment_date, props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : null, 'final_payment_date')) {
+        form.final_payment_date = paymentData.value.final_payment_date;
+    }
+    if (shouldSendField(paymentData.value.sales_person, props.program.seller_name, 'sales_person')) {
+        form.sales_person = paymentData.value.sales_person;
+    }
+    if (shouldSendField(paymentData.value.institution_name, props.program.course?.institution?.name, 'institution_name')) {
+        form.institution_name = paymentData.value.institution_name;
+    }
+    if (shouldSendField(paymentData.value.education_level, props.program.course?.education_level, 'education_level')) {
+        form.education_level = paymentData.value.education_level;
+    }
+    if (shouldSendField(paymentData.value.shift, props.program.course?.shift, 'shift')) {
+        form.shift = paymentData.value.shift;
+    }
+    if (shouldSendField(paymentData.value.grade, props.program.course?.grade, 'grade')) {
+        form.grade = paymentData.value.grade;
+    }
+    if (shouldSendField(paymentData.value.discount_type, props.program.discount_type, 'discount_type')) {
+        form.discount_type = paymentData.value.discount_type;
+    }
+    if (shouldSendField(paymentData.value.discount_amount, props.program.discount_value, 'discount_amount')) {
+        form.discount_amount = formatValue(paymentData.value.discount_amount, 'discount_amount');
+    }
+    if (shouldSendField(paymentData.value.payment_option, mapPaymentOption(props.program.payment_mode_id), 'payment_option')) {
+        form.payment_option = paymentData.value.payment_option;
+    }
+    if (shouldSendField(paymentData.value.full_payment_method, mapPaymentMethod(props.program.payment_method_id), 'full_payment_method')) {
+        form.full_payment_method = paymentData.value.full_payment_method;
+    }
+    if (shouldSendField(paymentData.value.installments_payment_method, mapPaymentMethod(props.program.payment_method_id), 'installments_payment_method')) {
+        form.installments_payment_method = paymentData.value.installments_payment_method;
+    }
+    if (shouldSendField(paymentData.value.max_installments, props.program.max_installments, 'max_installments')) {
+        form.max_installments = formatValue(paymentData.value.max_installments, 'max_installments');
+    }
+
+    // Solo enviar nuevas imágenes si hay archivos nuevos
     const imageFiles = selectedImages.value
         .filter((img) => !img.isExisting)
         .map((img) => img.file);
-    form.images = imageFiles;
+    if (imageFiles.length > 0) {
+        form.images = imageFiles;
+    }
 
-    // Agregar archivos nuevos si existen
-    if (programData.value.itinerary_file) {
+    // Solo enviar archivos nuevos si realmente hay archivos nuevos
+    if (programData.value.itinerary_file && programData.value.itinerary_file !== props.program.itinerary_file) {
         form.itinerary_file = programData.value.itinerary_file;
     }
-    if (programData.value.coverage_file) {
+    if (programData.value.coverage_file && programData.value.coverage_file !== props.program.travel_assistance_coverage) {
         form.coverage_file = programData.value.coverage_file;
     }
-    if (programData.value.equipment_file) {
+    if (programData.value.equipment_file && programData.value.equipment_file !== props.program.equipment_list) {
         form.equipment_file = programData.value.equipment_file;
     }
     if (paymentData.value.students_file) {
