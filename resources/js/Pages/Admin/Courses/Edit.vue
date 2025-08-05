@@ -1,0 +1,245 @@
+<template>
+    <AdminLayout>
+        <Head title="Editar Curso" />
+
+        <div class="py-12">
+            <div class="max-w-full mx-auto sm:px-6 lg:px-8">
+                <!-- Success Message -->
+                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
+                </div>
+
+                <!-- Header -->
+                <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
+                    <div class="flex items-center justify-between">
+                        <CoursesHeader
+                            subtitle="Visualización de cursos"
+                            :course-info="courseInfoString"
+                            :show-create-button="false"
+                        />
+                        
+                        <div class="flex items-center space-x-4">
+                            <Link
+                                :href="route('admin.courses.index')"
+                                class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+                            >
+                                <ChevronLeftIcon class="w-5 h-5" />
+                                Volver
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course Information Cards -->
+                <div class="flex gap-6 justify-between">
+                    <!-- Course Info Card -->
+                    <div>
+                        <CourseInfoCard 
+                            :course="course"
+                            @edit-course="handleEditCourse"
+                        />
+                    </div>
+                    
+                    <!-- Program Card -->
+                    <div>
+                        <ProgramCardIndividual 
+                            v-if="course.program"
+                            :program="course.program"
+                        />
+                        <div v-else class="bg-gray-100 rounded-[20px] h-[255px] w-[550px] flex-shrink-0 flex items-center justify-center">
+                            <p class="text-gray-500">No hay programa asignado</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Course Modal -->
+        <EditCourseModal
+            :show="showEditModal"
+            :course="course"
+            :errors="errors"
+            :programs="programs"
+            :institutions="institutions"
+            @close="closeEditModal"
+        />
+    </AdminLayout>
+</template>
+
+<script>
+import { Head, Link } from "@inertiajs/vue3";
+import AdminLayout from "@/Layouts/AdminLayout.vue";
+import CoursesHeader from "@/Components/Courses/CoursesHeader.vue";
+import CourseInfoCard from "@/Components/Courses/CourseInfoCard.vue";
+import ProgramCardIndividual from "@/Components/Programs/ProgramCardIndividual.vue";
+import EditCourseModal from "@/Components/Courses/EditCourseModal.vue";
+import { ChevronLeftIcon } from "@/Components/Icons";
+
+export default {
+    name: "EditCourse",
+    data() {
+        return {
+            showEditModal: false,
+        };
+    },
+    mounted() {
+        // Verificar si debe abrir el modal automáticamente
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('openModal') === 'true') {
+            this.showEditModal = true;
+            // Limpiar el parámetro de la URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    },
+    components: {
+        Head,
+        Link,
+        AdminLayout,
+        CoursesHeader,
+        CourseInfoCard,
+        ProgramCardIndividual,
+        EditCourseModal,
+        ChevronLeftIcon,
+    },
+    props: {
+        course: {
+            type: Object,
+            required: true,
+        },
+        institution: {
+            type: Object,
+            default: null,
+        },
+        program: {
+            type: Object,
+            default: null,
+        },
+        participants: {
+            type: Array,
+            default: () => [],
+        },
+        headerInfo: {
+            type: Object,
+            required: true,
+        },
+        programs: {
+            type: Array,
+            default: () => [],
+        },
+        institutions: {
+            type: Array,
+            default: () => [],
+        },
+        errors: {
+            type: Object,
+            default: () => ({}),
+        },
+    },
+    computed: {
+        courseInfoString() {
+            return `${this.capitalizeWords(this.headerInfo.institution_name)} / ${this.headerInfo.year} / ${this.headerInfo.grade} / ${this.capitalizeWords(this.headerInfo.shift)} / ${this.capitalizeWords(this.headerInfo.education_level)}`;
+        },
+    },
+    methods: {
+        capitalizeWords(string) {
+            if (!string) return '';
+            return string.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+        },
+        
+        formatCurrency(amount) {
+            if (!amount) return '$0';
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
+        },
+        
+        formatDate(date) {
+            if (!date) return 'N/A';
+            return new Date(date).toLocaleDateString('es-CL', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        },
+        
+        getStatusChipClass(course) {
+            const percentage = course.payment_percentage;
+            
+            if (percentage === null) {
+                return 'bg-gray-300'; // Gris para ---
+            } else if (percentage >= 100) {
+                return 'bg-[#1a4b75]'; // Azul oscuro para 100%
+            } else if (percentage >= 75) {
+                return 'bg-[#4b8d7f]'; // Verde para 75%+
+            } else if (percentage >= 50) {
+                return 'bg-yellow-500'; // Amarillo para 50%+
+            } else if (percentage >= 25) {
+                return 'bg-orange-500'; // Naranja para 25%+
+            } else {
+                return 'bg-[#d54a42]'; // Rojo para menos de 25%
+            }
+        },
+        
+        getStatusTextClass(course) {
+            return 'text-white';
+        },
+        
+        getPaymentPercentage(course) {
+            return course.payment_percentage_text || '---';
+        },
+        
+        handleEditCourse() {
+            console.log('Opening edit modal');
+            console.log('Course:', this.course);
+            console.log('Institutions:', this.institutions);
+            console.log('Programs:', this.programs);
+            // Abrir el modal de edición
+            this.showEditModal = true;
+        },
+        
+        closeEditModal() {
+            this.showEditModal = false;
+        },
+    },
+};
+</script>
+
+<style scoped>
+/* Custom font classes */
+.font-nexa-bold {
+    font-family: 'Nexa-Bold', sans-serif;
+    font-weight: 700;
+}
+
+.font-nexa-medium {
+    font-family: 'Nexa-Medium', sans-serif;
+    font-weight: 500;
+}
+
+.font-nexa-xbold {
+    font-family: 'Nexa-XBold', sans-serif;
+    font-weight: 400;
+}
+
+.text-verde-oscuro {
+    color: #1c4f4a;
+}
+
+.bg-turquesa {
+    background-color: #007e93;
+}
+
+.text-turquesa {
+    color: #007e93;
+}
+
+.text-turquesa-dark {
+    color: #005a6b;
+}
+</style>

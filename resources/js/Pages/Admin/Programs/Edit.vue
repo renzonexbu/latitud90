@@ -291,10 +291,12 @@ const markFileForDeletion = (fileType) => {
 
 // Función para manejar el botón Editar Grupo
 const handleEditGroup = () => {
-    // Aquí puedes implementar la lógica para editar el grupo
-    console.log('Editar grupo clicked');
-    // Por ejemplo, redirigir a una página de edición de participantes
-    // window.location.href = route('admin.programs.participants', props.program.id);
+    // Redirigir al edit de curso con parámetro para abrir modal
+    if (props.program.course) {
+        window.location.href = route('admin.courses.edit', props.program.course.id) + '?openModal=true';
+    } else {
+        console.log('No hay curso asociado a este programa');
+    }
 };
 
 const submit = () => {

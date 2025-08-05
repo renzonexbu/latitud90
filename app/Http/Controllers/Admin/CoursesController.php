@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
 use App\Services\Admin\Courses\CreateCourseService;
+use App\Services\Admin\Courses\EditCourseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -15,10 +16,12 @@ use Inertia\Inertia;
 class CoursesController extends Controller
 {
     protected $createCourseService;
+    protected $editCourseService;
 
-    public function __construct(CreateCourseService $createCourseService)
+    public function __construct(CreateCourseService $createCourseService, EditCourseService $editCourseService)
     {
         $this->createCourseService = $createCourseService;
+        $this->editCourseService = $editCourseService;
     }
 
     public function index(Request $request)
@@ -120,22 +123,58 @@ class CoursesController extends Controller
         ]);
     }
 
-    public function edit(Course $course)
+        public function edit(Course $course)
     {
+        $courseData = $this->editCourseService->execute($course->id);
+        $headerInfo = $this->editCourseService->getCourseHeaderInfo($course);
         $programs = Program::where('active', true)->get();
-        
+        $institutions = Institution::active()->orderBy('name')->get();
+
         return Inertia::render('Admin/Courses/Edit', [
-            'course' => $course,
+            'course' => $courseData['course'],
+            'institution' => $courseData['institution'],
+            'program' => $courseData['program'],
+            'participants' => $courseData['participants'],
+            'headerInfo' => $headerInfo,
             'programs' => $programs,
+            'institutions' => $institutions,
         ]);
     }
 
     public function update(Request $request, Course $course)
     {
-        // Por ahora solo redirigimos al index
-        // Aquí se implementará la lógica de actualización cuando esté listo
-        return redirect()->route('admin.courses.index')
-            ->with('success', 'Curso actualizado exitosamente.');
+        try {
+            $validatedData = $request->validate([
+                'institutionId' => 'required|exists:institutions,id',
+                'educationLevel' => 'required|string|max:255',
+                'year' => 'required|string|max:4',
+                'grade' => 'required|string|max:10',
+                'shift' => 'required|string|max:50',
+                'contactEmail' => 'nullable|email|max:255',
+                'contactPhone' => 'nullable|string|max:20',
+                'associatedProgram' => 'nullable|exists:programs,id',
+                'endDate' => 'nullable|date',
+            ]);
+            
+            // Actualizar el curso
+            $course->update([
+                'institution_id' => $validatedData['institutionId'],
+                'education_level' => $validatedData['educationLevel'],
+                'year' => $validatedData['year'],
+                'grade' => $validatedData['grade'],
+                'shift' => $validatedData['shift'],
+                'contact_email' => $validatedData['contactEmail'],
+                'contact_phone' => $validatedData['contactPhone'],
+                'program_id' => $validatedData['associatedProgram'],
+                'end_date' => $validatedData['endDate'],
+            ]);
+            
+            return redirect()->route('admin.courses.edit', $course)
+                ->with('success', 'Curso actualizado exitosamente.');
+                
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al actualizar el curso: ' . $e->getMessage()]);
+        }
     }
 
     public function destroy(Course $course)

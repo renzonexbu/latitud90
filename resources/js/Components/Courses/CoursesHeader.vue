@@ -1,17 +1,28 @@
 <template>
     <div class="py-5 flex flex-row items-center justify-between relative">
         <!-- Left side - Breadcrumb and title -->
-        <div class="flex flex-row gap-4 items-center justify-start flex-shrink-0 relative">
-            <div class="text-[30px] leading-9 font-normal text-turquesa font-nexa-xbold">
+        <div class="flex flex-row gap-[14.37px] items-center justify-start flex-shrink-0 relative">
+            <div class="text-[24px] leading-[28px] font-bold text-turquesa font-nexa-bold">
                 Cursos
             </div>
-            <div class="w-0 h-[35px] relative overflow-visible">
+            <div class="w-0 h-[29.59px] relative overflow-visible">
                 <!-- Vector separator -->
                 <div class="w-px h-full bg-gray-300"></div>
             </div>
-            <div class="text-[20px] leading-7 font-normal text-[#5b5b5b] font-nexa-regular">
+            <div class="text-[16px] leading-[22px] font-normal text-[#5b5b5b] font-nexa-regular">
                 {{ subtitle }}
             </div>
+            
+            <!-- Course info separator and details (only show if courseInfo is provided) -->
+            <template v-if="courseInfo">
+                <div class="w-0 h-[29.59px] relative overflow-visible">
+                    <!-- Vector separator -->
+                    <div class="w-px h-full bg-gray-300"></div>
+                </div>
+                <div class="text-[16px] leading-[22px] font-normal text-turquesa font-nexa-regular">
+                    {{ courseInfo }}
+                </div>
+            </template>
         </div>
 
         <!-- Right side - Action buttons -->
@@ -70,6 +81,11 @@ export default {
         showCreateButton: {
             type: Boolean,
             default: false
+        },
+
+        courseInfo: {
+            type: String,
+            default: null
         }
     },
     methods: {

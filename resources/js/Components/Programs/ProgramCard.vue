@@ -15,14 +15,16 @@
         <div class="absolute inset-0 bg-black/30"></div>
 
         <!-- Top Section with Program Info and SVG Icon -->
-        <div class="absolute top-4 left-4 right-4 flex items-start justify-between">
+        <div
+            class="absolute top-4 left-4 right-4 flex items-start justify-between"
+        >
             <!-- Program Info (Left side) -->
-            <div class="flex flex-col text-white" style="width: 250px;">
+            <div class="flex flex-col text-white" style="width: 250px">
                 <!-- Destination -->
-                <div 
+                <div
                     class="truncate mb-1"
                     style="
-                        color: #FFF;
+                        color: #fff;
                         font-family: Outfit;
                         font-size: 12px;
                         font-weight: 500;
@@ -32,12 +34,12 @@
                 >
                     {{ program.destination }}
                 </div>
-                
+
                 <!-- Program Name -->
-                <div 
+                <div
                     class="line-clamp-2 mb-1"
                     style="
-                        color: #FFF;
+                        color: #fff;
                         font-family: Outfit;
                         font-size: 24px;
                         font-weight: 600;
@@ -47,12 +49,12 @@
                 >
                     {{ program.name }}
                 </div>
-                
+
                 <!-- Date -->
-                <div 
+                <div
                     class="truncate"
                     style="
-                        color: #FFF;
+                        color: #fff;
                         font-family: Nexa;
                         font-size: 12px;
                         font-weight: 800;
@@ -65,7 +67,9 @@
             </div>
 
             <!-- SVG Icon (Right side) -->
-            <div class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0">
+            <div
+                class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
+            >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="15"
@@ -90,14 +94,26 @@
         >
             <!-- Course Info -->
             <div class="text-white mb-3">
-                <div class="flex items-center mt-2 text-xs opacity-90 justify-end">
-                    <span v-if="program.course?.institution?.name">{{ capitalizeFirst(program.course.institution.name) }}</span>
+                <div
+                    class="flex items-center mt-2 text-xs opacity-90 justify-end"
+                >
+                    <span v-if="program.course?.institution?.name">{{
+                        capitalizeFirst(program.course.institution.name)
+                    }}</span>
                     <span v-if="program.course?.grade" class="mx-2">|</span>
-                    <span v-if="program.course?.grade">{{ capitalizeFirst(program.course.grade) }}</span>
-                    <span v-if="program.course?.education_level" class="mx-2">|</span>
-                    <span v-if="program.course?.education_level">{{ capitalizeFirst(program.course.education_level) }}</span>
+                    <span v-if="program.course?.grade">{{
+                        capitalizeFirst(program.course.grade)
+                    }}</span>
+                    <span v-if="program.course?.education_level" class="mx-2"
+                        >|</span
+                    >
+                    <span v-if="program.course?.education_level">{{
+                        capitalizeFirst(program.course.education_level)
+                    }}</span>
                     <span v-if="program.course?.shift" class="mx-2">|</span>
-                    <span v-if="program.course?.shift">{{ capitalizeFirst(program.course.shift) }}</span>
+                    <span v-if="program.course?.shift">{{
+                        capitalizeFirst(program.course.shift)
+                    }}</span>
                 </div>
             </div>
 
@@ -203,30 +219,30 @@ export default {
     props: {
         program: {
             type: Object,
-            required: true
-        }
+            required: true,
+        },
     },
-    emits: ['click'],
+    emits: ["click"],
     data() {
         return {
-            imageError: false
+            imageError: false,
         };
     },
     computed: {
         programImageUrl() {
             // Si hay un error de imagen, usar la imagen por defecto
             if (this.imageError) {
-                return '/images/programs/card-viaje-pruebas.png';
+                return "/images/programs/card-viaje-pruebas.png";
             }
-            
+
             // Si el programa tiene imágenes, usar la primera
             if (this.program.images && this.program.images.length > 0) {
                 return this.program.images[0].url;
             }
-            
+
             // Si no hay imágenes, usar la imagen por defecto
-            return '/images/programs/card-viaje-pruebas.png';
-        }
+            return "/images/programs/card-viaje-pruebas.png";
+        },
     },
     methods: {
         formatPrice(price) {
@@ -249,12 +265,12 @@ export default {
         formatDate(dateString) {
             if (!dateString) return "";
             const date = new Date(dateString);
-            return date.toLocaleDateString('es-CL', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric' 
+            return date.toLocaleDateString("es-CL", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
             });
-        }
+        },
     },
 };
 </script>
