@@ -21,21 +21,33 @@ class CreateProgramService
         try {
             DB::beginTransaction();
 
-            // Procesar los pilares como string separado por comas
-            $pillars = [];
-            if (!empty($programData['pilar_aventura'])) {
-                $pillars[] = $programData['pilar_aventura'];
-            }
-            if (!empty($programData['pilar_entretenimiento'])) {
-                $pillars[] = $programData['pilar_entretenimiento'];
-            }
-            if (!empty($programData['pilar_educacion'])) {
-                $pillars[] = $programData['pilar_educacion'];
-            }
-            if (!empty($programData['pilar_seguridad'])) {
-                $pillars[] = $programData['pilar_seguridad'];
-            }
-            $programData['pillars'] = implode(', ', $pillars);
+            
+
+                    // Procesar los pilares como string separado por comas
+        $pillars = [];
+        if (!empty($programData['pilar_1'])) {
+            $pillars[] = $programData['pilar_1'];
+        }
+        if (!empty($programData['pilar_2'])) {
+            $pillars[] = $programData['pilar_2'];
+        }
+        if (!empty($programData['pilar_3'])) {
+            $pillars[] = $programData['pilar_3'];
+        }
+        if (!empty($programData['pilar_4'])) {
+            $pillars[] = $programData['pilar_4'];
+        }
+        $programData['pillars'] = implode(', ', $pillars);
+
+                    Log::info('Pilares procesados:', [
+            'pilar_1' => $programData['pilar_1'] ?? 'vacío',
+            'pilar_2' => $programData['pilar_2'] ?? 'vacío',
+            'pilar_3' => $programData['pilar_3'] ?? 'vacío',
+            'pilar_4' => $programData['pilar_4'] ?? 'vacío',
+            'pillars_final' => $programData['pillars']
+        ]);
+
+
 
             // Crear el programa primero (sin archivos por ahora)
             $program = Program::create([
@@ -53,8 +65,15 @@ class CreateProgramService
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => $programData['sales_person'] ?? $programData['seller_name'],
                 'payment_mode_id' => $this->getPaymentModeId($programData),
+                'payment_method_id' => $this->getPaymentMethodId($programData),
+                'max_installments' => $programData['max_installments'] ?? null,
+                'discount_type' => $programData['discount_type'] ?? $programData['group_benefit'] ?? null,
+                'discount_value' => $this->calculateDiscountValue($programData),
+                'created_by' => auth()->id(),
                 'active' => $programData['active'] ?? true,
             ]);
+
+
 
             // Procesar archivos después de crear el programa para poder usar su ID
             $processedData = $this->processFiles($programData, $program);
@@ -67,54 +86,22 @@ class CreateProgramService
                 'equipment_list' => $processedData['equipment_file_path'] ?? null,
             ]);
 
-            // Lógica para crear curso y participantes si se proporcionan los datos
+            // Lógica para crear curso y participantes si se proporcionan los datos (opcional)
             if (!empty($programData['institution_id']) && 
                 !empty($programData['education_level']) && 
                 !empty($programData['shift']) && 
                 !empty($programData['grade'])) {
                 
-                Log::info('Creando curso para programa', [
-                    'program_id' => $program->id,
-                    'institution_id' => $programData['institution_id'],
-                    'education_level' => $programData['education_level'],
-                    'shift' => $programData['shift'],
-                    'grade' => $programData['grade']
-                ]);
-                
                 // Crear el curso
                 $course = $this->createCourse($programData, $program);
-                
-                Log::info('Curso creado exitosamente', [
-                    'course_id' => $course->id,
-                    'program_id' => $program->id
-                ]);
                 
                 // Asignar el curso al programa
                 $program->update(['course_id' => $course->id]);
                 
                 // Procesar participantes si se proporciona el archivo
                 if (!empty($programData['students_file'])) {
-                    Log::info('Procesando archivo de estudiantes', [
-                        'file_name' => $programData['students_file']->getClientOriginalName(),
-                        'file_size' => $programData['students_file']->getSize(),
-                        'course_id' => $course->id
-                    ]);
-                    
                     $this->processParticipants($programData['students_file'], $course, $program);
-                } else {
-                    Log::warning('No se proporcionó archivo de estudiantes', [
-                        'program_id' => $program->id,
-                        'course_id' => $course->id
-                    ]);
                 }
-            } else {
-                Log::info('No se creará curso - datos incompletos', [
-                    'program_id' => $program->id,
-                    'has_institution' => !empty($programData['institution_id']),
-                    'has_education_level' => !empty($programData['education_level']),
-                    'has_shift' => !empty($programData['shift']),
-                    'has_grade' => !empty($programData['grade'])
-                ]);
             }
 
             DB::commit();
@@ -136,7 +123,7 @@ class CreateProgramService
         $timestamp = now()->format('Y_m_d_H_i_s');
         
         // Crear la carpeta base del programa
-        $programFolder = "programs/{$programId}";
+        $programFolder = "public/programs/{$programId}";
         
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
@@ -527,5 +514,61 @@ class CreateProgramService
             'universitario' => 'universitaria',
             default => $level,
         };
+    }
+
+    /**
+     * Get payment method ID based on selected payment option and method.
+     */
+    private function getPaymentMethodId(array $programData): ?int
+    {
+        $paymentOption = $programData['payment_option'] ?? '';
+        $paymentMethod = null;
+
+        if ($paymentOption === 'full_payment') {
+            $paymentMethod = $programData['full_payment_method'] ?? '';
+        } elseif ($paymentOption === 'installments') {
+            $paymentMethod = $programData['installments_payment_method'] ?? '';
+        }
+
+        if (!$paymentMethod) {
+            return null;
+        }
+
+        // Mapear los valores del frontend a los IDs de la base de datos
+        $methodMapping = [
+            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
+            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
+            'solo_transferencia' => 3, // Solo pago transferencia
+            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+        ];
+
+        return $methodMapping[$paymentMethod] ?? null;
+    }
+
+    /**
+     * Calculate discount value based on discount type.
+     */
+    private function calculateDiscountValue(array $programData): ?float
+    {
+        $discountType = $programData['discount_type'] ?? $programData['group_benefit'] ?? '';
+        
+        if (!$discountType) {
+            return null;
+        }
+
+        // Si es monto fijo, usar el valor del input
+        if ($discountType === 'monto_fijo') {
+            $discountAmount = $programData['discount_amount'] ?? '';
+            return $discountAmount ? (float) $discountAmount : null;
+        }
+
+        // Mapear tipos de descuento a valores
+        $discountMapping = [
+            'porcentaje_10' => 0.10, // 10%
+            'porcentaje_15' => 0.15, // 15%
+            'porcentaje_20' => 0.20, // 20%
+        ];
+
+        return $discountMapping[$discountType] ?? null;
     }
 } 

@@ -30,7 +30,11 @@ class CreateProgramRequest extends FormRequest
             'images' => 'required|array|min:1', // Al menos una imagen es obligatoria
             'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
             'pillars' => 'nullable|string|max:500',
-            'itinerary_description' => 'nullable|string|max:1000',
+            'pilar_1' => 'nullable|string|max:255',
+            'pilar_2' => 'nullable|string|max:255',
+            'pilar_3' => 'nullable|string|max:255',
+            'pilar_4' => 'nullable|string|max:255',
+            'itinerary' => 'nullable|string|max:1000', // Campo del frontend
             'itinerary_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
             'coverage_file' => 'nullable|file|mimes:pdf|max:10240', // Campo del frontend
             'equipment_file' => 'nullable|file|mimes:pdf|max:10240', // Campo del frontend
@@ -42,18 +46,21 @@ class CreateProgramRequest extends FormRequest
             'seller_name' => 'required_without:sales_person|string|max:255',
             'sales_person' => 'required_without:seller_name|string|max:255', // Campo del frontend
             
-            // Campos del detalle administrativo con validaciones de dependencias
+            // Campos del detalle administrativo (todos opcionales)
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'required_with:institution_id|nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'required_with:institution_id|nullable|string|in:mañana,tarde,noche',
-            'grade' => 'required_with:institution_id|nullable|string|max:10',
-            'students_file' => 'required_with:education_level,shift,grade|nullable|file|mimes:xlsx,xls,csv|max:10240',
+            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
+            'shift' => 'nullable|string|in:mañana,tarde,noche',
+            'grade' => 'nullable|string|max:10',
+            'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
+            'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
+            'discount_amount' => 'nullable|numeric|min:0',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             'max_installments' => 'nullable|string|in:3,6,9,12',
+            'created_by' => 'nullable|exists:users,id',
             'active' => 'boolean',
         ];
     }
@@ -83,6 +90,9 @@ class CreateProgramRequest extends FormRequest
             'description.string' => 'La descripción del viaje debe ser texto.',
             'trip_description.max' => 'La descripción del viaje no puede exceder 2000 caracteres.',
             'description.max' => 'La descripción del viaje no puede exceder 2000 caracteres.',
+            
+            'itinerary.string' => 'La descripción del itinerario debe ser texto.',
+            'itinerary.max' => 'La descripción del itinerario no puede exceder 1000 caracteres.',
             
             'trip_price.required_without' => 'El precio del viaje es obligatorio.',
             'total_price.required_without' => 'El precio del viaje es obligatorio.',
@@ -131,17 +141,17 @@ class CreateProgramRequest extends FormRequest
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
             'shift.in' => 'El turno seleccionado no es válido.',
             'group_benefit.in' => 'El beneficio grupal seleccionado no es válido.',
+            'discount_type.in' => 'El tipo de descuento seleccionado no es válido.',
+            'discount_amount.numeric' => 'El monto de descuento debe ser un número.',
+            'discount_amount.min' => 'El monto de descuento debe ser mayor o igual a 0.',
             'payment_option.in' => 'La opción de pago seleccionada no es válida.',
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
             'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
             'max_installments.in' => 'El número máximo de cuotas seleccionado no es válido.',
+            'created_by.exists' => 'El usuario creador no existe.',
             
-            // Mensajes para validaciones de dependencias
+            // Mensajes para validaciones básicas
             'institution_id.exists' => 'La institución seleccionada no existe.',
-            'education_level.required_with' => 'El nivel de educación es obligatorio cuando se selecciona una institución.',
-            'shift.required_with' => 'El turno es obligatorio cuando se selecciona una institución.',
-            'grade.required_with' => 'El grado es obligatorio cuando se selecciona una institución.',
-            'students_file.required_with' => 'El archivo de estudiantes es obligatorio cuando se completan los datos del curso.',
         ];
     }
 } 

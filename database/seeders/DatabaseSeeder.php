@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             DocumentSeeder::class,
             PaymentMethodSeeder::class,
+            PaymentGatewaySeeder::class,
             PaymentModeSeeder::class,
             UserSeeder::class,  
             // ProgramsSeeder::class,

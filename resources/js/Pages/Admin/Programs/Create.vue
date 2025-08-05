@@ -17,6 +17,7 @@
                         v-model="paymentData" 
                         :errors="{ ...errors, ...localErrors }"
                         :institutions="localInstitutions"
+                        :has-participants="false"
                         @create-institution="openCreateInstitutionModal"
                     />
                 </div>
@@ -50,7 +51,7 @@
 
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
@@ -74,10 +75,10 @@ const form = useForm({
     destination: "",
     departure_date: "",
     description: "",
-    pilar_aventura: "",
-    pilar_entretenimiento: "",
-    pilar_educacion: "",
-    pilar_seguridad: "",
+    pilar_1: "",
+    pilar_2: "",
+    pilar_3: "",
+    pilar_4: "",
     itinerary: "",
     itinerary_file: null,
     coverage_file: null,
@@ -94,10 +95,13 @@ const form = useForm({
     grade: "",
     students_file: null,
     group_benefit: "",
+    discount_type: "",
+    discount_amount: "",
     payment_option: "", // "full_payment" o "installments"
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",
+    created_by: null, // Se establecerá en el backend
     active: true,
 });
 
@@ -107,10 +111,10 @@ const programData = ref({
     destination: "",
     departure_date: "",
     description: "",
-    pilar_aventura: "",
-    pilar_entretenimiento: "",
-    pilar_educacion: "",
-    pilar_seguridad: "",
+    pilar_1: "",
+    pilar_2: "",
+    pilar_3: "",
+    pilar_4: "",
     itinerary: "",
     itinerary_file: null,
     coverage_file: null,
@@ -129,6 +133,8 @@ const paymentData = ref({
     grade: "",
     students_file: null,
     group_benefit: "",
+    discount_type: "",
+    discount_amount: "",
     payment_option: "", // "full_payment" o "installments"
     full_payment_method: "",
     installments_payment_method: "",
@@ -147,6 +153,65 @@ const localInstitutions = ref([...props.institutions]);
 // Estado para errores de validación local
 const localErrors = ref({});
 
+// Watcher para manejar errores del backend
+watch(() => props.errors, (newErrors) => {
+    if (newErrors && Object.keys(newErrors).length > 0) {
+        // Si hay errores del backend, hacer scroll al primer error
+        scrollToFirstError();
+    }
+}, { immediate: true });
+
+// Watcher para sincronizar programData con el formulario
+watch(programData, (newValue) => {
+    // Sincronizar todos los campos del programa con el formulario
+    Object.keys(newValue).forEach((key) => {
+        form[key] = newValue[key];
+    });
+}, { deep: true });
+
+// Watcher para sincronizar paymentData con el formulario
+watch(paymentData, (newValue) => {
+    // Sincronizar todos los campos del detalle administrativo con el formulario
+    Object.keys(newValue).forEach((key) => {
+        form[key] = newValue[key];
+    });
+}, { deep: true });
+
+// Watcher específico para discount_type y discount_amount
+watch(() => paymentData.value.discount_type, (newValue) => {
+    form.discount_type = newValue;
+});
+
+watch(() => paymentData.value.discount_amount, (newValue) => {
+    form.discount_amount = newValue;
+});
+
+
+
+// Asegurar que created_by se establezca
+watch(() => form.created_by, (newValue) => {
+    if (!newValue) {
+        form.created_by = 1; // ID del usuario autenticado
+    }
+}, { immediate: true });
+
+// Watcher específico para discount_type y discount_amount
+watch(() => paymentData.value.discount_type, (newValue) => {
+    form.discount_type = newValue;
+    console.log('discount_type actualizado:', newValue);
+});
+
+watch(() => paymentData.value.discount_amount, (newValue) => {
+    form.discount_amount = newValue;
+    console.log('discount_amount actualizado:', newValue);
+});
+
+// Watcher para sincronizar las imágenes con el formulario
+watch(selectedImages, (newImages) => {
+    const imageFiles = newImages.map((img) => img.file).filter(Boolean);
+    form.images = imageFiles;
+}, { deep: true });
+
 // Función para limpiar errores locales
 const clearLocalErrors = () => {
     localErrors.value = {};
@@ -162,6 +227,16 @@ const validateForm = () => {
         errors.name = 'El nombre del programa es obligatorio';
     }
     
+    // Validar que el destino sea obligatorio
+    if (!programData.value.destination || programData.value.destination.trim() === '') {
+        errors.destination = 'El destino es obligatorio';
+    }
+    
+    // Validar que la fecha de salida sea obligatoria
+    if (!programData.value.departure_date) {
+        errors.departure_date = 'La fecha de salida es obligatoria';
+    }
+    
     // Validar que al menos una imagen sea obligatoria
     if (!selectedImages.value || selectedImages.value.length === 0) {
         errors.images = 'Debe seleccionar al menos una imagen para el programa';
@@ -171,6 +246,120 @@ const validateForm = () => {
     localErrors.value = errors;
     
     return Object.keys(errors).length === 0;
+};
+
+// Función para hacer scroll al primer campo con error
+const scrollToFirstError = () => {
+    // Esperar un tick para que los errores se rendericen en el DOM
+    setTimeout(() => {
+        let firstErrorElement = null;
+        
+        // Primero, intentar encontrar campos específicos con errores por nombre
+        const allErrors = { ...props.errors, ...localErrors.value };
+        const errorFieldNames = Object.keys(allErrors);
+        
+        if (errorFieldNames.length > 0) {
+            // Mapeo de nombres de campos a selectores específicos
+            const fieldSelectors = {
+                'name': 'input[placeholder="Nombre"]',
+                'destination': 'input[placeholder*="Santiago"]',
+                'departure_date': 'input[type="date"]',
+                'description': 'textarea[placeholder*="descripción"]',
+                'images': '.image-upload-area',
+                'total_price': 'input[placeholder="--------"]',
+                'final_payment_date': 'input[type="date"]',
+                'sales_person': 'input[placeholder="Nombre"]',
+                'institution_id': 'select[id*="institution"]',
+                'education_level': 'select:has(option[value="inicial"])',
+                'shift': 'select:has(option[value="mañana"])',
+                'grade': 'select:has(option[value="1"])',
+                'students_file': 'input[type="file"]'
+            };
+            
+            // Buscar el primer campo con error usando los selectores específicos
+            for (const fieldName of errorFieldNames) {
+                if (fieldSelectors[fieldName]) {
+                    const element = document.querySelector(fieldSelectors[fieldName]);
+                    if (element) {
+                        firstErrorElement = element;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Si no encontramos por nombre específico, usar selectores generales
+        if (!firstErrorElement) {
+            const errorSelectors = [
+                // Errores en campos de texto
+                'input.border-red-500',
+                'textarea.border-red-500', 
+                'select.border-red-500',
+                // Mensajes de error
+                '.text-red-500',
+                // Elementos con clases de error
+                '.error-message',
+                '[class*="error"]'
+            ];
+            
+            // Buscar el primer elemento con error
+            for (const selector of errorSelectors) {
+                const elements = document.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    firstErrorElement = elements[0];
+                    break;
+                }
+            }
+        }
+        
+        // Si encontramos un elemento con error, hacer scroll
+        if (firstErrorElement) {
+            // Buscar el contenedor padre más apropiado para el scroll
+            const fieldWrapper = firstErrorElement.closest('.field-wrapper') || 
+                                firstErrorElement.closest('.field-container') || 
+                                firstErrorElement.closest('.accordion-content') ||
+                                firstErrorElement;
+            
+            // Primero expandir el acordeón si está colapsado
+            const accordionHeader = fieldWrapper.closest('.accordion-section')?.querySelector('.accordion-header');
+            if (accordionHeader) {
+                const accordionContent = accordionHeader.nextElementSibling?.querySelector('.accordion-content');
+                if (accordionContent && !accordionContent.offsetParent) {
+                    // El acordeón está colapsado, hacer click para expandir
+                    accordionHeader.click();
+                    // Esperar un poco más para que se expanda
+                    setTimeout(() => {
+                        fieldWrapper.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                    }, 300);
+                } else {
+                    fieldWrapper.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+                }
+            } else {
+                fieldWrapper.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            }
+            
+            // También intentar hacer focus en el input si es posible
+            if (firstErrorElement.tagName === 'INPUT' || 
+                firstErrorElement.tagName === 'TEXTAREA' || 
+                firstErrorElement.tagName === 'SELECT') {
+                setTimeout(() => {
+                    firstErrorElement.focus();
+                }, 500);
+            }
+        }
+    }, 100);
 };
 
 // Función para actualizar las imágenes desde el componente
@@ -202,26 +391,12 @@ const submit = () => {
     // Validar el formulario
     if (!validateForm()) {
         // Hacer scroll al primer error
-        const firstErrorElement = document.querySelector('.error-message');
-        if (firstErrorElement) {
-            firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        scrollToFirstError();
         return;
     }
 
-    // Sincronizar los datos del programa con el formulario
-    Object.keys(programData.value).forEach((key) => {
-        form[key] = programData.value[key];
-    });
-
-    // Sincronizar los datos del detalle administrativo con el formulario
-    Object.keys(paymentData.value).forEach((key) => {
-        form[key] = paymentData.value[key];
-    });
-
-    // Agregar las imágenes al formulario
-    const imageFiles = selectedImages.value.map((img) => img.file);
-    form.images = imageFiles;
+    // Establecer created_by
+    form.created_by = null; // Se establecerá en el backend con auth()->id()
 
     form.post(route("admin.programs.store"));
 };

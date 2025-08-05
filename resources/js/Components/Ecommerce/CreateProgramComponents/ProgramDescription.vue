@@ -91,7 +91,7 @@
                                 <div class="field-container">
                                     <div class="field-wrapper">
                                         <div class="fecha-de-salida">
-                                            Fecha de salida
+                                            Fecha de salida *
                                         </div>
                                         <input
                                             type="date"
@@ -146,6 +146,9 @@
                                     <!-- Input de imágenes mejorado -->
                                     <label
                                         class="image-upload-area"
+                                        :class="{
+                                            'border-red-500': errors.images,
+                                        }"
                                         for="program-images"
                                     >
                                         <div class="upload-placeholder">
@@ -184,6 +187,12 @@
                                             </div>
                                         </div>
                                     </label>
+                                    <span
+                                        v-if="errors.images"
+                                        class="text-red-500 text-sm mt-1 block"
+                                    >
+                                        {{ errors.images }}
+                                    </span>
                                     <input
                                         type="file"
                                         id="program-images"
@@ -216,9 +225,9 @@
                                                 </div>
                                                 <div class="image-size">
                                                     {{
-                                                        formatFileSize(
-                                                            image.size
-                                                        )
+                                                        image.size 
+                                                            ? formatFileSize(image.size)
+                                                            : 'Imagen existente'
                                                     }}
                                                 </div>
                                             </div>
@@ -299,7 +308,7 @@
                                         <div class="pillar-number">1</div>
                                         <input
                                             type="text"
-                                            v-model="formData.pilar_aventura"
+                                            v-model="formData.pilar_1"
                                             placeholder="Aventura"
                                             class="input-text4"
                                         />
@@ -308,9 +317,7 @@
                                         <div class="pillar-number">2</div>
                                         <input
                                             type="text"
-                                            v-model="
-                                                formData.pilar_entretenimiento
-                                            "
+                                            v-model="formData.pilar_2"
                                             placeholder="Entretenimiento"
                                             class="input-text4"
                                         />
@@ -321,7 +328,7 @@
                                         <div class="pillar-number">3</div>
                                         <input
                                             type="text"
-                                            v-model="formData.pilar_educacion"
+                                            v-model="formData.pilar_3"
                                             placeholder="Educación"
                                             class="input-text4"
                                         />
@@ -330,7 +337,7 @@
                                         <div class="pillar-number">4</div>
                                         <input
                                             type="text"
-                                            v-model="formData.pilar_seguridad"
+                                            v-model="formData.pilar_4"
                                             placeholder="Seguridad"
                                             class="input-text4"
                                         />
@@ -406,7 +413,7 @@
                                         class="existing-file"
                                     >
                                         <a
-                                            :href="`/storage/${existingFiles.itinerary_file}`"
+                                            :href="existingFiles.itinerary_file"
                                             target="_blank"
                                             class="existing-file-link"
                                         >
@@ -519,12 +526,44 @@
                                     >
                                         Cobertura de asistencia en viaje
                                     </div>
+
+                                    <!-- Archivo existente (solo en modo edit) -->
+                                    <div
+                                        v-if="
+                                            mode === 'edit' &&
+                                            existingFiles.coverage_file
+                                        "
+                                        class="existing-file"
+                                    >
+                                        <a
+                                            :href="existingFiles.coverage_file"
+                                            target="_blank"
+                                            class="existing-file-link"
+                                        >
+                                            📄 Ver archivo actual
+                                        </a>
+                                        <button
+                                            type="button"
+                                            @click="
+                                                removeExistingFile('coverage')
+                                            "
+                                            class="remove-existing-file"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
                                     <label
                                         class="primary-button"
                                         for="coverage-file"
                                     >
                                         <div class="button-text">
-                                            Adjunte aqui el PDF
+                                            {{
+                                                mode === "edit" &&
+                                                existingFiles.coverage_file
+                                                    ? "Cambiar PDF"
+                                                    : "Adjunte aqui el PDF"
+                                            }}
                                         </div>
                                         <svg
                                             class="paperclip-icon"
@@ -605,12 +644,44 @@
                                     <div class="lista-de-equipo">
                                         Lista de equipo
                                     </div>
+
+                                    <!-- Archivo existente (solo en modo edit) -->
+                                    <div
+                                        v-if="
+                                            mode === 'edit' &&
+                                            existingFiles.equipment_file
+                                        "
+                                        class="existing-file"
+                                    >
+                                        <a
+                                            :href="existingFiles.equipment_file"
+                                            target="_blank"
+                                            class="existing-file-link"
+                                        >
+                                            📄 Ver archivo actual
+                                        </a>
+                                        <button
+                                            type="button"
+                                            @click="
+                                                removeExistingFile('equipment')
+                                            "
+                                            class="remove-existing-file"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
                                     <label
                                         class="primary-button"
                                         for="equipment-file"
                                     >
                                         <div class="button-text">
-                                            Adjunte aqui el PDF
+                                            {{
+                                                mode === "edit" &&
+                                                existingFiles.equipment_file
+                                                    ? "Cambiar PDF"
+                                                    : "Adjunte aqui el PDF"
+                                            }}
                                         </div>
                                         <svg
                                             class="paperclip-icon"
@@ -712,10 +783,10 @@ const props = defineProps({
             destination: "",
             departure_date: "",
             description: "",
-            pilar_aventura: "",
-            pilar_entretenimiento: "",
-            pilar_educacion: "",
-            pilar_seguridad: "",
+            pilar_1: "",
+            pilar_2: "",
+            pilar_3: "",
+            pilar_4: "",
             itinerary: "",
             itinerary_file: null,
             coverage_file: null,
@@ -745,6 +816,23 @@ const props = defineProps({
     },
 });
 
+// Debug para verificar props recibidos
+console.log('ProgramDescription props:', {
+    mode: props.mode,
+    existingImages: props.existingImages,
+    existingFiles: props.existingFiles,
+    modelValue: props.modelValue
+});
+
+// Debug adicional para archivos existentes
+if (props.mode === 'edit') {
+    console.log('Archivos existentes en modo edit:', {
+        itinerary_file: props.existingFiles?.itinerary_file,
+        coverage_file: props.existingFiles?.coverage_file,
+        equipment_file: props.existingFiles?.equipment_file
+    });
+}
+
 // Emits
 const emit = defineEmits([
     "update:modelValue",
@@ -766,14 +854,16 @@ const selectedImages = ref([]);
 
 // Cargar imágenes existentes en modo edit
 if (props.mode === "edit" && props.existingImages.length > 0) {
+    console.log('Cargando imágenes existentes en ProgramDescription:', props.existingImages);
     selectedImages.value = props.existingImages.map((image, index) => ({
         id: `existing-${index}`,
         file: null, // No hay archivo para imágenes existentes
-        preview: image.url ? `/storage/${image.url}` : image,
+        url: image.url, // Usar la URL directamente
         name: image.name || `Imagen ${index + 1}`,
         isExisting: true,
         originalId: image.id || null,
     }));
+    console.log('Imágenes procesadas en ProgramDescription:', selectedImages.value);
 }
 
 // Watch para sincronizar con el padre

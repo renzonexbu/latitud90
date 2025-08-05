@@ -105,8 +105,39 @@ class ProgramController extends Controller
 
     public function edit(Program $program)
     {
+        // Cargar todas las relaciones necesarias
+        $program->load([
+            'course.institution',
+            'participants',
+            'paymentMode'
+        ]);
+
+        // Debug para verificar datos
+        Log::info('Programa para editar:', [
+            'id' => $program->id,
+            'name' => $program->name,
+            'trip_description' => $program->trip_description,
+            'itinerary_description' => $program->itinerary_description,
+            'pillars' => $program->pillars,
+            'images_folder' => $program->images_folder,
+            'images_count' => count($program->images),
+            'images' => $program->images,
+            'itinerary_file' => $program->itinerary_file,
+            'itinerary_file_url' => $program->itinerary_file_url,
+            'travel_assistance_coverage' => $program->travel_assistance_coverage,
+            'travel_assistance_coverage_url' => $program->travel_assistance_coverage_url,
+            'equipment_list' => $program->equipment_list,
+            'equipment_list_url' => $program->equipment_list_url,
+            'departure_date' => $program->departure_date,
+            'departure_date_formatted' => $program->departure_date ? $program->departure_date->format('Y-m-d') : null
+        ]);
+
+        // Obtener instituciones para el dropdown
+        $institutions = Institution::active()->orderBy('name')->get();
+
         return Inertia::render('Admin/Programs/Edit', [
-            'program' => $program
+            'program' => $program,
+            'institutions' => $institutions
         ]);
     }
 

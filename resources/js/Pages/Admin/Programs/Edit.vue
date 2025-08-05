@@ -21,6 +21,9 @@
                         v-model="paymentData"
                         mode="edit"
                         :payment-status="paymentStatus"
+                        :institutions="institutions"
+                        :has-participants="program.participants && program.participants.length > 0"
+                        @edit-group="handleEditGroup"
                     />
                 </div>
 
@@ -52,37 +55,65 @@ import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/Payme
 
 const props = defineProps({
     program: Object,
+    institutions: {
+        type: Array,
+        default: () => []
+    }
 });
+
+// Función para mapear nivel de educación desde BD al frontend
+const mapEducationLevel = (level) => {
+    const mapping = {
+        'preescolar': 'inicial',
+        'primaria': 'primario',
+        'secundaria': 'secundario',
+        'universitaria': 'universitario'
+    };
+    return mapping[level] || level;
+};
+
+// Función para mapear payment_mode_id a opciones del frontend
+const mapPaymentOption = (paymentModeId) => {
+    if (!paymentModeId) return "";
+    
+    // Según el seeder: 1 = Pago Total, 2 = Cuota Lat90
+    const mapping = {
+        1: 'full_payment',
+        2: 'installments'
+    };
+    return mapping[paymentModeId] || "";
+};
 
 const form = useForm({
     // Campos del programa
     name: props.program.name || "",
     destination: props.program.destination || "",
-    departure_date: props.program.departure_date || "",
-    description: props.program.description || "",
-    pilar_aventura: props.program.pilar_aventura || "",
-    pilar_entretenimiento: props.program.pilar_entretenimiento || "",
-    pilar_educacion: props.program.pilar_educacion || "",
-    pilar_seguridad: props.program.pilar_seguridad || "",
-    itinerary: props.program.itinerary || "",
+    departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
+    description: props.program.trip_description || "", // Usar trip_description de la BD
+    pilar_1: "", // Se procesará desde pillars
+    pilar_2: "", // Se procesará desde pillars
+    pilar_3: "", // Se procesará desde pillars
+    pilar_4: "", // Se procesará desde pillars
+    itinerary: props.program.itinerary_description || "", // Usar itinerary_description de la BD
     itinerary_file: null,
     coverage_file: null,
     equipment_file: null,
     images: [],
     // Campos del detalle administrativo
-    total_price: props.program.total_price || "",
-    final_payment_date: props.program.final_payment_date || "",
-    sales_person: props.program.sales_person || "",
-    institution_name: props.program.institution_name || "",
-    education_level: props.program.education_level || "",
-    shift: props.program.shift || "",
-    grade: props.program.grade || "",
+    total_price: props.program.trip_price || "",
+    final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
+    sales_person: props.program.seller_name || "",
+    institution_id: props.program.course?.institution_id || "",
+    institution_name: props.program.course?.institution?.name || "",
+    education_level: mapEducationLevel(props.program.course?.education_level) || "",
+    shift: props.program.course?.shift || "",
+    grade: props.program.course?.grade || "",
     students_file: null,
     group_benefit: props.program.group_benefit || "",
-    payment_option: props.program.payment_option || "",
-    full_payment_method: props.program.full_payment_method || "",
-    installments_payment_method:
-        props.program.installments_payment_method || "",
+    discount_type: props.program.discount_type || "",
+    payment_option: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: props.program.payment_method?.name || "",
+    installments_payment_method: props.program.payment_method?.name || "",
     max_installments: props.program.max_installments || "",
     active: props.program.active || true,
     // Control de archivos e imágenes existentes
@@ -94,13 +125,13 @@ const form = useForm({
 const programData = ref({
     name: props.program.name || "",
     destination: props.program.destination || "",
-    departure_date: props.program.departure_date || "",
-    description: props.program.description || "",
-    pilar_aventura: props.program.pilar_aventura || "",
-    pilar_entretenimiento: props.program.pilar_entretenimiento || "",
-    pilar_educacion: props.program.pilar_educacion || "",
-    pilar_seguridad: props.program.pilar_seguridad || "",
-    itinerary: props.program.itinerary || "",
+    departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
+    description: props.program.trip_description || "", // Usar trip_description de la BD
+    pilar_1: "", // Se procesará desde pillars
+    pilar_2: "", // Se procesará desde pillars
+    pilar_3: "", // Se procesará desde pillars
+    pilar_4: "", // Se procesará desde pillars
+    itinerary: props.program.itinerary_description || "", // Usar itinerary_description de la BD
     itinerary_file: null,
     coverage_file: null,
     equipment_file: null,
@@ -108,30 +139,81 @@ const programData = ref({
 
 // Datos del detalle administrativo que se sincronizan con el componente
 const paymentData = ref({
-    total_price: props.program.total_price || "",
-    final_payment_date: props.program.final_payment_date || "",
-    sales_person: props.program.sales_person || "",
-    institution_name: props.program.institution_name || "",
-    education_level: props.program.education_level || "",
-    shift: props.program.shift || "",
-    grade: props.program.grade || "",
+    total_price: props.program.trip_price || "",
+    final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
+    sales_person: props.program.seller_name || "",
+    institution_id: props.program.course?.institution_id || "",
+    institution_name: props.program.course?.institution?.name || "",
+    education_level: mapEducationLevel(props.program.course?.education_level) || "",
+    shift: props.program.course?.shift || "",
+    grade: props.program.course?.grade || "",
     students_file: null,
     group_benefit: props.program.group_benefit || "",
-    payment_option: props.program.payment_option || "",
-    full_payment_method: props.program.full_payment_method || "",
-    installments_payment_method:
-        props.program.installments_payment_method || "",
+    discount_type: props.program.discount_type || "",
+    payment_option: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: props.program.payment_method?.name || "",
+    installments_payment_method: props.program.payment_method?.name || "",
     max_installments: props.program.max_installments || "",
 });
 
 // Imágenes existentes (desde la base de datos)
-const existingImages = ref(props.program.images || []);
+const existingImages = ref([]);
+
+// Cargar imágenes existentes desde la carpeta del programa
+if (props.program.images && props.program.images.length > 0) {
+    existingImages.value = props.program.images.map((image, index) => ({
+        id: `existing-${index}`,
+        url: image.url,
+        name: image.filename || `Imagen ${index + 1}`,
+        isExisting: true,
+        originalId: index,
+    }));
+}
+
+console.log('Existing images:', existingImages.value);
 
 // Archivos existentes (desde la base de datos)
 const existingFiles = ref({
-    itinerary_file: props.program.itinerary_file || null,
-    coverage_file: props.program.coverage_file || null,
-    equipment_file: props.program.equipment_file || null,
+    itinerary_file: props.program.itinerary_file_url || null,
+    coverage_file: props.program.travel_assistance_coverage_url || null,
+    equipment_file: props.program.equipment_list_url || null,
+});
+
+// Debug para verificar datos cargados
+console.log('Programa cargado:', {
+    name: props.program.name,
+    description: props.program.trip_description,
+    itinerary: props.program.itinerary_description,
+    pillars: props.program.pillars,
+    images: props.program.images,
+    images_folder: props.program.images_folder,
+    itinerary_file: props.program.itinerary_file,
+    itinerary_file_url: props.program.itinerary_file_url,
+    coverage_file: props.program.travel_assistance_coverage,
+    coverage_file_url: props.program.travel_assistance_coverage_url,
+    equipment_file: props.program.equipment_list,
+    equipment_file_url: props.program.equipment_list_url
+});
+
+console.log('Existing files:', existingFiles.value);
+
+// Debug para verificar datos de pago
+console.log('Datos de pago cargados:', {
+    total_price: props.program.trip_price,
+    final_payment_date: props.program.final_payment_date,
+    final_payment_date_formatted: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : null,
+    sales_person: props.program.seller_name,
+    education_level_original: props.program.course?.education_level,
+    education_level_mapped: mapEducationLevel(props.program.course?.education_level),
+    institution_name: props.program.course?.institution?.name,
+    shift: props.program.course?.shift,
+    grade: props.program.course?.grade,
+    payment_mode_id: props.program.payment_mode_id,
+    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: props.program.full_payment_method,
+    installments_payment_method: props.program.installments_payment_method,
+    max_installments: props.program.max_installments,
+    discount_type: props.program.discount_type
 });
 
 // Estado de pago (datos de ejemplo - en el futuro vendrán de la BD)
@@ -144,6 +226,26 @@ const paymentStatus = ref({
 
 // Estado para las nuevas imágenes
 const selectedImages = ref([]);
+
+// Función para procesar los pilares desde la base de datos
+const processPillars = (pillarsString) => {
+    if (!pillarsString) return { pilar_1: "", pilar_2: "", pilar_3: "", pilar_4: "" };
+    
+    const pillars = pillarsString.split(',').map(p => p.trim());
+    return {
+        pilar_1: pillars[0] || "",
+        pilar_2: pillars[1] || "",
+        pilar_3: pillars[2] || "",
+        pilar_4: pillars[3] || "",
+    };
+};
+
+// Procesar los pilares desde la base de datos
+const pillarsData = processPillars(props.program.pillars);
+programData.value.pilar_1 = pillarsData.pilar_1;
+programData.value.pilar_2 = pillarsData.pilar_2;
+programData.value.pilar_3 = pillarsData.pilar_3;
+programData.value.pilar_4 = pillarsData.pilar_4;
 
 // Función para actualizar las imágenes desde el componente
 const updateImages = (images) => {
@@ -162,6 +264,14 @@ const markFileForDeletion = (fileType) => {
     if (!form.filesToDelete.includes(fileType)) {
         form.filesToDelete.push(fileType);
     }
+};
+
+// Función para manejar el botón Editar Grupo
+const handleEditGroup = () => {
+    // Aquí puedes implementar la lógica para editar el grupo
+    console.log('Editar grupo clicked');
+    // Por ejemplo, redirigir a una página de edición de participantes
+    // window.location.href = route('admin.programs.participants', props.program.id);
 };
 
 const submit = () => {

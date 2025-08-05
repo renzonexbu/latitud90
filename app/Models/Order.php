@@ -13,6 +13,7 @@ class Order extends Model
         'participant_id',
         'payment_method_id',
         'payment_mode_id',
+        'payment_gateway_id',
         'buyer_first_name',
         'buyer_last_name',
         'buyer_email',
@@ -52,6 +53,11 @@ class Order extends Model
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);
+    }
+
+    public function paymentGateway()
+    {
+        return $this->belongsTo(PaymentGateway::class);
     }
 
     public function payments()

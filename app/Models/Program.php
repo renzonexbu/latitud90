@@ -25,7 +25,12 @@ class Program extends Model
         'final_payment_date',
         'seller_name',
         'payment_mode_id',
+        'payment_method_id',
+        'max_installments',
+        'discount_type',
+        'discount_value',
         'course_id',
+        'created_by',
         'active'
     ];
 
@@ -33,7 +38,15 @@ class Program extends Model
         'departure_date' => 'date',
         'final_payment_date' => 'date',
         'trip_price' => 'decimal:2',
+        'discount_value' => 'decimal:2',
         'active' => 'boolean'
+    ];
+
+    protected $appends = [
+        'itinerary_file_url',
+        'travel_assistance_coverage_url',
+        'equipment_list_url',
+        'images'
     ];
 
     public function paymentMode()
@@ -41,9 +54,24 @@ class Program extends Model
         return $this->belongsTo(PaymentMode::class);
     }
 
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
     public function course()
     {
         return $this->belongsTo(Course::class);
+    }
+
+    public function courses()
+    {
+        return $this->hasMany(Course::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function participants()
@@ -85,7 +113,11 @@ class Program extends Model
      */
     public function getItineraryFileUrlAttribute()
     {
-        return $this->itinerary_file ? asset('storage/' . $this->itinerary_file) : null;
+        if (!$this->itinerary_file) return null;
+        
+        // Remover 'public/' del inicio si existe
+        $path = str_replace('public/', '', $this->itinerary_file);
+        return asset('storage/' . $path);
     }
 
     /**
@@ -93,7 +125,11 @@ class Program extends Model
      */
     public function getTravelAssistanceCoverageUrlAttribute()
     {
-        return $this->travel_assistance_coverage ? asset('storage/' . $this->travel_assistance_coverage) : null;
+        if (!$this->travel_assistance_coverage) return null;
+        
+        // Remover 'public/' del inicio si existe
+        $path = str_replace('public/', '', $this->travel_assistance_coverage);
+        return asset('storage/' . $path);
     }
 
     /**
@@ -101,7 +137,11 @@ class Program extends Model
      */
     public function getEquipmentListUrlAttribute()
     {
-        return $this->equipment_list ? asset('storage/' . $this->equipment_list) : null;
+        if (!$this->equipment_list) return null;
+        
+        // Remover 'public/' del inicio si existe
+        $path = str_replace('public/', '', $this->equipment_list);
+        return asset('storage/' . $path);
     }
 
     /**
@@ -114,12 +154,18 @@ class Program extends Model
             return [];
         }
 
-        $path = storage_path('app/public/' . $this->images_folder);
+        // Construir la ruta correcta para las imágenes (están en storage/app/public)
+        $relativePath = str_replace('public/', '', $this->images_folder);
+        $path = storage_path('app/public/' . $relativePath);
+        
         Log::info('Buscando imágenes en ruta', [
             'program_id' => $this->id,
             'images_folder' => $this->images_folder,
+            'relative_path' => $relativePath,
             'full_path' => $path,
-            'path_exists' => is_dir($path)
+            'path_exists' => is_dir($path),
+            'storage_path' => storage_path('app/public'),
+            'public_path' => public_path()
         ]);
         
         if (!is_dir($path)) {
@@ -143,8 +189,8 @@ class Program extends Model
             $filename = basename($file);
             $images[] = [
                 'filename' => $filename,
-                'url' => asset('storage/' . $this->images_folder . '/' . $filename),
-                'path' => $this->images_folder . '/' . $filename
+                'url' => asset('storage/' . $relativePath . '/' . $filename),
+                'path' => $relativePath . '/' . $filename
             ];
         }
 

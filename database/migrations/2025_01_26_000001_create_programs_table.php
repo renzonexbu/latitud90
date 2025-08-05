@@ -27,6 +27,11 @@ return new class extends Migration
             $table->date('final_payment_date');
             $table->string('seller_name');
             $table->foreignId('payment_mode_id')->constrained('payment_modes');
+            $table->foreignId('payment_method_id')->nullable()->constrained('payment_methods'); // Método de pago seleccionado
+            $table->integer('max_installments')->nullable(); // Máximo número de cuotas para Lat90
+            $table->string('discount_type')->nullable(); // Tipo de descuento (porcentaje, monto fijo, etc.)
+            $table->decimal('discount_value', 10, 2)->nullable(); // Valor del descuento (0.1 para 10%, 200 para $200, etc.)
+            $table->foreignId('created_by')->nullable()->constrained('users'); // Usuario que creó el programa
             $table->boolean('active')->default(true);
             $table->timestamps();
         });
