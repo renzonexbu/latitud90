@@ -8,6 +8,8 @@ use App\Models\Course;
 use App\Models\Participant;
 use App\Models\Institution;
 use App\Services\Admin\Participants\CreateParticipantService;
+use App\Services\Admin\Participants\UpdateParticipatService;
+use App\Services\Admin\Participants\UpdateMedicalConditionsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -15,10 +17,17 @@ use Inertia\Inertia;
 class ParticipantsController extends Controller
 {
     protected $createParticipantService;
+    protected $updateParticipantService;
+    protected $updateMedicalConditionsService;
 
-    public function __construct(CreateParticipantService $createParticipantService)
-    {
+    public function __construct(
+        CreateParticipantService $createParticipantService,
+        UpdateParticipatService $updateParticipantService,
+        UpdateMedicalConditionsService $updateMedicalConditionsService
+    ) {
         $this->createParticipantService = $createParticipantService;
+        $this->updateParticipantService = $updateParticipantService;
+        $this->updateMedicalConditionsService = $updateMedicalConditionsService;
     }
 
     /**
@@ -126,10 +135,18 @@ class ParticipantsController extends Controller
      */
     public function edit(Participant $participant)
     {
-        $participant->load(['course']);
+        $participant->load(['course', 'course.institution', 'course.program']);
+        
+        // Buscar todos los programas relacionados al RUT del participante
+        $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
+            $query->where('document_number', $participant->document_number)
+                  ->where('document_type', $participant->document_type)
+                  ->where('country', $participant->country);
+        })->with(['course', 'course.institution'])->get();
         
         return Inertia::render('Admin/Participants/Edit', [
-            'participant' => $participant
+            'participant' => $participant,
+            'participantPrograms' => $participantPrograms
         ]);
     }
 
@@ -138,29 +155,56 @@ class ParticipantsController extends Controller
      */
     public function update(Request $request, Participant $participant)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'code_phone' => 'required|string|max:10',
-            'phone' => 'required|string|max:20',
-            'document_type' => 'required|string|max:50',
-            'document_number' => 'required|string|max:20',
-            'country' => 'required|string|max:100',
-            'birth_date' => 'required|date',
-            'address' => 'nullable|string',
-            'dietary_restrictions' => 'nullable|string',
-            'medical_conditions' => 'nullable|string',
-            'individual_price' => 'required|numeric|min:0',
-            'price_adjustments' => 'nullable|numeric',
-            'adjustment_reason' => 'nullable|string',
-            'status' => 'required|in:pending_payment,confirmed,cancelled',
-        ]);
+        try {
+            $validated = $request->validate([
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'email' => 'nullable|email|max:255',
+                'code_phone' => 'nullable|string|max:10',
+                'phone' => 'nullable|string|max:20',
+                'document_number' => 'required|string|max:20',
+                'birth_date' => 'nullable|date',
+            ]);
 
-        $participant->update($validated);
+            // Usar el servicio para actualizar
+            $this->updateParticipantService->execute($validated, $participant);
 
-        return redirect()->route('admin.participants.index')
-            ->with('message', 'Participante actualizado exitosamente.');
+            return back()->with('success', 'Participante actualizado exitosamente.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en controlador al actualizar participante', [
+                'participant_id' => $participant->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors(['error' => 'Error al actualizar el participante: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update medical conditions of a participant.
+     */
+    public function updateMedicalConditions(Request $request, Participant $participant)
+    {
+        try {
+            $validated = $request->validate([
+                'medical_conditions' => 'nullable|string',
+                'dietary_restrictions' => 'nullable|string',
+            ]);
+
+            // Usar el servicio específico para condiciones médicas
+            $this->updateMedicalConditionsService->execute($validated, $participant);
+
+            return back()->with('success', 'Condiciones médicas actualizadas exitosamente.');
+
+        } catch (\Exception $e) {
+            Log::error('Error en controlador al actualizar condiciones médicas', [
+                'participant_id' => $participant->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withErrors(['error' => 'Error al actualizar las condiciones médicas: ' . $e->getMessage()]);
+        }
     }
 
     /**

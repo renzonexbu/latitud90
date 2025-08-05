@@ -365,9 +365,6 @@ class UpdateProgramService
     private function processParticipants($file, Course $course, Program $program): void
     {
         try {
-            // Eliminar participantes existentes si se sube un nuevo archivo
-            $course->participants()->delete();
-            
             Log::info('Iniciando procesamiento de participantes', [
                 'course_id' => $course->id,
                 'program_id' => $program->id
@@ -407,7 +404,9 @@ class UpdateProgramService
             
             // Mapear headers a campos de participantes
             $participantCount = 0;
-            $participants = []; // Array para almacenar los participantes creados
+            $updatedCount = 0;
+            $createdCount = 0;
+            $participants = []; // Array para almacenar los participantes procesados
             
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
@@ -422,63 +421,133 @@ class UpdateProgramService
                 }
                 
                 $participantData = array_combine($headers, $row);
+                $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
                 
                 Log::info('Procesando participante', [
                     'row_index' => $rowIndex,
                     'nombre' => $participantData['Nombre'] ?? 'N/A',
-                    'apellido' => $participantData['Apellido'] ?? 'N/A'
+                    'apellido' => $participantData['Apellido'] ?? 'N/A',
+                    'rut' => $cleanRut
                 ]);
                 
-                // Crear participante (sin precio individual por ahora)
-                $participant = Participant::create([
+                // Verificar si ya existe un participante con la misma clave única (curso + document_number + document_type + country)
+                $documentType = $this->getDocumentType($participantData);
+                $existingParticipant = Participant::where('course_id', $course->id)
+                    ->where('document_number', $cleanRut)
+                    ->where('document_type', $documentType)
+                    ->where('country', 'CL')
+                    ->first();
+                
+                if ($existingParticipant) {
+                    // UPDATE: Actualizar participante existente
+                                    Log::info('Participante existente encontrado en el mismo curso, actualizando', [
+                    'participant_id' => $existingParticipant->id,
+                    'rut' => $cleanRut,
                     'course_id' => $course->id,
-                    'first_name' => $participantData['Nombre'] ?? '',
-                    'last_name' => $participantData['Apellido'] ?? '',
-                    'email' => $participantData['Email'] ?? '',
-                    'code_phone' => '+56', // Código por defecto para Chile
-                    'phone' => $participantData['Teléfono'] ?? '',
-                    'document_type' => $this->getDocumentType($participantData),
-                    'document_number' => $this->cleanRut($participantData['RUT'] ?? ''),
-                    'country' => 'CL', // Chile por defecto
-                    'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
-                    'address' => $participantData['Dirección'] ?? null,
-                    'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-                    'medical_conditions' => $participantData['Condición médica'] ?? null,
-                    'status' => 'pending_payment',
-                    'registration_date' => now(),
-                    'individual_price' => 0, // Se calculará después
-                    'price_adjustments' => 0,
+                    'document_type' => $documentType
                 ]);
+                    
+                    $existingParticipant->update([
+                        'course_id' => $course->id,
+                        'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
+                        'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
+                        'email' => $participantData['Email'] ?? $existingParticipant->email,
+                        'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
+                        'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
+                        'address' => $participantData['Dirección'] ?? $existingParticipant->address,
+                        'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
+                        'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                    ]);
+                    
+                    $participant = $existingParticipant;
+                    $updatedCount++;
+                    
+                    Log::info('Participante actualizado', [
+                        'participant_id' => $participant->id,
+                        'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
+                    ]);
+                } else {
+                    // CREATE: Crear nuevo participante
+                    Log::info('Creando nuevo participante (no existe en este curso)', [
+                        'rut' => $cleanRut,
+                        'course_id' => $course->id,
+                        'document_type' => $documentType
+                    ]);
+                    
+                    $participant = Participant::create([
+                        'course_id' => $course->id,
+                        'first_name' => $participantData['Nombre'] ?? '',
+                        'last_name' => $participantData['Apellido'] ?? '',
+                        'email' => $participantData['Email'] ?? '',
+                        'code_phone' => '+56', // Código por defecto para Chile
+                        'phone' => $participantData['Teléfono'] ?? '',
+                        'document_type' => $this->getDocumentType($participantData),
+                        'document_number' => $cleanRut,
+                        'country' => 'CL', // Chile por defecto
+                        'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
+                        'address' => $participantData['Dirección'] ?? null,
+                        'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
+                        'medical_conditions' => $participantData['Condición médica'] ?? null,
+                        'status' => 'pending_payment',
+                        'registration_date' => now(),
+                        'individual_price' => 0, // Se calculará después
+                        'price_adjustments' => 0,
+                    ]);
+                    
+                    $createdCount++;
+                    
+                    Log::info('Participante creado', [
+                        'participant_id' => $participant->id,
+                        'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
+                    ]);
+                }
                 
                 $participants[] = $participant; // Guardar referencia al participante
                 
-                Log::info('Participante creado', [
-                    'participant_id' => $participant->id,
-                    'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
-                ]);
-                
-                // Crear contacto de emergencia
+                // Manejar contacto de emergencia
                 if (!empty($participantData['Nombre contacto emergencia']) && 
                     !empty($participantData['Apellido contacto emergencia'])) {
                     
-                    $emergencyContact = EmergencyContact::create([
-                        'first_name' => $participantData['Nombre contacto emergencia'],
-                        'last_name' => $participantData['Apellido contacto emergencia'],
-                        'email' => $participantData['Email contacto emergencia'] ?? '',
-                        'code_phone' => '+56', // Código por defecto para Chile
-                        'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
-                        'country' => 'CL', // Chile por defecto
-                        'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
-                        'address' => null,
-                        'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
-                        'participant_id' => $participant->id,
-                    ]);
+                    // Verificar si ya existe un contacto de emergencia para este participante
+                    $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
                     
-                    Log::info('Contacto de emergencia creado', [
-                        'emergency_contact_id' => $emergencyContact->id,
-                        'participant_id' => $participant->id,
-                        'nombre_completo' => $emergencyContact->first_name . ' ' . $emergencyContact->last_name
-                    ]);
+                    if ($existingEmergencyContact) {
+                        // UPDATE: Actualizar contacto de emergencia existente
+                        $existingEmergencyContact->update([
+                            'first_name' => $participantData['Nombre contacto emergencia'],
+                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'email' => $participantData['Email contacto emergencia'] ?? $existingEmergencyContact->email,
+                            'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
+                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
+                            'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
+                        ]);
+                        
+                        Log::info('Contacto de emergencia actualizado', [
+                            'emergency_contact_id' => $existingEmergencyContact->id,
+                            'participant_id' => $participant->id,
+                            'nombre_completo' => $existingEmergencyContact->first_name . ' ' . $existingEmergencyContact->last_name
+                        ]);
+                    } else {
+                        // CREATE: Crear nuevo contacto de emergencia
+                        $emergencyContact = EmergencyContact::create([
+                            'first_name' => $participantData['Nombre contacto emergencia'],
+                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'email' => $participantData['Email contacto emergencia'] ?? '',
+                            'code_phone' => '+56', // Código por defecto para Chile
+                            'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
+                            'country' => 'CL', // Chile por defecto
+                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
+                            'address' => null,
+                            'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
+                            'participant_id' => $participant->id,
+                        ]);
+                        
+                        Log::info('Contacto de emergencia creado', [
+                            'emergency_contact_id' => $emergencyContact->id,
+                            'participant_id' => $participant->id,
+                            'nombre_completo' => $emergencyContact->first_name . ' ' . $emergencyContact->last_name
+                        ]);
+                    }
                 } else {
                     Log::warning('No se creó contacto de emergencia - datos faltantes', [
                         'participant_id' => $participant->id,
@@ -507,7 +576,9 @@ class UpdateProgramService
             }
             
             Log::info('Procesamiento completado', [
-                'total_participants_created' => $participantCount,
+                'total_participants_processed' => $participantCount,
+                'participants_created' => $createdCount,
+                'participants_updated' => $updatedCount,
                 'course_id' => $course->id
             ]);
             

@@ -11,3 +11,6 @@ Route::post('participants/{participant}/toggle-status', [ParticipantsController:
 Route::post('participants/bulk-action', [ParticipantsController::class, 'bulkAction'])->name('participants.bulk-action');
 Route::get('participants/{participant}/payments', [ParticipantsController::class, 'payments'])->name('participants.payments');
 Route::get('participants/export', [ParticipantsController::class, 'export'])->name('participants.export');
+
+// Medical conditions route
+Route::put('participants/{participant}/medical-conditions', [ParticipantsController::class, 'updateMedicalConditions'])->name('participants.update-medical-conditions');

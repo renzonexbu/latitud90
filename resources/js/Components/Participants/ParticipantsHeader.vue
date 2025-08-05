@@ -12,6 +12,15 @@
             <div class="text-[20px] leading-7 font-normal text-[#5b5b5b] font-nexa-regular">
                 {{ subtitle }}
             </div>
+            <div v-if="participantName" class="flex flex-row gap-2 items-center">
+                <div class="w-0 h-[35px] relative overflow-visible">
+                    <!-- Vector separator -->
+                    <div class="w-px h-full bg-gray-300"></div>
+                </div>
+                <div class="text-[20px] leading-7 font-normal text-[#5b5b5b] font-nexa-regular">
+                    {{ participantName }}
+                </div>
+            </div>
         </div>
 
         <!-- Right side - Action buttons -->
@@ -74,6 +83,11 @@ export default {
         showCreateButton: {
             type: Boolean,
             default: false
+        },
+
+        participantName: {
+            type: String,
+            default: null
         }
     },
     methods: {
