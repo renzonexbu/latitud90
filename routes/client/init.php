@@ -4,8 +4,12 @@ use App\Http\Controllers\EcommerceController;
 use App\Http\Controllers\PaymentGatewayController;
 use Illuminate\Support\Facades\Route;
 
-// Rutas públicas de ecommerce
+
+//Homepage
 Route::get('/', [EcommerceController::class, 'index'])->name('ecommerce.index');
+
+
+
 Route::get('/ecommerce', [EcommerceController::class, 'index'])->name('ecommerce.home');
 Route::get('/terminos-y-condiciones', [EcommerceController::class, 'termsAndConditions'])->name('ecommerce.terms-and-conditions');
 Route::get('/programa/{program}', [EcommerceController::class, 'show'])->name('ecommerce.show');

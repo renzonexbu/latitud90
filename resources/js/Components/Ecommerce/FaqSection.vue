@@ -1,5 +1,5 @@
 <template>
-  <section class="faq-section" style="background: #007E93;">
+  <section class="faq-section" style="background: #007E93;" id="faq">
     <div class="faq-container">
       <!-- Headings Section -->
       <div class="headings">

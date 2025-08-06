@@ -1,5 +1,5 @@
 <template>
-  <div class="contact-section">
+  <div class="contact-section" id="contact">
     <div class="contact-container">
       <!-- Imagen a la izquierda -->
       <div class="contact-image">

@@ -9,7 +9,7 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-include __DIR__.'/ecommerce.php';
+include __DIR__.'/client/init.php';
 include __DIR__.'/admin/init.php';
 
 require __DIR__.'/auth.php';
