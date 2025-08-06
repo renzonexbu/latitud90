@@ -42,4 +42,20 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the courses created by this user.
+     */
+    public function courses()
+    {
+        return $this->hasMany(Course::class, 'created_by');
+    }
+
+    /**
+     * Get the programs created by this user.
+     */
+    public function programs()
+    {
+        return $this->hasMany(Program::class, 'created_by');
+    }
 }

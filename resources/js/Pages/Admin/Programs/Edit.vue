@@ -1,445 +1,442 @@
 <template>
-  <AdminLayout>
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div class="md:grid md:grid-cols-3 md:gap-6">
-        <div class="md:col-span-1">
-          <div class="px-4 sm:px-0">
-            <h3 class="text-lg font-medium leading-6 text-gray-900">
-              Editar Programa
-            </h3>
-            <p class="mt-1 text-sm text-gray-600">
-              Modifica la información del programa de viaje.
-            </p>
-          </div>
-        </div>
-        <div class="mt-5 md:mt-0 md:col-span-2">
-          <form
-            @submit.prevent="submit"
-            enctype="multipart/form-data">
-            <div class="shadow sm:rounded-md sm:overflow-hidden">
-              <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
-                <!-- Información básica -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6">
-                    <label
-                      for="name"
-                      class="block text-sm font-medium text-gray-700"
-                      >Nombre del Programa</label
-                    >
-                    <input
-                      type="text"
-                      id="name"
-                      v-model="form.name"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.name }" />
-                    <div
-                      v-if="form.errors.name"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.name }}
-                    </div>
-                  </div>
+    <AdminLayout>
+        <Head title="Editar Programa" />
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="service_type"
-                      class="block text-sm font-medium text-gray-700"
-                      >Tipo de Servicio</label
-                    >
-                    <select
-                      id="service_type"
-                      v-model="form.service_type"
-                      class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      :class="{ 'border-red-500': form.errors.service_type }">
-                      <option value="">Seleccionar tipo</option>
-                      <option value="tours">Tours</option>
-                      <option value="excursiones">Excursiones</option>
-                      <option value="intercambio">Intercambio</option>
-                      <option value="cruceros">Cruceros</option>
-                    </select>
-                    <div
-                      v-if="form.errors.service_type"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.service_type }}
-                    </div>
-                  </div>
+        <div class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="custom-grid gap-8">
+                    <!-- Componente de Descripción del Programa -->
+                    <ProgramDescription
+                        v-model="programData"
+                        mode="edit"
+                        :existing-images="existingImages"
+                        :existing-files="existingFiles"
+                        @update:images="updateImages"
+                        @remove:existingImage="markImageForDeletion"
+                        @remove:existingFile="markFileForDeletion"
+                    />
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="destination"
-                      class="block text-sm font-medium text-gray-700"
-                      >Destino</label
-                    >
-                    <input
-                      type="text"
-                      id="destination"
-                      v-model="form.destination"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.destination }" />
-                    <div
-                      v-if="form.errors.destination"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.destination }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6">
-                    <label
-                      for="description"
-                      class="block text-sm font-medium text-gray-700"
-                      >Descripción</label
-                    >
-                    <textarea
-                      id="description"
-                      v-model="form.description"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.description
-                      }"></textarea>
-                    <div
-                      v-if="form.errors.description"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.description }}
-                    </div>
-                  </div>
+                    <!-- Componente de Detalle Administrativo -->
+                    <PaymentDetails
+                        v-model="paymentData"
+                        mode="edit"
+                        :payment-status="paymentStatus"
+                        :institutions="institutions"
+                        :has-participants="program.course && program.course.participants && program.course.participants.length > 0"
+                        :has-existing-course="hasExistingCourse"
+                        @edit-group="handleEditGroup"
+                    />
                 </div>
 
-                <!-- Fechas y duración -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="departure_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Salida</label
+                <!-- Botón de actualizar centrado debajo de ambos cards -->
+                <div class="flex justify-center mt-8">
+                    <button
+                        @click="submit"
+                        :disabled="form.processing"
+                        class="bg-[#007e93] hover:bg-[#006b7a] disabled:opacity-50 disabled:cursor-not-allowed rounded-full py-4 px-8 text-white font-bold text-lg transition-colors duration-200"
                     >
-                    <input
-                      type="date"
-                      id="departure_date"
-                      v-model="form.departure_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.departure_date
-                      }" />
-                    <div
-                      v-if="form.errors.departure_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.departure_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="return_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Regreso</label
-                    >
-                    <input
-                      type="date"
-                      id="return_date"
-                      v-model="form.return_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.return_date }" />
-                    <div
-                      v-if="form.errors.return_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.return_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="duration_days"
-                      class="block text-sm font-medium text-gray-700"
-                      >Duración (días)</label
-                    >
-                    <input
-                      type="number"
-                      id="duration_days"
-                      v-model="form.duration_days"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.duration_days
-                      }" />
-                    <div
-                      v-if="form.errors.duration_days"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.duration_days }}
-                    </div>
-                  </div>
+                        {{
+                            form.processing
+                                ? "Actualizando..."
+                                : "Actualizar Programa"
+                        }}
+                    </button>
                 </div>
-
-                <!-- Capacidad y precio -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="capacity"
-                      class="block text-sm font-medium text-gray-700"
-                      >Capacidad (personas)</label
-                    >
-                    <input
-                      type="number"
-                      id="capacity"
-                      v-model="form.capacity"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.capacity }" />
-                    <div
-                      v-if="form.errors.capacity"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.capacity }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="base_price"
-                      class="block text-sm font-medium text-gray-700"
-                      >Precio Base (CLP)</label
-                    >
-                    <input
-                      type="number"
-                      id="base_price"
-                      v-model="form.base_price"
-                      min="0"
-                      step="0.01"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.base_price }" />
-                    <div
-                      v-if="form.errors.base_price"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.base_price }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Imagen -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700"
-                    >Imagen del Programa</label
-                  >
-                  <div class="mt-1">
-                    <!-- Imagen actual -->
-                    <div
-                      v-if="currentImageUrl && !imagePreview"
-                      class="mb-4">
-                      <img
-                        :src="currentImageUrl"
-                        alt="Imagen actual"
-                        class="h-32 w-auto object-cover rounded-lg" />
-                      <p class="text-sm text-gray-500 mt-1">Imagen actual</p>
-                    </div>
-
-                    <!-- Nueva imagen previsualizada -->
-                    <div
-                      v-if="imagePreview"
-                      class="mb-4">
-                      <img
-                        :src="imagePreview"
-                        alt="Preview"
-                        class="h-32 w-auto object-cover rounded-lg" />
-                      <p class="text-sm text-gray-500 mt-1">Nueva imagen</p>
-                    </div>
-
-                    <div
-                      class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                      <div class="space-y-1 text-center">
-                        <svg
-                          v-if="!imagePreview && !currentImageUrl"
-                          class="mx-auto h-12 w-12 text-gray-400"
-                          stroke="currentColor"
-                          fill="none"
-                          viewBox="0 0 48 48">
-                          <path
-                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round" />
-                        </svg>
-                        <div class="flex text-sm text-gray-600">
-                          <label
-                            for="image"
-                            class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                            <span>{{
-                              currentImageUrl
-                                ? "Cambiar imagen"
-                                : "Subir imagen"
-                            }}</span>
-                            <input
-                              id="image"
-                              type="file"
-                              accept="image/*"
-                              class="sr-only"
-                              @change="handleImageChange" />
-                          </label>
-                          <p class="pl-1">o arrastrar y soltar</p>
-                        </div>
-                        <p class="text-xs text-gray-500">
-                          PNG, JPG, GIF hasta 2MB
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    v-if="form.errors.image"
-                    class="mt-2 text-sm text-red-600">
-                    {{ form.errors.image }}
-                  </div>
-                </div>
-
-                <!-- Información adicional -->
-                <div class="space-y-4">
-                  <div>
-                    <label
-                      for="includes"
-                      class="block text-sm font-medium text-gray-700"
-                      >Incluye</label
-                    >
-                    <textarea
-                      id="includes"
-                      v-model="form.includes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios incluidos en el programa..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="excludes"
-                      class="block text-sm font-medium text-gray-700"
-                      >No Incluye</label
-                    >
-                    <textarea
-                      id="excludes"
-                      v-model="form.excludes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios no incluidos..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="requirements"
-                      class="block text-sm font-medium text-gray-700"
-                      >Requisitos</label
-                    >
-                    <textarea
-                      id="requirements"
-                      v-model="form.requirements"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Requisitos para participar..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="itinerary"
-                      class="block text-sm font-medium text-gray-700"
-                      >Itinerario</label
-                    >
-                    <textarea
-                      id="itinerary"
-                      v-model="form.itinerary"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Descripción detallada del itinerario..."></textarea>
-                  </div>
-                </div>
-
-                <!-- Estado activo -->
-                <div class="flex items-center">
-                  <input
-                    id="active"
-                    v-model="form.active"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                  <label
-                    for="active"
-                    class="ml-2 block text-sm text-gray-900">
-                    Programa activo (visible para los clientes)
-                  </label>
-                </div>
-              </div>
-              <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
-                <Link
-                  :href="route('admin.programs.index')"
-                  class="mr-3 bg-white border border-gray-300 rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                  Cancelar
-                </Link>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  class="bg-indigo-600 border border-transparent rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
-                  {{
-                    form.processing ? "Actualizando..." : "Actualizar Programa"
-                  }}
-                </button>
-              </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  </AdminLayout>
+    </AdminLayout>
 </template>
 
 <script setup>
-  import { ref, computed } from "vue";
-  import { Link, useForm } from "@inertiajs/vue3";
-  import AdminLayout from "@/Layouts/AdminLayout.vue";
+import { Head, useForm } from "@inertiajs/vue3";
+import { ref, computed } from "vue";
+import AdminLayout from "@/Layouts/AdminLayout.vue";
+import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
+import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
 
-  const props = defineProps({
-    program: Object
-  });
-
-  const imagePreview = ref(null);
-
-  const form = useForm({
-    name: props.program.name,
-    description: props.program.description,
-    service_type: props.program.service_type,
-    destination: props.program.destination,
-    departure_date: props.program.departure_date,
-    return_date: props.program.return_date,
-    duration_days: props.program.duration_days,
-    capacity: props.program.capacity,
-    base_price: props.program.base_price,
-    includes: props.program.includes || "",
-    excludes: props.program.excludes || "",
-    requirements: props.program.requirements || "",
-    itinerary: props.program.itinerary || "",
-    image: null,
-    active: props.program.active
-  });
-
-  const currentImageUrl = computed(() => {
-    return props.program.image_url
-      ? `/storage/${props.program.image_url}`
-      : null;
-  });
-
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      form.image = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imagePreview.value = e.target.result;
-      };
-      reader.readAsDataURL(file);
+const props = defineProps({
+    program: Object,
+    institutions: {
+        type: Array,
+        default: () => []
     }
-  };
+});
 
-  const submit = () => {
-    form
-      .transform((data) => ({
-        ...data,
-        _method: "patch"
-      }))
-      .post(route("admin.programs.update", props.program.id), {
-        onSuccess: () => {
-          // Redirige automáticamente después del éxito
+// Función para mapear nivel de educación desde BD al frontend
+const mapEducationLevel = (level) => {
+    const mapping = {
+        'preescolar': 'inicial',
+        'primaria': 'primario',
+        'secundaria': 'secundario',
+        'universitaria': 'universitario'
+    };
+    return mapping[level] || level;
+};
+
+// Función para mapear payment_mode_id a opciones del frontend
+const mapPaymentOption = (paymentModeId) => {
+    if (!paymentModeId) return "";
+    // Mapping según los ids reales de la tabla payment_modes
+    const mapping = {
+        1: 'full_payment',
+        2: 'installments',
+        3: 'installments', // Asumiendo que el ID 3 también es para cuotas
+    };
+    return mapping[paymentModeId] || "";
+};
+
+// Función para mapear payment_method_id a opciones del frontend
+const mapPaymentMethod = (paymentMethodId) => {
+    const mapping = {
+        1: 'todos_medios',
+        2: 'solo_tarjeta',
+        3: 'solo_transferencia',
+        4: 'solo_contado',
+    };
+    return mapping[paymentMethodId] || "";
+};
+
+const form = useForm({
+    // Campos del programa
+    name: props.program.name || "",
+    destination: props.program.destination || "",
+    departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
+    description: props.program.trip_description || "", // Usar trip_description de la BD
+    pilar_1: "", // Se procesará desde pillars
+    pilar_2: "", // Se procesará desde pillars
+    pilar_3: "", // Se procesará desde pillars
+    pilar_4: "", // Se procesará desde pillars
+    itinerary: props.program.itinerary_description || "", // Usar itinerary_description de la BD
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+    images: [],
+    // Campos del detalle administrativo
+    total_price: props.program.trip_price || "",
+    final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
+    sales_person: props.program.seller_name || "",
+    institution_id: props.program.course?.institution_id || "",
+    institution_name: props.program.course?.institution?.name || "",
+    education_level: mapEducationLevel(props.program.course?.education_level) || "",
+    shift: props.program.course?.shift || "",
+    grade: props.program.course?.grade || "",
+    students_file: null,
+    group_benefit: props.program.group_benefit || "",
+    discount_type: props.program.discount_type || "",
+    discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
+    payment_option: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
+    active: props.program.active || true,
+    // Control de archivos e imágenes existentes
+    imagesToDelete: [],
+    filesToDelete: [],
+});
+
+// Datos del programa que se sincronizan con el componente
+const programData = ref({
+    name: props.program.name || "",
+    destination: props.program.destination || "",
+    departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
+    description: props.program.trip_description || "", // Usar trip_description de la BD
+    pilar_1: "", // Se procesará desde pillars
+    pilar_2: "", // Se procesará desde pillars
+    pilar_3: "", // Se procesará desde pillars
+    pilar_4: "", // Se procesará desde pillars
+    itinerary: props.program.itinerary_description || "", // Usar itinerary_description de la BD
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+});
+
+// Datos del detalle administrativo que se sincronizan con el componente
+const paymentData = ref({
+    total_price: props.program.trip_price || "",
+    final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
+    sales_person: props.program.seller_name || "",
+    institution_id: props.program.course?.institution_id || "",
+    institution_name: props.program.course?.institution?.name || "",
+    education_level: mapEducationLevel(props.program.course?.education_level) || "",
+    shift: props.program.course?.shift || "",
+    grade: props.program.course?.grade || "",
+    students_file: null,
+    group_benefit: props.program.group_benefit || "",
+    discount_type: props.program.discount_type || "",
+    discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
+    payment_option: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
+    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
+});
+
+// Imágenes existentes (desde la base de datos)
+const existingImages = ref([]);
+
+// Cargar imágenes existentes desde la carpeta del programa
+if (props.program.images && props.program.images.length > 0) {
+    existingImages.value = props.program.images.map((image, index) => ({
+        id: `existing-${index}`,
+        url: image.url,
+        name: image.filename || `Imagen ${index + 1}`,
+        isExisting: true,
+        originalId: index,
+    }));
+}
+
+console.log('Existing images:', existingImages.value);
+
+// Archivos existentes (desde la base de datos)
+const existingFiles = ref({
+    itinerary_file: props.program.itinerary_file_url || null,
+    coverage_file: props.program.travel_assistance_coverage_url || null,
+    equipment_file: props.program.equipment_list_url || null,
+});
+
+// Debug para verificar datos cargados
+console.log('Programa cargado:', {
+    name: props.program.name,
+    description: props.program.trip_description,
+    itinerary: props.program.itinerary_description,
+    pillars: props.program.pillars,
+    images: props.program.images,
+    images_folder: props.program.images_folder,
+    itinerary_file: props.program.itinerary_file,
+    itinerary_file_url: props.program.itinerary_file_url,
+    coverage_file: props.program.travel_assistance_coverage,
+    coverage_file_url: props.program.travel_assistance_coverage_url,
+    equipment_file: props.program.equipment_list,
+    equipment_file_url: props.program.equipment_list_url
+});
+
+console.log('Existing files:', existingFiles.value);
+
+// Debug para verificar datos de pago
+console.log('Datos de pago cargados:', {
+    total_price: props.program.trip_price,
+    final_payment_date: props.program.final_payment_date,
+    final_payment_date_formatted: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : null,
+    sales_person: props.program.seller_name,
+    education_level_original: props.program.course?.education_level,
+    education_level_mapped: mapEducationLevel(props.program.course?.education_level),
+    institution_name: props.program.course?.institution?.name,
+    shift: props.program.course?.shift,
+    payment_mode_id: props.program.payment_mode_id,
+    payment_method_id: props.program.payment_method_id,
+    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
+    payment_method_mapped: mapPaymentMethod(props.program.payment_method_id),
+    grade: props.program.course?.grade,
+    payment_mode_id: props.program.payment_mode_id,
+    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
+    full_payment_method: props.program.full_payment_method,
+    installments_payment_method: props.program.installments_payment_method,
+    max_installments: props.program.max_installments,
+    discount_type: props.program.discount_type
+});
+
+// Estado de pago (datos de ejemplo - en el futuro vendrán de la BD)
+const paymentStatus = ref({
+    paymentPercentage: props.program.id === 1 ? 75 : 50, // 75% para programa 1, 50% para programa 2
+    paidAmount: props.program.id === 1 ? 337500 : 190000,
+    totalAmount: props.program.id === 1 ? 450000 : 380000,
+    remainingAmount: props.program.id === 1 ? 112500 : 190000,
+});
+
+// Estado para las nuevas imágenes
+const selectedImages = ref([]);
+
+// Verificar si ya existe un curso (para deshabilitar campos)
+const hasExistingCourse = computed(() => {
+    return props.program.course !== null && props.program.course !== undefined;
+});
+
+// Función para procesar los pilares desde la base de datos
+const processPillars = (pillarsString) => {
+    if (!pillarsString) return { pilar_1: "", pilar_2: "", pilar_3: "", pilar_4: "" };
+    
+    const pillars = pillarsString.split(',').map(p => p.trim());
+    return {
+        pilar_1: pillars[0] || "",
+        pilar_2: pillars[1] || "",
+        pilar_3: pillars[2] || "",
+        pilar_4: pillars[3] || "",
+    };
+};
+
+// Procesar los pilares desde la base de datos
+const pillarsData = processPillars(props.program.pillars);
+programData.value.pilar_1 = pillarsData.pilar_1;
+programData.value.pilar_2 = pillarsData.pilar_2;
+programData.value.pilar_3 = pillarsData.pilar_3;
+programData.value.pilar_4 = pillarsData.pilar_4;
+
+// Función para actualizar las imágenes desde el componente
+const updateImages = (images) => {
+    selectedImages.value = images;
+};
+
+// Función para marcar imagen existente para eliminar
+const markImageForDeletion = (imageId) => {
+    if (!form.imagesToDelete.includes(imageId)) {
+        form.imagesToDelete.push(imageId);
+    }
+};
+
+// Función para marcar archivo existente para eliminar
+const markFileForDeletion = (fileType) => {
+    if (!form.filesToDelete.includes(fileType)) {
+        form.filesToDelete.push(fileType);
+    }
+};
+
+// Función para manejar el botón Editar Grupo
+const handleEditGroup = () => {
+    // Redirigir al edit de curso con parámetro para abrir modal
+    if (props.program.course) {
+        window.location.href = route('admin.courses.edit', props.program.course.id) + '?openModal=true';
+    } else {
+        console.log('No hay curso asociado a este programa');
+    }
+};
+
+const submit = () => {
+    // Función para comparar valores y solo enviar si cambiaron
+    const shouldSendField = (newValue, originalValue, fieldName) => {
+        // Si el valor nuevo está vacío y el original también, no enviar
+        if (!newValue && !originalValue) return false;
+        
+        // Si el valor nuevo es igual al original, no enviar
+        if (newValue === originalValue) return false;
+        
+        // Si hay un valor nuevo, enviarlo
+        return newValue !== undefined && newValue !== null;
+    };
+
+    // Función para formatear valores según el tipo esperado
+    const formatValue = (value, fieldName) => {
+        if (value === undefined || value === null) return null;
+        
+        switch (fieldName) {
+            case 'max_installments':
+                return value.toString();
+            case 'total_price':
+            case 'discount_amount':
+                // Asegurar que sea string sin decimales si son .00
+                let stringValue = value.toString();
+                if (stringValue.includes('.00')) {
+                    stringValue = stringValue.split('.')[0];
+                }
+                return stringValue;
+            default:
+                return value;
         }
-      });
-  };
+    };
+
+    // Campos del programa - solo enviar si cambiaron
+    if (shouldSendField(programData.value.name, props.program.name, 'name')) {
+        form.name = programData.value.name;
+    }
+    if (shouldSendField(programData.value.destination, props.program.destination, 'destination')) {
+        form.destination = programData.value.destination;
+    }
+    if (shouldSendField(programData.value.departure_date, props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : null, 'departure_date')) {
+        form.departure_date = programData.value.departure_date;
+    }
+    if (shouldSendField(programData.value.description, props.program.trip_description, 'description')) {
+        form.description = programData.value.description;
+    }
+    if (shouldSendField(programData.value.itinerary, props.program.itinerary_description, 'itinerary')) {
+        form.itinerary = programData.value.itinerary;
+    }
+    if (shouldSendField(programData.value.pilar_1, props.program.pillars?.split(',')[0]?.trim() || '', 'pilar_1')) {
+        form.pilar_1 = programData.value.pilar_1;
+    }
+    if (shouldSendField(programData.value.pilar_2, props.program.pillars?.split(',')[1]?.trim() || '', 'pilar_2')) {
+        form.pilar_2 = programData.value.pilar_2;
+    }
+    if (shouldSendField(programData.value.pilar_3, props.program.pillars?.split(',')[2]?.trim() || '', 'pilar_3')) {
+        form.pilar_3 = programData.value.pilar_3;
+    }
+    if (shouldSendField(programData.value.pilar_4, props.program.pillars?.split(',')[3]?.trim() || '', 'pilar_4')) {
+        form.pilar_4 = programData.value.pilar_4;
+    }
+
+    // Campos del detalle administrativo - solo enviar si cambiaron
+    if (shouldSendField(paymentData.value.total_price, props.program.trip_price, 'total_price')) {
+        form.total_price = formatValue(paymentData.value.total_price, 'total_price');
+    }
+    if (shouldSendField(paymentData.value.final_payment_date, props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : null, 'final_payment_date')) {
+        form.final_payment_date = paymentData.value.final_payment_date;
+    }
+    if (shouldSendField(paymentData.value.sales_person, props.program.seller_name, 'sales_person')) {
+        form.sales_person = paymentData.value.sales_person;
+    }
+    if (shouldSendField(paymentData.value.institution_name, props.program.course?.institution?.name, 'institution_name')) {
+        form.institution_name = paymentData.value.institution_name;
+    }
+    if (shouldSendField(paymentData.value.education_level, props.program.course?.education_level, 'education_level')) {
+        form.education_level = paymentData.value.education_level;
+    }
+    if (shouldSendField(paymentData.value.shift, props.program.course?.shift, 'shift')) {
+        form.shift = paymentData.value.shift;
+    }
+    if (shouldSendField(paymentData.value.grade, props.program.course?.grade, 'grade')) {
+        form.grade = paymentData.value.grade;
+    }
+    if (shouldSendField(paymentData.value.discount_type, props.program.discount_type, 'discount_type')) {
+        form.discount_type = paymentData.value.discount_type;
+    }
+    if (shouldSendField(paymentData.value.discount_amount, props.program.discount_value, 'discount_amount')) {
+        form.discount_amount = formatValue(paymentData.value.discount_amount, 'discount_amount');
+    }
+    if (shouldSendField(paymentData.value.payment_option, mapPaymentOption(props.program.payment_mode_id), 'payment_option')) {
+        form.payment_option = paymentData.value.payment_option;
+    }
+    if (shouldSendField(paymentData.value.full_payment_method, mapPaymentMethod(props.program.payment_method_id), 'full_payment_method')) {
+        form.full_payment_method = paymentData.value.full_payment_method;
+    }
+    if (shouldSendField(paymentData.value.installments_payment_method, mapPaymentMethod(props.program.payment_method_id), 'installments_payment_method')) {
+        form.installments_payment_method = paymentData.value.installments_payment_method;
+    }
+    if (shouldSendField(paymentData.value.max_installments, props.program.max_installments, 'max_installments')) {
+        form.max_installments = formatValue(paymentData.value.max_installments, 'max_installments');
+    }
+
+    // Solo enviar nuevas imágenes si hay archivos nuevos
+    const imageFiles = selectedImages.value
+        .filter((img) => !img.isExisting)
+        .map((img) => img.file);
+    if (imageFiles.length > 0) {
+        form.images = imageFiles;
+    }
+
+    // Solo enviar archivos nuevos si realmente hay archivos nuevos
+    if (programData.value.itinerary_file && programData.value.itinerary_file !== props.program.itinerary_file) {
+        form.itinerary_file = programData.value.itinerary_file;
+    }
+    if (programData.value.coverage_file && programData.value.coverage_file !== props.program.travel_assistance_coverage) {
+        form.coverage_file = programData.value.coverage_file;
+    }
+    if (programData.value.equipment_file && programData.value.equipment_file !== props.program.equipment_list) {
+        form.equipment_file = programData.value.equipment_file;
+    }
+    if (paymentData.value.students_file) {
+        form.students_file = paymentData.value.students_file;
+    }
+
+    form.put(route("admin.programs.update", props.program.id));
+};
 </script>
+
+<style scoped>
+.custom-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+    .custom-grid {
+        grid-template-columns: 1.2fr 1fr;
+    }
+}
+</style>

@@ -380,7 +380,7 @@
 
 <script>
   import { Link } from "@inertiajs/vue3";
-  import Header from "@/Components/Header.vue";
+  import Header from "@/Components/Ecommerce/Header.vue";
 
   export default {
     name: "Confirmation",

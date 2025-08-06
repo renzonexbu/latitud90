@@ -12,18 +12,23 @@ class PaymentMethodSeeder extends Seeder
     {
         $paymentMethods = [
             [
-                'name' => 'Transbank',
-                'description' => 'Pagos con tarjeta de débito y crédito a través de Webpay Plus',
+                'name' => 'Todos los medios (Débito/Crédito/Transferencia)',
+                'description' => 'Acepta todos los métodos de pago disponibles',
                 'active' => true
             ],
             [
-                'name' => 'Khipu',
-                'description' => 'Transferencias bancarias a través de Khipu',
+                'name' => 'Solo pago con Tarjeta (Débito/Crédito)',
+                'description' => 'Solo acepta pagos con tarjeta de débito o crédito',
                 'active' => true
             ],
             [
-                'name' => 'Presencial',
-                'description' => 'Pagos presenciales en efectivo o tarjeta',
+                'name' => 'Solo pago transferencia',
+                'description' => 'Solo acepta transferencias bancarias',
+                'active' => true
+            ],
+            [
+                'name' => 'Solo pago contado (Débito/Transferencia)',
+                'description' => 'Solo acepta pagos en efectivo, débito o transferencia',
                 'active' => true
             ]
         ];
@@ -36,8 +41,8 @@ class PaymentMethodSeeder extends Seeder
         }
 
         $this->command->info('✅ Métodos de pago creados exitosamente:');
-        $this->command->info('💳 Transbank (Débito/Crédito)');
-        $this->command->info('🏦 Khipu (Transferencia)');
-        $this->command->info('🏪 Presencial (Efectivo/Tarjeta)');
+        foreach ($paymentMethods as $method) {
+            $this->command->info('💳 ' . $method['name']);
+        }
     }
 }

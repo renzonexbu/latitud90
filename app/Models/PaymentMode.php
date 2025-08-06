@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class PaymentMode extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name',
+        'code',
+        'description',
+        'active'
+    ];
+
+    protected $casts = [
+        'active' => 'boolean'
+    ];
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function paymentMethods()
+    {
+        return $this->belongsToMany(PaymentMethod::class, 'payment_mode_method');
+    }
+} 

@@ -64,21 +64,21 @@
   import { Link, Head } from "@inertiajs/vue3";
   import { ref, reactive } from "vue";
   import { router } from "@inertiajs/vue3";
-  import Header from "@/Components/Header.vue";
-  import Footer from "@/Components/Footer.vue";
-  import Contact from "@/Components/Contact.vue";
-  import Slider from "@/Components/ImageSlider.vue";
-  import HeroSection from "@/Components/HeroSection.vue";
-  import AboutSection from "@/Components/AboutSection.vue";
-  import ExperienceSection from "@/Components/ExperienceSection.vue";
-  import SchoolsSection from "@/Components/SchoolsSection.vue";
-  import CoursesSection from "@/Components/CoursesSection.vue";
-  import TestimonialsSection from "@/Components/TestimonialsSection.vue";
-  import FaqSection from "@/Components/FaqSection.vue";
-  import Modal from "@/Components/Modal.vue";
-  import WelcomePaymentModal from "@/Components/WelcomePaymentModal.vue";
-  import LogoCarousel from "@/Components/LogoCarousel.vue";
-  import TransformSection from "@/Components/TransformSection.vue";
+  import Header from "@/Components/Ecommerce/Header.vue";
+  import Footer from "@/Components/Ecommerce/Footer.vue";
+  import Contact from "@/Components/Ecommerce/Contact.vue";
+  import Slider from "@/Components/Ecommerce/ImageSlider.vue";
+  import HeroSection from "@/Components/Ecommerce/HeroSection.vue";
+  import AboutSection from "@/Components/Ecommerce/AboutSection.vue";
+  import ExperienceSection from "@/Components/Ecommerce/ExperienceSection.vue";
+  import SchoolsSection from "@/Components/Ecommerce/SchoolsSection.vue";
+  import CoursesSection from "@/Components/Ecommerce/CoursesSection.vue";
+  import TestimonialsSection from "@/Components/Ecommerce/TestimonialsSection.vue";
+  import FaqSection from "@/Components/Ecommerce/FaqSection.vue";
+  import Modal from "@/Components/Ecommerce/Modal.vue";
+  import WelcomePaymentModal from "@/Components/Ecommerce/WelcomePaymentModal.vue";
+  import LogoCarousel from "@/Components/Ecommerce/LogoCarousel.vue"; 
+  import TransformSection from "@/Components/Ecommerce/TransformSection.vue";
 
   export default {
     components: {

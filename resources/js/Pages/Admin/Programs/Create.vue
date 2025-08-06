@@ -1,409 +1,416 @@
 <template>
-  <AdminLayout>
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div class="md:grid md:grid-cols-3 md:gap-6">
-        <div class="md:col-span-1">
-          <div class="px-4 sm:px-0">
-            <h3 class="text-lg font-medium leading-6 text-gray-900">
-              Crear Programa
-            </h3>
-            <p class="mt-1 text-sm text-gray-600">
-              Crea un nuevo programa de viaje, tour, excursión, intercambio o
-              crucero.
-            </p>
-          </div>
-        </div>
-        <div class="mt-5 md:mt-0 md:col-span-2">
-          <form
-            @submit.prevent="submit"
-            enctype="multipart/form-data">
-            <div class="shadow sm:rounded-md sm:overflow-hidden">
-              <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
-                <!-- Información básica -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6">
-                    <label
-                      for="name"
-                      class="block text-sm font-medium text-gray-700"
-                      >Nombre del Programa</label
-                    >
-                    <input
-                      type="text"
-                      id="name"
-                      v-model="form.name"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.name }" />
-                    <div
-                      v-if="form.errors.name"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.name }}
-                    </div>
-                  </div>
+    <AdminLayout>
+        <Head title="Crear Programa" />
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="service_type"
-                      class="block text-sm font-medium text-gray-700"
-                      >Tipo de Servicio</label
-                    >
-                    <select
-                      id="service_type"
-                      v-model="form.service_type"
-                      class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      :class="{ 'border-red-500': form.errors.service_type }">
-                      <option value="">Seleccionar tipo</option>
-                      <option value="tours">Tours</option>
-                      <option value="excursiones">Excursiones</option>
-                      <option value="intercambio">Intercambio</option>
-                      <option value="cruceros">Cruceros</option>
-                    </select>
-                    <div
-                      v-if="form.errors.service_type"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.service_type }}
-                    </div>
-                  </div>
+        <div class="py-12">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="custom-grid gap-8">
+                    <!-- Componente de Descripción del Programa -->
+                    <ProgramDescription
+                        v-model="programData"
+                        @update:images="updateImages"
+                        :errors="{ ...errors, ...localErrors }"
+                    />
 
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="destination"
-                      class="block text-sm font-medium text-gray-700"
-                      >Destino</label
-                    >
-                    <input
-                      type="text"
-                      id="destination"
-                      v-model="form.destination"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.destination }" />
-                    <div
-                      v-if="form.errors.destination"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.destination }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6">
-                    <label
-                      for="description"
-                      class="block text-sm font-medium text-gray-700"
-                      >Descripción</label
-                    >
-                    <textarea
-                      id="description"
-                      v-model="form.description"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.description
-                      }"></textarea>
-                    <div
-                      v-if="form.errors.description"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.description }}
-                    </div>
-                  </div>
+                    <!-- Componente de Detalle Administrativo -->
+                    <PaymentDetails 
+                        v-model="paymentData" 
+                        :errors="{ ...errors, ...localErrors }"
+                        :institutions="localInstitutions"
+                        :has-participants="false"
+                        @create-institution="openCreateInstitutionModal"
+                    />
                 </div>
 
-                <!-- Fechas y duración -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="departure_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Salida</label
+                <!-- Botón de guardar centrado debajo de ambos cards -->
+                <div class="flex justify-center mt-8">
+                    <button
+                        @click="submit"
+                        :disabled="form.processing"
+                        class="bg-[#007e93] hover:bg-[#006b7a] disabled:opacity-50 disabled:cursor-not-allowed rounded-full py-4 px-8 text-white font-bold text-lg transition-colors duration-200"
                     >
-                    <input
-                      type="date"
-                      id="departure_date"
-                      v-model="form.departure_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.departure_date
-                      }" />
-                    <div
-                      v-if="form.errors.departure_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.departure_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="return_date"
-                      class="block text-sm font-medium text-gray-700"
-                      >Fecha de Regreso</label
-                    >
-                    <input
-                      type="date"
-                      id="return_date"
-                      v-model="form.return_date"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.return_date }" />
-                    <div
-                      v-if="form.errors.return_date"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.return_date }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-2">
-                    <label
-                      for="duration_days"
-                      class="block text-sm font-medium text-gray-700"
-                      >Duración (días)</label
-                    >
-                    <input
-                      type="number"
-                      id="duration_days"
-                      v-model="form.duration_days"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{
-                        'border-red-500': form.errors.duration_days
-                      }" />
-                    <div
-                      v-if="form.errors.duration_days"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.duration_days }}
-                    </div>
-                  </div>
+                        {{
+                            form.processing
+                                ? "Guardando..."
+                                : "Guardar Programa"
+                        }}
+                    </button>
                 </div>
-
-                <!-- Capacidad y precio -->
-                <div class="grid grid-cols-6 gap-6">
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="capacity"
-                      class="block text-sm font-medium text-gray-700"
-                      >Capacidad (personas)</label
-                    >
-                    <input
-                      type="number"
-                      id="capacity"
-                      v-model="form.capacity"
-                      min="1"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.capacity }" />
-                    <div
-                      v-if="form.errors.capacity"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.capacity }}
-                    </div>
-                  </div>
-
-                  <div class="col-span-6 sm:col-span-3">
-                    <label
-                      for="base_price"
-                      class="block text-sm font-medium text-gray-700"
-                      >Precio Base (CLP)</label
-                    >
-                    <input
-                      type="number"
-                      id="base_price"
-                      v-model="form.base_price"
-                      min="0"
-                      step="0.01"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      :class="{ 'border-red-500': form.errors.base_price }" />
-                    <div
-                      v-if="form.errors.base_price"
-                      class="mt-2 text-sm text-red-600">
-                      {{ form.errors.base_price }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Imagen -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700"
-                    >Imagen del Programa</label
-                  >
-                  <div
-                    class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                      <div
-                        v-if="imagePreview"
-                        class="mb-4">
-                        <img
-                          :src="imagePreview"
-                          alt="Preview"
-                          class="mx-auto h-32 w-auto object-cover rounded-lg" />
-                      </div>
-                      <svg
-                        v-else
-                        class="mx-auto h-12 w-12 text-gray-400"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48">
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round" />
-                      </svg>
-                      <div class="flex text-sm text-gray-600">
-                        <label
-                          for="image"
-                          class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                          <span>Subir imagen</span>
-                          <input
-                            id="image"
-                            type="file"
-                            accept="image/*"
-                            class="sr-only"
-                            @change="handleImageChange" />
-                        </label>
-                        <p class="pl-1">o arrastrar y soltar</p>
-                      </div>
-                      <p class="text-xs text-gray-500">
-                        PNG, JPG, GIF hasta 2MB
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    v-if="form.errors.image"
-                    class="mt-2 text-sm text-red-600">
-                    {{ form.errors.image }}
-                  </div>
-                </div>
-
-                <!-- Información adicional -->
-                <div class="space-y-4">
-                  <div>
-                    <label
-                      for="includes"
-                      class="block text-sm font-medium text-gray-700"
-                      >Incluye</label
-                    >
-                    <textarea
-                      id="includes"
-                      v-model="form.includes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios incluidos en el programa..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="excludes"
-                      class="block text-sm font-medium text-gray-700"
-                      >No Incluye</label
-                    >
-                    <textarea
-                      id="excludes"
-                      v-model="form.excludes"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Servicios no incluidos..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="requirements"
-                      class="block text-sm font-medium text-gray-700"
-                      >Requisitos</label
-                    >
-                    <textarea
-                      id="requirements"
-                      v-model="form.requirements"
-                      rows="3"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Requisitos para participar..."></textarea>
-                  </div>
-
-                  <div>
-                    <label
-                      for="itinerary"
-                      class="block text-sm font-medium text-gray-700"
-                      >Itinerario</label
-                    >
-                    <textarea
-                      id="itinerary"
-                      v-model="form.itinerary"
-                      rows="4"
-                      class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      placeholder="Descripción detallada del itinerario..."></textarea>
-                  </div>
-                </div>
-
-                <!-- Estado activo -->
-                <div class="flex items-center">
-                  <input
-                    id="active"
-                    v-model="form.active"
-                    type="checkbox"
-                    class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                  <label
-                    for="active"
-                    class="ml-2 block text-sm text-gray-900">
-                    Programa activo (visible para los clientes)
-                  </label>
-                </div>
-              </div>
-              <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
-                <Link
-                  :href="route('admin.programs.index')"
-                  class="mr-3 bg-white border border-gray-300 rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                  Cancelar
-                </Link>
-                <button
-                  type="submit"
-                  :disabled="form.processing"
-                  class="bg-indigo-600 border border-transparent rounded-md py-2 px-4 inline-flex justify-center text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
-                  {{ form.processing ? "Creando..." : "Crear Programa" }}
-                </button>
-              </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  </AdminLayout>
+
+        <!-- Create Institution Modal -->
+        <CreateInstitutionModal 
+            :show="showCreateInstitutionModal" 
+            :errors="errors"
+            @close="closeCreateInstitutionModal"
+            @institution-created="handleInstitutionCreated"
+        />
+    </AdminLayout>
 </template>
 
 <script setup>
-  import { ref } from "vue";
-  import { Link, useForm } from "@inertiajs/vue3";
-  import AdminLayout from "@/Layouts/AdminLayout.vue";
+import { Head, useForm } from "@inertiajs/vue3";
+import { ref, watch } from "vue";
+import AdminLayout from "@/Layouts/AdminLayout.vue";
+import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
+import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
+import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
 
-  const imagePreview = ref(null);
+// Props
+const props = defineProps({
+    errors: {
+        type: Object,
+        default: () => ({})
+    },
+    institutions: {
+        type: Array,
+        default: () => []
+    }
+});
 
-  const form = useForm({
+const form = useForm({
+    // Campos del programa
     name: "",
-    description: "",
-    service_type: "",
     destination: "",
     departure_date: "",
-    return_date: "",
-    duration_days: "",
-    capacity: "",
-    base_price: "",
-    includes: "",
-    excludes: "",
-    requirements: "",
+    description: "",
+    pilar_1: "",
+    pilar_2: "",
+    pilar_3: "",
+    pilar_4: "",
     itinerary: "",
-    image: null,
-    active: true
-  });
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+    images: [],
+    // Campos del detalle administrativo
+    total_price: "",
+    final_payment_date: "",
+    sales_person: "",
+    institution_name: "",
+    institution_id: "",
+    education_level: "",
+    shift: "",
+    grade: "",
+    students_file: null,
+    group_benefit: "",
+    discount_type: "",
+    discount_amount: "",
+    payment_option: "", // "full_payment" o "installments"
+    full_payment_method: "",
+    installments_payment_method: "",
+    max_installments: "",
+    created_by: null, // Se establecerá en el backend
+    active: true,
+});
 
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      form.image = file;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        imagePreview.value = e.target.result;
-      };
-      reader.readAsDataURL(file);
+// Datos del programa que se sincronizan con el componente
+const programData = ref({
+    name: "",
+    destination: "",
+    departure_date: "",
+    description: "",
+    pilar_1: "",
+    pilar_2: "",
+    pilar_3: "",
+    pilar_4: "",
+    itinerary: "",
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+});
+
+// Datos del detalle administrativo que se sincronizan con el componente
+const paymentData = ref({
+    total_price: "",
+    final_payment_date: "",
+    sales_person: "",
+    institution_name: "",
+    institution_id: "",
+    education_level: "",
+    shift: "",
+    grade: "",
+    students_file: null,
+    group_benefit: "",
+    discount_type: "",
+    discount_amount: "",
+    payment_option: "", // "full_payment" o "installments"
+    full_payment_method: "",
+    installments_payment_method: "",
+    max_installments: "",
+});
+
+// Estado para las imágenes
+const selectedImages = ref([]);
+
+// Estado para el modal de creación de institución
+const showCreateInstitutionModal = ref(false);
+
+// Estado local para las instituciones (para poder modificarlas)
+const localInstitutions = ref([...props.institutions]);
+
+// Estado para errores de validación local
+const localErrors = ref({});
+
+// Watcher para manejar errores del backend
+watch(() => props.errors, (newErrors) => {
+    if (newErrors && Object.keys(newErrors).length > 0) {
+        // Si hay errores del backend, hacer scroll al primer error
+        scrollToFirstError();
     }
-  };
+}, { immediate: true });
 
-  const submit = () => {
-    form.post(route("admin.programs.store"), {
-      onSuccess: () => {
-        // Redirige automáticamente después del éxito
-      }
+// Watcher para sincronizar programData con el formulario
+watch(programData, (newValue) => {
+    // Sincronizar todos los campos del programa con el formulario
+    Object.keys(newValue).forEach((key) => {
+        form[key] = newValue[key];
     });
-  };
+}, { deep: true });
+
+// Watcher para sincronizar paymentData con el formulario
+watch(paymentData, (newValue) => {
+    // Sincronizar todos los campos del detalle administrativo con el formulario
+    Object.keys(newValue).forEach((key) => {
+        form[key] = newValue[key];
+    });
+}, { deep: true });
+
+// Watcher específico para discount_type y discount_amount
+watch(() => paymentData.value.discount_type, (newValue) => {
+    form.discount_type = newValue;
+});
+
+watch(() => paymentData.value.discount_amount, (newValue) => {
+    form.discount_amount = newValue;
+});
+
+
+
+// Asegurar que created_by se establezca
+watch(() => form.created_by, (newValue) => {
+    if (!newValue) {
+        form.created_by = 1; // ID del usuario autenticado
+    }
+}, { immediate: true });
+
+// Watcher específico para discount_type y discount_amount
+watch(() => paymentData.value.discount_type, (newValue) => {
+    form.discount_type = newValue;
+    console.log('discount_type actualizado:', newValue);
+});
+
+watch(() => paymentData.value.discount_amount, (newValue) => {
+    form.discount_amount = newValue;
+    console.log('discount_amount actualizado:', newValue);
+});
+
+// Watcher para sincronizar las imágenes con el formulario
+watch(selectedImages, (newImages) => {
+    const imageFiles = newImages.map((img) => img.file).filter(Boolean);
+    form.images = imageFiles;
+}, { deep: true });
+
+// Función para limpiar errores locales
+const clearLocalErrors = () => {
+    localErrors.value = {};
+};
+
+// Función para validar el formulario
+const validateForm = () => {
+    clearLocalErrors();
+    const errors = {};
+    
+    // Validar que el nombre del programa sea obligatorio
+    if (!programData.value.name || programData.value.name.trim() === '') {
+        errors.name = 'El nombre del programa es obligatorio';
+    }
+    
+    // Validar que el destino sea obligatorio
+    if (!programData.value.destination || programData.value.destination.trim() === '') {
+        errors.destination = 'El destino es obligatorio';
+    }
+    
+    // Validar que la fecha de salida sea obligatoria
+    if (!programData.value.departure_date) {
+        errors.departure_date = 'La fecha de salida es obligatoria';
+    }
+    
+    // Validar que al menos una imagen sea obligatoria
+    if (!selectedImages.value || selectedImages.value.length === 0) {
+        errors.images = 'Debe seleccionar al menos una imagen para el programa';
+    }
+    
+    // Asignar errores locales
+    localErrors.value = errors;
+    
+    return Object.keys(errors).length === 0;
+};
+
+// Función para hacer scroll al primer campo con error
+const scrollToFirstError = () => {
+    // Esperar un tick para que los errores se rendericen en el DOM
+    setTimeout(() => {
+        let firstErrorElement = null;
+        
+        // Primero, intentar encontrar campos específicos con errores por nombre
+        const allErrors = { ...props.errors, ...localErrors.value };
+        const errorFieldNames = Object.keys(allErrors);
+        
+        if (errorFieldNames.length > 0) {
+            // Mapeo de nombres de campos a selectores específicos
+            const fieldSelectors = {
+                'name': 'input[placeholder="Nombre"]',
+                'destination': 'input[placeholder*="Santiago"]',
+                'departure_date': 'input[type="date"]',
+                'description': 'textarea[placeholder*="descripción"]',
+                'images': '.image-upload-area',
+                'total_price': 'input[placeholder="--------"]',
+                'final_payment_date': 'input[type="date"]',
+                'sales_person': 'input[placeholder="Nombre"]',
+                'institution_id': 'select[id*="institution"]',
+                'education_level': 'select:has(option[value="inicial"])',
+                'shift': 'select:has(option[value="mañana"])',
+                'grade': 'select:has(option[value="1"])',
+                'students_file': 'input[type="file"]'
+            };
+            
+            // Buscar el primer campo con error usando los selectores específicos
+            for (const fieldName of errorFieldNames) {
+                if (fieldSelectors[fieldName]) {
+                    const element = document.querySelector(fieldSelectors[fieldName]);
+                    if (element) {
+                        firstErrorElement = element;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Si no encontramos por nombre específico, usar selectores generales
+        if (!firstErrorElement) {
+            const errorSelectors = [
+                // Errores en campos de texto
+                'input.border-red-500',
+                'textarea.border-red-500', 
+                'select.border-red-500',
+                // Mensajes de error
+                '.text-red-500',
+                // Elementos con clases de error
+                '.error-message',
+                '[class*="error"]'
+            ];
+            
+            // Buscar el primer elemento con error
+            for (const selector of errorSelectors) {
+                const elements = document.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    firstErrorElement = elements[0];
+                    break;
+                }
+            }
+        }
+        
+        // Si encontramos un elemento con error, hacer scroll
+        if (firstErrorElement) {
+            // Buscar el contenedor padre más apropiado para el scroll
+            const fieldWrapper = firstErrorElement.closest('.field-wrapper') || 
+                                firstErrorElement.closest('.field-container') || 
+                                firstErrorElement.closest('.accordion-content') ||
+                                firstErrorElement;
+            
+            // Primero expandir el acordeón si está colapsado
+            const accordionHeader = fieldWrapper.closest('.accordion-section')?.querySelector('.accordion-header');
+            if (accordionHeader) {
+                const accordionContent = accordionHeader.nextElementSibling?.querySelector('.accordion-content');
+                if (accordionContent && !accordionContent.offsetParent) {
+                    // El acordeón está colapsado, hacer click para expandir
+                    accordionHeader.click();
+                    // Esperar un poco más para que se expanda
+                    setTimeout(() => {
+                        fieldWrapper.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                    }, 300);
+                } else {
+                    fieldWrapper.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+                }
+            } else {
+                fieldWrapper.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            }
+            
+            // También intentar hacer focus en el input si es posible
+            if (firstErrorElement.tagName === 'INPUT' || 
+                firstErrorElement.tagName === 'TEXTAREA' || 
+                firstErrorElement.tagName === 'SELECT') {
+                setTimeout(() => {
+                    firstErrorElement.focus();
+                }, 500);
+            }
+        }
+    }, 100);
+};
+
+// Función para actualizar las imágenes desde el componente
+const updateImages = (images) => {
+    selectedImages.value = images;
+};
+
+// Función para abrir el modal de creación de institución
+const openCreateInstitutionModal = () => {
+    showCreateInstitutionModal.value = true;
+};
+
+// Función para cerrar el modal de creación de institución
+const closeCreateInstitutionModal = () => {
+    showCreateInstitutionModal.value = false;
+};
+
+// Función para manejar la creación de una nueva institución
+const handleInstitutionCreated = (newInstitution) => {
+    // Agregar la nueva institución a la lista local
+    localInstitutions.value.push(newInstitution);
+    // Actualizar el ID de la institución en el formulario
+    paymentData.value.institution_id = newInstitution.id;
+    // Cerrar el modal
+    closeCreateInstitutionModal();
+};
+
+const submit = () => {
+    // Validar el formulario
+    if (!validateForm()) {
+        // Hacer scroll al primer error
+        scrollToFirstError();
+        return;
+    }
+
+    // Establecer created_by
+    form.created_by = null; // Se establecerá en el backend con auth()->id()
+
+    form.post(route("admin.programs.store"));
+};
 </script>
+
+<style scoped>
+.custom-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+    .custom-grid {
+        grid-template-columns: 1.2fr 1fr;
+    }
+}
+</style>

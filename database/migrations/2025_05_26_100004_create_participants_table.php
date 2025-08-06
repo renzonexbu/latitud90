@@ -33,20 +33,24 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('participants_emergency_contact', function (Blueprint $table) {
+        // Tabla pivote para la relación muchos a muchos entre participants y courses
+        Schema::create('participant_course', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
-            $table->foreignId('emergency_contact_id')->constrained('emergency_contact');
+            $table->foreignId('participant_id')->constrained('participants')->onDelete('cascade');
+            $table->foreignId('course_id')->constrained('courses')->onDelete('cascade');
+            $table->string('education_level')->nullable();
+            $table->string('year')->nullable();
+            $table->string('grade')->nullable();
+            $table->string('shift')->nullable();
+            $table->enum('status', ['pending_payment', 'confirmed', 'cancelled'])->default('pending_payment');
+            $table->decimal('individual_price', 10, 2)->nullable();
+            $table->decimal('price_adjustments', 10, 2)->default(0);
+            $table->text('adjustment_reason')->nullable();
             $table->timestamps();
+            
+            // Índice único para evitar duplicados
+            $table->unique(['participant_id', 'course_id']);
         });
-
-        Schema::create('participants_medical_conditions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
-            $table->foreignId('medical_condition_id')->constrained('medical_conditions');
-            $table->timestamps();
-        });
-        
     }
 
     /**
@@ -54,6 +58,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('participant_course');
         Schema::dropIfExists('participants');
     }
 };

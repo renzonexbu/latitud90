@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('participant_id')->constrained('participants');
             $table->foreignId('payment_method_id')->constrained('payment_methods'); // FK a payment_methods
             $table->foreignId('payment_mode_id')->constrained('payment_modes'); // FK a payment_modes
+            $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways'); // FK a payment_gateways (se llena cuando se paga)
 
             // Datos del comprador
             $table->string('buyer_first_name');
