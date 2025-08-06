@@ -51,7 +51,7 @@ class EcommerceController extends Controller
      */
     public function show(Program $program)
     {
-        $program->load(['passengers' => function($query) {
+        $program->load(['passengers' => function ($query) {
             $query->where('status', '!=', 'cancelled');
         }]);
 
@@ -60,11 +60,11 @@ class EcommerceController extends Controller
 
         // Programas relacionados (mismo tipo de servicio)
         $relatedPrograms = Program::where('service_type', $program->service_type)
-                                 ->where('id', '!=', $program->id)
-                                 ->where('active', true)
-                                 ->where('departure_date', '>', now())
-                                 ->limit(4)
-                                 ->get();
+            ->where('id', '!=', $program->id)
+            ->where('active', true)
+            ->where('departure_date', '>', now())
+            ->limit(4)
+            ->get();
 
         return Inertia::render('Ecommerce/ProgramDetail', [
             'program' => $program,
@@ -79,7 +79,7 @@ class EcommerceController extends Controller
     {
         if (!$program->active || $program->available_spots <= 0) {
             return redirect()->route('ecommerce.show', $program)
-                           ->with('error', 'Este programa no está disponible para reservas.');
+                ->with('error', 'Este programa no está disponible para reservas.');
         }
 
         return Inertia::render('Ecommerce/Reservation', [
@@ -175,7 +175,6 @@ class EcommerceController extends Controller
                 'passenger_id' => $passenger->id,
                 'redirect_url' => route('ecommerce.payment', $passenger)
             ]);
-
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['error' => 'Error al procesar la reserva: ' . $e->getMessage()], 500);
@@ -187,13 +186,13 @@ class EcommerceController extends Controller
      */
     public function payment(Passenger $passenger)
     {
-        $passenger->load(['program', 'payments' => function($query) {
+        $passenger->load(['program', 'payments' => function ($query) {
             $query->where('status', 'pending')->orderBy('installment_number');
         }]);
 
         if ($passenger->status !== 'pending_payment') {
             return redirect()->route('ecommerce.index')
-                           ->with('error', 'Esta reserva no requiere pago o ya ha sido procesada.');
+                ->with('error', 'Esta reserva no requiere pago o ya ha sido procesada.');
         }
 
         return Inertia::render('Ecommerce/Payment', [
@@ -237,7 +236,6 @@ class EcommerceController extends Controller
                     'success' => true,
                     'payment_url' => $result['url'] . '?token_ws=' . $result['token']
                 ]);
-
             } elseif ($payment->gateway === 'khipu') {
                 // Obtener información del programa para la descripción
                 $program = null;
@@ -270,7 +268,6 @@ class EcommerceController extends Controller
                     'payment_url' => $result['payment_url']
                 ]);
             }
-
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al procesar el pago: ' . $e->getMessage()], 500);
         }
@@ -299,9 +296,9 @@ class EcommerceController extends Controller
         ]);
 
         $passenger = Passenger::with(['program', 'payments', 'contracts'])
-                             ->where('email', $request->email)
-                             ->where('document_number', $request->document_number)
-                             ->first();
+            ->where('email', $request->email)
+            ->where('document_number', $request->document_number)
+            ->first();
 
         if (!$passenger) {
             return back()->with('error', 'No se encontró ninguna reserva con esos datos.');
@@ -331,9 +328,9 @@ class EcommerceController extends Controller
 
         // Buscar pasajeros por número de documento (cualquier tipo: RUT, cédula, pasaporte, etc.)
         $passengers = Passenger::with(['programs', 'payments', 'contracts'])
-                               ->where('document_number', $request->rut)
-                               ->where('status', '!=', 'cancelled')
-                               ->get();
+            ->where('document_number', $request->rut)
+            ->where('status', '!=', 'cancelled')
+            ->get();
 
         if ($passengers->isEmpty()) {
             return redirect()->back()->with('error', 'No se encontraron viajes asociados a este número de documento.');
@@ -651,7 +648,6 @@ class EcommerceController extends Controller
                 'passenger' => $passenger->id,
                 'rut' => $request->input('rut') ?? $passenger->document_number
             ]);
-
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['error' => 'Error al configurar el pago: ' . $e->getMessage()], 500);
@@ -663,19 +659,19 @@ class EcommerceController extends Controller
      */
     public function paymentGateway(Request $request, $passengerId)
     {
-        $passenger = Passenger::with(['payments' => function($query) {
+        $passenger = Passenger::with(['payments' => function ($query) {
             $query->where('status', 'pending')
-                  ->orderBy('installment_number');
+                ->orderBy('installment_number');
         }])->findOrFail($passengerId);
 
         // Obtener el siguiente pago pendiente
         $nextPayment = $passenger->payments->where('status', 'pending')
-                                          ->sortBy('installment_number')
-                                          ->first();
+            ->sortBy('installment_number')
+            ->first();
 
         if (!$nextPayment) {
             return redirect()->route('ecommerce.index')
-                           ->with('error', 'No hay pagos pendientes para este pasajero.');
+                ->with('error', 'No hay pagos pendientes para este pasajero.');
         }
 
         // Obtener información del programa

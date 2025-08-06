@@ -266,11 +266,12 @@ const performSearch = async () => {
             
             if (response.data.found) {
                 console.log('Participante encontrado:', response.data.participant);
-                // Aquí puedes redirigir a la siguiente vista
-                // router.get("/buscar-viajes", { rut: cleanRut });
+                // Redirigir a la vista de programas
+                router.get(route('ecommerce.programs'), { rut: cleanRut });
             } else {
                 console.log('No se encontró el participante');
-                // Aquí puedes mostrar un mensaje de error
+                // Mostrar mensaje de error (puedes implementar un toast o alert)
+                alert('No se encontró ningún participante con ese RUT. Por favor, verifica el número ingresado.');
             }
         } catch (error) {
             console.error('Error en la búsqueda:', error);

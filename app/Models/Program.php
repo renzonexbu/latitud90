@@ -76,7 +76,8 @@ class Program extends Model
 
     public function participants()
     {
-        return $this->hasManyThrough(Participant::class, Course::class, 'program_id', 'course_id', 'id', 'id');
+        // Esta relación no se usa directamente, se accede a través de course->participants()
+        return $this->course->participants() ?? collect();
     }
 
     public function features()
