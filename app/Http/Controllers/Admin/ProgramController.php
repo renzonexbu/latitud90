@@ -24,7 +24,7 @@ class ProgramController extends Controller
 
     public function index(Request $request)
     {
-        $programs = Program::with(['paymentMode', 'course.institution', 'participants'])
+        $programs = Program::with(['paymentMode', 'course.institution', 'course.participants'])
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                       ->orWhere('destination', 'like', "%{$search}%");
@@ -42,7 +42,7 @@ class ProgramController extends Controller
         });
 
         // Obtener todos los programas para los filtros (sin paginación)
-        $allPrograms = Program::with(['paymentMode', 'course.institution', 'participants'])
+        $allPrograms = Program::with(['paymentMode', 'course.institution', 'course.participants'])
             ->orderBy('created_at', 'desc')
             ->get();
         
@@ -82,7 +82,7 @@ class ProgramController extends Controller
 
     public function show(Program $program)
     {
-        $program->load(['course', 'participants']);
+        $program->load(['course', 'course.participants']);
 
         return Inertia::render('Admin/Programs/Show', [
             'program' => $program
@@ -111,7 +111,7 @@ class ProgramController extends Controller
         // Cargar todas las relaciones necesarias
         $program->load([
             'course.institution',
-            'participants',
+            'course.participants',
             'paymentMode'
         ]);
 

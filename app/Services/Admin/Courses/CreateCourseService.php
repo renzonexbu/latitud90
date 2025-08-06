@@ -138,58 +138,91 @@ class CreateCourseService
                     'rut' => $cleanRut
                 ]);
                 
-                // Verificar si ya existe un participante con la misma clave única (curso + document_number + document_type + country)
+                // Buscar participante existente por RUT
                 $documentType = $this->getDocumentType($participantData);
-                $existingParticipant = Participant::where('course_id', $course->id)
-                    ->where('document_number', $cleanRut)
+                $existingParticipant = Participant::where('document_number', $cleanRut)
                     ->where('document_type', $documentType)
                     ->where('country', 'CL')
                     ->first();
                 
                 if ($existingParticipant) {
-                    // UPDATE: Actualizar participante existente
-                                    Log::info('Participante existente encontrado en el mismo curso, actualizando', [
-                    'participant_id' => $existingParticipant->id,
-                    'rut' => $cleanRut,
-                    'course_id' => $course->id,
-                    'document_type' => $documentType
-                ]);
+                    // Verificar si ya está asociado a este curso
+                    $isAlreadyInCourse = $existingParticipant->courses()
+                        ->where('course_id', $course->id)
+                        ->exists();
                     
-                    $existingParticipant->update([
-                        'course_id' => $course->id,
-                        'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
-                        'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
-                        'email' => $participantData['Email'] ?? $existingParticipant->email,
-                        'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
-                        'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
-                        'address' => $participantData['Dirección'] ?? $existingParticipant->address,
-                        'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
-                        'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
-                    ]);
+                    if ($isAlreadyInCourse) {
+                        // UPDATE: Actualizar datos del participante y la relación con el curso
+                        Log::info('Participante existente ya está en este curso, actualizando', [
+                            'participant_id' => $existingParticipant->id,
+                            'rut' => $cleanRut,
+                            'course_id' => $course->id
+                        ]);
+                        
+                        // Actualizar datos del participante
+                        $existingParticipant->update([
+                            'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
+                            'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
+                            'email' => $participantData['Email'] ?? $existingParticipant->email,
+                            'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
+                            'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
+                            'address' => $participantData['Dirección'] ?? $existingParticipant->address,
+                            'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
+                            'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                        ]);
+                        
+                        // Actualizar relación con el curso
+                        $pivotData = [
+                            'education_level' => $participantData['Nivel de educación'] ?? null,
+                            'year' => $participantData['Año'] ?? null,
+                            'grade' => $participantData['Grado'] ?? null,
+                            'shift' => $participantData['Turno'] ?? null,
+                            'individual_price' => $participantData['Precio individual'] ?? null,
+                            'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
+                            'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
+                        ];
+                        
+                        $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
+                        $updatedCount++;
+                        
+                    } else {
+                        // CREATE: Agregar nueva relación con el curso
+                        Log::info('Participante existente agregado a nuevo curso', [
+                            'participant_id' => $existingParticipant->id,
+                            'rut' => $cleanRut,
+                            'course_id' => $course->id
+                        ]);
+                        
+                        $pivotData = [
+                            'education_level' => $participantData['Nivel de educación'] ?? null,
+                            'year' => $participantData['Año'] ?? null,
+                            'grade' => $participantData['Grado'] ?? null,
+                            'shift' => $participantData['Turno'] ?? null,
+                            'status' => 'pending_payment',
+                            'individual_price' => $participantData['Precio individual'] ?? null,
+                            'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
+                            'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
+                        ];
+                        
+                        $existingParticipant->courses()->attach($course->id, $pivotData);
+                        $createdCount++;
+                    }
                     
-                    $participant = $existingParticipant;
-                    $updatedCount++;
-                    
-                    Log::info('Participante actualizado para curso', [
-                        'participant_id' => $participant->id,
-                        'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
-                    ]);
                 } else {
-                    // CREATE: Crear nuevo participante
-                    Log::info('Creando nuevo participante (no existe en este curso)', [
+                    // CREATE: Crear nuevo participante y asociarlo al curso
+                    Log::info('Creando nuevo participante y asociándolo al curso', [
                         'rut' => $cleanRut,
                         'course_id' => $course->id,
                         'document_type' => $documentType
                     ]);
                     
                     $participant = Participant::create([
-                        'course_id' => $course->id,
                         'first_name' => $participantData['Nombre'] ?? '',
                         'last_name' => $participantData['Apellido'] ?? '',
                         'email' => $participantData['Email'] ?? '',
                         'code_phone' => '+56', // Código por defecto para Chile
                         'phone' => $participantData['Teléfono'] ?? '',
-                        'document_type' => $this->getDocumentType($participantData),
+                        'document_type' => $documentType,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
                         'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
@@ -202,9 +235,22 @@ class CreateCourseService
                         'price_adjustments' => 0,
                     ]);
                     
+                    // Asociar al curso
+                    $pivotData = [
+                        'education_level' => $participantData['Nivel de educación'] ?? null,
+                        'year' => $participantData['Año'] ?? null,
+                        'grade' => $participantData['Grado'] ?? null,
+                        'shift' => $participantData['Turno'] ?? null,
+                        'status' => 'pending_payment',
+                        'individual_price' => $participantData['Precio individual'] ?? null,
+                        'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
+                        'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
+                    ];
+                    
+                    $participant->courses()->attach($course->id, $pivotData);
                     $createdCount++;
                     
-                    Log::info('Participante creado para curso', [
+                    Log::info('Participante creado y asociado al curso', [
                         'participant_id' => $participant->id,
                         'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
                     ]);

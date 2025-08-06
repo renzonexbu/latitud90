@@ -921,7 +921,8 @@ const shouldShowExcelInput = () => {
     }
     
     if (props.mode === 'edit') {
-        return !props.hasParticipants; // Solo mostrar si no hay participantes
+        // No mostrar si ya hay participantes o si hay un curso existente
+        return !props.hasParticipants && !props.hasExistingCourse;
     }
     
     return false;
@@ -952,7 +953,8 @@ const shouldShowEditGroupButton = () => {
     }
     
     if (props.mode === 'edit') {
-        return props.hasParticipants; // Solo mostrar si hay participantes (curso asociado)
+        // Mostrar si hay participantes o si hay un curso asociado
+        return props.hasParticipants || props.hasExistingCourse;
     }
     
     return false;

@@ -10,7 +10,6 @@ class Participant extends Model
     use HasFactory;
 
     protected $fillable = [
-        'course_id',
         'first_name',
         'last_name',
         'email',
@@ -47,9 +46,20 @@ class Participant extends Model
         return $this->hasMany(MedicalCondition::class);
     }
 
-    public function course()
+    public function courses()
     {
-        return $this->belongsTo(Course::class);
+        return $this->belongsToMany(Course::class, 'participant_course')
+                    ->withPivot([
+                        'education_level',
+                        'year',
+                        'grade',
+                        'shift',
+                        'status',
+                        'individual_price',
+                        'price_adjustments',
+                        'adjustment_reason'
+                    ])
+                    ->withTimestamps();
     }
 
     public function orders()

@@ -46,7 +46,18 @@ class Course extends Model
 
     public function participants()
     {
-        return $this->hasMany(Participant::class);
+        return $this->belongsToMany(Participant::class, 'participant_course')
+                    ->withPivot([
+                        'education_level',
+                        'year',
+                        'grade',
+                        'shift',
+                        'status',
+                        'individual_price',
+                        'price_adjustments',
+                        'adjustment_reason'
+                    ])
+                    ->withTimestamps();
     }
 
     public function createdBy()

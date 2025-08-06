@@ -36,12 +36,12 @@ class ParticipantsController extends Controller
      */
     public function index()
     {
-        $participants = Participant::with(['course', 'course.institution', 'course.program'])
+        $participants = Participant::with(['courses', 'courses.institution', 'courses.program'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
         // Obtener todos los participantes para los filtros (sin paginación)
-        $allParticipants = Participant::with(['course', 'course.institution', 'course.program'])
+        $allParticipants = Participant::with(['courses', 'courses.institution', 'courses.program'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -124,7 +124,7 @@ class ParticipantsController extends Controller
      */
     public function show(Participant $participant)
     {
-        $participant->load(['course', 'course.program', 'emergencyContacts', 'medicalConditions']);
+        $participant->load(['courses', 'courses.program', 'emergencyContacts', 'medicalConditions']);
         
         return Inertia::render('Admin/Participants/Show', [
             'participant' => $participant
@@ -136,7 +136,7 @@ class ParticipantsController extends Controller
      */
     public function edit(Participant $participant)
     {
-        $participant->load(['course', 'course.institution', 'course.program', 'emergencyContacts']);
+        $participant->load(['courses', 'courses.institution', 'courses.program', 'emergencyContacts']);
         
         // Buscar todos los programas relacionados al RUT del participante
         $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {

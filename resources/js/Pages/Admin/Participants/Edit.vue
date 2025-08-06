@@ -49,8 +49,8 @@
             </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                    </div>
+                  </div>
               <div class="flex flex-col gap-[25px] items-start justify-start self-stretch flex-shrink-0 relative">
                                   <div class="flex flex-row gap-[9.56px] items-center justify-start flex-shrink-0 relative">
                     <div class="flex-shrink-0 w-[17.888px] h-[17.888px] relative overflow-hidden aspect-square">
@@ -79,7 +79,7 @@
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">|</div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
                           {{ participant.course?.education_level || 'N/A' }}
-                        </div>
+                  </div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">|</div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
                           {{ participant.course?.shift || 'N/A' }}
@@ -100,8 +100,8 @@
                         </div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold underline relative w-[115px] h-[10px]">
                           {{ participant.phone || '0000000000' }}
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                       <div class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative">
                         <div class="bg-white flex-shrink-0 w-[18px] h-[18px] relative overflow-hidden">
                           <!-- Birthday Icon -->
@@ -109,11 +109,11 @@
                             <rect width="18" height="18" transform="translate(0 0.888184)" fill="white"/>
                             <path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 7.52588C14.0739 7.52585 14.6261 7.74512 15.0437 8.13884C15.4613 8.53256 15.7126 9.07096 15.7463 9.64388L15.75 9.77588V12.0259C15.75 12.5059 15.4657 12.8801 15.0885 13.0511L15 13.0864V15.7759C15.0001 16.1543 14.8572 16.5188 14.5999 16.7963C14.3426 17.0738 13.9899 17.2437 13.6125 17.2721L13.5 17.2759H4.5C4.12157 17.276 3.75708 17.1331 3.47959 16.8758C3.2021 16.6184 3.03213 16.2657 3.00375 15.8884L3 15.7759V13.0871C2.79758 13.0165 2.61973 12.8892 2.48768 12.7203C2.35563 12.5514 2.27494 12.3481 2.25525 12.1346L2.25 12.0259V9.77588C2.24997 9.20197 2.46924 8.64974 2.86296 8.23218C3.25668 7.81462 3.79508 7.5633 4.368 7.52963L4.5 7.52588H13.5ZM13.4498 12.5509C13.3334 12.4636 13.1942 12.412 13.049 12.4024C12.9039 12.3928 12.7591 12.4256 12.6322 12.4969L12.5497 12.5509L12.3502 12.7009C11.9822 12.977 11.5384 13.1337 11.0785 13.1498C10.6187 13.1659 10.1649 13.0406 9.7785 12.7909L9.65025 12.7009L9.45 12.5509C9.33365 12.4636 9.19442 12.412 9.04927 12.4024C8.90413 12.3928 8.75932 12.4256 8.6325 12.4969L8.55 12.5509L8.34975 12.7009C7.98179 12.9769 7.53807 13.1335 7.07838 13.1496C6.61869 13.1657 6.16511 13.0405 5.77875 12.7909L5.64975 12.7009L5.45025 12.5509C5.3339 12.4636 5.19467 12.412 5.04952 12.4024C4.90438 12.3928 4.75957 12.4256 4.63275 12.4969L4.55025 12.5509L4.5 12.5884V15.7759H13.5V12.5884L13.4498 12.5509ZM13.5 9.02588H4.5C4.30109 9.02588 4.11032 9.1049 3.96967 9.24555C3.82902 9.3862 3.75 9.57697 3.75 9.77588V11.2796C4.13745 11.0208 4.59569 10.8886 5.06146 10.9014C5.52724 10.9142 5.97756 11.0712 6.35025 11.3509L6.54975 11.5009C6.67957 11.5982 6.83747 11.6509 6.99975 11.6509C7.16203 11.6509 7.31993 11.5982 7.44975 11.5009L7.65 11.3509C8.03947 11.0588 8.51317 10.9009 9 10.9009C9.48683 10.9009 9.96053 11.0588 10.35 11.3509L10.5503 11.5009C10.6801 11.5982 10.838 11.6509 11.0002 11.6509C11.1625 11.6509 11.3204 11.5982 11.4503 11.5009L11.6497 11.3509C12.0224 11.0712 12.4728 10.9142 12.9385 10.9014C13.4043 10.8886 13.8626 11.0208 14.25 11.2796V9.77588C14.25 9.57697 14.171 9.3862 14.0303 9.24555C13.8897 9.1049 13.6989 9.02588 13.5 9.02588ZM9.45 2.42588C9.75965 2.66855 10.0475 2.93782 10.3102 3.23063C10.7032 3.67238 11.25 4.41713 11.25 5.27588C11.25 5.87262 11.0129 6.44491 10.591 6.86687C10.169 7.28883 9.59674 7.52588 9 7.52588C8.40326 7.52588 7.83097 7.28883 7.40901 6.86687C6.98705 6.44491 6.75 5.87262 6.75 5.27588C6.75 4.41713 7.2975 3.67238 7.68975 3.23063C7.9525 2.93782 8.24035 2.66855 8.55 2.42588C8.67982 2.32851 8.83772 2.27588 9 2.27588C9.16228 2.27588 9.32018 2.32851 9.45 2.42588ZM9 4.02638C8.93471 4.09142 8.87143 4.15845 8.81025 4.22738C8.45325 4.62938 8.25 5.00963 8.25 5.27588C8.25 5.47479 8.32902 5.66556 8.46967 5.80621C8.61032 5.94686 8.80109 6.02588 9 6.02588C9.19891 6.02588 9.38968 5.94686 9.53033 5.80621C9.67098 5.66556 9.75 5.47479 9.75 5.27588C9.75 5.00963 9.5475 4.62938 9.18975 4.22738C9.12857 4.15845 9.06529 4.09142 9 4.02638Z" fill="#007E93"/>
                           </svg>
-                        </div>
+                </div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[92px] h-[12px]">
                           {{ formatDate(participant.birth_date) || '10/09/2005' }}
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                     </div>
                     <div class="flex flex-row gap-[25px] items-center justify-start flex-shrink-0 relative">
                       <div class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative">
@@ -135,7 +135,7 @@
                             <path d="M11.207 5.63198H6.72437M11.207 5.63198C13.3199 5.63198 14.377 5.63198 15.033 6.28869C15.6897 6.94465 15.6897 8.00181 15.6897 10.1146V11.9824C15.6897 14.0953 15.6897 15.1524 15.033 15.8084C14.377 16.4651 13.3199 16.4651 11.207 16.4651H6.72437C4.61154 16.4651 3.55437 16.4651 2.89841 15.8084C2.2417 15.1524 2.2417 14.0953 2.2417 11.9824V10.1146C2.2417 8.00181 2.2417 6.94465 2.89841 6.28869C3.55437 5.63198 4.61154 5.63198 6.72437 5.63198M11.207 5.63198V5.25842C11.207 4.20126 11.207 3.67305 10.8783 3.34582C10.5503 3.01709 10.0229 3.01709 8.9657 3.01709C7.90854 3.01709 7.38033 3.01709 7.05309 3.34582C6.72437 3.6738 6.72437 4.20201 6.72437 5.25842V5.63198" stroke="#007E93" stroke-width="1.12067" stroke-linecap="round" stroke-linejoin="round"/>
                             <path d="M15.6897 8.62077C14.8971 8.62077 14.137 8.30592 13.5765 7.74547C13.0161 7.18503 12.7013 6.42491 12.7013 5.63232M2.2417 13.477C3.03428 13.477 3.79441 13.7918 4.35485 14.3523C4.91529 14.9127 5.23014 15.6728 5.23014 16.4654M2.2417 8.62077C3.03428 8.62077 3.79441 8.30592 4.35485 7.74547C4.91529 7.18503 5.23014 6.42491 5.23014 5.63232M15.6897 13.477C14.8971 13.477 14.137 13.7918 13.5765 14.3523C13.0161 14.9127 12.7013 15.6728 12.7013 16.4654M10.8335 8.99432V9.00179M6.91114 9.74143L6.35081 10.3018L6.91114 10.8621L7.47148 10.3018L6.91114 9.74143ZM10.4599 13.3276L9.33925 13.1034L10.2358 12.2069L10.4599 13.3276Z" stroke="#007E93" stroke-width="1.12067" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
-                        </div>
+                  </div>
                         <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[127px] h-[14px]">
                           Viajes totales: {{ participantPrograms.length }}
                     </div>
@@ -158,8 +158,8 @@
                 </div>
               </div>
             </div>
-                    </div>
-                  </div>
+                </div>
+              </div>
 
         <!-- Programs Grid -->
         <div class="bg-white rounded-[20px] p-6">
@@ -173,9 +173,9 @@
         <!-- Back Button -->
         <div class="mt-6">
           <Link :href="route('admin.participants.index')" 
-                class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                  class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
             Volver al listado
-          </Link>
+                </Link>
         </div>
       </div>
     </div>
@@ -208,7 +208,7 @@
 
 <script setup>
 import { Head, Link } from "@inertiajs/vue3";
-import AdminLayout from "@/Layouts/AdminLayout.vue";
+  import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue";
 import EditParticipantModal from "@/Components/Participants/EditParticipantModal.vue";
 import MedicalConditionsModal from "@/Components/Participants/MedicalConditionsModal.vue";
@@ -305,7 +305,7 @@ const openEmergencyContactsModal = () => {
 
 const closeEmergencyContactsModal = () => {
   showEmergencyContactsModal.value = false;
-};
+  };
 </script>
 
 <style scoped>

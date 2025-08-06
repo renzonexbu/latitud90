@@ -22,7 +22,7 @@
                         mode="edit"
                         :payment-status="paymentStatus"
                         :institutions="institutions"
-                        :has-participants="program.participants && program.participants.length > 0"
+                        :has-participants="program.course && program.course.participants && program.course.participants.length > 0"
                         :has-existing-course="hasExistingCourse"
                         @edit-group="handleEditGroup"
                     />
