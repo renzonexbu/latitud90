@@ -41,18 +41,18 @@ class ProgramDetailService
             'seller_name' => $program->seller_name,
             'active' => $program->active,
             'is_enrolled' => $isEnrolled,
-            
+
             // Archivos PDF
             'itinerary_file' => $program->itinerary_file_url,
             'travel_assistance_coverage' => $program->travel_assistance_coverage_url,
             'equipment_list' => $program->equipment_list_url,
-            
+
             // Información adicional
             'itinerary_description' => $program->itinerary_description,
             'pillars' => $program->pillars,
             'images' => $program->images,
             'images_folder' => $program->images_folder,
-            
+
             // Información de pago
             'payment_mode' => $program->paymentMode ? [
                 'id' => $program->paymentMode->id,
@@ -65,11 +65,11 @@ class ProgramDetailService
             'max_installments' => $program->max_installments,
             'discount_type' => $program->discount_type,
             'discount_value' => $program->discount_value,
-            
 
-            
 
-            
+
+
+
             // Características
             'features' => $program->features->map(function ($feature) {
                 return [
@@ -79,7 +79,7 @@ class ProgramDetailService
                     'icon' => $feature->icon ?? '✓',
                 ];
             }),
-            
+
             // Requisitos
             'requirements' => $program->requirements->map(function ($requirement) {
                 return [
@@ -97,11 +97,11 @@ class ProgramDetailService
     private function calculateDuration($departureDate)
     {
         if (!$departureDate) return 'Duración no especificada';
-        
+
         $today = new \DateTime();
         $departure = new \DateTime($departureDate);
         $diff = $today->diff($departure);
-        
+
         if ($diff->days === 0) {
             return 'Hoy';
         } elseif ($diff->days === 1) {
