@@ -4,16 +4,19 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\ProgramService;
+use App\Services\Client\ProgramDetailService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
 {
     protected $programService;
+    protected $programDetailService;
 
-    public function __construct(ProgramService $programService)
+    public function __construct(ProgramService $programService, ProgramDetailService $programDetailService)
     {
         $this->programService = $programService;
+        $this->programDetailService = $programDetailService;
     }
 
     public function index(Request $request)
@@ -62,15 +65,15 @@ class ProgramController extends Controller
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
         }
 
-        $program = $this->programService->getProgramById($programId);
+        $programDetails = $this->programDetailService->getProgramDetails($programId, $participant->id);
         
-        if (!$program) {
+        if (!$programDetails) {
             return redirect()->route('ecommerce.programs', ['rut' => $rut])->with('error', 'Programa no encontrado');
         }
 
         return Inertia::render('Ecommerce/ProgramDetail', [
             'participant' => $participant,
-            'program' => $program,
+            'program' => $programDetails,
             'rut' => $rut
         ]);
     }

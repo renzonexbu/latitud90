@@ -1,6 +1,6 @@
 <template>
   <button 
-    @click="goToHome"
+    @click="handleClick"
     class="flex items-center gap-3 opacity-30 hover:opacity-60 transition-opacity duration-200"
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30" fill="none">
@@ -10,7 +10,7 @@
       </g>
     </svg>
     <span class="text-[#434343] font-outfit text-xl font-normal leading-normal">
-      Volver al Home
+      {{ buttonText }}
     </span>
   </button>
 </template>
@@ -19,9 +19,33 @@
 import { router } from "@inertiajs/vue3";
 
 export default {
+  props: {
+    rut: {
+      type: String,
+      required: true
+    },
+    variant: {
+      type: String,
+      default: 'home', // 'home' o 'programs'
+      validator: value => ['home', 'programs'].includes(value)
+    }
+  },
+  computed: {
+    buttonText() {
+      return this.variant === 'programs' ? 'Volver a seleccionar viaje' : 'Volver al Home';
+    }
+  },
   methods: {
-    goToHome() {
-      router.visit('/');
+    handleClick() {
+      if (this.variant === 'programs') {
+        // En ProgramDetail.vue - volver a programas
+        router.get(route('ecommerce.programs'), {
+          rut: this.rut
+        });
+      } else {
+        // En Programs.vue - volver al home
+        router.visit('/');
+      }
     }
   }
 };

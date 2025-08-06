@@ -16,19 +16,20 @@
         
         <!-- Pasos del Proceso -->
         <div class="pt-4">
-          <ProcessSteps />
+          <ProcessSteps :current-step="1" />
         </div>
       </div>
 
-      <!-- Grid de Programas usando el mismo componente del admin -->
+      <!-- Grid de Programas -->
       <ProgramsGrid 
         :programs="programs"
+        :rut="rut"
         @program-click="handleProgramClick"
       />
 
       <!-- Botón Volver al Home -->
       <div class="mt-8">
-        <BackToHomeButton />
+        <BackToHomeButton :rut="rut" variant="home" />
       </div>
     </div>
 
@@ -42,7 +43,7 @@
   import { router } from "@inertiajs/vue3";
   import Header from "@/Components/Ecommerce/Header.vue";
   import Footer from "@/Components/Ecommerce/Footer.vue";
-  import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
+  import ProgramsGrid from "@/Components/Ecommerce/ProgramsGrid.vue";
   import ParticipantHeader from "@/Components/Ecommerce/ParticipantHeader.vue";
   import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
   import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
@@ -91,18 +92,10 @@
       },
       
       handleProgramClick(program) {
-        // Manejar el click en el programa
-        if (program.status === 'available') {
-          // Si está disponible, ir a detalles para seleccionar
-          router.get(route('ecommerce.program-detail', program.id), {
-            rut: this.rut
-          });
-        } else {
-          // Si ya está inscrito, mostrar detalles del estado
-          router.get(route('ecommerce.program-detail', program.id), {
-            rut: this.rut
-          });
-        }
+        // Navegar al detalle del programa
+        router.get(route('ecommerce.program-detail', program.id), {
+          rut: this.rut
+        });
       }
     }
   };
