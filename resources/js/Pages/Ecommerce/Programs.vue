@@ -25,6 +25,11 @@
         :programs="programs"
         @program-click="handleProgramClick"
       />
+
+      <!-- Botón Volver al Home -->
+      <div class="mt-8">
+        <BackToHomeButton />
+      </div>
     </div>
 
     <!-- Footer -->
@@ -40,6 +45,7 @@
   import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
   import ParticipantHeader from "@/Components/Ecommerce/ParticipantHeader.vue";
   import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
+  import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
 
   export default {
     components: {
@@ -48,7 +54,8 @@
       Head,
       ProgramsGrid,
       ParticipantHeader,
-      ProcessSteps
+      ProcessSteps,
+      BackToHomeButton
     },
     props: {
       participant: {

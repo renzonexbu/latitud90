@@ -109,12 +109,12 @@
 
             <div class="frame-1085 hidden md:flex">
                 <div class="frame-1084">
-                    <a href="#about" class="placeholder">Sobre nosotros</a>
-                    <a href="#courses" class="placeholder"
+                    <a href="/#about" class="placeholder" @click.prevent="smoothScrollToSection('about')">Sobre nosotros</a>
+                    <a href="/#courses" class="placeholder" @click.prevent="smoothScrollToSection('courses')"
                         >Nuestros programas</a
                     >
-                    <a href="#faq" class="placeholder">Preguntas frecuentes</a>
-                    <a href="#contact" class="placeholder">Contactanos</a>
+                    <a href="/#faq" class="placeholder" @click.prevent="smoothScrollToSection('faq')">Preguntas frecuentes</a>
+                    <a href="/#contact" class="placeholder" @click.prevent="smoothScrollToSection('contact')">Contactanos</a>
                 </div>
                 <div class="boton-l">
                     <div class="placeholder2">Pagar programa</div>
@@ -215,25 +215,25 @@
                     <div class="container mx-auto px-6 py-8">
                         <ul class="space-y-6">
                             <li>
-                                <a href="#about" class="mobile-menu-link" @click="closeMobileMenu"
+                                <a href="/#about" class="mobile-menu-link" @click="smoothScrollToSection('about')"
                                     >Sobre nosotros</a
                                 >
                             </li>
                             <li>
                                 <a
-                                    href="#courses"
+                                    href="/#courses"
                                     class="mobile-menu-link"
-                                    @click="closeMobileMenu"
+                                    @click="smoothScrollToSection('courses')"
                                     >Nuestros programas</a
                                 >
                             </li>
                             <li>
-                                <a href="#faq" class="mobile-menu-link" @click="closeMobileMenu"
+                                <a href="/#faq" class="mobile-menu-link" @click="smoothScrollToSection('faq')"
                                     >Preguntas frecuentes</a
                                 >
                             </li>
                             <li>
-                                <a href="#contact" class="mobile-menu-link" @click="closeMobileMenu"
+                                <a href="/#contact" class="mobile-menu-link" @click="smoothScrollToSection('contact')"
                                     >Contactanos</a
                                 >
                             </li>
@@ -275,8 +275,28 @@ const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
 
-const closeMobileMenu = () => {
+// Función para navegar con scroll suave
+const smoothScrollToSection = (sectionId) => {
+    // Cerrar menú móvil si está abierto
     mobileMenuOpen.value = false;
+    
+    // Si estamos en la página de inicio, hacer scroll suave
+    if (isIndexPage.value) {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            // Calcular offset para el header fijo
+            const headerHeight = 120; // Altura aproximada del header
+            const elementPosition = element.offsetTop - headerHeight;
+            
+            window.scrollTo({
+                top: elementPosition,
+                behavior: 'smooth'
+            });
+        }
+    } else {
+        // Si no estamos en la página de inicio, navegar al home con el hash
+        window.location.href = `/#${sectionId}`;
+    }
 };
 
 // Cerrar menú móvil cuando se cambie a desktop
@@ -288,6 +308,20 @@ const handleResize = () => {
 
 onMounted(() => {
     window.addEventListener("resize", handleResize);
+    
+    // Manejar scroll automático si hay hash en la URL
+    if (isIndexPage.value && window.location.hash) {
+        const sectionId = window.location.hash.substring(1);
+        setTimeout(() => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }, 100);
+    }
 });
 
 onUnmounted(() => {
