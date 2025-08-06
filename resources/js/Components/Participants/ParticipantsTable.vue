@@ -63,7 +63,7 @@
                     
                     <!-- Institución -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.institution?.name || `ID: ${participant.course?.institution_id || 'N/A'}`) }}
+                        {{ capitalizeWords(getFirstCourseInfo(participant, 'institution', 'name') || 'N/A') }}
                     </div>
                     
                     <!-- Nivel -->
@@ -73,12 +73,12 @@
                     
                     <!-- Programa -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.program?.name || 'N/A') }}
+                        {{ capitalizeWords(getFirstCourseInfo(participant, 'program', 'name') || 'N/A') }}
                     </div>
                     
                     <!-- Destino -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.program?.destination || 'N/A') }}
+                        {{ capitalizeWords(getFirstCourseInfo(participant, 'program', 'destination') || 'N/A') }}
                     </div>
                     
                     <!-- Estado de pago -->
@@ -86,16 +86,16 @@
                         <div 
                             :class="[
                                 'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[14px] leading-[13px] text-center flex items-center justify-center',
-                                getPaymentStatusClass(participant.status, participant.payment_percentage)
+                                getPaymentStatusClass(getFirstCoursePivotStatus(participant), getFirstCoursePivotPercentage(participant))
                             ]"
                         >
-                            {{ getPaymentStatusText(participant.status, participant.payment_percentage) }}
+                            {{ getPaymentStatusText(getFirstCoursePivotStatus(participant), getFirstCoursePivotPercentage(participant)) }}
                         </div>
                     </div>
                     
                     <!-- Total pagado -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                        $0
+                        {{ formatPayment(getFirstCoursePivotAmount(participant)) }}
                     </div>
                     
                     <!-- Acciones -->
@@ -170,10 +170,65 @@ export default {
         },
         
         formatEducationLevel(participant) {
-            if (!participant.course) return 'N/A';
-            const level = this.capitalizeWords(participant.course.education_level);
-            const shift = this.capitalizeWords(participant.course.shift);
-            return `${level}\n${participant.course.grade} | ${shift}`;
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse) return 'N/A';
+            
+            const level = this.capitalizeWords(firstCourse.education_level);
+            const shift = this.capitalizeWords(firstCourse.shift);
+            return `${level}\n${firstCourse.grade} | ${shift}`;
+        },
+        
+        getFirstCourse(participant) {
+            if (!participant.courses || participant.courses.length === 0) {
+                return null;
+            }
+            return participant.courses[0];
+        },
+        
+        getFirstCourseInfo(participant, relation, field) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse[relation]) {
+                return null;
+            }
+            return firstCourse[relation][field];
+        },
+        
+        getFirstCoursePivotStatus(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 'pending_payment';
+            }
+            return firstCourse.pivot.status || 'pending_payment';
+        },
+        
+        getFirstCoursePivotPercentage(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 0;
+            }
+            
+            // Calcular porcentaje basado en el precio individual y ajustes
+            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
+            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
+            const totalPrice = individualPrice + adjustments;
+            
+            if (totalPrice <= 0) return 0;
+            
+            // Por ahora retornar 0, se puede calcular basado en pagos reales
+            return 0;
+        },
+        
+        getFirstCoursePivotAmount(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 0;
+            }
+            
+            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
+            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
+            
+            // Por ahora retornar el precio individual, se puede calcular basado en pagos reales
+            return individualPrice;
         },
         
         getPaymentStatusClass(status, percentage = 0) {

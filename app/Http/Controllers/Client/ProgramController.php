@@ -32,9 +32,18 @@ class ProgramController extends Controller
 
         $programs = $this->programService->getAvailablePrograms($participant);
 
+        // Formatear los datos para la paginación como en el admin
+        $formattedPrograms = [
+            'data' => $programs,
+            'current_page' => 1,
+            'total' => count($programs),
+            'per_page' => 6,
+            'last_page' => ceil(count($programs) / 6)
+        ];
+
         return Inertia::render('Ecommerce/Programs', [
             'participant' => $participant,
-            'programs' => $programs,
+            'programs' => $formattedPrograms,
             'rut' => $rut
         ]);
     }

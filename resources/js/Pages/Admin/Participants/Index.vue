@@ -164,49 +164,52 @@ export default {
                     participant.first_name?.toLowerCase().includes(searchTerm) ||
                     participant.last_name?.toLowerCase().includes(searchTerm) ||
                     participant.document_number?.toLowerCase().includes(searchTerm) ||
-                    participant.course?.institution?.name?.toLowerCase().includes(searchTerm)
+                    this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
                 );
             }
 
             // Filtro por programa
             if (this.localFilters.program) {
                 filtered = filtered.filter(participant => 
-                    participant.course?.program?.name === this.localFilters.program
+                    this.getFirstCourseInfo(participant, 'program', 'name') === this.localFilters.program
                 );
             }
 
             // Filtro por institución
             if (this.localFilters.institution) {
                 filtered = filtered.filter(participant => 
-                    participant.course?.institution?.name === this.localFilters.institution
+                    this.getFirstCourseInfo(participant, 'institution', 'name') === this.localFilters.institution
                 );
             }
 
             // Filtro por nivel educativo
             if (this.localFilters.level) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.education_level === this.localFilters.level
-                );
+                filtered = filtered.filter(participant => {
+                    const firstCourse = this.getFirstCourse(participant);
+                    return firstCourse?.education_level === this.localFilters.level;
+                });
             }
 
             // Filtro por grado
             if (this.localFilters.grade) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.grade?.toString() === this.localFilters.grade.toString()
-                );
+                filtered = filtered.filter(participant => {
+                    const firstCourse = this.getFirstCourse(participant);
+                    return firstCourse?.grade?.toString() === this.localFilters.grade.toString();
+                });
             }
 
             // Filtro por turno
             if (this.localFilters.turno) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.shift === this.localFilters.turno
-                );
+                filtered = filtered.filter(participant => {
+                    const firstCourse = this.getFirstCourse(participant);
+                    return firstCourse?.shift === this.localFilters.turno;
+                });
             }
 
             // Filtro por estado de pago
             if (this.localFilters.paymentStatus) {
                 filtered = filtered.filter(participant => 
-                    participant.status === this.localFilters.paymentStatus
+                    this.getFirstCoursePivotStatus(participant) === this.localFilters.paymentStatus
                 );
             }
 
@@ -242,6 +245,30 @@ export default {
         },
         closeCreateModal() {
             this.showCreateModal = false;
+        },
+        
+        // Métodos auxiliares para manejar la nueva estructura de cursos
+        getFirstCourse(participant) {
+            if (!participant.courses || participant.courses.length === 0) {
+                return null;
+            }
+            return participant.courses[0];
+        },
+        
+        getFirstCourseInfo(participant, relation, field) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse[relation]) {
+                return null;
+            }
+            return firstCourse[relation][field];
+        },
+        
+        getFirstCoursePivotStatus(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 'pending_payment';
+            }
+            return firstCourse.pivot.status || 'pending_payment';
         },
     },
 };

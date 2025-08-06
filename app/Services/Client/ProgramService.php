@@ -44,20 +44,24 @@ class ProgramService
                 $enrolledCount = $program->course->participants()->count();
             }
 
+            // Calcular porcentaje de pago (por ahora 0%, se puede implementar después)
+            $paymentPercentage = 0;
+            $paidAmount = 0;
+            $totalAmount = $program->trip_price;
+
             if (!$isEnrolled) {
                 $availablePrograms[] = [
                     'id' => $program->id,
                     'name' => $program->name,
-                    'description' => $program->trip_description,
-                    'institution' => $program->course->institution->name ?? 'N/A',
-                    'base_price' => $program->trip_price,
-                    'duration_days' => $this->calculateDurationDays($program->departure_date),
-                    'start_date' => $program->departure_date,
-                    'end_date' => $program->departure_date, // Usar la misma fecha por ahora
+                    'trip_description' => $program->trip_description,
                     'destination' => $program->destination,
-                    'capacity' => 50, // Valor por defecto
-                    'available_spots' => 50 - $enrolledCount,
-                    'image_url' => $program->images[0] ?? '/images/default-program.jpg',
+                    'departure_date' => $program->departure_date,
+                    'trip_price' => $program->trip_price,
+                    'course' => $program->course,
+                    'images' => $program->images,
+                    'paymentPercentage' => $paymentPercentage,
+                    'paidAmount' => $paidAmount,
+                    'totalAmount' => $totalAmount,
                     'status' => 'available'
                 ];
             } else {
@@ -69,16 +73,15 @@ class ProgramService
                 $availablePrograms[] = [
                     'id' => $program->id,
                     'name' => $program->name,
-                    'description' => $program->trip_description,
-                    'institution' => $program->course->institution->name ?? 'N/A',
-                    'base_price' => $program->trip_price,
-                    'duration_days' => $this->calculateDurationDays($program->departure_date),
-                    'start_date' => $program->departure_date,
-                    'end_date' => $program->departure_date,
+                    'trip_description' => $program->trip_description,
                     'destination' => $program->destination,
-                    'capacity' => 50,
-                    'available_spots' => 50 - $enrolledCount,
-                    'image_url' => $program->images[0] ?? '/images/default-program.jpg',
+                    'departure_date' => $program->departure_date,
+                    'trip_price' => $program->trip_price,
+                    'course' => $program->course,
+                    'images' => $program->images,
+                    'paymentPercentage' => $paymentPercentage,
+                    'paidAmount' => $paidAmount,
+                    'totalAmount' => $totalAmount,
                     'status' => $enrollment->pivot->status ?? 'enrolled',
                     'enrollment_date' => $enrollment->pivot->created_at ?? null
                 ];
