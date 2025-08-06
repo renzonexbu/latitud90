@@ -192,11 +192,13 @@
                                             <span class="font-nexa"
                                                 >Acepto todos los</span
                                             >
-                                            <span
-                                                class="font-nexa-bold font-bold underline"
+                                            <a
+                                                href="/terminos-y-condiciones"
+                                                target="_blank"
+                                                class="font-nexa-bold font-bold underline hover:text-[#007E93] transition-colors"
                                             >
-                                                términos y condiciones*</span
-                                            >
+                                                términos y condiciones*
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
