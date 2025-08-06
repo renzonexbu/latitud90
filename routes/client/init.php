@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Client\FindParticipantController;
 use App\Http\Controllers\EcommerceController;
 use App\Http\Controllers\PaymentGatewayController;
 use Illuminate\Support\Facades\Route;
@@ -8,6 +9,9 @@ use Illuminate\Support\Facades\Route;
 //Homepage
 Route::get('/', [EcommerceController::class, 'index'])->name('ecommerce.index');
 
+//Find Participant
+Route::get('/participant', [FindParticipantController::class, 'findParticipant'])->name('ecommerce.find-participant');
+Route::post('/participant/search', [FindParticipantController::class, 'searchParticipant'])->name('ecommerce.search-participant');
 
 
 Route::get('/ecommerce', [EcommerceController::class, 'index'])->name('ecommerce.home');
