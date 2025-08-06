@@ -78,7 +78,10 @@
 
                     <!-- Componente Derecho -->
                     <div class="flex-1 p-10">
-                        <PaymentPanel :final-payment-date="program.final_payment_date" />
+                        <PaymentPanel 
+                            :final-payment-date="program.final_payment_date" 
+                            :program-id="program.id"
+                        />
                     </div>
                 </div>
             </div>

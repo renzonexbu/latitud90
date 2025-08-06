@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Client\FindParticipantController;
 use App\Http\Controllers\Client\TermsAndConditionsController;
+use App\Http\Controllers\Client\GeneratePaymentController;
 use App\Http\Controllers\EcommerceController;
 use App\Http\Controllers\PaymentGatewayController;
 use Illuminate\Support\Facades\Route;
@@ -18,10 +19,9 @@ Route::get('/terminos-y-condiciones', [TermsAndConditionsController::class, 'ter
 //Program Routes
 require __DIR__ . '/program.php';
 
-
-
-
-
+// Payment Routes
+Route::get('/programs/{programId}/payment', [GeneratePaymentController::class, 'show'])->name('payment.details');
+Route::post('/programs/{programId}/payment', [GeneratePaymentController::class, 'store'])->name('payment.generate');
 
 //LEGACY ROUTES
 // Route::get('/ecommerce', [EcommerceController::class, 'index'])->name('ecommerce.home');

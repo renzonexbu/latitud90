@@ -4,13 +4,13 @@
             <!-- Header Section -->
             <div class="flex flex-col gap-[14px]">
                 <h2 class="text-[#007E93] font-outfit-semibold text-[20px] leading-[61.43px] font-semibold">
-                    Selecione la formas de pago
+                            Selecione la formas de pago
                 </h2>
                 <p class="text-[#5B5B5B] font-nexa text-sm leading-[18px]">
                     ¡Selecciona la forma de pago que mejor se adapte a ti, total o en cuotas! Para cualquier consulta, no dudes en escribirnos por
-                    <span class="underline">WhatsApp</span>
+                            <span class="underline">WhatsApp</span>
                 </p>
-            </div>
+                    </div>
 
             <!-- Payment Options Section -->
             <div class="flex flex-col gap-[18px]">
@@ -30,7 +30,7 @@
                                 :is-selected="paymentType === 'total' && totalPaymentOption === option.value"
                                 @select="selectTotalPaymentOption(option.value)"
                             />
-                        </div>
+                                    </div>
                     </template>
                 </PaymentOption>
 
@@ -83,44 +83,45 @@
                                             <option value="11">11</option>
                                             <option value="12">12</option>
                                         </select>
-                                    </div>
+                                            </div>
 
                                     <!-- End Date -->
                                     <div class="flex flex-row items-center gap-[8px]">
                                         <span class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal">
                                             Fecha de finalización
-                                        </span>
+                                                        </span>
                                         <span class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal">
                                             {{ formatEndDate(finalPaymentDate) }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                     </template>
                 </PaymentOption>
-            </div>
-
+                                </div>
+                                
             <!-- Payment Summary Section -->
             <div class="border-t border-[#D3D3D3] pt-[14px]">
                 <div class="flex flex-row items-center justify-between">
                     <span class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold">
-                        Faltan pagar
+                            Faltan pagar
                     </span>
                     <span class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold">
-                        $1800
+                            $1800
                     </span>
                 </div>
             </div>
 
             <!-- Payment Button -->
-            <button 
+            <button
                 class="rounded-[35px] p-[11px_20px] h-[55.94px] w-full transition-colors duration-300"
                 :class="{
                     'bg-[#FBBD51] cursor-pointer': paymentType !== null,
                     'bg-[#C7C7C7] cursor-not-allowed': paymentType === null
                 }"
                 :disabled="paymentType === null"
+                @click="initiatePayment"
             >
                 <span class="text-white font-urbanist-semibold text-[18px] leading-[18px] font-semibold">
                     Iniciar pago
@@ -134,6 +135,7 @@
 import PaymentOption from './PaymentOption.vue'
 import PaymentSubOption from './PaymentSubOption.vue'
 import MonthlyWarningMessage from './MonthlyWarningMessage.vue'
+import { router } from '@inertiajs/vue3'
 
 export default {
     name: "PaymentPanel",
@@ -145,6 +147,10 @@ export default {
     props: {
         finalPaymentDate: {
             type: String,
+            required: true
+        },
+        programId: {
+            type: [String, Number],
             required: true
         }
     },
@@ -211,7 +217,7 @@ export default {
                 } else if (type === "total") {
                     this.monthlyPaymentOption = null;
                     if (!this.totalPaymentOption) {
-                        this.totalPaymentOption = "debit";
+                    this.totalPaymentOption = "debit";
                     }
                 }
             }
@@ -234,6 +240,30 @@ export default {
             const year = dateObj.getFullYear();
             return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
         },
+        initiatePayment() {
+            if (this.paymentType === null) {
+                return;
+            }
+
+            console.log('Iniciando pago con:', {
+                paymentType: this.paymentType,
+                paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
+                installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1
+            });
+
+            // Guardar los datos de pago en la sesión o localStorage
+            const paymentData = {
+                paymentType: this.paymentType,
+                paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
+                installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1
+            };
+
+            // Guardar en localStorage para que esté disponible en la siguiente vista
+            localStorage.setItem('selectedPaymentData', JSON.stringify(paymentData));
+
+            // Redirigir a la vista de detalles de pago usando URL directa
+            router.visit(`/programs/${this.programId}/payment`);
+        }
     },
 };
 </script>
