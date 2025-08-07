@@ -62,9 +62,22 @@
                                 <input
                                     type="text"
                                     :placeholder="getDocumentPlaceholder()"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    :class="[
+                                        'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                        isRutDocument && rutValidation.isValid === false ? 'border-red-500' : '',
+                                        isRutDocument && rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]'
+                                    ]"
                                     v-model="formData.documentNumber"
+                                    @input="handleDocumentInput"
+                                    @blur="validateDocument"
                                 />
+                                <div v-if="isRutDocument && rutValidation.message" 
+                                     class="text-xs mt-1 validation-message" 
+                                     :class="[
+                                         rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                                     ]">
+                                    {{ rutValidation.message }}
+                                </div>
                             </div>
 
                             <!-- Correo electrónico -->
@@ -122,8 +135,10 @@
                                     </label>
                                     <SearchableSelect
                                         :options="countries"
-                                        v-model="formData.country"
+                                        :value="formData.country"
                                         placeholder="Busca y selecciona tu país"
+                                        @input="handleCountryChange"
+                                        search-key="name"
                                     />
                                 </div>
 
@@ -131,13 +146,14 @@
                                     <label
                                         class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                     >
-                                        Región
+                                        Región *
                                     </label>
                                     <SearchableSelect
                                         :options="regions"
                                         :value="formData.region"
                                         placeholder="Busca y selecciona tu región"
                                         @input="handleRegionChange"
+                                        search-key="name"
                                     />
                                 </div>
 
@@ -145,13 +161,15 @@
                                     <label
                                         class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                     >
-                                        Comuna
+                                        Comuna *
                                     </label>
                                     <SearchableSelect
                                         :options="filteredComunes"
-                                        v-model="formData.city"
+                                        :value="formData.city"
                                         placeholder="Busca y selecciona tu comuna"
                                         :disabled="!formData.region"
+                                        @input="handleCityChange"
+                                        search-key="name"
                                     />
                                 </div>
                             </div>
@@ -224,6 +242,7 @@
                     }"
                     :disabled="!isFormValid"
                     @click="continueToPayment"
+                    @mouseenter="checkButtonState"
                 >
                     <span class="text-white font-medium">Continuar</span>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -303,6 +322,10 @@ export default {
                 marketingAccepted: false,
             },
             isFormValid: false,
+            rutValidation: {
+                isValid: null,
+                message: ""
+            }
         };
     },
     computed: {
@@ -321,6 +344,14 @@ export default {
             
             return selectedRegion.comunes;
         },
+        
+        isRutDocument() {
+            if (!this.formData.documentType) return false;
+            const selectedDocType = this.documentTypes.find(
+                doc => doc.id == this.formData.documentType
+            );
+            return selectedDocType && selectedDocType.name.toLowerCase() === 'rut';
+        }
     },
     mounted() {
         // Leer los datos de pago del localStorage
@@ -344,6 +375,11 @@ export default {
             regions: this.regions,
             sampleRegion: this.regions[0]
         });
+        
+        // Forzar validación inicial
+        this.$nextTick(() => {
+            this.validateForm();
+        });
     },
     watch: {
         formData: {
@@ -352,18 +388,77 @@ export default {
                 this.validateForm();
             },
         },
+        
+        "formData.documentType"() {
+            // Limpiar validación de RUT cuando cambie el tipo de documento
+            this.rutValidation.isValid = null;
+            this.rutValidation.message = '';
+            this.formData.documentNumber = '';
+        },
+        
+        "formData.region": {
+            handler(newRegionId, oldRegionId) {
+                console.log('Región cambiada:', { oldRegionId, newRegionId });
+                // Limpiar comuna cuando cambie la región
+                this.formData.city = "";
+            },
+            immediate: false
+        },
+        
+        filteredComunes: {
+            handler(newComunes, oldComunes) {
+                console.log('Comunas filtradas actualizadas:', {
+                    oldCount: oldComunes?.length || 0,
+                    newCount: newComunes?.length || 0,
+                    comunas: newComunes
+                });
+            },
+            immediate: false
+        },
 
     },
     methods: {
         validateForm() {
-            this.isFormValid =
-                this.formData.fullName.trim() !== "" &&
-                this.formData.documentType !== "" &&
-                this.formData.documentNumber.trim() !== "" &&
-                this.formData.email.trim() !== "" &&
-                this.formData.phone.trim() !== "" &&
-                this.formData.country.trim() !== "" &&
-                this.formData.termsAccepted;
+            // Validación individual de cada campo
+            const validations = {
+                fullName: this.formData.fullName.trim() !== "",
+                documentType: this.formData.documentType !== "",
+                documentNumber: this.formData.documentNumber.trim() !== "",
+                email: this.formData.email.trim() !== "",
+                phone: this.formData.phone.trim() !== "",
+                country: this.formData.country !== "",
+                region: this.formData.region !== "",
+                city: this.formData.city !== "",
+                termsAccepted: this.formData.termsAccepted
+            };
+            
+            // Validación básica (todos los campos deben ser true)
+            const basicValidation = Object.values(validations).every(valid => valid === true);
+            
+            // Validación adicional para RUT
+            const rutValidation = this.isRutDocument ? this.rutValidation.isValid === true : true;
+            
+            this.isFormValid = basicValidation && rutValidation;
+            
+            // Debug: Mostrar estado de validación detallado
+            console.log('=== VALIDACIÓN DEL FORMULARIO ===');
+            console.log('Valores actuales:', {
+                fullName: `"${this.formData.fullName}"`,
+                documentType: `"${this.formData.documentType}"`,
+                documentNumber: `"${this.formData.documentNumber}"`,
+                email: `"${this.formData.email}"`,
+                phone: `"${this.formData.phone}"`,
+                country: `"${this.formData.country}"`,
+                region: `"${this.formData.region}"`,
+                city: `"${this.formData.city}"`,
+                termsAccepted: this.formData.termsAccepted
+            });
+            console.log('Validaciones individuales:', validations);
+            console.log('Validación básica:', basicValidation);
+            console.log('Es documento RUT:', this.isRutDocument);
+            console.log('Validación RUT:', rutValidation);
+            console.log('Formulario válido:', this.isFormValid);
+            console.log('================================');
         },
         
         getDocumentLabel() {
@@ -409,6 +504,141 @@ export default {
                     console.log('Comunas disponibles:', selectedRegion.comunes);
                 }
             }
+            
+            // Forzar la validación del formulario
+            this.$nextTick(() => {
+                this.validateForm();
+            });
+        },
+        
+        handleCountryChange(countryId) {
+            console.log('País seleccionado:', countryId);
+            this.formData.country = countryId;
+            
+            // Forzar la validación del formulario
+            this.$nextTick(() => {
+                this.validateForm();
+            });
+        },
+        
+        handleCityChange(cityId) {
+            console.log('Comuna seleccionada:', cityId);
+            this.formData.city = cityId;
+            
+            // Forzar la validación del formulario
+            this.$nextTick(() => {
+                this.validateForm();
+            });
+        },
+        
+        handleDocumentInput() {
+            if (this.isRutDocument) {
+                this.formatRut();
+            }
+        },
+        
+        validateDocument() {
+            if (this.isRutDocument) {
+                this.validateRut();
+            }
+        },
+        
+        formatRut() {
+            // Remover todos los caracteres no numéricos excepto K
+            let rut = this.formData.documentNumber.replace(/[^0-9kK]/g, '');
+            
+            if (rut.length > 0) {
+                rut = rut.toUpperCase();
+                
+                // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+                if (rut.length > 1) {
+                    const body = rut.slice(0, -1);
+                    const dv = rut.slice(-1);
+                    
+                    // Formatear el cuerpo con puntos
+                    let formattedBody = '';
+                    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                        if (j > 0 && j % 3 === 0) {
+                            formattedBody = '.' + formattedBody;
+                        }
+                        formattedBody = body[i] + formattedBody;
+                    }
+                    
+                    // Combinar cuerpo formateado con dígito verificador
+                    this.formData.documentNumber = `${formattedBody}-${dv}`;
+                } else {
+                    this.formData.documentNumber = rut;
+                }
+            }
+            
+            // Validar el RUT después de formatearlo
+            this.validateRut();
+        },
+        
+        validateRut() {
+            const rut = this.formData.documentNumber.replace(/\./g, '').replace(/-/g, '');
+            
+            if (rut.length === 0) {
+                this.rutValidation.isValid = null;
+                this.rutValidation.message = '';
+                return;
+            }
+            
+            // Validar formato básico
+            if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+                this.rutValidation.isValid = false;
+                this.rutValidation.message = 'Formato de RUT inválido';
+                return;
+            }
+            
+            // Separar cuerpo y dígito verificador
+            const body = rut.slice(0, -1);
+            const dv = rut.slice(-1).toUpperCase();
+            
+            // Validar que el cuerpo tenga al menos 7 dígitos
+            if (body.length < 7) {
+                this.rutValidation.isValid = false;
+                this.rutValidation.message = 'RUT debe tener al menos 7 dígitos';
+                return;
+            }
+            
+            // Calcular dígito verificador
+            const dvCalculado = this.calculateDv(body);
+            
+            // Comparar dígitos verificadores
+            this.rutValidation.isValid = dv === dvCalculado;
+            this.rutValidation.message = this.rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
+        },
+        
+        calculateDv(body) {
+            let sum = 0;
+            let factor = 2;
+            for (let i = body.length - 1; i >= 0; i--) {
+                sum += body[i] * factor;
+                factor = factor === 7 ? 2 : factor + 1;
+            }
+            const dv = 11 - (sum % 11);
+            return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
+        },
+        
+        handleRegionChange(regionId) {
+            console.log('handleRegionChange llamado con:', regionId);
+            this.formData.region = regionId;
+            this.formData.city = ""; // Limpiar comuna
+            
+            // Verificar las comunas disponibles
+            if (regionId) {
+                const selectedRegion = this.regions.find(r => r.id == regionId);
+                console.log('Región encontrada:', selectedRegion);
+                if (selectedRegion && selectedRegion.comunes) {
+                    console.log('Comunas disponibles:', selectedRegion.comunes);
+                }
+            }
+            
+            // Forzar la validación del formulario
+            this.$nextTick(() => {
+                this.validateForm();
+            });
         },
         
         goBackToProgram() {
@@ -431,11 +661,12 @@ export default {
             // Preparar datos del comprador
             const buyerData = {
                 // Datos personales
-                fullName: this.formData.fullName,
+                name: this.formData.fullName,
                 documentType: selectedDocType ? selectedDocType.name : '',
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
-                phone: this.formData.code_phone + this.formData.phone,
+                code_phone: this.formData.code_phone,
+                phone: this.formData.phone,
                 
                 // Datos de ubicación
                 countryId: this.formData.country,
@@ -458,11 +689,20 @@ export default {
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
 
-            // Continuar al gateway de pago
+            // Continuar a la página de confirmación
             router.visit(
-                `/payment/gateway?programId=${this.programId}&paymentType=${this.selectedPaymentType}&paymentMethod=${this.selectedPaymentMethod}`
+                `/programs/${this.programId}/confirmation`
             );
         },
+        
+        checkButtonState() {
+            console.log('=== ESTADO DEL BOTÓN ===');
+            console.log('isFormValid:', this.isFormValid);
+            console.log('formData completo:', this.formData);
+            this.validateForm(); // Forzar validación
+        },
+        
+
     },
 };
 </script>

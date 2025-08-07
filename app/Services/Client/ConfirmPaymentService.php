@@ -45,8 +45,8 @@ class ConfirmPaymentService
     {
         // En un caso real, esto vendría de la base de datos
         return [
-            'fullName' => 'Usuario Ejemplo',
-            'rut' => '12345678-9',
+            'name' => 'Usuario Ejemplo',
+            'document_number' => '12345678-9',
             'email' => 'usuario@ejemplo.com',
             'phone' => '912345678',
             'code_phone' => '+56',

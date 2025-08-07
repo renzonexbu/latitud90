@@ -83,7 +83,7 @@
                         <div class="space-y-4">
                             <div>
                                 <h3 class="font-medium text-gray-900">Nombre Completo</h3>
-                                <p class="text-gray-600">{{ confirmationData.form_data.fullName }}</p>
+                                <p class="text-gray-600">{{ confirmationData.form_data.name }}</p>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
@@ -99,7 +99,7 @@
 
                             <div>
                                 <h3 class="font-medium text-gray-900">Documento</h3>
-                                <p class="text-gray-600">RUT: {{ confirmationData.form_data.rut }}</p>
+                                <p class="text-gray-600">RUT: {{ confirmationData.form_data.document_number }}</p>
                             </div>
 
                             <div>

@@ -16,11 +16,14 @@ class OrderDetail extends Model
         'payment_method_id',
         'payment_mode_id',
         'payment_gateway_id',
-        'first_name',
-        'last_name',
+        'name',
         'email',
+        'country',
+        'region',
+        'city',
+        'code_phone',
         'phone',
-        'document_type_id',
+        'document_type',
         'document_number',
         'billing_address',
         'billing_city',
@@ -68,14 +71,29 @@ class OrderDetail extends Model
         return $this->belongsTo(PaymentGateway::class);
     }
 
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(Comune::class, 'city');
+    }
+
     public function documentType()
     {
-        return $this->belongsTo(Document::class, 'document_type_id')->withDefault();
+        return $this->belongsTo(Document::class, 'document_type')->withDefault();
     }
 
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->name;
     }
 
     public function getIsOverdueAttribute()

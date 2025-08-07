@@ -49,11 +49,14 @@ return new class extends Migration
             $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways'); // FK a payment_gateways
 
             // Datos del comprador (se mueven aquí desde orders)
-            $table->string('first_name');
-            $table->string('last_name');
+            $table->string('name');
             $table->string('email');
+            $table->foreignId('country')->nullable()->constrained('countries');
+            $table->foreignId('region')->nullable()->constrained('regions');
+            $table->foreignId('city')->nullable()->constrained('comunes');
+            $table->string('code_phone')->nullable();
             $table->string('phone')->nullable();
-            $table->foreignId('document_type_id')->nullable()->constrained('document'); // FK a document
+            $table->foreignId('document_type')->nullable(); // FK a document
             $table->string('document_number')->nullable();
 
             // Dirección de facturación
