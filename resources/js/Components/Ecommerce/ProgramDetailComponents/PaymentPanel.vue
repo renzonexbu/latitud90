@@ -214,6 +214,14 @@ export default {
             default: true
         },
     },
+    watch: {
+        selectedInstallments(newValue) {
+            // Guardar en localStorage cuando cambie el número de cuotas
+            if (this.paymentType === 'monthly') {
+                this.savePaymentDataToLocalStorage();
+            }
+        }
+    },
     mounted() {
         // Debug: Log de la configuración del programa
         console.log('Configuración de pago del programa:', {
@@ -343,16 +351,25 @@ export default {
                     }
                 }
             }
+            
+            // Guardar en localStorage en tiempo real
+            this.savePaymentDataToLocalStorage();
         },
         selectTotalPaymentOption(option) {
             this.paymentType = "total";
             this.accordionOpen = "total";
             this.totalPaymentOption = option;
+            
+            // Guardar en localStorage en tiempo real
+            this.savePaymentDataToLocalStorage();
         },
         selectMonthlyPaymentOption(option) {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
+            
+            // Guardar en localStorage en tiempo real
+            this.savePaymentDataToLocalStorage();
         },
         formatEndDate(date) {
             if (!date) return "No especificada";
@@ -363,6 +380,46 @@ export default {
             return `${day.toString().padStart(2, "0")}/${month
                 .toString()
                 .padStart(2, "0")}/${year.toString().slice(-2)}`;
+        },
+        
+        savePaymentDataToLocalStorage() {
+            if (this.paymentType === null) {
+                return;
+            }
+
+            // Obtener datos existentes para preservar términos aceptados
+            const existingData = localStorage.getItem("selectedPaymentData");
+            let existingTermsAccepted = false;
+            
+            if (existingData) {
+                try {
+                    const parsed = JSON.parse(existingData);
+                    existingTermsAccepted = parsed.termsAccepted || false;
+                } catch (error) {
+                    console.error("Error parsing existing payment data:", error);
+                }
+            }
+
+            const paymentData = {
+                paymentType: this.paymentType,
+                paymentMethod:
+                    this.paymentType === "total"
+                        ? this.totalPaymentOption
+                        : this.monthlyPaymentOption,
+                installments:
+                    this.paymentType === "monthly"
+                        ? this.selectedInstallments
+                        : 1,
+                termsAccepted: existingTermsAccepted, // Preservar términos aceptados
+            };
+
+            // Guardar en localStorage
+            localStorage.setItem(
+                "selectedPaymentData",
+                JSON.stringify(paymentData)
+            );
+            
+            console.log('Payment data saved to localStorage:', paymentData);
         },
         
         loadPaymentDataFromLocalStorage() {
@@ -382,6 +439,11 @@ export default {
                     } else if (paymentData.paymentType === 'monthly') {
                         this.monthlyPaymentOption = paymentData.paymentMethod;
                         this.accordionOpen = 'monthly';
+                    }
+                    
+                    // Emitir evento para actualizar términos aceptados en el componente padre
+                    if (paymentData.termsAccepted !== undefined) {
+                        this.$emit('terms-accepted-updated', paymentData.termsAccepted);
                     }
                     
                     console.log('Payment data loaded from localStorage:', paymentData);

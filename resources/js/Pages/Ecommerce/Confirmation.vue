@@ -24,6 +24,7 @@
                             :show-warning="false"
                             :show-remaining-amount="false"
                             :show-payment-button="false"
+                            @terms-accepted-updated="handleTermsAcceptedUpdate"
                         />
                     </div>
                 </div>
@@ -105,6 +106,21 @@ export default {
             lat90_payment_method_id:
                 this.confirmationData.program?.lat90_payment_method_id,
         });
+    },
+    methods: {
+        handleTermsAcceptedUpdate(termsAccepted) {
+            // Actualizar el estado de términos aceptados en localStorage
+            const paymentData = localStorage.getItem("selectedPaymentData");
+            if (paymentData) {
+                try {
+                    const parsedData = JSON.parse(paymentData);
+                    parsedData.termsAccepted = termsAccepted;
+                    localStorage.setItem("selectedPaymentData", JSON.stringify(parsedData));
+                } catch (error) {
+                    console.error("Error updating payment data:", error);
+                }
+            }
+        },
     },
 };
 </script>

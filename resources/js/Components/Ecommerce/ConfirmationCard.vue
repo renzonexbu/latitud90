@@ -123,7 +123,12 @@
     <!-- Payment Button -->
     <div class="flex justify-center mt-6">
         <button
-            class="flex w-[404px] px-5 py-[11px] justify-center items-center gap-3 rounded-[49px] bg-[#FBBD51] transition-colors duration-300 hover:bg-[#e6a93d]"
+            class="flex w-[404px] px-5 py-[11px] justify-center items-center gap-3 rounded-[49px] transition-colors duration-300"
+            :class="{
+                'bg-[#FBBD51] hover:bg-[#e6a93d] cursor-pointer': isPaymentButtonEnabled,
+                'bg-[#C7C7C7] cursor-not-allowed': !isPaymentButtonEnabled
+            }"
+            :disabled="!isPaymentButtonEnabled"
             @click="handlePayment"
         >
             <span
@@ -169,10 +174,54 @@ export default {
             termsAccepted: false,
         };
     },
+    watch: {
+        termsAccepted(newValue) {
+            // Guardar el estado de términos aceptados en localStorage
+            const paymentData = localStorage.getItem("selectedPaymentData");
+            if (paymentData) {
+                try {
+                    const parsedData = JSON.parse(paymentData);
+                    parsedData.termsAccepted = newValue;
+                    localStorage.setItem("selectedPaymentData", JSON.stringify(parsedData));
+                } catch (error) {
+                    console.error("Error updating payment data:", error);
+                }
+            }
+        }
+    },
+    mounted() {
+        // Cargar el estado de términos aceptados desde localStorage
+        const paymentData = localStorage.getItem("selectedPaymentData");
+        if (paymentData) {
+            try {
+                const parsedData = JSON.parse(paymentData);
+                this.termsAccepted = parsedData.termsAccepted || false;
+            } catch (error) {
+                console.error("Error loading payment data:", error);
+            }
+        }
+    },
     computed: {
         participantName() {
             // Usar los datos del participante desde las props
             return this.formData.name || "Usuario";
+        },
+        isPaymentButtonEnabled() {
+            // Verificar si hay un método de pago seleccionado
+            const paymentData = localStorage.getItem("selectedPaymentData");
+            let hasPaymentMethod = false;
+            
+            if (paymentData) {
+                try {
+                    const parsedData = JSON.parse(paymentData);
+                    hasPaymentMethod = parsedData.paymentType && parsedData.paymentMethod;
+                } catch (error) {
+                    console.error("Error parsing payment data:", error);
+                }
+            }
+            
+            // El botón está habilitado si hay método de pago Y términos aceptados
+            return hasPaymentMethod && this.termsAccepted;
         },
     },
     methods: {

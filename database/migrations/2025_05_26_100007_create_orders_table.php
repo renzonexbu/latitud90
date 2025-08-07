@@ -68,6 +68,7 @@ return new class extends Migration
             // Acuerdos
             $table->boolean('terms_accepted')->default(false);
             $table->boolean('marketing_accepted')->default(false);
+            $table->boolean('terms_accepted_confirmation')->default(false); // Términos aceptados en confirmación
 
             // Información de la cuota
             $table->integer('installment_number'); // Número de cuota (1, 2, 3, etc.)
