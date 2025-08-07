@@ -4,7 +4,7 @@
     >
         <div class="flex flex-col gap-[24px]">
             <!-- Header Section -->
-            <div class="flex flex-col gap-[14px]">
+            <div v-if="showHeader" class="flex flex-col gap-[14px]">
                 <h2
                     class="text-[#007E93] font-outfit-semibold text-[20px] leading-[61.43px] font-semibold"
                 >
@@ -55,7 +55,7 @@
                     <template #accordion-content>
                         <div class="flex flex-col gap-[9px]">
                             <!-- Warning Message -->
-                            <MonthlyWarningMessage />
+                            <MonthlyWarningMessage v-if="showWarning" />
 
                             <!-- Monthly Payment Options -->
                             <PaymentSubOption
@@ -127,7 +127,7 @@
             </div>
 
             <!-- Payment Summary Section -->
-            <div class="border-t border-[#D3D3D3] pt-[14px]">
+            <div v-if="showRemainingAmount" class="border-t border-[#D3D3D3] pt-[14px]">
                 <div class="flex flex-row items-center justify-between">
                     <span
                         class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold"
@@ -144,6 +144,7 @@
 
             <!-- Payment Button -->
             <button
+                v-if="showPaymentButton"
                 class="rounded-[35px] p-[11px_20px] h-[55.94px] w-full transition-colors duration-300"
                 :class="{
                     'bg-[#FBBD51] cursor-pointer': paymentType !== null,
@@ -188,6 +189,30 @@ export default {
             type: Object,
             required: true,
         },
+        isConfirmation: {
+            type: Boolean,
+            default: false
+        },
+        showHeader: {
+            type: Boolean,
+            default: true
+        },
+        showWarning: {
+            type: Boolean,
+            default: true
+        },
+        showRemainingAmount: {
+            type: Boolean,
+            default: true
+        },
+        showPaymentButton: {
+            type: Boolean,
+            default: true
+        },
+        showSeparator: {
+            type: Boolean,
+            default: true
+        },
     },
     mounted() {
         // Debug: Log de la configuración del programa
@@ -200,6 +225,11 @@ export default {
             lat90_payment_method: this.program.lat90_payment_method,
             lat90_max_installments: this.program.lat90_max_installments
         });
+        
+        // Si está en modo confirmación, cargar datos desde localStorage
+        if (this.isConfirmation) {
+            this.loadPaymentDataFromLocalStorage();
+        }
     },
     data() {
         return {
@@ -334,6 +364,34 @@ export default {
                 .toString()
                 .padStart(2, "0")}/${year.toString().slice(-2)}`;
         },
+        
+        loadPaymentDataFromLocalStorage() {
+            const savedPaymentData = localStorage.getItem("selectedPaymentData");
+            if (savedPaymentData) {
+                try {
+                    const paymentData = JSON.parse(savedPaymentData);
+                    
+                    // Cargar los datos de pago
+                    this.paymentType = paymentData.paymentType;
+                    this.selectedInstallments = paymentData.installments || 12;
+                    
+                    // Configurar las opciones según el tipo de pago
+                    if (paymentData.paymentType === 'total') {
+                        this.totalPaymentOption = paymentData.paymentMethod;
+                        this.accordionOpen = 'total';
+                    } else if (paymentData.paymentType === 'monthly') {
+                        this.monthlyPaymentOption = paymentData.paymentMethod;
+                        this.accordionOpen = 'monthly';
+                    }
+                    
+                    console.log('Payment data loaded from localStorage:', paymentData);
+                } catch (error) {
+                    console.error("Error parsing payment data:", error);
+                }
+            } else {
+                console.log("No payment data found in localStorage");
+            }
+        },
         initiatePayment() {
             if (this.paymentType === null) {
                 return;
@@ -370,8 +428,10 @@ export default {
                 JSON.stringify(paymentData)
             );
 
-            // Redirigir a la vista de detalles de pago usando URL directa
-            router.visit(`/programs/${this.programId}/payment`);
+            // Redirigir a la vista de detalles de pago usando URL directa con RUT
+            router.visit(`/programs/${this.programId}/payment`, {
+                data: { rut: this.$page.props.rut || this.$page.props.participant?.rut }
+            });
         },
     },
 };

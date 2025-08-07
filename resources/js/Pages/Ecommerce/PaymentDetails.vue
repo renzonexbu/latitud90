@@ -41,7 +41,9 @@
                                     v-model="formData.documentType"
                                     class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
                                 >
-                                    <option value="">Selecciona el tipo de documento</option>
+                                    <option value="">
+                                        Selecciona el tipo de documento
+                                    </option>
                                     <option
                                         v-for="docType in documentTypes"
                                         :key="docType.id"
@@ -64,18 +66,30 @@
                                     :placeholder="getDocumentPlaceholder()"
                                     :class="[
                                         'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                        isRutDocument && rutValidation.isValid === false ? 'border-red-500' : '',
-                                        isRutDocument && rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]'
+                                        isRutDocument &&
+                                        rutValidation.isValid === false
+                                            ? 'border-red-500'
+                                            : '',
+                                        isRutDocument &&
+                                        rutValidation.isValid === true
+                                            ? 'border-green-500'
+                                            : 'border-[#5B5B5B]',
                                     ]"
                                     v-model="formData.documentNumber"
                                     @input="handleDocumentInput"
                                     @blur="validateDocument"
                                 />
-                                <div v-if="isRutDocument && rutValidation.message" 
-                                     class="text-xs mt-1 validation-message" 
-                                     :class="[
-                                         rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
-                                     ]">
+                                <div
+                                    v-if="
+                                        isRutDocument && rutValidation.message
+                                    "
+                                    class="text-xs mt-1 validation-message"
+                                    :class="[
+                                        rutValidation.isValid === true
+                                            ? 'text-green-500'
+                                            : 'text-red-500',
+                                    ]"
+                                >
                                     {{ rutValidation.message }}
                                 </div>
                             </div>
@@ -134,6 +148,7 @@
                                         País *
                                     </label>
                                     <SearchableSelect
+                                        ref="countrySelect"
                                         :options="countries"
                                         :value="formData.country"
                                         placeholder="Busca y selecciona tu país"
@@ -230,7 +245,7 @@
                 <BackToHomeButton
                     :rut="rut"
                     variant="programs"
-                    @click="goBackToProgram"
+                    :route="`/programs/${programId}?rut=${rut}`"
                 />
 
                 <!-- Continue Button -->
@@ -324,8 +339,8 @@ export default {
             isFormValid: false,
             rutValidation: {
                 isValid: null,
-                message: ""
-            }
+                message: "",
+            },
         };
     },
     computed: {
@@ -333,25 +348,27 @@ export default {
             if (!this.formData.region) {
                 return [];
             }
-            
+
             const selectedRegion = this.regions.find(
                 (r) => r.id == this.formData.region
             );
-            
+
             if (!selectedRegion || !selectedRegion.comunes) {
                 return [];
             }
-            
+
             return selectedRegion.comunes;
         },
-        
+
         isRutDocument() {
             if (!this.formData.documentType) return false;
             const selectedDocType = this.documentTypes.find(
-                doc => doc.id == this.formData.documentType
+                (doc) => doc.id == this.formData.documentType
             );
-            return selectedDocType && selectedDocType.name.toLowerCase() === 'rut';
-        }
+            return (
+                selectedDocType && selectedDocType.name.toLowerCase() === "rut"
+            );
+        },
     },
     mounted() {
         // Leer los datos de pago del localStorage
@@ -368,14 +385,100 @@ export default {
         } else {
             console.log("No payment data found in localStorage");
         }
-        
+
+        // Leer los datos del comprador del localStorage solo si viene del paso 4 (confirmation)
+        const urlParams = new URLSearchParams(window.location.search);
+        const isComingFromConfirmation =
+            urlParams.get("from") === "confirmation";
+
+        if (isComingFromConfirmation) {
+            const savedBuyerData = localStorage.getItem("buyerData");
+            if (savedBuyerData) {
+                try {
+                    const buyerData = JSON.parse(savedBuyerData);
+
+                    // Convertir IDs a números para los SearchableSelect
+                    const countryId = buyerData.countryId
+                        ? parseInt(buyerData.countryId)
+                        : "";
+                    const regionId = buyerData.regionId
+                        ? parseInt(buyerData.regionId)
+                        : "";
+                    const cityId = buyerData.cityId
+                        ? parseInt(buyerData.cityId)
+                        : "";
+
+                    // Buscar el ID del tipo de documento por nombre
+                    let documentTypeId = "";
+                    if (buyerData.documentType) {
+                        const docType = this.documentTypes.find(
+                            (doc) =>
+                                doc.name.toLowerCase() ===
+                                buyerData.documentType.toLowerCase()
+                        );
+                        documentTypeId = docType ? docType.id : "";
+                    }
+
+                    // Cargar los datos del formulario desde localStorage
+                    this.formData = {
+                        fullName: buyerData.name || "",
+                        documentType: documentTypeId,
+                        documentNumber: buyerData.documentNumber || "",
+                        email: buyerData.email || "",
+                        phone: buyerData.phone || "",
+                        code_phone: buyerData.code_phone || "+56",
+                        country: countryId,
+                        region: regionId,
+                        city: cityId,
+                        termsAccepted: buyerData.termsAccepted || false,
+                        marketingAccepted: buyerData.marketingAccepted || false,
+                    };
+
+                    console.log(
+                        "Buyer data loaded from localStorage (coming from confirmation):",
+                        buyerData
+                    );
+                    console.log("Form data after loading:", this.formData);
+
+                    // Forzar actualización de los SearchableSelect después de cargar los datos
+                    this.$nextTick(() => {
+                        // Trigger validation para actualizar el estado del formulario
+                        this.validateForm();
+
+                        // Si es un RUT, validar el formato
+                        if (
+                            this.isRutDocument &&
+                            this.formData.documentNumber
+                        ) {
+                            this.validateDocument();
+                        }
+
+                        // Forzar actualización de los SearchableSelect con delay para asegurar que las opciones estén disponibles
+                        setTimeout(() => {
+                            this.forceUpdateSearchableSelects();
+                        }, 100);
+                    });
+                } catch (error) {
+                    console.error("Error parsing buyer data:", error);
+                }
+            } else {
+                console.log("No buyer data found in localStorage");
+            }
+        } else {
+            console.log(
+                "Not coming from confirmation, starting with empty form"
+            );
+            // Limpiar localStorage si no viene del paso 4
+            localStorage.removeItem("buyerData");
+        }
+
         // Debug: Verificar datos de regiones y comunas
         console.log("Datos de regiones recibidos:", {
             regionsCount: this.regions.length,
             regions: this.regions,
-            sampleRegion: this.regions[0]
+            sampleRegion: this.regions[0],
         });
-        
+
         // Forzar validación inicial
         this.$nextTick(() => {
             this.validateForm();
@@ -388,34 +491,151 @@ export default {
                 this.validateForm();
             },
         },
-        
+
         "formData.documentType"() {
             // Limpiar validación de RUT cuando cambie el tipo de documento
             this.rutValidation.isValid = null;
-            this.rutValidation.message = '';
-            this.formData.documentNumber = '';
-        },
-        
-        "formData.region": {
-            handler(newRegionId, oldRegionId) {
-                console.log('Región cambiada:', { oldRegionId, newRegionId });
-                // Limpiar comuna cuando cambie la región
-                this.formData.city = "";
-            },
-            immediate: false
-        },
-        
-        filteredComunes: {
-            handler(newComunes, oldComunes) {
-                console.log('Comunas filtradas actualizadas:', {
-                    oldCount: oldComunes?.length || 0,
-                    newCount: newComunes?.length || 0,
-                    comunas: newComunes
-                });
-            },
-            immediate: false
+            this.rutValidation.message = "";
+            this.formData.documentNumber = "";
         },
 
+        "formData.region": {
+            handler(newRegionId, oldRegionId) {
+                console.log("Región cambiada:", { oldRegionId, newRegionId });
+
+                if (newRegionId && newRegionId !== oldRegionId) {
+                    // Limpiar comuna cuando cambie la región
+            this.formData.city = "";
+
+                    // Si hay una ciudad guardada en localStorage, intentar cargarla después de que las comunas estén disponibles
+                    const savedBuyerData = localStorage.getItem("buyerData");
+                    if (savedBuyerData) {
+                        try {
+                            const buyerData = JSON.parse(savedBuyerData);
+                            if (buyerData.cityId) {
+                                // Esperar a que las comunas estén disponibles
+                                this.$nextTick(() => {
+                                    setTimeout(() => {
+                                        const cityId = parseInt(
+                                            buyerData.cityId
+                                        );
+                                        if (
+                                            cityId &&
+                                            this.filteredComunes.length > 0
+                                        ) {
+                                            const city =
+                                                this.filteredComunes.find(
+                                                    (c) => c.id == cityId
+                                                );
+                                            if (city) {
+                                                console.log(
+                                                    "Cargando comuna desde localStorage:",
+                                                    city
+                                                );
+                                                this.handleCityChange(cityId);
+                                            }
+                                        }
+                                    }, 200);
+                                });
+                            }
+                        } catch (error) {
+                            console.error(
+                                "Error parsing buyer data for city:",
+                                error
+                            );
+                        }
+                    }
+                }
+            },
+            immediate: false,
+        },
+
+        // Watcher para actualizar localStorage cuando cambien los datos del formulario
+        formData: {
+            deep: true,
+            handler(newFormData) {
+                // Solo actualizar localStorage si el formulario está válido Y viene del paso 4
+                const urlParams = new URLSearchParams(window.location.search);
+                const isComingFromConfirmation =
+                    urlParams.get("from") === "confirmation";
+
+                if (this.isFormValid && isComingFromConfirmation) {
+                    this.updateLocalStorage();
+                }
+            },
+        },
+
+        // Watcher para manejar cambios en el tipo de documento
+        "formData.documentType"(newValue) {
+            // Si se selecciona un tipo de documento, validar el número si ya existe
+            if (newValue && this.formData.documentNumber) {
+                this.$nextTick(() => {
+                    this.validateDocument();
+                });
+            }
+        },
+
+        // Watcher para cuando las opciones estén disponibles
+        countries: {
+            handler() {
+                if (this.formData.country && this.countries.length > 0) {
+                    this.$nextTick(() => {
+                        this.forceUpdateSearchableSelects();
+                    });
+                }
+            },
+            immediate: true,
+        },
+
+        regions: {
+            handler() {
+                if (this.formData.region && this.regions.length > 0) {
+                    this.$nextTick(() => {
+                        this.forceUpdateSearchableSelects();
+                    });
+                }
+            },
+            immediate: true,
+        },
+
+        documentTypes: {
+            handler() {
+                if (
+                    this.formData.documentType &&
+                    this.documentTypes.length > 0
+                ) {
+                    this.$nextTick(() => {
+                        this.forceUpdateSearchableSelects();
+                    });
+                }
+            },
+            immediate: true,
+        },
+
+        // Watcher para las comunas filtradas
+        filteredComunes: {
+            handler(newComunes, oldComunes) {
+                console.log("Comunas filtradas actualizadas:", {
+                    oldCount: oldComunes?.length || 0,
+                    newCount: newComunes?.length || 0,
+                    comunas: newComunes,
+                });
+
+                // Si hay una ciudad seleccionada y las comunas están disponibles, actualizar
+                if (this.formData.city && newComunes.length > 0) {
+                    const city = newComunes.find(
+                        (c) => c.id == this.formData.city
+                    );
+                    if (city) {
+                        console.log("Comuna encontrada en watcher:", city);
+                        this.$nextTick(() => {
+                            this.handleCityChange(this.formData.city);
+                        });
+                    }
+                }
+            },
+            immediate: true,
+        },
     },
     methods: {
         validateForm() {
@@ -429,20 +649,24 @@ export default {
                 country: this.formData.country !== "",
                 region: this.formData.region !== "",
                 city: this.formData.city !== "",
-                termsAccepted: this.formData.termsAccepted
+                termsAccepted: this.formData.termsAccepted,
             };
-            
+
             // Validación básica (todos los campos deben ser true)
-            const basicValidation = Object.values(validations).every(valid => valid === true);
-            
+            const basicValidation = Object.values(validations).every(
+                (valid) => valid === true
+            );
+
             // Validación adicional para RUT
-            const rutValidation = this.isRutDocument ? this.rutValidation.isValid === true : true;
-            
+            const rutValidation = this.isRutDocument
+                ? this.rutValidation.isValid === true
+                : true;
+
             this.isFormValid = basicValidation && rutValidation;
-            
+
             // Debug: Mostrar estado de validación detallado
-            console.log('=== VALIDACIÓN DEL FORMULARIO ===');
-            console.log('Valores actuales:', {
+            console.log("=== VALIDACIÓN DEL FORMULARIO ===");
+            console.log("Valores actuales:", {
                 fullName: `"${this.formData.fullName}"`,
                 documentType: `"${this.formData.documentType}"`,
                 documentNumber: `"${this.formData.documentNumber}"`,
@@ -451,165 +675,174 @@ export default {
                 country: `"${this.formData.country}"`,
                 region: `"${this.formData.region}"`,
                 city: `"${this.formData.city}"`,
-                termsAccepted: this.formData.termsAccepted
+                termsAccepted: this.formData.termsAccepted,
             });
-            console.log('Validaciones individuales:', validations);
-            console.log('Validación básica:', basicValidation);
-            console.log('Es documento RUT:', this.isRutDocument);
-            console.log('Validación RUT:', rutValidation);
-            console.log('Formulario válido:', this.isFormValid);
-            console.log('================================');
+            console.log("Validaciones individuales:", validations);
+            console.log("Validación básica:", basicValidation);
+            console.log("Es documento RUT:", this.isRutDocument);
+            console.log("Validación RUT:", rutValidation);
+            console.log("Formulario válido:", this.isFormValid);
+            console.log("================================");
         },
         
         getDocumentLabel() {
             if (!this.formData.documentType) return "Número de documento";
             
             const selectedDocType = this.documentTypes.find(
-                doc => doc.id == this.formData.documentType
+                (doc) => doc.id == this.formData.documentType
             );
             
-            return selectedDocType ? selectedDocType.name : "Número de documento";
+            return selectedDocType
+                ? selectedDocType.name
+                : "Número de documento";
         },
         
         getDocumentPlaceholder() {
-            if (!this.formData.documentType) return "Ingresa tu número de documento";
+            if (!this.formData.documentType)
+                return "Ingresa tu número de documento";
             
             const selectedDocType = this.documentTypes.find(
-                doc => doc.id == this.formData.documentType
+                (doc) => doc.id == this.formData.documentType
             );
             
             if (!selectedDocType) return "Ingresa tu número de documento";
             
             switch (selectedDocType.name.toLowerCase()) {
-                case 'rut':
+                case "rut":
                     return "Ej: 12.345.678-9";
-                case 'pasaporte':
+                case "pasaporte":
                     return "Ej: A12345678";
                 default:
                     return "Ingresa tu número de documento";
             }
         },
 
-        
         handleRegionChange(regionId) {
-            console.log('Región seleccionada:', regionId);
+            console.log("Región seleccionada:", regionId);
             this.formData.region = regionId;
             this.formData.city = ""; // Limpiar comuna
-            
+
             // Verificar las comunas disponibles
             if (regionId) {
-                const selectedRegion = this.regions.find(r => r.id == regionId);
-                console.log('Región encontrada:', selectedRegion);
+                const selectedRegion = this.regions.find(
+                    (r) => r.id == regionId
+                );
+                console.log("Región encontrada:", selectedRegion);
                 if (selectedRegion && selectedRegion.comunes) {
-                    console.log('Comunas disponibles:', selectedRegion.comunes);
+                    console.log("Comunas disponibles:", selectedRegion.comunes);
                 }
             }
-            
+
             // Forzar la validación del formulario
             this.$nextTick(() => {
                 this.validateForm();
             });
         },
-        
+
         handleCountryChange(countryId) {
-            console.log('País seleccionado:', countryId);
+            console.log("País seleccionado:", countryId);
             this.formData.country = countryId;
-            
+
             // Forzar la validación del formulario
             this.$nextTick(() => {
                 this.validateForm();
             });
         },
-        
+
         handleCityChange(cityId) {
-            console.log('Comuna seleccionada:', cityId);
+            console.log("Comuna seleccionada:", cityId);
             this.formData.city = cityId;
-            
+
             // Forzar la validación del formulario
             this.$nextTick(() => {
                 this.validateForm();
             });
         },
-        
+
         handleDocumentInput() {
             if (this.isRutDocument) {
                 this.formatRut();
             }
         },
-        
+
         validateDocument() {
             if (this.isRutDocument) {
                 this.validateRut();
             }
         },
-        
+
         formatRut() {
             // Remover todos los caracteres no numéricos excepto K
-            let rut = this.formData.documentNumber.replace(/[^0-9kK]/g, '');
-            
+            let rut = this.formData.documentNumber.replace(/[^0-9kK]/g, "");
+
             if (rut.length > 0) {
                 rut = rut.toUpperCase();
-                
+
                 // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
                 if (rut.length > 1) {
                     const body = rut.slice(0, -1);
                     const dv = rut.slice(-1);
-                    
+
                     // Formatear el cuerpo con puntos
-                    let formattedBody = '';
+                    let formattedBody = "";
                     for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
                         if (j > 0 && j % 3 === 0) {
-                            formattedBody = '.' + formattedBody;
+                            formattedBody = "." + formattedBody;
                         }
                         formattedBody = body[i] + formattedBody;
                     }
-                    
+
                     // Combinar cuerpo formateado con dígito verificador
                     this.formData.documentNumber = `${formattedBody}-${dv}`;
                 } else {
                     this.formData.documentNumber = rut;
                 }
             }
-            
+
             // Validar el RUT después de formatearlo
             this.validateRut();
         },
-        
+
         validateRut() {
-            const rut = this.formData.documentNumber.replace(/\./g, '').replace(/-/g, '');
-            
+            const rut = this.formData.documentNumber
+                .replace(/\./g, "")
+                .replace(/-/g, "");
+
             if (rut.length === 0) {
                 this.rutValidation.isValid = null;
-                this.rutValidation.message = '';
+                this.rutValidation.message = "";
                 return;
             }
-            
+
             // Validar formato básico
             if (!/^[0-9]+[0-9kK]$/.test(rut)) {
                 this.rutValidation.isValid = false;
-                this.rutValidation.message = 'Formato de RUT inválido';
+                this.rutValidation.message = "Formato de RUT inválido";
                 return;
             }
-            
+
             // Separar cuerpo y dígito verificador
             const body = rut.slice(0, -1);
             const dv = rut.slice(-1).toUpperCase();
-            
+
             // Validar que el cuerpo tenga al menos 7 dígitos
             if (body.length < 7) {
                 this.rutValidation.isValid = false;
-                this.rutValidation.message = 'RUT debe tener al menos 7 dígitos';
+                this.rutValidation.message =
+                    "RUT debe tener al menos 7 dígitos";
                 return;
             }
-            
+
             // Calcular dígito verificador
             const dvCalculado = this.calculateDv(body);
-            
+
             // Comparar dígitos verificadores
             this.rutValidation.isValid = dv === dvCalculado;
-            this.rutValidation.message = this.rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
+            this.rutValidation.message = this.rutValidation.isValid
+                ? "RUT válido"
+                : "RUT inválido";
         },
-        
+
         calculateDv(body) {
             let sum = 0;
             let factor = 2;
@@ -618,51 +851,59 @@ export default {
                 factor = factor === 7 ? 2 : factor + 1;
             }
             const dv = 11 - (sum % 11);
-            return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
+            return dv === 10 ? "K" : dv === 11 ? "0" : dv.toString();
         },
-        
+
         handleRegionChange(regionId) {
-            console.log('handleRegionChange llamado con:', regionId);
+            console.log("handleRegionChange llamado con:", regionId);
             this.formData.region = regionId;
             this.formData.city = ""; // Limpiar comuna
-            
+
             // Verificar las comunas disponibles
             if (regionId) {
-                const selectedRegion = this.regions.find(r => r.id == regionId);
-                console.log('Región encontrada:', selectedRegion);
+                const selectedRegion = this.regions.find(
+                    (r) => r.id == regionId
+                );
+                console.log("Región encontrada:", selectedRegion);
                 if (selectedRegion && selectedRegion.comunes) {
-                    console.log('Comunas disponibles:', selectedRegion.comunes);
+                    console.log("Comunas disponibles:", selectedRegion.comunes);
                 }
             }
-            
+
             // Forzar la validación del formulario
             this.$nextTick(() => {
                 this.validateForm();
             });
         },
-        
+
         goBackToProgram() {
-            // Usar el router directamente para ir a program detail
-            router.visit(`/programs/${this.programId}`);
+            // Usar el router directamente para ir a program detail con el RUT en la URL
+            router.visit(`/programs/${this.programId}?rut=${this.rut}`);
         },
         continueToPayment() {
             if (!this.isFormValid) return;
 
             // Obtener el tipo de documento seleccionado
             const selectedDocType = this.documentTypes.find(
-                doc => doc.id == this.formData.documentType
+                (doc) => doc.id == this.formData.documentType
             );
 
             // Obtener nombres de país, región y comuna
-            const selectedCountry = this.countries.find(c => c.id == this.formData.country);
-            const selectedRegion = this.regions.find(r => r.id == this.formData.region);
-            const selectedComune = this.filteredComunes.find(c => c.id == this.formData.city);
+            const selectedCountry = this.countries.find(
+                (c) => c.id == this.formData.country
+            );
+            const selectedRegion = this.regions.find(
+                (r) => r.id == this.formData.region
+            );
+            const selectedComune = this.filteredComunes.find(
+                (c) => c.id == this.formData.city
+            );
 
             // Preparar datos del comprador
             const buyerData = {
                 // Datos personales
                 name: this.formData.fullName,
-                documentType: selectedDocType ? selectedDocType.name : '',
+                documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
                 code_phone: this.formData.code_phone,
@@ -670,18 +911,18 @@ export default {
                 
                 // Datos de ubicación
                 countryId: this.formData.country,
-                countryName: selectedCountry ? selectedCountry.name : '',
+                countryName: selectedCountry ? selectedCountry.name : "",
                 regionId: this.formData.region,
-                regionName: selectedRegion ? selectedRegion.name : '',
+                regionName: selectedRegion ? selectedRegion.name : "",
                 cityId: this.formData.city,
-                cityName: selectedComune ? selectedComune.name : '',
+                cityName: selectedComune ? selectedComune.name : "",
                 
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
                 marketingAccepted: this.formData.marketingAccepted,
                 
                 // Timestamp
-                submittedAt: new Date().toISOString()
+                submittedAt: new Date().toISOString(),
             };
 
             console.log("Buyer data:", buyerData);
@@ -689,42 +930,144 @@ export default {
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
 
-            // Continuar a la página de confirmación
+            // Continuar a la página de confirmación con RUT
             router.visit(
-                `/programs/${this.programId}/confirmation`
+                `/programs/${this.programId}/confirmation?rut=${this.rut}`
             );
         },
-        
+
         checkButtonState() {
-            console.log('=== ESTADO DEL BOTÓN ===');
-            console.log('isFormValid:', this.isFormValid);
-            console.log('formData completo:', this.formData);
+            console.log("=== ESTADO DEL BOTÓN ===");
+            console.log("isFormValid:", this.isFormValid);
+            console.log("formData completo:", this.formData);
             this.validateForm(); // Forzar validación
         },
-        
 
+        updateLocalStorage() {
+            // Obtener el tipo de documento seleccionado
+            const selectedDocType = this.documentTypes.find(
+                (doc) => doc.id == this.formData.documentType
+            );
+
+            // Obtener nombres de país, región y comuna
+            const selectedCountry = this.countries.find(
+                (c) => c.id == this.formData.country
+            );
+            const selectedRegion = this.regions.find(
+                (r) => r.id == this.formData.region
+            );
+            const selectedComune = this.filteredComunes.find(
+                (c) => c.id == this.formData.city
+            );
+
+            // Preparar datos del comprador
+            const buyerData = {
+                // Datos personales
+                name: this.formData.fullName,
+                documentType: selectedDocType ? selectedDocType.name : "",
+                documentNumber: this.formData.documentNumber,
+                email: this.formData.email,
+                code_phone: this.formData.code_phone,
+                phone: this.formData.phone,
+
+                // Datos de ubicación (guardar tanto IDs como nombres)
+                countryId: this.formData.country,
+                countryName: selectedCountry ? selectedCountry.name : "",
+                regionId: this.formData.region,
+                regionName: selectedRegion ? selectedRegion.name : "",
+                cityId: this.formData.city,
+                cityName: selectedComune ? selectedComune.name : "",
+
+                // Acuerdos
+                termsAccepted: this.formData.termsAccepted,
+                marketingAccepted: this.formData.marketingAccepted,
+
+                // Timestamp
+                submittedAt: new Date().toISOString(),
+            };
+
+            // Guardar datos del comprador en localStorage
+            localStorage.setItem("buyerData", JSON.stringify(buyerData));
+            console.log("LocalStorage updated:", buyerData);
+        },
+
+        forceUpdateSearchableSelects() {
+            console.log("Forzando actualización de SearchableSelect...");
+            console.log("Datos actuales:", {
+                country: this.formData.country,
+                region: this.formData.region,
+                city: this.formData.city,
+                documentType: this.formData.documentType,
+            });
+
+            // Verificar que las opciones estén disponibles antes de forzar la actualización
+            if (this.formData.country && this.countries.length > 0) {
+                const country = this.countries.find(
+                    (c) => c.id == this.formData.country
+                );
+                if (country) {
+                    console.log("País encontrado:", country);
+                    this.handleCountryChange(this.formData.country);
+                }
+            }
+
+            if (this.formData.region && this.regions.length > 0) {
+                const region = this.regions.find(
+                    (r) => r.id == this.formData.region
+                );
+                if (region) {
+                    console.log("Región encontrada:", region);
+                    this.handleRegionChange(this.formData.region);
+                }
+            }
+
+            // Para la ciudad, esperar a que las comunas estén disponibles
+            if (this.formData.city) {
+                setTimeout(() => {
+                    if (this.filteredComunes.length > 0) {
+                        const city = this.filteredComunes.find(
+                            (c) => c.id == this.formData.city
+                        );
+                        if (city) {
+                            console.log("Ciudad encontrada:", city);
+                            this.handleCityChange(this.formData.city);
+                        }
+                    }
+                }, 300);
+            }
+
+            // Para el tipo de documento, verificar que esté disponible
+            if (this.formData.documentType && this.documentTypes.length > 0) {
+                const docType = this.documentTypes.find(
+                    (d) => d.id == this.formData.documentType
+                );
+                if (docType) {
+                    console.log("Tipo de documento encontrado:", docType);
+                }
+            }
+        },
     },
 };
 </script>
 
 <style scoped>
 .custom-checkbox {
-    accent-color: #FBBD51;
+    accent-color: #fbbd51;
 }
 
 .custom-checkbox:checked {
-    background-color: #FBBD51;
-    border-color: #FBBD51;
+    background-color: #fbbd51;
+    border-color: #fbbd51;
 }
 
 /* Estilos adicionales para mayor compatibilidad */
 .custom-checkbox:checked::before {
-    background-color: #FBBD51;
+    background-color: #fbbd51;
 }
 
 /* Para navegadores que no soportan accent-color */
 .custom-checkbox:checked {
-    background-color: #FBBD51 !important;
-    border-color: #FBBD51 !important;
+    background-color: #fbbd51 !important;
+    border-color: #fbbd51 !important;
 }
 </style>

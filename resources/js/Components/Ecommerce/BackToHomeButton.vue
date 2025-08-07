@@ -28,23 +28,45 @@ export default {
       type: String,
       default: 'home', // 'home' o 'programs'
       validator: value => ['home', 'programs'].includes(value)
+    },
+    text: {
+      type: String,
+      default: null
+    },
+    route: {
+      type: String,
+      default: '/'
     }
   },
   computed: {
     buttonText() {
+      // Si se proporciona texto personalizado, usarlo
+      if (this.text) {
+        return this.text;
+      }
+      // Si no, usar el texto por defecto según el variant
       return this.variant === 'programs' ? 'Volver a seleccionar viaje' : 'Volver al Home';
     }
   },
   methods: {
     handleClick() {
-      if (this.variant === 'programs') {
-        // En ProgramDetail.vue - volver a programas
-        router.get(route('ecommerce.programs'), {
-          rut: this.rut
-        });
+      // Usar la ruta proporcionada (por defecto es '/')
+      if (this.route === '/' || this.route === null) {
+        // Si es home, usar la lógica original según el variant
+        if (this.variant === 'programs') {
+          // En ProgramDetail.vue - volver a programas
+          router.get(route('ecommerce.programs'), {
+            rut: this.rut
+          });
+        } else {
+          // En Programs.vue - volver al home
+          router.visit('/');
+        }
       } else {
-        // En Programs.vue - volver al home
-        router.visit('/');
+        // Si es una ruta personalizada diferente a '/'
+        router.visit(this.route, {
+          data: { rut: this.rut }
+        });
       }
     }
   }

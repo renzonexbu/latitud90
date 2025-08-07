@@ -18,12 +18,12 @@ class ConfirmPaymentController extends Controller
 
     public function show(Request $request, $programId)
     {
-        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null);
-        
+        $rut = $request->query('rut', '');
+        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null, $rut);
         return Inertia::render('Ecommerce/Confirmation', [
             'confirmationData' => $confirmationData,
             'programId' => $programId,
-            'rut' => $request->query('rut', '')
+            'rut' => $rut
         ]);
     }
 }
