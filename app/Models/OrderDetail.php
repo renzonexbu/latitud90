@@ -31,6 +31,7 @@ class OrderDetail extends Model
         'billing_postal_code',
         'terms_accepted',
         'marketing_accepted',
+        'terms_accepted_confirmation',
         'installment_number',
         'amount',
         'due_date',
@@ -38,17 +39,18 @@ class OrderDetail extends Model
         'paid_at',
         'status',
         'transaction_id',
-        'gateway_response'
+        'gateway_response',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'due_date' => 'date',
-        'is_paid' => 'boolean',
         'paid_at' => 'datetime',
+        'is_paid' => 'boolean',
         'terms_accepted' => 'boolean',
         'marketing_accepted' => 'boolean',
-        'installment_number' => 'integer',
+        'terms_accepted_confirmation' => 'boolean',
+        'gateway_response' => 'array',
     ];
 
     public function order()
@@ -83,45 +85,11 @@ class OrderDetail extends Model
 
     public function city()
     {
-        return $this->belongsTo(Comune::class, 'city');
+        return $this->belongsTo(Comune::class);
     }
 
     public function documentType()
     {
-        return $this->belongsTo(Document::class, 'document_type')->withDefault();
-    }
-
-    public function getFullNameAttribute()
-    {
-        return $this->name;
-    }
-
-    public function getIsOverdueAttribute()
-    {
-        return !$this->is_paid && $this->due_date->isPast();
-    }
-
-    public function getDaysOverdueAttribute()
-    {
-        if (!$this->is_overdue) {
-            return 0;
-        }
-        return $this->due_date->diffInDays(now());
-    }
-
-    public function markAsPaid($transactionId = null, $gatewayResponse = null)
-    {
-        $this->update([
-            'is_paid' => true,
-            'paid_at' => now(),
-            'status' => 'paid',
-            'transaction_id' => $transactionId,
-            'gateway_response' => $gatewayResponse
-        ]);
-
-        // Verificar si toda la orden está pagada
-        if ($this->order->isFullyPaid()) {
-            $this->order->update(['status' => 'paid']);
-        }
+        return $this->belongsTo(Document::class, 'document_type');
     }
 }

@@ -120,6 +120,35 @@
         </div>
     </div>
 
+    <!-- Error Alert -->
+    <div v-if="errorMessage" class="mt-4">
+        <div class="bg-red-50 border border-red-200 rounded-md p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">
+                        Error al procesar el pago
+                    </h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>{{ errorMessage }}</p>
+                    </div>
+                    <div class="mt-4">
+                        <button
+                            @click="errorMessage = null"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Payment Button -->
     <div class="flex justify-center mt-6">
         <button
@@ -131,25 +160,58 @@
             :disabled="!isPaymentButtonEnabled"
             @click="handlePayment"
         >
-            <span
-                class="text-white font-urbanist text-base font-semibold leading-[18px]"
-                style="font-feature-settings: 'liga' off, 'clig' off"
-            >
-                Ir a pagar ${{ formatCurrency(program.trip_price) }}
-            </span>
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 25 24"
-                fill="none"
-                class="flex-shrink-0"
-            >
-                <path
-                    d="M2.75 12C2.75 17.385 7.115 21.75 12.5 21.75C17.885 21.75 22.25 17.385 22.25 12C22.25 6.615 17.885 2.25 12.5 2.25C7.115 2.25 2.75 6.615 2.75 12ZM12.97 7.97C13.1106 7.82955 13.3012 7.75066 13.5 7.75066C13.6988 7.75066 13.8894 7.82955 14.03 7.97L17.53 11.47C17.6705 11.6106 17.7493 11.8012 17.7493 12C17.7493 12.1988 17.6705 12.3894 17.53 12.53L14.03 16.03C13.9613 16.1037 13.8785 16.1628 13.7865 16.2038C13.6945 16.2448 13.5952 16.2668 13.4945 16.2686C13.3938 16.2704 13.2938 16.2518 13.2004 16.2141C13.107 16.1764 13.0222 16.1203 12.951 16.049C12.8797 15.9778 12.8236 15.893 12.7859 15.7996C12.7482 15.7062 12.7296 15.6062 12.7314 15.5055C12.7332 15.4048 12.7552 15.3055 12.7962 15.2135C12.8372 15.1215 12.8963 15.0387 12.97 14.97L15.19 12.75H8C7.80109 12.75 7.61032 12.671 7.46967 12.5303C7.32902 12.3897 7.25 12.1989 7.25 12C7.25 11.8011 7.32902 11.6103 7.46967 11.4697C7.61032 11.329 7.80109 11.25 8 11.25H15.19L12.97 9.03C12.8295 8.88937 12.7507 8.69875 12.7507 8.5C12.7507 8.30125 12.8295 8.11063 12.97 7.97Z"
-                    fill="white"
-                />
-            </svg>
+            <!-- Spinner cuando está procesando -->
+            <div v-if="isProcessing" class="flex items-center gap-2">
+                <svg
+                    class="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                >
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    ></circle>
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                </svg>
+                <span
+                    class="text-white font-urbanist text-base font-semibold leading-[18px]"
+                    style="font-feature-settings: 'liga' off, 'clig' off"
+                >
+                    Procesando pago...
+                </span>
+            </div>
+            
+            <!-- Contenido normal cuando no está procesando -->
+            <div v-else class="flex items-center gap-3">
+                <span
+                    class="text-white font-urbanist text-base font-semibold leading-[18px]"
+                    style="font-feature-settings: 'liga' off, 'clig' off"
+                >
+                    Ir a pagar ${{ formatCurrency(program.trip_price) }}
+                </span>
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 25 24"
+                    fill="none"
+                    class="flex-shrink-0"
+                >
+                    <path
+                        d="M2.75 12C2.75 17.385 7.115 21.75 12.5 21.75C17.885 21.75 22.25 17.385 22.25 12C22.25 6.615 17.885 2.25 12.5 2.25C7.115 2.25 2.75 6.615 2.75 12ZM12.97 7.97C13.1106 7.82955 13.3012 7.75066 13.5 7.75066C13.6988 7.75066 13.8894 7.82955 14.03 7.97L17.53 11.47C17.6705 11.6106 17.7493 11.8012 17.7493 12C17.7493 12.1988 17.6705 12.3894 17.53 12.53L14.03 16.03C13.9613 16.1037 13.8785 16.1628 13.7865 16.2038C13.6945 16.2448 13.5952 16.2668 13.4945 16.2686C13.3938 16.2704 13.2938 16.2518 13.2004 16.2141C13.107 16.1764 13.0222 16.1203 12.951 16.049C12.8797 15.9778 12.8236 15.893 12.7859 15.7996C12.7482 15.7062 12.7296 15.6062 12.7314 15.5055C12.7332 15.4048 12.7552 15.3055 12.7962 15.2135C12.8372 15.1215 12.8963 15.0387 12.97 14.97L15.19 12.75H8C7.80109 12.75 7.61032 12.671 7.46967 12.5303C7.32902 12.3897 7.25 12.1989 7.25 12C7.25 11.8011 7.32902 11.6103 7.46967 11.4697C7.61032 11.329 7.80109 11.25 8 11.25H15.19L12.97 9.03C12.8295 8.88937 12.7507 8.69875 12.7507 8.5C12.7507 8.30125 12.8295 8.11063 12.97 7.97Z"
+                        fill="white"
+                    />
+                </svg>
+            </div>
         </button>
     </div>
 </template>
@@ -172,6 +234,8 @@ export default {
     data() {
         return {
             termsAccepted: false,
+            isProcessing: false,
+            errorMessage: null,
         };
     },
     watch: {
@@ -190,6 +254,12 @@ export default {
         }
     },
     mounted() {
+        // Debug: Verificar datos recibidos
+        console.log("=== CONFIRMATION CARD MOUNTED ===");
+        console.log("formData prop:", this.formData);
+        console.log("program prop:", this.program);
+        console.log("================================");
+        
         // Cargar el estado de términos aceptados desde localStorage
         const paymentData = localStorage.getItem("selectedPaymentData");
         if (paymentData) {
@@ -220,8 +290,8 @@ export default {
                 }
             }
             
-            // El botón está habilitado si hay método de pago Y términos aceptados
-            return hasPaymentMethod && this.termsAccepted;
+            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando
+            return hasPaymentMethod && this.termsAccepted && !this.isProcessing;
         },
     },
     methods: {
@@ -256,11 +326,103 @@ export default {
             ];
             return months[month - 1];
         },
-        handlePayment() {
-            // Aquí puedes agregar la lógica para procesar el pago
-            console.log("Procesando pago...");
-            // Por ejemplo, redirigir a la pasarela de pago
-            // router.visit('/payment-gateway');
+        async handlePayment() {
+            try {
+                // Limpiar errores anteriores
+                this.errorMessage = null;
+                
+                // Activar estado de procesamiento
+                this.isProcessing = true;
+                
+                // Obtener datos del localStorage
+                const paymentData = localStorage.getItem("selectedPaymentData");
+                
+                // Debug: Log de los datos del localStorage
+                console.log("=== DEBUG LOCALSTORAGE ===");
+                console.log("paymentData:", paymentData);
+                console.log("formData from props:", this.formData);
+                console.log("paymentData exists:", !!paymentData);
+                console.log("formData from props exists:", !!this.formData);
+                console.log("==========================");
+                
+                if (!paymentData) {
+                    console.error("Datos de pago no encontrados");
+                    this.isProcessing = false;
+                    this.errorMessage = "Datos de pago no encontrados. Por favor, completa todos los pasos.";
+                    return;
+                }
+
+                const parsedPaymentData = JSON.parse(paymentData);
+                // Usar los datos del formulario que vienen como props
+                const parsedFormData = this.formData;
+
+                // Preparar datos para enviar al backend
+                const requestData = {
+                    programId: this.program.id,
+                    rut: this.formData.document_number,
+                    paymentData: parsedPaymentData,
+                    formData: parsedFormData
+                };
+
+                console.log("Enviando datos de pago:", requestData);
+
+                // Hacer la llamada al backend
+                const response = await fetch('/process-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log("Pago procesado exitosamente:", result);
+                    
+                    // Redirigir a la pasarela de pago
+                    if (result.gateway_url) {
+                        console.log("Redirigiendo a:", result.gateway_url);
+                        
+                        // Crear un formulario temporal para la redirección POST
+                        if (result.gateway_type === 'debit' || result.gateway_type === 'credit') {
+                            // Para Transbank, usar POST con token
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = result.gateway_url;
+                            form.target = '_self';
+                            
+                            // Agregar el token como campo oculto
+                            const tokenInput = document.createElement('input');
+                            tokenInput.type = 'hidden';
+                            tokenInput.name = 'token_ws';
+                            tokenInput.value = result.gateway_token;
+                            form.appendChild(tokenInput);
+                            
+                            // Agregar el formulario al DOM y enviarlo
+                            document.body.appendChild(form);
+                            form.submit();
+                        } else {
+                            // Para otros gateways, usar redirección directa
+                            window.location.href = result.gateway_url;
+                        }
+                    } else {
+                        console.error("URL de pasarela no recibida");
+                        this.isProcessing = false;
+                        this.errorMessage = "Error: No se recibió la URL de la pasarela de pago.";
+                    }
+                } else {
+                    console.error("Error al procesar pago:", result.error);
+                    this.isProcessing = false;
+                    this.errorMessage = result.error || "Error al procesar el pago. Por favor, intenta nuevamente.";
+                }
+
+            } catch (error) {
+                console.error("Error al procesar pago:", error);
+                this.isProcessing = false;
+                this.errorMessage = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.";
+            }
         },
         changeProgram() {
             // Redirigir al paso 1 (listado de programas) con el RUT del participante

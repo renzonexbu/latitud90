@@ -1,4 +1,8 @@
 <?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -13,3 +17,6 @@ include __DIR__.'/client/init.php';
 include __DIR__.'/admin/init.php';
 
 require __DIR__.'/auth.php';
+
+// Webhook de Khipu
+Route::post('/webhook/khipu', [App\Http\Controllers\KhipuWebhookController::class, 'handle'])->name('webhook.khipu');

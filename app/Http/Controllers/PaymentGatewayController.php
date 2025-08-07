@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Models\Passenger;
 use App\Models\PaymentLink;
-use App\Services\TransbankService;
-use App\Services\KhipuService;
+use App\Services\Client\PaymentGateway\TransbankService;
+use App\Services\Client\PaymentGateway\KhipuService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -84,17 +84,16 @@ class PaymentGatewayController extends Controller
 
     private function initiateKhipu(Payment $payment)
     {
-        $subject = 'Pago Programa ' . $payment->passenger->program->program_number;
-        $notifyUrl = route('payment.khipu.webhook');
+        $orderId = 'PAYMENT-' . $payment->id;
+        $amount = (int) $payment->amount;
         $returnUrl = route('payment.khipu.return');
+        $notifyUrl = route('payment.khipu.webhook');
 
-        $result = $this->khipuService->createPayment(
-            $subject,
-            (int) $payment->amount,
-            'CLP',
-            $notifyUrl,
+        $result = $this->khipuService->createTransaction(
+            $orderId,
+            $amount,
             $returnUrl,
-            'PAYMENT-' . $payment->id
+            $notifyUrl
         );
 
         if ($result['success']) {
@@ -102,7 +101,7 @@ class PaymentGatewayController extends Controller
 
             return response()->json([
                 'success' => true,
-                'redirect_url' => $result['payment_url']
+                'redirect_url' => $result['url']
             ]);
         }
 
