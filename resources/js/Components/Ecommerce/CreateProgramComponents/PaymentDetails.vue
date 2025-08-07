@@ -434,7 +434,7 @@
                             class="accordion-content"
                         >
                             <div class="payment-description">
-                                ¿Cómo querés que pague el grupo? Elegí las opciones disponibles.
+                                ¿Cómo quieres que pague el grupo? Elige las opciones disponibles.
                             </div>
 
                             <!-- Opción Pago Total -->
@@ -442,15 +442,14 @@
                                 <div class="payment-option-header">
                                     <div class="payment-checkbox">
                                         <input
-                                            type="radio"
+                                            type="checkbox"
                                             id="full-payment"
-                                            name="payment-option"
                                             value="full_payment"
-                                            :checked="formData.payment_option === 'full_payment'"
-                                            @click="handlePaymentOptionClick('full_payment')"
-                                            class="radio-input"
+                                            :checked="isPaymentOptionSelected('full_payment')"
+                                            @change="handlePaymentOptionChange('full_payment', $event)"
+                                            class="checkbox-input"
                                         />
-                                        <label for="full-payment" class="radio-label"></label>
+                                        <label for="full-payment" class="checkbox-label"></label>
                                     </div>
                                     <div class="payment-option-content">
                                         <div class="payment-option-title">
@@ -481,7 +480,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="formData.payment_option === 'full_payment'" class="payment-method-select">
+                                <div v-if="isPaymentOptionSelected('full_payment')" class="payment-method-select">
                                     <div class="field-wrapper">
                                         <div class="field-label">
                                             ¿Forma de pago?
@@ -505,15 +504,14 @@
                                 <div class="payment-option-header">
                                     <div class="payment-checkbox">
                                         <input
-                                            type="radio"
+                                            type="checkbox"
                                             id="installments-payment"
-                                            name="payment-option"
                                             value="installments"
-                                            :checked="formData.payment_option === 'installments'"
-                                            @click="handlePaymentOptionClick('installments')"
-                                            class="radio-input"
+                                            :checked="isPaymentOptionSelected('installments')"
+                                            @change="handlePaymentOptionChange('installments', $event)"
+                                            class="checkbox-input"
                                         />
-                                        <label for="installments-payment" class="radio-label"></label>
+                                        <label for="installments-payment" class="checkbox-label"></label>
                                     </div>
                                     <div class="payment-option-content">
                                         <div class="payment-option-title">
@@ -544,7 +542,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="formData.payment_option === 'installments'" class="installments-options">
+                                <div v-if="isPaymentOptionSelected('installments')" class="installments-options">
                                     <div class="payment-method-select">
                                         <div class="field-wrapper">
                                             <div class="field-label">
@@ -608,7 +606,8 @@ const props = defineProps({
             grade: "",
             students_file: null,
             group_benefit: "",
-            payment_option: "", // "full_payment" o "installments"
+            // Opciones de pago múltiples
+            payment_options: [], // Array para almacenar múltiples opciones
             full_payment_method: "",
             installments_payment_method: "",
             max_installments: "",
@@ -838,6 +837,11 @@ onMounted(() => {
         });
     }
     
+    // Inicializar payment_options si no existe
+    if (!formData.value.payment_options) {
+        formData.value.payment_options = [];
+    }
+    
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     // Emitir el estado inicial
@@ -981,27 +985,36 @@ const handleStudentsUpload = (event) => {
     }
 };
 
+// Función para verificar si una opción de pago está seleccionada
+const isPaymentOptionSelected = (option) => {
+    return formData.value.payment_options && formData.value.payment_options.includes(option);
+};
+
 // Función para manejar la selección de opciones de pago
-const handlePaymentOptionClick = (option) => {
-    // Si ya está seleccionado, lo deselecciona
-    if (formData.value.payment_option === option) {
-        formData.value.payment_option = "";
-        // Limpiar también los métodos de pago cuando se deselecciona
-        formData.value.full_payment_method = "";
-        formData.value.installments_payment_method = "";
-        formData.value.max_installments = "";
+const handlePaymentOptionChange = (option, event) => {
+    // Inicializar el array si no existe
+    if (!formData.value.payment_options) {
+        formData.value.payment_options = [];
+    }
+    
+    if (event.target.checked) {
+        // Agregar la opción si no está ya seleccionada
+        if (!formData.value.payment_options.includes(option)) {
+            formData.value.payment_options.push(option);
+        }
     } else {
-        // Si no está seleccionado, lo selecciona
-        formData.value.payment_option = option;
+        // Remover la opción si está seleccionada
+        const index = formData.value.payment_options.indexOf(option);
+        if (index > -1) {
+            formData.value.payment_options.splice(index, 1);
+        }
         
-        // Limpiar las selecciones de la otra modalidad
+        // Limpiar los campos relacionados cuando se deselecciona
         if (option === 'full_payment') {
-            // Si seleccionas pago total, limpia las opciones de cuotas
+            formData.value.full_payment_method = "";
+        } else if (option === 'installments') {
             formData.value.installments_payment_method = "";
             formData.value.max_installments = "";
-        } else if (option === 'installments') {
-            // Si seleccionas cuotas, limpia las opciones de pago total
-            formData.value.full_payment_method = "";
         }
     }
 };
@@ -1368,23 +1381,45 @@ const viewPaymentStates = () => {
     position: relative;
 }
 
-.radio-input {
+.checkbox-input {
     width: 22.69px;
     height: 22.69px;
-    border-radius: 50%;
-    border: 1px solid var(--colores-neutro-gris-4, #5b5b5b);
+    border-radius: 43.963px;
+    border: 0.709px solid var(--Colores-OP2-Amarillo, #FFB232);
     appearance: none;
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
+    display: flex;
+    padding: 5.673px;
+    align-items: center;
+    gap: 7.091px;
+    flex: 1 0 0;
 }
 
-.radio-input:checked {
-    background-color: var(--colores-op2-turquesa, #007e93);
-    border-color: var(--colores-op2-turquesa, #007e93);
+.checkbox-input:checked {
+    background-color: transparent;
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
 }
 
-.radio-label {
+.checkbox-input:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 29.781px;
+    background: #FAB547;
+    display: flex;
+    width: 11.345px;
+    height: 11.345px;
+    padding: 7.091px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7.091px;
+}
+
+.checkbox-label {
     position: absolute;
     top: 0;
     left: 0;

@@ -11,33 +11,22 @@ class Order extends Model
 
     protected $fillable = [
         'participant_id',
-        'payment_method_id',
-        'payment_mode_id',
-        'payment_gateway_id',
-        'buyer_first_name',
-        'buyer_last_name',
-        'buyer_email',
-        'buyer_phone',
-        'buyer_document_type',
-        'buyer_document_number',
-        'billing_address',
-        'billing_city',
-        'billing_country',
-        'billing_postal_code',
-        'price',
+        'program_id',
+        'total_amount',
         'discount',
-        'total',
+        'final_amount',
+        'total_installments',
+        'payment_type',
         'status',
         'notes',
-        'paid_at',
         'order_number'
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'total_amount' => 'decimal:2',
         'discount' => 'decimal:2',
-        'total' => 'decimal:2',
-        'paid_at' => 'datetime'
+        'final_amount' => 'decimal:2',
+        'total_installments' => 'integer',
     ];
 
     public function participant()
@@ -45,43 +34,38 @@ class Order extends Model
         return $this->belongsTo(Participant::class);
     }
 
-    public function paymentMethod()
+    public function program()
     {
-        return $this->belongsTo(PaymentMethod::class);
+        return $this->belongsTo(Program::class);
     }
 
-    public function paymentMode()
+    public function orderDetails()
     {
-        return $this->belongsTo(PaymentMode::class);
+        return $this->hasMany(OrderDetail::class);
     }
 
-    public function paymentGateway()
+    public function paidOrderDetails()
     {
-        return $this->belongsTo(PaymentGateway::class);
+        return $this->hasMany(OrderDetail::class)->where('is_paid', true);
     }
 
-    public function payments()
+    public function pendingOrderDetails()
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(OrderDetail::class)->where('is_paid', false);
     }
 
-    public function getBuyerFullNameAttribute()
+    public function isFullyPaid()
     {
-        return $this->buyer_first_name . ' ' . $this->buyer_last_name;
+        return $this->orderDetails()->where('is_paid', false)->count() === 0;
     }
 
-    public function getIsPaidAttribute()
+    public function getPaidAmountAttribute()
     {
-        return $this->status === 'paid';
+        return $this->paidOrderDetails()->sum('amount');
     }
 
-    public function getIsPendingAttribute()
+    public function getRemainingAmountAttribute()
     {
-        return $this->status === 'pending';
-    }
-
-    public function getIsCancelledAttribute()
-    {
-        return $this->status === 'cancelled';
+        return $this->final_amount - $this->paid_amount;
     }
 } 

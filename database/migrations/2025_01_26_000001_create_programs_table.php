@@ -16,24 +16,38 @@ return new class extends Migration
             $table->string('name');
             $table->string('destination');
             $table->date('departure_date');
-            $table->text('trip_description');
-            $table->string('images_folder')->nullable(); // Dirección a carpeta en public
-            $table->text('pillars')->nullable(); // Separados por coma
+            $table->text('trip_description')->nullable();
+            $table->string('images_folder')->nullable();
+            $table->text('pillars')->nullable();
             $table->text('itinerary_description')->nullable();
-            $table->string('itinerary_file')->nullable(); // Dirección a archivo PDF en public
-            $table->string('travel_assistance_coverage')->nullable(); // Dirección a archivo
-            $table->string('equipment_list')->nullable(); // Dirección a archivo
+            $table->string('itinerary_file')->nullable();
+            $table->string('travel_assistance_coverage')->nullable();
+            $table->string('equipment_list')->nullable();
             $table->decimal('trip_price', 10, 2);
-            $table->date('final_payment_date');
-            $table->string('seller_name');
-            $table->foreignId('payment_mode_id')->constrained('payment_modes');
-            $table->foreignId('payment_method_id')->nullable()->constrained('payment_methods'); // Método de pago seleccionado
-            $table->integer('max_installments')->nullable(); // Máximo número de cuotas para Lat90
-            $table->string('discount_type')->nullable(); // Tipo de descuento (porcentaje, monto fijo, etc.)
-            $table->decimal('discount_value', 10, 2)->nullable(); // Valor del descuento (0.1 para 10%, 200 para $200, etc.)
-            $table->foreignId('created_by')->nullable()->constrained('users'); // Usuario que creó el programa
+            $table->date('final_payment_date')->nullable();
+            $table->string('seller_name')->nullable();
+            
+            // Configuración de pago total
+            $table->boolean('enable_total_payment')->default(false);
+            $table->foreignId('total_payment_method_id')->nullable()->constrained('payment_methods');
+            
+            // Configuración de pago mensual Lat90
+            $table->boolean('enable_lat90_payment')->default(false);
+            $table->foreignId('lat90_payment_method_id')->nullable()->constrained('payment_methods');
+            $table->integer('lat90_max_installments')->nullable();
+            
+            // Campos de descuento
+            $table->string('discount_type')->nullable();
+            $table->decimal('discount_value', 10, 2)->nullable();
+            
+            // Campos de auditoría
+            $table->foreignId('created_by')->nullable()->constrained('users');
             $table->boolean('active')->default(true);
             $table->timestamps();
+            
+            // Índices
+            $table->index(['active', 'departure_date']);
+            $table->index(['destination']);
         });
     }
 

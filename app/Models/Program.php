@@ -24,9 +24,14 @@ class Program extends Model
         'trip_price',
         'final_payment_date',
         'seller_name',
-        'payment_mode_id',
-        'payment_method_id',
-        'max_installments',
+        // Configuración de pago total
+        'enable_total_payment',
+        'total_payment_method_id',
+        // Configuración de pago mensual Lat90
+        'enable_lat90_payment',
+        'lat90_payment_method_id',
+        'lat90_max_installments',
+        // Campos de descuento
         'discount_type',
         'discount_value',
         'course_id',
@@ -39,6 +44,8 @@ class Program extends Model
         'final_payment_date' => 'date',
         'trip_price' => 'decimal:2',
         'discount_value' => 'decimal:2',
+        'enable_total_payment' => 'boolean',
+        'enable_lat90_payment' => 'boolean',
         'active' => 'boolean'
     ];
 
@@ -49,6 +56,18 @@ class Program extends Model
         'images'
     ];
 
+    // Relaciones para métodos de pago
+    public function totalPaymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'total_payment_method_id');
+    }
+
+    public function lat90PaymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'lat90_payment_method_id');
+    }
+
+    // Relaciones existentes (mantener compatibilidad)
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);

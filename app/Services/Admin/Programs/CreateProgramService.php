@@ -64,9 +64,17 @@ class CreateProgramService
                 'trip_price' => $programData['total_price'] ?? $programData['trip_price'],
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => $programData['sales_person'] ?? $programData['seller_name'],
-                'payment_mode_id' => $this->getPaymentModeId($programData),
-                'payment_method_id' => $this->getPaymentMethodId($programData),
-                'max_installments' => $programData['max_installments'] ?? null,
+                
+                // Configuración de pago total
+                'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
+                'total_payment_method_id' => $this->getTotalPaymentMethodId($programData),
+                
+                // Configuración de pago mensual Lat90
+                'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
+                'lat90_payment_method_id' => $this->getLat90PaymentMethodId($programData),
+                'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
+                
+                // Campos de descuento
                 'discount_type' => $programData['discount_type'] ?? $programData['group_benefit'] ?? null,
                 'discount_value' => $this->calculateDiscountValue($programData),
                 'created_by' => auth()->id(),
@@ -667,6 +675,8 @@ class CreateProgramService
         return $methodMapping[$paymentMethod] ?? null;
     }
 
+
+
     /**
      * Calculate discount value based on discount type.
      */
@@ -692,5 +702,90 @@ class CreateProgramService
         ];
 
         return $discountMapping[$discountType] ?? null;
+    }
+
+    /**
+     * Check if total payment is enabled.
+     */
+    private function isTotalPaymentEnabled(array $programData): bool
+    {
+        // Verificar si el pago total está habilitado basado en la selección del usuario
+        return isset($programData['payment_option']) && 
+               (in_array('full_payment', (array)$programData['payment_option']) || 
+                $programData['payment_option'] === 'full_payment');
+    }
+
+    /**
+     * Get total payment method ID.
+     */
+    private function getTotalPaymentMethodId(array $programData): ?int
+    {
+        if (!$this->isTotalPaymentEnabled($programData)) {
+            return null;
+        }
+        
+        $paymentMethod = $programData['full_payment_method'] ?? '';
+        
+        if (!$paymentMethod) {
+            return null;
+        }
+
+        // Mapear los valores del frontend a los IDs de la base de datos
+        $methodMapping = [
+            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
+            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
+            'solo_transferencia' => 3, // Solo pago transferencia
+            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+        ];
+
+        return $methodMapping[$paymentMethod] ?? null;
+    }
+
+    /**
+     * Check if Lat90 payment is enabled.
+     */
+    private function isLat90PaymentEnabled(array $programData): bool
+    {
+        // Verificar si el pago Lat90 está habilitado basado en la selección del usuario
+        return isset($programData['payment_option']) && 
+               (in_array('installments', (array)$programData['payment_option']) || 
+                $programData['payment_option'] === 'installments');
+    }
+
+    /**
+     * Get Lat90 payment method ID.
+     */
+    private function getLat90PaymentMethodId(array $programData): ?int
+    {
+        if (!$this->isLat90PaymentEnabled($programData)) {
+            return null;
+        }
+        
+        $paymentMethod = $programData['installments_payment_method'] ?? '';
+        
+        if (!$paymentMethod) {
+            return null;
+        }
+
+        // Mapear los valores del frontend a los IDs de la base de datos
+        $methodMapping = [
+            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
+            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
+            'solo_transferencia' => 3, // Solo pago transferencia
+            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+        ];
+
+        return $methodMapping[$paymentMethod] ?? null;
+    }
+
+    /**
+     * Get Lat90 max installments.
+     */
+    private function getLat90MaxInstallments(array $programData): ?int
+    {
+        if (!$this->isLat90PaymentEnabled($programData)) {
+            return null;
+        }
+        return $programData['max_installments'] ?? null;
     }
 } 

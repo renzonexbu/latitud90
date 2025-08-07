@@ -17,9 +17,11 @@ class DatabaseSeeder extends Seeder
             PaymentMethodSeeder::class,
             PaymentGatewaySeeder::class,
             PaymentModeSeeder::class,
-            UserSeeder::class,  
+            UserSeeder::class,
             // ProgramsSeeder::class,
             InstitutionSeeder::class,
+            RegionsSeeder::class,
+            ComunesSeeder::class,
         ]);
     }
 }

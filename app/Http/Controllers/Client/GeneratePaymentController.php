@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\GeneratePaymentService;
+use App\Models\Region;
+use App\Models\Comune;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -20,10 +22,14 @@ class GeneratePaymentController extends Controller
     {
         $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null);
         
+        // Obtener regiones y comunas
+        $regions = Region::with('comunes')->get();
+        
         return Inertia::render('Ecommerce/PaymentDetails', [
             'paymentData' => $paymentData,
             'programId' => $programId,
-            'rut' => $request->query('rut', '')
+            'rut' => $request->query('rut', ''),
+            'regions' => $regions
         ]);
     }
 

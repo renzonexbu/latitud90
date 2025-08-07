@@ -106,12 +106,11 @@
                                     />
                                 </div>
 
-                                <!-- Comuna/Provincia -->
                                 <div class="flex flex-col gap-[12px]">
                                     <label
                                         class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                     >
-                                        Comuna/Provincia
+                                        Región
                                     </label>
                                     <select
                                         v-model="formData.region"
@@ -120,57 +119,40 @@
                                         <option value="">
                                             Selecciona su región
                                         </option>
-                                        <option value="metropolitana">
-                                            Región Metropolitana
-                                        </option>
-                                        <option value="valparaiso">
-                                            Valparaíso
-                                        </option>
-                                        <option value="ohiggins">
-                                            O'Higgins
-                                        </option>
-                                        <option value="maule">Maule</option>
-                                        <option value="biobio">Biobío</option>
-                                        <option value="araucania">
-                                            La Araucanía
-                                        </option>
-                                        <option value="loslagos">
-                                            Los Lagos
-                                        </option>
-                                        <option value="aysen">Aysén</option>
-                                        <option value="magallanes">
-                                            Magallanes
+                                        <option
+                                            v-for="region in regions"
+                                            :key="region.id"
+                                            :value="region.id"
+                                        >
+                                            {{ region.name }}
                                         </option>
                                     </select>
                                 </div>
 
-                                <!-- Región/Ciudad -->
                                 <div class="flex flex-col gap-[12px]">
                                     <label
                                         class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                     >
-                                        Región/Ciudad
+                                        Comuna
                                     </label>
                                     <select
                                         v-model="formData.city"
                                         class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                        :disabled="!formData.region"
                                     >
                                         <option value="">
-                                            Selecciona su comuna
+                                            {{
+                                                formData.region
+                                                    ? "Selecciona su comuna"
+                                                    : "Primero selecciona una región"
+                                            }}
                                         </option>
-                                        <option value="santiago">
-                                            Santiago
-                                        </option>
-                                        <option value="providencia">
-                                            Providencia
-                                        </option>
-                                        <option value="lascondes">
-                                            Las Condes
-                                        </option>
-                                        <option value="nunoa">Ñuñoa</option>
-                                        <option value="maipu">Maipú</option>
-                                        <option value="puentealto">
-                                            Puente Alto
+                                        <option
+                                            v-for="comune in filteredComunes"
+                                            :key="comune.id"
+                                            :value="comune.id"
+                                        >
+                                            {{ comune.name }}
                                         </option>
                                     </select>
                                 </div>
@@ -290,6 +272,10 @@ export default {
             type: String,
             default: "",
         },
+        regions: {
+            type: Array,
+            default: () => [],
+        },
     },
     data() {
         return {
@@ -309,6 +295,15 @@ export default {
             },
             isFormValid: false,
         };
+    },
+    computed: {
+        filteredComunes() {
+            if (!this.formData.region) return [];
+            const selectedRegion = this.regions.find(
+                (r) => r.id == this.formData.region
+            );
+            return selectedRegion ? selectedRegion.comunes : [];
+        },
     },
     mounted() {
         // Leer los datos de pago del localStorage
@@ -332,6 +327,10 @@ export default {
             handler() {
                 this.validateForm();
             },
+        },
+        "formData.region"() {
+            // Limpiar la comuna cuando cambie la región
+            this.formData.city = "";
         },
     },
     methods: {

@@ -14,17 +14,47 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('participant_id')->constrained('participants');
+            $table->foreignId('program_id')->constrained('programs'); // FK a programs
+
+            // Información de la orden
+            $table->decimal('total_amount', 10, 2); // Monto total de la orden
+            $table->decimal('discount', 10, 2)->default(0);
+            $table->decimal('final_amount', 10, 2); // Monto final después de descuentos
+            $table->integer('total_installments'); // Número total de cuotas
+            $table->enum('payment_type', ['total', 'monthly'])->default('total');
+            $table->enum('status', [
+                'pending',      // Pendiente de pago
+                'processing',   // Procesando pago
+                'paid',         // Pagado (todas las cuotas pagadas)
+                'cancelled',    // Cancelado
+                'refunded'      // Reembolsado
+            ])->default('pending');
+
+            // Campos adicionales útiles
+            $table->text('notes')->nullable(); // Notas adicionales
+            $table->string('order_number')->unique(); // Número de orden único
+
+            $table->timestamps();
+
+            // Índices para optimizar consultas
+            $table->index(['order_number']);
+            $table->index(['status', 'created_at']);
+        });
+
+        Schema::create('orders_detail', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
             $table->foreignId('payment_method_id')->constrained('payment_methods'); // FK a payment_methods
             $table->foreignId('payment_mode_id')->constrained('payment_modes'); // FK a payment_modes
-            $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways'); // FK a payment_gateways (se llena cuando se paga)
+            $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways'); // FK a payment_gateways
 
-            // Datos del comprador
-            $table->string('buyer_first_name');
-            $table->string('buyer_last_name');
-            $table->string('buyer_email');
-            $table->string('buyer_phone')->nullable();
-            $table->string('buyer_document_type')->nullable(); // 'rut', 'cedula', 'pasaporte'
-            $table->string('buyer_document_number')->nullable();
+            // Datos del comprador (se mueven aquí desde orders)
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('email');
+            $table->string('phone')->nullable();
+            $table->foreignId('document_type_id')->nullable()->constrained('document'); // FK a document
+            $table->string('document_number')->nullable();
 
             // Dirección de facturación
             $table->text('billing_address')->nullable();
@@ -32,29 +62,35 @@ return new class extends Migration
             $table->string('billing_country')->nullable();
             $table->string('billing_postal_code')->nullable();
 
-            // Información de la orden
-            $table->decimal('price', 10, 2);
-            $table->decimal('discount', 10, 2)->default(0);
-            $table->decimal('total', 10, 2);
+            // Acuerdos
+            $table->boolean('terms_accepted')->default(false);
+            $table->boolean('marketing_accepted')->default(false);
+
+            // Información de la cuota
+            $table->integer('installment_number'); // Número de cuota (1, 2, 3, etc.)
+            $table->decimal('amount', 10, 2); // Monto de esta cuota específica
+            $table->date('due_date'); // Fecha de vencimiento
+            $table->boolean('is_paid')->default(false); // Si fue pagada o no
+            $table->datetime('paid_at')->nullable(); // Fecha cuando se pagó
             $table->enum('status', [
                 'pending',      // Pendiente de pago
                 'processing',   // Procesando pago
                 'paid',         // Pagado
-                'cancelled',    // Cancelado
-                'refunded'      // Reembolsado
+                'overdue',      // Vencida
+                'cancelled'     // Cancelada
             ])->default('pending');
 
-            // Campos adicionales útiles
-            $table->text('notes')->nullable(); // Notas adicionales
-            $table->datetime('paid_at')->nullable(); // Fecha de pago
-            $table->string('order_number')->unique(); // Número de orden único
+            // Información de transacción
+            $table->string('transaction_id')->nullable(); // ID de transacción del gateway
+            $table->text('gateway_response')->nullable(); // Respuesta completa del gateway
 
             $table->timestamps();
 
             // Índices para optimizar consultas
-            $table->index(['buyer_email', 'status']);
-            $table->index(['order_number']);
-            $table->index(['status', 'created_at']);
+            $table->index(['order_id', 'installment_number']);
+            $table->index(['email', 'status']);
+            $table->index(['due_date', 'status']);
+            $table->index(['is_paid', 'due_date']);
         });
     }
 
@@ -63,6 +99,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('orders_detail');
         Schema::dropIfExists('orders');
     }
 };
