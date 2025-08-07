@@ -97,7 +97,7 @@ const form = useForm({
     group_benefit: "",
     discount_type: "",
     discount_amount: "",
-    payment_option: "", // "full_payment" o "installments"
+    payment_options: [], // Array para múltiples opciones de pago
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",
@@ -135,7 +135,7 @@ const paymentData = ref({
     group_benefit: "",
     discount_type: "",
     discount_amount: "",
-    payment_option: "", // "full_payment" o "installments"
+    payment_options: [], // Array para múltiples opciones de pago
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",
@@ -175,6 +175,17 @@ watch(paymentData, (newValue) => {
     Object.keys(newValue).forEach((key) => {
         form[key] = newValue[key];
     });
+    
+    // Debug: Log de los datos de pago que se están sincronizando
+    console.log('Datos de pago sincronizados:', {
+        payment_options: newValue.payment_options,
+        full_payment_method: newValue.full_payment_method,
+        installments_payment_method: newValue.installments_payment_method,
+        max_installments: newValue.max_installments
+    });
+    
+    // Debug: Verificar que payment_options se esté asignando correctamente
+    console.log('Form payment_options después de sincronizar:', form.payment_options);
 }, { deep: true });
 
 // Watcher específico para discount_type y discount_amount
@@ -394,6 +405,15 @@ const submit = () => {
         scrollToFirstError();
         return;
     }
+
+    // Debug: Log de los datos que se van a enviar
+    console.log('Datos que se van a enviar al backend:', {
+        payment_options: form.payment_options,
+        full_payment_method: form.full_payment_method,
+        installments_payment_method: form.installments_payment_method,
+        max_installments: form.max_installments,
+        form_data: form.data()
+    });
 
     // Establecer created_by
     form.created_by = null; // Se establecerá en el backend con auth()->id()

@@ -1,21 +1,28 @@
 <template>
-    <div class="bg-white rounded-[20px] border border-[#D3D3D3] p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)] w-full h-fit mx-5">
+    <div
+        class="bg-white rounded-[20px] border border-[#D3D3D3] p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)] w-full h-fit mx-5"
+    >
         <div class="flex flex-col gap-[24px]">
             <!-- Header Section -->
             <div class="flex flex-col gap-[14px]">
-                <h2 class="text-[#007E93] font-outfit-semibold text-[20px] leading-[61.43px] font-semibold">
-                            Selecione la formas de pago
+                <h2
+                    class="text-[#007E93] font-outfit-semibold text-[20px] leading-[61.43px] font-semibold"
+                >
+                    Selecione la formas de pago
                 </h2>
                 <p class="text-[#5B5B5B] font-nexa text-sm leading-[18px]">
-                    ¡Selecciona la forma de pago que mejor se adapte a ti, total o en cuotas! Para cualquier consulta, no dudes en escribirnos por
-                            <span class="underline">WhatsApp</span>
+                    ¡Selecciona la forma de pago que mejor se adapte a ti, total
+                    o en cuotas! Para cualquier consulta, no dudes en
+                    escribirnos por
+                    <span class="underline">WhatsApp</span>
                 </p>
-                    </div>
+            </div>
 
             <!-- Payment Options Section -->
             <div class="flex flex-col gap-[18px]">
                 <!-- Pago Total Option -->
                 <PaymentOption
+                    v-if="program.enable_total_payment"
                     :is-selected="paymentType === 'total'"
                     :is-accordion-open="accordionOpen === 'total'"
                     title="Pago total"
@@ -24,18 +31,22 @@
                     <template #accordion-content>
                         <div class="flex flex-col gap-[9px]">
                             <PaymentSubOption
-                                v-for="option in totalPaymentOptions"
+                                v-for="option in getTotalPaymentOptions()"
                                 :key="option.value"
                                 :option="option"
-                                :is-selected="paymentType === 'total' && totalPaymentOption === option.value"
+                                :is-selected="
+                                    paymentType === 'total' &&
+                                    totalPaymentOption === option.value
+                                "
                                 @select="selectTotalPaymentOption(option.value)"
                             />
-                                    </div>
+                        </div>
                     </template>
                 </PaymentOption>
 
                 <!-- Mensual Option -->
                 <PaymentOption
+                    v-if="program.enable_lat90_payment"
                     :is-selected="paymentType === 'monthly'"
                     :is-accordion-open="accordionOpen === 'monthly'"
                     title="Mensual | Cuota Lat 90"
@@ -45,70 +56,88 @@
                         <div class="flex flex-col gap-[9px]">
                             <!-- Warning Message -->
                             <MonthlyWarningMessage />
-                            
+
                             <!-- Monthly Payment Options -->
                             <PaymentSubOption
-                                v-for="option in monthlyPaymentOptions"
+                                v-for="option in getMonthlyPaymentOptions()"
                                 :key="option.value"
                                 :option="option"
-                                :is-selected="paymentType === 'monthly' && monthlyPaymentOption === option.value"
-                                @select="selectMonthlyPaymentOption(option.value)"
+                                :is-selected="
+                                    paymentType === 'monthly' &&
+                                    monthlyPaymentOption === option.value
+                                "
+                                @select="
+                                    selectMonthlyPaymentOption(option.value)
+                                "
                             />
 
                             <!-- Installment Selection Section -->
-                            <div class="flex flex-col gap-[12px] mt-[16px] ml-4">
+                            <div
+                                class="flex flex-col gap-[12px] mt-[16px] ml-4"
+                            >
                                 <!-- Title -->
-                                <p class="text-[#5B5B5B] font-nexa text-[14px] leading-[18px] font-normal">
+                                <p
+                                    class="text-[#5B5B5B] font-nexa text-[14px] leading-[18px] font-normal"
+                                >
                                     Elige la cantidad de cuotas para fraccionar
                                 </p>
 
                                 <!-- Installment Selector and Date -->
-                                <div class="flex flex-row items-center gap-[16px]">
+                                <div
+                                    class="flex flex-row items-center gap-[16px]"
+                                >
                                     <!-- Installment Selector -->
                                     <div class="relative">
-                                        <select 
+                                        <select
                                             v-model="selectedInstallments"
                                             class="appearance-none bg-white border border-[#D3D3D3] rounded-lg px-[12px] py-[8px] text-[#434343] font-nexa text-[14px] leading-[18px] pr-[32px] shadow-sm"
                                         >
-                                            <option value="1">1</option>
-                                            <option value="2">2</option>
-                                            <option value="3">3</option>
-                                            <option value="4">4</option>
-                                            <option value="5">5</option>
-                                            <option value="6">6</option>
-                                            <option value="7">7</option>
-                                            <option value="8">8</option>
-                                            <option value="9">9</option>
-                                            <option value="10">10</option>
-                                            <option value="11">11</option>
-                                            <option value="12">12</option>
+                                            <option 
+                                                v-for="installment in getAvailableInstallments()" 
+                                                :key="installment" 
+                                                :value="installment"
+                                            >
+                                                {{ installment }}
+                                            </option>
                                         </select>
-                                            </div>
+                                    </div>
 
                                     <!-- End Date -->
-                                    <div class="flex flex-row items-center gap-[8px]">
-                                        <span class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal">
+                                    <div
+                                        class="flex flex-row items-center gap-[8px]"
+                                    >
+                                        <span
+                                            class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal"
+                                        >
                                             Fecha de finalización
-                                                        </span>
-                                        <span class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal">
-                                            {{ formatEndDate(finalPaymentDate) }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        </span>
+                                        <span
+                                            class="text-[#007E93] font-nexa text-[12px] leading-[13px] font-normal"
+                                        >
+                                            {{
+                                                formatEndDate(finalPaymentDate)
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </template>
                 </PaymentOption>
-                                </div>
-                                
+            </div>
+
             <!-- Payment Summary Section -->
             <div class="border-t border-[#D3D3D3] pt-[14px]">
                 <div class="flex flex-row items-center justify-between">
-                    <span class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold">
-                            Faltan pagar
+                    <span
+                        class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold"
+                    >
+                        Faltan pagar
                     </span>
-                    <span class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold">
-                            $1800
+                    <span
+                        class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold"
+                    >
+                        $1800
                     </span>
                 </div>
             </div>
@@ -118,12 +147,14 @@
                 class="rounded-[35px] p-[11px_20px] h-[55.94px] w-full transition-colors duration-300"
                 :class="{
                     'bg-[#FBBD51] cursor-pointer': paymentType !== null,
-                    'bg-[#C7C7C7] cursor-not-allowed': paymentType === null
+                    'bg-[#C7C7C7] cursor-not-allowed': paymentType === null,
                 }"
                 :disabled="paymentType === null"
                 @click="initiatePayment"
             >
-                <span class="text-white font-urbanist-semibold text-[18px] leading-[18px] font-semibold">
+                <span
+                    class="text-white font-urbanist-semibold text-[18px] leading-[18px] font-semibold"
+                >
                     Iniciar pago
                 </span>
             </button>
@@ -132,27 +163,43 @@
 </template>
 
 <script>
-import PaymentOption from './PaymentOption.vue'
-import PaymentSubOption from './PaymentSubOption.vue'
-import MonthlyWarningMessage from './MonthlyWarningMessage.vue'
-import { router } from '@inertiajs/vue3'
+import PaymentOption from "./PaymentOption.vue";
+import PaymentSubOption from "./PaymentSubOption.vue";
+import MonthlyWarningMessage from "./MonthlyWarningMessage.vue";
+import { router } from "@inertiajs/vue3";
 
 export default {
     name: "PaymentPanel",
     components: {
         PaymentOption,
         PaymentSubOption,
-        MonthlyWarningMessage
+        MonthlyWarningMessage,
     },
     props: {
         finalPaymentDate: {
             type: String,
-            required: true
+            required: true,
         },
         programId: {
             type: [String, Number],
-            required: true
-        }
+            required: true,
+        },
+        program: {
+            type: Object,
+            required: true,
+        },
+    },
+    mounted() {
+        // Debug: Log de la configuración del programa
+        console.log('Configuración de pago del programa:', {
+            enable_total_payment: this.program.enable_total_payment,
+            total_payment_method_id: this.program.total_payment_method_id,
+            total_payment_method: this.program.total_payment_method,
+            enable_lat90_payment: this.program.enable_lat90_payment,
+            lat90_payment_method_id: this.program.lat90_payment_method_id,
+            lat90_payment_method: this.program.lat90_payment_method,
+            lat90_max_installments: this.program.lat90_max_installments
+        });
     },
     data() {
         return {
@@ -161,44 +208,85 @@ export default {
             monthlyPaymentOption: null,
             accordionOpen: null,
             selectedInstallments: 12,
-            totalPaymentOptions: [
+            // Opciones base de pago
+            allPaymentOptions: [
                 {
-                    value: 'debit',
-                    label: 'Tarjeta de Debito',
-                    description: null
-                },
-                {
-                    value: 'credit',
-                    label: 'Tarjeta de Credito',
-                    description: '3, 6 o 12 cuotas sin interés, con cualquier promo bancaria'
-                },
-                {
-                    value: 'khipu',
-                    label: 'Transferencia Khipu',
-                    description: null
-                }
-            ],
-            monthlyPaymentOptions: [
-                {
-                    value: 'debit',
-                    label: 'Tarjeta de Debito',
-                    description: null
-                },
-                {
-                    value: 'credit',
-                    label: 'Tarjeta de Credito',
+                    value: "debit",
+                    label: "Tarjeta de Debito",
                     description: null,
-                    warning: 'Solo se efectuará 1 cuota'
                 },
                 {
-                    value: 'khipu',
-                    label: 'Transferencia Khipu',
-                    description: null
-                }
-            ]
+                    value: "credit",
+                    label: "Tarjeta de Credito",
+                    description: "3, 6 o 12 cuotas sin interés, con cualquier promo bancaria",
+                },
+                {
+                    value: "khipu",
+                    label: "Transferencia Khipu",
+                    description: null,
+                },
+            ],
         };
     },
     methods: {
+        // Obtener opciones de pago total según la configuración del programa
+        getTotalPaymentOptions() {
+            if (!this.program.enable_total_payment || !this.program.total_payment_method_id) {
+                return [];
+            }
+
+            const methodId = this.program.total_payment_method_id;
+            return this.filterPaymentOptionsByMethod(methodId);
+        },
+
+        // Obtener opciones de pago mensual según la configuración del programa
+        getMonthlyPaymentOptions() {
+            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) {
+                return [];
+            }
+
+            const methodId = this.program.lat90_payment_method_id;
+            return this.filterPaymentOptionsByMethod(methodId);
+        },
+
+        // Filtrar opciones según el método de pago configurado
+        filterPaymentOptionsByMethod(methodId) {
+            switch (methodId) {
+                case 1: // Todos los medios (Débito/Crédito/Transferencia)
+                    return this.allPaymentOptions;
+                
+                case 2: // Solo pago con Tarjeta (Débito/Crédito)
+                    return this.allPaymentOptions.filter(option => 
+                        option.value === 'debit' || option.value === 'credit'
+                    );
+                
+                case 3: // Solo pago transferencia
+                    return this.allPaymentOptions.filter(option => 
+                        option.value === 'khipu'
+                    );
+                
+                case 4: // Solo pago contado (Débito/Transferencia)
+                    return this.allPaymentOptions.filter(option => 
+                        option.value === 'debit' || option.value === 'khipu'
+                    );
+                
+                default:
+                    return this.allPaymentOptions;
+            }
+        },
+
+        // Obtener cuotas disponibles según la configuración del programa
+        getAvailableInstallments() {
+            const maxInstallments = this.program.lat90_max_installments || 12;
+            const installments = [];
+            
+            for (let i = 1; i <= Math.min(maxInstallments, 12); i++) {
+                installments.push(i);
+            }
+            
+            return installments;
+        },
+
         selectPaymentType(type) {
             if (this.paymentType === type) {
                 this.paymentType = null;
@@ -211,13 +299,17 @@ export default {
 
                 if (type === "monthly") {
                     this.totalPaymentOption = null;
-                    if (!this.monthlyPaymentOption) {
-                        this.monthlyPaymentOption = "debit";
+                    // Seleccionar la primera opción disponible por defecto
+                    const availableOptions = this.getMonthlyPaymentOptions();
+                    if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
+                        this.monthlyPaymentOption = availableOptions[0].value;
                     }
                 } else if (type === "total") {
                     this.monthlyPaymentOption = null;
-                    if (!this.totalPaymentOption) {
-                    this.totalPaymentOption = "debit";
+                    // Seleccionar la primera opción disponible por defecto
+                    const availableOptions = this.getTotalPaymentOptions();
+                    if (availableOptions.length > 0 && !this.totalPaymentOption) {
+                        this.totalPaymentOption = availableOptions[0].value;
                     }
                 }
             }
@@ -233,37 +325,54 @@ export default {
             this.monthlyPaymentOption = option;
         },
         formatEndDate(date) {
-            if (!date) return 'No especificada';
+            if (!date) return "No especificada";
             const dateObj = new Date(date);
             const day = dateObj.getDate();
             const month = dateObj.getMonth() + 1;
             const year = dateObj.getFullYear();
-            return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
+            return `${day.toString().padStart(2, "0")}/${month
+                .toString()
+                .padStart(2, "0")}/${year.toString().slice(-2)}`;
         },
         initiatePayment() {
             if (this.paymentType === null) {
                 return;
             }
 
-            console.log('Iniciando pago con:', {
+            console.log("Iniciando pago con:", {
                 paymentType: this.paymentType,
-                paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
-                installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1
+                paymentMethod:
+                    this.paymentType === "total"
+                        ? this.totalPaymentOption
+                        : this.monthlyPaymentOption,
+                installments:
+                    this.paymentType === "monthly"
+                        ? this.selectedInstallments
+                        : 1,
             });
 
             // Guardar los datos de pago en la sesión o localStorage
             const paymentData = {
                 paymentType: this.paymentType,
-                paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
-                installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1
+                paymentMethod:
+                    this.paymentType === "total"
+                        ? this.totalPaymentOption
+                        : this.monthlyPaymentOption,
+                installments:
+                    this.paymentType === "monthly"
+                        ? this.selectedInstallments
+                        : 1,
             };
 
             // Guardar en localStorage para que esté disponible en la siguiente vista
-            localStorage.setItem('selectedPaymentData', JSON.stringify(paymentData));
+            localStorage.setItem(
+                "selectedPaymentData",
+                JSON.stringify(paymentData)
+            );
 
             // Redirigir a la vista de detalles de pago usando URL directa
             router.visit(`/programs/${this.programId}/payment`);
-        }
+        },
     },
 };
 </script>

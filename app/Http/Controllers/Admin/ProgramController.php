@@ -71,6 +71,15 @@ class ProgramController extends Controller
     public function store(CreateProgramRequest $request)
     {
         try {
+            // Debug: Log de los datos validados que llegan al controlador
+            Log::info('Datos validados en el controlador:', [
+                'payment_options' => $request->validated()['payment_options'] ?? 'no definido',
+                'full_payment_method' => $request->validated()['full_payment_method'] ?? 'no definido',
+                'installments_payment_method' => $request->validated()['installments_payment_method'] ?? 'no definido',
+                'max_installments' => $request->validated()['max_installments'] ?? 'no definido',
+                'all_data' => $request->validated()
+            ]);
+            
             $program = $this->createProgramService->execute($request->validated());
             
             return redirect()->route('admin.programs.index')

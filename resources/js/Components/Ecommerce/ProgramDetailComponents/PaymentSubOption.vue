@@ -22,11 +22,13 @@
 
             <!-- Content -->
             <div class="flex flex-col gap-[11px]">
-                <div class="text-[#1C4F4A] font-nexa text-base leading-[18px] w-[254px]">
+                <div
+                    class="text-[#1C4F4A] font-nexa text-base leading-[18px] w-[254px]"
+                >
                     <span class="font-nexa font-normal">Pago con </span>
                     <span class="font-nexa font-bold">{{ option.label }}</span>
                 </div>
-                
+
                 <!-- Description (if exists) -->
                 <div
                     v-if="option.description"
@@ -57,7 +59,9 @@
                     </svg>
 
                     <!-- Warning Text -->
-                    <span class="text-[#D54A42] font-nexa text-xs leading-[13px] font-extrabold mt-[5px]">
+                    <span
+                        class="text-[#D54A42] font-nexa text-xs leading-[13px] font-extrabold mt-[5px]"
+                    >
                         {{ option.warning }}
                     </span>
                 </div>
@@ -75,14 +79,14 @@ export default {
             required: true,
             validator: (value) => {
                 return value.value && value.label;
-            }
+            },
         },
         isSelected: {
             type: Boolean,
-            default: false
-        }
+            default: false,
+        },
     },
-    emits: ['select'],
+    emits: ["select"],
     methods: {
         formatDescription(description) {
             // Aplicar formato especial para "3, 6 o 12 cuotas sin interés"
@@ -90,7 +94,7 @@ export default {
                 /(3, 6 o 12 cuotas sin interés)/g,
                 '<span class="font-nexa font-bold">$1</span>'
             );
-        }
-    }
-}
+        },
+    },
+};
 </script>

@@ -92,11 +92,21 @@ export default {
   },
   methods: {
     hasPillar(pillarName) {
-      return this.pillarsArray.some(pillar => 
-        pillar.includes(pillarName) || 
-        pillar.includes(pillarName.replace('ó', 'o')) ||
-        pillar.includes(pillarName.replace('ó', 'o').replace('á', 'a'))
-      );
+      return this.pillarsArray.some(pillar => {
+        // Normalizar ambos strings (quitar acentos y convertir a minúsculas)
+        const normalizedPillar = this.normalizeString(pillar);
+        const normalizedName = this.normalizeString(pillarName);
+        
+        return normalizedPillar.includes(normalizedName);
+      });
+    },
+    
+    normalizeString(str) {
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+        .trim();
     }
   }
 };

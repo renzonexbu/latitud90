@@ -81,6 +81,7 @@
                         <PaymentPanel 
                             :final-payment-date="program.final_payment_date" 
                             :program-id="program.id"
+                            :program="program"
                         />
                     </div>
                 </div>

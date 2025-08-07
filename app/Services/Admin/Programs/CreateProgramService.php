@@ -49,6 +49,19 @@ class CreateProgramService
 
 
 
+            // Debug: Log de datos de pago
+            Log::info('Datos de pago recibidos:', [
+                'payment_options' => $programData['payment_options'] ?? 'no definido',
+                'full_payment_method' => $programData['full_payment_method'] ?? 'no definido',
+                'installments_payment_method' => $programData['installments_payment_method'] ?? 'no definido',
+                'max_installments' => $programData['max_installments'] ?? 'no definido',
+                'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
+                'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
+                'total_payment_method_id' => $this->getTotalPaymentMethodId($programData),
+                'lat90_payment_method_id' => $this->getLat90PaymentMethodId($programData),
+                'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
+            ]);
+
             // Crear el programa primero (sin archivos por ahora)
             $program = Program::create([
                 'name' => $programData['name'],
@@ -707,18 +720,18 @@ class CreateProgramService
     /**
      * Check if total payment is enabled.
      */
-    private function isTotalPaymentEnabled(array $programData): bool
+    public function isTotalPaymentEnabled(array $programData): bool
     {
         // Verificar si el pago total está habilitado basado en la selección del usuario
-        return isset($programData['payment_option']) && 
-               (in_array('full_payment', (array)$programData['payment_option']) || 
-                $programData['payment_option'] === 'full_payment');
+        return isset($programData['payment_options']) && 
+               is_array($programData['payment_options']) && 
+               in_array('full_payment', $programData['payment_options']);
     }
 
     /**
      * Get total payment method ID.
      */
-    private function getTotalPaymentMethodId(array $programData): ?int
+    public function getTotalPaymentMethodId(array $programData): ?int
     {
         if (!$this->isTotalPaymentEnabled($programData)) {
             return null;
@@ -744,18 +757,18 @@ class CreateProgramService
     /**
      * Check if Lat90 payment is enabled.
      */
-    private function isLat90PaymentEnabled(array $programData): bool
+    public function isLat90PaymentEnabled(array $programData): bool
     {
         // Verificar si el pago Lat90 está habilitado basado en la selección del usuario
-        return isset($programData['payment_option']) && 
-               (in_array('installments', (array)$programData['payment_option']) || 
-                $programData['payment_option'] === 'installments');
+        return isset($programData['payment_options']) && 
+               is_array($programData['payment_options']) && 
+               in_array('installments', $programData['payment_options']);
     }
 
     /**
      * Get Lat90 payment method ID.
      */
-    private function getLat90PaymentMethodId(array $programData): ?int
+    public function getLat90PaymentMethodId(array $programData): ?int
     {
         if (!$this->isLat90PaymentEnabled($programData)) {
             return null;
@@ -781,7 +794,7 @@ class CreateProgramService
     /**
      * Get Lat90 max installments.
      */
-    private function getLat90MaxInstallments(array $programData): ?int
+    public function getLat90MaxInstallments(array $programData): ?int
     {
         if (!$this->isLat90PaymentEnabled($programData)) {
             return null;

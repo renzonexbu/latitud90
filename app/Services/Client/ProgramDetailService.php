@@ -15,7 +15,9 @@ class ProgramDetailService
     {
         $program = Program::with([
             'features',
-            'requirements'
+            'requirements',
+            'totalPaymentMethod',
+            'lat90PaymentMethod'
         ])->find($programId);
 
         if (!$program) {
@@ -54,15 +56,19 @@ class ProgramDetailService
             'images_folder' => $program->images_folder,
 
             // Información de pago
-            'payment_mode' => $program->paymentMode ? [
-                'id' => $program->paymentMode->id,
-                'name' => $program->paymentMode->name,
+            'enable_total_payment' => $program->enable_total_payment,
+            'total_payment_method_id' => $program->total_payment_method_id,
+            'total_payment_method' => $program->totalPaymentMethod ? [
+                'id' => $program->totalPaymentMethod->id,
+                'name' => $program->totalPaymentMethod->name,
             ] : null,
-            'payment_method' => $program->paymentMethod ? [
-                'id' => $program->paymentMethod->id,
-                'name' => $program->paymentMethod->name,
+            'enable_lat90_payment' => $program->enable_lat90_payment,
+            'lat90_payment_method_id' => $program->lat90_payment_method_id,
+            'lat90_payment_method' => $program->lat90PaymentMethod ? [
+                'id' => $program->lat90PaymentMethod->id,
+                'name' => $program->lat90PaymentMethod->name,
             ] : null,
-            'max_installments' => $program->max_installments,
+            'lat90_max_installments' => $program->lat90_max_installments,
             'discount_type' => $program->discount_type,
             'discount_value' => $program->discount_value,
 

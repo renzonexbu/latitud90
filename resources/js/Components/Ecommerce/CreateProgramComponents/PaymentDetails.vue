@@ -842,6 +842,14 @@ onMounted(() => {
         formData.value.payment_options = [];
     }
     
+    // Debug: Log del estado inicial
+    console.log('Estado inicial del componente PaymentDetails:', {
+        payment_options: formData.value.payment_options,
+        full_payment_method: formData.value.full_payment_method,
+        installments_payment_method: formData.value.installments_payment_method,
+        max_installments: formData.value.max_installments
+    });
+    
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     // Emitir el estado inicial
@@ -852,6 +860,14 @@ onMounted(() => {
 watch(
     formData,
     (newValue) => {
+        // Debug: Log de los datos que se emiten al padre
+        console.log('Emitiendo datos al padre:', {
+            payment_options: newValue.payment_options,
+            full_payment_method: newValue.full_payment_method,
+            installments_payment_method: newValue.installments_payment_method,
+            max_installments: newValue.max_installments
+        });
+        
         emit('update:modelValue', newValue);
     },
     { deep: true, immediate: true }
@@ -915,6 +931,19 @@ watch(() => formData.value.discount_type, (newValue, oldValue) => {
 
 // Watcher para el monto de descuento
 watch(() => formData.value.discount_amount, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+// Watchers para los métodos de pago
+watch(() => formData.value.full_payment_method, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+watch(() => formData.value.installments_payment_method, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+watch(() => formData.value.max_installments, (newValue) => {
     emit('update:modelValue', formData.value);
 }, { immediate: true });
 
@@ -1017,6 +1046,17 @@ const handlePaymentOptionChange = (option, event) => {
             formData.value.max_installments = "";
         }
     }
+    
+    // Debug: Log de los datos de pago
+    console.log('Datos de pago actualizados:', {
+        payment_options: formData.value.payment_options,
+        full_payment_method: formData.value.full_payment_method,
+        installments_payment_method: formData.value.installments_payment_method,
+        max_installments: formData.value.max_installments
+    });
+    
+    // Emitir inmediatamente para asegurar que los datos se envíen
+    emit('update:modelValue', formData.value);
 };
 
 // Función para crear una nueva institución
