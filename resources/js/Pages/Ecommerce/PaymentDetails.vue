@@ -30,18 +30,40 @@
                                 />
                             </div>
 
-                            <!-- RUT/Pasaporte -->
+                            <!-- Tipo de Documento -->
                             <div class="flex flex-col gap-[12px]">
                                 <label
                                     class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                 >
-                                    RUT/Pasaporte *
+                                    Tipo de documento *
+                                </label>
+                                <select
+                                    v-model="formData.documentType"
+                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                >
+                                    <option value="">Selecciona el tipo de documento</option>
+                                    <option
+                                        v-for="docType in documentTypes"
+                                        :key="docType.id"
+                                        :value="docType.id"
+                                    >
+                                        {{ docType.name }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Número de Documento -->
+                            <div class="flex flex-col gap-[12px]">
+                                <label
+                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
+                                >
+                                    {{ getDocumentLabel() }} *
                                 </label>
                                 <input
                                     type="text"
-                                    placeholder="Ingresa su RUT*"
+                                    :placeholder="getDocumentPlaceholder()"
                                     class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                    v-model="formData.rut"
+                                    v-model="formData.documentNumber"
                                 />
                             </div>
 
@@ -98,11 +120,10 @@
                                     >
                                         País *
                                     </label>
-                                    <input
-                                        type="text"
-                                        placeholder="Selecciona su pais"
-                                        class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    <SearchableSelect
+                                        :options="countries"
                                         v-model="formData.country"
+                                        placeholder="Busca y selecciona tu país"
                                     />
                                 </div>
 
@@ -112,21 +133,12 @@
                                     >
                                         Región
                                     </label>
-                                    <select
-                                        v-model="formData.region"
-                                        class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
-                                    >
-                                        <option value="">
-                                            Selecciona su región
-                                        </option>
-                                        <option
-                                            v-for="region in regions"
-                                            :key="region.id"
-                                            :value="region.id"
-                                        >
-                                            {{ region.name }}
-                                        </option>
-                                    </select>
+                                    <SearchableSelect
+                                        :options="regions"
+                                        :value="formData.region"
+                                        placeholder="Busca y selecciona tu región"
+                                        @input="handleRegionChange"
+                                    />
                                 </div>
 
                                 <div class="flex flex-col gap-[12px]">
@@ -135,26 +147,12 @@
                                     >
                                         Comuna
                                     </label>
-                                    <select
+                                    <SearchableSelect
+                                        :options="filteredComunes"
                                         v-model="formData.city"
-                                        class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
+                                        placeholder="Busca y selecciona tu comuna"
                                         :disabled="!formData.region"
-                                    >
-                                        <option value="">
-                                            {{
-                                                formData.region
-                                                    ? "Selecciona su comuna"
-                                                    : "Primero selecciona una región"
-                                            }}
-                                        </option>
-                                        <option
-                                            v-for="comune in filteredComunes"
-                                            :key="comune.id"
-                                            :value="comune.id"
-                                        >
-                                            {{ comune.name }}
-                                        </option>
-                                    </select>
+                                    />
                                 </div>
                             </div>
 
@@ -165,7 +163,7 @@
                                     <div class="flex items-center gap-[8px]">
                                         <input
                                             type="checkbox"
-                                            class="w-[12px] h-[12px] rounded-[1.5px]"
+                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px]"
                                             v-model="formData.termsAccepted"
                                         />
                                         <div
@@ -190,7 +188,7 @@
                                     <div class="flex items-center gap-[8px]">
                                         <input
                                             type="checkbox"
-                                            class="w-[12px] h-[12px] rounded-[1.5px]"
+                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px]"
                                             v-model="formData.marketingAccepted"
                                         />
                                         <div
@@ -250,6 +248,7 @@ import Header from "@/Components/Ecommerce/Header.vue";
 import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
 import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
+import SearchableSelect from "@/Components/Ecommerce/SearchableSelect.vue";
 
 export default {
     name: "PaymentDetails",
@@ -258,6 +257,7 @@ export default {
         Footer,
         ProcessSteps,
         BackToHomeButton,
+        SearchableSelect,
     },
     props: {
         paymentData: {
@@ -272,7 +272,15 @@ export default {
             type: String,
             default: "",
         },
+        countries: {
+            type: Array,
+            default: () => [],
+        },
         regions: {
+            type: Array,
+            default: () => [],
+        },
+        documentTypes: {
             type: Array,
             default: () => [],
         },
@@ -283,7 +291,8 @@ export default {
             selectedPaymentMethod: "debit",
             formData: {
                 fullName: "",
-                rut: "",
+                documentType: "",
+                documentNumber: "",
                 email: "",
                 phone: "",
                 code_phone: "+56",
@@ -298,11 +307,19 @@ export default {
     },
     computed: {
         filteredComunes() {
-            if (!this.formData.region) return [];
+            if (!this.formData.region) {
+                return [];
+            }
+            
             const selectedRegion = this.regions.find(
                 (r) => r.id == this.formData.region
             );
-            return selectedRegion ? selectedRegion.comunes : [];
+            
+            if (!selectedRegion || !selectedRegion.comunes) {
+                return [];
+            }
+            
+            return selectedRegion.comunes;
         },
     },
     mounted() {
@@ -320,6 +337,13 @@ export default {
         } else {
             console.log("No payment data found in localStorage");
         }
+        
+        // Debug: Verificar datos de regiones y comunas
+        console.log("Datos de regiones recibidos:", {
+            regionsCount: this.regions.length,
+            regions: this.regions,
+            sampleRegion: this.regions[0]
+        });
     },
     watch: {
         formData: {
@@ -328,21 +352,65 @@ export default {
                 this.validateForm();
             },
         },
-        "formData.region"() {
-            // Limpiar la comuna cuando cambie la región
-            this.formData.city = "";
-        },
+
     },
     methods: {
         validateForm() {
             this.isFormValid =
                 this.formData.fullName.trim() !== "" &&
-                this.formData.rut.trim() !== "" &&
+                this.formData.documentType !== "" &&
+                this.formData.documentNumber.trim() !== "" &&
                 this.formData.email.trim() !== "" &&
                 this.formData.phone.trim() !== "" &&
                 this.formData.country.trim() !== "" &&
                 this.formData.termsAccepted;
         },
+        
+        getDocumentLabel() {
+            if (!this.formData.documentType) return "Número de documento";
+            
+            const selectedDocType = this.documentTypes.find(
+                doc => doc.id == this.formData.documentType
+            );
+            
+            return selectedDocType ? selectedDocType.name : "Número de documento";
+        },
+        
+        getDocumentPlaceholder() {
+            if (!this.formData.documentType) return "Ingresa tu número de documento";
+            
+            const selectedDocType = this.documentTypes.find(
+                doc => doc.id == this.formData.documentType
+            );
+            
+            if (!selectedDocType) return "Ingresa tu número de documento";
+            
+            switch (selectedDocType.name.toLowerCase()) {
+                case 'rut':
+                    return "Ej: 12.345.678-9";
+                case 'pasaporte':
+                    return "Ej: A12345678";
+                default:
+                    return "Ingresa tu número de documento";
+            }
+        },
+
+        
+        handleRegionChange(regionId) {
+            console.log('Región seleccionada:', regionId);
+            this.formData.region = regionId;
+            this.formData.city = ""; // Limpiar comuna
+            
+            // Verificar las comunas disponibles
+            if (regionId) {
+                const selectedRegion = this.regions.find(r => r.id == regionId);
+                console.log('Región encontrada:', selectedRegion);
+                if (selectedRegion && selectedRegion.comunes) {
+                    console.log('Comunas disponibles:', selectedRegion.comunes);
+                }
+            }
+        },
+        
         goBackToProgram() {
             // Usar el router directamente para ir a program detail
             router.visit(`/programs/${this.programId}`);
@@ -350,11 +418,45 @@ export default {
         continueToPayment() {
             if (!this.isFormValid) return;
 
-            // Aquí procesarías el formulario y continuarías al pago
-            console.log("Form data:", this.formData);
+            // Obtener el tipo de documento seleccionado
+            const selectedDocType = this.documentTypes.find(
+                doc => doc.id == this.formData.documentType
+            );
 
-            // Guardar datos del formulario en localStorage
-            localStorage.setItem("formData", JSON.stringify(this.formData));
+            // Obtener nombres de país, región y comuna
+            const selectedCountry = this.countries.find(c => c.id == this.formData.country);
+            const selectedRegion = this.regions.find(r => r.id == this.formData.region);
+            const selectedComune = this.filteredComunes.find(c => c.id == this.formData.city);
+
+            // Preparar datos del comprador
+            const buyerData = {
+                // Datos personales
+                fullName: this.formData.fullName,
+                documentType: selectedDocType ? selectedDocType.name : '',
+                documentNumber: this.formData.documentNumber,
+                email: this.formData.email,
+                phone: this.formData.code_phone + this.formData.phone,
+                
+                // Datos de ubicación
+                countryId: this.formData.country,
+                countryName: selectedCountry ? selectedCountry.name : '',
+                regionId: this.formData.region,
+                regionName: selectedRegion ? selectedRegion.name : '',
+                cityId: this.formData.city,
+                cityName: selectedComune ? selectedComune.name : '',
+                
+                // Acuerdos
+                termsAccepted: this.formData.termsAccepted,
+                marketingAccepted: this.formData.marketingAccepted,
+                
+                // Timestamp
+                submittedAt: new Date().toISOString()
+            };
+
+            console.log("Buyer data:", buyerData);
+
+            // Guardar datos del comprador en localStorage
+            localStorage.setItem("buyerData", JSON.stringify(buyerData));
 
             // Continuar al gateway de pago
             router.visit(
@@ -364,3 +466,25 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.custom-checkbox {
+    accent-color: #FBBD51;
+}
+
+.custom-checkbox:checked {
+    background-color: #FBBD51;
+    border-color: #FBBD51;
+}
+
+/* Estilos adicionales para mayor compatibilidad */
+.custom-checkbox:checked::before {
+    background-color: #FBBD51;
+}
+
+/* Para navegadores que no soportan accent-color */
+.custom-checkbox:checked {
+    background-color: #FBBD51 !important;
+    border-color: #FBBD51 !important;
+}
+</style>
