@@ -12,25 +12,30 @@ class PaymentMethodSeeder extends Seeder
     {
         $paymentMethods = [
             [
-                'name' => 'Todos los medios (Débito/Crédito/Transferencia)',
-                'description' => 'Acepta todos los métodos de pago disponibles',
+                'name' => 'Transferencia bancaria (Khipu)',
+                'description' => 'Pago vía Khipu con redirección segura a tu banco.',
                 'active' => true
             ],
             [
-                'name' => 'Solo pago con Tarjeta (Débito/Crédito)',
-                'description' => 'Solo acepta pagos con tarjeta de débito o crédito',
+                'name' => 'Débito y crédito sin cuotas (Webpay)',
+                'description' => 'Pago con Webpay en una sola cuota (sin interés).',
                 'active' => true
             ],
             [
-                'name' => 'Solo pago transferencia',
-                'description' => 'Solo acepta transferencias bancarias',
+                'name' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
+                'description' => 'Pago con Webpay en 3 cuotas precio contado (sin interés).',
                 'active' => true
             ],
             [
-                'name' => 'Solo pago contado (Débito/Transferencia)',
-                'description' => 'Solo acepta pagos en efectivo, débito o transferencia',
+                'name' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
+                'description' => 'Pago con Webpay en 6 cuotas precio contado (sin interés).',
                 'active' => true
-            ]
+            ],
+            [
+                'name' => 'Débito y crédito 12 cuotas sin interés (Webpay)',
+                'description' => 'Pago con Webpay en 12 cuotas precio contado (sin interés).',
+                'active' => true
+            ],
         ];
 
         foreach ($paymentMethods as $method) {

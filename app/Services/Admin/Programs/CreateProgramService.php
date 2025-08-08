@@ -773,22 +773,28 @@ class CreateProgramService
         if (!$this->isLat90PaymentEnabled($programData)) {
             return null;
         }
-        
-        $paymentMethod = $programData['installments_payment_method'] ?? '';
-        
-        if (!$paymentMethod) {
+
+        $paymentMethodKey = $programData['installments_payment_method'] ?? '';
+        if (!$paymentMethodKey) {
             return null;
         }
 
-        // Mapear los valores del frontend a los IDs de la base de datos
-        $methodMapping = [
-            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
-            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
-            'solo_transferencia' => 3, // Solo pago transferencia
-            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+        // Resolver por nombre según la clave seleccionada en el frontend
+        $nameByKey = [
+            'khipu'    => 'Transferencia bancaria (Khipu)',
+            'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',
+            'webpay_3' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
+            'webpay_6' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
+            'webpay_12'=> 'Débito y crédito 12 cuotas sin interés (Webpay)',
         ];
 
-        return $methodMapping[$paymentMethod] ?? null;
+        $targetName = $nameByKey[$paymentMethodKey] ?? null;
+        if (!$targetName) {
+            return null;
+        }
+
+        $method = \App\Models\PaymentMethod::where('name', $targetName)->first();
+        return $method?->id;
     }
 
     /**

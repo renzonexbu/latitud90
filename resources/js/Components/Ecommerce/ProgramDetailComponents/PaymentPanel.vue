@@ -277,14 +277,18 @@ export default {
             return this.filterPaymentOptionsByMethod(methodId);
         },
 
-        // Obtener opciones de pago mensual según la configuración del programa
+        // Obtener opciones de pago mensual (Latitud 90)
         getMonthlyPaymentOptions() {
-            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) {
+            if (!this.program.enable_lat90_payment) {
                 return [];
             }
-
-            const methodId = this.program.lat90_payment_method_id;
-            return this.filterPaymentOptionsByMethod(methodId);
+            return [
+                { value: 'khipu', label: 'Transferencia bancaria (Khipu)', description: null },
+                { value: 'webpay_1', label: 'Débito y crédito sin cuotas (Webpay)', description: null },
+                { value: 'webpay_3', label: 'Débito y crédito 3 cuotas sin interés (Webpay)', description: null },
+                { value: 'webpay_6', label: 'Débito y crédito 6 cuotas sin interés (Webpay)', description: null },
+                { value: 'webpay_12', label: 'Débito y crédito 12 cuotas sin interés (Webpay)', description: null },
+            ];
         },
 
         // Filtrar opciones según el método de pago configurado
@@ -367,6 +371,11 @@ export default {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
+            // Sincronizar cuotas según la opción seleccionada
+            if (option === 'webpay_1') this.selectedInstallments = 1;
+            if (option === 'webpay_3') this.selectedInstallments = 3;
+            if (option === 'webpay_6') this.selectedInstallments = 6;
+            if (option === 'webpay_12') this.selectedInstallments = 12;
             
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();

@@ -552,11 +552,12 @@
                                                 v-model="formData.installments_payment_method"
                                                 class="admin-input-text"
                                             >
-                                                <option value="">Seleccione la forma de pago</option>
-                                                <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
-                                                <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
-                                                <option value="solo_transferencia">Solo pago transferencia</option>
-                                                <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
+                                                <option value="">Seleccione La Forma De Pago</option>
+                                                <option value="khipu">Transferencia Bancaria (Khipu)</option>
+                                                <option value="webpay_1">Débito Y Crédito Sin Cuotas (Webpay)</option>
+                                                <option value="webpay_3">Débito Y Crédito 3 Cuotas Sin Interés (Webpay)</option>
+                                                <option value="webpay_6">Débito Y Crédito 6 Cuotas Sin Interés (Webpay)</option>
+                                                <option value="webpay_12">Débito Y Crédito 12 Cuotas Sin Interés (Webpay)</option>
                                             </select>
                                         </div>
                                     </div>
