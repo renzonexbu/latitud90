@@ -184,6 +184,8 @@ class CreateCourseService
                         
                         $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
                         $updatedCount++;
+                         // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
+                         $participant = $existingParticipant;
                         
                     } else {
                         // CREATE: Agregar nueva relación con el curso
@@ -206,6 +208,8 @@ class CreateCourseService
                         
                         $existingParticipant->courses()->attach($course->id, $pivotData);
                         $createdCount++;
+                         // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
+                         $participant = $existingParticipant;
                     }
                     
                 } else {
