@@ -2,76 +2,71 @@
 
 namespace App\Services\Client\PaymentGateway;
 
-use Transbank\Webpay\WebpayPlus\Transaction;
-use Transbank\Webpay\Options;
 use App\Models\Payment;
 use App\Models\Passenger;
 use Illuminate\Support\Facades\Log;
+use Transbank\Webpay\WebpayPlus\MallTransaction;
+use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCreateException;
+use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCommitException;
 
 class TransbankService
 {
-    private $transaction;
+    private string $apiKey;
+    private string $parentCommerceCode;
+    private string $childCommerceCode;
+    private string $environment;
 
     public function __construct()
     {
-        // Configuración para ambiente de desarrollo (integración)
-        $this->transaction = new Transaction();
-        $this->transaction->configureForIntegration(
-            config('services.transbank.commerce_code'),
-            config('services.transbank.api_key')
-        );
+        $this->apiKey = (string) config('services.transbank.api_key');
+        // Códigos Mall Webpay Plus (por defecto, integración oficial)
+        $this->parentCommerceCode = (string) config('services.transbank.commerce_code', '597055555535');
+        $this->childCommerceCode = (string) config('services.transbank.child_commerce_code', '597055555536');
+        $this->environment = (string) config('services.transbank.environment', 'integration');
+
+        // Normalizar a códigos Mall por defecto en integración si se detecta código estándar
+        if ($this->environment === 'integration') {
+            if ($this->parentCommerceCode === '597055555532') { // estándar
+                $this->parentCommerceCode = '597055555535'; // mall parent
+            }
+            if (empty($this->childCommerceCode) || $this->childCommerceCode === '597055555540') { // estándar diferido
+                $this->childCommerceCode = '597055555536'; // mall child
+            }
+        }
     }
 
     public function createTransaction($orderId, $amount, $returnUrl, $notificationUrl = null, $paymentType = null, $installments = null)
     {
         try {
             $sessionId = session()->getId();
-            
-            // Determinar si forzar a 1 cuota para pagos mensuales
-            $forceSingleInstallment = ($paymentType === 'monthly' && $installments);
-            
-            if ($forceSingleInstallment) {
-                Log::info('Monthly credit card payment detected - using REST API to force 1 installment', [
-                    'order_id' => $orderId,
-                    'payment_type' => $paymentType,
-                    'requested_installments' => $installments
-                ]);
-                
-                // Usar API REST para forzar 1 cuota
-                return $this->createTransactionWithInstallmentsControl($orderId, $sessionId, $amount, $returnUrl, 1);
-            }
-            
-            // Usar SDK estándar para otros casos
-            $response = $this->transaction->create(
-                $orderId,
-                $sessionId,
-                $amount,
-                $returnUrl
-            );
 
-            Log::info('Transbank transaction created', [
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'token' => $response->getToken(),
-                'url' => $response->getUrl(),
-                'notification_url' => $notificationUrl,
-                'payment_type' => $paymentType,
-                'installments' => $installments
-            ]);
+            // Instanciar MallTransaction según ambiente
+            $mall = $this->environment === 'production'
+                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
+                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
+
+            // Detalle Mall: sin cuotas (no se envía installments_number)
+            $details = [
+                [
+                    'amount' => (int) $amount,
+                    'commerce_code' => $this->childCommerceCode,
+                    'buy_order' => (string) $orderId . '-1',
+                ],
+            ];
+
+            $response = $mall->create((string) $orderId, (string) $sessionId, (string) $returnUrl, $details);
 
             return [
                 'success' => true,
                 'token' => $response->getToken(),
-                'url' => $response->getUrl()
+                'url' => $response->getUrl(),
+            ];
+        } catch (MallTransactionCreateException $e) {
+            return [
+                'success' => false,
+                'error' => method_exists($e, 'getTransbankErrorMessage') && $e->getTransbankErrorMessage() ? $e->getTransbankErrorMessage() : $e->getMessage(),
             ];
         } catch (\Exception $e) {
-            Log::error('Error creating Transbank transaction', [
-                'error' => $e->getMessage(),
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'payment_type' => $paymentType
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -79,122 +74,66 @@ class TransbankService
         }
     }
 
-    /**
-     * Crear transacción usando API REST para controlar cuotas
-     */
-    private function createTransactionWithInstallmentsControl($orderId, $sessionId, $amount, $returnUrl, $installmentsNumber = 1)
-    {
-        try {
-            $apiKey = config('services.transbank.api_key');
-            $commerceCode = config('services.transbank.commerce_code');
-            $environment = config('services.transbank.environment', 'integration');
-            
-            // URL base según el ambiente
-            $baseUrl = $environment === 'production' 
-                ? config('services.transbank.production_url', 'https://webpay3g.transbank.cl')
-                : config('services.transbank.base_url', 'https://webpay3gint.transbank.cl');
-            
-            $url = $baseUrl . '/rswebpaytransaction/api/webpay/v1.2/transactions';
-            
-            $payload = [
-                'buy_order' => $orderId,
-                'session_id' => $sessionId,
-                'amount' => $amount,
-                'return_url' => $returnUrl,
-                'installments_number' => $installmentsNumber // Forzar número de cuotas
-            ];
-            
-            $headers = [
-                'Content-Type: application/json',
-                'Tbk-Api-Key-Id: ' . $commerceCode,
-                'Tbk-Api-Key-Secret: ' . $apiKey
-            ];
-            
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            
-            if ($httpCode === 200) {
-                $data = json_decode($response, true);
-                
-                Log::info('Transbank REST API transaction created', [
-                    'order_id' => $orderId,
-                    'amount' => $amount,
-                    'token' => $data['token'] ?? 'unknown',
-                    'url' => $data['url'] ?? 'unknown',
-                    'installments_number' => $installmentsNumber
-                ]);
-                
-                return [
-                    'success' => true,
-                    'token' => $data['token'] ?? '',
-                    'url' => $data['url'] ?? ''
-                ];
-            } else {
-                Log::error('Transbank REST API error', [
-                    'http_code' => $httpCode,
-                    'response' => $response,
-                    'order_id' => $orderId
-                ]);
-                
-                return [
-                    'success' => false,
-                    'error' => 'Error en API REST de Transbank: ' . $httpCode
-                ];
-            }
-            
-        } catch (\Exception $e) {
-            Log::error('Error creating Transbank REST transaction', [
-                'error' => $e->getMessage(),
-                'order_id' => $orderId
-            ]);
-            
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-        }
-    }
+
 
     public function confirmTransaction($token)
     {
         try {
-            $response = $this->transaction->commit($token);
+            // Instanciar MallTransaction según ambiente
+            $mall = $this->environment === 'production'
+                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
+                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
 
-            Log::info('Transbank transaction confirmed', [
-                'token' => $token,
-                'response_code' => $response->getResponseCode(),
-                'authorization_code' => $response->getAuthorizationCode(),
-                'amount' => $response->getAmount()
-            ]);
+            $commit = $mall->commit((string) $token);
+
+            $details = $commit->getDetails();
+            $firstDetail = $details[0] ?? null;
+            $isSuccessful = false;
+            foreach ($details as $detail) {
+                if ($detail->getResponseCode() === 0) {
+                    $isSuccessful = true;
+                    break;
+                }
+            }
 
             return [
-                'success' => $response->getResponseCode() === 0,
-                'response_code' => $response->getResponseCode(),
-                'authorization_code' => $response->getAuthorizationCode(),
-                'amount' => $response->getAmount(),
-                'buy_order' => $response->getBuyOrder(),
-                'session_id' => $response->getSessionId(),
-                'card_detail' => $response->getCardDetail(),
-                'accounting_date' => $response->getAccountingDate(),
-                'transaction_date' => $response->getTransactionDate(),
-                'vci' => $response->getVci(),
-                'full_response' => $response
+                'success' => $isSuccessful,
+                'response_code' => $isSuccessful ? 0 : -1,
+                'authorization_code' => $firstDetail ? $firstDetail->getAuthorizationCode() : null,
+                'amount' => $firstDetail ? $firstDetail->getAmount() : null,
+                'buy_order' => $commit->getBuyOrder(),
+                'session_id' => $commit->getSessionId(),
+                'card_detail' => $commit->getCardDetail(),
+                'accounting_date' => $commit->getAccountingDate(),
+                'transaction_date' => $commit->getTransactionDate(),
+                'vci' => $commit->getVci(),
+                'full_response' => [
+                    'buy_order' => $commit->getBuyOrder(),
+                    'session_id' => $commit->getSessionId(),
+                    'details' => array_map(function ($d) {
+                        return [
+                            'amount' => $d->getAmount(),
+                            'status' => $d->getStatus(),
+                            'authorization_code' => $d->getAuthorizationCode(),
+                            'payment_type_code' => $d->getPaymentTypeCode(),
+                            'response_code' => $d->getResponseCode(),
+                            'installments_number' => $d->getInstallmentsNumber(),
+                            'commerce_code' => $d->getCommerceCode(),
+                            'buy_order' => $d->getBuyOrder(),
+                        ];
+                    }, $details),
+                    'card_detail' => $commit->getCardDetail(),
+                    'accounting_date' => $commit->getAccountingDate(),
+                    'transaction_date' => $commit->getTransactionDate(),
+                    'vci' => $commit->getVci(),
+                ],
+            ];
+        } catch (MallTransactionCommitException $e) {
+            return [
+                'success' => false,
+                'error' => method_exists($e, 'getTransbankErrorMessage') && $e->getTransbankErrorMessage() ? $e->getTransbankErrorMessage() : $e->getMessage(),
             ];
         } catch (\Exception $e) {
-            Log::error('Error confirming Transbank transaction', [
-                'error' => $e->getMessage(),
-                'token' => $token
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage()

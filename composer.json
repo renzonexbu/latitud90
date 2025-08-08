@@ -17,7 +17,7 @@
         "phpoffice/phpspreadsheet": "^4.5",
         "spatie/laravel-permission": "^6.18",
         "tightenco/ziggy": "^2.5",
-        "transbank/transbank-sdk": "^4.0"
+        "transbank/transbank-sdk": "^5.1"
     },
     "require-dev": {
         "laravel/breeze": "^1.29",

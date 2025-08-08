@@ -73,6 +73,11 @@ class OrderDetail extends Model
         return $this->belongsTo(PaymentGateway::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function country()
     {
         return $this->belongsTo(Country::class);

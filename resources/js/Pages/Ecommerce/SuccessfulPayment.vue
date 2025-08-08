@@ -73,8 +73,8 @@
                             <p class="text-gray-900">{{ paymentData.participant_name || 'N/A' }}</p>
                         </div>
                         <div>
-                            <span class="text-sm font-medium text-gray-500">RUT:</span>
-                            <p class="text-gray-900 font-mono">{{ paymentData.participant_rut || 'N/A' }}</p>
+                            <span class="text-sm font-medium text-gray-500">{{ documentLabel }}:</span>
+                            <p class="text-gray-900 font-mono">{{ formattedDocument }}</p>
                         </div>
                         <div>
                             <span class="text-sm font-medium text-gray-500">Email:</span>
@@ -151,6 +151,21 @@ export default {
             required: true,
         },
     },
+    computed: {
+        documentLabel() {
+            const t = (this.paymentData.document_type_name || '').toLowerCase();
+            if (t === 'rut') return 'RUT';
+            if (t) return t.toUpperCase();
+            return 'Documento';
+        },
+        formattedDocument() {
+            const t = (this.paymentData.document_type_name || '').toLowerCase();
+            const num = this.paymentData.document_number || '';
+            if (!num) return 'N/A';
+            if (t === 'rut') return this.formatRut(num);
+            return String(num).toUpperCase();
+        }
+    },
     methods: {
         formatCurrency(amount) {
             if (!amount) return "0";
@@ -189,6 +204,20 @@ export default {
                 'khipu': 'Transferencia Khipu'
             };
             return methods[method] || method || 'N/A';
+        },
+        formatRut(raw) {
+            // Normalizar: quitar puntos y guión si vienen
+            const clean = String(raw).replace(/\./g, '').replace(/-/g, '').toUpperCase();
+            if (clean.length < 2) return raw;
+            const body = clean.slice(0, -1);
+            const dv = clean.slice(-1);
+            // Formatear body con puntos cada 3
+            let formattedBody = '';
+            for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                if (j > 0 && j % 3 === 0) formattedBody = '.' + formattedBody;
+                formattedBody = body[i] + formattedBody;
+            }
+            return `${formattedBody}-${dv}`;
         },
         goToHome() {
             router.visit('/');

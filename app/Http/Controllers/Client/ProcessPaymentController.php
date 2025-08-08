@@ -7,6 +7,7 @@ use App\Services\Client\CreateOrderService;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Models\OrderDetail;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -91,6 +92,9 @@ class ProcessPaymentController extends Controller
                 'gateway_response' => $gatewayResult
             ]);
 
+            // Registrar pago pendiente en la tabla payments
+            $this->recordPendingPayment($orderDetail, $paymentData['paymentMethod'], $gatewayResult);
+
             return response()->json([
                 'success' => true,
                 'order_id' => $order->id,
@@ -99,7 +103,6 @@ class ProcessPaymentController extends Controller
                 'gateway_token' => $gatewayResult['token'] ?? null,
                 'gateway_type' => $paymentData['paymentMethod']
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error processing payment', [
                 'error' => $e->getMessage(),
@@ -113,19 +116,56 @@ class ProcessPaymentController extends Controller
         }
     }
 
+    private function recordPendingPayment(OrderDetail $orderDetail, string $gatewayType, array $gatewayResult): void
+    {
+        try {
+            $buyOrder = $orderDetail->order_id . '-' . $orderDetail->installment_number;
+            $commonData = [
+                'order_id' => $orderDetail->order_id,
+                'order_detail_id' => $orderDetail->id,
+                'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                'payment_method_id' => $orderDetail->payment_method_id,
+                'payment_mode_id' => $orderDetail->payment_mode_id,
+                'amount' => $orderDetail->amount,
+                'currency' => 'CLP',
+                'status' => 'pending',
+                'buy_order' => $buyOrder,
+                'gateway_response' => $gatewayResult,
+            ];
+
+            if ($gatewayType === 'khipu') {
+                $data = array_merge($commonData, [
+                    'external_payment_id' => $gatewayResult['payment_id'] ?? null,
+                ]);
+            } else {
+                $data = array_merge($commonData, [
+                    'token' => $gatewayResult['token'] ?? null,
+                ]);
+            }
+
+            Payment::create($data);
+        } catch (\Throwable $e) {
+            Log::error('Error recording pending payment', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+            ]);
+        }
+    }
+
     private function createGatewayTransaction($orderDetail, $paymentData)
     {
         $amount = $orderDetail->amount;
         $orderId = $orderDetail->order_id . '-' . $orderDetail->installment_number;
-        
+
         // URLs de retorno
-        $successUrl = route('payment.success', ['orderDetailId' => $orderDetail->id]);
+        // Callback intermedio (spinner) por gateway
+        $transbankCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id]);
+        $khipuCallbackUrl = route('khipu.callback', ['orderDetailId' => $orderDetail->id]);
         $failureUrl = route('payment.failure', ['orderDetailId' => $orderDetail->id]);
-        
-        // URLs de notificación (Webhook de prueba - TEMPORAL PARA DESARROLLO)
-        // TODO: Cambiar a URLs de producción cuando esté listo
-        $transbankNotificationUrl = 'https://webhook.site/a9c403a5-d11c-4617-ab9e-9354e5d4972d';
-        $khipuNotificationUrl = 'https://webhook.site/a9c403a5-d11c-4617-ab9e-9354e5d4972d';
+
+        // URLs de notificación
+        $transbankNotificationUrl = route('webhook.transbank');
+        $khipuNotificationUrl = route('webhook.khipu');
 
         switch ($paymentData['paymentMethod']) {
             case 'debit':
@@ -133,20 +173,20 @@ class ProcessPaymentController extends Controller
                 // Determinar tipo de pago y cuotas para Transbank
                 $paymentType = $paymentData['paymentType'] ?? null; // 'total' o 'monthly'
                 $installments = $paymentData['installments'] ?? null;
-                
+
                 // Usar Transbank con URL de notificación y control de cuotas
                 return $this->transbankService->createTransaction(
-                    $orderId, 
-                    $amount, 
-                    $successUrl, 
+                    $orderId,
+                    $amount,
+                    $transbankCallbackUrl,
                     $transbankNotificationUrl,
                     $paymentType,
                     $installments
                 );
 
             case 'khipu':
-                // Usar Khipu con URL de notificación
-                return $this->khipuService->createTransaction($orderId, $amount, $successUrl, $khipuNotificationUrl);
+                // Usar Khipu con URL de retorno propia y URL de notificación
+                return $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, $khipuNotificationUrl);
 
             default:
                 return [
@@ -160,7 +200,7 @@ class ProcessPaymentController extends Controller
     {
         try {
             $orderDetail = OrderDetail::with(['order.program', 'order.participant'])->findOrFail($orderDetailId);
-            
+
             Log::info('Payment success page accessed', [
                 'order_detail_id' => $orderDetailId,
                 'order_id' => $orderDetail->order_id,
@@ -180,7 +220,7 @@ class ProcessPaymentController extends Controller
                 // Redirigir al paso 4 con mensaje de error
                 $programId = $orderDetail->order->program_id;
                 $rut = $orderDetail->document_number;
-                
+
                 return redirect()->route('payment.confirmation', [
                     'programId' => $programId,
                     'rut' => $rut
@@ -188,6 +228,27 @@ class ProcessPaymentController extends Controller
             }
 
             // Preparar datos para la vista de éxito
+            // Resolver tipo y número de documento con fallbacks robustos
+            $documentTypeName = null;
+            $documentNumber = null;
+
+            if (!empty($orderDetail->document_type)) {
+                if (is_numeric($orderDetail->document_type)) {
+                    $documentTypeName = optional($orderDetail->documentType)->name;
+                } else {
+                    $documentTypeName = (string) $orderDetail->document_type;
+                }
+            }
+            $documentNumber = $orderDetail->document_number;
+
+            // Fallback a datos del participante si el detalle no los tiene
+            if (!$documentTypeName && $orderDetail->order && $orderDetail->order->participant) {
+                $documentTypeName = $orderDetail->order->participant->document_type;
+            }
+            if (!$documentNumber && $orderDetail->order && $orderDetail->order->participant) {
+                $documentNumber = $orderDetail->order->participant->document_number;
+            }
+
             $paymentData = [
                 'order_number' => $orderDetail->order->order_number,
                 'amount' => $orderDetail->amount,
@@ -200,7 +261,9 @@ class ProcessPaymentController extends Controller
                     'departure_date' => $orderDetail->order->program->departure_date,
                 ],
                 'participant_name' => $orderDetail->name,
-                'participant_rut' => $orderDetail->document_number,
+                // Datos de documento con fallbacks
+                'document_type_name' => $documentTypeName,
+                'document_number' => $documentNumber,
                 'participant_email' => $orderDetail->email,
                 'participant_phone' => $orderDetail->code_phone . ' ' . $orderDetail->phone,
             ];
@@ -208,7 +271,6 @@ class ProcessPaymentController extends Controller
             return Inertia::render('Ecommerce/SuccessfulPayment', [
                 'paymentData' => $paymentData
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error in payment success page', [
                 'error' => $e->getMessage(),
@@ -223,7 +285,7 @@ class ProcessPaymentController extends Controller
     {
         try {
             $orderDetail = OrderDetail::with(['order.program', 'order.participant'])->findOrFail($orderDetailId);
-            
+
             Log::info('Payment failure page accessed', [
                 'order_detail_id' => $orderDetailId,
                 'order_id' => $orderDetail->order_id,
@@ -247,12 +309,11 @@ class ProcessPaymentController extends Controller
             // Redirigir al paso 4 (confirmación) con mensaje de error
             $programId = $orderDetail->order->program_id;
             $rut = $orderDetail->document_number;
-            
+
             return redirect()->route('payment.confirmation', [
                 'programId' => $programId,
                 'rut' => $rut
             ])->with('error', 'El pago no pudo ser procesado. Por favor, intenta nuevamente.');
-
         } catch (\Exception $e) {
             Log::error('Error in payment failure page', [
                 'error' => $e->getMessage(),
@@ -267,10 +328,10 @@ class ProcessPaymentController extends Controller
     {
         $methods = [
             1 => 'debit',
-            2 => 'credit', 
+            2 => 'credit',
             3 => 'khipu'
         ];
-        
+
         return $methods[$methodId] ?? 'unknown';
     }
 
@@ -290,7 +351,7 @@ class ProcessPaymentController extends Controller
 
             // Obtener el token de la transacción
             $token = $request->input('token_ws');
-            
+
             if (!$token) {
                 Log::error('Transbank notification: No token received');
                 return response()->json(['error' => 'No token received'], 400);
@@ -298,7 +359,7 @@ class ProcessPaymentController extends Controller
 
             // Buscar el OrderDetail por el token
             $orderDetail = OrderDetail::where('transaction_id', $token)->first();
-            
+
             if (!$orderDetail) {
                 Log::error('Transbank notification: OrderDetail not found', [
                     'token' => $token
@@ -340,7 +401,6 @@ class ProcessPaymentController extends Controller
 
                 return response()->json(['error' => 'Payment failed'], 400);
             }
-
         } catch (\Exception $e) {
             Log::error('Error processing Transbank notification', [
                 'error' => $e->getMessage(),
@@ -365,7 +425,7 @@ class ProcessPaymentController extends Controller
 
             // Obtener datos de la notificación
             $paymentId = $request->input('payment_id');
-            
+
             if (!$paymentId) {
                 Log::error('Khipu notification: No payment_id received');
                 return response()->json(['error' => 'No payment_id received'], 400);
@@ -373,7 +433,7 @@ class ProcessPaymentController extends Controller
 
             // Buscar el OrderDetail por el payment_id
             $orderDetail = OrderDetail::where('transaction_id', $paymentId)->first();
-            
+
             if (!$orderDetail) {
                 Log::error('Khipu notification: OrderDetail not found', [
                     'payment_id' => $paymentId
@@ -417,7 +477,6 @@ class ProcessPaymentController extends Controller
 
                 return response()->json(['error' => 'Payment failed'], 400);
             }
-
         } catch (\Exception $e) {
             Log::error('Error processing Khipu notification', [
                 'error' => $e->getMessage(),

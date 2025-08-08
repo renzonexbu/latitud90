@@ -13,10 +13,8 @@ use Illuminate\Support\Facades\Log;
 | contains the "web" middleware group. Now create something great!
 |
 */
-include __DIR__.'/client/init.php';
-include __DIR__.'/admin/init.php';
 
-require __DIR__.'/auth.php';
+include __DIR__ . '/client/init.php';
+include __DIR__ . '/admin/init.php';
 
-// Webhook de Khipu
-Route::post('/webhook/khipu', [App\Http\Controllers\KhipuWebhookController::class, 'handle'])->name('webhook.khipu');
+require __DIR__ . '/auth.php';

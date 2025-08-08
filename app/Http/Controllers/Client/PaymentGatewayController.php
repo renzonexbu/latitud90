@@ -1,0 +1,351 @@
+<?php
+
+namespace App\Http\Controllers\Client;
+
+use App\Http\Controllers\Controller;
+use App\Services\Client\PaymentGateway\HandleNotificationService;
+use App\Models\OrderDetail;
+use App\Models\Payment;
+use App\Services\Client\PaymentGateway\TransbankService;
+use App\Services\Client\PaymentGateway\KhipuService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+
+class PaymentGatewayController extends Controller
+{
+    private $handleNotificationService;
+
+    public function __construct()
+    {
+        $this->handleNotificationService = new HandleNotificationService();
+    }
+
+    /**
+     * Vista con spinner: recibe token_ws y orden, luego el frontend hará POST a confirm.
+     */
+    public function callbackSpinner(Request $request, $orderDetailId)
+    {
+        return inertia('Payment/CallbackSpinner', [
+            'orderDetailId' => (int) $orderDetailId,
+            'token' => $request->query('token_ws') ?? null,
+        ]);
+    }
+
+    /**
+     * Confirmar transacción de Transbank vía POST (commit con token_ws)
+     */
+    public function confirmTransbank(Request $request, TransbankService $transbankService)
+    {
+        $request->validate([
+            'orderDetailId' => 'required|integer',
+            'token_ws' => 'required|string',
+        ]);
+
+        $orderDetailId = (int) $request->input('orderDetailId');
+        $token = $request->input('token_ws');
+
+        try {
+            $confirmation = $transbankService->confirmTransaction($token);
+
+            // Buscar registro de Payment por token o buy_order
+            $payment = Payment::where('token', $token)->latest()->first();
+            if (!$payment) {
+                $payment = Payment::where('order_detail_id', $orderDetailId)->latest()->first();
+            }
+
+            $approved = $confirmation['success'] ?? false;
+
+            if ($payment) {
+                $payment->update([
+                    'status' => $approved ? 'approved' : 'rejected',
+                    'authorization_code' => $confirmation['authorization_code'] ?? $payment->authorization_code,
+                    'response_code' => (string) ($confirmation['response_code'] ?? ''),
+                    'gateway_response' => $confirmation,
+                ]);
+            }
+
+            $orderDetail = OrderDetail::findOrFail($orderDetailId);
+            $orderDetail->update([
+                'is_paid' => $approved,
+                'status' => $approved ? 'paid' : 'pending',
+                'paid_at' => $approved ? now() : $orderDetail->paid_at,
+                'transaction_id' => $token,
+                'gateway_response' => $confirmation,
+            ]);
+
+            return response()->json([
+                'success' => $approved,
+                'redirect' => $approved
+                    ? route('payment.success', $orderDetailId)
+                    : route('payment.failure', $orderDetailId),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error confirming Transbank transaction', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetailId,
+            ]);
+            return response()->json([
+                'success' => false,
+                'redirect' => route('payment.failure', $orderDetailId),
+                'message' => 'No se pudo confirmar la transacción.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Khipu: vista de spinner que recibe orderDetailId y paymentId
+     */
+    public function khipuCallbackSpinner(Request $request, $orderDetailId)
+    {
+        // Resolver paymentId desde el último registro de payments de este orderDetail
+        $payment = Payment::where('order_detail_id', (int) $orderDetailId)
+            ->whereNotNull('external_payment_id')
+            ->latest()
+            ->first();
+
+        // Cargar datos para mostrar en la vista final (similar a success)
+        $orderDetail = OrderDetail::with(['order.program', 'documentType'])->find((int) $orderDetailId);
+        $documentTypeName = null;
+        if ($orderDetail) {
+            if (!empty($orderDetail->document_type)) {
+                if (is_numeric($orderDetail->document_type)) {
+                    $documentTypeName = optional($orderDetail->documentType)->name;
+                } else {
+                    $documentTypeName = (string) $orderDetail->document_type;
+                }
+            }
+        }
+
+        $paymentData = $orderDetail ? [
+            'order_number' => $orderDetail->order->order_number,
+            'amount' => $orderDetail->amount,
+            'payment_method' => $this->getPaymentMethodFromId($orderDetail->payment_method_id ?? null),
+            'transaction_id' => $payment->external_payment_id ?? $orderDetail->transaction_id,
+            'paid_at' => $orderDetail->paid_at,
+            'program' => [
+                'name' => $orderDetail->order->program->name,
+                'destination' => $orderDetail->order->program->destination,
+                'departure_date' => $orderDetail->order->program->departure_date,
+            ],
+            'participant_name' => $orderDetail->name,
+            'document_type_name' => $documentTypeName,
+            'document_number' => $orderDetail->document_number,
+            'participant_email' => $orderDetail->email,
+            'participant_phone' => $orderDetail->code_phone . ' ' . $orderDetail->phone,
+        ] : null;
+
+        return inertia('Ecommerce/KhipuView', [
+            'orderDetailId' => (int) $orderDetailId,
+            'paymentId' => (string) ($payment->external_payment_id ?? ''),
+            'paymentData' => $paymentData,
+        ]);
+    }
+
+    /**
+     * Khipu: confirmar consultando estado por payment_id
+     */
+    public function confirmKhipu(Request $request, KhipuService $khipuService)
+    {
+        $request->validate([
+            'orderDetailId' => 'required|integer',
+            'payment_id' => 'required|string',
+        ]);
+
+        $orderDetailId = (int) $request->input('orderDetailId');
+        $paymentId = $request->input('payment_id');
+
+        try {
+            $status = $khipuService->getPaymentStatus($paymentId);
+
+            // Actualizar/crear registro en payments
+            $payment = Payment::where('external_payment_id', $paymentId)
+                ->where('order_detail_id', $orderDetailId)
+                ->latest()
+                ->first();
+
+            if (!$payment) {
+                $orderDetail = OrderDetail::findOrFail($orderDetailId);
+                $payment = Payment::create([
+                    'order_id' => $orderDetail->order_id,
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                    'payment_method_id' => $orderDetail->payment_method_id,
+                    'payment_mode_id' => $orderDetail->payment_mode_id,
+                    'amount' => $orderDetail->amount,
+                    'currency' => 'CLP',
+                    'status' => 'pending',
+                    'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
+                    'external_payment_id' => $paymentId,
+                ]);
+            }
+
+            $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);
+
+            $payment->update([
+                'status' => $approved ? 'approved' : ($status['status'] ?? 'pending'),
+                'gateway_response' => $status['data'] ?? $status,
+                'raw_notification' => $status['data'] ?? $status,
+            ]);
+
+            $orderDetail = $payment->orderDetail;
+            if ($orderDetail) {
+                $orderDetail->update([
+                    'is_paid' => $approved,
+                    'status' => $approved ? 'paid' : 'pending',
+                    'paid_at' => $approved ? now() : $orderDetail->paid_at,
+                    'transaction_id' => $paymentId,
+                    'gateway_response' => $status['data'] ?? $status,
+                ]);
+            }
+
+            if ($approved) {
+                return response()->json([
+                    'success' => true,
+                    'redirect' => route('payment.success', $orderDetailId),
+                    'status' => $status['status'] ?? 'done',
+                ]);
+            }
+
+            // No aprobado: devolver estado para que el frontend muestre mensaje y siga verificando
+            return response()->json([
+                'success' => false,
+                'status' => $status['status'] ?? 'pending',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error confirming Khipu transaction', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetailId,
+                'payment_id' => $paymentId,
+            ]);
+            return response()->json([
+                'success' => false,
+                'redirect' => route('payment.failure', $orderDetailId),
+                'message' => 'No se pudo verificar la transacción en Khipu.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Manejar notificación de Transbank
+     */
+    public function handleTransbankNotification(Request $request)
+    {
+        Log::info('Transbank notification received', $request->all());
+
+        try {
+            $notification = $request->all();
+            $result = $this->handleNotificationService->handleNotification('transbank', $notification);
+            
+            if ($result['success']) {
+                return response('OK', 200);
+            } else {
+                Log::error('Transbank notification processing failed', $result);
+                return response($result['error'], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error processing Transbank notification', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            return response('Internal server error', 500);
+        }
+    }
+
+    /**
+     * Manejar notificación de Khipu
+     */
+    public function handleKhipuNotification(Request $request)
+    {
+        Log::info('Khipu notification received', $request->all());
+
+        try {
+            $notification = $request->all();
+            $result = $this->handleNotificationService->handleNotification('khipu', $notification);
+            
+            if ($result['success']) {
+                return response('OK', 200);
+            } else {
+                Log::error('Khipu notification processing failed', $result);
+                return response($result['error'], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error processing Khipu notification', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            return response('Internal server error', 500);
+        }
+    }
+
+    /**
+     * Procesar resultado del pago y redirigir según el estado
+     */
+    public function processPaymentResult(Request $request, $orderDetailId)
+    {
+        try {
+            $orderDetail = OrderDetail::findOrFail($orderDetailId);
+
+            if ($orderDetail->is_paid) {
+                // Pago exitoso - redirigir a success
+                return redirect()->route('payment.success', $orderDetailId);
+            } else {
+                // Pago fallido - redirigir a failure con mensaje
+                $errorMessage = 'El pago no pudo ser procesado correctamente. Si se le descontó dinero, contacte a atención al cliente para verificar el estado de su transacción.';
+
+                return redirect()->route('payment.failure', $orderDetailId)
+                    ->with('error', $errorMessage)
+                    ->with('payment_data', [
+                        'amount' => $orderDetail->amount,
+                        'order_id' => $orderDetail->order_id
+                    ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error processing payment result', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetailId
+            ]);
+
+            return redirect()->route('payment.failure', $orderDetailId)
+                ->with('error', 'Error al procesar el resultado del pago. Si se le descontó dinero, contacte a atención al cliente.');
+        }
+    }
+
+    /**
+     * Verificar estado del pago (para polling desde frontend)
+     */
+    public function checkPaymentStatus($orderDetailId)
+    {
+        try {
+            $orderDetail = OrderDetail::findOrFail($orderDetailId);
+
+            return response()->json([
+                'success' => true,
+                'is_paid' => $orderDetail->is_paid,
+                'order_detail_id' => $orderDetail->id,
+                'amount' => $orderDetail->amount,
+                'order_id' => $orderDetail->order_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error checking payment status', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetailId
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar el estado del pago'
+            ], 500);
+        }
+    }
+
+    private function getPaymentMethodFromId($methodId)
+    {
+        $methods = [
+            1 => 'debit',
+            2 => 'credit',
+            3 => 'khipu',
+        ];
+
+        return $methods[$methodId] ?? 'unknown';
+    }
+}

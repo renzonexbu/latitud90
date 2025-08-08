@@ -336,7 +336,6 @@ export default {
                 termsAccepted: false,
                 marketingAccepted: false,
             },
-            isFormValid: false,
             rutValidation: {
                 isValid: null,
                 message: "",
@@ -369,6 +368,23 @@ export default {
                 selectedDocType && selectedDocType.name.toLowerCase() === "rut"
             );
         },
+          isFormValid() {
+              const validations = {
+                  fullName: this.formData.fullName.trim() !== "",
+                  documentType: this.formData.documentType !== "",
+                  documentNumber: this.formData.documentNumber.trim() !== "",
+                  email: this.formData.email.trim() !== "",
+                  phone: this.formData.phone.trim() !== "",
+                  country: this.formData.country !== "",
+                  region: this.formData.region !== "",
+                  city: this.formData.city !== "",
+                  termsAccepted: this.formData.termsAccepted,
+              };
+
+              const basicValidation = Object.values(validations).every((v) => v === true);
+              const rutOk = this.isRutDocument ? this.rutValidation.isValid === true : true;
+              return basicValidation && rutOk;
+          },
     },
     mounted() {
         // Leer los datos de pago del localStorage
@@ -479,18 +495,10 @@ export default {
             sampleRegion: this.regions[0],
         });
 
-        // Forzar validación inicial
-        this.$nextTick(() => {
-            this.validateForm();
-        });
+        // No forzar validación; el computed isFormValid reacciona de inmediato
     },
     watch: {
-        formData: {
-            deep: true,
-            handler() {
-                this.validateForm();
-            },
-        },
+        // Eliminado watcher profundo que recalculaba manualmente
 
         "formData.documentType"() {
             // Limpiar validación de RUT cuando cambie el tipo de documento
@@ -550,20 +558,7 @@ export default {
             immediate: false,
         },
 
-        // Watcher para actualizar localStorage cuando cambien los datos del formulario
-        formData: {
-            deep: true,
-            handler(newFormData) {
-                // Solo actualizar localStorage si el formulario está válido Y viene del paso 4
-                const urlParams = new URLSearchParams(window.location.search);
-                const isComingFromConfirmation =
-                    urlParams.get("from") === "confirmation";
-
-                if (this.isFormValid && isComingFromConfirmation) {
-                    this.updateLocalStorage();
-                }
-            },
-        },
+        // Eliminado watcher que escribía en localStorage en cada cambio
 
         // Watcher para manejar cambios en el tipo de documento
         "formData.documentType"(newValue) {
@@ -639,50 +634,7 @@ export default {
     },
     methods: {
         validateForm() {
-            // Validación individual de cada campo
-            const validations = {
-                fullName: this.formData.fullName.trim() !== "",
-                documentType: this.formData.documentType !== "",
-                documentNumber: this.formData.documentNumber.trim() !== "",
-                email: this.formData.email.trim() !== "",
-                phone: this.formData.phone.trim() !== "",
-                country: this.formData.country !== "",
-                region: this.formData.region !== "",
-                city: this.formData.city !== "",
-                termsAccepted: this.formData.termsAccepted,
-            };
-
-            // Validación básica (todos los campos deben ser true)
-            const basicValidation = Object.values(validations).every(
-                (valid) => valid === true
-            );
-
-            // Validación adicional para RUT
-            const rutValidation = this.isRutDocument
-                ? this.rutValidation.isValid === true
-                : true;
-
-            this.isFormValid = basicValidation && rutValidation;
-
-            // Debug: Mostrar estado de validación detallado
-            console.log("=== VALIDACIÓN DEL FORMULARIO ===");
-            console.log("Valores actuales:", {
-                fullName: `"${this.formData.fullName}"`,
-                documentType: `"${this.formData.documentType}"`,
-                documentNumber: `"${this.formData.documentNumber}"`,
-                email: `"${this.formData.email}"`,
-                phone: `"${this.formData.phone}"`,
-                country: `"${this.formData.country}"`,
-                region: `"${this.formData.region}"`,
-                city: `"${this.formData.city}"`,
-                termsAccepted: this.formData.termsAccepted,
-            });
-            console.log("Validaciones individuales:", validations);
-            console.log("Validación básica:", basicValidation);
-            console.log("Es documento RUT:", this.isRutDocument);
-            console.log("Validación RUT:", rutValidation);
-            console.log("Formulario válido:", this.isFormValid);
-            console.log("================================");
+            // Ya no es necesario: isFormValid es computed
         },
         
         getDocumentLabel() {
