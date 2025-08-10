@@ -56,14 +56,32 @@ class UpdateProgramRequest extends FormRequest
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
             'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
             'discount_amount' => 'nullable|numeric|min:0',
+            // Aceptar múltiples opciones en edición, manteniendo compatibilidad con el campo singular
+            'payment_options' => 'nullable|array',
+            'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
+            'installments_payment_method' => 'nullable|string|in:khipu,webpay_1,webpay_3,webpay_6,webpay_12',
             'max_installments' => 'nullable|string|in:3,6,9,12',
             'payment_mode_id' => 'nullable|exists:payment_modes,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'active' => 'boolean',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Normalizar 'active' para que siempre sea un booleano real
+        if ($this->has('active')) {
+            $active = $this->input('active');
+            $normalized = filter_var($active, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($normalized !== null) {
+                $this->merge(['active' => $normalized]);
+            }
+        }
     }
 
     /**

@@ -14,12 +14,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use App\Http\Requests\Admin\Programs\BulkProgramsActionRequest;
+use App\Services\Admin\Programs\BulkProgramsActionService;
 
 class ProgramController extends Controller
 {
     public function __construct(
         private CreateProgramService $createProgramService,
-        private UpdateProgramService $updateProgramService
+        private UpdateProgramService $updateProgramService,
+        private BulkProgramsActionService $bulkProgramsActionService
     ) {}
 
     public function index(Request $request)
@@ -71,15 +74,6 @@ class ProgramController extends Controller
     public function store(CreateProgramRequest $request)
     {
         try {
-            // Debug: Log de los datos validados que llegan al controlador
-            Log::info('Datos validados en el controlador:', [
-                'payment_options' => $request->validated()['payment_options'] ?? 'no definido',
-                'full_payment_method' => $request->validated()['full_payment_method'] ?? 'no definido',
-                'installments_payment_method' => $request->validated()['installments_payment_method'] ?? 'no definido',
-                'max_installments' => $request->validated()['max_installments'] ?? 'no definido',
-                'all_data' => $request->validated()
-            ]);
-            
             $program = $this->createProgramService->execute($request->validated());
             
             return redirect()->route('admin.programs.index')
@@ -121,27 +115,9 @@ class ProgramController extends Controller
         $program->load([
             'course.institution',
             'course.participants',
-            'paymentMode'
-        ]);
-
-        // Debug para verificar datos
-        Log::info('Programa para editar:', [
-            'id' => $program->id,
-            'name' => $program->name,
-            'trip_description' => $program->trip_description,
-            'itinerary_description' => $program->itinerary_description,
-            'pillars' => $program->pillars,
-            'images_folder' => $program->images_folder,
-            'images_count' => count($program->images),
-            'images' => $program->images,
-            'itinerary_file' => $program->itinerary_file,
-            'itinerary_file_url' => $program->itinerary_file_url,
-            'travel_assistance_coverage' => $program->travel_assistance_coverage,
-            'travel_assistance_coverage_url' => $program->travel_assistance_coverage_url,
-            'equipment_list' => $program->equipment_list,
-            'equipment_list_url' => $program->equipment_list_url,
-            'departure_date' => $program->departure_date,
-            'departure_date_formatted' => $program->departure_date ? $program->departure_date->format('Y-m-d') : null
+            'paymentMode',
+            'totalPaymentMethod',
+            'lat90PaymentMethod'
         ]);
 
         // Obtener instituciones para el dropdown
@@ -156,11 +132,42 @@ class ProgramController extends Controller
     public function update(UpdateProgramRequest $request, Program $program)
     {
         try {
-            $program = $this->updateProgramService->execute($request->validated(), $program);
+            Log::info('ProgramController@update: Request method y headers', [
+                'program_id' => $program->id,
+                'method' => $request->method(),
+                'is_method_put' => $request->isMethod('PUT'),
+                'is_method_post' => $request->isMethod('POST'),
+                'content_type' => $request->header('Content-Type'),
+                'accept' => $request->header('Accept'),
+            ]);
+
+            Log::info('ProgramController@update: Request all()', [
+                'program_id' => $program->id,
+                'all' => $request->all(),
+                'input' => $request->input(),
+                'files' => $request->allFiles(),
+            ]);
+
+            $validated = $request->validated();
+            Log::info('ProgramController@update: Datos validados recibidos', [
+                'program_id' => $program->id,
+                'keys' => array_keys($validated),
+                'payment_option' => $validated['payment_option'] ?? null,
+                'payment_options' => $validated['payment_options'] ?? null,
+                'full_payment_method' => $validated['full_payment_method'] ?? null,
+                'installments_payment_method' => $validated['installments_payment_method'] ?? null,
+                'max_installments' => $validated['max_installments'] ?? null,
+            ]);
+
+            $program = $this->updateProgramService->execute($validated, $program);
             
             return redirect()->route('admin.programs.index')
                 ->with('success', 'Programa actualizado exitosamente.');
         } catch (\Exception $e) {
+            Log::error('ProgramController@update: Error al actualizar programa', [
+                'program_id' => $program->id,
+                'message' => $e->getMessage(),
+            ]);
             return back()->withErrors(['error' => 'Error al actualizar el programa: ' . $e->getMessage()]);
         }
     }
@@ -204,44 +211,10 @@ class ProgramController extends Controller
         ]);
     }
 
-    public function bulkAction(Request $request)
+    public function bulkAction(BulkProgramsActionRequest $request)
     {
-        $validated = $request->validate([
-            'action' => 'required|in:activate,deactivate,delete',
-            'program_ids' => 'required|array',
-            'program_ids.*' => 'exists:programs,id'
-        ]);
-
-        $programs = Program::whereIn('id', $validated['program_ids']);
-
-        switch ($validated['action']) {
-            case 'activate':
-                $programs->update(['active' => true]);
-                $message = 'Programas activados exitosamente.';
-                break;
-            case 'deactivate':
-                $programs->update(['active' => false]);
-                $message = 'Programas desactivados exitosamente.';
-                break;
-            case 'delete':
-                // Eliminar archivos asociados
-                $programsToDelete = $programs->get();
-                foreach ($programsToDelete as $program) {
-                    if ($program->itinerary_file) {
-                        Storage::disk('public')->delete($program->itinerary_file);
-                    }
-                    if ($program->travel_assistance_coverage) {
-                        Storage::disk('public')->delete($program->travel_assistance_coverage);
-                    }
-                    if ($program->equipment_list) {
-                        Storage::disk('public')->delete($program->equipment_list);
-                    }
-                }
-                $programs->delete();
-                $message = 'Programas eliminados exitosamente.';
-                break;
-        }
-
+        $validated = $request->validated();
+        $message = $this->bulkProgramsActionService->execute($validated['action'], $validated['program_ids']);
         return back()->with('success', $message);
     }
 }

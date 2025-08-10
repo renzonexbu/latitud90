@@ -653,6 +653,7 @@ const emit = defineEmits(['update:modelValue', 'create-institution', 'edit-group
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
+const isSyncingFromProps = ref(false);
 
 // Estados para los acordeones
 const priceOpen = ref(false);
@@ -861,14 +862,7 @@ onMounted(() => {
 watch(
     formData,
     (newValue) => {
-        // Debug: Log de los datos que se emiten al padre
-        console.log('Emitiendo datos al padre:', {
-            payment_options: newValue.payment_options,
-            full_payment_method: newValue.full_payment_method,
-            installments_payment_method: newValue.installments_payment_method,
-            max_installments: newValue.max_installments
-        });
-        
+        if (isSyncingFromProps.value) return;
         emit('update:modelValue', newValue);
     },
     { deep: true, immediate: true }
@@ -879,6 +873,7 @@ watch(
     () => props.modelValue,
     (newValue) => {
         if (props.mode === 'edit') {
+            isSyncingFromProps.value = true;
             // En modo edit, sincronizar los valores del modelValue con formData
             Object.keys(newValue).forEach((key) => {
                 if (newValue[key] !== undefined) {
@@ -888,6 +883,7 @@ watch(
             // Reinicializar los valores formateados después de sincronizar
             initializeFormattedPrice();
             initializeFormattedDiscountAmount();
+            nextTick(() => { isSyncingFromProps.value = false; });
         }
     },
     { deep: true, immediate: true }

@@ -14,21 +14,30 @@ use App\Services\Admin\Participants\UpdateMedicalConditionsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\Participants\UpdateParticipantRequest;
+use App\Http\Requests\Admin\Participants\UpdateMedicalConditionsRequest;
+use App\Http\Requests\Admin\Participants\UpdateEmergencyContactsRequest;
+use App\Http\Requests\Admin\Participants\UpdateEmergencyContactRequest;
+use App\Http\Requests\Admin\Participants\DeleteEmergencyContactRequest;
+use App\Services\Admin\Participants\UpdateEmergencyContactService;
 
 class ParticipantsController extends Controller
 {
     protected $createParticipantService;
     protected $updateParticipantService;
     protected $updateMedicalConditionsService;
+    protected $updateEmergencyContactService;
 
     public function __construct(
         CreateParticipantService $createParticipantService,
         UpdateParticipatService $updateParticipantService,
-        UpdateMedicalConditionsService $updateMedicalConditionsService
+        UpdateMedicalConditionsService $updateMedicalConditionsService,
+        UpdateEmergencyContactService $updateEmergencyContactService
     ) {
         $this->createParticipantService = $createParticipantService;
         $this->updateParticipantService = $updateParticipantService;
         $this->updateMedicalConditionsService = $updateMedicalConditionsService;
+        $this->updateEmergencyContactService = $updateEmergencyContactService;
     }
 
     /**
@@ -154,21 +163,10 @@ class ParticipantsController extends Controller
     /**
      * Update the specified participant in storage.
      */
-    public function update(Request $request, Participant $participant)
+    public function update(UpdateParticipantRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'nullable|email|max:255',
-                'code_phone' => 'nullable|string|max:10',
-                'phone' => 'nullable|string|max:20',
-                'document_number' => 'required|string|max:20',
-                'birth_date' => 'nullable|date',
-            ]);
-
-            // Usar el servicio para actualizar
-            $this->updateParticipantService->execute($validated, $participant);
+            $this->updateParticipantService->execute($request->validated(), $participant);
 
             return back()->with('success', 'Participante actualizado exitosamente.');
 
@@ -185,16 +183,10 @@ class ParticipantsController extends Controller
     /**
      * Update medical conditions of a participant.
      */
-    public function updateMedicalConditions(Request $request, Participant $participant)
+    public function updateMedicalConditions(UpdateMedicalConditionsRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'medical_conditions' => 'nullable|string',
-                'dietary_restrictions' => 'nullable|string',
-            ]);
-
-            // Usar el servicio específico para condiciones médicas
-            $this->updateMedicalConditionsService->execute($validated, $participant);
+            $this->updateMedicalConditionsService->execute($request->validated(), $participant);
 
             return back()->with('success', 'Condiciones médicas actualizadas exitosamente.');
 
@@ -211,14 +203,10 @@ class ParticipantsController extends Controller
     /**
      * Update emergency contacts of a participant.
      */
-    public function updateEmergencyContacts(Request $request, Participant $participant)
+    public function updateEmergencyContacts(UpdateEmergencyContactsRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'emergency_contacts' => 'required|string', // JSON string
-            ]);
-
-            $emergencyContactsData = json_decode($validated['emergency_contacts'], true);
+            $emergencyContactsData = json_decode($request->validated()['emergency_contacts'], true);
 
             if (!is_array($emergencyContactsData)) {
                 throw new \Exception('Formato de datos inválido');
@@ -255,40 +243,10 @@ class ParticipantsController extends Controller
     /**
      * Update a specific emergency contact.
      */
-    public function updateEmergencyContact(Request $request, Participant $participant)
+    public function updateEmergencyContact(UpdateEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'contact_id' => 'required|exists:emergency_contact,id',
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'required|email|max:255',
-                'code_phone' => 'required|string|max:10',
-                'phone' => 'required|string|max:20',
-                'country' => 'required|string|max:100',
-                'birth_date' => 'nullable|date|before:today',
-                'address' => 'nullable|string',
-                'relationship' => 'required|string|max:100',
-            ]);
-
-            $contact = EmergencyContact::findOrFail($validated['contact_id']);
-            
-            // Verificar que el contacto pertenece al participante
-            if ($contact->participant_id !== $participant->id) {
-                throw new \Exception('El contacto no pertenece a este participante');
-            }
-
-            $contact->update([
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'email' => $validated['email'],
-                'code_phone' => $validated['code_phone'],
-                'phone' => $validated['phone'],
-                'country' => $validated['country'],
-                'birth_date' => $validated['birth_date'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'relationship' => $validated['relationship'],
-            ]);
+            $this->updateEmergencyContactService->update($request->validated(), $participant);
 
             return back()->with('success', 'Contacto de emergencia actualizado exitosamente.');
 
@@ -306,27 +264,10 @@ class ParticipantsController extends Controller
     /**
      * Delete a specific emergency contact.
      */
-    public function deleteEmergencyContact(Request $request, Participant $participant)
+    public function deleteEmergencyContact(DeleteEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'contact_id' => 'required|exists:emergency_contact,id',
-            ]);
-
-            $contact = EmergencyContact::findOrFail($validated['contact_id']);
-            
-            // Verificar que el contacto pertenece al participante
-            if ($contact->participant_id !== $participant->id) {
-                throw new \Exception('El contacto no pertenece a este participante');
-            }
-
-            // Verificar que no sea el último contacto de emergencia
-            $totalContacts = EmergencyContact::where('participant_id', $participant->id)->count();
-            if ($totalContacts <= 1) {
-                throw new \Exception('No se puede eliminar el último contacto de emergencia. Debe mantener al menos un contacto.');
-            }
-
-            $contact->delete();
+            $this->updateEmergencyContactService->delete($request->validated(), $participant);
 
             return back()->with('success', 'Contacto de emergencia eliminado exitosamente.');
 

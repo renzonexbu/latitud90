@@ -418,6 +418,12 @@ const submit = () => {
     // Establecer created_by
     form.created_by = null; // Se establecerá en el backend con auth()->id()
 
+    // Pilares fijos siempre
+    form.pilar_1 = 'Aventura';
+    form.pilar_2 = 'Entretenimiento';
+    form.pilar_3 = 'Educación';
+    form.pilar_4 = 'Seguridad';
+
     form.post(route("admin.programs.store"));
 };
 </script>

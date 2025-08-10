@@ -59,7 +59,7 @@ class CreateProgramRequest extends FormRequest
             'payment_options' => 'nullable|array',
             'payment_options.*' => 'string|in:full_payment,installments',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
+            'installments_payment_method' => 'nullable|string|in:khipu,webpay_1,webpay_3,webpay_6,webpay_12',
             'max_installments' => 'nullable|string|in:3,6,9,12',
             'created_by' => 'nullable|exists:users,id',
             'active' => 'boolean',

@@ -48,7 +48,7 @@
 </template>
 
 <script setup>
-import { Head, useForm } from "@inertiajs/vue3";
+import { Head, useForm, router } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
@@ -62,6 +62,8 @@ const props = defineProps({
     }
 });
 
+// No necesitamos inicializar router, ya viene importado
+
 // Función para mapear nivel de educación desde BD al frontend
 const mapEducationLevel = (level) => {
     const mapping = {
@@ -73,27 +75,33 @@ const mapEducationLevel = (level) => {
     return mapping[level] || level;
 };
 
-// Función para mapear payment_mode_id a opciones del frontend
-const mapPaymentOption = (paymentModeId) => {
-    if (!paymentModeId) return "";
-    // Mapping según los ids reales de la tabla payment_modes
-    const mapping = {
-        1: 'full_payment',
-        2: 'installments',
-        3: 'installments', // Asumiendo que el ID 3 también es para cuotas
+// Mapeos para el nuevo esquema Lat90
+const mapLat90PaymentKeyFromName = (name) => {
+    const byName = {
+        'Transferencia bancaria (Khipu)': 'khipu',
+        'Débito y crédito sin cuotas (Webpay)': 'webpay_1',
+        'Débito y crédito 3 cuotas sin interés (Webpay)': 'webpay_3',
+        'Débito y crédito 6 cuotas sin interés (Webpay)': 'webpay_6',
+        'Débito y crédito 12 cuotas sin interés (Webpay)': 'webpay_12',
     };
-    return mapping[paymentModeId] || "";
+    return byName[name] || '';
 };
 
-// Función para mapear payment_method_id a opciones del frontend
-const mapPaymentMethod = (paymentMethodId) => {
+const mapPaymentOption = (program) => {
+    if (!program) return '';
+    if (program.enable_lat90_payment) return 'installments';
+    if (program.enable_total_payment) return 'full_payment';
+    return '';
+};
+
+const mapFullMethodFromId = (id) => {
     const mapping = {
         1: 'todos_medios',
         2: 'solo_tarjeta',
         3: 'solo_transferencia',
         4: 'solo_contado',
     };
-    return mapping[paymentMethodId] || "";
+    return mapping[id] || '';
 };
 
 const form = useForm({
@@ -124,15 +132,22 @@ const form = useForm({
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
     discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
-    payment_option: mapPaymentOption(props.program.payment_mode_id),
-    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
-    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
-    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
-    active: props.program.active || true,
+    payment_option: mapPaymentOption(props.program),
+    payment_options: [
+        ...((props.program && props.program.enable_total_payment) ? ['full_payment'] : []),
+        ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
+    ],
+    full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
+    installments_payment_method: (props.program && props.program.lat90_payment_method) ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : '',
+    max_installments: (props.program && props.program.lat90_max_installments) ? props.program.lat90_max_installments.toString() : "",
+    active: Boolean(props.program.active),
     // Control de archivos e imágenes existentes
     imagesToDelete: [],
     filesToDelete: [],
 });
+
+// Evitar bucles: no observar 'form' con watchers que reescriban sus propios campos,
+// y cuando comparemos cambios, hacerlo una sola vez por submit sin mutar props.
 
 // Datos del programa que se sincronizan con el componente
 const programData = ref({
@@ -164,10 +179,14 @@ const paymentData = ref({
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
     discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
-    payment_option: mapPaymentOption(props.program.payment_mode_id),
-    full_payment_method: mapPaymentMethod(props.program.payment_method_id),
-    installments_payment_method: mapPaymentMethod(props.program.payment_method_id),
-    max_installments: props.program.max_installments ? props.program.max_installments.toString() : "",
+    payment_option: mapPaymentOption(props.program),
+    payment_options: [
+        ...((props.program && props.program.enable_total_payment) ? ['full_payment'] : []),
+        ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
+    ],
+    full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
+    installments_payment_method: (props.program && props.program.lat90_payment_method) ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : '',
+    max_installments: (props.program && props.program.lat90_max_installments) ? props.program.lat90_max_installments.toString() : "",
 });
 
 // Imágenes existentes (desde la base de datos)
@@ -221,16 +240,13 @@ console.log('Datos de pago cargados:', {
     education_level_mapped: mapEducationLevel(props.program.course?.education_level),
     institution_name: props.program.course?.institution?.name,
     shift: props.program.course?.shift,
-    payment_mode_id: props.program.payment_mode_id,
-    payment_method_id: props.program.payment_method_id,
-    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
-    payment_method_mapped: mapPaymentMethod(props.program.payment_method_id),
+    payment_option_mapped: mapPaymentOption(props.program),
+    enable_total_payment: props.program.enable_total_payment,
+    total_payment_method_id: props.program.total_payment_method_id,
+    enable_lat90_payment: props.program.enable_lat90_payment,
+    lat90_payment_method: props.program.lat90_payment_method?.name,
+    lat90_max_installments: props.program.lat90_max_installments,
     grade: props.program.course?.grade,
-    payment_mode_id: props.program.payment_mode_id,
-    payment_option_mapped: mapPaymentOption(props.program.payment_mode_id),
-    full_payment_method: props.program.full_payment_method,
-    installments_payment_method: props.program.installments_payment_method,
-    max_installments: props.program.max_installments,
     discount_type: props.program.discount_type
 });
 
@@ -252,23 +268,32 @@ const hasExistingCourse = computed(() => {
 
 // Función para procesar los pilares desde la base de datos
 const processPillars = (pillarsString) => {
-    if (!pillarsString) return { pilar_1: "", pilar_2: "", pilar_3: "", pilar_4: "" };
-    
-    const pillars = pillarsString.split(',').map(p => p.trim());
+    if (!pillarsString || typeof pillarsString !== 'string') {
+        return { pilar_1: "", pilar_2: "", pilar_3: "", pilar_4: "" };
+    }
+    // Normalizar separadores y espacios
+    const normalized = pillarsString
+        .replace(/\s*,\s*/g, ',')
+        .replace(/\s+\|\s+/g, ',')
+        .trim();
+    const parts = normalized.split(',');
     return {
-        pilar_1: pillars[0] || "",
-        pilar_2: pillars[1] || "",
-        pilar_3: pillars[2] || "",
-        pilar_4: pillars[3] || "",
+        pilar_1: (parts[0] || '').trim(),
+        pilar_2: (parts[1] || '').trim(),
+        pilar_3: (parts[2] || '').trim(),
+        pilar_4: (parts[3] || '').trim(),
     };
 };
 
 // Procesar los pilares desde la base de datos
 const pillarsData = processPillars(props.program.pillars);
-programData.value.pilar_1 = pillarsData.pilar_1;
-programData.value.pilar_2 = pillarsData.pilar_2;
-programData.value.pilar_3 = pillarsData.pilar_3;
-programData.value.pilar_4 = pillarsData.pilar_4;
+programData.value = {
+    ...programData.value,
+    pilar_1: pillarsData.pilar_1,
+    pilar_2: pillarsData.pilar_2,
+    pilar_3: pillarsData.pilar_3,
+    pilar_4: pillarsData.pilar_4,
+};
 
 // Función para actualizar las imágenes desde el componente
 const updateImages = (images) => {
@@ -348,18 +373,11 @@ const submit = () => {
     if (shouldSendField(programData.value.itinerary, props.program.itinerary_description, 'itinerary')) {
         form.itinerary = programData.value.itinerary;
     }
-    if (shouldSendField(programData.value.pilar_1, props.program.pillars?.split(',')[0]?.trim() || '', 'pilar_1')) {
-        form.pilar_1 = programData.value.pilar_1;
-    }
-    if (shouldSendField(programData.value.pilar_2, props.program.pillars?.split(',')[1]?.trim() || '', 'pilar_2')) {
-        form.pilar_2 = programData.value.pilar_2;
-    }
-    if (shouldSendField(programData.value.pilar_3, props.program.pillars?.split(',')[2]?.trim() || '', 'pilar_3')) {
-        form.pilar_3 = programData.value.pilar_3;
-    }
-    if (shouldSendField(programData.value.pilar_4, props.program.pillars?.split(',')[3]?.trim() || '', 'pilar_4')) {
-        form.pilar_4 = programData.value.pilar_4;
-    }
+    // Pilares: forzar los cuatro valores fijos
+    form.pilar_1 = 'Aventura';
+    form.pilar_2 = 'Entretenimiento';
+    form.pilar_3 = 'Educación';
+    form.pilar_4 = 'Seguridad';
 
     // Campos del detalle administrativo - solo enviar si cambiaron
     if (shouldSendField(paymentData.value.total_price, props.program.trip_price, 'total_price')) {
@@ -389,16 +407,25 @@ const submit = () => {
     if (shouldSendField(paymentData.value.discount_amount, props.program.discount_value, 'discount_amount')) {
         form.discount_amount = formatValue(paymentData.value.discount_amount, 'discount_amount');
     }
-    if (shouldSendField(paymentData.value.payment_option, mapPaymentOption(props.program.payment_mode_id), 'payment_option')) {
+    if (shouldSendField(paymentData.value.payment_option, mapPaymentOption(props.program), 'payment_option')) {
         form.payment_option = paymentData.value.payment_option;
     }
-    if (shouldSendField(paymentData.value.full_payment_method, mapPaymentMethod(props.program.payment_method_id), 'full_payment_method')) {
+    // Incluir payment_options (array) si cambió
+    const originalPaymentOptions = [
+        ...(props.program.enable_total_payment ? ['full_payment'] : []),
+        ...(props.program.enable_lat90_payment ? ['installments'] : []),
+    ];
+    const newPaymentOptions = paymentData.value.payment_options || [];
+    if (JSON.stringify(newPaymentOptions.sort()) !== JSON.stringify(originalPaymentOptions.sort())) {
+        form.payment_options = newPaymentOptions;
+    }
+    if (shouldSendField(paymentData.value.full_payment_method, (props.program.total_payment_method_id ? 'todos_medios' : ''), 'full_payment_method')) {
         form.full_payment_method = paymentData.value.full_payment_method;
     }
-    if (shouldSendField(paymentData.value.installments_payment_method, mapPaymentMethod(props.program.payment_method_id), 'installments_payment_method')) {
+    if (shouldSendField(paymentData.value.installments_payment_method, (props.program.lat90_payment_method ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : ''), 'installments_payment_method')) {
         form.installments_payment_method = paymentData.value.installments_payment_method;
     }
-    if (shouldSendField(paymentData.value.max_installments, props.program.max_installments, 'max_installments')) {
+    if (shouldSendField(paymentData.value.max_installments, props.program.lat90_max_installments, 'max_installments')) {
         form.max_installments = formatValue(paymentData.value.max_installments, 'max_installments');
     }
 
@@ -424,7 +451,50 @@ const submit = () => {
         form.students_file = paymentData.value.students_file;
     }
 
-    form.put(route("admin.programs.update", props.program.id));
+    // Forzar el envío de al menos un campo para probar (temporal)
+    form.test_field = 'test_value';
+
+    // Log de depuración en cliente (solo para ver que se construye el payload)
+    console.log('Payload del formulario:', JSON.parse(JSON.stringify(form.data())));
+    console.log('Form keys que se envían:', Object.keys(form.data()));
+    console.log('Form values:', Object.values(form.data()));
+    console.log('Ruta del formulario:', route("admin.programs.update", props.program.id));
+    console.log('¿Formulario vacío?', Object.keys(form.data()).length === 0);
+    
+    // Crear FormData y agregar _method para PUT request (como hacen los cursos)
+    const formData = new FormData();
+    
+    // Agregar todos los campos del formulario
+    Object.keys(form.data()).forEach(key => {
+        const value = form.data()[key];
+        if (value !== null && value !== undefined) {
+            if (Array.isArray(value)) {
+                // Para arrays, agregar cada elemento
+                value.forEach(item => {
+                    formData.append(key + '[]', item);
+                });
+            } else if (typeof value === 'boolean') {
+                // Normalizar booleanos a 1/0 para que pasen la regla boolean de Laravel
+                formData.append(key, value ? 1 : 0);
+            } else {
+                formData.append(key, value);
+            }
+        }
+    });
+    
+    // Agregar _method para PUT request
+    formData.append('_method', 'PUT');
+    
+    // Enviar usando router.post con _method: 'PUT' (como hacen los cursos)
+    router.post(route("admin.programs.update", props.program.id), formData, {
+        onSuccess: () => {
+            // Redirigir a la lista de programas
+            window.location.href = route('admin.programs.index');
+        },
+        onError: (errors) => {
+            console.error('Errores del formulario:', errors);
+        }
+    });
 };
 </script>
 

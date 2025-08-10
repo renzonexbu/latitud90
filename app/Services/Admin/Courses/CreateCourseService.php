@@ -35,24 +35,15 @@ class CreateCourseService
                 'created_by' => auth()->id(),
             ]);
 
-            Log::info('Curso creado exitosamente', [
-                'course_id' => $course->id,
-                'institution_id' => $courseData['institutionId']
-            ]);
+            
 
             // Procesar participantes si se proporciona el archivo
             if (!empty($courseData['studentsFile'])) {
-                Log::info('Procesando archivo de estudiantes para curso', [
-                    'file_name' => $courseData['studentsFile']->getClientOriginalName(),
-                    'file_size' => $courseData['studentsFile']->getSize(),
-                    'course_id' => $course->id
-                ]);
+                
                 
                 $this->processParticipants($courseData['studentsFile'], $course);
             } else {
-                Log::info('No se proporcionó archivo de estudiantes para el curso', [
-                    'course_id' => $course->id
-                ]);
+                
             }
 
             DB::commit();
@@ -60,11 +51,6 @@ class CreateCourseService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al crear curso', [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
-            ]);
             throw $e;
         }
     }
@@ -75,17 +61,12 @@ class CreateCourseService
     private function processParticipants($file, Course $course): void
     {
         try {
-            Log::info('Iniciando procesamiento de participantes para curso', [
-                'course_id' => $course->id
-            ]);
+            
             
             // Guardar el archivo
             $filePath = $file->store('courses/students', 'public');
             
-            Log::info('Archivo guardado para curso', [
-                'file_path' => $filePath,
-                'original_name' => $file->getClientOriginalName()
-            ]);
+            
             
             // Actualizar el curso con la información del archivo
             $course->update([
@@ -98,18 +79,12 @@ class CreateCourseService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
             
-            Log::info('Archivo leído con PhpSpreadsheet para curso', [
-                'total_rows' => count($rows),
-                'file_name' => $file->getClientOriginalName()
-            ]);
+            
             
             // La primera fila contiene los headers
             $headers = array_shift($rows);
             
-            Log::info('Headers encontrados para curso', [
-                'headers' => $headers,
-                'headers_count' => count($headers)
-            ]);
+            
             
             // Mapear headers a campos de participantes
             $participantCount = 0;
@@ -119,7 +94,7 @@ class CreateCourseService
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
-                    Log::info('Fila vacía encontrada en curso', ['row_index' => $rowIndex]);
+                    
                     continue;
                 }
                 
@@ -131,12 +106,7 @@ class CreateCourseService
                 $participantData = array_combine($headers, $row);
                 $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
                 
-                Log::info('Procesando participante para curso', [
-                    'row_index' => $rowIndex,
-                    'nombre' => $participantData['Nombre'] ?? 'N/A',
-                    'apellido' => $participantData['Apellido'] ?? 'N/A',
-                    'rut' => $cleanRut
-                ]);
+                
                 
                 // Buscar participante existente por RUT
                 $documentType = $this->getDocumentType($participantData);
@@ -153,11 +123,7 @@ class CreateCourseService
                     
                     if ($isAlreadyInCourse) {
                         // UPDATE: Actualizar datos del participante y la relación con el curso
-                        Log::info('Participante existente ya está en este curso, actualizando', [
-                            'participant_id' => $existingParticipant->id,
-                            'rut' => $cleanRut,
-                            'course_id' => $course->id
-                        ]);
+                        
                         
                         // Actualizar datos del participante
                         $existingParticipant->update([
@@ -189,11 +155,7 @@ class CreateCourseService
                         
                     } else {
                         // CREATE: Agregar nueva relación con el curso
-                        Log::info('Participante existente agregado a nuevo curso', [
-                            'participant_id' => $existingParticipant->id,
-                            'rut' => $cleanRut,
-                            'course_id' => $course->id
-                        ]);
+                        
                         
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -214,11 +176,7 @@ class CreateCourseService
                     
                 } else {
                     // CREATE: Crear nuevo participante y asociarlo al curso
-                    Log::info('Creando nuevo participante y asociándolo al curso', [
-                        'rut' => $cleanRut,
-                        'course_id' => $course->id,
-                        'document_type' => $documentType
-                    ]);
+                    
                     
                     $participant = Participant::create([
                         'first_name' => $participantData['Nombre'] ?? '',
@@ -254,10 +212,7 @@ class CreateCourseService
                     $participant->courses()->attach($course->id, $pivotData);
                     $createdCount++;
                     
-                    Log::info('Participante creado y asociado al curso', [
-                        'participant_id' => $participant->id,
-                        'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
-                    ]);
+                    
                 }
                 
                 // Manejar contacto de emergencia
@@ -278,11 +233,7 @@ class CreateCourseService
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
                         ]);
                         
-                        Log::info('Contacto de emergencia actualizado para curso', [
-                            'emergency_contact_id' => $existingEmergencyContact->id,
-                            'participant_id' => $participant->id,
-                            'nombre_completo' => $existingEmergencyContact->first_name . ' ' . $existingEmergencyContact->last_name
-                        ]);
+                        
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
                         $emergencyContact = EmergencyContact::create([
@@ -298,40 +249,21 @@ class CreateCourseService
                             'participant_id' => $participant->id,
                         ]);
                         
-                        Log::info('Contacto de emergencia creado para curso', [
-                            'emergency_contact_id' => $emergencyContact->id,
-                            'participant_id' => $participant->id,
-                            'nombre_completo' => $emergencyContact->first_name . ' ' . $emergencyContact->last_name
-                        ]);
+                        
                     }
                 } else {
-                    Log::warning('No se creó contacto de emergencia para curso - datos faltantes', [
-                        'participant_id' => $participant->id,
-                        'has_nombre' => !empty($participantData['Nombre contacto emergencia']),
-                        'has_apellido' => !empty($participantData['Apellido contacto emergencia'])
-                    ]);
+                    
                 }
                 
                 $participantCount++;
             }
             
-            Log::info('Procesamiento completado para curso', [
-                'total_participants_processed' => $participantCount,
-                'participants_created' => $createdCount,
-                'participants_updated' => $updatedCount,
-                'course_id' => $course->id
-            ]);
+            
             
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
             
         } catch (\Exception $e) {
-            Log::error('Error al procesar participantes para curso', [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'course_id' => $course->id
-            ]);
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
     }

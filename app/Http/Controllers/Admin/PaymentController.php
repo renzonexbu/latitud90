@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Models\Passenger;
+use App\Models\Participant as Passenger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\Payments\DailyReportRequest;
+use App\Http\Requests\Admin\Payments\ConsolidatedReportRequest;
+use App\Services\Admin\Payments\ReportsService;
 
 class PaymentController extends Controller
 {
+    public function __construct(private ReportsService $reportsService) {}
     public function index(Request $request)
     {
         $query = Payment::with(['passenger.program']);
@@ -70,44 +74,10 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function dailyReport(Request $request)
+    public function dailyReport(DailyReportRequest $request)
     {
-        $validated = $request->validate([
-            'date' => 'required|date',
-            'program_id' => 'nullable|exists:programs,id',
-            'executive_id' => 'nullable|exists:users,id',
-            'payment_method' => 'nullable|in:transbank_webpay,khipu,cash,transfer'
-        ]);
-
-        $query = Payment::with(['passenger.program.commercialExecutive'])
-            ->whereDate('created_at', $validated['date'])
-            ->where('status', 'approved');
-
-        if ($validated['program_id'] ?? false) {
-            $query->whereHas('passenger', function($q) use ($validated) {
-                $q->where('program_id', $validated['program_id']);
-            });
-        }
-
-        if ($validated['executive_id'] ?? false) {
-            $query->whereHas('passenger.program', function($q) use ($validated) {
-                $q->where('commercial_executive_id', $validated['executive_id']);
-            });
-        }
-
-        if ($validated['payment_method'] ?? false) {
-            $query->where('payment_method', $validated['payment_method']);
-        }
-
-        $payments = $query->get();
-
-        $summary = [
-            'total_amount' => $payments->sum('amount'),
-            'total_transactions' => $payments->count(),
-            'by_method' => $payments->groupBy('payment_method')->map->sum('amount'),
-            'by_program' => $payments->groupBy('passenger.program.program_number')->map->sum('amount')
-        ];
-
+        $validated = $request->validated();
+        [$payments, $summary] = $this->reportsService->daily($validated);
         return Inertia::render('Admin/Reports/DailyPayments', [
             'payments' => $payments,
             'summary' => $summary,
@@ -115,23 +85,10 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function consolidatedReport(Request $request)
+    public function consolidatedReport(ConsolidatedReportRequest $request)
     {
-        $validated = $request->validate([
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'payment_method' => 'nullable|in:transbank_webpay,khipu,cash,transfer'
-        ]);
-
-        $query = Payment::with(['passenger.program'])
-            ->whereBetween('created_at', [$validated['start_date'], $validated['end_date']])
-            ->where('status', 'approved');
-
-        if ($validated['payment_method'] ?? false) {
-            $query->where('payment_method', $validated['payment_method']);
-        }
-
-        $payments = $query->get();
+        $validated = $request->validated();
+        $payments = $this->reportsService->consolidated($validated);
 
         return Inertia::render('Admin/Reports/ConsolidatedPayments', [
             'payments' => $payments,

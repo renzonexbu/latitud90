@@ -21,9 +21,7 @@ class CreateProgramService
         try {
             DB::beginTransaction();
 
-            
-
-                    // Procesar los pilares como string separado por comas
+            // Procesar los pilares como string separado por comas
         $pillars = [];
         if (!empty($programData['pilar_1'])) {
             $pillars[] = $programData['pilar_1'];
@@ -38,29 +36,7 @@ class CreateProgramService
             $pillars[] = $programData['pilar_4'];
         }
         $programData['pillars'] = implode(', ', $pillars);
-
-                    Log::info('Pilares procesados:', [
-            'pilar_1' => $programData['pilar_1'] ?? 'vacío',
-            'pilar_2' => $programData['pilar_2'] ?? 'vacío',
-            'pilar_3' => $programData['pilar_3'] ?? 'vacío',
-            'pilar_4' => $programData['pilar_4'] ?? 'vacío',
-            'pillars_final' => $programData['pillars']
-        ]);
-
-
-
-            // Debug: Log de datos de pago
-            Log::info('Datos de pago recibidos:', [
-                'payment_options' => $programData['payment_options'] ?? 'no definido',
-                'full_payment_method' => $programData['full_payment_method'] ?? 'no definido',
-                'installments_payment_method' => $programData['installments_payment_method'] ?? 'no definido',
-                'max_installments' => $programData['max_installments'] ?? 'no definido',
-                'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
-                'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
-                'total_payment_method_id' => $this->getTotalPaymentMethodId($programData),
-                'lat90_payment_method_id' => $this->getLat90PaymentMethodId($programData),
-                'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
-            ]);
+        
 
             // Crear el programa primero (sin archivos por ahora)
             $program = Program::create([
@@ -335,18 +311,12 @@ class CreateProgramService
     private function processParticipants($file, Course $course, Program $program): void
     {
         try {
-            Log::info('Iniciando procesamiento de participantes', [
-                'course_id' => $course->id,
-                'program_id' => $program->id
-            ]);
+            
             
             // Guardar el archivo
             $filePath = $file->store('courses/students', 'public');
             
-            Log::info('Archivo guardado', [
-                'file_path' => $filePath,
-                'original_name' => $file->getClientOriginalName()
-            ]);
+            
             
             // Actualizar el curso con la información del archivo
             $course->update([
@@ -359,18 +329,12 @@ class CreateProgramService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
             
-            Log::info('Archivo leído con PhpSpreadsheet', [
-                'total_rows' => count($rows),
-                'file_name' => $file->getClientOriginalName()
-            ]);
+            
             
             // La primera fila contiene los headers
             $headers = array_shift($rows);
             
-            Log::info('Headers encontrados', [
-                'headers' => $headers,
-                'headers_count' => count($headers)
-            ]);
+            
             
             // Mapear headers a campos de participantes
             $participantCount = 0;
@@ -381,7 +345,7 @@ class CreateProgramService
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
-                    Log::info('Fila vacía encontrada', ['row_index' => $rowIndex]);
+                    
                     continue;
                 }
                 
@@ -393,12 +357,7 @@ class CreateProgramService
                 $participantData = array_combine($headers, $row);
                 $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
                 
-                Log::info('Procesando participante', [
-                    'row_index' => $rowIndex,
-                    'nombre' => $participantData['Nombre'] ?? 'N/A',
-                    'apellido' => $participantData['Apellido'] ?? 'N/A',
-                    'rut' => $cleanRut
-                ]);
+                
                 
                 // Buscar participante existente por RUT
                 $documentType = $this->getDocumentType($participantData);
@@ -415,11 +374,7 @@ class CreateProgramService
                     
                     if ($isAlreadyInCourse) {
                         // UPDATE: Actualizar datos del participante y la relación con el curso
-                        Log::info('Participante existente ya está en este curso, actualizando', [
-                            'participant_id' => $existingParticipant->id,
-                            'rut' => $cleanRut,
-                            'course_id' => $course->id
-                        ]);
+                        
                         
                         // Actualizar datos del participante
                         $existingParticipant->update([
@@ -450,11 +405,7 @@ class CreateProgramService
                         
                     } else {
                         // CREATE: Agregar nueva relación con el curso
-                        Log::info('Participante existente agregado a nuevo curso', [
-                            'participant_id' => $existingParticipant->id,
-                            'rut' => $cleanRut,
-                            'course_id' => $course->id
-                        ]);
+                        
                         
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -474,11 +425,7 @@ class CreateProgramService
                     
                 } else {
                     // CREATE: Crear nuevo participante y asociarlo al curso
-                    Log::info('Creando nuevo participante y asociándolo al curso', [
-                        'rut' => $cleanRut,
-                        'course_id' => $course->id,
-                        'document_type' => $documentType
-                    ]);
+                    
                     
                     $participant = Participant::create([
                         'first_name' => $participantData['Nombre'] ?? '',
@@ -514,10 +461,7 @@ class CreateProgramService
                     $participant->courses()->attach($course->id, $pivotData);
                     $createdCount++;
                     
-                    Log::info('Participante creado y asociado al curso', [
-                        'participant_id' => $participant->id,
-                        'nombre_completo' => $participant->first_name . ' ' . $participant->last_name
-                    ]);
+                        
                 }
                 
                 $participants[] = $participant; // Guardar referencia al participante
@@ -540,11 +484,7 @@ class CreateProgramService
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
                         ]);
                         
-                        Log::info('Contacto de emergencia actualizado', [
-                            'emergency_contact_id' => $existingEmergencyContact->id,
-                            'participant_id' => $participant->id,
-                            'nombre_completo' => $existingEmergencyContact->first_name . ' ' . $existingEmergencyContact->last_name
-                        ]);
+                        
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
                         $emergencyContact = EmergencyContact::create([
@@ -560,18 +500,10 @@ class CreateProgramService
                             'participant_id' => $participant->id,
                         ]);
                         
-                        Log::info('Contacto de emergencia creado', [
-                            'emergency_contact_id' => $emergencyContact->id,
-                            'participant_id' => $participant->id,
-                            'nombre_completo' => $emergencyContact->first_name . ' ' . $emergencyContact->last_name
-                        ]);
+                        
                     }
                 } else {
-                    Log::warning('No se creó contacto de emergencia - datos faltantes', [
-                        'participant_id' => $participant->id,
-                        'has_nombre' => !empty($participantData['Nombre contacto emergencia']),
-                        'has_apellido' => !empty($participantData['Apellido contacto emergencia'])
-                    ]);
+                    
                 }
                 
                 $participantCount++;
@@ -581,11 +513,7 @@ class CreateProgramService
             if ($participantCount > 0) {
                 $individualPrice = $program->trip_price / $participantCount;
                 
-                Log::info('Calculando precio individual', [
-                    'program_price' => $program->trip_price,
-                    'participant_count' => $participantCount,
-                    'individual_price' => $individualPrice
-                ]);
+                
                 
                 // Actualizar el precio individual de todos los participantes
                 foreach ($participants as $participant) {
@@ -593,24 +521,12 @@ class CreateProgramService
                 }
             }
             
-            Log::info('Procesamiento completado', [
-                'total_participants_processed' => $participantCount,
-                'participants_created' => $createdCount,
-                'participants_updated' => $updatedCount,
-                'course_id' => $course->id
-            ]);
+            
             
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
             
         } catch (\Exception $e) {
-            Log::error('Error al procesar participantes', [
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'course_id' => $course->id,
-                'program_id' => $program->id
-            ]);
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
     }

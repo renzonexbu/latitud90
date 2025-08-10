@@ -311,6 +311,7 @@
                                             v-model="formData.pilar_1"
                                             placeholder="Aventura"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                     <div class="pillar-item">
@@ -320,6 +321,7 @@
                                             v-model="formData.pilar_2"
                                             placeholder="Entretenimiento"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                 </div>
@@ -331,6 +333,7 @@
                                             v-model="formData.pilar_3"
                                             placeholder="Educación"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                     <div class="pillar-item">
@@ -340,6 +343,7 @@
                                             v-model="formData.pilar_4"
                                             placeholder="Seguridad"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                 </div>
@@ -771,7 +775,7 @@
 </template>
 
 <script setup>
-import { ref, watch, defineEmits } from "vue";
+import { ref, watch, defineEmits, onMounted, nextTick } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
@@ -843,6 +847,7 @@ const emit = defineEmits([
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
+const isSyncingFromProps = ref(false);
 
 // Estados para los acordeones
 const detailsOpen = ref(true); // Abierto por defecto
@@ -870,10 +875,45 @@ if (props.mode === "edit" && props.existingImages.length > 0) {
 watch(
     formData,
     (newValue) => {
+        if (isSyncingFromProps.value) return;
         emit("update:modelValue", newValue);
     },
     { deep: true }
 );
+
+// Sincronizar cambios desde el padre (especialmente en modo edit)
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        if (!newValue) return;
+        isSyncingFromProps.value = true;
+        // Mezclar manteniendo campos locales no relacionados
+        formData.value = {
+            ...formData.value,
+            ...newValue,
+        };
+        nextTick(() => { isSyncingFromProps.value = false; });
+    },
+    { deep: true, immediate: true }
+);
+
+// Prefijar pilares por defecto en modo creación si están vacíos
+onMounted(() => {
+    if (props.mode === 'create') {
+        const isEmpty = (v) => !v || v.toString().trim() === '';
+        if (
+            isEmpty(formData.value.pilar_1) &&
+            isEmpty(formData.value.pilar_2) &&
+            isEmpty(formData.value.pilar_3) &&
+            isEmpty(formData.value.pilar_4)
+        ) {
+            formData.value.pilar_1 = 'Aventura';
+            formData.value.pilar_2 = 'Entretenimiento';
+            formData.value.pilar_3 = 'Educación';
+            formData.value.pilar_4 = 'Seguridad';
+        }
+    }
+});
 
 watch(
     selectedImages,
@@ -961,7 +1001,8 @@ const removeImage = (index) => {
     }
 
     selectedImages.value.splice(index, 1);
-    emitImages();
+    // Emitir imágenes actualizadas al padre
+    emit("update:images", selectedImages.value);
     console.log(`Imagen ${index + 1} eliminada`);
 };
 

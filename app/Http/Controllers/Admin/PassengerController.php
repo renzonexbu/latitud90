@@ -3,13 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Participant;
+use App\Models\Participant as Passenger;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\Passengers\StorePassengerRequest;
+use App\Http\Requests\Admin\Passengers\UpdatePassengerRequest;
+use App\Http\Requests\Admin\Passengers\UpdatePriceRequest;
+use App\Http\Requests\Admin\Passengers\GeneratePaymentLinkRequest;
+use App\Services\Admin\Passengers\PassengerService;
 
 class PassengerController extends Controller
 {
+    public function __construct(private PassengerService $passengerService) {}
+
     public function index(Request $request)
     {
         $query = Passenger::with(['program', 'payments']);
@@ -54,23 +61,9 @@ class PassengerController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StorePassengerRequest $request)
     {
-        $validated = $request->validate([
-            'rut' => 'required|string|unique:passengers',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'nullable|string|max:255',
-            'program_id' => 'required|exists:programs,id',
-            'status' => 'required|in:active,inactive,withdrawn'
-        ]);
-
-        // Obtener el precio del programa
-        $program = Program::findOrFail($validated['program_id']);
-        $validated['individual_price'] = $program->price_per_passenger;
-
-        $passenger = Passenger::create($validated);
+        $this->passengerService->create($request->validated());
 
         return redirect()->route('admin.passengers.index')
             ->with('success', 'Pasajero creado exitosamente.');
@@ -95,19 +88,9 @@ class PassengerController extends Controller
         ]);
     }
 
-    public function update(Request $request, Passenger $passenger)
+    public function update(UpdatePassengerRequest $request, Passenger $passenger)
     {
-        $validated = $request->validate([
-            'rut' => 'required|string|unique:passengers,rut,' . $passenger->id,
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'phone' => 'nullable|string|max:255',
-            'program_id' => 'required|exists:programs,id',
-            'status' => 'required|in:active,inactive,withdrawn'
-        ]);
-
-        $passenger->update($validated);
+        $this->passengerService->update($request->validated(), $passenger);
 
         return redirect()->route('admin.passengers.index')
             ->with('success', 'Pasajero actualizado exitosamente.');
@@ -121,38 +104,16 @@ class PassengerController extends Controller
             ->with('success', 'Pasajero eliminado exitosamente.');
     }
 
-    public function updatePrice(Request $request, Passenger $passenger)
+    public function updatePrice(UpdatePriceRequest $request, Passenger $passenger)
     {
-        $validated = $request->validate([
-            'price_adjustment' => 'required|numeric',
-            'adjustment_reason' => 'required|string'
-        ]);
-
-        $passenger->update([
-            'price_adjustments' => $passenger->price_adjustments + $validated['price_adjustment'],
-            'adjustment_reason' => $validated['adjustment_reason']
-        ]);
+        $this->passengerService->updatePrice($request->validated(), $passenger);
 
         return back()->with('success', 'Precio del pasajero actualizado.');
     }
 
-    public function generatePaymentLink(Request $request, Passenger $passenger)
+    public function generatePaymentLink(GeneratePaymentLinkRequest $request, Passenger $passenger)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'payment_method' => 'required|in:transbank_webpay,khipu,both',
-            'description' => 'required|string',
-            'expires_hours' => 'required|integer|min:1|max:168' // Máximo 7 días
-        ]);
-
-        $paymentLink = $passenger->paymentLinks()->create([
-            'amount' => $validated['amount'],
-            'payment_method' => $validated['payment_method'],
-            'description' => $validated['description'],
-            'status' => 'active',
-            'expires_at' => now()->addHours($validated['expires_hours'])
-        ]);
-
-        return back()->with('success', 'Link de pago generado: ' . $paymentLink->url);
+        $url = $this->passengerService->generatePaymentLink($request->validated(), $passenger);
+        return back()->with('success', 'Link de pago generado: ' . $url);
     }
 }

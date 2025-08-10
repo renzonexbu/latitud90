@@ -17,11 +17,6 @@ class UpdateParticipatService
     public function execute(array $data, Participant $participant): Participant
     {
         try {
-            Log::info('Iniciando actualización de participante', [
-                'participant_id' => $participant->id,
-                'document_number' => $participant->document_number,
-                'data_to_update' => $data
-            ]);
 
             // Validar que el RUT no se esté intentando modificar
             if (isset($data['document_number']) && $data['document_number'] !== $participant->document_number) {
@@ -43,22 +38,11 @@ class UpdateParticipatService
             // Actualizar el participante
             $participant->update($updateData);
 
-            Log::info('Participante actualizado exitosamente', [
-                'participant_id' => $participant->id,
-                'document_number' => $participant->document_number,
-                'updated_fields' => array_keys($updateData)
-            ]);
+            
 
             return $participant;
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar participante', [
-                'participant_id' => $participant->id,
-                'document_number' => $participant->document_number,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw $e;
         }
     }
