@@ -16,7 +16,7 @@
         <!-- Programs Grid - 3x2 layout -->
         <div
             v-else
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 justify-items-center md:justify-items-stretch"
         >
             <ProgramCard
                 v-for="program in paginatedPrograms"
