@@ -28,5 +28,8 @@ export default {
     flex-shrink: 0;
     stroke: var(--Colores-OP2-Amarillo, #FFB232);
     stroke-width: 2px;
+    display: block;
+    margin: 0 auto;
+    align-self: center;
 }
 </style> 
