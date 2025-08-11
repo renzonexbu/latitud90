@@ -1,12 +1,12 @@
 <template>
   <div class="w-full">
-    <div class="flex items-start gap-[22px] self-stretch">
+    <div class="flex flex-col md:flex-row items-stretch md:items-start gap-[12px] md:gap-[22px] self-stretch w-full">
       <!-- Itinerario -->
       <a 
         v-if="itineraryFile"
         :href="itineraryFile" 
         target="_blank"
-        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out"
+        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out w-full md:w-auto"
       >
         <span class="text-white text-left font-nexa text-sm leading-[18px] font-normal">
           Itinerario
@@ -21,7 +21,7 @@
         v-if="travelAssistanceCoverage"
         :href="travelAssistanceCoverage" 
         target="_blank"
-        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out"
+        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out w-full md:w-auto"
       >
         <span class="text-white text-left font-nexa text-sm leading-[18px] font-normal">
           Cobertura de asistencia en viaje
@@ -36,7 +36,7 @@
         v-if="equipmentList"
         :href="equipmentList" 
         target="_blank"
-        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out"
+        class="rounded-[59px] bg-[#007E93] flex p-[11px_23px] justify-center items-center gap-[12px] hover:scale-105 transition-transform duration-200 ease-in-out w-full md:w-auto"
       >
         <span class="text-white text-left font-nexa text-sm leading-[18px] font-normal">
           Lista de equipo

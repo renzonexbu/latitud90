@@ -3,14 +3,14 @@
     <h2 class="text-[#434343] text-left font-nexa text-[20px] leading-[28px] font-bold self-stretch">
       Pilares
     </h2>
-    <p class="text-[#5B5B5B] text-left font-nexa text-sm leading-[18px] font-normal h-[26px] self-stretch mt-2">
+    <p class="text-[#5B5B5B] text-left font-nexa text-sm leading-[18px] font-normal self-stretch mt-2">
       En el desarrollo de nuestros programas incorporamos de manera transversal {{ pillarsArray.length }} pilares fundamentales:
     </p>
     
     <!-- Pilares Grid -->
-    <div class="flex flex-row gap-[70px] items-start justify-start self-stretch flex-shrink-0 relative mt-4">
+    <div class="flex flex-col md:flex-row gap-[20px] md:gap-[70px] items-start justify-start self-stretch flex-shrink-0 relative mt-4 pt-2">
       <!-- Columna Izquierda -->
-      <div class="flex flex-col gap-[20px] items-end justify-start flex-shrink-0 w-[237px] relative">
+      <div class="flex flex-col gap-[20px] items-start md:items-end justify-start flex-shrink-0 w-full md:w-[237px] relative">
         <!-- Aventura -->
         <div v-if="hasPillar('aventura')" class="flex flex-row gap-[18px] items-center justify-start self-stretch flex-shrink-0 relative">
           <div class="flex-shrink-0 w-[45px] h-[45px] relative overflow-visible">
@@ -37,7 +37,7 @@
       </div>
       
       <!-- Columna Derecha -->
-      <div class="flex flex-col gap-[20px] items-start justify-start flex-shrink-0 w-[234px] relative">
+      <div class="flex flex-col gap-[20px] items-start justify-start flex-shrink-0 w-full md:w-[234px] relative">
         <!-- Educación -->
         <div v-if="hasPillar('educacion')" class="flex flex-row gap-[18px] items-center justify-start self-stretch flex-shrink-0 relative">
           <div class="flex-shrink-0 w-[45px] h-[45px] relative overflow-visible">

@@ -1,7 +1,5 @@
 <template>
-    <div
-        class="bg-white rounded-[20px] border border-[#D3D3D3] p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)] w-full h-fit mx-5"
-    >
+    <div :class="containerClass">
         <div class="flex flex-col gap-[24px]">
             <!-- Header Section -->
             <div v-if="showHeader" class="flex flex-col gap-[14px]">
@@ -73,7 +71,7 @@
 
                             <!-- Installment Selection Section -->
                             <div
-                                class="flex flex-col gap-[12px] mt-[16px] ml-4"
+                                class="flex flex-col gap-[12px] mt-[16px] ml-0 md:ml-4"
                             >
                                 <!-- Title -->
                                 <p
@@ -84,7 +82,7 @@
 
                                 <!-- Installment Selector and Date -->
                                 <div
-                                    class="flex flex-row items-center gap-[16px]"
+                                    class="flex flex-col sm:flex-row sm:items-center gap-[16px]"
                                 >
                                     <!-- Installment Selector -->
                                     <div class="relative">
@@ -177,6 +175,10 @@ export default {
         MonthlyWarningMessage,
     },
     props: {
+        isMobileOverlay: {
+            type: Boolean,
+            default: false
+        },
         finalPaymentDate: {
             type: String,
             required: true,
@@ -223,17 +225,6 @@ export default {
         }
     },
     mounted() {
-        // Debug: Log de la configuración del programa
-        console.log('Configuración de pago del programa:', {
-            enable_total_payment: this.program.enable_total_payment,
-            total_payment_method_id: this.program.total_payment_method_id,
-            total_payment_method: this.program.total_payment_method,
-            enable_lat90_payment: this.program.enable_lat90_payment,
-            lat90_payment_method_id: this.program.lat90_payment_method_id,
-            lat90_payment_method: this.program.lat90_payment_method,
-            lat90_max_installments: this.program.lat90_max_installments
-        });
-        
         // Si está en modo confirmación, cargar datos desde localStorage
         if (this.isConfirmation) {
             this.loadPaymentDataFromLocalStorage();
@@ -267,6 +258,17 @@ export default {
         };
     },
     methods: {
+        containerBaseClasses() {
+            return "w-full h-fit";
+        },
+        overlayContainerClasses() {
+            // Sin fondo/borde propios; el contenedor externo los aporta
+            return `${this.containerBaseClasses()} bg-transparent border-0 p-0 shadow-none mx-0`;
+        },
+        defaultContainerClasses() {
+            return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)] mx-5`;
+        },
+        
         // Obtener opciones de pago total según la configuración del programa
         getTotalPaymentOptions() {
             if (!this.program.enable_total_payment || !this.program.total_payment_method_id) {
@@ -427,8 +429,6 @@ export default {
                 "selectedPaymentData",
                 JSON.stringify(paymentData)
             );
-            
-            console.log('Payment data saved to localStorage:', paymentData);
         },
         
         loadPaymentDataFromLocalStorage() {
@@ -454,31 +454,17 @@ export default {
                     if (paymentData.termsAccepted !== undefined) {
                         this.$emit('terms-accepted-updated', paymentData.termsAccepted);
                     }
-                    
-                    console.log('Payment data loaded from localStorage:', paymentData);
                 } catch (error) {
-                    console.error("Error parsing payment data:", error);
+                    // noop
                 }
             } else {
-                console.log("No payment data found in localStorage");
+                // noop
             }
         },
         initiatePayment() {
             if (this.paymentType === null) {
                 return;
             }
-
-            console.log("Iniciando pago con:", {
-                paymentType: this.paymentType,
-                paymentMethod:
-                    this.paymentType === "total"
-                        ? this.totalPaymentOption
-                        : this.monthlyPaymentOption,
-                installments:
-                    this.paymentType === "monthly"
-                        ? this.selectedInstallments
-                        : 1,
-            });
 
             // Guardar los datos de pago en la sesión o localStorage
             const paymentData = {
@@ -505,6 +491,13 @@ export default {
             });
         },
     },
+    computed: {
+        containerClass() {
+            return this.isMobileOverlay
+                ? this.overlayContainerClasses()
+                : this.defaultContainerClasses();
+        }
+    }
 };
 </script>
 

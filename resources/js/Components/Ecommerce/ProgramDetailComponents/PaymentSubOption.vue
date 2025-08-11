@@ -1,11 +1,11 @@
 <template>
     <div
-        class="bg-white rounded-lg border border-[#D3D3D3] p-[24px_15px] mx-4 w-[75%]"
+        class="bg-white rounded-lg border border-[#D3D3D3] px-4 py-3 w-full self-stretch"
         :class="{
             'border-[#1C4F4A]': isSelected,
         }"
     >
-        <div class="flex flex-row gap-[13px] items-start">
+        <div class="flex flex-row gap-3 items-start">
             <!-- Radio Button -->
             <div
                 class="rounded-[27.12px] border-[0.44px] border-[#1C4F4A] p-[3.5px] cursor-pointer"
@@ -21,9 +21,9 @@
             </div>
 
             <!-- Content -->
-            <div class="flex flex-col gap-[11px]">
+            <div class="flex flex-col gap-2 flex-1 min-w-0">
                 <div
-                    class="text-[#1C4F4A] font-nexa text-base leading-[18px] w-[254px]"
+                    class="text-[#1C4F4A] font-nexa text-sm leading-[18px] whitespace-normal break-words"
                 >
                     <span class="font-nexa font-normal">Pago con </span>
                     <span class="font-nexa font-bold">{{ option.label }}</span>
@@ -32,7 +32,7 @@
                 <!-- Description (if exists) -->
                 <div
                     v-if="option.description"
-                    class="text-[#007E93] font-nexa text-xs leading-[13px]"
+                    class="text-[#007E93] font-nexa text-xs leading-[13px] whitespace-normal break-words max-w-full"
                     v-html="formatDescription(option.description)"
                 ></div>
 
