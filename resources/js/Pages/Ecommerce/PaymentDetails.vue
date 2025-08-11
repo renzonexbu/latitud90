@@ -12,7 +12,7 @@
             <div class="mt-8 flex justify-center">
                 <!-- Form -->
                 <div class="flex flex-col gap-8 w-full">
-                    <div class="flex flex-col md:flex-row gap-6 md:gap-[54px] w-full">
+                    <div class="flex flex-col md:flex-row items-center md:items-start md:justify-center gap-6 md:gap-[54px] w-full md:w-auto mx-auto">
                         <!-- Left Column - Personal Information -->
                         <div class="flex flex-col gap-[18px] w-full md:w-[364px]">
                             <!-- Nombre completo -->
