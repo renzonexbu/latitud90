@@ -144,8 +144,7 @@ export default {
                 program: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 paymentStatus: "",
             }
         };
@@ -190,28 +189,22 @@ export default {
                 });
             }
 
-            // Filtro por grado
-            if (this.localFilters.grade) {
+            // Filtro por curso (course_number)
+            if (this.localFilters.course_number) {
                 filtered = filtered.filter(participant => {
                     const firstCourse = this.getFirstCourse(participant);
-                    return firstCourse?.grade?.toString() === this.localFilters.grade.toString();
+                    return String(firstCourse?.course_number || '') === String(this.localFilters.course_number);
                 });
             }
 
-            // Filtro por turno
-            if (this.localFilters.turno) {
-                filtered = filtered.filter(participant => {
-                    const firstCourse = this.getFirstCourse(participant);
-                    return firstCourse?.shift === this.localFilters.turno;
-                });
-            }
+            // (turno eliminado del esquema)
 
             // Filtro por estado de pago
             if (this.localFilters.paymentStatus) {
                 filtered = filtered.filter(participant => 
                     this.getFirstCoursePivotStatus(participant) === this.localFilters.paymentStatus
                 );
-            }
+            }Arregl
 
             // Paginación
             const perPage = 10;

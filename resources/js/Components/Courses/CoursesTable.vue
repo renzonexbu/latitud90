@@ -8,11 +8,8 @@
             <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
                 Nivel
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[80px]">
-                Grado
-            </div>
             <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
-                Turno
+                Curso
             </div>
             <div class="text-white font-nexa-bold text-sm text-center w-[60px]">
                 Año
@@ -53,11 +50,8 @@
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
                     {{ capitalizeWords(course.education_level) }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[80px]">
-                    {{ course.grade }}
-                </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
-                    {{ capitalizeWords(course.shift) }}
+                    {{ course.course_display }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[60px]">
                     {{ course.year }}

@@ -100,19 +100,21 @@
                     <span v-if="program.course?.institution?.name">{{
                         capitalizeFirst(program.course.institution.name)
                     }}</span>
-                    <span v-if="program.course?.grade" class="mx-2">|</span>
-                    <span v-if="program.course?.grade">{{
-                        capitalizeFirst(program.course.grade)
+                    <span
+                        v-if="program.course?.course_display && program.course?.institution?.name"
+                        class="mx-2"
+                        >|</span
+                    >
+                    <span v-if="program.course?.course_display">{{
+                        program.course.course_display
                     }}</span>
-                    <span v-if="program.course?.education_level" class="mx-2"
+                    <span
+                        v-if="program.course?.education_level && (program.course?.course_display || program.course?.institution?.name)"
+                        class="mx-2"
                         >|</span
                     >
                     <span v-if="program.course?.education_level">{{
                         capitalizeFirst(program.course.education_level)
-                    }}</span>
-                    <span v-if="program.course?.shift" class="mx-2">|</span>
-                    <span v-if="program.course?.shift">{{
-                        capitalizeFirst(program.course.shift)
                     }}</span>
                 </div>
             </div>

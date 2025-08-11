@@ -168,8 +168,7 @@ export default {
                 search: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 year: "",
             },
         };
@@ -185,7 +184,7 @@ export default {
                 filtered = filtered.filter(course => 
                     course.institution?.name?.toLowerCase().includes(searchTerm) ||
                     course.education_level?.toLowerCase().includes(searchTerm) ||
-                    course.grade?.toString().includes(searchTerm)
+                    course.course_display?.toLowerCase().includes(searchTerm)
                 );
             }
             
@@ -203,17 +202,10 @@ export default {
                 );
             }
             
-            // Filtro por grado
-            if (this.localFilters.grade) {
+            // Filtro por curso (course_number)
+            if (this.localFilters.course_number) {
                 filtered = filtered.filter(course => 
-                    course.grade?.toString() === this.localFilters.grade
-                );
-            }
-            
-            // Filtro por turno
-            if (this.localFilters.turno) {
-                filtered = filtered.filter(course => 
-                    course.shift === this.localFilters.turno
+                    String(course.course_number || '') === String(this.localFilters.course_number)
                 );
             }
             

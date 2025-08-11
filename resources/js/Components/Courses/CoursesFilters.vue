@@ -56,30 +56,16 @@
                 </select>
             </div>
 
-            <!-- Grade Dropdown -->
+            <!-- Curso Dropdown -->
             <div class="relative w-[120px]">
                 <select
-                    v-model="filters.grade"
+                    v-model="filters.course_number"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
-                    <option value="">Grado</option>
-                    <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
-                        {{ grade }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- Shift Dropdown -->
-            <div class="relative w-[140px]">
-                <select
-                    v-model="filters.turno"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
-                    @change="performSearch"
-                >
-                    <option value="">Turno</option>
-                    <option v-for="turno in uniqueTurnos" :key="turno" :value="turno">
-                        {{ capitalizeWords(turno) }}
+                    <option value="">Curso</option>
+                    <option v-for="num in uniqueCourseNumbers" :key="num" :value="num">
+                        {{ num }}
                     </option>
                 </select>
             </div>
@@ -133,8 +119,7 @@ export default {
                 search: this.initialFilters.search || "",
                 institution: this.initialFilters.institution || "",
                 level: this.initialFilters.level || "",
-                grade: this.initialFilters.grade || "",
-                turno: this.initialFilters.turno || "",
+                course_number: this.initialFilters.course_number || "",
                 year: this.initialFilters.year || "",
             }
         };
@@ -156,20 +141,12 @@ export default {
             return [...new Set(levels)].sort();
         },
         
-        // Obtener grados únicos
-        uniqueGrades() {
-            const grades = this.courses
-                .map(course => course.grade)
-                .filter(grade => grade && grade.toString().trim() !== '');
-            return [...new Set(grades)].sort();
-        },
-        
-        // Obtener turnos únicos
-        uniqueTurnos() {
-            const turnos = this.courses
-                .map(course => course.shift)
-                .filter(turno => turno && turno.trim() !== '');
-            return [...new Set(turnos)].sort();
+        // Obtener cursos únicos (course_number)
+        uniqueCourseNumbers() {
+            const numbers = this.courses
+                .map(course => course.course_number)
+                .filter(num => num !== null && num !== undefined && num.toString().trim() !== '');
+            return [...new Set(numbers)].sort((a, b) => Number(a) - Number(b));
         },
         
         // Obtener años únicos
@@ -190,8 +167,7 @@ export default {
                 search: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 year: "",
             };
             this.performSearch();

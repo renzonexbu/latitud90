@@ -108,16 +108,16 @@
                 <!-- Separator -->
                 <div class="w-px h-[22px] bg-gray-300 mx-2"></div>
 
-                <!-- Grade -->
+                <!-- Curso -->
                 <div class="relative w-20">
                     <select
-                        v-model="filters.grade"
+                        v-model="filters.course_number"
                         class="w-full text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal bg-transparent border-none outline-none appearance-none pr-8"
                         @change="performSearch"
                     >
-                        <option value="">Grado</option>
-                        <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
-                            {{ grade }}
+                        <option value="">Curso</option>
+                        <option v-for="num in uniqueCourseNumbers" :key="num" :value="num">
+                            {{ num }}
                         </option>
                     </select>
                 </div>
@@ -160,7 +160,7 @@ export default {
                 paymentPercentage: this.initialFilters.paymentPercentage || "",
                 institution: this.initialFilters.institution || "",
                 level: this.initialFilters.level || "",
-                grade: this.initialFilters.grade || "",
+                course_number: this.initialFilters.course_number || "",
             },
             showActivePrograms: true
         };
@@ -190,12 +190,12 @@ export default {
             return [...new Set(levels)].sort();
         },
         
-        // Obtener grados únicos
-        uniqueGrades() {
-            const grades = this.programs
-                .map(program => program.course?.grade)
-                .filter(grade => grade && grade.toString().trim() !== '');
-            return [...new Set(grades)].sort();
+        // Obtener cursos únicos (course_number)
+        uniqueCourseNumbers() {
+            const numbers = this.programs
+                .map(program => program.course?.course_number)
+                .filter(num => num !== null && num !== undefined && num.toString().trim() !== '');
+            return [...new Set(numbers)].sort((a, b) => Number(a) - Number(b));
         }
     },
     methods: {
@@ -218,7 +218,7 @@ export default {
                 paymentPercentage: "",
                 institution: "",
                 level: "",
-                grade: "",
+                course_number: "",
             };
             this.performSearch();
         }
