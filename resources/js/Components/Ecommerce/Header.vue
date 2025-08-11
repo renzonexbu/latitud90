@@ -1,8 +1,6 @@
 <template>
     <header
-        :class="
-            isIndexPage ? 'absolute top-4 left-4 right-4 z-50' : 'relative z-50'
-        "
+        :class="isIndexPage ? 'absolute top-4 left-4 right-4 z-50' : 'relative z-50'"
     >
         <!-- Header normal (cuando el menú está cerrado) -->
         <nav
@@ -350,7 +348,7 @@ onUnmounted(() => {
 /* Estilos específicos para páginas que no son index */
 .header-white {
     background: var(--colores-neutro-blanco, #ffffff);
-    margin: 30px 90px;
+    margin: 0 90px;
 }
 
 .header-white {
