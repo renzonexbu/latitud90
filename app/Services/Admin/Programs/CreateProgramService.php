@@ -58,10 +58,12 @@ class CreateProgramService
                 
                 // Configuración de pago total
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
+                // Mapear nombres semánticos del frontend a IDs sembrados por PaymentMethodSeeder
                 'total_payment_method_id' => $this->getTotalPaymentMethodId($programData),
                 
                 // Configuración de pago mensual Lat90
                 'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
+                // Usa el mismo mapeo de métodos que pago total
                 'lat90_payment_method_id' => $this->getLat90PaymentMethodId($programData),
                 'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
                 

@@ -12,28 +12,23 @@ class PaymentMethodSeeder extends Seeder
     {
         $paymentMethods = [
             [
-                'name' => 'Transferencia bancaria (Khipu)',
-                'description' => 'Pago vía Khipu con redirección segura a tu banco.',
+                'name' => 'Todos los medios (Débito/Crédito/Transferencia)',
+                'description' => 'Acepta débito, crédito y transferencia bancaria.',
                 'active' => true
             ],
             [
-                'name' => 'Débito y crédito sin cuotas (Webpay)',
-                'description' => 'Pago con Webpay en una sola cuota (sin interés).',
+                'name' => 'Solo pago con Tarjeta (Débito/Crédito)',
+                'description' => 'Solo acepta pagos con tarjetas de débito y crédito.',
                 'active' => true
             ],
             [
-                'name' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
-                'description' => 'Pago con Webpay en 3 cuotas precio contado (sin interés).',
+                'name' => 'Solo pago con Transferencia',
+                'description' => 'Solo acepta pagos por transferencia bancaria.',
                 'active' => true
             ],
             [
-                'name' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
-                'description' => 'Pago con Webpay en 6 cuotas precio contado (sin interés).',
-                'active' => true
-            ],
-            [
-                'name' => 'Débito y crédito 12 cuotas sin interés (Webpay)',
-                'description' => 'Pago con Webpay en 12 cuotas precio contado (sin interés).',
+                'name' => 'Solo pago contado (Débito/Transferencia)',
+                'description' => 'Solo acepta pagos al contado vía débito o transferencia.',
                 'active' => true
             ],
         ];
@@ -45,7 +40,7 @@ class PaymentMethodSeeder extends Seeder
             ]));
         }
 
-        $this->command->info('✅ Métodos de pago creados exitosamente:');
+        $this->command->info('✅ Métodos de pago creados/actualizados exitosamente:');
         foreach ($paymentMethods as $method) {
             $this->command->info('💳 ' . $method['name']);
         }

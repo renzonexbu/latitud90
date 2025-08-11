@@ -5,6 +5,7 @@ namespace App\Services\Client;
 use App\Models\Participant;
 use App\Models\Course;
 use App\Models\Program;
+use App\Models\Payment;
 
 class ProgramService
 {
@@ -44,10 +45,12 @@ class ProgramService
                 $enrolledCount = $program->course->participants()->count();
             }
 
-            // Calcular porcentaje de pago (por ahora 0%, se puede implementar después)
+            // Calcular montos pagados y adeudados por participante
             $paymentPercentage = 0;
             $paidAmount = 0;
-            $totalAmount = $program->trip_price;
+            $totalAmount = $program->trip_price; // total de referencia si no hay inscripción
+            $participantTotalAmount = $program->trip_price; // total a pagar por participante (base + ajuste)
+            $participantBalance = $program->trip_price; // saldo remanente por defecto
 
             if (!$isEnrolled) {
                 $availablePrograms[] = [
@@ -61,7 +64,9 @@ class ProgramService
                     'images' => $program->images,
                     'paymentPercentage' => $paymentPercentage,
                     'paidAmount' => $paidAmount,
-                    'totalAmount' => $totalAmount,
+                    'totalAmount' => $participantTotalAmount,
+                    'participant_total_due' => $participantTotalAmount, // mantener mismo nombre que Admin/Edit.vue
+                    'participant_balance' => $participantBalance,
                     'status' => 'available'
                 ];
             } else {
@@ -70,6 +75,24 @@ class ProgramService
                     ->where('course_id', $program->course_id)
                     ->first();
                 
+                // Determinar total por participante (precio individual + ajustes)
+                $individualPrice = (float) ($enrollment->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
+                $priceAdjustments = (float) ($enrollment->pivot->price_adjustments ?? 0);
+                $totalAmount = round($individualPrice + $priceAdjustments, 2);
+
+                // Sumar pagos aprobados para este participante y programa
+                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $program->id);
+                    })
+                    ->where('status', 'approved')
+                    ->sum('amount');
+
+                $paidAmount = round($paidAmount, 2);
+                $participantBalance = max(round($totalAmount - $paidAmount, 2), 0);
+                $participantTotalAmount = $totalAmount;
+                $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0;
+
                 $availablePrograms[] = [
                     'id' => $program->id,
                     'name' => $program->name,
@@ -82,6 +105,10 @@ class ProgramService
                     'paymentPercentage' => $paymentPercentage,
                     'paidAmount' => $paidAmount,
                     'totalAmount' => $totalAmount,
+                    'participant_total_due' => $participantTotalAmount, // mismo uso que Admin/Edit.vue
+                    'participant_balance' => $participantBalance,
+                    'participant_amount' => $individualPrice,
+                    'participant_adjustments' => $priceAdjustments,
                     'status' => $enrollment->pivot->status ?? 'enrolled',
                     'enrollment_date' => $enrollment->pivot->created_at ?? null
                 ];

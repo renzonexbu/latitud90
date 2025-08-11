@@ -105,7 +105,7 @@
                 <div class="flex flex-row items-center justify-between w-full">
                     <div class="flex flex-col items-start">
                         <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">Faltan pagar</span>
-                        <span class="text-[#434343] font-nexa text-[18px] leading-[28px] font-bold">$1800</span>
+                        <span class="text-[#434343] font-nexa text-[18px] leading-[28px] font-bold">{{ formatPrice(program.participant_balance ?? program.participant_total_due ?? program.trip_price) }}</span>
                     </div>
                     <button
                         class="flex h-[48px] px-[21px] py-[13px] justify-center items-center gap-[10px] rounded-[35px] bg-[#FBBD51]"
@@ -204,6 +204,17 @@ export default {
         };
     },
     methods: {
+        formatPrice(amount) {
+            const safe = Number(amount ?? 0);
+            return new Intl.NumberFormat("es-CL", {
+                style: "currency",
+                currency: "CLP",
+                maximumFractionDigits: 0,
+            })
+                .format(safe)
+                .replace("CLP", "")
+                .trim();
+        },
         openMobilePaymentPanel() {
             this.isMobilePaymentOpen = true;
         },

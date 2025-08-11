@@ -8,6 +8,7 @@ use App\Models\Institution;
 use App\Models\Course;
 use App\Models\Feature;
 use App\Models\Requirement;
+use App\Models\Payment;
 
 class ProgramDetailService
 {
@@ -17,7 +18,8 @@ class ProgramDetailService
             'features',
             'requirements',
             'totalPaymentMethod',
-            'lat90PaymentMethod'
+            'lat90PaymentMethod',
+            'course.participants'
         ])->find($programId);
 
         if (!$program) {
@@ -27,9 +29,38 @@ class ProgramDetailService
         // Obtener el participante
         $participant = Participant::find($participantId);
 
-        // Verificar si el participante ya está inscrito en este programa
-        // Por ahora, simplificamos esta verificación
-        $isEnrolled = false; // TODO: Implementar lógica de verificación de inscripción
+        // Verificar si el participante ya está inscrito en este programa y calcular montos
+        $isEnrolled = false;
+        $participantAmount = null;
+        $participantAdjustments = 0.0;
+        $participantTotalAmount = (float) $program->trip_price;
+        $paidAmount = 0.0;
+        $participantBalance = (float) $program->trip_price;
+        $paymentPercentage = 0.0;
+
+        if ($participant && $program->course) {
+            $pivotParticipant = $program->course->participants
+                ->firstWhere('id', $participant->id);
+            if ($pivotParticipant) {
+                $isEnrolled = true;
+                $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
+                $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
+                $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+
+                // Sumar pagos aprobados del participante para este programa
+                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $program->id);
+                    })
+                    ->where('status', 'approved')
+                    ->sum('amount');
+                $paidAmount = round($paidAmount, 2);
+                $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+                $paymentPercentage = $participantTotalAmount > 0
+                    ? round(($paidAmount / $participantTotalAmount) * 100, 2)
+                    : 0.0;
+            }
+        }
 
         // Obtener información completa del programa
         $programData = [
@@ -43,6 +74,13 @@ class ProgramDetailService
             'seller_name' => $program->seller_name,
             'active' => $program->active,
             'is_enrolled' => $isEnrolled,
+            // Montos por participante
+            'participant_amount' => $participantAmount,
+            'participant_adjustments' => $participantAdjustments,
+            'participant_total_due' => $participantTotalAmount,
+            'paidAmount' => $paidAmount,
+            'participant_balance' => $participantBalance,
+            'paymentPercentage' => $paymentPercentage,
 
             // Archivos PDF
             'itinerary_file' => $program->itinerary_file_url,

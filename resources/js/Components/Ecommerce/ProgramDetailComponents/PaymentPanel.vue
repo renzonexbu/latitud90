@@ -135,7 +135,7 @@
                     <span
                         class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold"
                     >
-                        $1800
+                        {{ formatPrice(program.participant_balance ?? program.participant_total_due ?? program.trip_price) }}
                     </span>
                 </div>
             </div>
@@ -258,6 +258,17 @@ export default {
         };
     },
     methods: {
+        formatPrice(amount) {
+            const safe = Number(amount ?? 0);
+            return new Intl.NumberFormat("es-CL", {
+                style: "currency",
+                currency: "CLP",
+                maximumFractionDigits: 0,
+            })
+                .format(safe)
+                .replace("CLP", "")
+                .trim();
+        },
         containerBaseClasses() {
             return "w-full h-fit";
         },
@@ -279,18 +290,18 @@ export default {
             return this.filterPaymentOptionsByMethod(methodId);
         },
 
-        // Obtener opciones de pago mensual (Latitud 90)
+        // Obtener opciones de pago mensual (Latitud 90), similares a pago total
         getMonthlyPaymentOptions() {
-            if (!this.program.enable_lat90_payment) {
+            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) {
                 return [];
             }
-            return [
-                { value: 'khipu', label: 'Transferencia bancaria (Khipu)', description: null },
-                { value: 'webpay_1', label: 'Débito y crédito sin cuotas (Webpay)', description: null },
-                { value: 'webpay_3', label: 'Débito y crédito 3 cuotas sin interés (Webpay)', description: null },
-                { value: 'webpay_6', label: 'Débito y crédito 6 cuotas sin interés (Webpay)', description: null },
-                { value: 'webpay_12', label: 'Débito y crédito 12 cuotas sin interés (Webpay)', description: null },
-            ];
+            const base = this.filterPaymentOptionsByMethod(this.program.lat90_payment_method_id);
+            // Para mensual, remover la descripción de crédito (no mostrar 3, 6 o 12) y agregar advertencia
+            return base.map(opt => ({
+                ...opt,
+                description: opt.value === 'credit' ? null : opt.description,
+                warning: opt.value === 'credit' ? 'Solo se efectuará 1 cuota' : null,
+            }));
         },
 
         // Filtrar opciones según el método de pago configurado
@@ -373,12 +384,10 @@ export default {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
-            // Sincronizar cuotas según la opción seleccionada
-            if (option === 'webpay_1') this.selectedInstallments = 1;
-            if (option === 'webpay_3') this.selectedInstallments = 3;
-            if (option === 'webpay_6') this.selectedInstallments = 6;
-            if (option === 'webpay_12') this.selectedInstallments = 12;
-            
+            // Si es tarjeta de crédito en mensual, forzar 1 cuota
+            if (option === 'credit') {
+                this.selectedInstallments = 1;
+            }
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
         },

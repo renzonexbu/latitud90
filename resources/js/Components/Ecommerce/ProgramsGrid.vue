@@ -77,16 +77,22 @@ export default {
 
             // Usar la paginación del backend si está disponible
             if (this.programs.data) {
-                return this.programs.data.map((program) => ({
-                    ...program,
-                    // Agregar campos calculados para compatibilidad con el card
-                    price: program.price || program.trip_price,
-                    duration: this.calculateDuration(program.start_date, program.end_date),
-                    participants: 0, // Por ahora 0, se puede calcular después
-                    paymentPercentage: 0, // Por ahora 0, se puede calcular después
-                    paidAmount: 0, // Por ahora 0, se puede calcular después
-                    totalAmount: program.price || program.trip_price,
-                }));
+                return this.programs.data.map((program) => {
+                    // Replicar lógica de Admin/Edit.vue: total del participante = base + ajuste
+                    const base = program.participant_amount ?? program.individual_price ?? null;
+                    const adj = program.participant_adjustments ?? 0;
+                    const participantTotal = program.participant_total_due ?? (base !== null ? base + adj : program.trip_price);
+
+                    return {
+                        ...program,
+                        price: participantTotal,
+                        duration: this.calculateDuration(program.start_date, program.end_date),
+                        participants: program.participants ?? 0,
+                        paymentPercentage: program.paymentPercentage ?? 0,
+                        paidAmount: program.paidAmount ?? 0,
+                        totalAmount: participantTotal,
+                    };
+                });
             }
 
             return [];

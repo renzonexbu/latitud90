@@ -31,7 +31,7 @@
                         con tarjeta en 3, 6 o 12 cuotas.
                         <br />
                         <br />
-                        Si luego querés abonar el total, deberás seleccionar todas las cuotas
+                        Si luego quieres abonar el total, deberás seleccionar todas las cuotas
                         de LAT90 y
                     </span>
                     <span class="font-nexa font-extrabold">
