@@ -1,6 +1,6 @@
 <template>
     <div :class="containerClass">
-        <div class="flex flex-col gap-[24px]">
+        <div class="flex flex-col gap-[24px] w-full md:max-w-none mx-auto">
             <!-- Header Section -->
             <div v-if="showHeader" class="flex flex-col gap-[14px]">
                 <h2
@@ -266,7 +266,7 @@ export default {
             return `${this.containerBaseClasses()} bg-transparent border-0 p-0 shadow-none mx-0`;
         },
         defaultContainerClasses() {
-            return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)] mx-5`;
+            return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[20px_15px] md:p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)]`;
         },
         
         // Obtener opciones de pago total según la configuración del programa

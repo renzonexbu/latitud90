@@ -38,10 +38,10 @@
             <ProcessSteps :current-step="4" />
 
             <!-- Cards Container -->
-            <div class="flex gap-6 my-8">
+            <div class="flex flex-col md:flex-row items-center md:items-start justify-center gap-6 my-8">
                 <!-- Left Card - Payment Panel -->
-                <div class="w-1/2 bg-transparent rounded-lg">
-                    <div class="p-6">
+                <div class="w-full md:w-1/2 bg-transparent rounded-lg">
+                    <div class="w-full max-w-[480px] mx-auto md:mx-0 p-4 sm:p-6">
                         <PaymentPanel
                             :final-payment-date="
                                 confirmationData.program.final_payment_date
@@ -59,8 +59,8 @@
                 </div>
 
                 <!-- Right Card -->
-                <div class="w-1/2">
-                    <div class="p-6">
+                <div class="w-full md:w-1/2">
+                    <div class="w-full max-w-[480px] mx-auto md:mx-0 p-4 sm:p-6">
                         <ConfirmationCard
                             :program="confirmationData.program"
                             :form-data="confirmationData.form_data"
@@ -70,7 +70,7 @@
             </div>
 
             <!-- Botón Volver a Completar Datos -->
-            <div class="mx-[120px] mt-8">
+            <div class="mx-4 md:mx-[120px] mt-8">
                 <BackToHomeButton
                     :rut="rut"
                     variant="programs"

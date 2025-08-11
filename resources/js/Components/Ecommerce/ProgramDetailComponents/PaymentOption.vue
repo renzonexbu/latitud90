@@ -22,7 +22,7 @@
 
                     <!-- Title -->
                     <h3
-                        class="text-[#434343] font-outfit-medium text-[20px] leading-[69.69px] font-medium"
+                        class="text-[#434343] font-nexa text-[12px] leading-[18px] font-normal md:font-outfit-medium md:text-[20px] md:leading-[69.69px] md:font-medium"
                     >
                         {{ title }}
                     </h3>

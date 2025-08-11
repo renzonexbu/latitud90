@@ -1,18 +1,18 @@
 <template>
     <div
-        class="bg-white rounded-xl border border-[#D3D3D3] p-6 flex flex-col justify-between h-[450px] w-[504px]"
+        class="bg-white rounded-xl border border-[#D3D3D3] p-3 md:p-6 flex flex-col justify-between w-full md:h-[450px] md:w-[504px]"
     >
         <!-- Top Section -->
         <div class="flex flex-col gap-[18px]">
             <!-- Person Info -->
-            <div class="flex flex-col gap-0">
+                <div class="flex flex-col gap-0">
                 <div
-                    class="text-[#5B5B5B] font-nexa text-xl leading-7 font-normal"
+                    class="text-[#5B5B5B] font-nexa text-[16px] leading-[28px] font-normal md:text-xl md:leading-7"
                 >
                     Estás por pagar el viaje de
                 </div>
                 <div
-                    class="text-[#007E93] font-nexa text-xl leading-7 font-bold"
+                    class="text-[#007E93] font-nexa text-[16px] leading-[28px] font-bold md:text-xl md:leading-7"
                 >
                     {{ participantName || "Usuario" }}
                 </div>
