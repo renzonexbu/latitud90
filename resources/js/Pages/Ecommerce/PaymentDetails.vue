@@ -11,10 +11,10 @@
             <!-- Content Section -->
             <div class="mt-8 flex justify-center">
                 <!-- Form -->
-                <div class="flex flex-col gap-8">
-                    <div class="flex flex-row gap-[54px]">
+                <div class="flex flex-col gap-8 w-full">
+                    <div class="flex flex-col md:flex-row gap-6 md:gap-[54px] w-full">
                         <!-- Left Column - Personal Information -->
-                        <div class="flex flex-col gap-[18px] w-[364px]">
+                        <div class="flex flex-col gap-[18px] w-full md:w-[364px]">
                             <!-- Nombre completo -->
                             <div class="flex flex-col gap-[12px]">
                                 <label
@@ -137,7 +137,7 @@
                         </div>
 
                         <!-- Right Column - Location and Agreements -->
-                        <div class="flex flex-col gap-[21px] w-[366px]">
+                        <div class="flex flex-col gap-[21px] w-full md:w-[366px]">
                             <!-- Location Information -->
                             <div class="flex flex-col gap-[21px]">
                                 <!-- País -->
@@ -240,17 +240,19 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex justify-between items-center w-full gap-8 mt-12">
+            <div class="flex flex-col md:flex-row md:justify-between items-stretch md:items-center w-full gap-4 md:gap-8 mt-12">
                 <!-- Back Button -->
-                <BackToHomeButton
-                    :rut="rut"
-                    variant="programs"
-                    :route="`/programs/${programId}?rut=${rut}`"
-                />
+                <div class="w-full md:w-auto">
+                    <BackToHomeButton
+                        :rut="rut"
+                        variant="programs"
+                        :route="`/programs/${programId}?rut=${rut}`"
+                    />
+                </div>
 
                 <!-- Continue Button -->
                 <button
-                    class="rounded-[59px] bg-[#C7C7C7] flex px-[20px] py-[11px] justify-center items-center gap-[12px] transition-colors duration-300"
+                    class="rounded-[59px] bg-[#C7C7C7] w-full md:w-auto flex px-[20px] py-[11px] justify-center items-center gap-[12px] transition-colors duration-300"
                     :class="{
                         'bg-[#FBBD51] cursor-pointer': isFormValid,
                         'bg-[#C7C7C7] cursor-not-allowed': !isFormValid,
@@ -368,23 +370,27 @@ export default {
                 selectedDocType && selectedDocType.name.toLowerCase() === "rut"
             );
         },
-          isFormValid() {
-              const validations = {
-                  fullName: this.formData.fullName.trim() !== "",
-                  documentType: this.formData.documentType !== "",
-                  documentNumber: this.formData.documentNumber.trim() !== "",
-                  email: this.formData.email.trim() !== "",
-                  phone: this.formData.phone.trim() !== "",
-                  country: this.formData.country !== "",
-                  region: this.formData.region !== "",
-                  city: this.formData.city !== "",
-                  termsAccepted: this.formData.termsAccepted,
-              };
+        isFormValid() {
+            const validations = {
+                fullName: this.formData.fullName.trim() !== "",
+                documentType: this.formData.documentType !== "",
+                documentNumber: this.formData.documentNumber.trim() !== "",
+                email: this.formData.email.trim() !== "",
+                phone: this.formData.phone.trim() !== "",
+                country: this.formData.country !== "",
+                region: this.formData.region !== "",
+                city: this.formData.city !== "",
+                termsAccepted: this.formData.termsAccepted,
+            };
 
-              const basicValidation = Object.values(validations).every((v) => v === true);
-              const rutOk = this.isRutDocument ? this.rutValidation.isValid === true : true;
-              return basicValidation && rutOk;
-          },
+            const basicValidation = Object.values(validations).every(
+                (v) => v === true
+            );
+            const rutOk = this.isRutDocument
+                ? this.rutValidation.isValid === true
+                : true;
+            return basicValidation && rutOk;
+        },
     },
     mounted() {
         // Leer los datos de pago del localStorage
@@ -513,7 +519,7 @@ export default {
 
                 if (newRegionId && newRegionId !== oldRegionId) {
                     // Limpiar comuna cuando cambie la región
-            this.formData.city = "";
+                    this.formData.city = "";
 
                     // Si hay una ciudad guardada en localStorage, intentar cargarla después de que las comunas estén disponibles
                     const savedBuyerData = localStorage.getItem("buyerData");
@@ -636,29 +642,29 @@ export default {
         validateForm() {
             // Ya no es necesario: isFormValid es computed
         },
-        
+
         getDocumentLabel() {
             if (!this.formData.documentType) return "Número de documento";
-            
+
             const selectedDocType = this.documentTypes.find(
                 (doc) => doc.id == this.formData.documentType
             );
-            
+
             return selectedDocType
                 ? selectedDocType.name
                 : "Número de documento";
         },
-        
+
         getDocumentPlaceholder() {
             if (!this.formData.documentType)
                 return "Ingresa tu número de documento";
-            
+
             const selectedDocType = this.documentTypes.find(
                 (doc) => doc.id == this.formData.documentType
             );
-            
+
             if (!selectedDocType) return "Ingresa tu número de documento";
-            
+
             switch (selectedDocType.name.toLowerCase()) {
                 case "rut":
                     return "Ej: 12.345.678-9";
@@ -860,7 +866,7 @@ export default {
                 email: this.formData.email,
                 code_phone: this.formData.code_phone,
                 phone: this.formData.phone,
-                
+
                 // Datos de ubicación
                 countryId: this.formData.country,
                 countryName: selectedCountry ? selectedCountry.name : "",
@@ -868,11 +874,11 @@ export default {
                 regionName: selectedRegion ? selectedRegion.name : "",
                 cityId: this.formData.city,
                 cityName: selectedComune ? selectedComune.name : "",
-                
+
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
                 marketingAccepted: this.formData.marketingAccepted,
-                
+
                 // Timestamp
                 submittedAt: new Date().toISOString(),
             };
