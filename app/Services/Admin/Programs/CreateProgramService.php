@@ -50,7 +50,9 @@ class CreateProgramService
                 'itinerary_file' => null, // Se actualizará después
                 'travel_assistance_coverage' => null, // Se actualizará después
                 'equipment_list' => null, // Se actualizará después
-                'trip_price' => $programData['total_price'] ?? $programData['trip_price'],
+                // trip_price en BD almacena el total del programa (precio por participante FINAL x #participantes)
+                // Inicialmente 0; se recalculará tras procesar participantes
+                'trip_price' => 0,
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => $programData['sales_person'] ?? $programData['seller_name'],
                 
@@ -98,6 +100,9 @@ class CreateProgramService
                     $this->processParticipants($programData['students_file'], $course, $program);
                 }
             }
+
+            // Recalcular y actualizar el total del programa (trip_price) según #participantes y precio por participante final
+            $this->recalculateProgramTotal($program, $programData);
 
             DB::commit();
             return $program;
@@ -161,6 +166,53 @@ class CreateProgramService
         }
 
         return $programData;
+    }
+
+    /**
+     * Calcula el precio final por participante aplicando descuento.
+     */
+    private function resolvePerParticipantFinal(array $programData): float
+    {
+        $base = (float) ($programData['total_price'] ?? $programData['trip_price'] ?? 0);
+        $discountType = $programData['discount_type'] ?? $programData['group_benefit'] ?? null;
+        $discountValue = $this->calculateDiscountValue($programData); // porcentaje (0.10) o monto fijo
+
+        if (!$discountType || !$discountValue) {
+            return round($base, 2);
+        }
+
+        if ($discountType === 'monto_fijo') {
+            return max(0.0, round($base - (float) $discountValue, 2));
+        }
+
+        // porcentaje
+        return max(0.0, round($base - ($base * (float) $discountValue), 2));
+    }
+
+    /**
+     * Recalcula el total del programa (trip_price) como precio por participante FINAL x #participantes del curso.
+     * Actualiza también el individual_price de cada participante y en el pivote participant_course.
+     */
+    private function recalculateProgramTotal(Program $program, array $programData): void
+    {
+        $program->load('course.participants');
+        $course = $program->course;
+        if (!$course) {
+            return;
+        }
+        $participants = $course->participants ?? collect();
+        $count = $participants->count();
+        $perParticipantFinal = $this->resolvePerParticipantFinal($programData);
+
+        // Actualizar solo el pivote participant_course
+        foreach ($participants as $participant) {
+            $participant->courses()->updateExistingPivot($course->id, [
+                'individual_price' => $perParticipantFinal,
+            ]);
+        }
+
+        $total = round($perParticipantFinal * $count, 2);
+        $program->update(['trip_price' => $total]);
     }
 
     /**
@@ -507,15 +559,31 @@ class CreateProgramService
                 $participantCount++;
             }
             
-            // Calcular el precio individual después de procesar todos los participantes
+            // Calcular el precio individual (por participante) aplicando descuento del programa
             if ($participantCount > 0) {
-                $individualPrice = $program->trip_price / $participantCount;
-                
-                
-                
-                // Actualizar el precio individual de todos los participantes
+                $tripPrice = (float) $program->trip_price;
+                $discountType = $program->discount_type; // porcentaje_10 | porcentaje_15 | porcentaje_20 | monto_fijo | null
+                $discountValue = $program->discount_value; // decimal (porcentaje) o monto fijo
+
+                $discountAmount = 0.0;
+                if ($discountType && $discountValue) {
+                    if ($discountType === 'monto_fijo') {
+                        $discountAmount = min($tripPrice, (float) $discountValue);
+                    } else {
+                        // Se asume discount_value en decimal (e.g., 0.10)
+                        $discountAmount = round($tripPrice * (float) $discountValue, 2);
+                    }
+                }
+                $finalTotal = max(0.0, round($tripPrice - $discountAmount, 2));
+                $individualPrice = round($finalTotal / $participantCount, 2);
+
+                // Actualizar el precio individual del participante y del pivote
                 foreach ($participants as $participant) {
                     $participant->update(['individual_price' => $individualPrice]);
+                    // Actualizar pivote participant_course
+                    $participant->courses()->updateExistingPivot($course->id, [
+                        'individual_price' => $individualPrice,
+                    ]);
                 }
             }
             
@@ -689,13 +757,23 @@ class CreateProgramService
         if (!$this->isLat90PaymentEnabled($programData)) {
             return null;
         }
-
         $paymentMethodKey = $programData['installments_payment_method'] ?? '';
         if (!$paymentMethodKey) {
             return null;
         }
 
-        // Resolver por nombre según la clave seleccionada en el frontend
+        // Aceptar mismas claves que en pago total
+        $methodMapping = [
+            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
+            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
+            'solo_transferencia' => 3, // Solo pago transferencia
+            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+        ];
+        if (isset($methodMapping[$paymentMethodKey])) {
+            return $methodMapping[$paymentMethodKey];
+        }
+
+        // Fallback para claves antiguas
         $nameByKey = [
             'khipu'    => 'Transferencia bancaria (Khipu)',
             'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',
@@ -703,12 +781,10 @@ class CreateProgramService
             'webpay_6' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
             'webpay_12'=> 'Débito y crédito 12 cuotas sin interés (Webpay)',
         ];
-
         $targetName = $nameByKey[$paymentMethodKey] ?? null;
         if (!$targetName) {
             return null;
         }
-
         $method = \App\Models\PaymentMethod::where('name', $targetName)->first();
         return $method?->id;
     }

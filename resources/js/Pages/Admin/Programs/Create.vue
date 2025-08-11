@@ -133,7 +133,7 @@ const paymentData = ref({
     group_benefit: "",
     discount_type: "",
     discount_amount: "",
-    payment_options: [], // Array para múltiples opciones de pago
+    payment_options: [],
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",

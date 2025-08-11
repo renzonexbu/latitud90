@@ -183,6 +183,9 @@ class UpdateProgramService
                 $this->processParticipants($programData['students_file'], $existingCourse, $program);
             }
 
+            // Recalcular el total del programa (trip_price = precio final por participante x #participantes)
+            $this->recalculateProgramTotal($program, $programData);
+
             DB::commit();
             Log::info('UpdateProgramService: Actualización finalizada', [
                 'program_id' => $program->id
@@ -198,6 +201,64 @@ class UpdateProgramService
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Calcula el precio final por participante aplicando descuento.
+     */
+    private function resolvePerParticipantFinal(array $programData, Program $program): float
+    {
+        $base = (float) ($programData['total_price'] ?? $programData['trip_price'] ?? $program->trip_price ?? 0);
+        // Cuando el base venga del request, es precio por participante; si viene del modelo puede ser total.
+        if (!isset($programData['total_price']) && !isset($programData['trip_price'])) {
+            // Si no vino en request, no podemos inferir precio por participante desde total con seguridad.
+            // Usamos el valor actual de participantes para estimar si existe curso.
+            $program->load('course.participants');
+            $count = $program->course?->participants?->count() ?? 0;
+            if ($count > 0) {
+                $base = round(((float) $program->trip_price) / $count, 2);
+            }
+        }
+
+        $discountType = $programData['discount_type'] ?? $programData['group_benefit'] ?? ($program->discount_type ?? null);
+        $discountValue = isset($programData['discount_type']) || isset($programData['group_benefit'])
+            ? $this->calculateDiscountValue($programData)
+            : $program->discount_value;
+
+        if (!$discountType || !$discountValue) {
+            return round($base, 2);
+        }
+
+        if ($discountType === 'monto_fijo') {
+            return max(0.0, round($base - (float) $discountValue, 2));
+        }
+
+        return max(0.0, round($base - ($base * (float) $discountValue), 2));
+    }
+
+    /**
+     * Recalcula y actualiza el total del programa y sincroniza individual_price/pivote.
+     */
+    private function recalculateProgramTotal(Program $program, array $programData): void
+    {
+        $program->load('course.participants');
+        $course = $program->course;
+        if (!$course) return;
+
+        $participants = $course->participants ?? collect();
+        $count = $participants->count();
+        if ($count <= 0) return;
+
+        $perParticipantFinal = $this->resolvePerParticipantFinal($programData, $program);
+
+        foreach ($participants as $participant) {
+            $participant->courses()->updateExistingPivot($course->id, [
+                'individual_price' => $perParticipantFinal,
+            ]);
+        }
+
+        $total = round($perParticipantFinal * $count, 2);
+        $program->update(['trip_price' => $total]);
     }
 
     /**
@@ -613,15 +674,29 @@ class UpdateProgramService
                 $participantCount++;
             }
             
-            // Calcular el precio individual después de procesar todos los participantes
+            // Calcular el precio individual (por participante) aplicando descuento del programa
             if ($participantCount > 0) {
-                $individualPrice = $program->trip_price / $participantCount;
-                
-                
-                
-                // Actualizar el precio individual de todos los participantes
+                $tripPrice = (float) $program->trip_price;
+                $discountType = $program->discount_type;
+                $discountValue = $program->discount_value;
+
+                $discountAmount = 0.0;
+                if ($discountType && $discountValue) {
+                    if ($discountType === 'monto_fijo') {
+                        $discountAmount = min($tripPrice, (float) $discountValue);
+                    } else {
+                        $discountAmount = round($tripPrice * (float) $discountValue, 2);
+                    }
+                }
+                $finalTotal = max(0.0, round($tripPrice - $discountAmount, 2));
+                $individualPrice = round($finalTotal / $participantCount, 2);
+
+                // Actualizar el precio individual del participante y del pivote
                 foreach ($participants as $participant) {
                     $participant->update(['individual_price' => $individualPrice]);
+                    $participant->courses()->updateExistingPivot($course->id, [
+                        'individual_price' => $individualPrice,
+                    ]);
                 }
             }
             
@@ -753,6 +828,17 @@ class UpdateProgramService
         if (!$paymentMethodKey) {
             return null;
         }
+        // Aceptar mismas claves que en pago total
+        $methodMapping = [
+            'todos_medios' => 1,
+            'solo_tarjeta' => 2,
+            'solo_transferencia' => 3,
+            'solo_contado' => 4,
+        ];
+        if (isset($methodMapping[$paymentMethodKey])) {
+            return $methodMapping[$paymentMethodKey];
+        }
+        // Fallback para claves antiguas
         $nameByKey = [
             'khipu'    => 'Transferencia bancaria (Khipu)',
             'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',

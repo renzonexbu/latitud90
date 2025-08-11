@@ -35,8 +35,27 @@ class UpdateParticipatService
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
 
+            // El precio y ajustes se gestionan en el pivote, no en la tabla participants
+
             // Actualizar el participante
             $participant->update($updateData);
+
+            // Si se especificó un curso, aplicar ajuste/individual_price al pivote de ese curso
+            if (!empty($data['pivot_course_id'])) {
+                $pivotUpdate = [];
+                if (array_key_exists('individual_price', $data)) {
+                    $pivotUpdate['individual_price'] = $data['individual_price'];
+                }
+                if (array_key_exists('price_adjustments', $data)) {
+                    $pivotUpdate['price_adjustments'] = $data['price_adjustments'];
+                }
+                if (array_key_exists('adjustment_reason', $data)) {
+                    $pivotUpdate['adjustment_reason'] = $data['adjustment_reason'];
+                }
+                if (!empty($pivotUpdate)) {
+                    $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], $pivotUpdate);
+                }
+            }
 
             
 

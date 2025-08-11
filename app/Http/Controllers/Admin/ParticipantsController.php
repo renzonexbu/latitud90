@@ -102,8 +102,7 @@ class ParticipantsController extends Controller
             $participantData = array_intersect_key($request->validated(), array_flip([
                 'course_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
                 'document_type', 'document_number', 'country', 'birth_date', 'address',
-                'dietary_restrictions', 'medical_conditions', 'individual_price',
-                'price_adjustments', 'adjustment_reason'
+                'dietary_restrictions', 'medical_conditions'
             ]));
 
             // Asegurar que medical_conditions sea un string, no un array
@@ -149,14 +148,29 @@ class ParticipantsController extends Controller
         
         // Buscar todos los programas relacionados al RUT del participante
         $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
-            $query->where('document_number', $participant->document_number)
-                  ->where('document_type', $participant->document_type)
-                  ->where('country', $participant->country);
-        })->with(['course', 'course.institution'])->get();
-        
+            $query->where('participants.id', $participant->id);
+        })
+        ->with(['course' => function($q) use ($participant) {
+            $q->with(['institution', 'participants' => function($qp) use ($participant) {
+                $qp->where('participants.id', $participant->id);
+            }]);
+        }])
+        ->get()
+        ->map(function($program) use ($participant) {
+            $pivotParticipant = optional($program->course)->participants->first();
+            $individual = optional($pivotParticipant)->pivot->individual_price ?? $participant->individual_price ?? null;
+            $adjust = optional($pivotParticipant)->pivot->price_adjustments ?? 0;
+            $totalDue = is_null($individual) ? null : (float) $individual + (float) $adjust;
+            $array = $program->toArray();
+            $array['participant_amount'] = $individual; // precio base por participante
+            $array['participant_adjustments'] = $adjust; // ajuste del pivote
+            $array['participant_total_due'] = $totalDue; // total a pagar (base + ajuste)
+            return $array;
+        });
+
         return Inertia::render('Admin/Participants/Edit', [
             'participant' => $participant,
-            'participantPrograms' => $participantPrograms
+            'participantPrograms' => $participantPrograms,
         ]);
     }
 

@@ -348,7 +348,7 @@
                                             :disabled="!canEnableExcel()"
                                         />
                                         <span v-if="!canEnableExcel()" class="text-red-500 text-xs mt-1">
-                                            Completa primero: Institución, Nivel de educación, Turno y Grado
+                                            Completa primero: Institución y Nivel de educación
                                         </span>
                                     </div>
                                 </div>
@@ -534,30 +534,31 @@
                                                 v-model="formData.installments_payment_method"
                                                 class="admin-input-text"
                                             >
-                                                <option value="">Seleccione La Forma De Pago</option>
-                                                <option value="khipu">Transferencia Bancaria (Khipu)</option>
-                                                <option value="webpay_1">Débito Y Crédito Sin Cuotas (Webpay)</option>
-                                                <option value="webpay_3">Débito Y Crédito 3 Cuotas Sin Interés (Webpay)</option>
-                                                <option value="webpay_6">Débito Y Crédito 6 Cuotas Sin Interés (Webpay)</option>
-                                                <option value="webpay_12">Débito Y Crédito 12 Cuotas Sin Interés (Webpay)</option>
+                                                <option value="">Seleccione la forma de pago</option>
+                                                <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
+                                                <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
+                                                <option value="solo_transferencia">Solo pago transferencia</option>
+                                                <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="installments-select">
                                         <div class="field-wrapper">
-                                            <div class="field-label">
-                                                Cuantas cuotas máximas
-                                            </div>
+                                                <div class="field-label">
+                                                    Cuántas cuotas máximas
+                                                </div>
                                             <select
                                                 v-model="formData.max_installments"
                                                 class="admin-select-small"
                                             >
                                                 <option value="">---</option>
-                                                <option value="3">3 cuotas</option>
-                                                <option value="6">6 cuotas</option>
-                                                <option value="9">9 cuotas</option>
-                                                <option value="12">12 cuotas</option>
+                                                <option v-for="opt in allowedInstallments" :key="opt" :value="String(opt)">
+                                                    {{ opt }} cuotas
+                                                </option>
                                             </select>
+                                            <div v-if="formData.final_payment_date" class="text-xs text-[#5b5b5b] mt-1">
+                                                Opciones disponibles según la fecha final de pago seleccionada.
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -571,7 +572,7 @@
 </template>
 
 <script setup>
-import { ref, watch, defineEmits, onMounted, nextTick } from "vue";
+import { ref, watch, defineEmits, onMounted, nextTick, computed } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
@@ -649,6 +650,23 @@ const formattedPrice = ref('');
 
 // Estado para el monto de descuento formateado
 const formattedDiscountAmount = ref('');
+// Cuotas permitidas según la fecha final de pago
+const allowedInstallments = computed(() => {
+    const options = [3, 6, 12];
+    const selectedDate = formData.value.final_payment_date;
+    if (!selectedDate) return options; // si no hay fecha, mostrar todas (validación en backend)
+
+    const now = new Date();
+    const end = new Date(selectedDate + 'T00:00:00');
+    // calcular meses completos entre hoy y la fecha final
+    let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+    // si el día del mes de hoy es mayor al de la fecha final, resta un mes (mes incompleto)
+    if (now.getDate() > end.getDate()) months -= 1;
+    if (months < 0) months = 0;
+
+    return options.filter(m => m <= months);
+});
+
 
 
 

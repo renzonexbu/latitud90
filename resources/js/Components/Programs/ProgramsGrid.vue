@@ -73,16 +73,21 @@ export default {
 
             // Usar la paginación del backend si está disponible
             if (this.programs.data) {
-                return this.programs.data.map((program) => ({
-                    ...program,
-                    // Agregar campos calculados para compatibilidad con el card
-                    price: program.trip_price,
-                    duration: this.calculateDuration(program.departure_date),
-                    participants: 0, // Por ahora 0, se puede calcular después
-                    paymentPercentage: 0, // Por ahora 0, se puede calcular después
-                    paidAmount: 0, // Por ahora 0, se puede calcular después
-                    totalAmount: program.trip_price,
-                }));
+                return this.programs.data.map((program) => {
+                    const base = program.participant_amount ?? program.individual_price ?? null;
+                    const adj = program.participant_adjustments ?? 0;
+                    const totalDue = base !== null ? base + adj : program.trip_price;
+                    return {
+                        ...program,
+                        // Mostrar siempre el total a pagar por el participante en los cards
+                        price: totalDue,
+                        duration: this.calculateDuration(program.departure_date),
+                        participants: 0,
+                        paymentPercentage: 0,
+                        paidAmount: 0,
+                        totalAmount: totalDue,
+                    };
+                });
             }
 
             return [];

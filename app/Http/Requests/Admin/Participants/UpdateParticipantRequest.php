@@ -21,6 +21,12 @@ class UpdateParticipantRequest extends FormRequest
             'phone' => 'nullable|string|max:20',
             'document_number' => 'required|string|max:20',
             'birth_date' => 'nullable|date',
+            // Ajustes de precio por participante (solo pivote)
+            'individual_price' => 'nullable|numeric|min:0',
+            'price_adjustments' => 'nullable|numeric',
+            'adjustment_reason' => 'required_with:price_adjustments|string|max:1000',
+            // Aplicación del ajuste a un curso específico del participante
+            'pivot_course_id' => 'nullable|integer|exists:courses,id',
         ];
     }
 }

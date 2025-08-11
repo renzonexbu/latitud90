@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -25,13 +26,15 @@ class CreateOrderService
             // Buscar el programa
             $program = Program::findOrFail($programId);
 
-            // Calcular montos
-            $totalAmount = $program->trip_price;
-            $discount = 0; // Por ahora sin descuentos
-            $finalAmount = $totalAmount - $discount;
+            // Calcular montos por participante aplicando descuento del programa
+            $totalAmount = (float) $program->trip_price;
+            [$discount, $finalAmount] = $this->applyProgramDiscount($program, $totalAmount);
 
             // Determinar número total de cuotas
-            $totalInstallments = $paymentData['paymentType'] === 'monthly' ? $paymentData['installments'] : 1;
+            $totalInstallments = $paymentData['paymentType'] === 'monthly'
+                ? (int) ($paymentData['installments'] ?? ($program->lat90_max_installments ?? 1))
+                : 1;
+            if ($totalInstallments < 1) { $totalInstallments = 1; }
 
             // Crear la orden principal
             $order = Order::create([
@@ -47,17 +50,19 @@ class CreateOrderService
                 'notes' => 'Orden creada desde el flujo de pago'
             ]);
 
-            // Crear el detalle de la orden (primera cuota)
-            $this->createOrderDetail($order, $paymentData, $formData, 1, $finalAmount);
-
-            // Si es pago mensual, crear las cuotas adicionales
+            // Crear cuotas según tipo de pago
             if ($paymentData['paymentType'] === 'monthly' && $totalInstallments > 1) {
-                $installmentAmount = $finalAmount / $totalInstallments;
-                
-                for ($i = 2; $i <= $totalInstallments; $i++) {
-                    $dueDate = now()->addMonths($i - 1);
-                    $this->createOrderDetail($order, $paymentData, $formData, $i, $installmentAmount, $dueDate);
+                $amounts = $this->splitAmountInInstallments($finalAmount, $totalInstallments);
+                $dueDates = $this->generateMonthlyDueDates($program, $totalInstallments);
+                for ($i = 1; $i <= $totalInstallments; $i++) {
+                    $this->createOrderDetail($order, $paymentData, $formData, $i, $amounts[$i - 1], $dueDates[$i - 1]);
                 }
+            } else {
+                // Pago total: una sola cuota por el monto final
+                $singleDueDate = $program->final_payment_date
+                    ? Carbon::parse($program->final_payment_date)
+                    : now();
+                $this->createOrderDetail($order, $paymentData, $formData, 1, $finalAmount, $singleDueDate);
             }
 
             DB::commit();
@@ -92,6 +97,120 @@ class CreateOrderService
         }
     }
 
+    /**
+     * Calcula descuento del programa y retorna [descuento_aplicado, monto_final]
+     */
+    private function applyProgramDiscount(Program $program, float $baseAmount): array
+    {
+        $discountType = $program->discount_type; // porcentaje_10 | porcentaje_15 | porcentaje_20 | monto_fijo | null
+        $discountValue = $program->discount_value; // porcentaje (0.10) o monto fijo
+
+        if (!$discountType || !$discountValue) {
+            return [0.0, round($baseAmount, 2)];
+        }
+
+        if ($discountType === 'monto_fijo') {
+            $discount = min($baseAmount, (float) $discountValue);
+            return [round($discount, 2), round($baseAmount - $discount, 2)];
+        }
+
+        // Asumimos valor porcentual en decimal (e.g., 0.10)
+        $percent = (float) $discountValue;
+        if ($percent <= 0) {
+            return [0.0, round($baseAmount, 2)];
+        }
+        $discount = round($baseAmount * $percent, 2);
+        return [$discount, round($baseAmount - $discount, 2)];
+    }
+
+    /**
+     * Divide un monto en N cuotas cuidando redondeo para que la suma sea exacta.
+     */
+    private function splitAmountInInstallments(float $total, int $installments): array
+    {
+        $base = floor(($total / $installments) * 100) / 100; // 2 decimales hacia abajo
+        $amounts = array_fill(0, $installments, $base);
+        $allocated = $base * $installments;
+        $remainder = round($total - $allocated, 2);
+
+        // Distribuir centavos restantes sumando 0.01 a las primeras cuotas
+        $i = 0;
+        while ($remainder > 0 && $i < $installments) {
+            $amounts[$i] = round($amounts[$i] + 0.01, 2);
+            $remainder = round($remainder - 0.01, 2);
+            $i++;
+        }
+        return $amounts;
+    }
+
+    /**
+     * Genera fechas de vencimiento mensuales.
+     * - Si el programa tiene final_payment_date, la última cuota vence ese día y las anteriores se van restando meses.
+     * - Si no, usa el día actual como día base y genera hacia adelante.
+     */
+    private function generateMonthlyDueDates(Program $program, int $installments): array
+    {
+        $dates = [];
+        if ($program->final_payment_date) {
+            $last = Carbon::parse($program->final_payment_date);
+            for ($i = $installments - 1; $i >= 0; $i--) {
+                $dates[$i] = $last->copy()->subMonthsNoOverflow(($installments - 1) - $i);
+            }
+            ksort($dates);
+            return array_values($dates);
+        }
+
+        $base = now();
+        $baseDay = $base->day;
+        for ($i = 0; $i < $installments; $i++) {
+            $month = $base->copy()->addMonthsNoOverflow($i);
+            $dates[] = $month->copy()->day(min($baseDay, $month->daysInMonth));
+        }
+        return $dates;
+    }
+
+    /**
+     * Rebalancea montos cuando existen cuotas vencidas impagas.
+     * Suma lo vencido impago y lo redistribuye equitativamente entre las cuotas futuras impagas.
+     */
+    public function rebalanceOverdueAmounts(Order $order): void
+    {
+        $today = Carbon::today();
+        $overdueUnpaid = $order->orderDetails()
+            ->where('due_date', '<', $today)
+            ->where('is_paid', false)
+            ->get();
+
+        if ($overdueUnpaid->isEmpty()) {
+            return;
+        }
+
+        $remaining = $order->orderDetails()
+            ->whereDate('due_date', '>=', $today)
+            ->where('is_paid', false)
+            ->orderBy('due_date')
+            ->get();
+
+        if ($remaining->isEmpty()) {
+            return;
+        }
+
+        $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
+
+        // Marcar vencidas como overdue y dejar en 0 para no duplicar deuda
+        foreach ($overdueUnpaid as $detail) {
+            $detail->status = 'overdue';
+            $detail->amount = 0.00;
+            $detail->save();
+        }
+
+        // Redistribuir entre las restantes
+        $additions = $this->splitAmountInInstallments($sumOverdue, $remaining->count());
+        foreach ($remaining as $index => $detail) {
+            $detail->amount = round($detail->amount + $additions[$index], 2);
+            $detail->save();
+        }
+    }
     private function createOrderDetail($order, $paymentData, $formData, $installmentNumber, $amount, $dueDate = null)
     {
         // Determinar el método de pago y modo de pago según la selección

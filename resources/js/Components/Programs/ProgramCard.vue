@@ -154,7 +154,7 @@
                                     <div
                                         class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2"
                                     >
-                                        /{{ formatPrice(program.totalAmount) }}
+                                        /{{ formatPrice(getDisplayTotalAmount()) }}
                                     </div>
                                 </div>
                             </div>
@@ -247,6 +247,17 @@ export default {
         },
     },
     methods: {
+        getDisplayTotalAmount() {
+            // Siempre mostrar el total a pagar por el participante (base + ajuste)
+            const p = this.program;
+            if (p.participant_total_due !== undefined && p.participant_total_due !== null) {
+                return p.participant_total_due;
+            }
+            const base = p.participant_amount ?? p.individual_price ?? null;
+            const adj = p.participant_adjustments ?? 0;
+            if (base !== null) return base + adj;
+            return p.totalAmount ?? p.trip_price ?? 0;
+        },
         formatPrice(price) {
             return new Intl.NumberFormat("es-CL", {
                 style: "currency",

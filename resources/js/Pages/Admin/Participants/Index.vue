@@ -204,7 +204,7 @@ export default {
                 filtered = filtered.filter(participant => 
                     this.getFirstCoursePivotStatus(participant) === this.localFilters.paymentStatus
                 );
-            }Arregl
+            }
 
             // Paginación
             const perPage = 10;
@@ -220,6 +220,16 @@ export default {
                 last_page: Math.ceil(filtered.length / perPage)
             };
         }
+    },
+    mounted() {
+        // Abrir modal de creación si viene desde acceso rápido del header
+        try {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            const params = new URLSearchParams(search);
+            if (params.get('openCreate') === '1') {
+                this.openCreateModal();
+            }
+        } catch (_) {}
     },
     methods: {
         handleFiltersChanged(newFilters) {

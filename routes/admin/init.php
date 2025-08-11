@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\PassengerController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportController;
@@ -18,9 +19,7 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
 
     // Dashboard de administración
-    Route::get('/', function () {
-        return Inertia::render('Admin/Dashboard');
-    })->name('dashboard');
+    Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
 
     // Gestión de programas
     include __DIR__ . '/program.php';

@@ -166,7 +166,16 @@ const programData = ref({
 
 // Datos del detalle administrativo que se sincronizan con el componente
 const paymentData = ref({
-    total_price: props.program.trip_price || "",
+    // Mostrar precio por participante en edición
+    total_price: (() => {
+        const course = props.program.course;
+        if (course && course.participants && course.participants.length > 0) {
+            const first = course.participants[0];
+            const pivot = first.pivot || {};
+            if (pivot.individual_price != null) return pivot.individual_price;
+        }
+        return "";
+    })(),
     final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
     sales_person: props.program.seller_name || "",
     institution_id: props.program.course?.institution_id || "",
@@ -177,7 +186,6 @@ const paymentData = ref({
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
     discount_amount: props.program.discount_amount ? props.program.discount_amount.toString() : "",
-    payment_option: mapPaymentOption(props.program),
     payment_options: [
         ...((props.program && props.program.enable_total_payment) ? ['full_payment'] : []),
         ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
