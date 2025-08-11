@@ -15,12 +15,12 @@ class UpdateCourseRequest extends FormRequest
     {
         return [
             'institutionId' => 'required|exists:institutions,id',
-            'educationLevel' => 'required|string|max:255',
+            'educationLevel' => 'required|in:preescolar,basica,media,universitaria',
             'year' => 'required|string|max:4',
-            'grade' => 'required|string|max:10',
-            'shift' => 'required|string|max:50',
-            'contactEmail' => 'nullable|email|max:255',
-            'contactPhone' => 'nullable|string|max:20',
+            'courseNumber' => 'nullable|integer|min:1|max:12',
+            'courseName' => 'nullable|string|max:50',
+            'contactEmail' => 'required|email|max:255',
+            'contactPhone' => 'required|string|max:20',
             'associatedProgram' => 'nullable|exists:programs,id',
             'endDate' => 'nullable|date',
         ];

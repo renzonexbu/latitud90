@@ -85,9 +85,7 @@ class CreateProgramService
 
             // Lógica para crear curso y participantes si se proporcionan los datos (opcional)
             if (!empty($programData['institution_id']) && 
-                !empty($programData['education_level']) && 
-                !empty($programData['shift']) && 
-                !empty($programData['grade'])) {
+                !empty($programData['education_level'])) {
                 
                 // Crear el curso
                 $course = $this->createCourse($programData, $program);
@@ -294,8 +292,8 @@ class CreateProgramService
             'institution_id' => $programData['institution_id'],
             'education_level' => $this->mapEducationLevel($programData['education_level']),
             'year' => date('Y'),
-            'grade' => $programData['grade'],
-            'shift' => $programData['shift'],
+            'course_number' => $programData['course_number'] ?? null,
+            'course_name' => $programData['course_name'] ?? null,
             'contact_email' => $programData['contact_email'] ?? '',
             'contact_phone' => $programData['contact_phone'] ?? '',
             'program_id' => $program->id, // Asignar el program_id correctamente
@@ -566,11 +564,13 @@ class CreateProgramService
      */
     private function mapEducationLevel(string $level): string
     {
+        // Aceptar claves antiguas y nuevas, normalizar a: preescolar, basica, media, universitaria
         return match ($level) {
             'inicial' => 'preescolar',
-            'primario' => 'primaria',
-            'secundario' => 'secundaria',
-            'universitario' => 'universitaria',
+            'primario', 'primaria', 'basica' => 'basica',
+            'secundario', 'secundaria', 'media' => 'media',
+            'universitario', 'universitaria' => 'universitaria',
+            'preescolar' => 'preescolar',
             default => $level,
         };
     }

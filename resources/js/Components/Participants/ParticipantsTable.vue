@@ -68,7 +68,7 @@
                     
                     <!-- Nivel -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
-                        {{ formatEducationLevel(participant) }}
+                        {{ formatCourseInfo(participant) }}
                     </div>
                     
                     <!-- Programa -->
@@ -169,13 +169,14 @@ export default {
             return `${numeroFormateado}-${dv}`;
         },
         
-        formatEducationLevel(participant) {
+        formatCourseInfo(participant) {
             const firstCourse = this.getFirstCourse(participant);
             if (!firstCourse) return 'N/A';
-            
             const level = this.capitalizeWords(firstCourse.education_level);
-            const shift = this.capitalizeWords(firstCourse.shift);
-            return `${level}\n${firstCourse.grade} | ${shift}`;
+            const num = firstCourse.course_number ? `${firstCourse.course_number}°` : '';
+            const label = firstCourse.education_level === 'basica' ? 'Básico' : (firstCourse.education_level === 'media' ? 'Medio' : '');
+            const courseStr = num ? `${num} ${label}`.trim() : '';
+            return [level, courseStr].filter(Boolean).join('\n');
         },
         
         getFirstCourse(participant) {

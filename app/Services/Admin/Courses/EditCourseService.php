@@ -39,32 +39,11 @@ class EditCourseService
         return [
             'institution_name' => $course->institution?->name ?? 'Sin institución',
             'year' => $course->year,
-            'grade' => $this->getOrdinalGrade($course->grade),
-            'shift' => $course->shift,
+            'grade' => $course->course_display,
+            'shift' => null,
             'education_level' => $course->education_level,
         ];
     }
 
-    private function getOrdinalGrade($grade): string
-    {
-        if (!$grade) return 'N/A';
-
-        $suffixes = [
-            1 => 'ro',
-            2 => 'do', 
-            3 => 'ro',
-            4 => 'to',
-            5 => 'to',
-            6 => 'to',
-            7 => 'mo',
-            8 => 'vo',
-            9 => 'no',
-            10 => 'mo',
-            11 => 'mo',
-            12 => 'mo'
-        ];
-
-        $suffix = $suffixes[$grade] ?? 'mo';
-        return $grade . $suffix;
-    }
+    // Ya no se usa ordinal; el modelo expone course_display
 }

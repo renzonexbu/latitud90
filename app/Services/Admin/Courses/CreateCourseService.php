@@ -23,10 +23,10 @@ class CreateCourseService
             // Crear el curso
             $course = Course::create([
                 'institution_id' => $courseData['institutionId'],
-                'education_level' => $courseData['educationLevel'],
+                'education_level' => $this->normalizeLevel($courseData['educationLevel']),
                 'year' => $courseData['year'],
-                'grade' => $courseData['grade'],
-                'shift' => $courseData['shift'],
+                'course_number' => $courseData['courseNumber'] ?? null,
+                'course_name' => $courseData['courseName'] ?? null,
                 'contact_email' => $courseData['contactEmail'],
                 'contact_phone' => $courseData['contactPhone'],
                 'program_id' => null, // Se asignará después si es necesario
@@ -53,6 +53,17 @@ class CreateCourseService
             DB::rollBack();
             throw $e;
         }
+    }
+
+    private function normalizeLevel(string $level): string
+    {
+        return match ($level) {
+            'primaria', 'primario', 'basica' => 'basica',
+            'secundaria', 'secundario', 'media' => 'media',
+            'preescolar' => 'preescolar',
+            'universitaria', 'universitario' => 'universitaria',
+            default => $level,
+        };
     }
 
     /**

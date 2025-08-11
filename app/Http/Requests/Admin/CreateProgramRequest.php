@@ -49,9 +49,8 @@ class CreateProgramRequest extends FormRequest
             // Campos del detalle administrativo (todos opcionales)
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'nullable|string|in:mañana,tarde,noche',
-            'grade' => 'nullable|string|max:10',
+            'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
+            'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
             'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
@@ -140,7 +139,9 @@ class CreateProgramRequest extends FormRequest
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
-            'shift.in' => 'El turno seleccionado no es válido.',
+            'course_number.integer' => 'El curso debe ser un número válido.',
+            'course_number.min' => 'El curso debe ser al menos 1.',
+            'course_number.max' => 'El curso no puede ser mayor a 12.',
             'group_benefit.in' => 'El beneficio grupal seleccionado no es válido.',
             'discount_type.in' => 'El tipo de descuento seleccionado no es válido.',
             'discount_amount.numeric' => 'El monto de descuento debe ser un número.',

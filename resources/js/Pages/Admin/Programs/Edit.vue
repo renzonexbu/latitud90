@@ -67,10 +67,10 @@ const props = defineProps({
 // Función para mapear nivel de educación desde BD al frontend
 const mapEducationLevel = (level) => {
     const mapping = {
-        'preescolar': 'inicial',
-        'primaria': 'primario',
-        'secundaria': 'secundario',
-        'universitaria': 'universitario'
+        'preescolar': 'preescolar',
+        'basica': 'basica',
+        'media': 'media',
+        'universitaria': 'universitaria'
     };
     return mapping[level] || level;
 };
@@ -126,8 +126,7 @@ const form = useForm({
     institution_id: props.program.course?.institution_id || "",
     institution_name: props.program.course?.institution?.name || "",
     education_level: mapEducationLevel(props.program.course?.education_level) || "",
-    shift: props.program.course?.shift || "",
-    grade: props.program.course?.grade || "",
+    course_number: props.program.course?.course_number || "",
     students_file: null,
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",
@@ -173,8 +172,7 @@ const paymentData = ref({
     institution_id: props.program.course?.institution_id || "",
     institution_name: props.program.course?.institution?.name || "",
     education_level: mapEducationLevel(props.program.course?.education_level) || "",
-    shift: props.program.course?.shift || "",
-    grade: props.program.course?.grade || "",
+    course_number: props.program.course?.course_number || "",
     students_file: null,
     group_benefit: props.program.group_benefit || "",
     discount_type: props.program.discount_type || "",

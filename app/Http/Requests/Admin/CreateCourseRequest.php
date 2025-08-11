@@ -23,10 +23,10 @@ class CreateCourseRequest extends FormRequest
     {
         return [
             'institutionId' => 'required|exists:institutions,id',
-            'educationLevel' => 'required|in:preescolar,primaria,secundaria,universitaria',
+            'educationLevel' => 'required|in:preescolar,basica,media,universitaria',
             'year' => 'required|string|max:4',
-            'grade' => 'required|string|max:10',
-            'shift' => 'required|in:mañana,tarde,noche',
+            'courseNumber' => 'nullable|integer|min:1|max:12',
+            'courseName' => 'nullable|string|max:50',
             'contactEmail' => 'required|email|max:255',
             'contactPhone' => 'required|string|max:20',
             'associatedProgram' => 'nullable|string|max:255',
@@ -53,12 +53,11 @@ class CreateCourseRequest extends FormRequest
             'year.string' => 'El año debe ser texto.',
             'year.max' => 'El año no puede tener más de 4 caracteres.',
             
-            'grade.required' => 'El grado es obligatorio.',
-            'grade.string' => 'El grado debe ser texto.',
-            'grade.max' => 'El grado no puede tener más de 10 caracteres.',
-            
-            'shift.required' => 'El turno es obligatorio.',
-            'shift.in' => 'El turno seleccionado no es válido.',
+            'courseNumber.integer' => 'El curso debe ser un número válido.',
+            'courseNumber.min' => 'El curso debe ser al menos 1.',
+            'courseNumber.max' => 'El curso no puede ser mayor a 12.',
+            'courseName.string' => 'El nombre del curso debe ser texto.',
+            'courseName.max' => 'El nombre del curso no puede tener más de 50 caracteres.',
             
             'contactEmail.required' => 'El correo de contacto es obligatorio.',
             'contactEmail.email' => 'El correo de contacto debe tener un formato válido.',

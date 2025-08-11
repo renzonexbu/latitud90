@@ -49,9 +49,8 @@ class UpdateProgramRequest extends FormRequest
             // Campos del detalle administrativo (todos opcionales)
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'nullable|string|in:mañana,tarde,noche',
-            'grade' => 'nullable|string|max:10',
+            'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
+            'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
             'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',

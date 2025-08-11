@@ -33,7 +33,7 @@ class CoursesController extends Controller
                     $q->where('name', 'like', "%{$search}%");
                 })
                 ->orWhere('education_level', 'like', "%{$search}%")
-                ->orWhere('grade', 'like', "%{$search}%");
+                ->orWhere('course_name', 'like', "%{$search}%");
             })
             ->when($request->status, function ($query, $status) {
                 $query->where('status', $status);
@@ -97,8 +97,8 @@ class CoursesController extends Controller
                 'institutionId' => $validatedData['institutionId'],
                 'educationLevel' => $validatedData['educationLevel'],
                 'year' => $validatedData['year'],
-                'grade' => $validatedData['grade'],
-                'shift' => $validatedData['shift'],
+                'courseNumber' => $validatedData['courseNumber'] ?? ($request->input('course_number') ?? null),
+                'courseName' => $validatedData['courseName'] ?? ($request->input('course_name') ?? null),
                 'contactEmail' => $validatedData['contactEmail'],
                 'contactPhone' => $validatedData['contactPhone'],
                 'endDate' => $validatedData['endDate'] ?? null,
@@ -152,10 +152,10 @@ class CoursesController extends Controller
                 'institution_id' => $validatedData['institutionId'],
                 'education_level' => $validatedData['educationLevel'],
                 'year' => $validatedData['year'],
-                'grade' => $validatedData['grade'],
-                'shift' => $validatedData['shift'],
-                'contact_email' => $validatedData['contactEmail'],
-                'contact_phone' => $validatedData['contactPhone'],
+                'course_number' => $validatedData['courseNumber'] ?? null,
+                'course_name' => $validatedData['courseName'] ?? null,
+                'contact_email' => $validatedData['contactEmail'] ?? $course->contact_email,
+                'contact_phone' => $validatedData['contactPhone'] ?? $course->contact_phone,
                 'program_id' => $validatedData['associatedProgram'],
                 'end_date' => $validatedData['endDate'],
             ]);

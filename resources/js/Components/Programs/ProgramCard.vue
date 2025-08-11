@@ -264,7 +264,17 @@ export default {
         },
         formatDate(dateString) {
             if (!dateString) return "";
+            // 1) Si viene en formato YYYY-MM-DD o YYYY-MM-DD HH:mm:ss, formatear manualmente
+            if (typeof dateString === 'string') {
+                const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (match) {
+                    const [, y, m, d] = match;
+                    return `${d}-${m}-${y}`;
+                }
+            }
+            // 2) Intento seguro con Date
             const date = new Date(dateString);
+            if (isNaN(date.getTime())) return "";
             return date.toLocaleDateString("es-CL", {
                 day: "2-digit",
                 month: "2-digit",

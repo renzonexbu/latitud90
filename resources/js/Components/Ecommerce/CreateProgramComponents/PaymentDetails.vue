@@ -244,40 +244,22 @@
                                             :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
                                         >
                                             <option value="">Seleccione un nivel</option>
-                                            <option value="inicial">Inicial</option>
-                                            <option value="primario">Primario</option>
-                                            <option value="secundario">Secundario</option>
-                                            <option value="universitario">Universitario</option>
+                                            <option value="preescolar">Preescolar</option>
+                                            <option value="basica">Básica</option>
+                                            <option value="media">Media</option>
+                                            <option value="universitaria">Universitaria</option>
                                         </select>
 
                                     </div>
                                 </div>
+                                
                                 <div class="field-container-small">
                                     <div class="field-wrapper">
                                         <div class="field-label">
-                                            Turno
+                                            Curso
                                         </div>
                                         <select
-                                            v-model="formData.shift"
-                                            class="admin-select-small"
-                                            :disabled="!canEnableCourseFields()"
-                                            :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
-                                        >
-                                            <option value="">---</option>
-                                            <option value="mañana">Mañana</option>
-                                            <option value="tarde">Tarde</option>
-                                            <option value="noche">Noche</option>
-                                        </select>
-
-                                    </div>
-                                </div>
-                                <div class="field-container-small">
-                                    <div class="field-wrapper">
-                                        <div class="field-label">
-                                            Grado
-                                        </div>
-                                        <select
-                                            v-model="formData.grade"
+                                            v-model="formData.course_number"
                                             class="admin-select-small"
                                             :disabled="!canEnableCourseFields()"
                                             :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
@@ -603,8 +585,7 @@ const props = defineProps({
             institution_name: "",
             institution_id: "",
             education_level: "",
-            shift: "",
-            grade: "",
+            course_number: "",
             students_file: null,
             group_benefit: "",
             // Opciones de pago múltiples
@@ -894,8 +875,7 @@ watch(() => formData.value.institution_id, (newValue, oldValue) => {
     if (!newValue && oldValue) {
         // Si se deselecciona la institución, limpiar todos los campos dependientes
         formData.value.education_level = '';
-        formData.value.shift = '';
-        formData.value.grade = '';
+        formData.value.course_number = '';
         formData.value.group_benefit = '';
         formData.value.students_file = null;
         selectedStudentsFile.value = null;
@@ -971,9 +951,7 @@ const canEnableCourseFields = () => {
 // Función para verificar si se puede habilitar el Excel
 const canEnableExcel = () => {
     return formData.value.institution_id && 
-           formData.value.education_level && 
-           formData.value.shift && 
-           formData.value.grade;
+           formData.value.education_level;
 };
 
 // Función para determinar si mostrar el botón Editar Grupo

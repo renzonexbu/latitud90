@@ -78,9 +78,9 @@
                                         ]"
                                     >
                                         <option value="">Seleccione un nivel</option>
-                                        <option value="preescolar">Preescolar</option>
-                                        <option value="primaria">Primaria</option>
-                                        <option value="secundaria">Secundaria</option>
+                                         <option value="preescolar">Preescolar</option>
+                                         <option value="basica">Básica</option>
+                                         <option value="media">Media</option>
                                         <option value="universitaria">Universitaria</option>
                                     </select>
                                     <span v-if="errors.educationLevel" class="text-red-500 text-xs mt-1">{{ errors.educationLevel }}</span>
@@ -107,16 +107,16 @@
                                     <span v-if="errors.year" class="text-red-500 text-xs mt-1">{{ errors.year }}</span>
                                 </div>
 
-                                <!-- Grado -->
+                                <!-- Curso -->
                                 <div class="flex flex-col gap-[7px] flex-shrink-0">
                                     <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                        Grado
+                                        Curso
                                     </label>
                                     <select 
-                                        v-model="form.grade"
+                                        v-model="form.courseNumber"
                                         :class="[
                                             'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[70px]',
-                                            errors.grade ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            errors.courseNumber ? 'border-red-500' : 'border-[#5b5b5b]'
                                         ]"
                                     >
                                         <option value="">---</option>
@@ -127,28 +127,10 @@
                                         <option value="5">5°</option>
                                         <option value="6">6°</option>
                                     </select>
-                                    <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
+                                    <span v-if="errors.courseNumber" class="text-red-500 text-xs mt-1">{{ errors.courseNumber }}</span>
                                 </div>
 
-                                <!-- Turno -->
-                                <div class="flex flex-col gap-[7px] flex-shrink-0">
-                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
-                                        Turno
-                                    </label>
-                                    <select 
-                                        v-model="form.shift"
-                                        :class="[
-                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[80px]',
-                                            errors.shift ? 'border-red-500' : 'border-[#5b5b5b]'
-                                        ]"
-                                    >
-                                        <option value="">---</option>
-                                        <option value="mañana">Mañana</option>
-                                        <option value="tarde">Tarde</option>
-                                        <option value="noche">Noche</option>
-                                    </select>
-                                    <span v-if="errors.shift" class="text-red-500 text-xs mt-1">{{ errors.shift }}</span>
-                                </div>
+                                
                             </div>
 
                             <!-- Contact row -->
@@ -290,8 +272,7 @@ export default {
                 institutionId: "",
                 educationLevel: "",
                 year: "2025",
-                grade: "",
-                shift: "",
+                courseNumber: "",
                 contactEmail: "",
                 contactPhone: "",
                 associatedProgram: "",
@@ -350,8 +331,7 @@ export default {
                     institutionId: institutionId,
                     educationLevel: this.course.education_level || "",
                     year: this.course.year || "2025",
-                    grade: this.course.grade || "",
-                    shift: this.course.shift || "",
+                    courseNumber: this.course.course_number || "",
                     contactEmail: this.course.contact_email || "",
                     contactPhone: this.course.contact_phone || "",
                     associatedProgram: this.course.program_id ? String(this.course.program_id) : "",
@@ -404,10 +384,9 @@ export default {
             formData.append('institutionId', this.form.institutionId || '');
             formData.append('educationLevel', this.form.educationLevel || '');
             formData.append('year', this.form.year || '');
-            formData.append('grade', this.form.grade || '');
-            formData.append('shift', this.form.shift || '');
-            formData.append('contactEmail', this.form.contactEmail || '');
-            formData.append('contactPhone', this.form.contactPhone || '');
+            formData.append('courseNumber', this.form.courseNumber || '');
+            formData.append('contactEmail', this.form.contactEmail || (this.course.contact_email || ''));
+            formData.append('contactPhone', this.form.contactPhone || (this.course.contact_phone || ''));
             formData.append('associatedProgram', this.form.associatedProgram || '');
             formData.append('endDate', this.form.endDate || '');
             

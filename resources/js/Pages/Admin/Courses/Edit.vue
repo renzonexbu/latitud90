@@ -138,7 +138,7 @@ export default {
     },
     computed: {
         courseInfoString() {
-            return `${this.capitalizeWords(this.headerInfo.institution_name)} / ${this.headerInfo.year} / ${this.headerInfo.grade} / ${this.capitalizeWords(this.headerInfo.shift)} / ${this.capitalizeWords(this.headerInfo.education_level)}`;
+            return `${this.capitalizeWords(this.headerInfo.institution_name)} / ${this.headerInfo.year} / ${this.headerInfo.grade} / ${this.capitalizeWords(this.headerInfo.education_level)}`;
         },
     },
     methods: {

@@ -166,9 +166,7 @@ class UpdateProgramService
             
             if (!$existingCourse && 
                 !empty($programData['institution_id']) && 
-                !empty($programData['education_level']) && 
-                !empty($programData['shift']) && 
-                !empty($programData['grade'])) {
+                !empty($programData['education_level'])) {
                 
                 // Solo crear curso si no existe uno
                 $course = $this->createOrUpdateCourse($programData, $program);
@@ -398,8 +396,8 @@ class UpdateProgramService
             'institution_id' => $programData['institution_id'],
             'education_level' => $this->mapEducationLevel($programData['education_level']),
             'year' => date('Y'),
-            'grade' => $programData['grade'],
-            'shift' => $programData['shift'],
+            'course_number' => $programData['course_number'] ?? null,
+            'course_name' => $programData['course_name'] ?? null,
             'contact_email' => $programData['contact_email'] ?? '',
             'contact_phone' => $programData['contact_phone'] ?? '',
             'program_id' => $program->id,
@@ -674,9 +672,10 @@ class UpdateProgramService
     {
         return match ($level) {
             'inicial' => 'preescolar',
-            'primario' => 'primaria',
-            'secundario' => 'secundaria',
-            'universitario' => 'universitaria',
+            'primario', 'primaria', 'basica' => 'basica',
+            'secundario', 'secundaria', 'media' => 'media',
+            'universitario', 'universitaria' => 'universitaria',
+            'preescolar' => 'preescolar',
             default => $level,
         };
     }
