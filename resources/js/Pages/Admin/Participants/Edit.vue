@@ -127,47 +127,8 @@
                                 <div
                                     class="flex flex-row gap-[9.56px] items-center justify-start flex-shrink-0 relative"
                                 >
-                                    <div
-                                        class="flex-shrink-0 w-[17.888px] h-[17.888px] relative overflow-hidden aspect-square"
-                                    >
-                                        <!-- School Icon -->
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 18 18"
-                                            fill="none"
-                                        >
-                                            <g
-                                                clip-path="url(#clip0_806_11208)"
-                                            >
-                                                <path
-                                                    d="M8.94651 2.07661V5.47536M4.80924 9.83367V17.1959M8.94396 14.3862V17.2496M13.0787 9.83367V17.1959M9.02445 3.44889C10.168 3.53449 11.1966 3.53449 12.3414 3.44889C12.4449 2.50337 12.4449 1.64729 12.3414 0.703056C11.2374 0.618513 10.1285 0.618513 9.02445 0.703056C8.9206 1.61539 8.9206 2.53656 9.02445 3.44889ZM4.78113 10.2822C3.82539 10.3039 3.22869 10.3333 2.24996 10.369C1.53315 10.3959 0.926235 10.9134 0.829128 11.6199C0.574861 13.4841 0.574861 13.9991 0.829128 15.8633C0.926235 16.5698 1.53188 17.0873 2.24996 17.1141C7.07976 17.2943 10.8069 17.2943 15.638 17.1141C16.3548 17.086 16.9617 16.5698 17.0575 15.8633C17.3131 13.9991 17.3131 13.4841 17.0575 11.6199C16.9617 10.9134 16.3548 10.3959 15.6392 10.369C14.6592 10.3333 14.0676 10.3039 13.1119 10.2822C13.0917 9.88071 13.0675 9.47949 13.0391 9.07854C12.8116 4.28068 5.08267 4.26791 4.85524 9.07087C4.82628 9.48571 4.80072 9.88947 4.78113 10.2822Z"
-                                                    stroke="#007E93"
-                                                    stroke-width="1.27772"
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                />
-                                                <path
-                                                    d="M8.9437 10.9784C9.91861 10.9784 10.4667 10.4328 10.4667 9.4643C10.4667 8.49578 9.91733 7.9502 8.9437 7.9502C7.9688 7.9502 7.42065 8.49578 7.42065 9.4643C7.42065 10.4328 7.9688 10.9784 8.9437 10.9784Z"
-                                                    stroke="#007E93"
-                                                    stroke-width="1.27772"
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                />
-                                            </g>
-                                            <defs>
-                                                <clipPath id="clip0_806_11208">
-                                                    <rect
-                                                        width="17.8881"
-                                                        height="17.8881"
-                                                        fill="white"
-                                                    />
-                                                </clipPath>
-                                            </defs>
-                                        </svg>
-                                    </div>
-                                    <div
+    
+                                    <!-- <div
                                         class="flex flex-row gap-[5.98px] items-center justify-start flex-shrink-0 relative"
                                     >
                                         <div
@@ -223,7 +184,7 @@
                                                 }}
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> -->
                                 </div>
                                 <div
                                     class="flex flex-col gap-[11px] items-start justify-start self-stretch flex-shrink-0 relative"
@@ -345,8 +306,10 @@
                                                 >
                                                     RUT:
                                                     {{
-                                                        participant.document_number ||
-                                                        "000000000"
+                                                        formatRutDisplay(
+                                                            participant.document_number
+                                                        ) ||
+                                                        "00.000.000-0"
                                                     }}
                                                 </div>
                                             </div>
@@ -518,6 +481,17 @@ const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CL").format(amount);
 };
 
+// Formatear RUT (12.345.678-9)
+const formatRutDisplay = (rut) => {
+    if (!rut) return null;
+    const clean = String(rut).replace(/\./g, '').replace(/-/g, '').toUpperCase();
+    if (!/^\d+[\dK]$/.test(clean)) return rut; // fallback si no calza
+    const body = clean.slice(0, -1);
+    const dv = clean.slice(-1);
+    const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${withDots}-${dv}`;
+};
+
 // Computed property para formatear los programas al formato que espera ProgramsGrid
 const formattedPrograms = computed(() => {
     if (!props.participantPrograms || props.participantPrograms.length === 0) {
@@ -530,18 +504,32 @@ const formattedPrograms = computed(() => {
     }
 
     return {
-        data: props.participantPrograms.map((program) => ({
-            ...program,
-            // Asegurar que la relación course con institution esté disponible
-            course: program.course || null,
-            // Agregar campos calculados para compatibilidad con el card
-            price: program.trip_price,
-            duration: calculateDuration(program.departure_date),
-            participants: 0, // Por ahora 0, se puede calcular después
-            paymentPercentage: 0, // Por ahora 0, se puede calcular después
-            paidAmount: 0, // Por ahora 0, se puede calcular después
-            totalAmount: program.trip_price,
-        })),
+        data: props.participantPrograms.map((program) => {
+            const totalForParticipant =
+                program.participant_total_due ??
+                program.totalAmount ??
+                program.trip_price ?? 0;
+            const paid =
+                program.paidAmount ??
+                program.paid_amount ??
+                0;
+            const percentage = totalForParticipant > 0
+                ? Math.round((paid / totalForParticipant) * 10000) / 100
+                : 0;
+
+            return {
+                ...program,
+                // Asegurar que la relación course con institution esté disponible
+                course: program.course || null,
+                // Agregar campos calculados para compatibilidad con el card
+                price: totalForParticipant,
+                totalAmount: totalForParticipant,
+                paidAmount: paid,
+                paymentPercentage: percentage,
+                duration: calculateDuration(program.departure_date),
+                participants: program.participants ?? 0,
+            };
+        }),
         current_page: 1,
         total: props.participantPrograms.length,
         per_page: 6,

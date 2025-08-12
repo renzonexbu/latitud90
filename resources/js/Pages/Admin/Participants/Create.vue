@@ -166,25 +166,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Institución -->
-                                <div>
-                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                        Institución*
-                                    </label>
-                                    <select 
-                                        v-model="form.institution_id"
-                                        :class="[
-                                            'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
-                                            errors.institution_id ? 'border-red-500' : 'border-[#5b5b5b]'
-                                        ]"
-                                    >
-                                        <option value="">Seleccione una institución</option>
-                                        <option v-for="institution in institutions" :key="institution.id" :value="institution.id">
-                                            {{ institution.name }}
-                                        </option>
-                                    </select>
-                                    <span v-if="errors.institution_id" class="text-red-500 text-xs mt-1">{{ errors.institution_id }}</span>
-                                </div>
+                                
 
                                 <!-- Curso -->
                                 <div>
@@ -227,7 +209,7 @@
                                         </select>
                                         <span v-if="errors.education_level" class="text-red-500 text-xs mt-1">{{ errors.education_level }}</span>
                                     </div>
-                                    <div class="grid grid-cols-3 gap-2">
+                                    <div class="grid grid-cols-2 gap-2">
                                         <div>
                                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
                                                 Año*
@@ -266,24 +248,6 @@
                                                 <option value="6">6°</option>
                                             </select>
                                             <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
-                                        </div>
-                                        <div>
-                                            <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                                Turno*
-                                            </label>
-                                            <select 
-                                                v-model="form.shift"
-                                                                                            :class="[
-                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
-                                                errors.shift ? 'border-red-500' : 'border-[#5b5b5b]'
-                                            ]"
-                                            >
-                                                <option value="">---</option>
-                                                <option value="mañana">Mañana</option>
-                                                <option value="tarde">Tarde</option>
-                                                <option value="noche">Noche</option>
-                                            </select>
-                                            <span v-if="errors.shift" class="text-red-500 text-xs mt-1">{{ errors.shift }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -687,12 +651,10 @@ export default {
                 email: "",
                 phone: "",
                 code_phone: "+56",
-                institution_id: "",
                 course_id: "",
                 education_level: "",
                 year: "2025",
                 grade: "",
-                shift: "",
                 medical_conditions: "",
                 individual_price: 4000, // Precio por defecto
                 price_adjustments: 0,
@@ -742,12 +704,10 @@ export default {
                 email: "",
                 phone: "",
                 code_phone: "+56",
-                institution_id: "",
                 course_id: "",
                 education_level: "",
                 year: "2025",
                 grade: "",
-                shift: "",
                 medical_conditions: "",
                 individual_price: 4000,
                 price_adjustments: 0,
@@ -788,7 +748,6 @@ export default {
                 // Preparar datos del participante
                 const participantData = {
                     course_id: this.form.course_id,
-                    institution_id: this.form.institution_id,
                     first_name: this.form.first_name,
                     last_name: this.form.last_name,
                     email: this.form.email,

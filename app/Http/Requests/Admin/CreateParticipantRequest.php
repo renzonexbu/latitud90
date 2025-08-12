@@ -24,6 +24,9 @@ class CreateParticipantRequest extends FormRequest
         return [
             // Datos del participante
             'course_id' => 'required|exists:courses,id',
+            'education_level' => 'required|string|in:preescolar,basica,media,universitaria',
+            'year' => 'required|integer',
+            'grade' => 'required|integer',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|unique:participants,email',
@@ -67,6 +70,12 @@ class CreateParticipantRequest extends FormRequest
         return [
             'course_id.required' => 'Debe seleccionar un curso.',
             'course_id.exists' => 'El curso seleccionado no existe.',
+            'education_level.required' => 'El nivel de educación es obligatorio.',
+            'education_level.in' => 'El nivel de educación seleccionado no es válido.',
+            'year.required' => 'El año es obligatorio.',
+            'year.integer' => 'El año debe ser un número válido.',
+            'grade.required' => 'El grado es obligatorio.',
+            'grade.integer' => 'El grado debe ser un número válido.',
             'first_name.required' => 'El nombre es obligatorio.',
             'last_name.required' => 'El apellido es obligatorio.',
             'email.email' => 'El email debe tener un formato válido.',

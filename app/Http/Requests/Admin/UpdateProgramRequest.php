@@ -60,7 +60,8 @@ class UpdateProgramRequest extends FormRequest
             'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'installments_payment_method' => 'nullable|string|in:khipu,webpay_1,webpay_3,webpay_6,webpay_12',
+            // Aceptar claves antiguas y nuevas para mantener compatibilidad
+            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
             'max_installments' => 'nullable|string|in:3,6,9,12',
             'payment_mode_id' => 'nullable|exists:payment_modes,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',

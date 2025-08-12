@@ -32,8 +32,19 @@ class CreateParticipantService
                 $this->createEmergencyContacts($participant, $emergencyContactsData);
             }
 
-            // Asociar cursos al participante
-            if (!empty($coursesData)) {
+            // Asociar curso desde payload plano si viene course_id (caso Create.vue)
+            if (!empty($participantData['course_id'])) {
+                $pivotData = [
+                    'education_level' => $participantData['education_level'] ?? null,
+                    'year' => $participantData['year'] ?? null,
+                    'grade' => $participantData['grade'] ?? null,
+                    'status' => 'pending_payment',
+                    'individual_price' => $participantData['individual_price'] ?? null,
+                    'price_adjustments' => $participantData['price_adjustments'] ?? 0,
+                    'adjustment_reason' => $participantData['adjustment_reason'] ?? null,
+                ];
+                $participant->courses()->attach($participantData['course_id'], $pivotData);
+            } elseif (!empty($coursesData)) {
                 $this->associateCourses($participant, $coursesData);
             }
 
@@ -71,6 +82,10 @@ class CreateParticipantService
         $data['registration_date'] = $data['registration_date'] ?? now();
         $data['price_adjustments'] = $data['price_adjustments'] ?? 0;
 
+        // Normalizar email si existe
+        if (!empty($data['email'])) {
+            $data['email'] = $this->normalizeEmail($data['email']);
+        }
         return Participant::create($data);
     }
 
@@ -86,6 +101,9 @@ class CreateParticipantService
         foreach ($emergencyContactsData as $contactData) {
             $contactData['participant_id'] = $participant->id;
             $contactData['relationship'] = $contactData['relationship'] ?? 'Familiar';
+            if (!empty($contactData['email'])) {
+                $contactData['email'] = $this->normalizeEmail($contactData['email']);
+            }
             
             EmergencyContact::create($contactData);
         }
@@ -106,7 +124,6 @@ class CreateParticipantService
                 'education_level' => $courseData['education_level'] ?? null,
                 'year' => $courseData['year'] ?? null,
                 'grade' => $courseData['grade'] ?? null,
-                'shift' => $courseData['shift'] ?? null,
                 'status' => $courseData['status'] ?? 'pending_payment',
                 'individual_price' => $courseData['individual_price'] ?? null,
                 'price_adjustments' => $courseData['price_adjustments'] ?? 0,
@@ -115,6 +132,28 @@ class CreateParticipantService
 
             $participant->courses()->attach($courseId, $pivotData);
         }
+    }
+
+    /**
+     * Normaliza emails: minúsculas, sin acentos/diacríticos y sin espacios.
+     */
+    private function normalizeEmail(string $email): string
+    {
+        $email = trim(strtolower($email));
+        if ($email === '') {
+            return '';
+        }
+        if (class_exists('\\Normalizer')) {
+            $normalized = \Normalizer::normalize($email, \Normalizer::FORM_D);
+            $normalized = preg_replace('/\p{Mn}+/u', '', $normalized);
+        } else {
+            $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $email);
+            if ($normalized === false) {
+                $normalized = $email;
+            }
+        }
+        $normalized = preg_replace('/\s+/', '', $normalized);
+        return $normalized ?? $email;
     }
 
     /**

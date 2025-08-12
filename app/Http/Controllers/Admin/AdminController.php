@@ -45,12 +45,27 @@ class AdminController extends Controller
             ->take(3)
             ->get();
 
-        // Tabla de estado de pago por institución/programa (mock básico con datos del modelo)
+        // Tabla de estado de pago por institución/programa basada en datos reales
         $institutionsPayments = $activePrograms->map(function ($program) {
             $course = $program->course;
-            $collected = (float) ($course->collected_amount ?? 0);
-            $target = (float) ($course->target_amount ?? $program->trip_price ?? 0);
+            $participants = $course?->participants ?? collect();
+
+            // Objetivo: suma de (precio individual + ajuste) por participante
+            $target = $participants->sum(function ($p) {
+                $individual = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
+                $adjust = (float) ($p->pivot->price_adjustments ?? 0);
+                return $individual + $adjust;
+            });
+
+            // Recaudado: suma de pagos aprobados/completados del programa
+            $collected = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
+                    $q->where('program_id', $program->id);
+                })
+                ->whereIn('status', ['approved', 'completed'])
+                ->sum('amount');
+
             $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
+
             return [
                 'institutionName' => optional($course->institution)->name ?? '—',
                 'educationLevel' => $course->education_level ?? '—',
@@ -58,10 +73,10 @@ class AdminController extends Controller
                 'year' => optional($course)->year ?? Carbon::now()->year,
                 'programName' => $program->name,
                 'destination' => $program->destination,
-                'students' => $course->total_students ?? ($course->participants?->count() ?? 0),
+                'students' => $course->total_students ?? ($participants->count() ?? 0),
                 'percent' => $percent,
-                'totalCollected' => $collected,
-                'targetAmount' => $target,
+                'totalCollected' => round($collected, 2),
+                'targetAmount' => round((float) $target, 2),
             ];
         });
         return Inertia::render('Admin/Dashboard', [

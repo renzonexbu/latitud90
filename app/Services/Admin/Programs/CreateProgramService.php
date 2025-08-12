@@ -432,7 +432,9 @@ class CreateProgramService
                         $existingParticipant->update([
                             'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
                             'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
-                            'email' => $participantData['Email'] ?? $existingParticipant->email,
+                            'email' => isset($participantData['Email']) && $participantData['Email'] !== ''
+                                ? $this->normalizeEmail($participantData['Email'])
+                                : $existingParticipant->email,
                             'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
                             'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
                             'address' => $participantData['Dirección'] ?? $existingParticipant->address,
@@ -482,7 +484,7 @@ class CreateProgramService
                     $participant = Participant::create([
                         'first_name' => $participantData['Nombre'] ?? '',
                         'last_name' => $participantData['Apellido'] ?? '',
-                        'email' => $participantData['Email'] ?? '',
+                        'email' => $this->normalizeEmail($participantData['Email'] ?? ''),
                         'code_phone' => '+56', // Código por defecto para Chile
                         'phone' => $participantData['Teléfono'] ?? '',
                         'document_type' => $documentType,
@@ -530,7 +532,9 @@ class CreateProgramService
                         $existingEmergencyContact->update([
                             'first_name' => $participantData['Nombre contacto emergencia'],
                             'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => $participantData['Email contacto emergencia'] ?? $existingEmergencyContact->email,
+                            'email' => isset($participantData['Email contacto emergencia']) && $participantData['Email contacto emergencia'] !== ''
+                                ? $this->normalizeEmail($participantData['Email contacto emergencia'])
+                                : $existingEmergencyContact->email,
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
                             'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
@@ -542,7 +546,7 @@ class CreateProgramService
                         $emergencyContact = EmergencyContact::create([
                             'first_name' => $participantData['Nombre contacto emergencia'],
                             'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => $participantData['Email contacto emergencia'] ?? '',
+                            'email' => $this->normalizeEmail($participantData['Email contacto emergencia'] ?? ''),
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
                             'country' => 'CL', // Chile por defecto
@@ -597,6 +601,30 @@ class CreateProgramService
         } catch (\Exception $e) {
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Normaliza emails: minúsculas, sin acentos/diacríticos y sin espacios.
+     */
+    private function normalizeEmail(string $email): string
+    {
+        $email = trim(strtolower($email));
+        if ($email === '') {
+            return '';
+        }
+        // Eliminar diacríticos (acentos)
+        if (class_exists('\\Normalizer')) {
+            $normalized = \Normalizer::normalize($email, \Normalizer::FORM_D);
+            $normalized = preg_replace('/\p{Mn}+/u', '', $normalized);
+        } else {
+            $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $email);
+            if ($normalized === false) {
+                $normalized = $email;
+            }
+        }
+        // Quitar espacios internos accidentales
+        $normalized = preg_replace('/\s+/', '', $normalized);
+        return $normalized ?? $email;
     }
 
     /**
