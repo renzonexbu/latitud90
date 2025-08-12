@@ -46,12 +46,12 @@ class ConfirmPaymentService
                 $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
                 $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
                 $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
-
-                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                // Sumar por cuotas efectivamente pagadas en OrderDetail (más fiable)
+                $paidAmount = (float) \App\Models\OrderDetail::whereHas('order', function ($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
                     })
-                    ->where('status', 'approved')
+                    ->where('is_paid', true)
                     ->sum('amount');
                 $paidAmount = round($paidAmount, 2);
                 $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
@@ -61,18 +61,18 @@ class ConfirmPaymentService
             }
         }
         $paymentData = $this->getPaymentDataFromSession();
-        // Orden mensual activa: próxima cuota
+        // Orden mensual activa: próxima cuota y bloqueo de plan
         $activeInstallment = null;
+        $paymentPlanLocked = false;
         if ($participant) {
             $order = Order::where('participant_id', $participant->id)
                 ->where('program_id', $program->id)
                 ->where('payment_type', 'monthly')
-                ->whereHas('orderDetails', function ($q) {
-                    $q->where('is_paid', false);
-                })
                 ->latest('id')
                 ->first();
             if ($order) {
+                // Bloquear selección si alguna cuota ya fue pagada
+                $paymentPlanLocked = $order->orderDetails()->where('is_paid', true)->exists();
                 $today = now()->startOfDay();
                 $overdueUnpaid = $order->orderDetails()
                     ->where('is_paid', false)
@@ -99,7 +99,9 @@ class ConfirmPaymentService
                 'id' => $program->id,
                 'name' => $program->name,
                 'destination' => $program->destination,
-                'trip_price' => $program->trip_price,
+                // Mostrar siempre valores para el participante
+                // Base para UI (valor del participante)
+                'trip_price' => $participantTotalAmount,
                 'departure_date' => $program->departure_date,
                 'final_payment_date' => $program->final_payment_date,
                 'max_installments' => $program->max_installments,
@@ -116,6 +118,7 @@ class ConfirmPaymentService
                 'paidAmount' => $paidAmount,
                 'participant_balance' => $participantBalance,
                 'paymentPercentage' => $paymentPercentage,
+                'payment_plan_locked' => $paymentPlanLocked,
                 'active_installment' => $activeInstallment,
             ],
             'participant' => $participantId ? [

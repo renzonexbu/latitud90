@@ -14,14 +14,37 @@ class EditCourseService
             ->findOrFail($courseId);
 
         // Asegurar que los programas se carguen con todos los campos necesarios
-                            if ($course->program) {
-                        $course->program->makeVisible(['trip_price', 'name', 'destination']);
-                        
-                        // Agregar campos calculados para compatibilidad con el card
-                        $course->program->payment_percentage = 0; // Por ahora 0, se puede calcular después
-                        $course->program->paid_amount = 0; // Por ahora 0, se puede calcular después
-                        $course->program->total_amount = $course->program->trip_price;
-                    }
+        if ($course->program) {
+            $course->program->makeVisible(['trip_price', 'name', 'destination']);
+
+            // Calcular métricas agregadas de pago a nivel curso
+            $participants = $course->participants ?? collect();
+            $activeParticipants = $participants->filter(function ($p) {
+                return ($p->pivot->status ?? 'active') !== 'cancelled';
+            });
+
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? ($course->program->trip_price ?? 0));
+                $adj = (float) ($p->pivot->price_adjustments ?? 0);
+                return $carry + round($base + $adj, 2);
+            }, 0.0);
+
+            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
+                    $q->where('program_id', $course->program->id);
+                })
+                ->where('status', 'approved')
+                ->sum('amount');
+            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            $coursePaymentPercentage = $courseTotalAmount > 0
+                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+                : 0;
+
+            // Adjuntar para el card individual
+            $course->program->payment_percentage = $coursePaymentPercentage;
+            $course->program->paid_amount = $coursePaidAmount;
+            $course->program->total_amount = $courseTotalAmount > 0 ? $courseTotalAmount : ($course->program->trip_price ?? 0);
+        }
 
         // Agregar los accessors calculados
         $course->append(['payment_percentage', 'payment_percentage_text']);

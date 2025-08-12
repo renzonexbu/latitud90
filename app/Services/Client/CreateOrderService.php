@@ -6,6 +6,10 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\Country;
+use App\Models\Region;
+use App\Models\Comune;
+use App\Models\Document;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -281,19 +285,35 @@ class CreateOrderService
         ];
 
         // Mapear las claves del frontend (camelCase) a las claves del backend (snake_case)
+        // Preferir buyerData si viene anidado (por compatibilidad futura)
+        if (isset($formData['buyerData']) && is_array($formData['buyerData'])) {
+            $formData = array_merge($formData, $formData['buyerData']);
+        }
+
         $mappedFormData = [
-            'name' => $formData['name'] ?? null,
+            'name' => $formData['name'] ?? ($formData['fullName'] ?? null),
             'email' => $formData['email'] ?? null,
-            'country' => $formData['countryName'] ?? null,
-            'region' => $formData['regionName'] ?? null,
-            'city' => $formData['cityName'] ?? null,
+            // IDs para persistencia
+            'country' => $formData['countryId'] ?? ($formData['country'] ?? null),
+            'region' => $formData['regionId'] ?? ($formData['region'] ?? null),
+            'city' => $formData['cityId'] ?? ($formData['city'] ?? null),
             'code_phone' => $formData['code_phone'] ?? null,
             'phone' => $formData['phone'] ?? null,
             'document_type' => $formData['documentType'] ?? null,
             'document_number' => $formData['documentNumber'] ?? null,
             'terms_accepted' => $formData['termsAccepted'] ?? false,
             'marketing_accepted' => $formData['marketingAccepted'] ?? false,
+            // Nombres para facturación
+            'country_name' => $formData['countryName'] ?? null,
+            'region_name' => $formData['regionName'] ?? null,
+            'city_name' => $formData['cityName'] ?? null,
         ];
+
+        // Normalizar IDs (acepta id, código, o nombre)
+        $countryId = $this->resolveCountryId($mappedFormData['country'] ?? null);
+        $regionId = $this->resolveRegionId($mappedFormData['region'] ?? null);
+        $cityId = $this->resolveCityId($mappedFormData['city'] ?? null);
+        $documentTypeId = $this->resolveDocumentTypeId($mappedFormData['document_type'] ?? null);
 
         return OrderDetail::create([
             'order_id' => $order->id,
@@ -304,18 +324,18 @@ class CreateOrderService
             // Datos del comprador
             'name' => $mappedFormData['name'],
             'email' => $mappedFormData['email'],
-            'country' => $mappedFormData['country'],
-            'region' => $mappedFormData['region'],
-            'city' => $mappedFormData['city'],
+            'country' => $countryId,
+            'region' => $regionId,
+            'city' => $cityId,
             'code_phone' => $mappedFormData['code_phone'],
             'phone' => $mappedFormData['phone'],
-            'document_type' => $mappedFormData['document_type'],
+            'document_type' => $documentTypeId,
             'document_number' => $mappedFormData['document_number'],
             
             // Dirección de facturación (por ahora usando los mismos datos)
             'billing_address' => $formData['billing_address'] ?? null,
-            'billing_city' => $mappedFormData['city'],
-            'billing_country' => $mappedFormData['country'],
+            'billing_city' => $mappedFormData['city_name'] ?? $mappedFormData['city'],
+            'billing_country' => $mappedFormData['country_name'] ?? $mappedFormData['country'],
             'billing_postal_code' => $formData['billing_postal_code'] ?? null,
             
             // Acuerdos
@@ -342,5 +362,56 @@ class CreateOrderService
                         ->count() + 1;
         
         return sprintf('%s-%s%s-%06d', $prefix, $year, $month, $sequence);
+    }
+
+    private function resolveCountryId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        // Probar por código (CL, etc.)
+        if (strlen($string) <= 3) {
+            $id = Country::where('code', $string)->value('id');
+            if ($id) { return (int) $id; }
+        }
+        // Fallback por nombre exacto
+        $id = Country::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        // Fallback por like
+        $id = Country::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveRegionId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Region::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Region::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveCityId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Comune::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Comune::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveDocumentTypeId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Document::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Document::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
     }
 }

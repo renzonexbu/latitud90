@@ -81,6 +81,10 @@ class PaymentGatewayController extends Controller
                 'transaction_id' => $token,
                 'gateway_response' => $confirmation,
             ]);
+            // Recalcular estado de la orden
+            if ($orderDetail->order) {
+                $orderDetail->order->refreshStatus();
+            }
 
             $redirectUrl = $approved
                 ? route('payment.success', $orderDetailId)
@@ -152,10 +156,12 @@ class PaymentGatewayController extends Controller
             'participant_phone' => $orderDetail->code_phone . ' ' . $orderDetail->phone,
         ] : null;
 
-        return inertia('Ecommerce/KhipuView', [
+        // Render a la vista en carpeta Payment para evitar conflictos de resolución
+        return inertia('Payment/KhipuView', [
             'orderDetailId' => (int) $orderDetailId,
             'paymentId' => (string) ($payment->external_payment_id ?? ''),
             'paymentData' => $paymentData,
+            'rut' => session('current_rut'),
         ]);
     }
 
@@ -222,6 +228,10 @@ class PaymentGatewayController extends Controller
                         'transaction_id' => $paymentId,
                         'gateway_response' => $status['data'] ?? $status,
                     ]);
+                    // Recalcular estado de la orden
+                    if ($orderDetail->order) {
+                        $orderDetail->order->refreshStatus();
+                    }
                 }
 
                 if ($approved) {

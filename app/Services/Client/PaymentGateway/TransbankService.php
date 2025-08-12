@@ -49,8 +49,10 @@ class TransbankService
                 ],
             ];
 
-            // Usar instancia estándar del SDK sin builders específicos
-            $mall = new MallTransaction();
+            // Construir instancia del SDK con Options según ambiente
+            $mall = $this->environment === 'production'
+                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
+                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
             $response = $mall->create((string) $orderId, (string) $sessionId, (string) $returnUrl, $details);
             Log::info('Transbank createTransaction response', [
                 'order_id' => $orderId,
@@ -82,8 +84,10 @@ class TransbankService
     public function confirmTransaction($token)
     {
         try {
-            // Usar instancia estándar del SDK sin builders específicos
-            $mall = new MallTransaction();
+            // Construir instancia del SDK con Options según ambiente
+            $mall = $this->environment === 'production'
+                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
+                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
             $commit = $mall->commit((string) $token);
 
             $details = $commit->getDetails();

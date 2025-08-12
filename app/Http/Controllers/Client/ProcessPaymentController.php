@@ -8,6 +8,10 @@ use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\Country;
+use App\Models\Region;
+use App\Models\Comune;
+use App\Models\Document;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -28,6 +32,104 @@ class ProcessPaymentController extends Controller
         $this->khipuService = $khipuService;
     }
 
+    private function updateBuyerDataOnOrderDetail(OrderDetail $orderDetail, array $formData, array $paymentData): void
+    {
+        try {
+            // Aceptar buyerData anidado
+            if (isset($formData['buyerData']) && is_array($formData['buyerData'])) {
+                $formData = array_merge($formData, $formData['buyerData']);
+            }
+
+            $name = $formData['name'] ?? ($formData['fullName'] ?? null);
+            $email = $formData['email'] ?? null;
+            $codePhone = $formData['code_phone'] ?? null;
+            $phone = $formData['phone'] ?? null;
+            $documentType = $this->resolveDocumentTypeId($formData['documentType'] ?? null);
+            $documentNumber = $formData['documentNumber'] ?? null;
+
+            $country = $this->resolveCountryId($formData['countryId'] ?? ($formData['country'] ?? null));
+            $region = $this->resolveRegionId($formData['regionId'] ?? ($formData['region'] ?? null));
+            $city = $this->resolveCityId($formData['cityId'] ?? ($formData['city'] ?? null));
+
+            $billingAddress = $formData['billing_address'] ?? null;
+            $billingCity = $formData['cityName'] ?? ($formData['billing_city'] ?? null);
+            $billingCountry = $formData['countryName'] ?? ($formData['billing_country'] ?? null);
+            $billingPostalCode = $formData['billing_postal_code'] ?? null;
+
+            $orderDetail->update([
+                'name' => $name,
+                'email' => $email,
+                'code_phone' => $codePhone,
+                'phone' => $phone,
+                'document_type' => $documentType,
+                'document_number' => $documentNumber,
+                'country' => $country,
+                'region' => $region,
+                'city' => $city,
+                'billing_address' => $billingAddress,
+                'billing_city' => $billingCity,
+                'billing_country' => $billingCountry,
+                'billing_postal_code' => $billingPostalCode,
+                // Asegurar modo y método si cambiaron para este intento
+                'payment_method_id' => $orderDetail->payment_method_id ?: ($paymentData['paymentMethod'] === 'khipu' ? 3 : ($paymentData['paymentMethod'] === 'credit' ? 2 : 1)),
+                'payment_mode_id' => $orderDetail->payment_mode_id ?: ($paymentData['paymentType'] === 'monthly' ? 2 : 1),
+                'payment_gateway_id' => $orderDetail->payment_gateway_id ?: ($paymentData['paymentMethod'] === 'khipu' ? 2 : 1),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error updating buyer data on OrderDetail', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+            ]);
+        }
+    }
+
+    private function resolveCountryId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        if (strlen($string) <= 3) {
+            $id = Country::where('code', $string)->value('id');
+            if ($id) { return (int) $id; }
+        }
+        $id = Country::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Country::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveRegionId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Region::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Region::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveCityId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Comune::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Comune::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveDocumentTypeId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = Document::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = Document::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
     public function processPayment(Request $request)
     {
         try {
@@ -75,7 +177,15 @@ class ProcessPaymentController extends Controller
             $order = $orderResult['order'];
             $orderDetail = $orderResult['order_detail'];
 
-            // 2. Determinar el gateway de pago y crear la transacción
+            // 2. Actualizar SIEMPRE datos del comprador y método/gateway del intento actual en el OrderDetail seleccionado
+            $this->updateBuyerDataOnOrderDetail($orderDetail, $formData, $paymentData);
+
+            // Si existe una orden mensual con cuotas previas impagas, mantener estado acorde
+            if ($order) {
+                $order->refreshStatus();
+            }
+
+            // 3. Determinar el gateway de pago y crear la transacción
             $gatewayResult = $this->createGatewayTransaction($orderDetail, $paymentData);
 
             if (!$gatewayResult['success']) {
@@ -99,6 +209,10 @@ class ProcessPaymentController extends Controller
 
             // Registrar pago pendiente en la tabla payments
             $this->recordPendingPayment($orderDetail, $paymentData['paymentMethod'], $gatewayResult);
+            // Recalcular estado de la orden (al crear intento de pago, puede pasar de pending a processing si ya hay pagos previos)
+            if ($orderDetail->order) {
+                $orderDetail->order->refreshStatus();
+            }
 
             return response()->json([
                 'success' => true,
@@ -177,9 +291,9 @@ class ProcessPaymentController extends Controller
         $khipuCallbackUrl = route('khipu.callback', ['orderDetailId' => $orderDetail->id]);
         $failureUrl = route('payment.failure', ['orderDetailId' => $orderDetail->id]);
 
-        // URLs de notificación
-        $transbankNotificationUrl = route('webhook.transbank');
-        $khipuNotificationUrl = route('webhook.khipu');
+        // URLs de notificación deshabilitadas (confirmación vía polling)
+        $transbankNotificationUrl = null;
+        $khipuNotificationUrl = null;
 
         switch ($paymentData['paymentMethod']) {
             case 'debit':
@@ -324,16 +438,15 @@ class ProcessPaymentController extends Controller
                 return redirect()->route('payment.success', ['orderDetailId' => $orderDetailId]);
             }
 
-            // Redirigir al paso 4 (confirmación) con mensaje de error
+            // Redirigir al paso 4 (confirmación) con mensaje de error usando RUT del participante
             $programId = $orderDetail->order->program_id;
-            $rut = $orderDetail->document_number;
-
-            if ($rut) {
-                session(['current_rut' => $rut]);
+            $participantRut = optional($orderDetail->order->participant)->document_number;
+            if ($participantRut) {
+                session(['current_rut' => preg_replace('/[.-]/', '', $participantRut)]);
             }
             return redirect()->route('payment.confirmation', [
                 'programId' => $programId,
-                'rut' => $rut
+                'rut' => $participantRut
             ])->with('error', 'El pago no pudo ser procesado. Por favor, intenta nuevamente.');
         } catch (\Exception $e) {
             Log::error('Error in payment failure page', [

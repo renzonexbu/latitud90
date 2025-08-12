@@ -10,12 +10,37 @@ use Illuminate\Support\Facades\Log;
 
 class GeneratePaymentService
 {
-    public function getPaymentDetails($programId, $participantId = null)
+    public function getPaymentDetails($programId, $participantId = null, $rut = null)
     {
         $program = Program::find($programId);
 
         if (!$program) {
             return null;
+        }
+
+        // Si hay RUT, intentar cargar próxima cuota activa (due_date) de orden mensual
+        $activeInstallment = null;
+        if ($rut) {
+            $order = Order::whereHas('participant', function($q) use ($rut) {
+                    $q->where('document_number', preg_replace('/[.-]/', '', $rut));
+                })
+                ->where('program_id', $programId)
+                ->where('payment_type', 'monthly')
+                ->latest('id')
+                ->first();
+            if ($order) {
+                $next = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->orderBy('due_date')
+                    ->first();
+                if ($next) {
+                    $activeInstallment = [
+                        'number' => (int) $next->installment_number,
+                        'due_date' => optional($next->due_date)->toDateString(),
+                        'amount' => (float) $next->amount,
+                    ];
+                }
+            }
         }
 
         return [
@@ -27,6 +52,7 @@ class GeneratePaymentService
                 'departure_date' => $program->departure_date,
                 'final_payment_date' => $program->final_payment_date,
                 'max_installments' => $program->max_installments,
+                'active_installment' => $activeInstallment,
             ],
             'participant' => $participantId ? [
                 'id' => $participantId,

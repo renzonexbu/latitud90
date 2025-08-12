@@ -53,6 +53,11 @@ export default {
             type: Object,
             required: true,
         },
+        // Cuando es true, prioriza métricas por-participante si están presentes
+        preferParticipantMetrics: {
+            type: Boolean,
+            default: false,
+        },
     },
     data() {
         return {
@@ -74,18 +79,34 @@ export default {
             // Usar la paginación del backend si está disponible
             if (this.programs.data) {
                 return this.programs.data.map((program) => {
-                    const base = program.participant_amount ?? program.individual_price ?? null;
-                    const adj = program.participant_adjustments ?? 0;
-                    const totalDue = base !== null ? base + adj : program.trip_price;
+                    if (this.preferParticipantMetrics) {
+                        const totalAmount = program.participant_total_due ?? program.totalAmount ?? program.trip_price ?? 0;
+                        const paidAmount = program.paidAmount ?? 0;
+                        const paymentPercentage = program.paymentPercentage ?? (
+                            totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0
+                        );
+                        return {
+                            ...program,
+                            price: totalAmount,
+                            duration: this.calculateDuration(program.departure_date),
+                            participants: 0,
+                            paymentPercentage,
+                            paidAmount,
+                            totalAmount,
+                        };
+                    }
+                    // Por defecto (Index de Programas): métricas agregadas del curso/programa completo
+                    const totalAmount = program.course_total_amount ?? program.trip_price ?? 0;
+                    const paidAmount = program.course_paid_amount ?? 0;
+                    const paymentPercentage = program.course_payment_percentage ?? 0;
                     return {
                         ...program,
-                        // Mostrar siempre el total a pagar por el participante en los cards
-                        price: totalDue,
+                        price: totalAmount,
                         duration: this.calculateDuration(program.departure_date),
-                        participants: 0,
-                        paymentPercentage: 0,
-                        paidAmount: 0,
-                        totalAmount: totalDue,
+                        participants: program.course?.participants?.length || 0,
+                        paymentPercentage,
+                        paidAmount,
+                        totalAmount,
                     };
                 });
             }

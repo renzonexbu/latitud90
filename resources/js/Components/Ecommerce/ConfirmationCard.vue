@@ -354,8 +354,17 @@ export default {
 
                 const parsedPaymentData = JSON.parse(paymentData);
                 this.currentInstallments = parsedPaymentData.installments || 1;
-                // Usar los datos del formulario que vienen como props
-                const parsedFormData = this.formData;
+                // Cargar datos del comprador desde localStorage (paso Detalles de Pago)
+                let parsedFormData = this.formData;
+                const savedBuyerData = localStorage.getItem("buyerData");
+                if (savedBuyerData) {
+                    try {
+                        parsedFormData = JSON.parse(savedBuyerData);
+                    } catch (e) {
+                        console.error("Error parsing buyerData from localStorage:", e);
+                        parsedFormData = this.formData;
+                    }
+                }
 
                 // Preparar datos para enviar al backend
                 const requestData = {

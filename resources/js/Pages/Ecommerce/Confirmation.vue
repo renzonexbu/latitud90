@@ -62,6 +62,12 @@
                 <!-- Right Card -->
                 <div class="w-full md:w-1/2">
                     <div class="w-full max-w-[480px] mx-auto md:mx-0 p-4 sm:p-6">
+                        <!-- Aviso de fecha límite si hay cuota activa -->
+                        <div v-if="confirmationData.program && confirmationData.program.active_installment && confirmationData.program.active_installment.due_date"
+                             class="bg-[#FFF7E6] border border-[#F5C26B] text-[#7A5E10] rounded-md p-3 mb-3">
+                            <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
+                            <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(confirmationData.program.active_installment.due_date) }}</span>
+                        </div>
                         <ConfirmationCard
                             :program="confirmationData.program"
                             :form-data="confirmationData.form_data"
@@ -139,6 +145,11 @@ export default {
         });
     },
     methods: {
+        formatDueDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
         handlePaymentSelection(selection) {
             const card = this.$refs.confirmCard;
             if (card && selection) {

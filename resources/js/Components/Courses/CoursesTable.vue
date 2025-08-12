@@ -24,10 +24,10 @@
                 Alumnos
             </div>
             <div class="text-white font-nexa-bold text-sm text-center w-[140px]">
-                Estado
+                % Recaudado
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[160px]">
-                Total recolectado
+            <div class="text-white font-nexa-bold text-sm text-center w-[220px]">
+                Recaudado / Total Curso
             </div>
             <div class="w-[60px] h-[20px] flex-shrink-0">
                 <!-- Empty space for actions column -->
@@ -78,12 +78,12 @@
                                 getStatusTextClass(course)
                             ]"
                         >
-                            {{ getPaymentPercentage(course) }}
+                            {{ getCoursePaymentPercentage(course) }}
                         </span>
                     </div>
                 </div>
-                <div class="text-verde-oscuro font-nexa-xbold text-sm text-center w-[160px]">
-                    {{ formatCurrency(course.collected_amount) }}
+                <div class="text-verde-oscuro font-nexa-xbold text-sm text-center w-[220px]">
+                    {{ formatCurrency(course.course_paid_amount || 0) }} / {{ formatCurrency(course.course_total_amount || 0) }}
                 </div>
                 <div class="w-[60px] h-[20px] flex-shrink-0">
                     <button 
@@ -142,6 +142,12 @@ export default {
         
         getPaymentPercentage(course) {
             return course.payment_percentage_text || '---';
+        },
+
+        getCoursePaymentPercentage(course) {
+            const pct = course.course_payment_percentage;
+            if (pct === null || pct === undefined) return '---';
+            return `${pct}%`;
         },
         
         formatCurrency(amount) {

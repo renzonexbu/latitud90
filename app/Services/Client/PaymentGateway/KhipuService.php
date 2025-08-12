@@ -29,9 +29,12 @@ class KhipuService
                 'currency' => 'CLP',
                 'subject' => "Pago de orden #{$orderId}",
                 'return_url' => $returnUrl,
-                // Usar webhook nativo del proyecto (si no viene explícito)
-                'notify_url' => $notificationUrl ?: route('webhook.khipu')
+                // notify_url opcional: sólo si se provee
             ];
+
+            if (!empty($notificationUrl)) {
+                $payload['notify_url'] = $notificationUrl;
+            }
 
             $headers = [
                 'Content-Type' => 'application/json',

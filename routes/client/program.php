@@ -27,9 +27,9 @@ Route::get('/payment/failure/{orderDetailId}', [ProcessPaymentController::class,
 Route::get('/payment/callback/{orderDetailId}', [PaymentGatewayController::class, 'callbackSpinner'])->name('payment.callback');
 Route::post('/payment/confirm', [PaymentGatewayController::class, 'confirmTransbank'])->name('payment.confirm');
 
-// Payment Gateway Notification Routes
-Route::post('/webhook/transbank', [PaymentGatewayController::class, 'handleTransbankNotification'])->name('webhook.transbank');
-Route::post('/webhook/khipu', [PaymentGatewayController::class, 'handleKhipuNotification'])->name('webhook.khipu');
+// Payment Gateway Notification Routes (deshabilitadas: confirmación vía polling)
+// Route::post('/webhook/transbank', [PaymentGatewayController::class, 'handleTransbankNotification'])->name('webhook.transbank');
+// Route::post('/webhook/khipu', [PaymentGatewayController::class, 'handleKhipuNotification'])->name('webhook.khipu');
 
 // Payment Result Processing
 Route::get('/payment/result/{orderDetailId}', [PaymentGatewayController::class, 'processPaymentResult'])->name('payment.result');

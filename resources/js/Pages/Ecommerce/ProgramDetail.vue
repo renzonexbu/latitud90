@@ -78,6 +78,12 @@
 
                     <!-- Componente Derecho -->
                     <div class="hidden md:block flex-1 p-0 md:p-10">
+                        <!-- Aviso de fecha límite si hay cuota activa -->
+                        <div v-if="program && program.active_installment && program.active_installment.due_date"
+                             class="bg-[#FFF7E6] border border-[#F5C26B] text-[#7A5E10] rounded-md p-3 mb-3">
+                            <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
+                            <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
+                        </div>
                         <PaymentPanel 
                             :final-payment-date="program.final_payment_date" 
                             :program-id="program.id"
@@ -132,6 +138,12 @@
                 </div>
                 <!-- Payment Panel Content -->
                 <div class="w-full self-stretch">
+                    <!-- Aviso de fecha límite si hay cuota activa (móvil) -->
+                    <div v-if="program && program.active_installment && program.active_installment.due_date"
+                         class="bg-[#FFF7E6] border border-[#F5C26B] text-[#7A5E10] rounded-md p-3 mb-3">
+                        <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
+                        <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
+                    </div>
                     <PaymentPanel 
                         :final-payment-date="program.final_payment_date" 
                         :program-id="program.id"
@@ -210,6 +222,11 @@ export default {
     methods: {
         handlePaymentSelection(selection) {
             this.currentInstallments = selection?.installments || 1;
+        },
+        formatDueDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         },
         formatPrice(amount) {
             const safe = Number(amount ?? 0);

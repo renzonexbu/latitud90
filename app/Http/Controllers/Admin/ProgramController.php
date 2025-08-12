@@ -38,9 +38,37 @@ class ProgramController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
-        // Cargar las imágenes para cada programa
+        // Cargar las imágenes y métricas de pagos por curso para cada programa
         $programs->getCollection()->transform(function ($program) {
             $program->images = $program->images;
+
+            // Agregados de curso: total debido por todos los participantes y monto pagado
+            $participants = $program->course?->participants ?? collect();
+            $activeParticipants = $participants->filter(function ($p) {
+                return ($p->pivot->status ?? 'active') !== 'cancelled';
+            });
+
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
+                $adj = (float) ($p->pivot->price_adjustments ?? 0);
+                return $carry + round($base + $adj, 2);
+            }, 0.0);
+
+            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
+                    $q->where('program_id', $program->id);
+                })
+                ->where('status', 'approved')
+                ->sum('amount');
+            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            $coursePaymentPercentage = $courseTotalAmount > 0
+                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+                : 0;
+
+            $program->course_total_amount = $courseTotalAmount;
+            $program->course_paid_amount = $coursePaidAmount;
+            $program->course_payment_percentage = $coursePaymentPercentage;
+
             return $program;
         });
 
@@ -49,9 +77,36 @@ class ProgramController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Cargar las imágenes para todos los programas
+        // Cargar las imágenes y métricas de pagos por curso para todos los programas
         $allPrograms->transform(function ($program) {
             $program->images = $program->images;
+
+            $participants = $program->course?->participants ?? collect();
+            $activeParticipants = $participants->filter(function ($p) {
+                return ($p->pivot->status ?? 'active') !== 'cancelled';
+            });
+
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
+                $adj = (float) ($p->pivot->price_adjustments ?? 0);
+                return $carry + round($base + $adj, 2);
+            }, 0.0);
+
+            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
+                    $q->where('program_id', $program->id);
+                })
+                ->where('status', 'approved')
+                ->sum('amount');
+            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            $coursePaymentPercentage = $courseTotalAmount > 0
+                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+                : 0;
+
+            $program->course_total_amount = $courseTotalAmount;
+            $program->course_paid_amount = $coursePaidAmount;
+            $program->course_payment_percentage = $coursePaymentPercentage;
+
             return $program;
         });
 
@@ -119,6 +174,33 @@ class ProgramController extends Controller
             'totalPaymentMethod',
             'lat90PaymentMethod'
         ]);
+
+        // Métricas de pagos agregadas por curso para la vista de edición
+        $participants = $program->course?->participants ?? collect();
+        $activeParticipants = $participants->filter(function ($p) {
+            return ($p->pivot->status ?? 'active') !== 'cancelled';
+        });
+
+        $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
+            $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
+            $adj = (float) ($p->pivot->price_adjustments ?? 0);
+            return $carry + round($base + $adj, 2);
+        }, 0.0);
+
+        $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
+                $q->where('program_id', $program->id);
+            })
+            ->where('status', 'approved')
+            ->sum('amount');
+        $coursePaidAmount = round($coursePaidAmount, 2);
+
+        $coursePaymentPercentage = $courseTotalAmount > 0
+            ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+            : 0;
+
+        $program->course_total_amount = $courseTotalAmount;
+        $program->course_paid_amount = $coursePaidAmount;
+        $program->course_payment_percentage = $coursePaymentPercentage;
 
         // Obtener instituciones para el dropdown
         $institutions = Institution::active()->orderBy('name')->get();

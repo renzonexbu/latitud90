@@ -448,7 +448,7 @@
                         Programas del Participante
                     </h3>
 
-                    <ProgramsGrid :programs="formattedPrograms" />
+                    <ProgramsGrid :programs="formattedPrograms" :prefer-participant-metrics="true" />
                 </div>
 
                 <!-- Back Button -->

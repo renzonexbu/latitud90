@@ -37,7 +37,12 @@ class HandleNotificationService
             }
 
             if ($status === 'paid' || $status === 'approved') {
-                $orderDetail->update(['is_paid' => true]);
+                $orderDetail->update(['is_paid' => true, 'status' => 'paid', 'paid_at' => now()]);
+
+                // Recalcular estado de la orden
+                if ($orderDetail->order) {
+                    $orderDetail->order->refreshStatus();
+                }
                 
                 Log::info('OrderDetail marked as paid via Transbank notification', [
                     'order_detail_id' => $orderDetail->id,
@@ -82,7 +87,12 @@ class HandleNotificationService
             }
 
             if ($status === 'done' || $status === 'paid') {
-                $orderDetail->update(['is_paid' => true]);
+                $orderDetail->update(['is_paid' => true, 'status' => 'paid', 'paid_at' => now()]);
+
+                // Recalcular estado de la orden
+                if ($orderDetail->order) {
+                    $orderDetail->order->refreshStatus();
+                }
                 
                 Log::info('OrderDetail marked as paid via Khipu notification', [
                     'order_detail_id' => $orderDetail->id,

@@ -22,10 +22,11 @@ class GeneratePaymentController extends Controller
 
     public function show(Request $request, $programId)
     {
-        $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null);
+        $rut = $request->query('rut', '');
+        $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null, $rut);
         
         // Obtener países
-        $countries = Country::orderBy('name')->get();
+        $countries = Country::where('name', 'Chile')->get();
         
         // Obtener regiones y comunas
         $regions = Region::with('comunes')->get();
@@ -36,7 +37,7 @@ class GeneratePaymentController extends Controller
         return Inertia::render('Ecommerce/PaymentDetails', [
             'paymentData' => $paymentData,
             'programId' => $programId,
-            'rut' => $request->query('rut', ''),
+            'rut' => $rut,
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes

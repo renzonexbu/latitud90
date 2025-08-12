@@ -43,4 +43,46 @@ class Order extends Model
     {
         return $this->hasMany(OrderDetail::class);
     }
+
+    /**
+     * Recalcula y persiste el estado de la orden en base al progreso de pago.
+     * Reglas:
+     * - payment_type === 'total': pagada si el único detalle está pagado; si no, pending
+     * - payment_type === 'monthly':
+     *   - 0 cuotas pagadas => pending
+     *   - 1..(n-1) cuotas pagadas => processing
+     *   - n cuotas pagadas => paid
+     */
+    public function refreshStatus(): void
+    {
+        $this->loadMissing('orderDetails');
+
+        // Sin detalles, mantener estado actual para evitar falsos positivos
+        if ($this->orderDetails->isEmpty()) {
+            return;
+        }
+
+        if ($this->payment_type === 'total') {
+            $allPaid = $this->orderDetails->every(function ($detail) {
+                return (bool) ($detail->is_paid ?? false);
+            });
+            $this->status = $allPaid ? 'paid' : 'pending';
+            $this->save();
+            return;
+        }
+
+        // Mensual
+        $paidCount = $this->orderDetails->where('is_paid', true)->count();
+        $totalInstallments = (int) ($this->total_installments ?? $this->orderDetails->count());
+
+        if ($paidCount <= 0) {
+            $this->status = 'pending';
+        } elseif ($paidCount < $totalInstallments) {
+            $this->status = 'processing';
+        } else {
+            $this->status = 'paid';
+        }
+
+        $this->save();
+    }
 } 

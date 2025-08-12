@@ -6,6 +6,7 @@ use App\Models\Participant;
 use App\Models\Course;
 use App\Models\Program;
 use App\Models\Payment;
+use App\Models\OrderDetail;
 
 class ProgramService
 {
@@ -80,12 +81,12 @@ class ProgramService
                 $priceAdjustments = (float) ($enrollment->pivot->price_adjustments ?? 0);
                 $totalAmount = round($individualPrice + $priceAdjustments, 2);
 
-                // Sumar pagos aprobados para este participante y programa
-                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                // Sumar pagos confirmados usando OrderDetails pagados (más fiable que estado del payment)
+                $paidAmount = (float) OrderDetail::whereHas('order', function($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
                     })
-                    ->where('status', 'approved')
+                    ->where('is_paid', true)
                     ->sum('amount');
 
                 $paidAmount = round($paidAmount, 2);

@@ -42,12 +42,44 @@ class CoursesController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        // Asegurar que los programas se carguen con todos los campos necesarios
+        // Asegurar que los programas se carguen con todos los campos necesarios y métricas de pago agregadas
         $courses->getCollection()->transform(function ($course) {
             if ($course->program) {
                 $course->program->makeVisible(['trip_price', 'name', 'destination']);
             }
-            // Agregar los accessors calculados
+
+            // Total del curso = suma de (precio individual + ajustes) de todos los participantes activos
+            $participants = $course->participants ?? collect();
+            $activeParticipants = $participants->filter(function ($p) {
+                return ($p->pivot->status ?? 'active') !== 'cancelled';
+            });
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? ($course->program->trip_price ?? 0));
+                $adj = (float) ($p->pivot->price_adjustments ?? 0);
+                return $carry + round($base + $adj, 2);
+            }, 0.0);
+
+            // Monto pagado = suma de pagos aprobados asociados al programa del curso
+            $coursePaidAmount = 0.0;
+            if ($course->program) {
+                $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
+                        $q->where('program_id', $course->program->id);
+                    })
+                    ->where('status', 'approved')
+                    ->sum('amount');
+            }
+            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            $coursePaymentPercentage = $courseTotalAmount > 0
+                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+                : 0;
+
+            // Adjuntar métricas agregadas para la tabla
+            $course->course_total_amount = $courseTotalAmount;
+            $course->course_paid_amount = $coursePaidAmount;
+            $course->course_payment_percentage = $coursePaymentPercentage;
+
+            // Agregar los accessors existentes (por compatibilidad)
             $course->append(['payment_percentage', 'payment_percentage_text']);
             return $course;
         });
@@ -57,12 +89,40 @@ class CoursesController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Aplicar las mismas transformaciones a todos los cursos
+        // Aplicar las mismas transformaciones a todos los cursos (incluyendo métricas agregadas)
         $allCourses->transform(function ($course) {
             if ($course->program) {
                 $course->program->makeVisible(['trip_price', 'name', 'destination']);
             }
-            // Agregar los accessors calculados
+
+            $participants = $course->participants ?? collect();
+            $activeParticipants = $participants->filter(function ($p) {
+                return ($p->pivot->status ?? 'active') !== 'cancelled';
+            });
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? ($course->program->trip_price ?? 0));
+                $adj = (float) ($p->pivot->price_adjustments ?? 0);
+                return $carry + round($base + $adj, 2);
+            }, 0.0);
+
+            $coursePaidAmount = 0.0;
+            if ($course->program) {
+                $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
+                        $q->where('program_id', $course->program->id);
+                    })
+                    ->where('status', 'approved')
+                    ->sum('amount');
+            }
+            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            $coursePaymentPercentage = $courseTotalAmount > 0
+                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
+                : 0;
+
+            $course->course_total_amount = $courseTotalAmount;
+            $course->course_paid_amount = $coursePaidAmount;
+            $course->course_payment_percentage = $coursePaymentPercentage;
+
             $course->append(['payment_percentage', 'payment_percentage_text']);
             return $course;
         });

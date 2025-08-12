@@ -80,17 +80,17 @@ class OrderDetail extends Model
 
     public function country()
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Country::class, 'country');
     }
 
     public function region()
     {
-        return $this->belongsTo(Region::class);
+        return $this->belongsTo(Region::class, 'region');
     }
 
     public function city()
     {
-        return $this->belongsTo(Comune::class);
+        return $this->belongsTo(Comune::class, 'city');
     }
 
     public function documentType()

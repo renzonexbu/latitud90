@@ -161,10 +161,26 @@ class ParticipantsController extends Controller
             $individual = optional($pivotParticipant)->pivot->individual_price ?? $participant->individual_price ?? null;
             $adjust = optional($pivotParticipant)->pivot->price_adjustments ?? 0;
             $totalDue = is_null($individual) ? null : (float) $individual + (float) $adjust;
+            // Pagos aprobados/completados del participante para este programa
+            $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $program->id);
+                })
+                ->whereIn('status', ['approved', 'completed'])
+                ->sum('amount');
+            $paidAmount = round($paidAmount, 2);
+            $balance = is_null($totalDue) ? null : max(round($totalDue - $paidAmount, 2), 0);
+            $paymentPercentage = (!is_null($totalDue) && $totalDue > 0)
+                ? round(($paidAmount / $totalDue) * 100, 0)
+                : 0;
+
             $array = $program->toArray();
             $array['participant_amount'] = $individual; // precio base por participante
             $array['participant_adjustments'] = $adjust; // ajuste del pivote
             $array['participant_total_due'] = $totalDue; // total a pagar (base + ajuste)
+            $array['paidAmount'] = $paidAmount;
+            $array['participant_balance'] = $balance;
+            $array['paymentPercentage'] = $paymentPercentage;
             return $array;
         });
 

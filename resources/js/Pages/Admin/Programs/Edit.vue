@@ -87,6 +87,17 @@ const mapLat90PaymentKeyFromName = (name) => {
     return byName[name] || '';
 };
 
+// Mapeo genérico a las llaves usadas por el select del admin (todos_medios, solo_tarjeta, etc.)
+const mapGenericPaymentKeyFromName = (name) => {
+    const byName = {
+        'Todos los medios (Débito/Crédito/Transferencia)': 'todos_medios',
+        'Solo pago con Tarjeta (Débito/Crédito)': 'solo_tarjeta',
+        'Solo pago con Transferencia': 'solo_transferencia',
+        'Solo pago Contado (Débito/Transferencia)': 'solo_contado',
+    };
+    return byName[name] || '';
+};
+
 const mapPaymentOption = (program) => {
     if (!program) return '';
     if (program.enable_lat90_payment) return 'installments';
@@ -137,7 +148,15 @@ const form = useForm({
         ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
     ],
     full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
-    installments_payment_method: (props.program && props.program.lat90_payment_method) ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : '',
+    installments_payment_method: (() => {
+        if (props.program && props.program.lat90_payment_method_id) {
+            return mapFullMethodFromId(props.program.lat90_payment_method_id);
+        }
+        if (props.program && props.program.lat90_payment_method && props.program.lat90_payment_method.name) {
+            return mapGenericPaymentKeyFromName(props.program.lat90_payment_method.name);
+        }
+        return '';
+    })(),
     max_installments: (props.program && props.program.lat90_max_installments) ? props.program.lat90_max_installments.toString() : "",
     active: Boolean(props.program.active),
     // Control de archivos e imágenes existentes
@@ -191,7 +210,15 @@ const paymentData = ref({
         ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
     ],
     full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
-    installments_payment_method: (props.program && props.program.lat90_payment_method) ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : '',
+    installments_payment_method: (() => {
+        if (props.program && props.program.lat90_payment_method_id) {
+            return mapFullMethodFromId(props.program.lat90_payment_method_id);
+        }
+        if (props.program && props.program.lat90_payment_method && props.program.lat90_payment_method.name) {
+            return mapGenericPaymentKeyFromName(props.program.lat90_payment_method.name);
+        }
+        return '';
+    })(),
     max_installments: (props.program && props.program.lat90_max_installments) ? props.program.lat90_max_installments.toString() : "",
 });
 
@@ -256,12 +283,15 @@ console.log('Datos de pago cargados:', {
     discount_type: props.program.discount_type
 });
 
-// Estado de pago (datos de ejemplo - en el futuro vendrán de la BD)
+// Estado de pago (valores reales agregados del curso)
 const paymentStatus = ref({
-    paymentPercentage: props.program.id === 1 ? 75 : 50, // 75% para programa 1, 50% para programa 2
-    paidAmount: props.program.id === 1 ? 337500 : 190000,
-    totalAmount: props.program.id === 1 ? 450000 : 380000,
-    remainingAmount: props.program.id === 1 ? 112500 : 190000,
+    paymentPercentage: props.program.course_payment_percentage ?? 0,
+    paidAmount: props.program.course_paid_amount ?? 0,
+    totalAmount: props.program.course_total_amount ?? (props.program.trip_price || 0),
+    remainingAmount: Math.max(
+        (props.program.course_total_amount ?? (props.program.trip_price || 0)) - (props.program.course_paid_amount ?? 0),
+        0
+    ),
 });
 
 // Estado para las nuevas imágenes
@@ -428,7 +458,14 @@ const submit = () => {
     if (shouldSendField(paymentData.value.full_payment_method, (props.program.total_payment_method_id ? 'todos_medios' : ''), 'full_payment_method')) {
         form.full_payment_method = paymentData.value.full_payment_method;
     }
-    if (shouldSendField(paymentData.value.installments_payment_method, (props.program.lat90_payment_method ? mapLat90PaymentKeyFromName(props.program.lat90_payment_method.name) : ''), 'installments_payment_method')) {
+    if (shouldSendField(
+        paymentData.value.installments_payment_method,
+        (props.program.lat90_payment_method_id
+            ? mapFullMethodFromId(props.program.lat90_payment_method_id)
+            : (props.program.lat90_payment_method ? mapGenericPaymentKeyFromName(props.program.lat90_payment_method.name) : '')
+        ),
+        'installments_payment_method'
+    )) {
         form.installments_payment_method = paymentData.value.installments_payment_method;
     }
     if (shouldSendField(paymentData.value.max_installments, props.program.lat90_max_installments, 'max_installments')) {
