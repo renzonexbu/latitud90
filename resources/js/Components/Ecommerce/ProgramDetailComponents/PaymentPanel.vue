@@ -19,7 +19,7 @@
             <!-- Payment Options Section -->
             <div class="flex flex-col gap-[18px]">
                 <!-- Si hay cuota activa (orden mensual existente), no permitir cambiar tipo; mostrar solo subopciones -->
-                <template v-if="program.active_installment">
+                <template v-if="program.active_installment && program.payment_plan_locked">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">
                             Cuota {{ program.active_installment.number }} de {{ program.active_installment.total }}

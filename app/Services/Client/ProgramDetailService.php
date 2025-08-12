@@ -64,18 +64,19 @@ class ProgramDetailService
             }
         }
 
-        // Buscar orden mensual existente con cuotas impagas y preparar próxima cuota
+        // Buscar orden mensual existente y preparar próxima cuota si ya hay pagos confirmados
         $activeInstallment = null;
+        $paymentPlanLocked = false;
         if ($participant) {
             $order = Order::where('participant_id', $participant->id)
                 ->where('program_id', $program->id)
                 ->where('payment_type', 'monthly')
-                ->whereHas('orderDetails', function ($q) {
-                    $q->where('is_paid', false);
-                })
                 ->latest('id')
                 ->first();
             if ($order) {
+                // Bloquear la selección sólo si alguna cuota ya fue pagada
+                $paymentPlanLocked = $order->orderDetails()->where('is_paid', true)->exists();
+                if ($paymentPlanLocked) {
                 $today = now()->startOfDay();
                 $overdueUnpaid = $order->orderDetails()
                     ->where('is_paid', false)
@@ -93,6 +94,7 @@ class ProgramDetailService
                         'amount' => round(((float) $next->amount) + $sumOverdue, 2),
                         'due_date' => optional($next->due_date)->toDateString(),
                     ];
+                }
                 }
             }
         }
@@ -116,6 +118,7 @@ class ProgramDetailService
             'paidAmount' => $paidAmount,
             'participant_balance' => $participantBalance,
             'paymentPercentage' => $paymentPercentage,
+            'payment_plan_locked' => $paymentPlanLocked,
             'active_installment' => $activeInstallment,
 
             // Archivos PDF
