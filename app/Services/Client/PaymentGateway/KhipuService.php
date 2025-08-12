@@ -42,7 +42,6 @@ class KhipuService
                 'headers' => $headers,
                 'json' => $payload
             ]);
-
             $result = json_decode($response->getBody()->getContents(), true);
 
             // Log de creación de pago (siempre)
@@ -57,8 +56,9 @@ class KhipuService
 
             return [
                 'success' => true,
-                'payment_id' => $result['payment_id'],
-                'url' => $result['payment_url']
+                'payment_id' => $result['payment_id'] ?? null,
+                'payment_url' => $result['payment_url'] ?? null,
+                'url' => $result['payment_url'] ?? null,
             ];
         } catch (\Exception $e) {
             Log::error('Error creating Khipu payment', [

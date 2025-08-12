@@ -2,9 +2,11 @@
   <div class="min-h-screen bg-gray-50 flex items-center justify-center">
     <div class="max-w-2xl w-full bg-white rounded-xl shadow p-8">
       <h2 class="text-2xl font-bold text-gray-900 mb-2" v-if="status==='pending'">Estamos verificando tu pago</h2>
-      <h2 class="text-2xl font-bold text-gray-900 mb-2" v-else>No pudimos verificar el pago aún</h2>
+      <h2 class="text-2xl font-bold text-gray-900 mb-2" v-else-if="status==='failed'">Aún no pudimos verificar el pago</h2>
+      <h2 class="text-2xl font-bold text-gray-900 mb-2" v-else>Pago en verificación</h2>
       <p class="text-gray-600 mb-6" v-if="status==='pending'">Por favor, no cierres esta página. Esto puede tardar algunos segundos.</p>
-      <p class="text-gray-600 mb-6" v-else>La transacción sigue en verificación. Esto puede tomar algunos minutos. Si se debitó el dinero, se confirmará automáticamente.</p>
+      <p class="text-gray-600 mb-6" v-else-if="status==='failed'">No pudimos verificar el pago automáticamente. Intentaremos de nuevo.</p>
+      <p class="text-gray-600 mb-6" v-else>Tu pago está siendo verificado. Durante el día te informaremos el resultado en tu correo.</p>
 
       <div v-if="paymentData" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div>
@@ -43,7 +45,7 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3" v-if="status!=='pending'">
+      <div class="flex items-center gap-3" v-if="status==='failed'">
         <button @click="retry" class="px-4 py-2 rounded bg-teal-600 text-white">Reintentar</button>
       </div>
     </div>

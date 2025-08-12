@@ -18,13 +18,15 @@ import { router } from '@inertiajs/vue3';
 const props = defineProps({
   orderDetailId: { type: Number, required: true },
   token: { type: String, default: null },
+  rut: { type: String, default: '' },
 });
 
 onMounted(async () => {
   try {
     const token = props.token || new URLSearchParams(window.location.search).get('token_ws');
     if (!token) {
-      router.visit(`/payment/failure/${props.orderDetailId}`);
+      const qs = props.rut ? `?rut=${encodeURIComponent(props.rut)}` : ''
+      router.visit(`/payment/failure/${props.orderDetailId}${qs}`);
       return;
     }
 
@@ -43,12 +45,23 @@ onMounted(async () => {
 
     const data = await response.json();
     if (data && data.redirect) {
-      window.location.href = data.redirect;
+      console.log('CallbackSpinner redirect received:', { redirect: data.redirect, rut: props.rut })
+      // Asegurar que preserve rut si no viene en redirect
+      if (!data.redirect.includes('rut=') && props.rut) {
+        const sep = data.redirect.includes('?') ? '&' : '?'
+        window.location.href = `${data.redirect}${sep}rut=${encodeURIComponent(props.rut)}`
+      } else {
+        window.location.href = data.redirect;
+      }
     } else {
-      router.visit(`/payment/failure/${props.orderDetailId}`);
+      console.log('CallbackSpinner no redirect, going to failure', { orderDetailId: props.orderDetailId, rut: props.rut })
+      const qs = props.rut ? `?rut=${encodeURIComponent(props.rut)}` : ''
+      router.visit(`/payment/failure/${props.orderDetailId}${qs}`);
     }
   } catch (e) {
-    router.visit(`/payment/failure/${props.orderDetailId}`);
+    console.error('CallbackSpinner error:', e)
+    const qs = props.rut ? `?rut=${encodeURIComponent(props.rut)}` : ''
+    router.visit(`/payment/failure/${props.orderDetailId}${qs}`);
   }
 });
 </script>

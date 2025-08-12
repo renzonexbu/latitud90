@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -34,15 +34,14 @@ onMounted(async () => {
       },
       body: form,
     })
-
     const data = await response.json()
     if (data && data.redirect) {
       window.location.href = data.redirect
     } else {
-      router.visit(`/payment/failure/${props.orderDetailId}`)
+      router.visit(`/khipu/view/${props.orderDetailId}`)
     }
   } catch (e) {
-    router.visit(`/payment/failure/${props.orderDetailId}`)
+    router.visit(`/khipu/view/${props.orderDetailId}`)
   }
 })
 </script>

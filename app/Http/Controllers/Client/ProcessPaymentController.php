@@ -92,6 +92,11 @@ class ProcessPaymentController extends Controller
                 'gateway_response' => $gatewayResult
             ]);
 
+            // Guardar RUT en sesión para preservar al regresar
+            if (!empty($orderDetail->document_number)) {
+                session(['current_rut' => preg_replace('/[.-]/', '', $orderDetail->document_number)]);
+            }
+
             // Registrar pago pendiente en la tabla payments
             $this->recordPendingPayment($orderDetail, $paymentData['paymentMethod'], $gatewayResult);
 
@@ -134,8 +139,17 @@ class ProcessPaymentController extends Controller
             ];
 
             if ($gatewayType === 'khipu') {
+                // Asegurar external_payment_id: usar payment_id; si no, extraer del payment_url/url
+                $paymentId = $gatewayResult['payment_id'] ?? null;
+                if (!$paymentId) {
+                    $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
+                    if (is_string($paymentUrl) && $paymentUrl !== '') {
+                        $parts = explode('/', rtrim($paymentUrl, '/'));
+                        $paymentId = end($parts) ?: null;
+                    }
+                }
                 $data = array_merge($commonData, [
-                    'external_payment_id' => $gatewayResult['payment_id'] ?? null,
+                    'external_payment_id' => $paymentId,
                 ]);
             } else {
                 $data = array_merge($commonData, [
@@ -217,7 +231,7 @@ class ProcessPaymentController extends Controller
                     'status' => $orderDetail->status
                 ]);
 
-                // Redirigir al paso 4 con mensaje de error
+            // Redirigir al paso 4 con mensaje de error (incluyendo rut)
                 $programId = $orderDetail->order->program_id;
                 $rut = $orderDetail->document_number;
 
@@ -268,6 +282,10 @@ class ProcessPaymentController extends Controller
                 'participant_phone' => $orderDetail->code_phone . ' ' . $orderDetail->phone,
             ];
 
+            // Persistir RUT en sesión
+            if ($orderDetail->document_number) {
+                session(['current_rut' => $orderDetail->document_number]);
+            }
             return Inertia::render('Ecommerce/SuccessfulPayment', [
                 'paymentData' => $paymentData
             ]);
@@ -310,6 +328,9 @@ class ProcessPaymentController extends Controller
             $programId = $orderDetail->order->program_id;
             $rut = $orderDetail->document_number;
 
+            if ($rut) {
+                session(['current_rut' => $rut]);
+            }
             return redirect()->route('payment.confirmation', [
                 'programId' => $programId,
                 'rut' => $rut

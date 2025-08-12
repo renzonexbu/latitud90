@@ -25,9 +25,18 @@ class PaymentGatewayController extends Controller
      */
     public function callbackSpinner(Request $request, $orderDetailId)
     {
+        // Pasar RUT desde sesión para preservarlo en redirecciones
+        $rut = session('current_rut');
+        Log::info('CallbackSpinner render', [
+            'order_detail_id' => (int) $orderDetailId,
+            'token_ws' => $request->query('token_ws'),
+            'rut_in_session' => $rut,
+            'full_url' => $request->fullUrl()
+        ]);
         return inertia('Payment/CallbackSpinner', [
             'orderDetailId' => (int) $orderDetailId,
             'token' => $request->query('token_ws') ?? null,
+            'rut' => $rut,
         ]);
     }
 
@@ -73,11 +82,20 @@ class PaymentGatewayController extends Controller
                 'gateway_response' => $confirmation,
             ]);
 
+            $redirectUrl = $approved
+                ? route('payment.success', $orderDetailId)
+                : route('payment.failure', $orderDetailId);
+
+            Log::info('confirmTransbank redirect being built', [
+                'approved' => $approved,
+                'order_detail_id' => $orderDetailId,
+                'redirect' => $redirectUrl,
+                'rut_in_session' => session('current_rut')
+            ]);
+
             return response()->json([
                 'success' => $approved,
-                'redirect' => $approved
-                    ? route('payment.success', $orderDetailId)
-                    : route('payment.failure', $orderDetailId),
+                'redirect' => $redirectUrl,
             ]);
         } catch (\Throwable $e) {
             Log::error('Error confirming Transbank transaction', [
@@ -155,60 +173,73 @@ class PaymentGatewayController extends Controller
         $paymentId = $request->input('payment_id');
 
         try {
-            $status = $khipuService->getPaymentStatus($paymentId);
+            // Backend polling: hasta 5 intentos con espera de 2s
+            $attempts = 0;
+            $maxAttempts = 5;
+            $status = null;
+            $approved = false;
 
-            // Actualizar/crear registro en payments
-            $payment = Payment::where('external_payment_id', $paymentId)
-                ->where('order_detail_id', $orderDetailId)
-                ->latest()
-                ->first();
+            while ($attempts < $maxAttempts) {
+                $attempts++;
+                $status = $khipuService->getPaymentStatus($paymentId);
 
-            if (!$payment) {
-                $orderDetail = OrderDetail::findOrFail($orderDetailId);
-                $payment = Payment::create([
-                    'order_id' => $orderDetail->order_id,
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_gateway_id' => $orderDetail->payment_gateway_id,
-                    'payment_method_id' => $orderDetail->payment_method_id,
-                    'payment_mode_id' => $orderDetail->payment_mode_id,
-                    'amount' => $orderDetail->amount,
-                    'currency' => 'CLP',
-                    'status' => 'pending',
-                    'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
-                    'external_payment_id' => $paymentId,
-                ]);
-            }
+                // Actualizar/crear registro en payments
+                $payment = Payment::where('external_payment_id', $paymentId)
+                    ->where('order_detail_id', $orderDetailId)
+                    ->latest()
+                    ->first();
 
-            $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);
+                if (!$payment) {
+                    $orderDetail = OrderDetail::findOrFail($orderDetailId);
+                    $payment = Payment::create([
+                        'order_id' => $orderDetail->order_id,
+                        'order_detail_id' => $orderDetail->id,
+                        'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                        'payment_method_id' => $orderDetail->payment_method_id,
+                        'payment_mode_id' => $orderDetail->payment_mode_id,
+                        'amount' => $orderDetail->amount,
+                        'currency' => 'CLP',
+                        'status' => 'pending',
+                        'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
+                        'external_payment_id' => $paymentId,
+                    ]);
+                }
 
-            $payment->update([
-                'status' => $approved ? 'approved' : ($status['status'] ?? 'pending'),
-                'gateway_response' => $status['data'] ?? $status,
-                'raw_notification' => $status['data'] ?? $status,
-            ]);
+                $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);
 
-            $orderDetail = $payment->orderDetail;
-            if ($orderDetail) {
-                $orderDetail->update([
-                    'is_paid' => $approved,
-                    'status' => $approved ? 'paid' : 'pending',
-                    'paid_at' => $approved ? now() : $orderDetail->paid_at,
-                    'transaction_id' => $paymentId,
+                $payment->update([
+                    'status' => $approved ? 'approved' : ($status['status'] ?? 'pending'),
                     'gateway_response' => $status['data'] ?? $status,
+                    'raw_notification' => $status['data'] ?? $status,
                 ]);
+
+                $orderDetail = $payment->orderDetail;
+                if ($orderDetail) {
+                    $orderDetail->update([
+                        'is_paid' => $approved,
+                        'status' => $approved ? 'paid' : 'pending',
+                        'paid_at' => $approved ? now() : $orderDetail->paid_at,
+                        'transaction_id' => $paymentId,
+                        'gateway_response' => $status['data'] ?? $status,
+                    ]);
+                }
+
+                if ($approved) {
+                    return response()->json([
+                        'success' => true,
+                        'redirect' => route('payment.success', $orderDetailId),
+                        'status' => $status['status'] ?? 'done',
+                    ]);
+                }
+
+                // Esperar antes del siguiente intento
+                sleep(2);
             }
 
-            if ($approved) {
-                return response()->json([
-                    'success' => true,
-                    'redirect' => route('payment.success', $orderDetailId),
-                    'status' => $status['status'] ?? 'done',
-                ]);
-            }
-
-            // No aprobado: devolver estado para que el frontend muestre mensaje y siga verificando
+            // No aprobado tras reintentos: redirigir a vista informativa (verificación)
             return response()->json([
                 'success' => false,
+                'redirect' => route('khipu.callback', ['orderDetailId' => $orderDetailId]),
                 'status' => $status['status'] ?? 'pending',
             ]);
         } catch (\Throwable $e) {
@@ -235,7 +266,7 @@ class PaymentGatewayController extends Controller
         try {
             $notification = $request->all();
             $result = $this->handleNotificationService->handleNotification('transbank', $notification);
-            
+
             if ($result['success']) {
                 return response('OK', 200);
             } else {
@@ -261,7 +292,7 @@ class PaymentGatewayController extends Controller
         try {
             $notification = $request->all();
             $result = $this->handleNotificationService->handleNotification('khipu', $notification);
-            
+
             if ($result['success']) {
                 return response('OK', 200);
             } else {
@@ -292,6 +323,10 @@ class PaymentGatewayController extends Controller
                 // Pago fallido - redirigir a failure con mensaje
                 $errorMessage = 'El pago no pudo ser procesado correctamente. Si se le descontó dinero, contacte a atención al cliente para verificar el estado de su transacción.';
 
+                // Guardar RUT en sesión para confirmación
+                if ($orderDetail->document_number) {
+                    session(['current_rut' => preg_replace('/[.-]/', '', $orderDetail->document_number)]);
+                }
                 return redirect()->route('payment.failure', $orderDetailId)
                     ->with('error', $errorMessage)
                     ->with('payment_data', [
@@ -305,6 +340,10 @@ class PaymentGatewayController extends Controller
                 'order_detail_id' => $orderDetailId
             ]);
 
+            // Persistir RUT si es posible
+            if (isset($orderDetail) && $orderDetail && $orderDetail->document_number) {
+                session(['current_rut' => $orderDetail->document_number]);
+            }
             return redirect()->route('payment.failure', $orderDetailId)
                 ->with('error', 'Error al procesar el resultado del pago. Si se le descontó dinero, contacte a atención al cliente.');
         }

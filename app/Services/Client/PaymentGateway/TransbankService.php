@@ -40,11 +40,6 @@ class TransbankService
         try {
             $sessionId = session()->getId();
 
-            // Instanciar MallTransaction según ambiente
-            $mall = $this->environment === 'production'
-                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
-                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
-
             // Detalle Mall: sin cuotas (no se envía installments_number)
             $details = [
                 [
@@ -54,8 +49,16 @@ class TransbankService
                 ],
             ];
 
+            // Usar instancia estándar del SDK sin builders específicos
+            $mall = new MallTransaction();
             $response = $mall->create((string) $orderId, (string) $sessionId, (string) $returnUrl, $details);
-
+            Log::info('Transbank createTransaction response', [
+                'order_id' => $orderId,
+                'amount' => $amount,
+                'return_url' => $returnUrl,
+                'details' => $details,
+                'response' => $response,
+            ]);
             return [
                 'success' => true,
                 'token' => $response->getToken(),
@@ -79,11 +82,8 @@ class TransbankService
     public function confirmTransaction($token)
     {
         try {
-            // Instanciar MallTransaction según ambiente
-            $mall = $this->environment === 'production'
-                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
-                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
-
+            // Usar instancia estándar del SDK sin builders específicos
+            $mall = new MallTransaction();
             $commit = $mall->commit((string) $token);
 
             $details = $commit->getDetails();

@@ -27,6 +27,10 @@ class ProgramController extends Controller
             return redirect()->route('ecommerce.index');
         }
 
+        // Persistir RUT en sesión para pasos posteriores (normalizado sin puntos ni guiones)
+        $cleanRut = $rut ? preg_replace('/[.-]/', '', $rut) : $rut;
+        session(['current_rut' => $cleanRut]);
+
         $participant = $this->programService->getParticipantByRut($rut);
         
         if (!$participant) {
@@ -56,8 +60,16 @@ class ProgramController extends Controller
         $rut = $request->query('rut');
         
         if (!$rut) {
-            return redirect()->route('ecommerce.index');
+            // Intentar recuperar de sesión
+            $rut = session('current_rut');
+            if (!$rut) {
+                return redirect()->route('ecommerce.index');
+            }
         }
+
+        // Persistir RUT en sesión para continuidad (normalizado)
+        $cleanRut = $rut ? preg_replace('/[.-]/', '', $rut) : $rut;
+        session(['current_rut' => $cleanRut]);
 
         $participant = $this->programService->getParticipantByRut($rut);
         
