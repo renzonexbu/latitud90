@@ -13,14 +13,86 @@ class ConfirmPaymentService
 {
     public function getConfirmationDetails($programId, $participantId = null, $rut = null)
     {
-        $program = Program::find($programId);
+        $program = Program::with(['course.participants'])->find($programId);
         if (!$program) {
             return null;
         }
 
         // Buscar datos reales del participante por RUT
         $formData = $this->getFormDataFromRut($rut);
+        $participant = null;
+        if ($rut) {
+            $participant = Participant::where('document_number', preg_replace('/[.-]/', '', $rut))
+                ->where('document_type', 'RUT')
+                ->first();
+        } elseif ($participantId) {
+            $participant = Participant::find($participantId);
+        }
+
+        // Calcular montos por participante
+        $isEnrolled = false;
+        $participantAmount = null;
+        $participantAdjustments = 0.0;
+        $participantTotalAmount = (float) $program->trip_price;
+        $paidAmount = 0.0;
+        $participantBalance = (float) $program->trip_price;
+        $paymentPercentage = 0.0;
+
+        if ($participant && $program->course) {
+            $pivotParticipant = $program->course->participants
+                ->firstWhere('id', $participant->id);
+            if ($pivotParticipant) {
+                $isEnrolled = true;
+                $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
+                $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
+                $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+
+                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $program->id);
+                    })
+                    ->where('status', 'approved')
+                    ->sum('amount');
+                $paidAmount = round($paidAmount, 2);
+                $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+                $paymentPercentage = $participantTotalAmount > 0
+                    ? round(($paidAmount / $participantTotalAmount) * 100, 2)
+                    : 0.0;
+            }
+        }
         $paymentData = $this->getPaymentDataFromSession();
+        // Orden mensual activa: próxima cuota
+        $activeInstallment = null;
+        if ($participant) {
+            $order = Order::where('participant_id', $participant->id)
+                ->where('program_id', $program->id)
+                ->where('payment_type', 'monthly')
+                ->whereHas('orderDetails', function ($q) {
+                    $q->where('is_paid', false);
+                })
+                ->latest('id')
+                ->first();
+            if ($order) {
+                $today = now()->startOfDay();
+                $overdueUnpaid = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->whereDate('due_date', '<', $today)
+                    ->get();
+                $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
+                $next = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->orderBy('due_date')
+                    ->first();
+                if ($next) {
+                    $activeInstallment = [
+                        'number' => (int) $next->installment_number,
+                        'total' => (int) $order->total_installments,
+                        'amount' => round(((float) $next->amount) + $sumOverdue, 2),
+                        'due_date' => optional($next->due_date)->toDateString(),
+                    ];
+                }
+            }
+        }
 
         return [
             'program' => [
@@ -37,6 +109,14 @@ class ConfirmPaymentService
                 'total_payment_method_id' => $program->total_payment_method_id,
                 'lat90_payment_method_id' => $program->lat90_payment_method_id,
                 'lat90_max_installments' => $program->lat90_max_installments,
+                // Montos por participante
+                'participant_amount' => $participantAmount,
+                'participant_adjustments' => $participantAdjustments,
+                'participant_total_due' => $participantTotalAmount,
+                'paidAmount' => $paidAmount,
+                'participant_balance' => $participantBalance,
+                'paymentPercentage' => $paymentPercentage,
+                'active_installment' => $activeInstallment,
             ],
             'participant' => $participantId ? [
                 'id' => $participantId,

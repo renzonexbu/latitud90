@@ -8,6 +8,8 @@ use App\Models\Institution;
 use App\Models\Course;
 use App\Models\Feature;
 use App\Models\Requirement;
+use App\Models\Order;
+use App\Models\OrderDetail;
 use App\Models\Payment;
 
 class ProgramDetailService
@@ -62,6 +64,39 @@ class ProgramDetailService
             }
         }
 
+        // Buscar orden mensual existente con cuotas impagas y preparar próxima cuota
+        $activeInstallment = null;
+        if ($participant) {
+            $order = Order::where('participant_id', $participant->id)
+                ->where('program_id', $program->id)
+                ->where('payment_type', 'monthly')
+                ->whereHas('orderDetails', function ($q) {
+                    $q->where('is_paid', false);
+                })
+                ->latest('id')
+                ->first();
+            if ($order) {
+                $today = now()->startOfDay();
+                $overdueUnpaid = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->whereDate('due_date', '<', $today)
+                    ->get();
+                $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
+                $next = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->orderBy('due_date')
+                    ->first();
+                if ($next) {
+                    $activeInstallment = [
+                        'number' => (int) $next->installment_number,
+                        'total' => (int) $order->total_installments,
+                        'amount' => round(((float) $next->amount) + $sumOverdue, 2),
+                        'due_date' => optional($next->due_date)->toDateString(),
+                    ];
+                }
+            }
+        }
+
         // Obtener información completa del programa
         $programData = [
             'id' => $program->id,
@@ -81,6 +116,7 @@ class ProgramDetailService
             'paidAmount' => $paidAmount,
             'participant_balance' => $participantBalance,
             'paymentPercentage' => $paymentPercentage,
+            'active_installment' => $activeInstallment,
 
             // Archivos PDF
             'itinerary_file' => $program->itinerary_file_url,

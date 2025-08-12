@@ -18,6 +18,27 @@
 
             <!-- Payment Options Section -->
             <div class="flex flex-col gap-[18px]">
+                <!-- Si hay cuota activa (orden mensual existente), no permitir cambiar tipo; mostrar solo subopciones -->
+                <template v-if="program.active_installment">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">
+                            Cuota {{ program.active_installment.number }} de {{ program.active_installment.total }}
+                        </span>
+                        <span class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold">
+                            {{ formatPrice(program.active_installment.amount) }}
+                        </span>
+                    </div>
+                    <div class="flex flex-col gap-[9px]">
+                        <PaymentSubOption
+                            v-for="option in getMonthlyPaymentOptions()"
+                            :key="option.value"
+                            :option="option"
+                            :is-selected="monthlyPaymentOption === option.value"
+                            @select="selectMonthlyPaymentOption(option.value)"
+                        />
+                    </div>
+                </template>
+                <template v-else>
                 <!-- Pago Total Option -->
                 <PaymentOption
                     v-if="program.enable_total_payment"
@@ -122,6 +143,7 @@
                         </div>
                     </template>
                 </PaymentOption>
+                </template>
             </div>
 
             <!-- Payment Summary Section -->
@@ -135,7 +157,7 @@
                     <span
                         class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold"
                     >
-                        {{ formatPrice(program.participant_balance ?? program.participant_total_due ?? program.trip_price) }}
+                        {{ formatPrice(displayRemainingAmount) }}
                     </span>
                 </div>
             </div>
@@ -169,6 +191,7 @@ import { router } from "@inertiajs/vue3";
 
 export default {
     name: "PaymentPanel",
+    emits: ['terms-accepted-updated', 'payment-selection-updated'],
     components: {
         PaymentOption,
         PaymentSubOption,
@@ -221,6 +244,7 @@ export default {
             // Guardar en localStorage cuando cambie el número de cuotas
             if (this.paymentType === 'monthly') {
                 this.savePaymentDataToLocalStorage();
+                this.emitSelection();
             }
         }
     },
@@ -228,6 +252,19 @@ export default {
         // Si está en modo confirmación, cargar datos desde localStorage
         if (this.isConfirmation) {
             this.loadPaymentDataFromLocalStorage();
+        } else {
+            // Estado base por defecto: mensual con 1 cuota si está habilitado
+            if (this.program.enable_lat90_payment && !this.paymentType) {
+                this.paymentType = 'monthly';
+                this.accordionOpen = 'monthly';
+                this.selectedInstallments = 1;
+                const availableOptions = this.getMonthlyPaymentOptions();
+                if (availableOptions.length > 0) {
+                    this.monthlyPaymentOption = availableOptions[0].value;
+                }
+                this.savePaymentDataToLocalStorage();
+                this.emitSelection();
+            }
         }
     },
     data() {
@@ -236,7 +273,7 @@ export default {
             totalPaymentOption: null,
             monthlyPaymentOption: null,
             accordionOpen: null,
-            selectedInstallments: 12,
+            selectedInstallments: 1,
             // Opciones base de pago
             allPaymentOptions: [
                 {
@@ -354,6 +391,7 @@ export default {
 
                 if (type === "monthly") {
                     this.totalPaymentOption = null;
+                    this.selectedInstallments = 1;
                     // Seleccionar la primera opción disponible por defecto
                     const availableOptions = this.getMonthlyPaymentOptions();
                     if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
@@ -371,6 +409,7 @@ export default {
             
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
+            this.emitSelection();
         },
         selectTotalPaymentOption(option) {
             this.paymentType = "total";
@@ -379,6 +418,7 @@ export default {
             
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
+            this.emitSelection();
         },
         selectMonthlyPaymentOption(option) {
             this.paymentType = "monthly";
@@ -390,6 +430,7 @@ export default {
             }
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
+            this.emitSelection();
         },
         formatEndDate(date) {
             if (!date) return "No especificada";
@@ -439,6 +480,14 @@ export default {
                 JSON.stringify(paymentData)
             );
         },
+        emitSelection() {
+            if (this.paymentType === null) return;
+            this.$emit('payment-selection-updated', {
+                paymentType: this.paymentType,
+                paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
+                installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1,
+            });
+        },
         
         loadPaymentDataFromLocalStorage() {
             const savedPaymentData = localStorage.getItem("selectedPaymentData");
@@ -448,7 +497,7 @@ export default {
                     
                     // Cargar los datos de pago
                     this.paymentType = paymentData.paymentType;
-                    this.selectedInstallments = paymentData.installments || 12;
+                    this.selectedInstallments = paymentData.installments || 1;
                     
                     // Configurar las opciones según el tipo de pago
                     if (paymentData.paymentType === 'total') {
@@ -463,6 +512,12 @@ export default {
                     if (paymentData.termsAccepted !== undefined) {
                         this.$emit('terms-accepted-updated', paymentData.termsAccepted);
                     }
+                    // Emitir selección cargada
+                    this.$emit('payment-selection-updated', {
+                        paymentType: this.paymentType,
+                        paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
+                        installments: this.selectedInstallments,
+                    });
                 } catch (error) {
                     // noop
                 }
@@ -505,6 +560,14 @@ export default {
             return this.isMobileOverlay
                 ? this.overlayContainerClasses()
                 : this.defaultContainerClasses();
+        },
+        displayRemainingAmount() {
+            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+            if (!this.paymentType || this.paymentType === 'total') {
+                return Number(base) || 0;
+            }
+            const installments = Math.max(1, Number(this.selectedInstallments || 1));
+            return Math.round(((Number(base) || 0) / installments) * 100) / 100;
         }
     }
 };

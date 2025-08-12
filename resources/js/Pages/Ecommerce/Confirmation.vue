@@ -51,9 +51,10 @@
                             :is-confirmation="true"
                             :show-header="false"
                             :show-warning="false"
-                            :show-remaining-amount="false"
+                            :show-remaining-amount="!confirmationData.program.active_installment"
                             :show-payment-button="false"
                             @terms-accepted-updated="handleTermsAcceptedUpdate"
+                            @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
                 </div>
@@ -64,6 +65,7 @@
                         <ConfirmationCard
                             :program="confirmationData.program"
                             :form-data="confirmationData.form_data"
+                            ref="confirmCard"
                         />
                     </div>
                 </div>
@@ -137,6 +139,12 @@ export default {
         });
     },
     methods: {
+        handlePaymentSelection(selection) {
+            const card = this.$refs.confirmCard;
+            if (card && selection) {
+                card.currentInstallments = selection.installments || 1;
+            }
+        },
         handleTermsAcceptedUpdate(termsAccepted) {
             // Actualizar el estado de términos aceptados en localStorage
             const paymentData = localStorage.getItem("selectedPaymentData");

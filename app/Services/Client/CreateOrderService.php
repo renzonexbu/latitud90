@@ -24,11 +24,11 @@ class CreateOrderService
             }
 
             // Buscar el programa
-            $program = Program::findOrFail($programId);
+            $program = Program::with(['course.participants'])->findOrFail($programId);
 
-            // Calcular montos por participante aplicando descuento del programa
-            $totalAmount = (float) $program->trip_price;
-            [$discount, $finalAmount] = $this->applyProgramDiscount($program, $totalAmount);
+            // Calcular montos por participante desde pivote y pagos previos
+            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($program, $participant);
+            $finalAmount = $participantBalance; // Base para este plan de pago
 
             // Determinar número total de cuotas
             $totalInstallments = $paymentData['paymentType'] === 'monthly'
@@ -36,12 +36,36 @@ class CreateOrderService
                 : 1;
             if ($totalInstallments < 1) { $totalInstallments = 1; }
 
+            // Si ya existe una orden mensual pendiente con cuotas impagas, devolver esa orden (no crear otra)
+            if ($paymentData['paymentType'] === 'monthly') {
+                $existing = Order::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->where('payment_type', 'monthly')
+                    ->whereHas('orderDetails', function ($q) {
+                        $q->where('is_paid', false);
+                    })
+                    ->latest('id')
+                    ->first();
+                if ($existing) {
+                    // Rebalancear por si hay cuotas vencidas
+                    $this->rebalanceOverdueAmounts($existing);
+                    return [
+                        'success' => true,
+                        'order' => $existing,
+                        'order_detail' => $existing->orderDetails()
+                            ->where('is_paid', false)
+                            ->orderBy('due_date')
+                            ->first(),
+                    ];
+                }
+            }
+
             // Crear la orden principal
             $order = Order::create([
                 'participant_id' => $participant->id,
                 'program_id' => $program->id,
-                'total_amount' => $totalAmount,
-                'discount' => $discount,
+                'total_amount' => $participantTotalAmount,
+                'discount' => 0,
                 'final_amount' => $finalAmount,
                 'total_installments' => $totalInstallments,
                 'payment_type' => $paymentData['paymentType'],
@@ -121,6 +145,30 @@ class CreateOrderService
         }
         $discount = round($baseAmount * $percent, 2);
         return [$discount, round($baseAmount - $discount, 2)];
+    }
+
+    /**
+     * Obtiene total por participante (base+ajuste), total pagado y saldo pendiente.
+     */
+    private function computeParticipantAmounts(Program $program, Participant $participant): array
+    {
+        $program->loadMissing('course.participants');
+        $pivotParticipant = $program->course?->participants?->firstWhere('id', $participant->id);
+        $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
+        $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
+        $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+
+        // Pagos aprobados previos de este participante para este programa
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $program->id);
+            })
+            ->where('status', 'approved')
+            ->sum('amount');
+        $paidAmount = round($paidAmount, 2);
+        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+
+        return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
 
     /**

@@ -65,17 +65,13 @@
 
         <!-- Bottom Section -->
         <div class="flex flex-col gap-[10px] mt-4">
-            <!-- Total Value -->
+            <!-- Total Value (Total del participante o próxima cuota activa) -->
             <div class="flex justify-between items-center">
-                <div
-                    class="text-[#5B5B5B] font-nexa text-xs leading-[13px] font-bold"
-                >
-                    Valor total
+                <div class="text-[#5B5B5B] font-nexa text-xs leading-[13px] font-bold">
+                    {{ program.active_installment ? `Cuota ${program.active_installment.number} de ${program.active_installment.total}` : 'Valor total' }}
                 </div>
-                <div
-                    class="text-[#C7C7C7] font-nexa text-base leading-[22px] font-normal"
-                >
-                    ${{ formatCurrency(program.trip_price) }}
+                <div class="text-[#C7C7C7] font-nexa text-base leading-[22px] font-normal">
+                    ${{ formatCurrency(program.active_installment ? program.active_installment.amount : (program.participant_total_due ?? program.trip_price)) }}
                 </div>
             </div>
 
@@ -87,10 +83,8 @@
                     >
                         Pagarás
                     </div>
-                    <div
-                        class="text-[#434343] font-nexa text-2xl leading-7 font-bold"
-                    >
-                        ${{ formatCurrency(program.trip_price) }}
+                    <div class="text-[#434343] font-nexa text-2xl leading-7 font-bold">
+                        ${{ formatCurrency(program.active_installment ? program.active_installment.amount : displayPayAmount) }}
                     </div>
                 </div>
 
@@ -192,11 +186,8 @@
             
             <!-- Contenido normal cuando no está procesando -->
             <div v-else class="flex items-center gap-3">
-                <span
-                    class="text-white font-urbanist text-base font-semibold leading-[18px]"
-                    style="font-feature-settings: 'liga' off, 'clig' off"
-                >
-                    Ir a pagar ${{ formatCurrency(program.trip_price) }}
+                <span class="text-white font-urbanist text-base font-semibold leading-[18px]" style="font-feature-settings: 'liga' off, 'clig' off">
+                    Ir a pagar ${{ formatCurrency(displayPayAmount) }}
                 </span>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -236,6 +227,7 @@ export default {
             termsAccepted: false,
             isProcessing: false,
             errorMessage: null,
+            currentInstallments: 1,
         };
     },
     watch: {
@@ -266,6 +258,7 @@ export default {
             try {
                 const parsedData = JSON.parse(paymentData);
                 this.termsAccepted = parsedData.termsAccepted || false;
+                this.currentInstallments = parsedData.installments || 1;
             } catch (error) {
                 console.error("Error loading payment data:", error);
             }
@@ -293,6 +286,13 @@ export default {
             // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando
             return hasPaymentMethod && this.termsAccepted && !this.isProcessing;
         },
+        displayPayAmount() {
+            // Monto a pagar mostrado en Confirmación: si mensual, dividir saldo por cuotas elegidas
+            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+            const installments = Math.max(1, Number(this.currentInstallments || 1));
+            const per = Math.round((Number(base) / installments) * 100) / 100;
+            return per;
+        }
     },
     methods: {
         formatCurrency(amount) {
@@ -353,6 +353,7 @@ export default {
                 }
 
                 const parsedPaymentData = JSON.parse(paymentData);
+                this.currentInstallments = parsedPaymentData.installments || 1;
                 // Usar los datos del formulario que vienen como props
                 const parsedFormData = this.formData;
 

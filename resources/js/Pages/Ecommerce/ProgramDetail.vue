@@ -82,6 +82,8 @@
                             :final-payment-date="program.final_payment_date" 
                             :program-id="program.id"
                             :program="program"
+                            :show-remaining-amount="!program.active_installment"
+                            @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
                 </div>
@@ -104,8 +106,8 @@
             >
                 <div class="flex flex-row items-center justify-between w-full">
                     <div class="flex flex-col items-start">
-                        <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">Faltan pagar</span>
-                        <span class="text-[#434343] font-nexa text-[18px] leading-[28px] font-bold">{{ formatPrice(program.participant_balance ?? program.participant_total_due ?? program.trip_price) }}</span>
+                        <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">Pagarás</span>
+                        <span class="text-[#434343] font-nexa text-[18px] leading-[28px] font-bold">{{ formatPrice(displayPayAmount) }}</span>
                     </div>
                     <button
                         class="flex h-[48px] px-[21px] py-[13px] justify-center items-center gap-[10px] rounded-[35px] bg-[#FBBD51]"
@@ -139,6 +141,7 @@
                         :show-warning="true"
                         :show-remaining-amount="true"
                         :show-payment-button="true"
+                        @payment-selection-updated="handlePaymentSelection"
                     />
                 </div>
             </div>
@@ -201,9 +204,13 @@ export default {
     data() {
         return {
             isMobilePaymentOpen: false,
+            currentInstallments: 1,
         };
     },
     methods: {
+        handlePaymentSelection(selection) {
+            this.currentInstallments = selection?.installments || 1;
+        },
         formatPrice(amount) {
             const safe = Number(amount ?? 0);
             return new Intl.NumberFormat("es-CL", {
@@ -225,6 +232,13 @@ export default {
             router.visit(`/programs/${this.program.id}/payment`, {
                 data: { rut: this.rut }
             });
+        }
+    },
+    computed: {
+        displayPayAmount() {
+            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+            const installments = Math.max(1, Number(this.currentInstallments || 1));
+            return Math.round((Number(base) / installments) * 100) / 100;
         }
     }
 };
