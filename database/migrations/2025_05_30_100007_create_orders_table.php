@@ -12,13 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
-            $table->foreignId('program_id')->constrained('programs'); // FK a programs
+			$table->id();
+			$table->foreignId('participant_id')->constrained('participants');
+			$table->foreignId('program_id')->constrained('programs'); // FK a programs
+			$table->foreignId('participant_program_id')->nullable()->constrained('participant_program');
 
             // Información de la orden
             $table->decimal('total_amount', 10, 2); // Monto total de la orden
-            $table->decimal('discount', 10, 2)->default(0);
+			$table->decimal('discount', 10, 2)->default(0);
             $table->decimal('final_amount', 10, 2); // Monto final después de descuentos
             $table->integer('total_installments'); // Número total de cuotas
             $table->enum('payment_type', ['total', 'monthly'])->default('total');
@@ -72,7 +73,9 @@ return new class extends Migration
 
             // Información de la cuota
             $table->integer('installment_number'); // Número de cuota (1, 2, 3, etc.)
-            $table->decimal('amount', 10, 2); // Monto de esta cuota específica
+			$table->decimal('base_amount', 10, 2); // Monto full original de esta cuota
+			$table->decimal('discount_amount', 10, 2)->default(0); // Monto de descuento aplicado a la cuota
+			$table->decimal('amount', 10, 2); // Monto vigente (ajustado) de esta cuota
             $table->date('due_date'); // Fecha de vencimiento
             $table->boolean('is_paid')->default(false); // Si fue pagada o no
             $table->datetime('paid_at')->nullable(); // Fecha cuando se pagó
@@ -83,6 +86,8 @@ return new class extends Migration
                 'overdue',      // Vencida
                 'cancelled'     // Cancelada
             ])->default('pending');
+			$table->datetime('adjusted_at')->nullable();
+			$table->text('adjustment_reason')->nullable();
 
             // Información de transacción
             $table->string('transaction_id')->nullable(); // ID de transacción del gateway

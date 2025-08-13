@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('programs', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
+			$table->id();
+			$table->string('code', 8); // Código del programa (4 dígitos hoy, capacidad hasta 8)
+			$table->string('name');
             $table->string('destination');
             $table->date('departure_date');
             $table->text('trip_description')->nullable();
@@ -24,8 +25,11 @@ return new class extends Migration
             $table->string('travel_assistance_coverage')->nullable();
             $table->string('equipment_list')->nullable();
             $table->decimal('trip_price', 10, 2);
+			$table->smallInteger('year');
+			$table->string('grade')->nullable();
             $table->date('final_payment_date')->nullable();
-            $table->string('seller_name')->nullable();
+			$table->string('seller_name')->nullable();
+			$table->foreignId('sales_executive_id')->constrained('sales_executives');
 
             // Configuración de pago total
             $table->boolean('enable_total_payment')->default(false);
@@ -46,7 +50,8 @@ return new class extends Migration
             $table->timestamps();
 
             // Índices
-            $table->index(['active', 'departure_date']);
+			$table->index(['active', 'departure_date']);
+			$table->index(['code']);
             $table->index(['destination']);
         });
     }

@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('phone');
             $table->string('document_type');
             $table->string('document_number');
+			$table->string('rut_digits')->nullable();
+			$table->string('rut_first6', 6)->nullable();
             $table->string('country');
             $table->date('birth_date');
             $table->text('address')->nullable();
@@ -30,6 +32,9 @@ return new class extends Migration
             // Campos de pago se gestionan en el pivote participant_course
             $table->timestamps();
             $table->softDeletes();
+
+			$table->index(['rut_digits']);
+			$table->index(['rut_first6']);
         });
 
         // Tabla pivote para la relación muchos a muchos entre participants y courses
