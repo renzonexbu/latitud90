@@ -198,20 +198,13 @@ export default {
         },
         
         getFirstCoursePivotPercentage(participant) {
-            const firstCourse = this.getFirstCourse(participant);
-            if (!firstCourse || !firstCourse.pivot) {
-                return 0;
-            }
+            const total = this.getTotalDue(participant);
+            const paid = this.getPaidAmount(participant);
             
-            // Calcular porcentaje basado en el precio individual y ajustes
-            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
-            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
-            const totalPrice = individualPrice + adjustments;
+            if (total <= 0) return 0;
             
-            if (totalPrice <= 0) return 0;
-            
-            // Por ahora retornar 0, se puede calcular basado en pagos reales
-            return 0;
+            const percentage = Math.round((paid / total) * 100);
+            return percentage;
         },
         
         getFirstCoursePivotAmount(participant) {

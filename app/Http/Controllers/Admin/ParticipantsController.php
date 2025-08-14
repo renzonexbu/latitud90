@@ -56,15 +56,19 @@ class ParticipantsController extends Controller
             ->get();
 
         // Dataset de inscripciones (una fila por participante-programa) + montos pagados
+        // Usar la misma lógica que ProgramService del cliente
         $enrollments = DB::table('participants as p')
             ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
             ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
             ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
-            ->leftJoin('orders as o', 'o.participant_program_id', '=', 'pp.id')
-            ->leftJoin('payments as pay', function ($join) {
-                $join->on('pay.order_id', '=', 'o.id')
-                    ->whereIn('pay.status', ['approved', 'completed']);
+            ->leftJoin('orders as o', function($join) {
+                $join->on('o.participant_id', '=', 'p.id')
+                     ->on('o.program_id', '=', 'pr.id');
+            })
+            ->leftJoin('orders_detail as od', function ($join) {
+                $join->on('od.order_id', '=', 'o.id')
+                    ->where('od.is_paid', true);
             })
             ->groupBy([
                 'p.id', 'p.first_name', 'p.last_name', 'p.document_number',
@@ -90,7 +94,7 @@ class ParticipantsController extends Controller
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
-                DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
+                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
             ->get();
