@@ -1,8 +1,12 @@
+
 <?php
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Pdf\ContractPreviewController;
 
+// Preview de contrato en PDF (solo desarrollo)
+Route::get('/contract/preview', [ContractPreviewController::class, 'show'])->name('contract.preview');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
