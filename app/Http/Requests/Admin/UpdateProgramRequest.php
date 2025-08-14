@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\Program;
 
 class UpdateProgramRequest extends FormRequest
 {
@@ -21,6 +22,7 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
+            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/'],
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
             'departure_date' => 'nullable|date',
@@ -29,6 +31,11 @@ class UpdateProgramRequest extends FormRequest
             'images_folder' => 'nullable|string|max:255',
             'images' => 'nullable|array', // Las imágenes son opcionales en edición
             'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
+            // Eliminación de imágenes/archivos existentes
+            'imagesToDelete' => 'nullable|array',
+            'imagesToDelete.*' => 'integer|min:0',
+            'filesToDelete' => 'nullable|array',
+            'filesToDelete.*' => 'in:itinerary,coverage,equipment',
             'pillars' => 'nullable|string|max:500',
             'pilar_1' => 'nullable|string|max:255',
             'pilar_2' => 'nullable|string|max:255',
@@ -44,6 +51,7 @@ class UpdateProgramRequest extends FormRequest
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
             'final_payment_date' => 'nullable|date',
             'seller_name' => 'nullable|string|max:255',
+            'sales_executive_id' => 'nullable|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
             // Campos del detalle administrativo (todos opcionales)
@@ -59,6 +67,10 @@ class UpdateProgramRequest extends FormRequest
             'payment_options' => 'nullable|array',
             'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
+            'full_payment_options' => 'nullable|array',
+            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options' => 'nullable|array',
+            'lat90_payment_options.*' => 'string|exists:payment_options,code',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             // Aceptar claves antiguas y nuevas para mantener compatibilidad
             'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
@@ -68,6 +80,32 @@ class UpdateProgramRequest extends FormRequest
             'active' => 'boolean',
         ];
     }
+
+	/**
+	 * Validaciones adicionales: exigir al menos una imagen final (entre existentes que quedan y nuevas subidas).
+	 */
+	public function withValidator($validator): void
+	{
+		$validator->after(function ($validator) {
+			/** @var Program|null $program */
+			$program = $this->route('program');
+			if (!$program instanceof Program) {
+				return;
+			}
+
+			// Imágenes actuales en disco (ya expuestas por el accesor getImagesAttribute)
+			$existingCount = is_array($program->images ?? null) ? count($program->images) : 0;
+			$toDelete = $this->input('imagesToDelete');
+			$deleteCount = is_array($toDelete) ? count($toDelete) : 0;
+			$newImages = $this->file('images');
+			$newCount = is_array($newImages) ? count($newImages) : 0;
+
+			$finalCount = max(0, $existingCount - $deleteCount) + $newCount;
+			if ($finalCount < 1) {
+				$validator->errors()->add('images', 'Debe adjuntar al menos una imagen del programa.');
+			}
+		});
+	}
 
     /**
      * Prepare the data for validation.

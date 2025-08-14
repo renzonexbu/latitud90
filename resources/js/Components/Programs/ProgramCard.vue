@@ -151,11 +151,11 @@
                                     >
                                         {{ formatPrice(program.paidAmount) }}
                                     </div>
-                                    <div
+                                     <div
                                         class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2"
-                                    >
-                                        /{{ formatPrice(getDisplayTotalAmount()) }}
-                                    </div>
+                                     >
+                                         /{{ formatPrice(getDisplayTotalAmount()) }}
+                                     </div>
                                 </div>
                             </div>
 

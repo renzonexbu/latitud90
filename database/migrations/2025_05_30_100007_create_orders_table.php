@@ -45,8 +45,7 @@ return new class extends Migration
         Schema::create('orders_detail', function (Blueprint $table) {
             $table->id();
             $table->foreignId('order_id')->constrained('orders')->onDelete('cascade');
-            $table->foreignId('payment_method_id')->constrained('payment_methods'); // FK a payment_methods
-            $table->foreignId('payment_mode_id')->constrained('payment_modes'); // FK a payment_modes
+            $table->foreignId('payment_option_id')->nullable()->constrained('payment_options');
             $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways'); // FK a payment_gateways
 
             // Datos del comprador (se mueven aquí desde orders)

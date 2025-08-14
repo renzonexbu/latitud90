@@ -20,6 +20,7 @@ use App\Http\Requests\Admin\Participants\UpdateEmergencyContactsRequest;
 use App\Http\Requests\Admin\Participants\UpdateEmergencyContactRequest;
 use App\Http\Requests\Admin\Participants\DeleteEmergencyContactRequest;
 use App\Services\Admin\Participants\UpdateEmergencyContactService;
+use Illuminate\Support\Facades\DB;
 
 class ParticipantsController extends Controller
 {
@@ -54,6 +55,46 @@ class ParticipantsController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Dataset de inscripciones (una fila por participante-programa) + montos pagados
+        $enrollments = DB::table('participants as p')
+            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
+            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
+            ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
+            ->leftJoin('orders as o', 'o.participant_program_id', '=', 'pp.id')
+            ->leftJoin('payments as pay', function ($join) {
+                $join->on('pay.order_id', '=', 'o.id')
+                    ->whereIn('pay.status', ['approved', 'completed']);
+            })
+            ->groupBy([
+                'p.id', 'p.first_name', 'p.last_name', 'p.document_number',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
+                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
+                'c.education_level', 'c.course_number',
+                'i.name',
+            ])
+            ->select([
+                'p.id as participant_id',
+                'p.first_name',
+                'p.last_name',
+                'p.document_number',
+                'pp.id as participant_program_id',
+                'pp.enrollment_code',
+                'pp.individual_price as total_due',
+                'pp.status as enrollment_status',
+                'pr.id as program_id',
+                'pr.code as program_code',
+                'pr.name as program_name',
+                'pr.destination as program_destination',
+                'pr.year as program_year',
+                'c.education_level',
+                'c.course_number',
+                'i.name as institution_name',
+                DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
+            ])
+            ->orderByDesc('pp.created_at')
+            ->get();
+
         $courses = Course::with(['program', 'institution'])
             ->where('status', 'active')
             ->orderBy('institution_id')
@@ -66,6 +107,7 @@ class ParticipantsController extends Controller
         return Inertia::render('Admin/Participants/Index', [
             'participants' => $participants,
             'allParticipants' => $allParticipants,
+            'enrollments' => $enrollments,
             'courses' => $courses,
             'institutions' => $institutions,
             'filters' => request()->only(['search', 'institution', 'level', 'program', 'status'])

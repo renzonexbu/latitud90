@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\SalesExecutive;
+use Illuminate\Http\Request;
+
+class SalesExecutivesController extends Controller
+{
+	public function store(Request $request)
+	{
+		$validated = $request->validate([
+			'code' => ['required','string','max:16'],
+			'name' => ['required','string','max:255'],
+			'email' => ['nullable','email','max:255','unique:sales_executives,email'],
+			'phone' => ['nullable','string','max:50'],
+		]);
+
+		$executive = SalesExecutive::create([
+			'code' => $validated['code'],
+			'name' => $validated['name'],
+			'email' => $validated['email'] ?? null,
+			'phone' => $validated['phone'] ?? null,
+			'active' => true,
+		]);
+
+		return response()->json(['success' => true, 'executive' => $executive]);
+	}
+}
+
+

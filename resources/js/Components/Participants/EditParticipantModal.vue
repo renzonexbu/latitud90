@@ -301,6 +301,47 @@
                     </div>
                 </div>
 
+                <!-- Descuento Por Programa (Simplificado) -->
+                <div class="mb-6">
+                    <h3 class="text-[18px] font-nexa-bold text-turquesa mb-4">Descuento Por Programa</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div class="md:col-span-1">
+                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">Liberado (100%)</label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="discounts.liberado" />
+                                <span class="text-[14px] text-gray-700">Aplicar liberado</span>
+                            </label>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">Tipo De Descuento</label>
+                            <select v-model="discounts.type" :disabled="discounts.liberado" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                <option value="">Sin descuento</option>
+                                <option value="percent">Porcentaje</option>
+                                <option value="amount">Monto fijo</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-1" v-if="discounts.type">
+                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                {{ discounts.type === 'percent' ? 'Valor (%)' : 'Valor (CLP)' }}
+                            </label>
+                            <input
+                                :type="discounts.type === 'percent' ? 'number' : 'number'"
+                                :min="discounts.type === 'percent' ? 0 : 0"
+                                :max="discounts.type === 'percent' ? 100 : null"
+                                :step="discounts.type === 'percent' ? 0.01 : 1"
+                                v-model.number="discounts.value"
+                                :disabled="discounts.liberado"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                                :placeholder="discounts.type === 'percent' ? 'Ej: 10' : 'Ej: 50000'"
+                            />
+                        </div>
+                    </div>
+                    <div class="mt-3 text-sm text-gray-600" v-if="usingDiscounts">
+                        Descuento Estimado: <strong>${{ formatNumber(computedDiscount) }}</strong>
+                        • Total Nuevo: <strong>${{ formatNumber(Math.max(0, Number(form.individual_price || 0) + Number(form.price_adjustments || 0))) }}</strong>
+                    </div>
+                </div>
+
                 <!-- Botones -->
                 <div
                     class="flex justify-end gap-4 pt-6 border-t border-gray-200"
@@ -348,6 +389,11 @@ const emit = defineEmits(["close"]);
 
 const isSubmitting = ref(false);
 const showAdjustmentReasonError = ref(false);
+const discounts = ref({
+    liberado: false,
+    type: "", // '' | 'percent' | 'amount'
+    value: null,
+});
 
 const form = ref({
     first_name: "",
@@ -389,6 +435,9 @@ watch(
                 price_adjustments: newParticipant.price_adjustments ?? "",
                 adjustment_reason: newParticipant.adjustment_reason ?? "",
             };
+
+            // Inicializar estado de descuentos según el pivote seleccionado
+            initializeDiscountState();
         }
     },
     { immediate: true, deep: true }
@@ -405,9 +454,65 @@ watch(
         if (course && course.pivot) {
             form.value.individual_price = course.pivot.individual_price ?? form.value.individual_price;
         }
+
+        // Recalcular estado de descuentos al cambiar de curso
+        initializeDiscountState();
     },
     { immediate: true }
 );
+
+// Recalcular ajuste a partir de descuentos
+const usingDiscounts = computed(() => {
+    return discounts.value.liberado || !!discounts.value.type;
+});
+
+const computedDiscount = computed(() => {
+    const price = Number(form.value.individual_price || 0);
+    if (discounts.value.liberado) return price; // 100%
+    if (!discounts.value.type) return 0;
+    if (discounts.value.type === 'percent') {
+        const pct = Math.max(0, Math.min(100, Number(discounts.value.value || 0)));
+        return Math.min(price, (price * pct) / 100);
+    }
+    // amount
+    const fixed = Math.max(0, Number(discounts.value.value || 0));
+    return Math.min(price, fixed);
+});
+
+watch([discounts, () => form.value.individual_price], () => {
+    if (!usingDiscounts.value) {
+        // No descuentos: restablecer ajuste y motivo a base
+        form.value.price_adjustments = 0;
+        form.value.adjustment_reason = '';
+        return;
+    }
+    const discountValue = computedDiscount.value;
+    form.value.price_adjustments = -Math.round(Number(discountValue));
+    // Armar motivo
+    if (discounts.value.liberado) {
+        form.value.adjustment_reason = 'Liberado';
+    } else if (discounts.value.type === 'percent') {
+        form.value.adjustment_reason = `Descuento ${discounts.value.value || 0}%`;
+    } else if (discounts.value.type === 'amount') {
+        form.value.adjustment_reason = `Descuento $${formatNumber(discounts.value.value || 0)}`;
+    }
+}, { deep: true });
+
+// Si se desmarca Liberado y no hay tipo seleccionado, resetear explícitamente
+watch(() => discounts.value.liberado, (now) => {
+    if (!now && !discounts.value.type) {
+        form.value.price_adjustments = 0;
+        form.value.adjustment_reason = '';
+    }
+});
+
+// Si se limpia el tipo de descuento y no está liberado, resetear
+watch(() => discounts.value.type, (now) => {
+    if (!now && !discounts.value.liberado) {
+        form.value.price_adjustments = 0;
+        form.value.adjustment_reason = '';
+    }
+});
 
 const updateParticipant = () => {
     isSubmitting.value = true;
@@ -466,6 +571,30 @@ const formattedRut = computed(() => {
     const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     return `${withDots}-${dv}`;
 });
+
+const formatNumber = (n) => new Intl.NumberFormat('es-CL').format(Number(n || 0));
+
+function initializeDiscountState() {
+    const courseId = form.value.pivot_course_id;
+    if (!courseId || !props.participant || !props.participant.courses) {
+        discounts.value = { liberado: false, type: '', value: null };
+        return;
+    }
+    const course = props.participant.courses.find((c) => c.id == courseId);
+    const piv = course?.pivot || {};
+    const base = Number(piv.individual_price || 0);
+    const adj = Number(piv.price_adjustments || 0);
+    const total = base + adj;
+    const isLiberado = (piv.adjustment_reason || '').toLowerCase().includes('liberado') || total <= 0;
+    if (isLiberado) {
+        discounts.value = { liberado: true, type: '', value: null };
+        // Asegurar que el ajuste refleja el 100%
+        form.value.price_adjustments = -Math.round(base);
+        form.value.adjustment_reason = 'Liberado';
+    } else {
+        discounts.value = { liberado: false, type: '', value: null };
+    }
+}
 </script>
 
 <style scoped>

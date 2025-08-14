@@ -31,14 +31,12 @@ return new class extends Migration
 			$table->string('seller_name')->nullable();
 			$table->foreignId('sales_executive_id')->constrained('sales_executives');
 
-            // Configuración de pago total
-            $table->boolean('enable_total_payment')->default(false);
-            $table->foreignId('total_payment_method_id')->nullable()->constrained('payment_methods');
+			// Configuración de pago total
+			$table->boolean('enable_total_payment')->default(false);
 
-            // Configuración de pago mensual Lat90
-            $table->boolean('enable_lat90_payment')->default(false);
-            $table->foreignId('lat90_payment_method_id')->nullable()->constrained('payment_methods');
-            $table->integer('lat90_max_installments')->nullable();
+			// Configuración de pago mensual Lat90
+			$table->boolean('enable_lat90_payment')->default(false);
+			$table->integer('lat90_max_installments')->nullable();
 
             // Campos de descuento
             $table->string('discount_type')->nullable();

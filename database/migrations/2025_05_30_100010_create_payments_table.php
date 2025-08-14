@@ -17,8 +17,7 @@ return new class extends Migration
             $table->foreignId('order_id')->constrained('orders');
             $table->foreignId('order_detail_id')->constrained('orders_detail')->onDelete('cascade');
             $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways');
-            $table->foreignId('payment_method_id')->nullable()->constrained('payment_methods');
-            $table->foreignId('payment_mode_id')->nullable()->constrained('payment_modes');
+            $table->foreignId('payment_option_id')->nullable()->constrained('payment_options');
 
             // Identificadores de la transacción
             $table->string('buy_order')->nullable();            // Para Transbank

@@ -11,6 +11,9 @@
                         mode="edit"
                         :existing-images="existingImages"
                         :existing-files="existingFiles"
+                         :errors="page.props?.errors || {}"
+                        :is-active="isActive"
+                        @toggle-status="toggleProgramStatus"
                         @update:images="updateImages"
                         @remove:existingImage="markImageForDeletion"
                         @remove:existingFile="markFileForDeletion"
@@ -21,9 +24,12 @@
                         v-model="paymentData"
                         mode="edit"
                         :payment-status="paymentStatus"
-                        :institutions="institutions"
+    :institutions="institutions"
+		:sales-executives="localSalesExecutives"
+                         :errors="page.props?.errors || {}"
                         :has-participants="program.course && program.course.participants && program.course.participants.length > 0"
                         :has-existing-course="hasExistingCourse"
+                        @create-executive="openCreateExecutiveModal"
                         @edit-group="handleEditGroup"
                     />
                 </div>
@@ -44,25 +50,41 @@
                 </div>
             </div>
         </div>
+            <!-- Create Executive Modal -->
+            <CreateExecutiveModal 
+                :show="showCreateExecutiveModal" 
+                :errors="page.props?.errors || {}"
+                @close="closeCreateExecutiveModal"
+                @executive-created="handleExecutiveCreated"
+            />
     </AdminLayout>
 </template>
 
 <script setup>
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head, useForm, router, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
+import CreateExecutiveModal from "@/Components/Sales/CreateExecutiveModal.vue";
 
 const props = defineProps({
     program: Object,
     institutions: {
         type: Array,
         default: () => []
+    },
+    salesExecutives: {
+        type: Array,
+        default: () => []
     }
 });
 
 // No necesitamos inicializar router, ya viene importado
+const page = usePage();
+// Estado para modal y lista local de ejecutivos
+const showCreateExecutiveModal = ref(false);
+const localSalesExecutives = ref([...(props.salesExecutives || [])]);
 
 // Función para mapear nivel de educación desde BD al frontend
 const mapEducationLevel = (level) => {
@@ -117,6 +139,7 @@ const mapFullMethodFromId = (id) => {
 
 const form = useForm({
     // Campos del programa
+    code: props.program.code || "",
     name: props.program.name || "",
     destination: props.program.destination || "",
     departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
@@ -130,6 +153,8 @@ const form = useForm({
     coverage_file: null,
     equipment_file: null,
     images: [],
+    // Ejecutivo comercial
+    sales_executive_id: props.program.sales_executive_id ? String(props.program.sales_executive_id) : "",
     // Campos del detalle administrativo
     total_price: props.program.trip_price || "",
     final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
@@ -147,6 +172,9 @@ const form = useForm({
         ...((props.program && props.program.enable_total_payment) ? ['full_payment'] : []),
         ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
     ],
+    // Nuevos arrays de opciones específicas (se envían siempre durante update)
+    full_payment_options: (props.program.full_payment_options || []),
+    lat90_payment_options: (props.program.lat90_payment_options || []),
     full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
     installments_payment_method: (() => {
         if (props.program && props.program.lat90_payment_method_id) {
@@ -169,6 +197,7 @@ const form = useForm({
 
 // Datos del programa que se sincronizan con el componente
 const programData = ref({
+    code: props.program.code || "",
     name: props.program.name || "",
     destination: props.program.destination || "",
     departure_date: props.program.departure_date ? new Date(props.program.departure_date).toISOString().split('T')[0] : "",
@@ -197,6 +226,7 @@ const paymentData = ref({
     })(),
     final_payment_date: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : "",
     sales_person: props.program.seller_name || "",
+    sales_executive_id: props.program.sales_executive_id ? String(props.program.sales_executive_id) : "",
     institution_id: props.program.course?.institution_id || "",
     institution_name: props.program.course?.institution?.name || "",
     education_level: mapEducationLevel(props.program.course?.education_level) || "",
@@ -209,6 +239,9 @@ const paymentData = ref({
         ...((props.program && props.program.enable_total_payment) ? ['full_payment'] : []),
         ...((props.program && props.program.enable_lat90_payment) ? ['installments'] : []),
     ],
+    // Nuevas opciones por checkbox (precarga desde pivote si la tienes en props)
+    full_payment_options: (props.program.full_payment_options || []),
+    lat90_payment_options: (props.program.lat90_payment_options || []),
     full_payment_method: (props.program && props.program.total_payment_method_id) ? mapFullMethodFromId(props.program.total_payment_method_id) : '',
     installments_payment_method: (() => {
         if (props.program && props.program.lat90_payment_method_id) {
@@ -227,7 +260,9 @@ const existingImages = ref([]);
 
 // Cargar imágenes existentes desde la carpeta del programa
 if (props.program.images && props.program.images.length > 0) {
-    existingImages.value = props.program.images.map((image, index) => ({
+    // Orden estable por filename para empatar con backend
+    const ordered = [...props.program.images].sort((a, b) => (a.filename || '').localeCompare(b.filename || ''));
+    existingImages.value = ordered.map((image, index) => ({
         id: `existing-${index}`,
         url: image.url,
         name: image.filename || `Imagen ${index + 1}`,
@@ -302,6 +337,21 @@ const hasExistingCourse = computed(() => {
     return props.program.course !== null && props.program.course !== undefined;
 });
 
+// Estado activo del programa
+const isActive = computed(() => Boolean(props.program.active));
+
+// Alternar estado activo
+const toggleProgramStatus = () => {
+    const confirmMsg = isActive.value
+        ? '¿Seguro que desea desactivar este programa?'
+        : '¿Seguro que desea activar este programa?';
+    if (!confirm(confirmMsg)) return;
+    router.patch(route('admin.programs.toggle-status', props.program.id), {}, {
+        replace: true,
+        preserveScroll: true,
+    });
+};
+
 // Función para procesar los pilares desde la base de datos
 const processPillars = (pillarsString) => {
     if (!pillarsString || typeof pillarsString !== 'string') {
@@ -337,9 +387,9 @@ const updateImages = (images) => {
 };
 
 // Función para marcar imagen existente para eliminar
-const markImageForDeletion = (imageId) => {
-    if (!form.imagesToDelete.includes(imageId)) {
-        form.imagesToDelete.push(imageId);
+const markImageForDeletion = (imageIndex) => {
+    if (!form.imagesToDelete.includes(imageIndex)) {
+        form.imagesToDelete.push(imageIndex);
     }
 };
 
@@ -357,6 +407,22 @@ const handleEditGroup = () => {
         window.location.href = route('admin.courses.edit', props.program.course.id) + '?openModal=true';
     } else {
         console.log('No hay curso asociado a este programa');
+    }
+};
+
+// Abrir/Cerrar modal de nuevo Ejecutivo
+const openCreateExecutiveModal = () => { showCreateExecutiveModal.value = true; };
+const closeCreateExecutiveModal = () => { showCreateExecutiveModal.value = false; };
+
+// Al crear ejecutivo: agregar a la lista y seleccionarlo
+const handleExecutiveCreated = (newExecutive) => {
+    try {
+        if (newExecutive && newExecutive.id) {
+            localSalesExecutives.value.push(newExecutive);
+            paymentData.value.sales_executive_id = String(newExecutive.id);
+        }
+    } finally {
+        closeCreateExecutiveModal();
     }
 };
 
@@ -394,6 +460,9 @@ const submit = () => {
     };
 
     // Campos del programa - solo enviar si cambiaron
+    if (shouldSendField(programData.value.code, props.program.code, 'code')) {
+        form.code = programData.value.code;
+    }
     if (shouldSendField(programData.value.name, props.program.name, 'name')) {
         form.name = programData.value.name;
     }
@@ -455,6 +524,14 @@ const submit = () => {
     if (JSON.stringify(newPaymentOptions.sort()) !== JSON.stringify(originalPaymentOptions.sort())) {
         form.payment_options = newPaymentOptions;
     }
+    // Enviar siempre los arrays de opciones específicas (para sincronizar pivote)
+    form.full_payment_options = Array.isArray(paymentData.value.full_payment_options) ? paymentData.value.full_payment_options : [];
+    form.lat90_payment_options = Array.isArray(paymentData.value.lat90_payment_options) ? paymentData.value.lat90_payment_options : [];
+    // Forzar payment_options en base a los arrays (para habilitar/deshabilitar secciones)
+    const derivedPaymentOptions = [];
+    if (form.full_payment_options.length > 0) derivedPaymentOptions.push('full_payment');
+    if (form.lat90_payment_options.length > 0) derivedPaymentOptions.push('installments');
+    form.payment_options = derivedPaymentOptions;
     if (shouldSendField(paymentData.value.full_payment_method, (props.program.total_payment_method_id ? 'todos_medios' : ''), 'full_payment_method')) {
         form.full_payment_method = paymentData.value.full_payment_method;
     }
@@ -470,6 +547,15 @@ const submit = () => {
     }
     if (shouldSendField(paymentData.value.max_installments, props.program.lat90_max_installments, 'max_installments')) {
         form.max_installments = formatValue(paymentData.value.max_installments, 'max_installments');
+    }
+
+    // Enviar siempre Ejecutivo Comercial si hay valor (garantiza actualización)
+    if (
+        paymentData.value.sales_executive_id !== undefined &&
+        paymentData.value.sales_executive_id !== null &&
+        paymentData.value.sales_executive_id !== ''
+    ) {
+        form.sales_executive_id = paymentData.value.sales_executive_id;
     }
 
     // Solo enviar nuevas imágenes si hay archivos nuevos
@@ -528,12 +614,10 @@ const submit = () => {
     // Agregar _method para PUT request
     formData.append('_method', 'PUT');
     
-    // Enviar usando router.post con _method: 'PUT' (como hacen los cursos)
+    // Enviar usando router.post con _method: 'PUT'. Dejar que el backend redirija con Inertia (evita doble navegación/flicker)
     router.post(route("admin.programs.update", props.program.id), formData, {
-        onSuccess: () => {
-            // Redirigir a la lista de programas
-            window.location.href = route('admin.programs.index');
-        },
+        replace: true,
+        onSuccess: () => {},
         onError: (errors) => {
             console.error('Errores del formulario:', errors);
         }

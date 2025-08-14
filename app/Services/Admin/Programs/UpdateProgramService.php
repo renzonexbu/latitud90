@@ -58,11 +58,17 @@ class UpdateProgramService
                 ]);
             }
 
+            // Borrar archivos/imágenes marcados para eliminar
+            $this->deleteMarkedFilesAndImages($programData, $program);
+
             // Procesar archivos antes de actualizar el programa
             $processedData = $this->processFiles($programData, $program);
 
             // Preparar datos para actualización (solo campos que se enviaron)
             $updateData = [];
+            if (isset($programData['code'])) {
+                $updateData['code'] = $programData['code'];
+            }
             
             if (isset($programData['name'])) {
                 $updateData['name'] = $programData['name'];
@@ -91,6 +97,9 @@ class UpdateProgramService
             if (isset($programData['sales_person']) || isset($programData['seller_name'])) {
                 $updateData['seller_name'] = $programData['sales_person'] ?? $programData['seller_name'];
             }
+            if (isset($programData['sales_executive_id'])) {
+                $updateData['sales_executive_id'] = $programData['sales_executive_id'];
+            }
             // Actualizar configuración de pagos (nuevo esquema)
             if (
                 isset($programData['payment_options']) || isset($programData['payment_option']) ||
@@ -98,18 +107,16 @@ class UpdateProgramService
                 isset($programData['max_installments'])
             ) {
                 $updateData['enable_total_payment'] = $this->isTotalPaymentEnabled($programData);
-                $updateData['total_payment_method_id'] = $this->getTotalPaymentMethodId($programData);
+                 // Eliminado: total_payment_method_id (usamos payment_options + pivote)
                 $updateData['enable_lat90_payment'] = $this->isLat90PaymentEnabled($programData);
-                $updateData['lat90_payment_method_id'] = $this->getLat90PaymentMethodId($programData);
+                 // Eliminado: lat90_payment_method_id (usamos payment_options + pivote)
                 if (isset($programData['max_installments'])) {
                     $updateData['lat90_max_installments'] = $this->getLat90MaxInstallments($programData);
                 }
                 Log::info('UpdateProgramService: Configuración de pagos resuelta', [
                     'program_id' => $program->id,
                     'enable_total_payment' => $updateData['enable_total_payment'],
-                    'total_payment_method_id' => $updateData['total_payment_method_id'],
                     'enable_lat90_payment' => $updateData['enable_lat90_payment'],
-                    'lat90_payment_method_id' => $updateData['lat90_payment_method_id'],
                     'lat90_max_installments' => $updateData['lat90_max_installments'] ?? null,
                 ]);
             }
@@ -124,6 +131,27 @@ class UpdateProgramService
             }
 
             // Actualizar el programa solo si hay datos para actualizar
+            // Si cambian datos base, recalcular nombre automático
+            $shouldRebuildName = (
+                isset($programData['institution_id']) ||
+                isset($programData['institution_name']) ||
+                isset($programData['education_level']) ||
+                isset($programData['course_number']) ||
+                isset($programData['destination']) ||
+                isset($programData['departure_date'])
+            );
+            if ($shouldRebuildName) {
+                $merged = array_merge($program->toArray(), $programData);
+                $autoName = $this->buildProgramNameForUpdate($merged);
+                if ($autoName) {
+                    $updateData['name'] = $autoName;
+                }
+                // Actualizar year según departure_date si viene
+                if (isset($programData['departure_date'])) {
+                    $updateData['year'] = (int) date('Y', strtotime($programData['departure_date']));
+                }
+            }
+
             if (!empty($updateData)) {
                 Log::info('UpdateProgramService: Campos a actualizar (primera fase)', [
                     'program_id' => $program->id,
@@ -186,6 +214,17 @@ class UpdateProgramService
             // Recalcular el total del programa (trip_price = precio final por participante x #participantes)
             $this->recalculateProgramTotal($program, $programData);
 
+            // Asegurar participant_program para todos los participantes del curso (si existe curso)
+            $program->load('course.participants');
+            if ($program->course && $program->course->participants) {
+                foreach ($program->course->participants as $participant) {
+                    $this->ensureParticipantProgram($participant, $program, $participant->pivot->individual_price ?? null);
+                }
+            }
+
+            // Sincronizar opciones de pago (pivote program_payment_option) si vienen nuevas
+            $this->syncProgramPaymentOptions($program, $programData);
+
             DB::commit();
             Log::info('UpdateProgramService: Actualización finalizada', [
                 'program_id' => $program->id
@@ -200,6 +239,69 @@ class UpdateProgramService
                 'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Crea o asegura la fila en participant_program con enrollment_code = program.code + primeros 6 dígitos del RUT
+     */
+    private function ensureParticipantProgram(\App\Models\Participant $participant, Program $program, ?float $individualPrice = null): void
+    {
+        $code = (string) ($program->code ?? '');
+        $rutFirst6 = $participant->rut_first6;
+        if (!$rutFirst6) {
+            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
+            $rutFirst6 = substr($digits, 0, 6) ?: null;
+        }
+        if (!$code || !$rutFirst6) {
+            return;
+        }
+        $enrollmentCode = $code . $rutFirst6;
+
+        DB::table('participant_program')->updateOrInsert(
+            [
+                'participant_id' => $participant->id,
+                'program_id' => $program->id,
+            ],
+            [
+                'enrollment_code' => $enrollmentCode,
+                'individual_price' => $individualPrice ?? null,
+                'status' => 'pending_payment',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+    }
+
+    private function syncProgramPaymentOptions(Program $program, array $programData): void
+    {
+        $codes = [];
+        $full = $programData['full_payment_options'] ?? [];
+        $lat90 = $programData['lat90_payment_options'] ?? [];
+        if (is_array($full)) { $codes = array_merge($codes, $full); }
+        if (is_array($lat90)) { $codes = array_merge($codes, $lat90); }
+        $codes = array_values(array_unique($codes));
+
+        if (!array_key_exists('full_payment_options', $programData) && !array_key_exists('lat90_payment_options', $programData)) {
+            // Nada que sincronizar si no vinieron campos
+            return;
+        }
+
+        // Vaciar y volver a insertar lo enviado
+        DB::table('program_payment_option')->where('program_id', $program->id)->delete();
+        if (empty($codes)) return;
+
+        $optionIds = DB::table('payment_options')->whereIn('code', $codes)->pluck('id')->toArray();
+        $now = now();
+        $rows = array_map(fn($id) => [
+            'program_id' => $program->id,
+            'payment_option_id' => $id,
+            'enabled' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $optionIds);
+        if (!empty($rows)) {
+            DB::table('program_payment_option')->insert($rows);
         }
     }
 
@@ -270,61 +372,106 @@ class UpdateProgramService
         $timestamp = now()->format('Y_m_d_H_i_s');
         $processedData = [];
         
-        // Crear la carpeta base del programa
-        $programFolder = "public/programs/{$programId}";
+        // Directorios base (relativos al disco 'public')
+        $baseDir = "programs/{$programId}";
+        $pdfDir = $baseDir . '/pdfs';
+        $imagesDir = $baseDir . '/images';
         
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
-            // Eliminar archivo anterior si existe
             if ($program->itinerary_file) {
                 Storage::disk('public')->delete($program->itinerary_file);
             }
-            
-            $pdfPath = "{$programFolder}/pdfs/itinerario_{$programId}_{$timestamp}.pdf";
-            $fullPath = $programData['itinerary_file']->storeAs($pdfPath, null, 'public');
-            $processedData['itinerary_file_path'] = $fullPath;
+            $filename = "itinerario_{$programId}_{$timestamp}.pdf";
+            Storage::disk('public')->putFileAs($pdfDir, $programData['itinerary_file'], $filename);
+            $processedData['itinerary_file_path'] = $pdfDir . '/' . $filename;
         }
 
         // Procesar archivo de cobertura
         if (isset($programData['coverage_file']) && $programData['coverage_file']) {
-            // Eliminar archivo anterior si existe
             if ($program->travel_assistance_coverage) {
                 Storage::disk('public')->delete($program->travel_assistance_coverage);
             }
-            
-            $pdfPath = "{$programFolder}/pdfs/cobertura_{$programId}_{$timestamp}.pdf";
-            $fullPath = $programData['coverage_file']->storeAs($pdfPath, null, 'public');
-            $processedData['coverage_file_path'] = $fullPath;
+            $filename = "cobertura_{$programId}_{$timestamp}.pdf";
+            Storage::disk('public')->putFileAs($pdfDir, $programData['coverage_file'], $filename);
+            $processedData['coverage_file_path'] = $pdfDir . '/' . $filename;
         }
 
         // Procesar archivo de lista de equipo
         if (isset($programData['equipment_file']) && $programData['equipment_file']) {
-            // Eliminar archivo anterior si existe
             if ($program->equipment_list) {
                 Storage::disk('public')->delete($program->equipment_list);
             }
-            
-            $pdfPath = "{$programFolder}/pdfs/equipo_{$programId}_{$timestamp}.pdf";
-            $fullPath = $programData['equipment_file']->storeAs($pdfPath, null, 'public');
-            $processedData['equipment_file_path'] = $fullPath;
+            $filename = "equipo_{$programId}_{$timestamp}.pdf";
+            Storage::disk('public')->putFileAs($pdfDir, $programData['equipment_file'], $filename);
+            $processedData['equipment_file_path'] = $pdfDir . '/' . $filename;
         }
 
         // Procesar imágenes si se proporcionaron
         if (isset($programData['images']) && is_array($programData['images'])) {
-            $imagePaths = [];
+            $storedAny = false;
             foreach ($programData['images'] as $index => $image) {
                 if ($image && $image->isValid()) {
-                    $imagePath = "{$programFolder}/images/imagen_{$programId}_{$timestamp}_{$index}.{$image->getClientOriginalExtension()}";
-                    $fullPath = $image->storeAs($imagePath, null, 'public');
-                    $imagePaths[] = $fullPath;
+                    $ext = $image->getClientOriginalExtension();
+                    $filename = "imagen_{$programId}_{$timestamp}_{$index}.{$ext}";
+                    Storage::disk('public')->putFileAs($imagesDir, $image, $filename);
+                    $storedAny = true;
                 }
             }
-            if (!empty($imagePaths)) {
-                $processedData['images_folder'] = $programFolder . '/images';
+            if ($storedAny) {
+                $processedData['images_folder'] = $imagesDir; // sin prefijo 'public/'
             }
         }
 
         return $processedData;
+    }
+
+    /**
+     * Elimina archivos pdf y/o imágenes existentes marcadas para eliminar desde el frontend.
+     * Espera en $programData:
+     *  - filesToDelete: [ 'itinerary'|'coverage'|'equipment' ]
+     *  - imagesToDelete: array de índices de imágenes existentes (según orden del disco)
+     */
+    private function deleteMarkedFilesAndImages(array $programData, Program $program): void
+    {
+        // Eliminar PDFs
+        if (!empty($programData['filesToDelete']) && is_array($programData['filesToDelete'])) {
+            $filesToDelete = $programData['filesToDelete'];
+            if (in_array('itinerary', $filesToDelete) && $program->itinerary_file) {
+                Storage::disk('public')->delete($program->itinerary_file);
+                $program->update(['itinerary_file' => null]);
+            }
+            if (in_array('coverage', $filesToDelete) && $program->travel_assistance_coverage) {
+                Storage::disk('public')->delete($program->travel_assistance_coverage);
+                $program->update(['travel_assistance_coverage' => null]);
+            }
+            if (in_array('equipment', $filesToDelete) && $program->equipment_list) {
+                Storage::disk('public')->delete($program->equipment_list);
+                $program->update(['equipment_list' => null]);
+            }
+        }
+
+        // Eliminar imágenes por índice (según orden del folder)
+        if (!empty($programData['imagesToDelete']) && is_array($programData['imagesToDelete'])) {
+            if ($program->images_folder) {
+                $relativePath = str_replace('public/', '', $program->images_folder);
+                $folderPath = storage_path('app/public/' . $relativePath);
+                if (is_dir($folderPath)) {
+                    // Listar archivos del directorio y ordenarlos alfabéticamente (estable)
+                    $files = array_values(array_filter(scandir($folderPath), function ($f) use ($folderPath) {
+                        return is_file($folderPath . DIRECTORY_SEPARATOR . $f);
+                    }));
+                    sort($files);
+                    $indices = array_map('intval', $programData['imagesToDelete']);
+                    foreach ($indices as $idx) {
+                        if (isset($files[$idx])) {
+                            $filePath = $relativePath . '/' . $files[$idx];
+                            Storage::disk('public')->delete($filePath);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -445,6 +592,38 @@ class UpdateProgramService
             'solo_contado' => 'Solo acepta débito y transferencia',
             default => 'Acepta todos los medios de pago',
         };
+    }
+
+    /**
+     * Construye el nombre del programa para actualización usando los datos disponibles (program + payload).
+     */
+    private function buildProgramNameForUpdate(array $data): ?string
+    {
+        // Institution
+        $institutionName = null;
+        if (!empty($data['institution_id'])) {
+            $inst = \App\Models\Institution::find($data['institution_id']);
+            $institutionName = $inst?->name;
+        } elseif (!empty($data['institution_name'])) {
+            $institutionName = $data['institution_name'];
+        }
+
+        // Course
+        $course = null;
+        if (!empty($data['education_level']) || !empty($data['course_number'])) {
+            $level = $this->mapEducationLevel($data['education_level'] ?? '');
+            $num = $data['course_number'] ?? '';
+            $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+        }
+
+        $destination = $data['destination'] ?? null;
+        $depDate = $data['departure_date'] ?? null;
+        $year = $depDate ? (int) date('Y', strtotime($depDate)) : ($data['year'] ?? null);
+
+        if ($institutionName && $course && $destination && $year) {
+            return sprintf('%s - %s - %s - %d', $institutionName, $course, $destination, $year);
+        }
+        return null;
     }
 
     /**

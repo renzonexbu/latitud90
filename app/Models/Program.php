@@ -11,7 +11,9 @@ class Program extends Model
     use HasFactory;
 
     protected $fillable = [
+        'code',
         'name',
+        'institution_id',
         'destination',
         'departure_date',
         'trip_description',
@@ -22,14 +24,12 @@ class Program extends Model
         'travel_assistance_coverage',
         'equipment_list',
         'trip_price',
+        'year',
         'final_payment_date',
         'seller_name',
-        // Configuración de pago total
+        'sales_executive_id',
         'enable_total_payment',
-        'total_payment_method_id',
-        // Configuración de pago mensual Lat90
         'enable_lat90_payment',
-        'lat90_payment_method_id',
         'lat90_max_installments',
         // Campos de descuento
         'discount_type',

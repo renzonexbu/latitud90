@@ -138,18 +138,30 @@
 
                             <div class="staff-field-row">
                                 <div class="field-wrapper">
-                                    <div class="field-label">
-                                        Personal que vendió el viaje
+                                    <div class="flex justify-between items-center">
+                                        <div class="field-label">
+                                            Ejecutivo comercial
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            @click="$emit('create-executive')"
+                                            class="text-[#007e93] text-xs font-nexa-bold hover:underline"
+                                        >
+                                            + Crear nuevo ejecutivo
+                                        </button>
                                     </div>
-                                    <input
-                                        type="text"
-                                        v-model="formData.sales_person"
-                                        placeholder="Nombre"
+                                    <select
+                                        v-model="formData.sales_executive_id"
                                         class="admin-input-text"
-                                        :class="{ 'border-red-500': errors.sales_person }"
-                                    />
-                                    <span v-if="errors.sales_person" class="text-red-500 text-sm mt-1">
-                                        {{ errors.sales_person }}
+                                        :class="{ 'border-red-500': errors.sales_executive_id }"
+                                    >
+                                        <option :value="''">Seleccione un ejecutivo</option>
+                                        <option v-for="exec in salesExecutives" :key="exec.id" :value="exec.id">
+                                            {{ exec.name }} ({{ exec.code }})
+                                        </option>
+                                    </select>
+                                    <span v-if="errors.sales_executive_id" class="text-red-500 text-sm mt-1">
+                                        {{ errors.sales_executive_id }}
                                     </span>
                                 </div>
                             </div>
@@ -247,7 +259,6 @@
                                             <option value="preescolar">Preescolar</option>
                                             <option value="basica">Básica</option>
                                             <option value="media">Media</option>
-                                            <option value="universitaria">Universitaria</option>
                                         </select>
 
                                     </div>
@@ -277,48 +288,7 @@
                                 </div>
                             </div>
 
-                            <!-- Beneficio grupal -->
-                            <div class="group-benefit-field">
-                                <div class="field-wrapper">
-                                    <div class="field-label">
-                                        ¿El grupo tienen beneficio general?
-                                    </div>
-                                    <select
-                                        v-model="formData.discount_type"
-                                        class="admin-input-text"
-                                        :disabled="!canEnableCourseFields()"
-                                        :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
-                                    >
-                                        <option value="">Selecciona el beneficio grupal</option>
-                                        <option value="porcentaje_10">Descuento 10%</option>
-                                        <option value="porcentaje_15">Descuento 15%</option>
-                                        <option value="porcentaje_20">Descuento 20%</option>
-                                        <option value="monto_fijo">Monto fijo</option>
-                                    </select>
-       
-                                    
-                                    <!-- Input para monto fijo (solo visible cuando se selecciona monto_fijo) -->
-                                    <div v-if="formData.discount_type === 'monto_fijo' && canEnableCourseFields()" class="discount-amount-field">
-                                        <div class="field-wrapper">
-                                            <div class="field-label">
-                                                Monto a descontar
-                                            </div>
-                                            <input
-                                                type="text"
-                                                v-model="formattedDiscountAmount"
-                                                @input="handleDiscountAmountInput"
-                                                @blur="handleDiscountAmountBlur"
-                                                placeholder="--------"
-                                                class="admin-input-text"
-                                                :class="{ 'border-red-500': errors.discount_amount }"
-                                            />
-                                            <span v-if="errors.discount_amount" class="text-red-500 text-sm mt-1">
-                                                {{ errors.discount_amount }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            
 
                             <!-- Carga de alumnos (condicional) -->
                             <div v-if="shouldShowExcelInput()" class="students-upload-section">
@@ -464,19 +434,13 @@
                                 </div>
                                 <div v-if="isPaymentOptionSelected('full_payment')" class="payment-method-select">
                                     <div class="field-wrapper">
-                                        <div class="field-label">
-                                            ¿Forma de pago?
+                                        <div class="field-label">Opciones disponibles para Pago Total</div>
+                                        <div class="flex flex-col gap-2">
+                                            <label v-for="opt in fullPaymentChoices" :key="opt.code" class="flex items-center gap-2">
+                                                <input type="checkbox" :value="opt.code" @change="toggleFullOption(opt.code, $event)" :checked="formData.full_payment_options?.includes(opt.code)" />
+                                                <span>{{ opt.label }}</span>
+                                            </label>
                                         </div>
-                                        <select
-                                            v-model="formData.full_payment_method"
-                                            class="admin-input-text"
-                                        >
-                                            <option value="">Seleccione la forma de pago</option>
-                                            <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
-                                            <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
-                                            <option value="solo_transferencia">Solo pago transferencia</option>
-                                            <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
-                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -527,37 +491,12 @@
                                 <div v-if="isPaymentOptionSelected('installments')" class="installments-options">
                                     <div class="payment-method-select">
                                         <div class="field-wrapper">
-                                            <div class="field-label">
-                                                ¿Forma de pago?
-                                            </div>
-                                            <select
-                                                v-model="formData.installments_payment_method"
-                                                class="admin-input-text"
-                                            >
-                                                <option value="">Seleccione la forma de pago</option>
-                                                <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
-                                                <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
-                                                <option value="solo_transferencia">Solo pago transferencia</option>
-                                                <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="installments-select">
-                                        <div class="field-wrapper">
-                                                <div class="field-label">
-                                                    Cuántas cuotas máximas
-                                                </div>
-                                            <select
-                                                v-model="formData.max_installments"
-                                                class="admin-select-small"
-                                            >
-                                                <option value="">---</option>
-                                                <option v-for="opt in allowedInstallments" :key="opt" :value="String(opt)">
-                                                    {{ opt }} cuotas
-                                                </option>
-                                            </select>
-                                            <div v-if="formData.final_payment_date" class="text-xs text-[#5b5b5b] mt-1">
-                                                Opciones disponibles según la fecha final de pago seleccionada.
+                                            <div class="field-label">Opciones disponibles para Pago Mensual</div>
+                                            <div class="flex flex-col gap-2">
+                                                <label v-for="opt in lat90Choices" :key="opt.code" class="flex items-center gap-2">
+                                                    <input type="checkbox" :value="opt.code" @change="toggleLat90Option(opt.code, $event)" :checked="formData.lat90_payment_options?.includes(opt.code)" />
+                                                    <span>{{ opt.label }}</span>
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
@@ -590,12 +529,12 @@ const props = defineProps({
             students_file: null,
             group_benefit: "",
             // Opciones de pago múltiples
-            payment_options: [], // Array para almacenar múltiples opciones
-            full_payment_method: "",
-            installments_payment_method: "",
-            max_installments: "",
+            payment_options: [], // Radio: seleccionar secciones activas
+            full_payment_options: [], // Checkboxes: opciones específicas (mode=full)
+            lat90_payment_options: [], // Checkboxes: opciones específicas (mode=lat90)
             discount_type: "", // Por defecto vacío para mostrar "Selecciona el beneficio grupal"
             discount_amount: "",
+            sales_executive_id: "",
         }),
     },
     mode: {
@@ -617,6 +556,10 @@ const props = defineProps({
         })
     },
     institutions: {
+        type: Array,
+        default: () => []
+    },
+    salesExecutives: {
         type: Array,
         default: () => []
     },
@@ -647,6 +590,25 @@ const selectedStudentsFile = ref(null);
 
 // Propiedad computada para el precio formateado
 const formattedPrice = ref('');
+// Catálogos locales (idealmente venir desde backend)
+const fullPaymentChoices = [
+    { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)' },
+    { code: 'full_debit_webpay', label: 'Débito (Webpay)' },
+    { code: 'full_credit_webpay_0', label: 'Crédito sin cuotas (Webpay)' },
+    { code: 'full_credit_webpay_3', label: 'Crédito 3 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_6', label: 'Crédito 6 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_9', label: 'Crédito 9 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_12', label: 'Crédito 12 cuotas sin interés (Webpay)' },
+];
+const lat90Choices = [
+    { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
+    { code: 'lat90_debit_webpay', label: 'Débito (Webpay)' },
+    { code: 'lat90_credit_0', label: 'Crédito sin cuotas (Webpay)' },
+    { code: 'lat90_installments_3', label: 'Lat90 3 cuotas' },
+    { code: 'lat90_installments_6', label: 'Lat90 6 cuotas' },
+    { code: 'lat90_installments_9', label: 'Lat90 9 cuotas' },
+    { code: 'lat90_installments_12', label: 'Lat90 12 cuotas' },
+];
 
 // Estado para el monto de descuento formateado
 const formattedDiscountAmount = ref('');
@@ -843,19 +805,38 @@ onMounted(() => {
         formData.value.payment_options = [];
     }
     
-    // Debug: Log del estado inicial
-    console.log('Estado inicial del componente PaymentDetails:', {
-        payment_options: formData.value.payment_options,
-        full_payment_method: formData.value.full_payment_method,
-        installments_payment_method: formData.value.installments_payment_method,
-        max_installments: formData.value.max_installments
-    });
-    
+    // Asegurar que el select inicie sin selección (placeholder)
+    formData.value.sales_executive_id = formData.value.sales_executive_id ?? '';
+
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     // Emitir el estado inicial
     emit('update:modelValue', formData.value);
+
+    // Asegurar arrays para checkboxes (evitar comportamiento booleano compartido)
+    if (!Array.isArray(formData.value.full_payment_options)) {
+        formData.value.full_payment_options = [];
+    }
+    if (!Array.isArray(formData.value.lat90_payment_options)) {
+        formData.value.lat90_payment_options = [];
+    }
 });
+
+// Handlers para checkboxes manuales (evitar efectos de referencia)
+const toggleFullOption = (code, event) => {
+    if (!Array.isArray(formData.value.full_payment_options)) formData.value.full_payment_options = [];
+    const set = new Set(formData.value.full_payment_options);
+    if (event.target.checked) set.add(code); else set.delete(code);
+    formData.value.full_payment_options = Array.from(set);
+    emit('update:modelValue', formData.value);
+};
+const toggleLat90Option = (code, event) => {
+    if (!Array.isArray(formData.value.lat90_payment_options)) formData.value.lat90_payment_options = [];
+    const set = new Set(formData.value.lat90_payment_options);
+    if (event.target.checked) set.add(code); else set.delete(code);
+    formData.value.lat90_payment_options = Array.from(set);
+    emit('update:modelValue', formData.value);
+};
 
 // Watch para sincronizar con el padre
 watch(

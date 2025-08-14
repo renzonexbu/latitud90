@@ -39,8 +39,11 @@ class CreateProgramService
         
 
             // Crear el programa primero (sin archivos por ahora)
+            $autoName = $this->buildProgramName($programData);
             $program = Program::create([
-                'name' => $programData['name'],
+                'code' => $programData['code'],
+                'name' => $autoName ?? $programData['name'],
+                'institution_id' => $programData['institution_id'],
                 'destination' => $programData['destination'],
                 'departure_date' => $programData['departure_date'],
                 'trip_description' => $programData['description'] ?? $programData['trip_description'],
@@ -53,18 +56,20 @@ class CreateProgramService
                 // trip_price en BD almacena el total del programa (precio por participante FINAL x #participantes)
                 // Inicialmente 0; se recalculará tras procesar participantes
                 'trip_price' => 0,
+                'year' => (int) date('Y', strtotime($programData['departure_date'])),
                 'final_payment_date' => $programData['final_payment_date'],
-                'seller_name' => $programData['sales_person'] ?? $programData['seller_name'],
+                'seller_name' => null,
+                'sales_executive_id' => $programData['sales_executive_id'],
                 
                 // Configuración de pago total
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
                 // Mapear nombres semánticos del frontend a IDs sembrados por PaymentMethodSeeder
-                'total_payment_method_id' => $this->getTotalPaymentMethodId($programData),
+                // Eliminado: total_payment_method_id (usamos payment_options + pivote)
                 
                 // Configuración de pago mensual Lat90
                 'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
                 // Usa el mismo mapeo de métodos que pago total
-                'lat90_payment_method_id' => $this->getLat90PaymentMethodId($programData),
+                // Eliminado: lat90_payment_method_id (usamos payment_options + pivote)
                 'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
                 
                 // Campos de descuento
@@ -88,8 +93,10 @@ class CreateProgramService
             ]);
 
             // Lógica para crear curso y participantes si se proporcionan los datos (opcional)
-            if (!empty($programData['institution_id']) && 
-                !empty($programData['education_level'])) {
+            // Relajamos la condición: si hay institución y se sube students_file, creamos el curso aunque no venga education_level
+            if (!empty($programData['institution_id']) && (
+                !empty($programData['education_level']) || !empty($programData['students_file'])
+            )) {
                 
                 // Crear el curso
                 $course = $this->createCourse($programData, $program);
@@ -103,8 +110,20 @@ class CreateProgramService
                 }
             }
 
+            // Guardar opciones de pago seleccionadas (program_payment_option)
+            $this->syncProgramPaymentOptions($program, $programData);
+
             // Recalcular y actualizar el total del programa (trip_price) según #participantes y precio por participante final
             $this->recalculateProgramTotal($program, $programData);
+
+            // Asegurar participant_program para todos los participantes del curso (SIEMPRE)
+            $program->load('course.participants');
+            if ($program->course && $program->course->participants) {
+                $participants = $program->course->participants;
+                foreach ($participants as $p) {
+                    $this->ensureParticipantProgram($p, $program, $p->pivot->individual_price ?? ($p->individual_price ?? null));
+                }
+            }
 
             DB::commit();
             return $program;
@@ -113,6 +132,75 @@ class CreateProgramService
             DB::rollBack();
             throw $e;
         }
+    }
+    /**
+     * Sincroniza las opciones de pago habilitadas para el programa
+     */
+    private function syncProgramPaymentOptions(Program $program, array $programData): void
+    {
+        $codes = [];
+        $full = $programData['full_payment_options'] ?? [];
+        $lat90 = $programData['lat90_payment_options'] ?? [];
+        if (is_array($full)) { $codes = array_merge($codes, $full); }
+        if (is_array($lat90)) { $codes = array_merge($codes, $lat90); }
+        $codes = array_values(array_unique($codes));
+
+        if (empty($codes)) {
+            // No hay opciones marcadas: dejar vacío
+            DB::table('program_payment_option')->where('program_id', $program->id)->delete();
+            return;
+        }
+
+        $optionIds = DB::table('payment_options')
+            ->whereIn('code', $codes)
+            ->pluck('id')
+            ->toArray();
+
+        // Limpiar actuales
+        DB::table('program_payment_option')->where('program_id', $program->id)->delete();
+
+        // Insertar nuevas
+        $now = now();
+        $rows = array_map(fn($id) => [
+            'program_id' => $program->id,
+            'payment_option_id' => $id,
+            'enabled' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $optionIds);
+        if (!empty($rows)) {
+            DB::table('program_payment_option')->insert($rows);
+        }
+    }
+
+    /**
+     * Construye el nombre del programa a partir de institución, curso, destino y año.
+     * Si faltan datos clave, retorna null (para usar el nombre manual).
+     */
+    private function buildProgramName(array $programData): ?string
+    {
+        $institutionName = null;
+        if (!empty($programData['institution_id'])) {
+            $inst = \App\Models\Institution::find($programData['institution_id']);
+            $institutionName = $inst?->name;
+        } elseif (!empty($programData['institution_name'])) {
+            $institutionName = $programData['institution_name'];
+        }
+
+        $course = null;
+        if (!empty($programData['education_level']) || !empty($programData['course_number'])) {
+            $level = $this->mapEducationLevel($programData['education_level'] ?? '');
+            $num = $programData['course_number'] ?? '';
+            $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+        }
+
+        $destination = $programData['destination'] ?? null;
+        $year = (int) ($programData['year'] ?? date('Y'));
+
+        if ($institutionName && $course && $destination && $year) {
+            return sprintf('%s - %s - %s - %d', $institutionName, $course, $destination, $year);
+        }
+        return null;
     }
 
     /**
@@ -344,7 +432,8 @@ class CreateProgramService
     {
         return Course::create([
             'institution_id' => $programData['institution_id'],
-            'education_level' => $this->mapEducationLevel($programData['education_level']),
+            // Usar nivel provisto o un valor por defecto ('media') cuando no venga, para no bloquear la creación
+            'education_level' => $this->mapEducationLevel($programData['education_level'] ?? 'media'),
             'year' => date('Y'),
             'course_number' => $programData['course_number'] ?? null,
             'course_name' => $programData['course_name'] ?? null,
@@ -407,7 +496,15 @@ class CreateProgramService
                 }
                 
                 $participantData = array_combine($headers, $row);
-                $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
+                // Soportar múltiples encabezados posibles para RUT/Documento
+                $rutRaw = $participantData['RUT']
+                    ?? $participantData['Rut']
+                    ?? $participantData['rut']
+                    ?? $participantData['Documento']
+                    ?? $participantData['Documento de identidad']
+                    ?? $participantData['Documento Identidad']
+                    ?? '';
+                $cleanRut = $this->cleanRut($rutRaw);
                 
                 
                 
@@ -429,6 +526,9 @@ class CreateProgramService
                         
                         
                         // Actualizar datos del participante
+                        // Preparar RUT normalizado
+                        $digitsOnly = preg_replace('/\D/', '', $cleanRut);
+                        $first6 = substr($digitsOnly, 0, 6);
                         $existingParticipant->update([
                             'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
                             'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
@@ -440,6 +540,8 @@ class CreateProgramService
                             'address' => $participantData['Dirección'] ?? $existingParticipant->address,
                             'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
                             'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                            'rut_digits' => $digitsOnly ?: $existingParticipant->rut_digits,
+                            'rut_first6' => $first6 ?: $existingParticipant->rut_first6,
                         ]);
                         
                         // Actualizar relación con el curso
@@ -454,6 +556,8 @@ class CreateProgramService
                         ];
                         
                         $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
+                        // Asegurar registro participant_program (programa-participante), aunque ya exista
+                        $this->ensureParticipantProgram($existingParticipant, $program, $pivotData['individual_price'] ?? ($existingParticipant->individual_price ?? null));
                         $updatedCount++;
                         $participant = $existingParticipant;
                         
@@ -481,6 +585,8 @@ class CreateProgramService
                     // CREATE: Crear nuevo participante y asociarlo al curso
                     
                     
+                    $digitsOnly = preg_replace('/\D/', '', $cleanRut);
+                    $first6 = substr($digitsOnly, 0, 6);
                     $participant = Participant::create([
                         'first_name' => $participantData['Nombre'] ?? '',
                         'last_name' => $participantData['Apellido'] ?? '',
@@ -489,6 +595,8 @@ class CreateProgramService
                         'phone' => $participantData['Teléfono'] ?? '',
                         'document_type' => $documentType,
                         'document_number' => $cleanRut,
+                        'rut_digits' => $digitsOnly,
+                        'rut_first6' => $first6,
                         'country' => 'CL', // Chile por defecto
                         'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
                         'address' => $participantData['Dirección'] ?? null,
@@ -513,6 +621,8 @@ class CreateProgramService
                     ];
                     
                     $participant->courses()->attach($course->id, $pivotData);
+                    // Asegurar registro participant_program (programa-participante)
+                    $this->ensureParticipantProgram($participant, $program, $pivotData['individual_price'] ?? ($participant->individual_price ?? null));
                     $createdCount++;
                     
                         
@@ -601,6 +711,39 @@ class CreateProgramService
         } catch (\Exception $e) {
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Crea o asegura la fila en participant_program con enrollment_code = program.code + primeros 6 dígitos del RUT
+     */
+    private function ensureParticipantProgram(Participant $participant, Program $program, ?float $individualPrice = null): void
+    {
+        $code = (string) ($program->code ?? '');
+        // Preferir rut_first6 si existe, si no, derivarlo de document_number
+        $rutFirst6 = $participant->rut_first6;
+        if (!$rutFirst6) {
+            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
+            $rutFirst6 = substr($digits, 0, 6) ?: null;
+        }
+        if (!$code || !$rutFirst6) {
+            return; // No podemos generar enrollment_code
+        }
+        $enrollmentCode = $code . $rutFirst6;
+
+        // Evitar duplicados por la clave única (participant_id, program_id)
+        \Illuminate\Support\Facades\DB::table('participant_program')->updateOrInsert(
+            [
+                'participant_id' => $participant->id,
+                'program_id' => $program->id,
+            ],
+            [
+                'enrollment_code' => $enrollmentCode,
+                'individual_price' => $individualPrice ?? null,
+                'status' => 'pending_payment',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
     }
 
     /**

@@ -43,7 +43,7 @@
                     <transition name="accordion-slide">
                         <div v-if="detailsOpen" class="accordion-content">
                             <div class="name-field-row">
-                                <div class="field-container">
+                                <div class="field-container" style="flex: 2;">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
                                             Nombre del programa *
@@ -62,6 +62,29 @@
                                             class="text-red-500 text-sm mt-1"
                                         >
                                             {{ errors.name }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="field-container" style="flex: 1;">
+                                    <div class="field-wrapper">
+                                        <div class="nombre-del-programa">
+                                            Código del programa (4 dígitos)
+                                        </div>
+                                        <input
+                                            type="text"
+                                            v-model="formData.code"
+                                            maxlength="8"
+                                            placeholder="1234"
+                                            class="input-text"
+                                            :class="{
+                                                'border-red-500': errors.code,
+                                            }"
+                                        />
+                                        <span
+                                            v-if="errors.code"
+                                            class="text-red-500 text-sm mt-1"
+                                        >
+                                            {{ errors.code }}
                                         </span>
                                     </div>
                                 </div>
@@ -776,6 +799,20 @@
                         </div>
                     </transition>
                 </div>
+
+                <!-- Botón activar/desactivar programa (solo edición) -->
+                <div v-if="mode === 'edit'" class="mt-4 w-full">
+                    <button
+                        type="button"
+                        @click="$emit('toggle-status')"
+                        :class="[
+                            'rounded-full py-3 px-6 text-white font-bold text-sm transition-colors duration-200 w-full',
+                            isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                        ]"
+                    >
+                        {{ isActive ? 'Desactivar Programa' : 'Activar Programa' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -792,6 +829,7 @@ const props = defineProps({
     modelValue: {
         type: Object,
         default: () => ({
+            code: "",
             name: "",
             destination: "",
             departure_date: "",
@@ -804,6 +842,7 @@ const props = defineProps({
             itinerary_file: null,
             coverage_file: null,
             equipment_file: null,
+            code: "",
         }),
     },
     mode: {
@@ -827,6 +866,10 @@ const props = defineProps({
             equipment_file: null,
         }),
     },
+    isActive: {
+        type: Boolean,
+        default: true,
+    }
 });
 
 //
@@ -837,6 +880,7 @@ const emit = defineEmits([
     "update:images",
     "remove:existingImage",
     "remove:existingFile",
+    "toggle-status",
 ]);
 
 // Reactive data
@@ -867,7 +911,8 @@ if (props.mode === "edit" && props.existingImages.length > 0) {
         url: image.url,
         name: image.name || `Imagen ${index + 1}`,
         isExisting: true,
-        originalId: image.id || null,
+        // Usar el índice original que provee el padre para que backend borre por índice correctamente
+        originalId: typeof image.originalId !== 'undefined' ? image.originalId : index,
     }));
 }
 

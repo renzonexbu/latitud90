@@ -120,9 +120,11 @@ class ProgramController extends Controller
     public function create()
     {
         $institutions = Institution::orderBy('name')->get();
-        
+        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id','name','code']);
+        // Cargar catálogo de opciones de pago (para futuras mejoras: enviarlo desde backend)
         return Inertia::render('Admin/Programs/Create', [
             'institutions' => $institutions,
+            'salesExecutives' => $salesExecutives,
         ]);
     }
 
@@ -202,12 +204,23 @@ class ProgramController extends Controller
         $program->course_paid_amount = $coursePaidAmount;
         $program->course_payment_percentage = $coursePaymentPercentage;
 
-        // Obtener instituciones para el dropdown
+        // Pre-cargar opciones de pago habilitadas (program_payment_option)
+        $paymentOptions = \Illuminate\Support\Facades\DB::table('program_payment_option')
+            ->join('payment_options', 'payment_options.id', '=', 'program_payment_option.payment_option_id')
+            ->where('program_payment_option.program_id', $program->id)
+            ->select('payment_options.code', 'payment_options.mode')
+            ->get();
+        $program->full_payment_options = $paymentOptions->where('mode', 'full')->pluck('code')->values();
+        $program->lat90_payment_options = $paymentOptions->where('mode', 'lat90')->pluck('code')->values();
+
+        // Obtener instituciones y ejecutivos para el dropdown
         $institutions = Institution::active()->orderBy('name')->get();
+        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id','name','code']);
 
         return Inertia::render('Admin/Programs/Edit', [
             'program' => $program,
-            'institutions' => $institutions
+            'institutions' => $institutions,
+            'salesExecutives' => $salesExecutives,
         ]);
     }
 

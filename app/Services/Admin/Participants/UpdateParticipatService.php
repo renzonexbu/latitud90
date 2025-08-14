@@ -55,6 +55,34 @@ class UpdateParticipatService
                 if (!empty($pivotUpdate)) {
                     $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], $pivotUpdate);
                 }
+
+                // Reflejar en participant_program.individual_price si existe el programa asociado
+                $course = \App\Models\Course::find((int) $data['pivot_course_id']);
+                if ($course && $course->program_id) {
+                    $pp = \Illuminate\Support\Facades\DB::table('participant_program')
+                        ->where('participant_id', $participant->id)
+                        ->where('program_id', $course->program_id)
+                        ->first();
+                    if ($pp) {
+                        $newPrice = null;
+                        if (array_key_exists('individual_price', $data)) {
+                            $newPrice = $data['individual_price'];
+                        } elseif (isset($pivotUpdate['individual_price'])) {
+                            $newPrice = $pivotUpdate['individual_price'];
+                        }
+                        // Aplicar ajuste para reflejar descuentos (price_adjustments negativo)
+                        if ($newPrice !== null) {
+                            $adj = (float) ($data['price_adjustments'] ?? 0);
+                            $final = max(0.0, (float) $newPrice + $adj);
+                            \Illuminate\Support\Facades\DB::table('participant_program')
+                                ->where('id', $pp->id)
+                                ->update([
+                                    'individual_price' => round($final, 2),
+                                    'updated_at' => now(),
+                                ]);
+                        }
+                    }
+                }
             }
 
             

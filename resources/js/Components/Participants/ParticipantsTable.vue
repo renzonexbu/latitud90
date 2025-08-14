@@ -22,9 +22,7 @@
                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                     Programa
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                    Destino
-                </div>
+                
                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Estado de pago
                 </div>
@@ -40,7 +38,7 @@
             <div class="flex flex-col h-[574px] overflow-hidden">
                 <div 
                     v-for="(participant, index) in participants" 
-                    :key="participant.id"
+                    :key="participant.id + '-' + (getFirstCourseInfo(participant, 'program', 'code') || 'none')"
                     :class="[
                         'px-5 py-[14px] flex items-center justify-between',
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]'
@@ -76,10 +74,7 @@
                         {{ capitalizeWords(getFirstCourseInfo(participant, 'program', 'name') || 'N/A') }}
                     </div>
                     
-                    <!-- Destino -->
-                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(getFirstCourseInfo(participant, 'program', 'destination') || 'N/A') }}
-                    </div>
+                    
                     
                     <!-- Estado de pago -->
                     <div class="flex justify-center items-center w-[120px]">
@@ -95,7 +90,7 @@
                     
                     <!-- Total pagado -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                        {{ formatPayment(getFirstCoursePivotAmount(participant)) }}
+                        {{ formatPaymentPair(getPaidAmount(participant), getTotalDue(participant)) }}
                     </div>
                     
                     <!-- Acciones -->
@@ -262,11 +257,32 @@ export default {
             }
         },
         
+        getPaidAmount(participant) {
+            // Campo auxiliar inyectado desde Index.vue si viene del backend
+            if (typeof participant.__paid_amount !== 'undefined') return Number(participant.__paid_amount || 0);
+            return 0;
+        },
+
+        getTotalDue(participant) {
+            if (typeof participant.__total_due !== 'undefined') return Number(participant.__total_due || 0);
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) return 0;
+            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
+            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
+            return individualPrice + adjustments;
+        },
+
         formatPayment(amount) {
             if (!amount || amount === 0) {
                 return '----';
             }
             return `$${parseInt(amount).toLocaleString()}`;
+        },
+        
+        formatPaymentPair(paid, total) {
+            const p = isNaN(paid) ? 0 : paid;
+            const t = isNaN(total) ? 0 : total;
+            return `$${parseInt(p).toLocaleString()} / $${parseInt(t).toLocaleString()}`;
         },
         
         capitalizeWords(string) {

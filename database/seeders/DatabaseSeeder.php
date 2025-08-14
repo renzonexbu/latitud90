@@ -14,9 +14,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CountrySeeder::class,
             DocumentSeeder::class,
-            PaymentMethodSeeder::class,
             PaymentGatewaySeeder::class,
-            PaymentModeSeeder::class,
+            PaymentOptionSeeder::class,
             UserSeeder::class,
 			SalesExecutiveSeeder::class,
 			// ProgramsSeeder::class,
