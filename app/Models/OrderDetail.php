@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\PaymentOption;
 
 class OrderDetail extends Model
 {
@@ -13,8 +14,7 @@ class OrderDetail extends Model
 
     protected $fillable = [
         'order_id',
-        'payment_method_id',
-        'payment_mode_id',
+        'payment_option_id',
         'payment_gateway_id',
         'name',
         'email',
@@ -33,6 +33,8 @@ class OrderDetail extends Model
         'marketing_accepted',
         'terms_accepted_confirmation',
         'installment_number',
+        'base_amount',
+        'discount_amount',
         'amount',
         'due_date',
         'is_paid',
@@ -60,12 +62,7 @@ class OrderDetail extends Model
 
     public function paymentMethod()
     {
-        return $this->belongsTo(PaymentMethod::class);
-    }
-
-    public function paymentMode()
-    {
-        return $this->belongsTo(PaymentMode::class);
+        return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
     public function paymentGateway()

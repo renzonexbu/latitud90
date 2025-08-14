@@ -28,7 +28,7 @@
                         desactiva la opción de pago total
                     </span>
                     <span class="font-nexa font-normal">
-                        con tarjeta en 3, 6 o 12 cuotas.
+                        con tarjeta en 3, 6, 9 o 12 cuotas.
                         <br />
                         <br />
                         Si luego quieres abonar el total, deberás seleccionar todas las cuotas

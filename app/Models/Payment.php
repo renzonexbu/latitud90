@@ -13,8 +13,7 @@ class Payment extends Model
         'order_id',
         'order_detail_id',
         'payment_gateway_id',
-        'payment_method_id',
-        'payment_mode_id',
+        'payment_option_id',
         'buy_order',
         'session_id',
         'token',
@@ -61,14 +60,9 @@ class Payment extends Model
         return $this->belongsTo(PaymentGateway::class);
     }
 
-    public function paymentMethod()
+    public function paymentOption()
     {
-        return $this->belongsTo(PaymentMethod::class);
-    }
-
-    public function paymentMode()
-    {
-        return $this->belongsTo(PaymentMode::class);
+        return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
     public function getIsCompletedAttribute()

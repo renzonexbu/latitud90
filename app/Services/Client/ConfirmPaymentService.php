@@ -84,15 +84,38 @@ class ConfirmPaymentService
                     ->orderBy('due_date')
                     ->first();
                 if ($next) {
+                    // Mostrar SOLO el monto de la próxima cuota.
+                    // Las cuotas vencidas se pagan individualmente o se re-balancean en backend si corresponde.
                     $activeInstallment = [
                         'number' => (int) $next->installment_number,
                         'total' => (int) $order->total_installments,
-                        'amount' => round(((float) $next->amount) + $sumOverdue, 2),
+                        'amount' => round(((float) $next->amount), 2),
                         'due_date' => optional($next->due_date)->toDateString(),
                     ];
                 }
             }
         }
+
+        // Cargar opciones de pago habilitadas (nuevo esquema payment_options + pivote)
+        $fullPaymentOptionCodes = DB::table('program_payment_option as ppo')
+            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+            ->where('ppo.program_id', $program->id)
+            ->where('ppo.enabled', true)
+            ->where('po.mode', 'full')
+            ->pluck('po.code')
+            ->toArray();
+
+        $lat90PaymentOptions = DB::table('program_payment_option as ppo')
+            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+            ->select(['po.code', 'po.label'])
+            ->where('ppo.program_id', $program->id)
+            ->where('ppo.enabled', true)
+            ->where('po.mode', 'lat90')
+            ->get()
+            ->map(function ($row) {
+                return ['code' => $row->code, 'label' => $row->label];
+            })
+            ->toArray();
 
         return [
             'program' => [
@@ -108,8 +131,8 @@ class ConfirmPaymentService
                 // Propiedades necesarias para PaymentPanel
                 'enable_total_payment' => $program->enable_total_payment,
                 'enable_lat90_payment' => $program->enable_lat90_payment,
-                'total_payment_method_id' => $program->total_payment_method_id,
-                'lat90_payment_method_id' => $program->lat90_payment_method_id,
+                'full_payment_options' => $fullPaymentOptionCodes,
+                'lat90_payment_options' => $lat90PaymentOptions,
                 'lat90_max_installments' => $program->lat90_max_installments,
                 // Montos por participante
                 'participant_amount' => $participantAmount,

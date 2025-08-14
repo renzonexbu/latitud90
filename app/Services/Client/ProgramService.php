@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Program;
 use App\Models\Payment;
 use App\Models\OrderDetail;
+use Illuminate\Support\Facades\DB;
 
 class ProgramService
 {
@@ -75,6 +76,12 @@ class ProgramService
                 $enrollment = $participant->courses()
                     ->where('course_id', $program->course_id)
                     ->first();
+                // Obtener enrollment_code real desde participant_program (programa-participante)
+                $pp = DB::table('participant_program')
+                    ->where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->first();
+                $enrollmentCode = $pp->enrollment_code ?? null;
                 
                 // Determinar total por participante (precio individual + ajustes)
                 $individualPrice = (float) ($enrollment->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
@@ -112,6 +119,8 @@ class ProgramService
                     'participant_adjustments' => $priceAdjustments,
                     'status' => $enrollment->pivot->status ?? 'enrolled',
                     'enrollment_date' => $enrollment->pivot->created_at ?? null
+                    ,
+                    'enrollment_code' => $enrollmentCode
                 ];
             }
         }

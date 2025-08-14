@@ -40,13 +40,11 @@ class KhipuService
                 'Content-Type' => 'application/json',
                 'x-api-key' => $this->apiKey
             ];
-
             $response = $this->client->post($this->baseUrl . '/v3/payments', [
                 'headers' => $headers,
                 'json' => $payload
             ]);
             $result = json_decode($response->getBody()->getContents(), true);
-
             // Log de creación de pago (siempre)
             Log::info('Khipu createTransaction response', [
                 'order_id' => $orderId,
@@ -62,6 +60,18 @@ class KhipuService
                 'payment_id' => $result['payment_id'] ?? null,
                 'payment_url' => $result['payment_url'] ?? null,
                 'url' => $result['payment_url'] ?? null,
+            ];
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $body = (string) ($e->getResponse() ? $e->getResponse()->getBody() : '');
+            Log::error('Error creating Khipu payment (ClientException)', [
+                'error' => $e->getMessage(),
+                'amount' => $amount,
+                'order_id' => $orderId,
+                'response' => $body,
+            ]);
+            return [
+                'success' => false,
+                'error' => $body ?: $e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('Error creating Khipu payment', [

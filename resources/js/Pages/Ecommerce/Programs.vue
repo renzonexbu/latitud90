@@ -94,6 +94,20 @@ export default {
         },
 
         handleProgramClick(program) {
+            // Guardar enrollment_code en localStorage para identificar pagos
+            try {
+                const participant = this.participant || {};
+                const rutFirst6 = participant.rut_first6 || (participant.document_number ? String(participant.document_number).replace(/\D/g, '').slice(0,6) : '');
+                const enrollmentCode = program.enrollment_code || (program.code && rutFirst6 ? `${program.code}${rutFirst6}` : null);
+                const payload = {
+                    enrollment_code: enrollmentCode,
+                    program_id: program.id,
+                    participant_id: participant.id || null,
+                };
+                localStorage.setItem('selectedEnrollment', JSON.stringify(payload));
+            } catch (e) {
+                // noop
+            }
             // Navegar al detalle del programa
             router.get(route("ecommerce.program-detail", program.id), {
                 rut: this.rut,

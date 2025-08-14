@@ -152,7 +152,7 @@
                     <span
                         class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold"
                     >
-                        Faltan pagar
+                        Pagarás
                     </span>
                     <span
                         class="text-[#434343] font-nexa text-[30px] leading-[36px] font-bold"
@@ -252,18 +252,21 @@ export default {
         // Si está en modo confirmación, cargar datos desde localStorage
         if (this.isConfirmation) {
             this.loadPaymentDataFromLocalStorage();
+            this.$nextTick(() => this.reconcileSelection());
         } else {
-            // Estado base por defecto: mensual con 1 cuota si está habilitado
+            // Estado base por defecto: mensual con mínima cuota permitida si está habilitado
             if (this.program.enable_lat90_payment && !this.paymentType) {
                 this.paymentType = 'monthly';
                 this.accordionOpen = 'monthly';
-                this.selectedInstallments = 1;
+                const allowedInst = this.getAvailableInstallments();
+                this.selectedInstallments = allowedInst.length > 0 ? allowedInst[0] : 1;
                 const availableOptions = this.getMonthlyPaymentOptions();
                 if (availableOptions.length > 0) {
                     this.monthlyPaymentOption = availableOptions[0].value;
                 }
                 this.savePaymentDataToLocalStorage();
                 this.emitSelection();
+                this.$nextTick(() => this.reconcileSelection());
             }
         }
     },
@@ -274,23 +277,11 @@ export default {
             monthlyPaymentOption: null,
             accordionOpen: null,
             selectedInstallments: 1,
-            // Opciones base de pago
+            // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
-                {
-                    value: "debit",
-                    label: "Tarjeta de Debito",
-                    description: null,
-                },
-                {
-                    value: "credit",
-                    label: "Tarjeta de Credito",
-                    description: "3, 6 o 12 cuotas sin interés, con cualquier promo bancaria",
-                },
-                {
-                    value: "khipu",
-                    label: "Transferencia Khipu",
-                    description: null,
-                },
+                { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                { value: 'debit',  label: 'Tarjeta de Débito',    description: null },
+                { value: 'credit', label: 'Tarjeta de Crédito',   description: 'Cuotas según configuración del programa' },
             ],
         };
     },
@@ -317,28 +308,79 @@ export default {
             return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[20px_15px] md:p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)]`;
         },
         
-        // Obtener opciones de pago total según la configuración del programa
+        // Helpers para nuevas estructuras de opciones
+        getFullOptionCodes() {
+            // full_payment_options puede venir como array de códigos
+            return Array.isArray(this.program.full_payment_options) ? this.program.full_payment_options : [];
+        },
+        getLat90OptionCodes() {
+            // Puede venir como array de strings o de objetos {code,label}
+            if (!Array.isArray(this.program.lat90_payment_options)) return [];
+            return this.program.lat90_payment_options.map(o => typeof o === 'string' ? o : (o.code || ''));
+        },
+        hasCodeLike(codes, substr) {
+            return codes.some(code => String(code).toLowerCase().includes(substr));
+        },
+        // Obtener opciones de pago total según la configuración del programa (nueva estructura)
         getTotalPaymentOptions() {
-            if (!this.program.enable_total_payment || !this.program.total_payment_method_id) {
-                return [];
+            // Nueva estructura basada en códigos
+            if (Array.isArray(this.program.full_payment_options)) {
+                const codes = this.getFullOptionCodes().map(c => String(c).toLowerCase());
+                const result = [];
+                const pushUnique = (value, label, description = null) => {
+                    if (!result.some(o => o.value === value)) {
+                        result.push({ value, label, description });
+                    }
+                };
+                codes.forEach(code => {
+                    if (code.includes('khipu')) {
+                        pushUnique('khipu', 'Pagar con Transferencia Khipu');
+                    } else if (code.includes('debit')) {
+                        pushUnique('debit', 'Pagar con Tarjeta de Débito (Webpay)');
+                    } else if (code.includes('credit')) {
+                        const match = code.match(/(\d+)(?!.*\d)/);
+                        if (match) {
+                            const n = parseInt(match[1], 10);
+                            if (!isNaN(n) && n > 0) {
+                                pushUnique(`credit_${n}`, `Pagar con Tarjeta de Crédito ${n} cuotas sin interés (Webpay)`);
+                            } else {
+                                pushUnique('credit_0', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)');
+                            }
+                        } else {
+                            pushUnique('credit_0', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)');
+                        }
+                    }
+                });
+                return result;
             }
-
-            const methodId = this.program.total_payment_method_id;
-            return this.filterPaymentOptionsByMethod(methodId);
+            // Legacy fallback
+            if (!this.program.enable_total_payment || !this.program.total_payment_method_id) return [];
+            return this.filterPaymentOptionsByMethod(this.program.total_payment_method_id);
         },
 
-        // Obtener opciones de pago mensual (Latitud 90), similares a pago total
+        // Obtener opciones de pago mensual (Latitud 90), basadas en códigos (nueva estructura)
         getMonthlyPaymentOptions() {
-            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) {
-                return [];
+            // Nueva estructura
+            if (Array.isArray(this.program.lat90_payment_options)) {
+                const codes = this.getLat90OptionCodes().map(c => String(c).toLowerCase());
+                const result = [];
+                const pushUnique = (value, label, description = null, warning = null) => {
+                    if (!result.some(o => o.value === value)) {
+                        const obj = { value, label };
+                        if (description) obj.description = description;
+                        if (warning) obj.warning = warning;
+                        result.push(obj);
+                    }
+                };
+                if (codes.some(c => c.includes('khipu'))) pushUnique('khipu', 'Pagar con Transferencia Khipu');
+                if (codes.some(c => c.includes('debit'))) pushUnique('debit', 'Pagar con Tarjeta de Débito (Webpay)');
+                if (codes.some(c => c.includes('credit'))) pushUnique('credit', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
+                return result;
             }
+            // Legacy fallback
+            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) return [];
             const base = this.filterPaymentOptionsByMethod(this.program.lat90_payment_method_id);
-            // Para mensual, remover la descripción de crédito (no mostrar 3, 6 o 12) y agregar advertencia
-            return base.map(opt => ({
-                ...opt,
-                description: opt.value === 'credit' ? null : opt.description,
-                warning: opt.value === 'credit' ? 'Solo se efectuará 1 cuota' : null,
-            }));
+            return base.map(opt => ({ ...opt, description: opt.value === 'credit' ? null : opt.description }));
         },
 
         // Filtrar opciones según el método de pago configurado
@@ -369,14 +411,28 @@ export default {
 
         // Obtener cuotas disponibles según la configuración del programa
         getAvailableInstallments() {
-            const maxInstallments = this.program.lat90_max_installments || 12;
-            const installments = [];
-            
-            for (let i = 1; i <= Math.min(maxInstallments, 12); i++) {
-                installments.push(i);
+            // Nueva estructura: derivar SOLO desde lat90_installments_X de program.lat90_payment_options
+            if (Array.isArray(this.program.lat90_payment_options)) {
+                const codes = this.getLat90OptionCodes().map(c => String(c).toLowerCase());
+                const installments = new Set();
+                codes.forEach(code => {
+                    // Aceptar formatos: lat90_installments_3, lat90-installments-6
+                    const m = code.match(/lat90[_-]?installments[_-]?(\d+)/);
+                    if (m) {
+                        const n = parseInt(m[1], 10);
+                        if (!isNaN(n) && n > 0) {
+                            installments.add(n);
+                        }
+                    }
+                });
+                // Si no hay lat90_installments configurados, dejar vacío para no confundir con 1 cuota
+                return Array.from(installments).sort((a,b)=>a-b);
             }
-            
-            return installments;
+            // Legacy fallback: 1..max
+            const maxInstallments = this.program.lat90_max_installments || 12;
+            const list = [];
+            for (let i = 1; i <= Math.min(maxInstallments, 12); i++) list.push(i);
+            return list;
         },
 
         selectPaymentType(type) {
@@ -424,8 +480,15 @@ export default {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
-            // Si es tarjeta de crédito en mensual, forzar 1 cuota
+            // Ajustar cuotas disponibles al cambiar el método
+            const allowed = this.getAvailableInstallments();
             if (option === 'credit') {
+                // Si no contiene la cuota actual, seleccionar la mínima disponible
+                if (!allowed.includes(this.selectedInstallments)) {
+                    this.selectedInstallments = allowed[0] || 1;
+                }
+            } else {
+                // Débito/Khipu: 1 cuota
                 this.selectedInstallments = 1;
             }
             // Guardar en localStorage en tiempo real
@@ -525,6 +588,27 @@ export default {
                 // noop
             }
         },
+        // Asegurar que la opción guardada exista entre las opciones disponibles; si no, tomar la primera
+        reconcileSelection() {
+            if (this.paymentType === 'total') {
+                const options = this.getTotalPaymentOptions();
+                const values = options.map(o => o.value);
+                if (!values.includes(this.totalPaymentOption) && values.length > 0) {
+                    this.totalPaymentOption = values[0];
+                }
+            } else if (this.paymentType === 'monthly') {
+                const options = this.getMonthlyPaymentOptions();
+                const values = options.map(o => o.value);
+                if (!values.includes(this.monthlyPaymentOption) && values.length > 0) {
+                    this.monthlyPaymentOption = values[0];
+                }
+                // Validar cuotas
+                const allowed = this.getAvailableInstallments();
+                if (!allowed.includes(this.selectedInstallments)) {
+                    this.selectedInstallments = allowed[0] || 1;
+                }
+            }
+        },
         initiatePayment() {
             if (this.paymentType === null) {
                 return;
@@ -562,6 +646,10 @@ export default {
                 : this.defaultContainerClasses();
         },
         displayRemainingAmount() {
+            // Si hay cuota activa bloqueada, mostrar el monto de esa cuota, no dividir el saldo
+            if (this.program.active_installment && this.program.payment_plan_locked) {
+                return Number(this.program.active_installment.amount) || 0;
+            }
             const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
             if (!this.paymentType || this.paymentType === 'total') {
                 return Number(base) || 0;

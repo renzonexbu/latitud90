@@ -51,15 +51,18 @@ class CreateOrderService
                     ->latest('id')
                     ->first();
                 if ($existing) {
-                    // Rebalancear por si hay cuotas vencidas
+                    // Rebalancear por si hay cuotas vencidas (sin alterar montos a 0)
                     $this->rebalanceOverdueAmounts($existing);
+                    // Elegir SIEMPRE la cuota no pagada más antigua (incluye vencidas)
+                    $nextPayable = $existing->orderDetails()
+                        ->where('is_paid', false)
+                        ->where('amount', '>', 0)
+                        ->orderBy('due_date')
+                        ->first();
                     return [
                         'success' => true,
                         'order' => $existing,
-                        'order_detail' => $existing->orderDetails()
-                            ->where('is_paid', false)
-                            ->orderBy('due_date')
-                            ->first(),
+                        'order_detail' => $nextPayable,
                     ];
                 }
             }
@@ -156,11 +159,24 @@ class CreateOrderService
      */
     private function computeParticipantAmounts(Program $program, Participant $participant): array
     {
-        $program->loadMissing('course.participants');
-        $pivotParticipant = $program->course?->participants?->firstWhere('id', $participant->id);
-        $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
-        $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
-        $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+        // 1) Preferir el precio de participant_program (precio individual del participante para este programa)
+        $pp = DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->where('program_id', $program->id)
+            ->first();
+
+        if ($pp) {
+            $participantAmount = (float) ($pp->individual_price ?? 0);
+            $participantAdjustments = 0.0; // Los ajustes ya deberían estar reflejados en individual_price
+        } else {
+            // 2) Fallback al pivote antiguo participant_course si existe
+            $program->loadMissing('course.participants');
+            $pivotParticipant = $program->course?->participants?->firstWhere('id', $participant->id);
+            $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
+            $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
+        }
+
+        $participantTotalAmount = round(($participantAmount + $participantAdjustments), 2);
 
         // Pagos aprobados previos de este participante para este programa
         $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
@@ -249,40 +265,18 @@ class CreateOrderService
 
         $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
 
-        // Marcar vencidas como overdue y dejar en 0 para no duplicar deuda
+        // Marcar vencidas como overdue pero NO poner amount=0. Se pagarán individualmente o se re-balancearán explícitamente.
         foreach ($overdueUnpaid as $detail) {
             $detail->status = 'overdue';
-            $detail->amount = 0.00;
             $detail->save();
         }
 
-        // Redistribuir entre las restantes
-        $additions = $this->splitAmountInInstallments($sumOverdue, $remaining->count());
-        foreach ($remaining as $index => $detail) {
-            $detail->amount = round($detail->amount + $additions[$index], 2);
-            $detail->save();
-        }
+        // Ya no redistribuimos automáticamente para no inflar la siguiente cuota visualmente.
     }
     private function createOrderDetail($order, $paymentData, $formData, $installmentNumber, $amount, $dueDate = null)
     {
-        // Determinar el método de pago y modo de pago según la selección
-        $paymentMethodMapping = [
-            'debit' => 1, // Asumiendo que 1 es tarjeta de débito
-            'credit' => 2, // Asumiendo que 2 es tarjeta de crédito
-            'khipu' => 3, // Asumiendo que 3 es transferencia Khipu
-        ];
-
-        $paymentModeMapping = [
-            'total' => 1, // Pago total
-            'monthly' => 2, // Pago mensual
-        ];
-
-        // Determinar el gateway de pago según el método
-        $gatewayMapping = [
-            'debit' => 1, // Transbank
-            'credit' => 1, // Transbank
-            'khipu' => 2, // Khipu
-        ];
+        // Determinar payment_option_id según el nuevo esquema
+        $paymentOptionId = $this->resolvePaymentOptionId((int) $order->program_id, $paymentData);
 
         // Mapear las claves del frontend (camelCase) a las claves del backend (snake_case)
         // Preferir buyerData si viene anidado (por compatibilidad futura)
@@ -317,9 +311,7 @@ class CreateOrderService
 
         return OrderDetail::create([
             'order_id' => $order->id,
-            'payment_method_id' => $paymentMethodMapping[$paymentData['paymentMethod']] ?? 1,
-            'payment_mode_id' => $paymentModeMapping[$paymentData['paymentType']] ?? 1,
-            'payment_gateway_id' => $gatewayMapping[$paymentData['paymentMethod']] ?? 1,
+            'payment_option_id' => $paymentOptionId,
             
             // Datos del comprador
             'name' => $mappedFormData['name'],
@@ -345,11 +337,58 @@ class CreateOrderService
             
             // Información de la cuota
             'installment_number' => $installmentNumber,
+            'base_amount' => $amount,
+            'discount_amount' => 0,
             'amount' => $amount,
             'due_date' => $dueDate ?? now(),
             'is_paid' => false,
             'status' => 'pending',
         ]);
+    }
+
+    private function resolvePaymentOptionId(int $programId, array $paymentData): ?int
+    {
+        // Elegir modo y construir code
+        $mode = ($paymentData['paymentType'] ?? 'total') === 'monthly' ? 'lat90' : 'full';
+        $method = $paymentData['paymentMethod'] ?? 'debit';
+        $code = null;
+        if ($mode === 'full') {
+            switch ($method) {
+                case 'khipu': $code = 'full_transfer_khipu'; break;
+                case 'debit': $code = 'full_debit_webpay'; break;
+                case 'credit_0': $code = 'full_credit_webpay_0'; break;
+                case 'credit_3': $code = 'full_credit_webpay_3'; break;
+                case 'credit_6': $code = 'full_credit_webpay_6'; break;
+                case 'credit_9': $code = 'full_credit_webpay_9'; break;
+                case 'credit_12': $code = 'full_credit_webpay_12'; break;
+                default:
+                    // si enviaron 'credit' sin cuotas, tratar como 0
+                    if (strpos($method, 'credit') === 0) {
+                        $suffix = trim(str_replace('credit', '', $method), '_');
+                        $n = $suffix !== '' ? (int)$suffix : 0;
+                        $code = 'full_credit_webpay_' . $n;
+                    }
+                    break;
+            }
+        } else {
+            switch ($method) {
+                case 'khipu': $code = 'lat90_transfer_khipu'; break;
+                case 'debit': $code = 'lat90_debit_webpay'; break;
+                case 'credit': $code = 'lat90_credit_0'; break; // crédito mensual se procesa 1 cuota por transacción
+            }
+        }
+
+        if (!$code) { return null; }
+
+        // Validar que el programa tenga esta opción habilitada (pivot)
+        $optionId = DB::table('payment_options')->where('code', $code)->value('id');
+        if (!$optionId) { return null; }
+        $enabled = DB::table('program_payment_option')
+            ->where('program_id', $programId)
+            ->where('payment_option_id', $optionId)
+            ->where('enabled', true)
+            ->exists();
+        return $enabled ? (int)$optionId : null;
     }
 
     private function generateOrderNumber()

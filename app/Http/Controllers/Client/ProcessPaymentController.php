@@ -56,7 +56,7 @@ class ProcessPaymentController extends Controller
             $billingCountry = $formData['countryName'] ?? ($formData['billing_country'] ?? null);
             $billingPostalCode = $formData['billing_postal_code'] ?? null;
 
-            $orderDetail->update([
+            $dataToUpdate = [
                 'name' => $name,
                 'email' => $email,
                 'code_phone' => $codePhone,
@@ -70,11 +70,10 @@ class ProcessPaymentController extends Controller
                 'billing_city' => $billingCity,
                 'billing_country' => $billingCountry,
                 'billing_postal_code' => $billingPostalCode,
-                // Asegurar modo y método si cambiaron para este intento
-                'payment_method_id' => $orderDetail->payment_method_id ?: ($paymentData['paymentMethod'] === 'khipu' ? 3 : ($paymentData['paymentMethod'] === 'credit' ? 2 : 1)),
-                'payment_mode_id' => $orderDetail->payment_mode_id ?: ($paymentData['paymentType'] === 'monthly' ? 2 : 1),
-                'payment_gateway_id' => $orderDetail->payment_gateway_id ?: ($paymentData['paymentMethod'] === 'khipu' ? 2 : 1),
-            ]);
+            ];
+            // Gateway (solo referencia)
+            $dataToUpdate['payment_gateway_id'] = $orderDetail->payment_gateway_id ?: ($paymentData['paymentMethod'] === 'khipu' ? 2 : 1);
+            $orderDetail->update($dataToUpdate);
         } catch (\Throwable $e) {
             Log::error('Error updating buyer data on OrderDetail', [
                 'error' => $e->getMessage(),
@@ -186,6 +185,19 @@ class ProcessPaymentController extends Controller
             }
 
             // 3. Determinar el gateway de pago y crear la transacción
+            // Asegurar que el monto a cobrar nunca sea 0
+            if ((float)$orderDetail->amount <= 0) {
+                // Buscar otra cuota válida no pagada con monto > 0 en la misma orden
+                $altDetail = $order->orderDetails()
+                    ->where('is_paid', false)
+                    ->where('amount', '>', 0)
+                    ->orderBy('due_date')
+                    ->first();
+                if ($altDetail) {
+                    $orderDetail = $altDetail;
+                }
+            }
+
             $gatewayResult = $this->createGatewayTransaction($orderDetail, $paymentData);
 
             if (!$gatewayResult['success']) {
@@ -214,13 +226,29 @@ class ProcessPaymentController extends Controller
                 $orderDetail->order->refreshStatus();
             }
 
+            // Normalizar tipo para el frontend (evitar valores como credit_3)
+            $frontendGatewayType = 'other';
+            $methodRaw = (string) ($paymentData['paymentMethod'] ?? '');
+            if (stripos($methodRaw, 'credit') !== false) { $frontendGatewayType = 'credit'; }
+            else if (stripos($methodRaw, 'debit') !== false) { $frontendGatewayType = 'debit'; }
+
+            // Fallbacks por compatibilidad entre gateways
+            $gatewayUrl = $gatewayResult['url'] ?? ($gatewayResult['payment_url'] ?? null);
+            $gatewayToken = $gatewayResult['token'] ?? null;
+
+            // Guardar payment_id de Khipu en sesión como respaldo para la vista de verificación
+            if ($frontendGatewayType === 'other' && isset($gatewayResult['payment_id'])) {
+                session(['last_khipu_payment_id' => (string) $gatewayResult['payment_id']]);
+                session(['last_khipu_order_detail_id' => (int) $orderDetail->id]);
+            }
+
             return response()->json([
                 'success' => true,
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
-                'gateway_url' => $gatewayResult['url'],
-                'gateway_token' => $gatewayResult['token'] ?? null,
-                'gateway_type' => $paymentData['paymentMethod']
+                'gateway_url' => $gatewayUrl,
+                'gateway_token' => $gatewayToken,
+                'gateway_type' => $frontendGatewayType
             ]);
         } catch (\Exception $e) {
             Log::error('Error processing payment', [
@@ -242,9 +270,8 @@ class ProcessPaymentController extends Controller
             $commonData = [
                 'order_id' => $orderDetail->order_id,
                 'order_detail_id' => $orderDetail->id,
-                'payment_gateway_id' => $orderDetail->payment_gateway_id,
-                'payment_method_id' => $orderDetail->payment_method_id,
-                'payment_mode_id' => $orderDetail->payment_mode_id,
+                    'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                    'payment_option_id' => $orderDetail->payment_option_id,
                 'amount' => $orderDetail->amount,
                 'currency' => 'CLP',
                 'status' => 'pending',
@@ -295,12 +322,36 @@ class ProcessPaymentController extends Controller
         $transbankNotificationUrl = null;
         $khipuNotificationUrl = null;
 
-        switch ($paymentData['paymentMethod']) {
+        // Normalizar métodos nuevos (credit_3, credit_6, webpay_credit_12, etc.) a 'credit' y propagar cuotas
+        $method = (string) ($paymentData['paymentMethod'] ?? '');
+        $normalizedMethod = $method;
+        $installmentsOverride = null;
+        if ($method !== '') {
+            // Si contiene "credit" en cualquier formato, normalizar
+            if (stripos($method, 'credit') !== false) {
+                $normalizedMethod = 'credit';
+                // Extraer el último número (cuotas) si existe
+                if (preg_match('/(\d+)/', $method, $m)) {
+                    $n = (int) $m[1];
+                    if ($n > 0) { $installmentsOverride = $n; }
+                }
+                if ($installmentsOverride === null) { $installmentsOverride = 1; }
+            }
+        }
+
+        // Log para diagnóstico rápido
+        Log::info('createGatewayTransaction normalized method', [
+            'original' => $method,
+            'normalized' => $normalizedMethod,
+            'installmentsOverride' => $installmentsOverride,
+        ]);
+
+        switch ($normalizedMethod) {
             case 'debit':
             case 'credit':
                 // Determinar tipo de pago y cuotas para Transbank
                 $paymentType = $paymentData['paymentType'] ?? null; // 'total' o 'monthly'
-                $installments = $paymentData['installments'] ?? null;
+                $installments = $installmentsOverride ?? ($paymentData['installments'] ?? null);
 
                 // Usar Transbank con URL de notificación y control de cuotas
                 return $this->transbankService->createTransaction(

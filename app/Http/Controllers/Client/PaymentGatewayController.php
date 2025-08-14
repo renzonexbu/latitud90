@@ -159,7 +159,7 @@ class PaymentGatewayController extends Controller
         // Render a la vista en carpeta Payment para evitar conflictos de resolución
         return inertia('Payment/KhipuView', [
             'orderDetailId' => (int) $orderDetailId,
-            'paymentId' => (string) ($payment->external_payment_id ?? ''),
+            'paymentId' => (string) ($payment->external_payment_id ?? session('last_khipu_payment_id', '')),
             'paymentData' => $paymentData,
             'rut' => session('current_rut'),
         ]);
@@ -172,13 +172,35 @@ class PaymentGatewayController extends Controller
     {
         $request->validate([
             'orderDetailId' => 'required|integer',
-            'payment_id' => 'required|string',
+            'payment_id' => 'nullable|string',
         ]);
 
         $orderDetailId = (int) $request->input('orderDetailId');
         $paymentId = $request->input('payment_id');
 
         try {
+            // Resolver payment_id si no viene en el request
+            if (empty($paymentId)) {
+                $last = Payment::where('order_detail_id', $orderDetailId)
+                    ->whereNotNull('external_payment_id')
+                    ->latest()->first();
+                $paymentId = $last?->external_payment_id;
+            }
+
+            if (empty($paymentId)) {
+                Log::warning('confirmKhipu missing payment_id', [
+                    'order_detail_id' => $orderDetailId,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'status' => 'missing_payment_id'
+                ], 422);
+            }
+
+            Log::info('confirmKhipu start', [
+                'order_detail_id' => $orderDetailId,
+                'payment_id' => $paymentId,
+            ]);
             // Backend polling: hasta 5 intentos con espera de 2s
             $attempts = 0;
             $maxAttempts = 5;
@@ -187,6 +209,11 @@ class PaymentGatewayController extends Controller
 
             while ($attempts < $maxAttempts) {
                 $attempts++;
+                Log::info('confirmKhipu attempt', [
+                    'attempt' => $attempts,
+                    'order_detail_id' => $orderDetailId,
+                    'payment_id' => $paymentId,
+                ]);
                 $status = $khipuService->getPaymentStatus($paymentId);
 
                 // Actualizar/crear registro en payments
@@ -201,8 +228,7 @@ class PaymentGatewayController extends Controller
                         'order_id' => $orderDetail->order_id,
                         'order_detail_id' => $orderDetail->id,
                         'payment_gateway_id' => $orderDetail->payment_gateway_id,
-                        'payment_method_id' => $orderDetail->payment_method_id,
-                        'payment_mode_id' => $orderDetail->payment_mode_id,
+                        'payment_option_id' => $orderDetail->payment_option_id,
                         'amount' => $orderDetail->amount,
                         'currency' => 'CLP',
                         'status' => 'pending',
@@ -212,6 +238,11 @@ class PaymentGatewayController extends Controller
                 }
 
                 $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);
+                Log::info('confirmKhipu attempt result', [
+                    'attempt' => $attempts,
+                    'approved' => $approved,
+                    'status' => $status['status'] ?? null,
+                ]);
 
                 $payment->update([
                     'status' => $approved ? 'approved' : ($status['status'] ?? 'pending'),
@@ -235,6 +266,11 @@ class PaymentGatewayController extends Controller
                 }
 
                 if ($approved) {
+                    Log::info('confirmKhipu approved', [
+                        'order_detail_id' => $orderDetailId,
+                        'payment_id' => $paymentId,
+                        'attempt' => $attempts,
+                    ]);
                     return response()->json([
                         'success' => true,
                         'redirect' => route('payment.success', $orderDetailId),
@@ -247,6 +283,12 @@ class PaymentGatewayController extends Controller
             }
 
             // No aprobado tras reintentos: redirigir a vista informativa (verificación)
+            Log::warning('confirmKhipu exhausted attempts without approval', [
+                'order_detail_id' => $orderDetailId,
+                'payment_id' => $paymentId,
+                'attempts' => $attempts,
+                'last_status' => $status['status'] ?? null,
+            ]);
             return response()->json([
                 'success' => false,
                 'redirect' => route('khipu.callback', ['orderDetailId' => $orderDetailId]),

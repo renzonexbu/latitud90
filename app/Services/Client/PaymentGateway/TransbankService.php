@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\Passenger;
 use Illuminate\Support\Facades\Log;
 use Transbank\Webpay\WebpayPlus\MallTransaction;
+use Transbank\Webpay\Options;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCreateException;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCommitException;
 
@@ -40,7 +41,7 @@ class TransbankService
         try {
             $sessionId = session()->getId();
 
-            // Detalle Mall: sin cuotas (no se envía installments_number)
+            // Detalle Mall: por ahora sin cuotas (tratar todos como débito)
             $details = [
                 [
                     'amount' => (int) $amount,
@@ -49,18 +50,11 @@ class TransbankService
                 ],
             ];
 
-            // Construir instancia del SDK con Options según ambiente
-            $mall = $this->environment === 'production'
-                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
-                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
+            // Construir instancia del SDK con Options (commerce code + api key)
+            $options = new Options($this->apiKey, $this->parentCommerceCode, $this->environment);
+            $mall = new MallTransaction($options);
             $response = $mall->create((string) $orderId, (string) $sessionId, (string) $returnUrl, $details);
-            Log::info('Transbank createTransaction response', [
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'return_url' => $returnUrl,
-                'details' => $details,
-                'response' => $response,
-            ]);
+
             return [
                 'success' => true,
                 'token' => $response->getToken(),
@@ -84,10 +78,8 @@ class TransbankService
     public function confirmTransaction($token)
     {
         try {
-            // Construir instancia del SDK con Options según ambiente
-            $mall = $this->environment === 'production'
-                ? MallTransaction::buildForProduction($this->apiKey, $this->parentCommerceCode)
-                : MallTransaction::buildForIntegration($this->apiKey, $this->parentCommerceCode);
+            $options = new Options($this->apiKey, $this->parentCommerceCode, $this->environment);
+            $mall = new MallTransaction($options);
             $commit = $mall->commit((string) $token);
 
             $details = $commit->getDetails();

@@ -318,7 +318,7 @@
                     <p class="text-sm text-red-600 font-medium">
                       Al elegir el Pago Mensual de Cuota LAT90, se
                       <span class="font-bold">desactiva la opción de pago</span>
-                      con tarjeta en 3, 6 o 12 cuotas.
+                      con tarjeta en 3, 6, 9 o 12 cuotas.
                     </p>
                     <p class="text-sm text-red-600 mt-2">
                       Si luego querés abonar el total, deberás seleccionar todas

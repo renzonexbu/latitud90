@@ -26,6 +26,7 @@ onMounted(async () => {
     form.append('orderDetailId', String(props.orderDetailId))
     form.append('payment_id', props.paymentId)
 
+    console.log('[KhipuCallbackSpinner] POST /khipu/confirm', { orderDetailId: props.orderDetailId, paymentId: props.paymentId })
     const response = await fetch('/khipu/confirm', {
       method: 'POST',
       headers: {
@@ -34,13 +35,16 @@ onMounted(async () => {
       },
       body: form,
     })
-    const data = await response.json()
+    let data = null
+    try { data = await response.json() } catch (e) { data = null }
+    console.log('[KhipuCallbackSpinner] /khipu/confirm response', { status: response.status, ok: response.ok, data })
     if (data && data.redirect) {
       window.location.href = data.redirect
     } else {
       router.visit(`/khipu/view/${props.orderDetailId}`)
     }
   } catch (e) {
+    console.log('[KhipuCallbackSpinner] error', String(e))
     router.visit(`/khipu/view/${props.orderDetailId}`)
   }
 })

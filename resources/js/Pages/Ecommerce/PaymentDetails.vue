@@ -9,7 +9,13 @@
             <ProcessSteps :current-step="3" />
 
             <!-- Content Section -->
-            <div class="mt-8 flex justify-center">
+			<div class="mt-6 text-center">
+				<h2 class="text-[#1C4F4A] font-nexa-bold text-[18px] leading-[22px]">
+					Ingrese los datos del comprador
+				</h2>
+			</div>
+
+			<div class="mt-8 flex justify-center">
                 <!-- Form -->
                 <div class="flex flex-col gap-8 w-full">
                     <div class="flex flex-col md:flex-row items-center md:items-start md:justify-center gap-6 md:gap-[54px] w-full md:w-auto mx-auto">

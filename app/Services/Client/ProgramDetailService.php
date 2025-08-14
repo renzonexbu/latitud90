@@ -11,6 +11,7 @@ use App\Models\Requirement;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
 
 class ProgramDetailService
 {
@@ -19,8 +20,7 @@ class ProgramDetailService
         $program = Program::with([
             'features',
             'requirements',
-            'totalPaymentMethod',
-            'lat90PaymentMethod',
+            // Relaciones legacy (pueden no existir según migraciones actuales)
             'course.participants'
         ])->find($programId);
 
@@ -88,16 +88,38 @@ class ProgramDetailService
                     ->orderBy('due_date')
                     ->first();
                 if ($next) {
+                    // Mostrar solo el monto de la próxima cuota
                     $activeInstallment = [
                         'number' => (int) $next->installment_number,
                         'total' => (int) $order->total_installments,
-                        'amount' => round(((float) $next->amount) + $sumOverdue, 2),
+                        'amount' => round(((float) $next->amount), 2),
                         'due_date' => optional($next->due_date)->toDateString(),
                     ];
                 }
                 }
             }
         }
+
+        // Cargar opciones de pago habilitadas (nuevo esquema payment_options + pivote)
+        $fullPaymentOptionCodes = DB::table('program_payment_option as ppo')
+            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+            ->where('ppo.program_id', $program->id)
+            ->where('ppo.enabled', true)
+            ->where('po.mode', 'full')
+            ->pluck('po.code')
+            ->toArray();
+
+        $lat90PaymentOptionCodes = DB::table('program_payment_option as ppo')
+            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+            ->select(['po.code', 'po.label'])
+            ->where('ppo.program_id', $program->id)
+            ->where('ppo.enabled', true)
+            ->where('po.mode', 'lat90')
+            ->get()
+            ->map(function ($row) {
+                return ['code' => $row->code, 'label' => $row->label];
+            })
+            ->toArray();
 
         // Obtener información completa del programa
         $programData = [
@@ -132,19 +154,11 @@ class ProgramDetailService
             'images' => $program->images,
             'images_folder' => $program->images_folder,
 
-            // Información de pago
+            // Información de pago (nuevo)
             'enable_total_payment' => $program->enable_total_payment,
-            'total_payment_method_id' => $program->total_payment_method_id,
-            'total_payment_method' => $program->totalPaymentMethod ? [
-                'id' => $program->totalPaymentMethod->id,
-                'name' => $program->totalPaymentMethod->name,
-            ] : null,
+            'full_payment_options' => $fullPaymentOptionCodes,
             'enable_lat90_payment' => $program->enable_lat90_payment,
-            'lat90_payment_method_id' => $program->lat90_payment_method_id,
-            'lat90_payment_method' => $program->lat90PaymentMethod ? [
-                'id' => $program->lat90PaymentMethod->id,
-                'name' => $program->lat90PaymentMethod->name,
-            ] : null,
+            'lat90_payment_options' => $lat90PaymentOptionCodes,
             'lat90_max_installments' => $program->lat90_max_installments,
             'discount_type' => $program->discount_type,
             'discount_value' => $program->discount_value,

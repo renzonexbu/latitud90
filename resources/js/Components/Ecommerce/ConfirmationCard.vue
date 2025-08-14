@@ -287,8 +287,12 @@ export default {
             return hasPaymentMethod && this.termsAccepted && !this.isProcessing;
         },
         displayPayAmount() {
-            // Monto a pagar mostrado en Confirmación: si mensual, dividir saldo por cuotas elegidas
-            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+            // Si hay plan mensual activo, siempre se paga SOLO la próxima cuota
+            if (this.program && this.program.active_installment) {
+                return Number(this.program.active_installment.amount) || 0;
+            }
+            // Caso pago total (o mensual sin plan creado): dividir según selección
+            const base = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
             const installments = Math.max(1, Number(this.currentInstallments || 1));
             const per = Math.round((Number(base) / installments) * 100) / 100;
             return per;
@@ -395,8 +399,8 @@ export default {
                     if (result.gateway_url) {
                         console.log("Redirigiendo a:", result.gateway_url);
                         
-                        // Crear un formulario temporal para la redirección POST
-                        if (result.gateway_type === 'debit' || result.gateway_type === 'credit') {
+                        // Siempre que venga token, usar POST con token_ws (Transbank Mall exige POST a initTransaction)
+                        if (result.gateway_token) {
                             // Para Transbank, usar POST con token
                             const form = document.createElement('form');
                             form.method = 'POST';

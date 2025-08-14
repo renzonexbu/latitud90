@@ -50,7 +50,7 @@
                             :program="confirmationData.program"
                             :is-confirmation="true"
                             :show-header="false"
-                            :show-warning="false"
+                            :show-warning="true"
                             :show-remaining-amount="!confirmationData.program.active_installment"
                             :show-payment-button="false"
                             @terms-accepted-updated="handleTermsAcceptedUpdate"
@@ -129,20 +129,6 @@ export default {
     mounted() {
         // Auto-scroll to top
         window.scrollTo(0, 0);
-
-        // Debug: Verificar datos del programa
-        console.log("Confirmation data:", this.confirmationData);
-        console.log("Program data:", this.confirmationData.program);
-        console.log("Payment settings:", {
-            enable_total_payment:
-                this.confirmationData.program?.enable_total_payment,
-            enable_lat90_payment:
-                this.confirmationData.program?.enable_lat90_payment,
-            total_payment_method_id:
-                this.confirmationData.program?.total_payment_method_id,
-            lat90_payment_method_id:
-                this.confirmationData.program?.lat90_payment_method_id,
-        });
     },
     methods: {
         formatDueDate(dateStr) {

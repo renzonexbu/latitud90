@@ -38,3 +38,13 @@ Route::get('/payment/status/{orderDetailId}', [PaymentGatewayController::class, 
 // Khipu callback con spinner y confirmación por consulta
 Route::get('/khipu/callback/{orderDetailId}', [PaymentGatewayController::class, 'khipuCallbackSpinner'])->name('khipu.callback');
 Route::post('/khipu/confirm', [PaymentGatewayController::class, 'confirmKhipu'])->name('khipu.confirm');
+
+// Resolver último payment_id para un orderDetail (ayuda a vista de verificación)
+Route::get('/khipu/last/{orderDetailId}', function($orderDetailId) {
+    $payment = \App\Models\Payment::where('order_detail_id', (int) $orderDetailId)
+        ->whereNotNull('external_payment_id')
+        ->latest()->first();
+    return response()->json([
+        'payment_id' => $payment?->external_payment_id ?: session('last_khipu_payment_id')
+    ]);
+})->name('khipu.last');
