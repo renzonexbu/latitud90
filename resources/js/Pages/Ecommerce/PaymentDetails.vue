@@ -19,23 +19,8 @@
                 <!-- Form -->
                 <div class="flex flex-col gap-8 w-full">
                     <div class="flex flex-col md:flex-row items-center md:items-start md:justify-center gap-6 md:gap-[54px] w-full md:w-auto mx-auto">
-                        <!-- Left Column - Personal Information -->
+                        <!-- Left Column - Document and Personal Information -->
                         <div class="flex flex-col gap-[18px] w-full md:w-[364px]">
-                            <!-- Nombre completo -->
-                            <div class="flex flex-col gap-[12px]">
-                                <label
-                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                >
-                                    Nombre completo *
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Nombre y apellido"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                    v-model="formData.fullName"
-                                />
-                            </div>
-
                             <!-- Tipo de Documento -->
                             <div class="flex flex-col gap-[12px]">
                                 <label
@@ -43,21 +28,42 @@
                                 >
                                     Tipo de documento *
                                 </label>
-                                <select
-                                    v-model="formData.documentType"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
-                                >
-                                    <option value="">
-                                        Selecciona el tipo de documento
-                                    </option>
-                                    <option
-                                        v-for="docType in documentTypes"
-                                        :key="docType.id"
-                                        :value="docType.id"
-                                    >
-                                        {{ docType.name }}
-                                    </option>
-                                </select>
+                                <div class="flex gap-6">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <div class="relative">
+                                            <input
+                                                type="radio"
+                                                name="documentType"
+                                                :value="getDocumentTypeId('RUT')"
+                                                v-model="formData.documentType"
+                                                class="sr-only peer"
+                                            />
+                                            <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                            </div>
+                                        </div>
+                                        <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                            RUT
+                                        </span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <div class="relative">
+                                            <input
+                                                type="radio"
+                                                name="documentType"
+                                                :value="getDocumentTypeId('Pasaporte')"
+                                                v-model="formData.documentType"
+                                                class="sr-only peer"
+                                            />
+                                            <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                            </div>
+                                        </div>
+                                        <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                            Pasaporte
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
 
                             <!-- Número de Documento -->
@@ -83,7 +89,7 @@
                                     ]"
                                     v-model="formData.documentNumber"
                                     @input="handleDocumentInput"
-                                    @blur="validateDocument"
+                                    @blur="handleDocumentBlur"
                                 />
                                 <div
                                     v-if="
@@ -98,6 +104,21 @@
                                 >
                                     {{ rutValidation.message }}
                                 </div>
+                            </div>
+
+                            <!-- Nombre completo -->
+                            <div class="flex flex-col gap-[12px]">
+                                <label
+                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
+                                >
+                                    Nombre completo *
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre y apellido"
+                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    v-model="formData.fullName"
+                                />
                             </div>
 
                             <!-- Correo electrónico -->
@@ -399,6 +420,9 @@ export default {
         },
     },
     mounted() {
+        // Establecer RUT como tipo de documento por defecto
+        this.formData.documentType = this.getDocumentTypeId('RUT');
+
         // Leer los datos de pago del localStorage
         const savedPaymentData = localStorage.getItem("selectedPaymentData");
         if (savedPaymentData) {
@@ -450,7 +474,7 @@ export default {
                     // Cargar los datos del formulario desde localStorage
                     this.formData = {
                         fullName: buyerData.name || "",
-                        documentType: documentTypeId,
+                        documentType: documentTypeId || this.getDocumentTypeId('RUT'),
                         documentNumber: buyerData.documentNumber || "",
                         email: buyerData.email || "",
                         phone: buyerData.phone || "",
@@ -681,6 +705,13 @@ export default {
             }
         },
 
+        getDocumentTypeId(name) {
+            const docType = this.documentTypes.find(
+                (doc) => doc.name.toLowerCase() === name.toLowerCase()
+            );
+            return docType ? docType.id : "";
+        },
+
         handleRegionChange(regionId) {
             console.log("Región seleccionada:", regionId);
             this.formData.region = regionId;
@@ -727,6 +758,77 @@ export default {
             if (this.isRutDocument) {
                 this.formatRut();
             }
+        },
+
+        handleDocumentBlur() {
+            // Validar documento si es RUT
+            if (this.isRutDocument) {
+                this.validateDocument();
+            }
+
+            // Buscar cliente frecuente si hay tipo de documento y número
+            if (this.formData.documentType && this.formData.documentNumber.trim()) {
+                this.searchFrequentClient();
+            }
+        },
+
+        async searchFrequentClient() {
+            try {
+                const response = await fetch('/frequent-clients/find-by-document', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        document_id: this.formData.documentType,
+                        document: this.formData.documentNumber.trim()
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    // Autocompletar el formulario con los datos del cliente frecuente
+                    this.autocompleteForm(result.data);
+                }
+            } catch (error) {
+                console.error('Error buscando cliente frecuente:', error);
+            }
+        },
+
+        autocompleteForm(clientData) {
+            // Autocompletar todos los campos del formulario
+            this.formData.fullName = clientData.full_name;
+            this.formData.email = clientData.email;
+            this.formData.phone = clientData.phone;
+            this.formData.code_phone = clientData.phone_code;
+            this.formData.country = clientData.country_id;
+            this.formData.region = clientData.region_id;
+            this.formData.termsAccepted = clientData.terms_accepted;
+            this.formData.marketingAccepted = clientData.marketing_accepted;
+
+            // Para la comuna, esperar a que se carguen las comunas después de establecer la región
+            this.$nextTick(() => {
+                // Esperar un poco más para que las comunas se carguen completamente
+                setTimeout(() => {
+                    if (this.filteredComunes.length > 0) {
+                        this.formData.city = clientData.comune_id;
+                        console.log('Comuna establecida después de cargar:', clientData.comune_id);
+                    } else {
+                        console.log('Comunas no disponibles aún, reintentando...');
+                        // Reintentar si las comunas no están disponibles
+                        setTimeout(() => {
+                            if (this.filteredComunes.length > 0) {
+                                this.formData.city = clientData.comune_id;
+                                console.log('Comuna establecida en segundo intento:', clientData.comune_id);
+                            }
+                        }, 200);
+                    }
+                }, 300);
+            });
+
+            console.log('Formulario autocompletado con datos del cliente frecuente:', clientData);
         },
 
         validateDocument() {
@@ -816,28 +918,6 @@ export default {
             }
             const dv = 11 - (sum % 11);
             return dv === 10 ? "K" : dv === 11 ? "0" : dv.toString();
-        },
-
-        handleRegionChange(regionId) {
-            console.log("handleRegionChange llamado con:", regionId);
-            this.formData.region = regionId;
-            this.formData.city = ""; // Limpiar comuna
-
-            // Verificar las comunas disponibles
-            if (regionId) {
-                const selectedRegion = this.regions.find(
-                    (r) => r.id == regionId
-                );
-                console.log("Región encontrada:", selectedRegion);
-                if (selectedRegion && selectedRegion.comunes) {
-                    console.log("Comunas disponibles:", selectedRegion.comunes);
-                }
-            }
-
-            // Forzar la validación del formulario
-            this.$nextTick(() => {
-                this.validateForm();
-            });
         },
 
         goBackToProgram() {

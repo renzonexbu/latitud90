@@ -260,9 +260,11 @@ const validateForm = () => {
     clearLocalErrors();
     const errors = {};
     
-    // Validar que el nombre del programa sea obligatorio
-    if (!programData.value.name || programData.value.name.trim() === '') {
-        errors.name = 'El nombre del programa es obligatorio';
+    // El nombre del programa ya no es obligatorio
+    
+    // Validar que el código del programa sea obligatorio
+    if (!programData.value.code || programData.value.code.trim() === '') {
+        errors.code = 'El código del programa es obligatorio';
     }
     
     // Validar que el destino sea obligatorio
@@ -299,6 +301,7 @@ const scrollToFirstError = () => {
         if (errorFieldNames.length > 0) {
             // Mapeo de nombres de campos a selectores específicos
             const fieldSelectors = {
+                'code': 'input[placeholder="1234"]',
                 'name': 'input[placeholder="Nombre"]',
                 'destination': 'input[placeholder*="Santiago"]',
                 'departure_date': 'input[type="date"]',

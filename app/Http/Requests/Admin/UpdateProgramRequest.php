@@ -129,7 +129,9 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Mensajes para campos obligatorios
-            'name.required' => 'El nombre del programa es obligatorio.',
+            'code.string' => 'El código del programa debe ser texto.',
+            'code.max' => 'El código del programa no puede exceder 8 caracteres.',
+            'code.regex' => 'El código del programa debe ser de 4 dígitos.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
             

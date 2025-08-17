@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\Admin\Programs\BulkProgramsActionRequest;
+use App\Models\SalesExecutive;
 use App\Services\Admin\Programs\BulkProgramsActionService;
 
 class ProgramController extends Controller
@@ -30,7 +31,7 @@ class ProgramController extends Controller
         $programs = Program::with(['paymentMode', 'course.institution', 'course.participants'])
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('destination', 'like', "%{$search}%");
+                    ->orWhere('destination', 'like', "%{$search}%");
             })
             ->when($request->status, function ($query, $status) {
                 $query->where('active', $status === 'active');
@@ -55,8 +56,8 @@ class ProgramController extends Controller
             }, 0.0);
 
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                    $q->where('program_id', $program->id);
-                })
+                $q->where('program_id', $program->id);
+            })
                 ->where('status', 'approved')
                 ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
@@ -76,7 +77,7 @@ class ProgramController extends Controller
         $allPrograms = Program::with(['paymentMode', 'course.institution', 'course.participants'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         // Cargar las imágenes y métricas de pagos por curso para todos los programas
         $allPrograms->transform(function ($program) {
             $program->images = $program->images;
@@ -93,8 +94,8 @@ class ProgramController extends Controller
             }, 0.0);
 
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                    $q->where('program_id', $program->id);
-                })
+                $q->where('program_id', $program->id);
+            })
                 ->where('status', 'approved')
                 ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
@@ -120,7 +121,7 @@ class ProgramController extends Controller
     public function create()
     {
         $institutions = Institution::orderBy('name')->get();
-        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id','name','code']);
+        $salesExecutives = SalesExecutive::where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
         // Cargar catálogo de opciones de pago (para futuras mejoras: enviarlo desde backend)
         return Inertia::render('Admin/Programs/Create', [
             'institutions' => $institutions,
@@ -132,7 +133,7 @@ class ProgramController extends Controller
     {
         try {
             $program = $this->createProgramService->execute($request->validated());
-            
+
             return redirect()->route('admin.programs.index')
                 ->with('success', 'Programa creado exitosamente.');
         } catch (\Exception $e) {
@@ -190,8 +191,8 @@ class ProgramController extends Controller
         }, 0.0);
 
         $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                $q->where('program_id', $program->id);
-            })
+            $q->where('program_id', $program->id);
+        })
             ->where('status', 'approved')
             ->sum('amount');
         $coursePaidAmount = round($coursePaidAmount, 2);
@@ -215,7 +216,7 @@ class ProgramController extends Controller
 
         // Obtener instituciones y ejecutivos para el dropdown
         $institutions = Institution::active()->orderBy('name')->get();
-        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id','name','code']);
+        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
 
         return Inertia::render('Admin/Programs/Edit', [
             'program' => $program,
@@ -255,7 +256,7 @@ class ProgramController extends Controller
             ]);
 
             $program = $this->updateProgramService->execute($validated, $program);
-            
+
             return redirect()->route('admin.programs.index')
                 ->with('success', 'Programa actualizado exitosamente.');
         } catch (\Exception $e) {

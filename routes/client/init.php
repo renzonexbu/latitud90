@@ -16,3 +16,5 @@ Route::get('/terminos-y-condiciones', [TermsAndConditionsController::class, 'ter
 
 //Program Routes
 require __DIR__ . '/program.php';
+require __DIR__ . '/frequent_client.php';
+

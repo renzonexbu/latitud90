@@ -22,21 +22,21 @@ class CreateProgramService
             DB::beginTransaction();
 
             // Procesar los pilares como string separado por comas
-        $pillars = [];
-        if (!empty($programData['pilar_1'])) {
-            $pillars[] = $programData['pilar_1'];
-        }
-        if (!empty($programData['pilar_2'])) {
-            $pillars[] = $programData['pilar_2'];
-        }
-        if (!empty($programData['pilar_3'])) {
-            $pillars[] = $programData['pilar_3'];
-        }
-        if (!empty($programData['pilar_4'])) {
-            $pillars[] = $programData['pilar_4'];
-        }
-        $programData['pillars'] = implode(', ', $pillars);
-        
+            $pillars = [];
+            if (!empty($programData['pilar_1'])) {
+                $pillars[] = $programData['pilar_1'];
+            }
+            if (!empty($programData['pilar_2'])) {
+                $pillars[] = $programData['pilar_2'];
+            }
+            if (!empty($programData['pilar_3'])) {
+                $pillars[] = $programData['pilar_3'];
+            }
+            if (!empty($programData['pilar_4'])) {
+                $pillars[] = $programData['pilar_4'];
+            }
+            $programData['pillars'] = implode(', ', $pillars);
+
 
             // Crear el programa primero (sin archivos por ahora)
             $autoName = $this->buildProgramName($programData);
@@ -60,18 +60,18 @@ class CreateProgramService
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => null,
                 'sales_executive_id' => $programData['sales_executive_id'],
-                
+
                 // Configuración de pago total
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
                 // Mapear nombres semánticos del frontend a IDs sembrados por PaymentMethodSeeder
                 // Eliminado: total_payment_method_id (usamos payment_options + pivote)
-                
+
                 // Configuración de pago mensual Lat90
                 'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
                 // Usa el mismo mapeo de métodos que pago total
                 // Eliminado: lat90_payment_method_id (usamos payment_options + pivote)
                 'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
-                
+
                 // Campos de descuento
                 'discount_type' => $programData['discount_type'] ?? $programData['group_benefit'] ?? null,
                 'discount_value' => $this->calculateDiscountValue($programData),
@@ -83,7 +83,7 @@ class CreateProgramService
 
             // Procesar archivos después de crear el programa para poder usar su ID
             $processedData = $this->processFiles($programData, $program);
-            
+
             // Actualizar el programa con las rutas de los archivos
             $program->update([
                 'images_folder' => $processedData['images_folder'] ?? null,
@@ -97,13 +97,13 @@ class CreateProgramService
             if (!empty($programData['institution_id']) && (
                 !empty($programData['education_level']) || !empty($programData['students_file'])
             )) {
-                
+
                 // Crear el curso
                 $course = $this->createCourse($programData, $program);
-                
+
                 // Asignar el curso al programa
                 $program->update(['course_id' => $course->id]);
-                
+
                 // Procesar participantes si se proporciona el archivo
                 if (!empty($programData['students_file'])) {
                     $this->processParticipants($programData['students_file'], $course, $program);
@@ -127,7 +127,6 @@ class CreateProgramService
 
             DB::commit();
             return $program;
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -141,8 +140,12 @@ class CreateProgramService
         $codes = [];
         $full = $programData['full_payment_options'] ?? [];
         $lat90 = $programData['lat90_payment_options'] ?? [];
-        if (is_array($full)) { $codes = array_merge($codes, $full); }
-        if (is_array($lat90)) { $codes = array_merge($codes, $lat90); }
+        if (is_array($full)) {
+            $codes = array_merge($codes, $full);
+        }
+        if (is_array($lat90)) {
+            $codes = array_merge($codes, $lat90);
+        }
         $codes = array_values(array_unique($codes));
 
         if (empty($codes)) {
@@ -211,10 +214,10 @@ class CreateProgramService
         // Si no tenemos el programa aún, creamos un identificador temporal
         $programId = $program ? $program->id : uniqid('temp_');
         $timestamp = now()->format('Y_m_d_H_i_s');
-        
+
         // Crear la carpeta base del programa
         $programFolder = "public/programs/{$programId}";
-        
+
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
             $pdfPath = "{$programFolder}/pdfs/itinerario_{$programId}_{$timestamp}.pdf";
@@ -343,7 +346,7 @@ class CreateProgramService
     private function getPaymentModeCode(?string $paymentOption, ?string $paymentMethod): string
     {
         $methodCode = $this->getMethodCode($paymentMethod);
-        
+
         if ($paymentOption === 'full_payment') {
             return 'full_payment_' . $methodCode;
         } elseif ($paymentOption === 'installments') {
@@ -373,7 +376,7 @@ class CreateProgramService
     private function getPaymentModeDescription(?string $paymentOption, ?string $paymentMethod): string
     {
         $methodDesc = $this->getMethodDescription($paymentMethod);
-        
+
         if ($paymentOption === 'full_payment') {
             return "Pago total del viaje. $methodDesc";
         } elseif ($paymentOption === 'installments') {
@@ -452,13 +455,13 @@ class CreateProgramService
     private function processParticipants($file, Course $course, Program $program): void
     {
         try {
-            
-            
+
+
             // Guardar el archivo
             $filePath = $file->store('courses/students', 'public');
-            
-            
-            
+
+
+
             // Actualizar el curso con la información del archivo
             $course->update([
                 'students_file_path' => $filePath,
@@ -469,32 +472,32 @@ class CreateProgramService
             $spreadsheet = IOFactory::load(storage_path('app/public/' . $filePath));
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
-            
-            
-            
+
+
+
             // La primera fila contiene los headers
             $headers = array_shift($rows);
-            
-            
-            
+
+
+
             // Mapear headers a campos de participantes
             $participantCount = 0;
             $updatedCount = 0;
             $createdCount = 0;
             $participants = []; // Array para almacenar los participantes procesados
-            
+
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
-                    
+
                     continue;
                 }
-                
+
                 // Asegurar que la fila tenga el mismo número de columnas que los headers
                 while (count($row) < count($headers)) {
                     $row[] = '';
                 }
-                
+
                 $participantData = array_combine($headers, $row);
                 // Soportar múltiples encabezados posibles para RUT/Documento
                 $rutRaw = $participantData['RUT']
@@ -505,26 +508,26 @@ class CreateProgramService
                     ?? $participantData['Documento Identidad']
                     ?? '';
                 $cleanRut = $this->cleanRut($rutRaw);
-                
-                
-                
+
+
+
                 // Buscar participante existente por RUT
                 $documentType = $this->getDocumentType($participantData);
                 $existingParticipant = Participant::where('document_number', $cleanRut)
                     ->where('document_type', $documentType)
                     ->where('country', 'CL')
                     ->first();
-                
+
                 if ($existingParticipant) {
                     // Verificar si ya está asociado a este curso
                     $isAlreadyInCourse = $existingParticipant->courses()
                         ->where('course_id', $course->id)
                         ->exists();
-                    
+
                     if ($isAlreadyInCourse) {
                         // UPDATE: Actualizar datos del participante y la relación con el curso
-                        
-                        
+
+
                         // Actualizar datos del participante
                         // Preparar RUT normalizado
                         $digitsOnly = preg_replace('/\D/', '', $cleanRut);
@@ -543,7 +546,7 @@ class CreateProgramService
                             'rut_digits' => $digitsOnly ?: $existingParticipant->rut_digits,
                             'rut_first6' => $first6 ?: $existingParticipant->rut_first6,
                         ]);
-                        
+
                         // Actualizar relación con el curso
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -554,17 +557,16 @@ class CreateProgramService
                             'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                             'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                         ];
-                        
+
                         $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
                         // Asegurar registro participant_program (programa-participante), aunque ya exista
                         $this->ensureParticipantProgram($existingParticipant, $program, $pivotData['individual_price'] ?? ($existingParticipant->individual_price ?? null));
                         $updatedCount++;
                         $participant = $existingParticipant;
-                        
                     } else {
                         // CREATE: Agregar nueva relación con el curso
-                        
-                        
+
+
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
                             'year' => $participantData['Año'] ?? null,
@@ -575,16 +577,15 @@ class CreateProgramService
                             'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                             'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                         ];
-                        
+
                         $existingParticipant->courses()->attach($course->id, $pivotData);
                         $createdCount++;
                         $participant = $existingParticipant;
                     }
-                    
                 } else {
                     // CREATE: Crear nuevo participante y asociarlo al curso
-                    
-                    
+
+
                     $digitsOnly = preg_replace('/\D/', '', $cleanRut);
                     $first6 = substr($digitsOnly, 0, 6);
                     $participant = Participant::create([
@@ -607,7 +608,7 @@ class CreateProgramService
                         'individual_price' => 0, // Se calculará después
                         'price_adjustments' => 0,
                     ]);
-                    
+
                     // Asociar al curso
                     $pivotData = [
                         'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -619,24 +620,24 @@ class CreateProgramService
                         'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                         'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                     ];
-                    
+
                     $participant->courses()->attach($course->id, $pivotData);
                     // Asegurar registro participant_program (programa-participante)
                     $this->ensureParticipantProgram($participant, $program, $pivotData['individual_price'] ?? ($participant->individual_price ?? null));
                     $createdCount++;
-                    
-                        
                 }
-                
+
                 $participants[] = $participant; // Guardar referencia al participante
-                
+
                 // Manejar contacto de emergencia
-                if (!empty($participantData['Nombre contacto emergencia']) && 
-                    !empty($participantData['Apellido contacto emergencia'])) {
-                    
+                if (
+                    !empty($participantData['Nombre contacto emergencia']) &&
+                    !empty($participantData['Apellido contacto emergencia'])
+                ) {
+
                     // Verificar si ya existe un contacto de emergencia para este participante
                     $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
-                    
+
                     if ($existingEmergencyContact) {
                         // UPDATE: Actualizar contacto de emergencia existente
                         $existingEmergencyContact->update([
@@ -649,8 +650,6 @@ class CreateProgramService
                             'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
                         ]);
-                        
-                        
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
                         $emergencyContact = EmergencyContact::create([
@@ -665,16 +664,13 @@ class CreateProgramService
                             'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
                             'participant_id' => $participant->id,
                         ]);
-                        
-                        
                     }
                 } else {
-                    
                 }
-                
+
                 $participantCount++;
             }
-            
+
             // Calcular el precio individual (por participante) aplicando descuento del programa
             if ($participantCount > 0) {
                 $tripPrice = (float) $program->trip_price;
@@ -702,12 +698,11 @@ class CreateProgramService
                     ]);
                 }
             }
-            
-            
-            
+
+
+
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
-            
         } catch (\Exception $e) {
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
@@ -776,17 +771,17 @@ class CreateProgramService
     private function getDocumentType(array $participantData): string
     {
         $documentNumber = $participantData['RUT'] ?? '';
-        
+
         // Si contiene puntos y guión, es un RUT chileno
         if (strpos($documentNumber, '.') !== false && strpos($documentNumber, '-') !== false) {
             return 'RUT';
         }
-        
+
         // Si es solo números, podría ser un RUT sin formato
         if (is_numeric(str_replace(['.', '-'], '', $documentNumber))) {
             return 'RUT';
         }
-        
+
         // Por defecto, asumir que es un RUT
         return 'RUT';
     }
@@ -853,7 +848,7 @@ class CreateProgramService
     private function calculateDiscountValue(array $programData): ?float
     {
         $discountType = $programData['discount_type'] ?? $programData['group_benefit'] ?? '';
-        
+
         if (!$discountType) {
             return null;
         }
@@ -880,9 +875,9 @@ class CreateProgramService
     public function isTotalPaymentEnabled(array $programData): bool
     {
         // Verificar si el pago total está habilitado basado en la selección del usuario
-        return isset($programData['payment_options']) && 
-               is_array($programData['payment_options']) && 
-               in_array('full_payment', $programData['payment_options']);
+        return isset($programData['payment_options']) &&
+            is_array($programData['payment_options']) &&
+            in_array('full_payment', $programData['payment_options']);
     }
 
     /**
@@ -893,9 +888,9 @@ class CreateProgramService
         if (!$this->isTotalPaymentEnabled($programData)) {
             return null;
         }
-        
+
         $paymentMethod = $programData['full_payment_method'] ?? '';
-        
+
         if (!$paymentMethod) {
             return null;
         }
@@ -917,9 +912,9 @@ class CreateProgramService
     public function isLat90PaymentEnabled(array $programData): bool
     {
         // Verificar si el pago Lat90 está habilitado basado en la selección del usuario
-        return isset($programData['payment_options']) && 
-               is_array($programData['payment_options']) && 
-               in_array('installments', $programData['payment_options']);
+        return isset($programData['payment_options']) &&
+            is_array($programData['payment_options']) &&
+            in_array('installments', $programData['payment_options']);
     }
 
     /**
@@ -952,7 +947,7 @@ class CreateProgramService
             'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',
             'webpay_3' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
             'webpay_6' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
-            'webpay_12'=> 'Débito y crédito 12 cuotas sin interés (Webpay)',
+            'webpay_12' => 'Débito y crédito 12 cuotas sin interés (Webpay)',
         ];
         $targetName = $nameByKey[$paymentMethodKey] ?? null;
         if (!$targetName) {
@@ -972,4 +967,4 @@ class CreateProgramService
         }
         return $programData['max_installments'] ?? null;
     }
-} 
+}

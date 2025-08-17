@@ -22,7 +22,7 @@ class CreateProgramRequest extends FormRequest
         return [
             // Campos obligatorios del programa (aceptar ambos nombres)
             'code' => ['required','string','max:8','regex:/^\d{4}$/'],
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
             'destination' => 'required|string|max:255',
             'departure_date' => 'required|date|after:today',
             'trip_description' => 'required_without:description|string|max:2000',
@@ -76,7 +76,10 @@ class CreateProgramRequest extends FormRequest
     {
         return [
             // Mensajes para campos obligatorios
-            'name.required' => 'El nombre del programa es obligatorio.',
+            'code.required' => 'El código del programa es obligatorio.',
+            'code.string' => 'El código del programa debe ser texto.',
+            'code.max' => 'El código del programa no puede exceder 8 caracteres.',
+            'code.regex' => 'El código del programa debe ser de 4 dígitos.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
             

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Client\CreateOrderService;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
+use App\Services\Client\FrequentClientService;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\Country;
@@ -151,13 +152,6 @@ class ProcessPaymentController extends Controller
                 ], 400);
             }
 
-            Log::info('Processing payment request', [
-                'program_id' => $programId,
-                'rut' => $rut,
-                'payment_data' => $paymentData,
-                'form_data' => $formData
-            ]);
-
             // 1. Crear la orden y detalles
             $orderResult = $this->createOrderService->createOrder(
                 $programId,
@@ -178,6 +172,60 @@ class ProcessPaymentController extends Controller
 
             // 2. Actualizar SIEMPRE datos del comprador y método/gateway del intento actual en el OrderDetail seleccionado
             $this->updateBuyerDataOnOrderDetail($orderDetail, $formData, $paymentData);
+
+            // 3. Almacenar cliente frecuente para futuras compras
+            try {
+                $frequentClientData = [
+                    'full_name' => $formData['name'] ?? '',
+                    'document_id' => $this->resolveDocumentTypeId($formData['documentType'] ?? ''),
+                    'document' => $formData['documentNumber'] ?? '',
+                    'email' => $formData['email'] ?? '',
+                    'phone_code' => $formData['code_phone'] ?? '+56',
+                    'phone' => $formData['phone'] ?? '',
+                    'country_id' => $formData['countryId'] ?? '',
+                    'region_id' => $formData['regionId'] ?? '',
+                    'comune_id' => $formData['cityId'] ?? '',
+                    'terms_accepted' => $formData['termsAccepted'] ?? false,
+                    'marketing_accepted' => $formData['marketingAccepted'] ?? false,
+                ];
+
+                Log::info('Attempting to store frequent client', [
+                    'frequent_client_data' => $frequentClientData,
+                    'form_data_keys' => array_keys($formData),
+                    'form_data_sample' => array_slice($formData, 0, 3)
+                ]);
+
+                // Solo almacenar si tenemos los datos mínimos necesarios
+                if (!empty($frequentClientData['full_name']) && 
+                    !empty($frequentClientData['document_id']) && 
+                    !empty($frequentClientData['document'])) {
+                    
+                    Log::info('Data validation passed, storing frequent client');
+                    
+                    $storedClient = FrequentClientService::store($frequentClientData);
+                    
+                    Log::info('Frequent client stored successfully', [
+                        'client_id' => $storedClient->id,
+                        'document' => $storedClient->document,
+                        'full_name' => $storedClient->full_name
+                    ]);
+                } else {
+                    Log::warning('Frequent client data validation failed', [
+                        'full_name_empty' => empty($frequentClientData['full_name']),
+                        'document_id_empty' => empty($frequentClientData['document_id']),
+                        'document_empty' => empty($frequentClientData['document']),
+                        'full_name_value' => $frequentClientData['full_name'],
+                        'form_data_name' => $formData['name'] ?? 'NOT_SET',
+                        'form_data_fullName' => $formData['fullName'] ?? 'NOT_SET'
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // No fallar el pago si hay error al guardar cliente frecuente
+                Log::error('Error storing frequent client, continuing with payment', [
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
 
             // Si existe una orden mensual con cuotas previas impagas, mantener estado acorde
             if ($order) {
@@ -206,13 +254,6 @@ class ProcessPaymentController extends Controller
                     'error' => $gatewayResult['error']
                 ], 400);
             }
-
-            Log::info('Payment gateway transaction created', [
-                'order_id' => $order->id,
-                'order_detail_id' => $orderDetail->id,
-                'gateway' => $paymentData['paymentMethod'],
-                'gateway_response' => $gatewayResult
-            ]);
 
             // Guardar RUT en sesión para preservar al regresar
             if (!empty($orderDetail->document_number)) {
@@ -380,23 +421,9 @@ class ProcessPaymentController extends Controller
         try {
             $orderDetail = OrderDetail::with(['order.program', 'order.participant'])->findOrFail($orderDetailId);
 
-            Log::info('Payment success page accessed', [
-                'order_detail_id' => $orderDetailId,
-                'order_id' => $orderDetail->order_id,
-                'amount' => $orderDetail->amount,
-                'is_paid' => $orderDetail->is_paid,
-                'status' => $orderDetail->status
-            ]);
-
             // Verificar si el pago fue realmente procesado
             if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
-                Log::warning('Payment success page accessed but payment not confirmed', [
-                    'order_detail_id' => $orderDetailId,
-                    'is_paid' => $orderDetail->is_paid,
-                    'status' => $orderDetail->status
-                ]);
-
-            // Redirigir al paso 4 con mensaje de error (incluyendo rut)
+                // Redirigir al paso 4 con mensaje de error (incluyendo rut)
                 $programId = $orderDetail->order->program_id;
                 $rut = $orderDetail->document_number;
 
@@ -469,22 +496,8 @@ class ProcessPaymentController extends Controller
         try {
             $orderDetail = OrderDetail::with(['order.program', 'order.participant'])->findOrFail($orderDetailId);
 
-            Log::info('Payment failure page accessed', [
-                'order_detail_id' => $orderDetailId,
-                'order_id' => $orderDetail->order_id,
-                'amount' => $orderDetail->amount,
-                'is_paid' => $orderDetail->is_paid,
-                'status' => $orderDetail->status
-            ]);
-
             // Verificar si el pago fue realmente procesado (por si acaso llegó aquí por error)
             if ($orderDetail->is_paid && $orderDetail->status === 'paid') {
-                Log::warning('Payment failure page accessed but payment was actually successful', [
-                    'order_detail_id' => $orderDetailId,
-                    'is_paid' => $orderDetail->is_paid,
-                    'status' => $orderDetail->status
-                ]);
-
                 // Redirigir a la página de éxito
                 return redirect()->route('payment.success', ['orderDetailId' => $orderDetailId]);
             }
@@ -529,11 +542,6 @@ class ProcessPaymentController extends Controller
     public function transbankNotification(Request $request)
     {
         try {
-            Log::info('Transbank notification received', [
-                'data' => $request->all(),
-                'headers' => $request->headers->all()
-            ]);
-
             // Obtener el token de la transacción
             $token = $request->input('token_ws');
 
@@ -603,11 +611,6 @@ class ProcessPaymentController extends Controller
     public function khipuNotification(Request $request)
     {
         try {
-            Log::info('Khipu notification received', [
-                'data' => $request->all(),
-                'headers' => $request->headers->all()
-            ]);
-
             // Obtener datos de la notificación
             $paymentId = $request->input('payment_id');
 
