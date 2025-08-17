@@ -25,12 +25,15 @@ class Program extends Model
         'equipment_list',
         'trip_price',
         'year',
+        'grade',
         'final_payment_date',
         'seller_name',
         'sales_executive_id',
         'enable_total_payment',
         'enable_lat90_payment',
         'lat90_max_installments',
+        'total_payment_method_id',
+        'lat90_payment_method_id',
         // Campos de descuento
         'discount_type',
         'discount_value',
@@ -93,6 +96,16 @@ class Program extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function institution()
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
+    public function salesExecutive()
+    {
+        return $this->belongsTo(SalesExecutive::class);
+    }
+
     public function participants()
     {
         // Esta relación no se usa directamente, se accede a través de course->participants()
@@ -113,9 +126,31 @@ class Program extends Model
                     ->withTimestamps();
     }
 
+    public function paymentOptions()
+    {
+        return $this->belongsToMany(PaymentOption::class, 'program_payment_option')
+                    ->withPivot('enabled')
+                    ->withTimestamps();
+    }
+
+    public function participantPrograms()
+    {
+        return $this->hasMany(ParticipantProgram::class);
+    }
+
+    public function participantDiscounts()
+    {
+        return $this->hasManyThrough(ParticipantProgramDiscount::class, ParticipantProgram::class);
+    }
+
     public function orders()
     {
-        return $this->hasManyThrough(Order::class, Participant::class);
+        return $this->hasMany(Order::class);
+    }
+
+    public function courseOrders()
+    {
+        return $this->hasMany(Order::class, 'program_id')->whereNotNull('course_id');
     }
 
     public function getActiveParticipantsAttribute()

@@ -58,4 +58,22 @@ class User extends Authenticatable
     {
         return $this->hasMany(Program::class, 'created_by');
     }
+
+    /**
+     * Get the sales executives created by this user.
+     */
+    public function salesExecutives()
+    {
+        return $this->hasMany(SalesExecutive::class, 'created_by');
+    }
+
+    public function approvedDiscounts()
+    {
+        return $this->hasMany(ParticipantProgramDiscount::class, 'approved_by');
+    }
+
+    public function institutions()
+    {
+        return $this->hasMany(Institution::class, 'created_by');
+    }
 }

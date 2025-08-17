@@ -33,6 +33,11 @@ class EmergencyContact extends Model
         return $this->belongsTo(Participant::class);
     }
 
+    public function country()
+    {
+        return $this->belongsTo(Country::class, 'country', 'code');
+    }
+
     public function getFullNameAttribute()
     {
         return $this->first_name . ' ' . $this->last_name;

@@ -17,6 +17,7 @@ class Institution extends Model
         'email',
         'website',
         'active',
+        'created_by'
     ];
 
     protected $casts = [
@@ -37,6 +38,19 @@ class Institution extends Model
     public function courses()
     {
         return $this->hasMany(Course::class);
+    }
+
+    /**
+     * Get the programs that belong to this institution.
+     */
+    public function programs()
+    {
+        return $this->hasMany(Program::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**

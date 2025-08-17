@@ -33,6 +33,7 @@ class OrderDetail extends Model
         'marketing_accepted',
         'terms_accepted_confirmation',
         'installment_number',
+        'installments_number',
         'base_amount',
         'discount_amount',
         'amount',
@@ -40,14 +41,19 @@ class OrderDetail extends Model
         'is_paid',
         'paid_at',
         'status',
+        'adjusted_at',
+        'adjustment_reason',
         'transaction_id',
         'gateway_response',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'base_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'due_date' => 'date',
         'paid_at' => 'datetime',
+        'adjusted_at' => 'datetime',
         'is_paid' => 'boolean',
         'terms_accepted' => 'boolean',
         'marketing_accepted' => 'boolean',
@@ -65,9 +71,14 @@ class OrderDetail extends Model
         return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
+    public function paymentOption()
+    {
+        return $this->belongsTo(PaymentOption::class, 'payment_option_id');
+    }
+
     public function paymentGateway()
     {
-        return $this->belongsTo(PaymentGateway::class);
+        return $this->belongsTo(PaymentGateway::class, 'payment_gateway_id');
     }
 
     public function payments()
@@ -77,7 +88,7 @@ class OrderDetail extends Model
 
     public function country()
     {
-        return $this->belongsTo(Country::class, 'country');
+        return $this->belongsTo(Country::class, 'country', 'code');
     }
 
     public function region()

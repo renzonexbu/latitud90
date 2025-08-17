@@ -12,6 +12,8 @@ class Order extends Model
     protected $fillable = [
         'participant_id',
         'program_id',
+        'course_id',
+        'participant_program_id',
         'total_amount',
         'discount',
         'final_amount',
@@ -37,6 +39,16 @@ class Order extends Model
     public function program()
     {
         return $this->belongsTo(Program::class);
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function participantProgram()
+    {
+        return $this->belongsTo(ParticipantProgram::class);
     }
 
     public function orderDetails()

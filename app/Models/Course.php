@@ -65,6 +65,16 @@ class Course extends Model
                     ->withTimestamps();
     }
 
+    public function participantPrograms()
+    {
+        return $this->hasMany(ParticipantProgram::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -15,11 +15,17 @@ class SalesExecutive extends Model
 		'email',
 		'phone',
 		'active',
+		'created_by'
 	];
 
 	public function programs()
 	{
 		return $this->hasMany(Program::class);
+	}
+
+	public function createdBy()
+	{
+		return $this->belongsTo(User::class, 'created_by');
 	}
 }
 

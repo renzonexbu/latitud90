@@ -42,22 +42,23 @@ class Payment extends Model
         'gateway_response' => 'array',
         'raw_notification' => 'array',
         'transaction_date' => 'datetime',
-        'accounting_date' => 'datetime'
+        'accounting_date' => 'datetime',
+        'installments_number' => 'integer'
     ];
 
     public function order()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(Order::class, 'order_id');
     }
 
     public function orderDetail()
     {
-        return $this->belongsTo(OrderDetail::class);
+        return $this->belongsTo(OrderDetail::class, 'order_detail_id');
     }
 
     public function paymentGateway()
     {
-        return $this->belongsTo(PaymentGateway::class);
+        return $this->belongsTo(PaymentGateway::class, 'payment_gateway_id');
     }
 
     public function paymentOption()
