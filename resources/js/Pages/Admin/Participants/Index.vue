@@ -16,11 +16,11 @@
                     @create-participant="openCreateModal"
                 />
 
-                <!-- Filters -->
+                <!-- Filtros -->
                 <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
                     <ParticipantsFilters
                         :initial-filters="localFilters"
-                        :participants="allParticipantsData"
+                        :participants="flattenedParticipantsData"
                         @filters-changed="handleFiltersChanged"
                     />
               </div>
@@ -67,6 +67,7 @@
             </div>
           </div>
         </div>
+                
       </div>
     </div>
 
@@ -114,6 +115,10 @@ export default {
             type: Object,
             default: () => ({ data: [] }),
         },
+        enrollments: {
+            type: [Array, Object],
+            default: () => [],
+        },
         allParticipants: {
             type: Array,
             default: () => [],
@@ -144,8 +149,7 @@ export default {
                 program: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 paymentStatus: "",
             }
         };
@@ -154,8 +158,46 @@ export default {
         allParticipantsData() {
             return this.allParticipants || [];
         },
+        // Lista plana de participantes repetidos por cada programa (inscripción)
+        flattenedParticipantsData() {
+            // Preferir inscripciones del backend si están presentes (array o paginado con data)
+            let enrollments = [];
+            if (Array.isArray(this.enrollments) && this.enrollments.length > 0) {
+                enrollments = this.enrollments;
+            } else if (this.enrollments && Array.isArray(this.enrollments.data)) {
+                enrollments = this.enrollments.data;
+            } else {
+                // Derivar desde allParticipants.courses
+                // Sin dataset desde backend, mantener listado vacío para no inventar datos inconsistentes
+                enrollments = [];
+            }
+            // Mapear al formato que la tabla espera: un objeto de participante por fila
+            return enrollments.map((enr) => ({
+                id: enr.participant_id,
+                first_name: enr.participant?.first_name ?? enr.first_name ?? '',
+                last_name: enr.participant?.last_name ?? enr.last_name ?? '',
+                document_number: enr.participant?.document_number ?? enr.document_number ?? '',
+                phone: enr.participant?.phone,
+                code_phone: enr.participant?.code_phone,
+                courses: [
+                    {
+                        institution: { name: enr.institution_name || null },
+                        education_level: enr.education_level || null,
+                        course_number: enr.course_number || null,
+                        program: enr.program_id ? { id: enr.program_id, code: enr.program_code, name: enr.program_name, destination: enr.program_destination, year: enr.program_year } : null,
+                        pivot: {
+                            individual_price: enr.total_due ?? 0,
+                            price_adjustments: 0,
+                            status: enr.status || 'pending_payment',
+                        },
+                    },
+                ],
+                __paid_amount: enr.paid_amount ?? 0,
+                __total_due: enr.total_due ?? 0,
+            }));
+        },
         filteredParticipants() {
-            let filtered = this.allParticipantsData;
+            let filtered = this.flattenedParticipantsData;
 
             // Filtro de búsqueda
             if (this.localFilters.search) {
@@ -164,49 +206,46 @@ export default {
                     participant.first_name?.toLowerCase().includes(searchTerm) ||
                     participant.last_name?.toLowerCase().includes(searchTerm) ||
                     participant.document_number?.toLowerCase().includes(searchTerm) ||
-                    participant.course?.institution?.name?.toLowerCase().includes(searchTerm)
+                    this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
                 );
             }
 
             // Filtro por programa
             if (this.localFilters.program) {
                 filtered = filtered.filter(participant => 
-                    participant.course?.program?.name === this.localFilters.program
+                    this.getFirstCourseInfo(participant, 'program', 'name') === this.localFilters.program
                 );
             }
 
             // Filtro por institución
             if (this.localFilters.institution) {
                 filtered = filtered.filter(participant => 
-                    participant.course?.institution?.name === this.localFilters.institution
+                    this.getFirstCourseInfo(participant, 'institution', 'name') === this.localFilters.institution
                 );
             }
 
             // Filtro por nivel educativo
             if (this.localFilters.level) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.education_level === this.localFilters.level
-                );
+                filtered = filtered.filter(participant => {
+                    const firstCourse = this.getFirstCourse(participant);
+                    return firstCourse?.education_level === this.localFilters.level;
+                });
             }
 
-            // Filtro por grado
-            if (this.localFilters.grade) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.grade?.toString() === this.localFilters.grade.toString()
-                );
+            // Filtro por curso (course_number)
+            if (this.localFilters.course_number) {
+                filtered = filtered.filter(participant => {
+                    const firstCourse = this.getFirstCourse(participant);
+                    return String(firstCourse?.course_number || '') === String(this.localFilters.course_number);
+                });
             }
 
-            // Filtro por turno
-            if (this.localFilters.turno) {
-                filtered = filtered.filter(participant => 
-                    participant.course?.shift === this.localFilters.turno
-                );
-            }
+            // (turno eliminado del esquema)
 
             // Filtro por estado de pago
             if (this.localFilters.paymentStatus) {
                 filtered = filtered.filter(participant => 
-                    participant.status === this.localFilters.paymentStatus
+                    this.getFirstCoursePivotStatus(participant) === this.localFilters.paymentStatus
                 );
             }
 
@@ -225,6 +264,16 @@ export default {
             };
         }
     },
+    mounted() {
+        // Abrir modal de creación si viene desde acceso rápido del header
+        try {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            const params = new URLSearchParams(search);
+            if (params.get('openCreate') === '1') {
+                this.openCreateModal();
+            }
+        } catch (_) {}
+    },
     methods: {
         handleFiltersChanged(newFilters) {
             this.localFilters = newFilters;
@@ -242,6 +291,30 @@ export default {
         },
         closeCreateModal() {
             this.showCreateModal = false;
+        },
+        
+        // Métodos auxiliares para manejar la nueva estructura de cursos
+        getFirstCourse(participant) {
+            if (!participant.courses || participant.courses.length === 0) {
+                return null;
+            }
+            return participant.courses[0];
+        },
+        
+        getFirstCourseInfo(participant, relation, field) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse[relation]) {
+                return null;
+            }
+            return firstCourse[relation][field];
+        },
+        
+        getFirstCoursePivotStatus(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 'pending_payment';
+            }
+            return firstCourse.pivot.status || 'pending_payment';
         },
     },
 };

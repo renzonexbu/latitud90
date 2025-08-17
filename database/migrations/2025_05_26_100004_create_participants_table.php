@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('phone');
             $table->string('document_type');
             $table->string('document_number');
+			$table->string('rut_digits')->nullable();
+			$table->string('rut_first6', 6)->nullable();
             $table->string('country');
             $table->date('birth_date');
             $table->text('address')->nullable();
@@ -27,10 +29,12 @@ return new class extends Migration
             $table->text('medical_conditions')->nullable();
             $table->enum('status', ['pending_payment', 'confirmed', 'cancelled']);
             $table->datetime('registration_date');
-            $table->decimal('individual_price', 10, 2);
-            $table->decimal('price_adjustments', 10, 2)->default(0);
-            $table->text('adjustment_reason')->nullable();
+            // Campos de pago se gestionan en el pivote participant_course
             $table->timestamps();
+            $table->softDeletes();
+
+			$table->index(['rut_digits']);
+			$table->index(['rut_first6']);
         });
 
         // Tabla pivote para la relación muchos a muchos entre participants y courses

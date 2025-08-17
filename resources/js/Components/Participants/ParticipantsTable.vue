@@ -22,9 +22,7 @@
                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                     Programa
                 </div>
-                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                    Destino
-                </div>
+                
                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                     Estado de pago
                 </div>
@@ -40,7 +38,7 @@
             <div class="flex flex-col h-[574px] overflow-hidden">
                 <div 
                     v-for="(participant, index) in participants" 
-                    :key="participant.id"
+                    :key="participant.id + '-' + (getFirstCourseInfo(participant, 'program', 'code') || 'none')"
                     :class="[
                         'px-5 py-[14px] flex items-center justify-between',
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]'
@@ -63,39 +61,36 @@
                     
                     <!-- Institución -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.institution?.name || `ID: ${participant.course?.institution_id || 'N/A'}`) }}
+                        {{ capitalizeWords(getFirstCourseInfo(participant, 'institution', 'name') || 'N/A') }}
                     </div>
                     
                     <!-- Nivel -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
-                        {{ formatEducationLevel(participant) }}
+                        {{ formatCourseInfo(participant) }}
                     </div>
                     
                     <!-- Programa -->
                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.program?.name || 'N/A') }}
+                        {{ capitalizeWords(getFirstCourseInfo(participant, 'program', 'name') || 'N/A') }}
                     </div>
                     
-                    <!-- Destino -->
-                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                        {{ capitalizeWords(participant.course?.program?.destination || 'N/A') }}
-                    </div>
+                    
                     
                     <!-- Estado de pago -->
                     <div class="flex justify-center items-center w-[120px]">
                         <div 
                             :class="[
                                 'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[14px] leading-[13px] text-center flex items-center justify-center',
-                                getPaymentStatusClass(participant.status, participant.payment_percentage)
+                                getPaymentStatusClass(getFirstCoursePivotStatus(participant), getFirstCoursePivotPercentage(participant))
                             ]"
                         >
-                            {{ getPaymentStatusText(participant.status, participant.payment_percentage) }}
+                            {{ getPaymentStatusText(getFirstCoursePivotStatus(participant), getFirstCoursePivotPercentage(participant)) }}
                         </div>
                     </div>
                     
                     <!-- Total pagado -->
                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                        $0
+                        {{ formatPaymentPair(getPaidAmount(participant), getTotalDue(participant)) }}
                     </div>
                     
                     <!-- Acciones -->
@@ -169,11 +164,60 @@ export default {
             return `${numeroFormateado}-${dv}`;
         },
         
-        formatEducationLevel(participant) {
-            if (!participant.course) return 'N/A';
-            const level = this.capitalizeWords(participant.course.education_level);
-            const shift = this.capitalizeWords(participant.course.shift);
-            return `${level}\n${participant.course.grade} | ${shift}`;
+        formatCourseInfo(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse) return 'N/A';
+            const level = this.capitalizeWords(firstCourse.education_level);
+            const num = firstCourse.course_number ? `${firstCourse.course_number}°` : '';
+            const label = firstCourse.education_level === 'basica' ? 'Básico' : (firstCourse.education_level === 'media' ? 'Medio' : '');
+            const courseStr = num ? `${num} ${label}`.trim() : '';
+            return [level, courseStr].filter(Boolean).join('\n');
+        },
+        
+        getFirstCourse(participant) {
+            if (!participant.courses || participant.courses.length === 0) {
+                return null;
+            }
+            return participant.courses[0];
+        },
+        
+        getFirstCourseInfo(participant, relation, field) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse[relation]) {
+                return null;
+            }
+            return firstCourse[relation][field];
+        },
+        
+        getFirstCoursePivotStatus(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 'pending_payment';
+            }
+            return firstCourse.pivot.status || 'pending_payment';
+        },
+        
+        getFirstCoursePivotPercentage(participant) {
+            const total = this.getTotalDue(participant);
+            const paid = this.getPaidAmount(participant);
+            
+            if (total <= 0) return 0;
+            
+            const percentage = Math.round((paid / total) * 100);
+            return percentage;
+        },
+        
+        getFirstCoursePivotAmount(participant) {
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) {
+                return 0;
+            }
+            
+            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
+            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
+            
+            // Por ahora retornar el precio individual, se puede calcular basado en pagos reales
+            return individualPrice;
         },
         
         getPaymentStatusClass(status, percentage = 0) {
@@ -206,11 +250,32 @@ export default {
             }
         },
         
+        getPaidAmount(participant) {
+            // Campo auxiliar inyectado desde Index.vue si viene del backend
+            if (typeof participant.__paid_amount !== 'undefined') return Number(participant.__paid_amount || 0);
+            return 0;
+        },
+
+        getTotalDue(participant) {
+            if (typeof participant.__total_due !== 'undefined') return Number(participant.__total_due || 0);
+            const firstCourse = this.getFirstCourse(participant);
+            if (!firstCourse || !firstCourse.pivot) return 0;
+            const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
+            const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
+            return individualPrice + adjustments;
+        },
+
         formatPayment(amount) {
             if (!amount || amount === 0) {
                 return '----';
             }
             return `$${parseInt(amount).toLocaleString()}`;
+        },
+        
+        formatPaymentPair(paid, total) {
+            const p = isNaN(paid) ? 0 : paid;
+            const t = isNaN(total) ? 0 : total;
+            return `$${parseInt(p).toLocaleString()} / $${parseInt(t).toLocaleString()}`;
         },
         
         capitalizeWords(string) {

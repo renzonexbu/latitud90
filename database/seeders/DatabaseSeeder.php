@@ -14,12 +14,14 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CountrySeeder::class,
             DocumentSeeder::class,
-            PaymentMethodSeeder::class,
             PaymentGatewaySeeder::class,
-            PaymentModeSeeder::class,
-            UserSeeder::class,  
-            // ProgramsSeeder::class,
+            PaymentOptionSeeder::class,
+            UserSeeder::class,
+			SalesExecutiveSeeder::class,
+			// ProgramsSeeder::class,
             InstitutionSeeder::class,
+            RegionsSeeder::class,
+            ComunesSeeder::class,
         ]);
     }
 }

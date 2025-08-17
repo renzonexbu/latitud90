@@ -1,532 +1,266 @@
 <template>
-  <Head :title="program.name" />
+    <div class="min-h-screen bg-gray-50 w-full p-3 pb-[100px] md:pb-0">
+        <!-- Header -->
+        <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
-  <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <header></header>
+        <!-- Contenido del Detalle del Programa -->
+        <div class="py-8">
+            <!-- Información del Participante -->
+            <div class="max-w-6xl mx-auto px-4 mb-8">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <!-- Header del Participante -->
+                    <div class="mb-6">
+                        <ParticipantHeader
+                            :participant-name="
+                                participant.first_name +
+                                ' ' +
+                                participant.last_name
+                            "
+                        />
+                    </div>
 
-    <!-- Breadcrumb -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <nav
-        class="flex"
-        aria-label="Breadcrumb">
-        <ol class="flex items-center space-x-4">
-          <li>
-            <Link
-              href="/"
-              class="text-gray-400 hover:text-gray-500">
-              <svg
-                class="flex-shrink-0 h-5 w-5"
-                fill="currentColor"
-                viewBox="0 0 20 20">
-                <path
-                  d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-              </svg>
-              <span class="sr-only">Inicio</span>
-            </Link>
-          </li>
-          <li>
-            <div class="flex items-center">
-              <svg
-                class="flex-shrink-0 h-5 w-5 text-gray-300"
-                fill="currentColor"
-                viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clip-rule="evenodd" />
-              </svg>
-              <span class="ml-4 text-sm font-medium text-gray-500">{{
-                program.name
-              }}</span>
+                    <!-- Pasos del Proceso - Paso 2 marcado -->
+                    <div class="pt-4">
+                        <ProcessSteps :current-step="2" />
+                    </div>
+                </div>
             </div>
-          </li>
-        </ol>
-      </nav>
-    </div>
 
-    <!-- Program Details -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Content -->
-        <div class="lg:col-span-2">
-          <!-- Hero Image/Banner -->
-          <div
-            class="h-96 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center mb-8">
-            <div class="text-center text-white">
-              <h1 class="text-4xl font-bold">{{ program.name }}</h1>
-              <p class="text-indigo-100 mt-2 text-lg">
-                {{ formatServiceType(program.service_type) }}
-              </p>
-              <p class="text-indigo-100 mt-1">{{ program.destination }}</p>
+            <!-- Detalle del Programa -->
+            <div class="mx-4 md:mx-[120px] bg-white rounded-lg shadow-lg p-6">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Componente Izquierdo - Contenido del Programa -->
+                    <div
+                        class="w-full md:w-[850px] flex flex-col items-start gap-[46px] flex-shrink-0 p-4 md:p-10"
+                    >
+                        <!-- Carousel de Imágenes del Programa -->
+                        <ImageCarousel
+                            :images="program.images"
+                            :program-name="program.name"
+                        />
+
+                        <!-- Header del Programa -->
+                        <ProgramHeader
+                            :program-name="program.name"
+                            :destination="program.destination"
+                            :departure-date="program.departure_date"
+                        />
+
+                        <!-- Descripción del Viaje -->
+                        <TripDescription
+                            :description="program.trip_description"
+                        />
+
+                        <!-- Línea Decorativa -->
+                        <DecorativeLine />
+
+                        <!-- Pilares -->
+                        <ProgramPillars :pillars="program.pillars" />
+                        <!-- Línea Decorativa -->
+                        <DecorativeLine />
+
+                        <!-- Descripción del Itinerario -->
+                        <ItineraryDescription
+                            :description="program.itinerary_description"
+                        />
+
+                        <!-- Archivos PDF -->
+                        <ProgramDocuments
+                            :itinerary-file="program.itinerary_file"
+                            :travel-assistance-coverage="
+                                program.travel_assistance_coverage
+                            "
+                            :equipment-list="program.equipment_list"
+                        />
+                        <!-- Sección de Advertencia -->
+                        <WarningSection />
+                    </div>
+
+                    <!-- Componente Derecho -->
+                    <div class="hidden md:block flex-1 p-0 md:p-10">
+                        <!-- Aviso de fecha límite si hay cuota activa -->
+                        <div v-if="program && program.active_installment && program.active_installment.due_date"
+                             class="bg-[#FFF7E6] border border-[#F5C26B] text-[#7A5E10] rounded-md p-3 mb-3">
+                            <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
+                            <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
+                        </div>
+                        <PaymentPanel 
+                            :final-payment-date="program.final_payment_date" 
+                            :program-id="program.id"
+                            :program="program"
+                            :show-remaining-amount="!program.active_installment"
+                            @payment-selection-updated="handlePaymentSelection"
+                        />
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <!-- Program Info -->
-          <div class="bg-white rounded-lg shadow-sm p-8 mb-8">
-            <h2 class="text-2xl font-bold text-gray-900 mb-6">Descripción</h2>
-            <p class="text-gray-700 text-lg leading-relaxed mb-6">
-              {{ program.description }}
-            </p>
-
-            <!-- Program Details Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div class="space-y-4">
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-indigo-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Duración:</strong> {{ program.duration_days }} días
-                  </span>
-                </div>
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-indigo-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Salida:</strong>
-                    {{ formatDate(program.departure_date) }}
-                  </span>
-                </div>
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-indigo-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Regreso:</strong>
-                    {{ formatDate(program.return_date) }}
-                  </span>
-                </div>
-              </div>
-              <div class="space-y-4">
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-indigo-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Capacidad:</strong> {{ program.capacity }} personas
-                  </span>
-                </div>
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-green-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Disponibles:</strong>
-                    <span
-                      :class="
-                        program.available_spots > 0
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      "
-                      class="font-semibold ml-1">
-                      {{ program.available_spots }} cupos
-                    </span>
-                  </span>
-                </div>
-                <div class="flex items-center">
-                  <svg
-                    class="h-5 w-5 text-indigo-600 mr-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span class="text-gray-700">
-                    <strong>Destino:</strong> {{ program.destination }}
-                  </span>
-                </div>
-              </div>
+            <!-- Botón Volver a Seleccionar Viaje -->
+            <div class="mx-4 md:mx-[120px] mt-8">
+                <BackToHomeButton :rut="rut" variant="programs" />
             </div>
-          </div>
-
-          <!-- Includes/Excludes -->
-          <div class="bg-white rounded-lg shadow-sm p-8 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div v-if="program.includes">
-                <h3
-                  class="text-lg font-semibold text-green-700 mb-4 flex items-center">
-                  <svg
-                    class="h-5 w-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Incluye
-                </h3>
-                <ul class="space-y-2">
-                  <li
-                    v-for="item in program.includes.split(',')"
-                    :key="item"
-                    class="flex items-start">
-                    <svg
-                      class="h-4 w-4 text-green-600 mt-0.5 mr-2 flex-shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-gray-700">{{ item.trim() }}</span>
-                  </li>
-                </ul>
-              </div>
-              <div v-if="program.excludes">
-                <h3
-                  class="text-lg font-semibold text-red-700 mb-4 flex items-center">
-                  <svg
-                    class="h-5 w-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  No Incluye
-                </h3>
-                <ul class="space-y-2">
-                  <li
-                    v-for="item in program.excludes.split(',')"
-                    :key="item"
-                    class="flex items-start">
-                    <svg
-                      class="h-4 w-4 text-red-600 mt-0.5 mr-2 flex-shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                        clip-rule="evenodd" />
-                    </svg>
-                    <span class="text-gray-700">{{ item.trim() }}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Requirements -->
-          <div
-            v-if="program.requirements"
-            class="bg-white rounded-lg shadow-sm p-8 mb-8">
-            <h3
-              class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <svg
-                class="h-5 w-5 text-indigo-600 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Requisitos
-            </h3>
-            <p class="text-gray-700">{{ program.requirements }}</p>
-          </div>
-
-          <!-- Itinerary -->
-          <div
-            v-if="program.itinerary"
-            class="bg-white rounded-lg shadow-sm p-8 mb-8">
-            <h3
-              class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <svg
-                class="h-5 w-5 text-indigo-600 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Itinerario
-            </h3>
-            <p class="text-gray-700 whitespace-pre-line">
-              {{ program.itinerary }}
-            </p>
-          </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="lg:col-span-1">
-          <!-- Booking Card -->
-          <div class="bg-white rounded-lg shadow-sm p-6 sticky top-8">
-            <div class="text-center mb-6">
-              <div class="text-3xl font-bold text-indigo-600">
-                ${{ formatPrice(program.base_price) }}
-              </div>
-              <div class="text-gray-500">CLP por persona</div>
-            </div>
+        <!-- Footer -->
+        <Footer class="rounded-lg"></Footer>
 
-            <!-- Availability Status -->
+        <!-- Sticky Payment Bar (Mobile Only) -->
+        <div class="md:hidden fixed bottom-0 left-0 right-0 z-50" v-show="!isMobilePaymentOpen">
             <div
-              class="mb-6 p-4 rounded-lg"
-              :class="
-                program.is_available
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-red-50 border border-red-200'
-              ">
-              <div class="flex items-center justify-center">
-                <svg
-                  v-if="program.is_available"
-                  class="h-5 w-5 text-green-600 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clip-rule="evenodd" />
-                </svg>
-                <svg
-                  v-else
-                  class="h-5 w-5 text-red-600 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clip-rule="evenodd" />
-                </svg>
-                <span
-                  :class="
-                    program.is_available ? 'text-green-700' : 'text-red-700'
-                  "
-                  class="font-semibold">
-                  {{
-                    program.is_available ? "Disponible" : "Sin Disponibilidad"
-                  }}
-                </span>
-              </div>
-              <div
-                class="text-center mt-2"
-                :class="
-                  program.is_available ? 'text-green-600' : 'text-red-600'
-                ">
-                {{ program.available_spots }}
-                {{
-                  program.available_spots === 1
-                    ? "cupo disponible"
-                    : "cupos disponibles"
-                }}
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="space-y-3">
-              <Link
-                v-if="program.is_available"
-                :href="route('ecommerce.reservation', program.id)"
-                class="w-full bg-indigo-600 text-white text-center py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-200 font-semibold flex items-center justify-center">
-                <svg
-                  class="h-5 w-5 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Reservar Ahora
-              </Link>
-              <button
-                v-else
-                disabled
-                class="w-full bg-gray-300 text-gray-500 text-center py-3 px-6 rounded-lg cursor-not-allowed font-semibold">
-                Sin Disponibilidad
-              </button>
-              <Link
-                href="/"
-                class="w-full bg-gray-100 text-gray-700 text-center py-3 px-6 rounded-lg hover:bg-gray-200 transition duration-200 font-medium">
-                Volver a Programas
-              </Link>
-            </div>
-
-            <!-- Contact Info -->
-            <div class="mt-8 pt-6 border-t border-gray-200">
-              <h4 class="font-semibold text-gray-900 mb-3">
-                ¿Necesitas ayuda?
-              </h4>
-              <div class="space-y-2 text-sm text-gray-600">
-                <div class="flex items-center">
-                  <svg
-                    class="h-4 w-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  info@lat90.com
+                class="flex w-full max-w-[375px] h-[88px] pt-[19px] pb-[21px] px-[20px] justify-center items-center mx-auto flex-shrink-0
+                       rounded-t-[16px] border-t border-[#F0F0F0] bg-white shadow-[0_4px_11.6px_0_rgba(163,163,163,0.11)]"
+            >
+                <div class="flex flex-row items-center justify-between w-full">
+                    <div class="flex flex-col items-start">
+                        <span class="text-[#434343] font-nexa text-[16px] leading-[22px] font-bold">Pagarás</span>
+                        <span class="text-[#434343] font-nexa text-[18px] leading-[28px] font-bold">{{ formatPrice(displayPayAmount) }}</span>
+                    </div>
+                    <button
+                        class="flex h-[48px] px-[21px] py-[13px] justify-center items-center gap-[10px] rounded-[35px] bg-[#FBBD51]"
+                        @click="openMobilePaymentPanel"
+                    >
+                        <span class="text-white font-nexa-xbold text-[14px] leading-[22px]">Iniciar pago</span>
+                    </button>
                 </div>
-                <div class="flex items-center">
-                  <svg
-                    class="h-4 w-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  +56 2 2345 6789
-                </div>
-              </div>
             </div>
-          </div>
         </div>
-      </div>
 
-      <!-- Related Programs -->
-      <div
-        v-if="relatedPrograms.length > 0"
-        class="mt-16">
-        <h2 class="text-2xl font-bold text-gray-900 mb-8">
-          Programas Relacionados
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div
-            v-for="relatedProgram in relatedPrograms"
-            :key="relatedProgram.id"
-            class="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition duration-300">
-            <div
-              class="h-32 bg-gradient-to-r from-indigo-400 to-purple-500 flex items-center justify-center">
-              <h3 class="text-white font-semibold text-center px-4">
-                {{ relatedProgram.name }}
-              </h3>
+        <!-- Mobile Payment Overlay -->
+        <div v-if="isMobilePaymentOpen" class="md:hidden fixed inset-x-0 bottom-0 z-50 flex justify-center">
+            <div class="bg-white rounded-tl-2xl rounded-tr-2xl border border-[#F0F0F0] pt-5 pr-5 pb-[21px] pl-5 flex flex-col gap-6 items-end justify-start w-[375px] max-h-[90vh] overflow-y-auto" style="box-shadow: 0px 4px 59.3px 0px rgba(229, 229, 229, 0.25)">
+                <!-- Header with Close -->
+                <div class="flex items-center justify-end w-full">
+                    <button @click="closeMobilePaymentPanel" aria-label="Cerrar pago" class="p-2 -mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 22 22" fill="none">
+                          <path d="M14.3333 6.55556L7.66667 15.4444M14.3333 15.4444L7.66667 6.55556M1 11C1 12.3132 1.25866 13.6136 1.7612 14.8268C2.26375 16.0401 3.00035 17.1425 3.92893 18.0711C4.85752 18.9997 5.95991 19.7363 7.17317 20.2388C8.38642 20.7413 9.68678 21 11 21C12.3132 21 13.6136 20.7413 14.8268 20.2388C16.0401 19.7363 17.1425 18.9997 18.0711 18.0711C18.9997 17.1425 19.7362 16.0401 20.2388 14.8268C20.7413 13.6136 21 12.3132 21 11C21 8.34784 19.9464 5.8043 18.0711 3.92893C16.1957 2.05357 13.6522 1 11 1C8.34783 1 5.8043 2.05357 3.92893 3.92893C2.05357 5.8043 1 8.34784 1 11Z" stroke="#C7C7C7" stroke-width="1.667" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <!-- Payment Panel Content -->
+                <div class="w-full self-stretch">
+                    <!-- Aviso de fecha límite si hay cuota activa (móvil) -->
+                    <div v-if="program && program.active_installment && program.active_installment.due_date"
+                         class="bg-[#FFF7E6] border border-[#F5C26B] text-[#7A5E10] rounded-md p-3 mb-3">
+                        <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
+                        <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
+                    </div>
+                    <PaymentPanel 
+                        :final-payment-date="program.final_payment_date" 
+                        :program-id="program.id"
+                        :program="program"
+                        :is-mobile-overlay="true"
+                        :show-header="true"
+                        :show-warning="true"
+                        :show-remaining-amount="true"
+                        :show-payment-button="true"
+                        @payment-selection-updated="handlePaymentSelection"
+                    />
+                </div>
             </div>
-            <div class="p-4">
-              <p class="text-sm text-gray-600 mb-2">
-                {{ relatedProgram.destination }}
-              </p>
-              <p class="text-lg font-bold text-indigo-600 mb-3">
-                ${{ formatPrice(relatedProgram.base_price) }} CLP
-              </p>
-              <Link
-                :href="route('ecommerce.show', relatedProgram.id)"
-                class="w-full bg-indigo-600 text-white text-center py-2 px-4 rounded hover:bg-indigo-700 transition duration-200 text-sm">
-                Ver Detalles
-              </Link>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
 </template>
 
 <script>
-  import { Link, Head } from "@inertiajs/vue3";
-  import Header from "@/Components/Ecommerce/Header.vue";
+import { Head } from "@inertiajs/vue3";
+import { router } from "@inertiajs/vue3";
+import { ref } from "vue";
+import Header from "@/Components/Ecommerce/Header.vue";
+import Footer from "@/Components/Ecommerce/Footer.vue";
+import ParticipantHeader from "@/Components/Ecommerce/ParticipantHeader.vue";
+import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
+import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
+import ImageCarousel from "@/Components/Ecommerce/ProgramDetailComponents/ImageCarousel.vue";
+import ProgramHeader from "@/Components/Ecommerce/ProgramDetailComponents/ProgramHeader.vue";
+import TripDescription from "@/Components/Ecommerce/ProgramDetailComponents/TripDescription.vue";
+import DecorativeLine from "@/Components/Ecommerce/ProgramDetailComponents/DecorativeLine.vue";
+import WarningSection from "@/Components/Ecommerce/ProgramDetailComponents/WarningSection.vue";
+import ProgramPillars from "@/Components/Ecommerce/ProgramDetailComponents/ProgramPillars.vue";
+import ProgramDocuments from "@/Components/Ecommerce/ProgramDetailComponents/ProgramDocuments.vue";
+import ItineraryDescription from "@/Components/Ecommerce/ProgramDetailComponents/ItineraryDescription.vue";
+import PaymentPanel from "@/Components/Ecommerce/ProgramDetailComponents/PaymentPanel.vue";
 
-  export default {
+export default {
     components: {
-      Link,
-      Header
+        Header,
+        Footer,
+        Head,
+        ParticipantHeader,
+        ProcessSteps,
+        BackToHomeButton,
+        ImageCarousel,
+        ProgramHeader,
+        TripDescription,
+        DecorativeLine,
+        WarningSection,
+        ProgramPillars,
+        ProgramDocuments,
+        ItineraryDescription,
+        PaymentPanel,
     },
     props: {
-      program: Object,
-      relatedPrograms: Array
+        participant: {
+            type: Object,
+            required: true,
+        },
+        program: {
+            type: Object,
+            required: true,
+        },
+        rut: {
+            type: String,
+            required: true,
+        },
     },
-    setup() {
-      const formatServiceType = (type) => {
-        const types = {
-          tours: "Tours",
-          excursiones: "Excursiones",
-          intercambio: "Intercambios",
-          cruceros: "Cruceros"
+
+    data() {
+        return {
+            isMobilePaymentOpen: false,
+            currentInstallments: 1,
         };
-        return types[type] || type;
-      };
-
-      const formatPrice = (price) => {
-        return new Intl.NumberFormat("es-CL").format(price);
-      };
-
-      const formatDate = (date) => {
-        return new Date(date).toLocaleDateString("es-CL", {
-          weekday: "long",
-          day: "2-digit",
-          month: "long",
-          year: "numeric"
-        });
-      };
-
-      return {
-        formatServiceType,
-        formatPrice,
-        formatDate
-      };
+    },
+    methods: {
+        handlePaymentSelection(selection) {
+            this.currentInstallments = selection?.installments || 1;
+        },
+        formatDueDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
+        formatPrice(amount) {
+            const safe = Number(amount ?? 0);
+            return new Intl.NumberFormat("es-CL", {
+                style: "currency",
+                currency: "CLP",
+                maximumFractionDigits: 0,
+            })
+                .format(safe)
+                .replace("CLP", "")
+                .trim();
+        },
+        openMobilePaymentPanel() {
+            this.isMobilePaymentOpen = true;
+        },
+        closeMobilePaymentPanel() {
+            this.isMobilePaymentOpen = false;
+        },
+        startPayment() {
+            router.visit(`/programs/${this.program.id}/payment`, {
+                data: { rut: this.rut }
+            });
+        }
+    },
+    computed: {
+        displayPayAmount() {
+            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+            const installments = Math.max(1, Number(this.currentInstallments || 1));
+            return Math.round((Number(base) / installments) * 100) / 100;
+        }
     }
-  };
+};
 </script>
+
+<style scoped>
+/* Estilos adicionales si son necesarios */
+</style>

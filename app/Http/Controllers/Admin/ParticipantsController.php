@@ -14,21 +14,31 @@ use App\Services\Admin\Participants\UpdateMedicalConditionsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\Participants\UpdateParticipantRequest;
+use App\Http\Requests\Admin\Participants\UpdateMedicalConditionsRequest;
+use App\Http\Requests\Admin\Participants\UpdateEmergencyContactsRequest;
+use App\Http\Requests\Admin\Participants\UpdateEmergencyContactRequest;
+use App\Http\Requests\Admin\Participants\DeleteEmergencyContactRequest;
+use App\Services\Admin\Participants\UpdateEmergencyContactService;
+use Illuminate\Support\Facades\DB;
 
 class ParticipantsController extends Controller
 {
     protected $createParticipantService;
     protected $updateParticipantService;
     protected $updateMedicalConditionsService;
+    protected $updateEmergencyContactService;
 
     public function __construct(
         CreateParticipantService $createParticipantService,
         UpdateParticipatService $updateParticipantService,
-        UpdateMedicalConditionsService $updateMedicalConditionsService
+        UpdateMedicalConditionsService $updateMedicalConditionsService,
+        UpdateEmergencyContactService $updateEmergencyContactService
     ) {
         $this->createParticipantService = $createParticipantService;
         $this->updateParticipantService = $updateParticipantService;
         $this->updateMedicalConditionsService = $updateMedicalConditionsService;
+        $this->updateEmergencyContactService = $updateEmergencyContactService;
     }
 
     /**
@@ -45,6 +55,50 @@ class ParticipantsController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Dataset de inscripciones (una fila por participante-programa) + montos pagados
+        // Usar la misma lógica que ProgramService del cliente
+        $enrollments = DB::table('participants as p')
+            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
+            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
+            ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
+            ->leftJoin('orders as o', function($join) {
+                $join->on('o.participant_id', '=', 'p.id')
+                     ->on('o.program_id', '=', 'pr.id');
+            })
+            ->leftJoin('orders_detail as od', function ($join) {
+                $join->on('od.order_id', '=', 'o.id')
+                    ->where('od.is_paid', true);
+            })
+            ->groupBy([
+                'p.id', 'p.first_name', 'p.last_name', 'p.document_number',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
+                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
+                'c.education_level', 'c.course_number',
+                'i.name',
+            ])
+            ->select([
+                'p.id as participant_id',
+                'p.first_name',
+                'p.last_name',
+                'p.document_number',
+                'pp.id as participant_program_id',
+                'pp.enrollment_code',
+                'pp.individual_price as total_due',
+                'pp.status as enrollment_status',
+                'pr.id as program_id',
+                'pr.code as program_code',
+                'pr.name as program_name',
+                'pr.destination as program_destination',
+                'pr.year as program_year',
+                'c.education_level',
+                'c.course_number',
+                'i.name as institution_name',
+                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
+            ])
+            ->orderByDesc('pp.created_at')
+            ->get();
+
         $courses = Course::with(['program', 'institution'])
             ->where('status', 'active')
             ->orderBy('institution_id')
@@ -57,6 +111,7 @@ class ParticipantsController extends Controller
         return Inertia::render('Admin/Participants/Index', [
             'participants' => $participants,
             'allParticipants' => $allParticipants,
+            'enrollments' => $enrollments,
             'courses' => $courses,
             'institutions' => $institutions,
             'filters' => request()->only(['search', 'institution', 'level', 'program', 'status'])
@@ -93,8 +148,7 @@ class ParticipantsController extends Controller
             $participantData = array_intersect_key($request->validated(), array_flip([
                 'course_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
                 'document_type', 'document_number', 'country', 'birth_date', 'address',
-                'dietary_restrictions', 'medical_conditions', 'individual_price',
-                'price_adjustments', 'adjustment_reason'
+                'dietary_restrictions', 'medical_conditions'
             ]));
 
             // Asegurar que medical_conditions sea un string, no un array
@@ -140,35 +194,55 @@ class ParticipantsController extends Controller
         
         // Buscar todos los programas relacionados al RUT del participante
         $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
-            $query->where('document_number', $participant->document_number)
-                  ->where('document_type', $participant->document_type)
-                  ->where('country', $participant->country);
-        })->with(['course', 'course.institution'])->get();
-        
+            $query->where('participants.id', $participant->id);
+        })
+        ->with(['course' => function($q) use ($participant) {
+            $q->with(['institution', 'participants' => function($qp) use ($participant) {
+                $qp->where('participants.id', $participant->id);
+            }]);
+        }])
+        ->get()
+        ->map(function($program) use ($participant) {
+            $pivotParticipant = optional($program->course)->participants->first();
+            $individual = optional($pivotParticipant)->pivot->individual_price ?? $participant->individual_price ?? null;
+            $adjust = optional($pivotParticipant)->pivot->price_adjustments ?? 0;
+            $totalDue = is_null($individual) ? null : (float) $individual + (float) $adjust;
+            // Pagos aprobados/completados del participante para este programa
+            $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $program->id);
+                })
+                ->whereIn('status', ['approved', 'completed'])
+                ->sum('amount');
+            $paidAmount = round($paidAmount, 2);
+            $balance = is_null($totalDue) ? null : max(round($totalDue - $paidAmount, 2), 0);
+            $paymentPercentage = (!is_null($totalDue) && $totalDue > 0)
+                ? round(($paidAmount / $totalDue) * 100, 0)
+                : 0;
+
+            $array = $program->toArray();
+            $array['participant_amount'] = $individual; // precio base por participante
+            $array['participant_adjustments'] = $adjust; // ajuste del pivote
+            $array['participant_total_due'] = $totalDue; // total a pagar (base + ajuste)
+            $array['paidAmount'] = $paidAmount;
+            $array['participant_balance'] = $balance;
+            $array['paymentPercentage'] = $paymentPercentage;
+            return $array;
+        });
+
         return Inertia::render('Admin/Participants/Edit', [
             'participant' => $participant,
-            'participantPrograms' => $participantPrograms
+            'participantPrograms' => $participantPrograms,
         ]);
     }
 
     /**
      * Update the specified participant in storage.
      */
-    public function update(Request $request, Participant $participant)
+    public function update(UpdateParticipantRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'nullable|email|max:255',
-                'code_phone' => 'nullable|string|max:10',
-                'phone' => 'nullable|string|max:20',
-                'document_number' => 'required|string|max:20',
-                'birth_date' => 'nullable|date',
-            ]);
-
-            // Usar el servicio para actualizar
-            $this->updateParticipantService->execute($validated, $participant);
+            $this->updateParticipantService->execute($request->validated(), $participant);
 
             return back()->with('success', 'Participante actualizado exitosamente.');
 
@@ -185,16 +259,10 @@ class ParticipantsController extends Controller
     /**
      * Update medical conditions of a participant.
      */
-    public function updateMedicalConditions(Request $request, Participant $participant)
+    public function updateMedicalConditions(UpdateMedicalConditionsRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'medical_conditions' => 'nullable|string',
-                'dietary_restrictions' => 'nullable|string',
-            ]);
-
-            // Usar el servicio específico para condiciones médicas
-            $this->updateMedicalConditionsService->execute($validated, $participant);
+            $this->updateMedicalConditionsService->execute($request->validated(), $participant);
 
             return back()->with('success', 'Condiciones médicas actualizadas exitosamente.');
 
@@ -211,14 +279,10 @@ class ParticipantsController extends Controller
     /**
      * Update emergency contacts of a participant.
      */
-    public function updateEmergencyContacts(Request $request, Participant $participant)
+    public function updateEmergencyContacts(UpdateEmergencyContactsRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'emergency_contacts' => 'required|string', // JSON string
-            ]);
-
-            $emergencyContactsData = json_decode($validated['emergency_contacts'], true);
+            $emergencyContactsData = json_decode($request->validated()['emergency_contacts'], true);
 
             if (!is_array($emergencyContactsData)) {
                 throw new \Exception('Formato de datos inválido');
@@ -255,40 +319,10 @@ class ParticipantsController extends Controller
     /**
      * Update a specific emergency contact.
      */
-    public function updateEmergencyContact(Request $request, Participant $participant)
+    public function updateEmergencyContact(UpdateEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'contact_id' => 'required|exists:emergency_contact,id',
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'required|email|max:255',
-                'code_phone' => 'required|string|max:10',
-                'phone' => 'required|string|max:20',
-                'country' => 'required|string|max:100',
-                'birth_date' => 'nullable|date|before:today',
-                'address' => 'nullable|string',
-                'relationship' => 'required|string|max:100',
-            ]);
-
-            $contact = EmergencyContact::findOrFail($validated['contact_id']);
-            
-            // Verificar que el contacto pertenece al participante
-            if ($contact->participant_id !== $participant->id) {
-                throw new \Exception('El contacto no pertenece a este participante');
-            }
-
-            $contact->update([
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'email' => $validated['email'],
-                'code_phone' => $validated['code_phone'],
-                'phone' => $validated['phone'],
-                'country' => $validated['country'],
-                'birth_date' => $validated['birth_date'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'relationship' => $validated['relationship'],
-            ]);
+            $this->updateEmergencyContactService->update($request->validated(), $participant);
 
             return back()->with('success', 'Contacto de emergencia actualizado exitosamente.');
 
@@ -306,27 +340,10 @@ class ParticipantsController extends Controller
     /**
      * Delete a specific emergency contact.
      */
-    public function deleteEmergencyContact(Request $request, Participant $participant)
+    public function deleteEmergencyContact(DeleteEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $validated = $request->validate([
-                'contact_id' => 'required|exists:emergency_contact,id',
-            ]);
-
-            $contact = EmergencyContact::findOrFail($validated['contact_id']);
-            
-            // Verificar que el contacto pertenece al participante
-            if ($contact->participant_id !== $participant->id) {
-                throw new \Exception('El contacto no pertenece a este participante');
-            }
-
-            // Verificar que no sea el último contacto de emergencia
-            $totalContacts = EmergencyContact::where('participant_id', $participant->id)->count();
-            if ($totalContacts <= 1) {
-                throw new \Exception('No se puede eliminar el último contacto de emergencia. Debe mantener al menos un contacto.');
-            }
-
-            $contact->delete();
+            $this->updateEmergencyContactService->delete($request->validated(), $participant);
 
             return back()->with('success', 'Contacto de emergencia eliminado exitosamente.');
 

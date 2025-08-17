@@ -12,8 +12,8 @@
                 <input
                     v-model="filters.search"
                     type="text"
-                    placeholder="Buscar usuario"
-                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
+                    placeholder="Buscar participante"
+                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
                 <button 
@@ -33,7 +33,7 @@
             <div class="relative flex-1">
                 <select
                     v-model="filters.program"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
                     <option value="">Programa de viaje</option>
@@ -47,7 +47,7 @@
             <div class="relative flex-shrink-0 w-[129px]">
                 <select
                     v-model="filters.institution"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
                     <option value="">Institución</option>
@@ -61,7 +61,7 @@
             <div class="relative flex-shrink-0 w-[134px]">
                 <select
                     v-model="filters.level"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
                     <option value="">Nivel de educación</option>
@@ -71,39 +71,27 @@
                 </select>
             </div>
 
-            <!-- Grado -->
+            <!-- Curso -->
             <div class="relative flex-shrink-0 w-[110px]">
                 <select
-                    v-model="filters.grade"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    v-model="filters.course_number"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Grado</option>
-                    <option v-for="grade in uniqueGrades" :key="grade" :value="grade">
-                        {{ grade }}
+                    <option value="">Curso</option>
+                    <option v-for="num in uniqueCourseNumbers" :key="num" :value="num">
+                        {{ num }}
                     </option>
                 </select>
             </div>
 
-            <!-- Turno -->
-            <div class="relative flex-shrink-0 w-[110px]">
-                <select
-                    v-model="filters.turno"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Turno</option>
-                    <option v-for="turno in uniqueTurnos" :key="turno" :value="turno">
-                        {{ capitalizeWords(turno) }}
-                    </option>
-                </select>
-            </div>
+            
 
             <!-- Estado de pago -->
             <div class="relative flex-shrink-0 w-[134px]">
                 <select
                     v-model="filters.paymentStatus"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
                     <option value="">Estado de pago</option>
@@ -149,8 +137,7 @@ export default {
                 program: this.initialFilters.program || "",
                 institution: this.initialFilters.institution || "",
                 level: this.initialFilters.level || "",
-                grade: this.initialFilters.grade || "",
-                turno: this.initialFilters.turno || "",
+                course_number: this.initialFilters.course_number || "",
                 paymentStatus: this.initialFilters.paymentStatus || "",
             }
         };
@@ -159,7 +146,7 @@ export default {
         // Obtener programas únicos de los participantes
         uniquePrograms() {
             const programs = this.participants
-                .map(participant => participant.course?.program?.name)
+                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].program?.name : null))
                 .filter(program => program && program.trim() !== '');
             return [...new Set(programs)].sort();
         },
@@ -167,7 +154,7 @@ export default {
         // Obtener instituciones únicas
         uniqueInstitutions() {
             const institutions = this.participants
-                .map(participant => participant.course?.institution?.name)
+                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].institution?.name : null))
                 .filter(institution => institution && institution.trim() !== '');
             return [...new Set(institutions)].sort();
         },
@@ -175,25 +162,17 @@ export default {
         // Obtener niveles educativos únicos
         uniqueLevels() {
             const levels = this.participants
-                .map(participant => participant.course?.education_level)
+                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].education_level : null))
                 .filter(level => level && level.trim() !== '');
             return [...new Set(levels)].sort();
         },
         
-        // Obtener grados únicos
-        uniqueGrades() {
-            const grades = this.participants
-                .map(participant => participant.course?.grade)
-                .filter(grade => grade && grade.toString().trim() !== '');
-            return [...new Set(grades)].sort();
-        },
-        
-        // Obtener turnos únicos
-        uniqueTurnos() {
-            const turnos = this.participants
-                .map(participant => participant.course?.shift)
-                .filter(turno => turno && turno.trim() !== '');
-            return [...new Set(turnos)].sort();
+        // Obtener cursos únicos (course_number)
+        uniqueCourseNumbers() {
+            const numbers = this.participants
+                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].course_number : null))
+                .filter(num => num !== null && num !== undefined && num.toString().trim() !== '');
+            return [...new Set(numbers)].sort((a, b) => Number(a) - Number(b));
         }
     },
     methods: {
@@ -207,8 +186,7 @@ export default {
                 program: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 paymentStatus: "",
             };
             this.performSearch();

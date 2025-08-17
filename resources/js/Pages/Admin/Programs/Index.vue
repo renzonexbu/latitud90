@@ -81,7 +81,7 @@ export default {
                 paymentPercentage: "",
                 institution: "",
                 level: "",
-                grade: "",
+                course_number: "",
                 active: true,
             },
         };
@@ -136,10 +136,10 @@ export default {
                 );
             }
             
-            // Filtro por grado
-            if (this.localFilters.grade) {
+            // Filtro por curso (course_number)
+            if (this.localFilters.course_number) {
                 filtered = filtered.filter(program => 
-                    program.course?.grade === this.localFilters.grade
+                    String(program.course?.course_number || '') === String(this.localFilters.course_number)
                 );
             }
             

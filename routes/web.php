@@ -1,4 +1,12 @@
+
 <?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Pdf\ContractPreviewController;
+
+// Preview de contrato en PDF (solo desarrollo)
+Route::get('/contract/preview', [ContractPreviewController::class, 'show'])->name('contract.preview');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -9,7 +17,8 @@
 | contains the "web" middleware group. Now create something great!
 |
 */
-include __DIR__.'/ecommerce.php';
-include __DIR__.'/admin/init.php';
 
-require __DIR__.'/auth.php';
+include __DIR__ . '/client/init.php';
+include __DIR__ . '/admin/init.php';
+
+require __DIR__ . '/auth.php';

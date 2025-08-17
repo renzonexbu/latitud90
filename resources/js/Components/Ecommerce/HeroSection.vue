@@ -124,18 +124,33 @@
 
             <div class="max-w-lg my-8">
                 <div
-                    class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative"
+                    class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative input-container"
                 >
                     <input
                         v-model="searchQuery"
                         type="text"
                         placeholder="Ingresar Rut del viajero"
-                        class="w-full px-6 py-3 rounded-full border-0 shadow-lg focus:ring-2 focus:ring-teal-500"
+                        :class="[
+                            'w-full px-6 py-3 rounded-full border-0 shadow-lg focus:ring-2 focus:ring-teal-500',
+                            rutValidation.isValid === false ? 'border-red-500 ring-red-500' : '',
+                            rutValidation.isValid === true ? 'border-green-500 ring-green-500' : ''
+                        ]"
+                        @input="formatRut"
+                        @blur="validateRut"
                         @keypress.enter="performSearch"
                     />
+                    <div v-if="rutValidation.message" class="absolute -bottom-6 left-0 text-xs mt-1 validation-message" :class="[
+                        rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                    ]">
+                        {{ rutValidation.message }}
+                    </div>
                     <button
                         @click="performSearch"
-                        class="mt-3 sm:mt-0 sm:absolute sm:top-1/2 sm:right-2 sm:transform sm:-translate-y-1/2 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200 mobile-search-btn"
+                        :disabled="!rutValidation.isValid"
+                        :class="[
+                            'mt-3 sm:mt-0 sm:absolute sm:top-1/2 sm:right-2 sm:transform sm:-translate-y-1/2 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200 mobile-search-btn',
+                            rutValidation.isValid ? 'bg-teal-500 hover:bg-teal-600' : 'bg-gray-400 cursor-not-allowed'
+                        ]"
                     >
                         <!-- Ícono de lupa para mobile con fondo circular verde -->
                         <div
@@ -227,17 +242,119 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, reactive } from "vue";
 import { router } from "@inertiajs/vue3";
+import axios from "axios";
 
 const searchQuery = ref("");
+const rutValidation = reactive({
+    isValid: null,
+    message: ""
+});
 
-const performSearch = () => {
-    if (searchQuery.value.trim()) {
-        router.get("/buscar-viajes", {
-            rut: searchQuery.value,
-        });
+const performSearch = async () => {
+    if (searchQuery.value.trim() && rutValidation.isValid) {
+        // Limpiar el RUT antes de enviarlo
+        const cleanRut = searchQuery.value.replace(/\./g, '').replace(/-/g, '');
+        
+        try {
+            const response = await axios.post(route('ecommerce.search-participant'), {
+                rut: cleanRut
+            });
+            
+            console.log('Resultado de búsqueda:', response.data);
+            
+            if (response.data.found) {
+                console.log('Participante encontrado:', response.data.participant);
+                // Redirigir a la vista de programas
+                router.get(route('ecommerce.programs'), { rut: cleanRut });
+            } else {
+                console.log('No se encontró el participante');
+                // Mostrar mensaje de error (puedes implementar un toast o alert)
+                alert('No se encontró ningún participante con ese RUT. Por favor, verifica el número ingresado.');
+            }
+        } catch (error) {
+            console.error('Error en la búsqueda:', error);
+        }
     }
+};
+
+const formatRut = () => {
+    // Remover todos los caracteres no numéricos excepto K
+    let rut = searchQuery.value.replace(/[^0-9kK]/g, '');
+    
+    if (rut.length > 0) {
+        rut = rut.toUpperCase();
+        
+        // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+        if (rut.length > 1) {
+            const body = rut.slice(0, -1);
+            const dv = rut.slice(-1);
+            
+            // Formatear el cuerpo con puntos
+            let formattedBody = '';
+            for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                if (j > 0 && j % 3 === 0) {
+                    formattedBody = '.' + formattedBody;
+                }
+                formattedBody = body[i] + formattedBody;
+            }
+            
+            // Combinar cuerpo formateado con dígito verificador
+            searchQuery.value = `${formattedBody}-${dv}`;
+        } else {
+            searchQuery.value = rut;
+        }
+    }
+    
+    // Validar el RUT después de formatearlo
+    validateRut();
+};
+
+const validateRut = () => {
+    const rut = searchQuery.value.replace(/\./g, '').replace(/-/g, '');
+    
+    if (rut.length === 0) {
+        rutValidation.isValid = null;
+        rutValidation.message = '';
+        return;
+    }
+    
+    // Validar formato básico
+    if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+        rutValidation.isValid = false;
+        rutValidation.message = 'Formato de RUT inválido';
+        return;
+    }
+    
+    // Separar cuerpo y dígito verificador
+    const body = rut.slice(0, -1);
+    const dv = rut.slice(-1).toUpperCase();
+    
+    // Validar que el cuerpo tenga al menos 7 dígitos
+    if (body.length < 7) {
+        rutValidation.isValid = false;
+        rutValidation.message = 'RUT debe tener al menos 7 dígitos';
+        return;
+    }
+    
+    // Calcular dígito verificador
+    const dvCalculado = calculateDv(body);
+    
+    // Comparar dígitos verificadores
+    rutValidation.isValid = dv === dvCalculado;
+    rutValidation.message = rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
+};
+
+const calculateDv = (body) => {
+    let sum = 0;
+    let factor = 2;
+    for (let i = body.length - 1; i >= 0; i--) {
+        sum += body[i] * factor;
+        factor = factor === 7 ? 2 : factor + 1;
+    }
+    const dv = 11 - (sum % 11);
+    return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
 };
 </script>
 
@@ -247,6 +364,20 @@ const performSearch = () => {
 /* Color de fondo para toda la sección */
 .relative.h-\[80vh\].rounded-3xl.overflow-hidden.mx-4.my-4 {
     background-color: #f9f9f9;
+}
+
+/* Estilos para el mensaje de validación */
+.validation-message {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    margin-top: 0.25rem;
+    z-index: 10;
+}
+
+/* Ajustar el contenedor del input para el mensaje de validación */
+.input-container {
+    position: relative;
+    margin-bottom: 1.5rem;
 }
 
 /* Estilos específicos para mobile */

@@ -44,29 +44,14 @@
                 </div>
             </div>
             
-            <!-- Grado -->
-            <div class="flex flex-col gap-2 w-[99px]">
+            <!-- Curso -->
+            <div class="flex flex-col gap-2 w-[180px]">
                 <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
-                    Grado
+                    Curso
                 </div>
                 <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-between w-full shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
-                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center w-[40px]">
-                        {{ course.grade }}
-                    </div>
-                    <svg class="w-[12.62px] h-[25.21px] text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </div>
-            </div>
-            
-            <!-- Turno -->
-            <div class="flex flex-col gap-2 w-[142px]">
-                <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
-                    Turno
-                </div>
-                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-between w-[142px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
-                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center w-[85px]">
-                        {{ capitalizeWords(course.shift) }}
+                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-left w-full">
+                        {{ formatCourseDisplay(course) }}
                     </div>
                     <svg class="w-[12.62px] h-[25.21px] text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -154,6 +139,24 @@ export default {
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
         },
+        formatCourseDisplay(course) {
+            if (!course) return 'N/A';
+            const level = (course.education_level || '').toString();
+            const num = course.course_number ? `${course.course_number}°` : '';
+            if (level === 'preescolar') {
+                return course.course_name || 'Kínder';
+            }
+            if (level === 'basica') {
+                return num ? `${num} Básico` : 'Básica';
+            }
+            if (level === 'media') {
+                return num ? `${num} Medio` : 'Media';
+            }
+            if (level === 'universitaria') {
+                return course.course_name || 'Universitaria';
+            }
+            return course.course_name || 'N/A';
+        }
     },
 };
 </script>

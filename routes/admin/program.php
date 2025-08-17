@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\SalesExecutivesController;
 use Illuminate\Support\Facades\Route;
 
 // Gestión de programas
 Route::resource('programs', ProgramController::class);
+Route::post('sales-executives', [SalesExecutivesController::class, 'store'])->name('sales-executives.store');
 Route::patch('programs/{program}/toggle-status', [ProgramController::class, 'toggleStatus'])->name('programs.toggle-status');
 Route::post('programs/bulk-action', [ProgramController::class, 'bulkAction'])->name('programs.bulk-action');
 Route::post('programs/bulk-price-update', [ProgramController::class, 'bulkPriceUpdate'])->name('programs.bulk-price-update');

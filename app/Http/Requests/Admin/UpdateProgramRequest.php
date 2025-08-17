@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\Program;
 
 class UpdateProgramRequest extends FormRequest
 {
@@ -21,6 +22,7 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
+            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/'],
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
             'departure_date' => 'nullable|date',
@@ -29,6 +31,11 @@ class UpdateProgramRequest extends FormRequest
             'images_folder' => 'nullable|string|max:255',
             'images' => 'nullable|array', // Las imágenes son opcionales en edición
             'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
+            // Eliminación de imágenes/archivos existentes
+            'imagesToDelete' => 'nullable|array',
+            'imagesToDelete.*' => 'integer|min:0',
+            'filesToDelete' => 'nullable|array',
+            'filesToDelete.*' => 'in:itinerary,coverage,equipment',
             'pillars' => 'nullable|string|max:500',
             'pilar_1' => 'nullable|string|max:255',
             'pilar_2' => 'nullable|string|max:255',
@@ -44,26 +51,75 @@ class UpdateProgramRequest extends FormRequest
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
             'final_payment_date' => 'nullable|date',
             'seller_name' => 'nullable|string|max:255',
+            'sales_executive_id' => 'nullable|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
             // Campos del detalle administrativo (todos opcionales)
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'nullable|string|in:mañana,tarde,noche',
-            'grade' => 'nullable|string|max:10',
+            'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
+            'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
             'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
             'discount_amount' => 'nullable|numeric|min:0',
+            // Aceptar múltiples opciones en edición, manteniendo compatibilidad con el campo singular
+            'payment_options' => 'nullable|array',
+            'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
+            'full_payment_options' => 'nullable|array',
+            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options' => 'nullable|array',
+            'lat90_payment_options.*' => 'string|exists:payment_options,code',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
+            // Aceptar claves antiguas y nuevas para mantener compatibilidad
+            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
             'max_installments' => 'nullable|string|in:3,6,9,12',
             'payment_mode_id' => 'nullable|exists:payment_modes,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'active' => 'boolean',
         ];
+    }
+
+	/**
+	 * Validaciones adicionales: exigir al menos una imagen final (entre existentes que quedan y nuevas subidas).
+	 */
+	public function withValidator($validator): void
+	{
+		$validator->after(function ($validator) {
+			/** @var Program|null $program */
+			$program = $this->route('program');
+			if (!$program instanceof Program) {
+				return;
+			}
+
+			// Imágenes actuales en disco (ya expuestas por el accesor getImagesAttribute)
+			$existingCount = is_array($program->images ?? null) ? count($program->images) : 0;
+			$toDelete = $this->input('imagesToDelete');
+			$deleteCount = is_array($toDelete) ? count($toDelete) : 0;
+			$newImages = $this->file('images');
+			$newCount = is_array($newImages) ? count($newImages) : 0;
+
+			$finalCount = max(0, $existingCount - $deleteCount) + $newCount;
+			if ($finalCount < 1) {
+				$validator->errors()->add('images', 'Debe adjuntar al menos una imagen del programa.');
+			}
+		});
+	}
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Normalizar 'active' para que siempre sea un booleano real
+        if ($this->has('active')) {
+            $active = $this->input('active');
+            $normalized = filter_var($active, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($normalized !== null) {
+                $this->merge(['active' => $normalized]);
+            }
+        }
     }
 
     /**

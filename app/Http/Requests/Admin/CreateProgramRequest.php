@@ -21,6 +21,7 @@ class CreateProgramRequest extends FormRequest
     {
         return [
             // Campos obligatorios del programa (aceptar ambos nombres)
+            'code' => ['required','string','max:8','regex:/^\d{4}$/'],
             'name' => 'required|string|max:255',
             'destination' => 'required|string|max:255',
             'departure_date' => 'required|date|after:today',
@@ -43,23 +44,26 @@ class CreateProgramRequest extends FormRequest
             'trip_price' => 'required_without:total_price|numeric|min:0',
             'total_price' => 'required_without:trip_price|numeric|min:0', // Campo del frontend
             'final_payment_date' => 'required|date|after:today',
-            'seller_name' => 'required_without:sales_person|string|max:255',
-            'sales_person' => 'required_without:seller_name|string|max:255', // Campo del frontend
+            'sales_executive_id' => ['required','integer','exists:sales_executives,id'],
+            'seller_name' => 'nullable|string|max:255',
+            'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
             // Campos del detalle administrativo (todos opcionales)
-            'institution_id' => 'nullable|exists:institutions,id',
+            'institution_id' => 'required|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:inicial,primario,secundario,universitario',
-            'shift' => 'nullable|string|in:mañana,tarde,noche',
-            'grade' => 'nullable|string|max:10',
+            'education_level' => 'nullable|string|in:preescolar,basica,media',
+            'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
-            'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
-            'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
+            'group_benefit' => 'nullable|string',
+            'discount_type' => 'nullable|string',
             'discount_amount' => 'nullable|numeric|min:0',
-            'payment_option' => 'nullable|string|in:full_payment,installments',
-            'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            'max_installments' => 'nullable|string|in:3,6,9,12',
+            'payment_options' => 'nullable|array',
+            'payment_options.*' => 'string|in:full_payment,installments',
+            // Nuevas selecciones por checkbox
+            'full_payment_options' => 'nullable|array',
+            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options' => 'nullable|array',
+            'lat90_payment_options.*' => 'string|exists:payment_options,code',
             'created_by' => 'nullable|exists:users,id',
             'active' => 'boolean',
         ];
@@ -139,12 +143,15 @@ class CreateProgramRequest extends FormRequest
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
-            'shift.in' => 'El turno seleccionado no es válido.',
+            'course_number.integer' => 'El curso debe ser un número válido.',
+            'course_number.min' => 'El curso debe ser al menos 1.',
+            'course_number.max' => 'El curso no puede ser mayor a 12.',
             'group_benefit.in' => 'El beneficio grupal seleccionado no es válido.',
             'discount_type.in' => 'El tipo de descuento seleccionado no es válido.',
             'discount_amount.numeric' => 'El monto de descuento debe ser un número.',
             'discount_amount.min' => 'El monto de descuento debe ser mayor o igual a 0.',
-            'payment_option.in' => 'La opción de pago seleccionada no es válida.',
+            'payment_options.array' => 'Las opciones de pago deben ser enviadas como un array.',
+            'payment_options.*.in' => 'La opción de pago seleccionada no es válida.',
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
             'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
             'max_installments.in' => 'El número máximo de cuotas seleccionado no es válido.',

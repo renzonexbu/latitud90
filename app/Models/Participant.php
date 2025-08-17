@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Participant extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'first_name',
@@ -23,17 +24,12 @@ class Participant extends Model
         'dietary_restrictions',
         'medical_conditions',
         'status',
-        'registration_date',
-        'individual_price',
-        'price_adjustments',
-        'adjustment_reason'
+        'registration_date'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'registration_date' => 'datetime',
-        'individual_price' => 'decimal:2',
-        'price_adjustments' => 'decimal:2'
     ];
 
     public function emergencyContacts()
@@ -77,13 +73,5 @@ class Participant extends Model
         return $this->first_name . ' ' . $this->last_name;
     }
 
-    public function getTotalPaidAttribute()
-    {
-        return $this->payments()->where('status', 'completed')->sum('amount');
-    }
-
-    public function getPendingAmountAttribute()
-    {
-        return ($this->individual_price + $this->price_adjustments) - $this->total_paid;
-    }
+    // Totales deben calcularse desde el pivote y pagos; se eliminaron campos locales de pago
 } 

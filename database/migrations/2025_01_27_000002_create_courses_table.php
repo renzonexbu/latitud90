@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('courses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('institution_id')->constrained('institutions')->onDelete('cascade');
-            $table->enum('education_level', ['preescolar', 'primaria', 'secundaria', 'universitaria']);
+            $table->enum('education_level', ['preescolar', 'basica', 'media', 'universitaria']);
             $table->string('year', 4);
-            $table->string('grade');
-            $table->enum('shift', ['mañana', 'tarde', 'noche']);
+            $table->unsignedTinyInteger('course_number')->nullable();
+            $table->string('course_name')->nullable();
             $table->string('contact_email');
             $table->string('contact_phone');
             $table->foreignId('program_id')->nullable()->constrained('programs')->onDelete('set null');

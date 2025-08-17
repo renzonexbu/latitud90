@@ -13,8 +13,8 @@ class Course extends Model
         'institution_id',
         'education_level',
         'year',
-        'grade',
-        'shift',
+        'course_number',
+        'course_name',
         'contact_email',
         'contact_phone',
         'program_id',
@@ -30,8 +30,13 @@ class Course extends Model
 
     protected $casts = [
         'end_date' => 'date',
+        'course_number' => 'integer',
         'collected_amount' => 'decimal:2',
         'target_amount' => 'decimal:2'
+    ];
+
+    protected $appends = [
+        'course_display',
     ];
 
     public function institution()
@@ -67,7 +72,38 @@ class Course extends Model
 
     public function getFullNameAttribute()
     {
-        return "{$this->institution->name} - {$this->education_level} {$this->grade}° {$this->shift}";
+        $courseDisplay = $this->course_display;
+        return "{$this->institution->name} - {$courseDisplay}";
+    }
+
+    public function getCourseDisplayAttribute(): string
+    {
+        $level = $this->education_level;
+        $num = $this->course_number;
+        $name = $this->course_name;
+
+        // Preescolar: solo Kínder (sin Prekínder)
+        if ($level === 'preescolar') {
+            return $name ?: 'Kínder';
+        }
+
+        // Universitaria: libre
+        if ($level === 'universitaria') {
+            return $name ?: 'Universitaria';
+        }
+
+        // Básica y Media con número
+        $suffix = 'º';
+        if ($level === 'basica') {
+            $label = $num ? ($num . $suffix . ' Básico') : ($name ?: 'Básica');
+            return $label;
+        }
+        if ($level === 'media') {
+            $label = $num ? ($num . $suffix . ' Medio') : ($name ?: 'Media');
+            return $label;
+        }
+
+        return $name ?: ucfirst($level);
     }
 
     public function getPaymentPercentageAttribute()

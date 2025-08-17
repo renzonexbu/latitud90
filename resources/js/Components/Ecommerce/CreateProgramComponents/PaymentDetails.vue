@@ -138,18 +138,30 @@
 
                             <div class="staff-field-row">
                                 <div class="field-wrapper">
-                                    <div class="field-label">
-                                        Personal que vendió el viaje
+                                    <div class="flex justify-between items-center">
+                                        <div class="field-label">
+                                            Ejecutivo comercial
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            @click="$emit('create-executive')"
+                                            class="text-[#007e93] text-xs font-nexa-bold hover:underline"
+                                        >
+                                            + Crear nuevo ejecutivo
+                                        </button>
                                     </div>
-                                    <input
-                                        type="text"
-                                        v-model="formData.sales_person"
-                                        placeholder="Nombre"
+                                    <select
+                                        v-model="formData.sales_executive_id"
                                         class="admin-input-text"
-                                        :class="{ 'border-red-500': errors.sales_person }"
-                                    />
-                                    <span v-if="errors.sales_person" class="text-red-500 text-sm mt-1">
-                                        {{ errors.sales_person }}
+                                        :class="{ 'border-red-500': errors.sales_executive_id }"
+                                    >
+                                        <option :value="''">Seleccione un ejecutivo</option>
+                                        <option v-for="exec in salesExecutives" :key="exec.id" :value="exec.id">
+                                            {{ exec.name }} ({{ exec.code }})
+                                        </option>
+                                    </select>
+                                    <span v-if="errors.sales_executive_id" class="text-red-500 text-sm mt-1">
+                                        {{ errors.sales_executive_id }}
                                     </span>
                                 </div>
                             </div>
@@ -244,40 +256,21 @@
                                             :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
                                         >
                                             <option value="">Seleccione un nivel</option>
-                                            <option value="inicial">Inicial</option>
-                                            <option value="primario">Primario</option>
-                                            <option value="secundario">Secundario</option>
-                                            <option value="universitario">Universitario</option>
+                                            <option value="preescolar">Preescolar</option>
+                                            <option value="basica">Básica</option>
+                                            <option value="media">Media</option>
                                         </select>
 
                                     </div>
                                 </div>
+                                
                                 <div class="field-container-small">
                                     <div class="field-wrapper">
                                         <div class="field-label">
-                                            Turno
+                                            Curso
                                         </div>
                                         <select
-                                            v-model="formData.shift"
-                                            class="admin-select-small"
-                                            :disabled="!canEnableCourseFields()"
-                                            :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
-                                        >
-                                            <option value="">---</option>
-                                            <option value="mañana">Mañana</option>
-                                            <option value="tarde">Tarde</option>
-                                            <option value="noche">Noche</option>
-                                        </select>
-
-                                    </div>
-                                </div>
-                                <div class="field-container-small">
-                                    <div class="field-wrapper">
-                                        <div class="field-label">
-                                            Grado
-                                        </div>
-                                        <select
-                                            v-model="formData.grade"
+                                            v-model="formData.course_number"
                                             class="admin-select-small"
                                             :disabled="!canEnableCourseFields()"
                                             :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
@@ -295,48 +288,7 @@
                                 </div>
                             </div>
 
-                            <!-- Beneficio grupal -->
-                            <div class="group-benefit-field">
-                                <div class="field-wrapper">
-                                    <div class="field-label">
-                                        ¿El grupo tienen beneficio general?
-                                    </div>
-                                    <select
-                                        v-model="formData.discount_type"
-                                        class="admin-input-text"
-                                        :disabled="!canEnableCourseFields()"
-                                        :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
-                                    >
-                                        <option value="">Selecciona el beneficio grupal</option>
-                                        <option value="porcentaje_10">Descuento 10%</option>
-                                        <option value="porcentaje_15">Descuento 15%</option>
-                                        <option value="porcentaje_20">Descuento 20%</option>
-                                        <option value="monto_fijo">Monto fijo</option>
-                                    </select>
-       
-                                    
-                                    <!-- Input para monto fijo (solo visible cuando se selecciona monto_fijo) -->
-                                    <div v-if="formData.discount_type === 'monto_fijo' && canEnableCourseFields()" class="discount-amount-field">
-                                        <div class="field-wrapper">
-                                            <div class="field-label">
-                                                Monto a descontar
-                                            </div>
-                                            <input
-                                                type="text"
-                                                v-model="formattedDiscountAmount"
-                                                @input="handleDiscountAmountInput"
-                                                @blur="handleDiscountAmountBlur"
-                                                placeholder="--------"
-                                                class="admin-input-text"
-                                                :class="{ 'border-red-500': errors.discount_amount }"
-                                            />
-                                            <span v-if="errors.discount_amount" class="text-red-500 text-sm mt-1">
-                                                {{ errors.discount_amount }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            
 
                             <!-- Carga de alumnos (condicional) -->
                             <div v-if="shouldShowExcelInput()" class="students-upload-section">
@@ -366,7 +318,7 @@
                                             :disabled="!canEnableExcel()"
                                         />
                                         <span v-if="!canEnableExcel()" class="text-red-500 text-xs mt-1">
-                                            Completa primero: Institución, Nivel de educación, Turno y Grado
+                                            Completa primero: Institución y Nivel de educación
                                         </span>
                                     </div>
                                 </div>
@@ -434,7 +386,7 @@
                             class="accordion-content"
                         >
                             <div class="payment-description">
-                                ¿Cómo querés que pague el grupo? Elegí las opciones disponibles.
+                                ¿Cómo quieres que pague el grupo? Elige las opciones disponibles.
                             </div>
 
                             <!-- Opción Pago Total -->
@@ -442,15 +394,14 @@
                                 <div class="payment-option-header">
                                     <div class="payment-checkbox">
                                         <input
-                                            type="radio"
+                                            type="checkbox"
                                             id="full-payment"
-                                            name="payment-option"
                                             value="full_payment"
-                                            :checked="formData.payment_option === 'full_payment'"
-                                            @click="handlePaymentOptionClick('full_payment')"
-                                            class="radio-input"
+                                            :checked="isPaymentOptionSelected('full_payment')"
+                                            @change="handlePaymentOptionChange('full_payment', $event)"
+                                            class="checkbox-input"
                                         />
-                                        <label for="full-payment" class="radio-label"></label>
+                                        <label for="full-payment" class="checkbox-label"></label>
                                     </div>
                                     <div class="payment-option-content">
                                         <div class="payment-option-title">
@@ -481,21 +432,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="formData.payment_option === 'full_payment'" class="payment-method-select">
+                                <div v-if="isPaymentOptionSelected('full_payment')" class="payment-method-select">
                                     <div class="field-wrapper">
-                                        <div class="field-label">
-                                            ¿Forma de pago?
+                                        <div class="field-label">Opciones disponibles para Pago Total</div>
+                                        <div class="flex flex-col gap-2">
+                                            <label v-for="opt in fullPaymentChoices" :key="opt.code" class="flex items-center gap-2">
+                                                <input type="checkbox" :value="opt.code" @change="toggleFullOption(opt.code, $event)" :checked="formData.full_payment_options?.includes(opt.code)" />
+                                                <span>{{ opt.label }}</span>
+                                            </label>
                                         </div>
-                                        <select
-                                            v-model="formData.full_payment_method"
-                                            class="admin-input-text"
-                                        >
-                                            <option value="">Seleccione la forma de pago</option>
-                                            <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
-                                            <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
-                                            <option value="solo_transferencia">Solo pago transferencia</option>
-                                            <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
-                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -505,15 +450,14 @@
                                 <div class="payment-option-header">
                                     <div class="payment-checkbox">
                                         <input
-                                            type="radio"
+                                            type="checkbox"
                                             id="installments-payment"
-                                            name="payment-option"
                                             value="installments"
-                                            :checked="formData.payment_option === 'installments'"
-                                            @click="handlePaymentOptionClick('installments')"
-                                            class="radio-input"
+                                            :checked="isPaymentOptionSelected('installments')"
+                                            @change="handlePaymentOptionChange('installments', $event)"
+                                            class="checkbox-input"
                                         />
-                                        <label for="installments-payment" class="radio-label"></label>
+                                        <label for="installments-payment" class="checkbox-label"></label>
                                     </div>
                                     <div class="payment-option-content">
                                         <div class="payment-option-title">
@@ -544,39 +488,16 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="formData.payment_option === 'installments'" class="installments-options">
+                                <div v-if="isPaymentOptionSelected('installments')" class="installments-options">
                                     <div class="payment-method-select">
                                         <div class="field-wrapper">
-                                            <div class="field-label">
-                                                ¿Forma de pago?
+                                            <div class="field-label">Opciones disponibles para Pago Mensual</div>
+                                            <div class="flex flex-col gap-2">
+                                                <label v-for="opt in lat90Choices" :key="opt.code" class="flex items-center gap-2">
+                                                    <input type="checkbox" :value="opt.code" @change="toggleLat90Option(opt.code, $event)" :checked="formData.lat90_payment_options?.includes(opt.code)" />
+                                                    <span>{{ opt.label }}</span>
+                                                </label>
                                             </div>
-                                            <select
-                                                v-model="formData.installments_payment_method"
-                                                class="admin-input-text"
-                                            >
-                                                <option value="">Seleccione la forma de pago</option>
-                                                <option value="todos_medios">Todos los medios (Débito/Crédito/Transferencia)</option>
-                                                <option value="solo_tarjeta">Solo pago con Tarjeta (Débito/Crédito)</option>
-                                                <option value="solo_transferencia">Solo pago transferencia</option>
-                                                <option value="solo_contado">Solo pago contado (Débito/Transferencia)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="installments-select">
-                                        <div class="field-wrapper">
-                                            <div class="field-label">
-                                                Cuantas cuotas máximas
-                                            </div>
-                                            <select
-                                                v-model="formData.max_installments"
-                                                class="admin-select-small"
-                                            >
-                                                <option value="">---</option>
-                                                <option value="3">3 cuotas</option>
-                                                <option value="6">6 cuotas</option>
-                                                <option value="9">9 cuotas</option>
-                                                <option value="12">12 cuotas</option>
-                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -590,7 +511,7 @@
 </template>
 
 <script setup>
-import { ref, watch, defineEmits, onMounted, nextTick } from "vue";
+import { ref, watch, defineEmits, onMounted, nextTick, computed } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
@@ -604,16 +525,16 @@ const props = defineProps({
             institution_name: "",
             institution_id: "",
             education_level: "",
-            shift: "",
-            grade: "",
+            course_number: "",
             students_file: null,
             group_benefit: "",
-            payment_option: "", // "full_payment" o "installments"
-            full_payment_method: "",
-            installments_payment_method: "",
-            max_installments: "",
+            // Opciones de pago múltiples
+            payment_options: [], // Radio: seleccionar secciones activas
+            full_payment_options: [], // Checkboxes: opciones específicas (mode=full)
+            lat90_payment_options: [], // Checkboxes: opciones específicas (mode=lat90)
             discount_type: "", // Por defecto vacío para mostrar "Selecciona el beneficio grupal"
             discount_amount: "",
+            sales_executive_id: "",
         }),
     },
     mode: {
@@ -638,6 +559,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    salesExecutives: {
+        type: Array,
+        default: () => []
+    },
     hasParticipants: {
         type: Boolean,
         default: false
@@ -653,6 +578,7 @@ const emit = defineEmits(['update:modelValue', 'create-institution', 'edit-group
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
+const isSyncingFromProps = ref(false);
 
 // Estados para los acordeones
 const priceOpen = ref(false);
@@ -664,9 +590,45 @@ const selectedStudentsFile = ref(null);
 
 // Propiedad computada para el precio formateado
 const formattedPrice = ref('');
+// Catálogos locales (idealmente venir desde backend)
+const fullPaymentChoices = [
+    { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)' },
+    { code: 'full_debit_webpay', label: 'Débito (Webpay)' },
+    { code: 'full_credit_webpay_0', label: 'Crédito sin cuotas (Webpay)' },
+    { code: 'full_credit_webpay_3', label: 'Crédito 3 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_6', label: 'Crédito 6 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_9', label: 'Crédito 9 cuotas sin interés (Webpay)' },
+    { code: 'full_credit_webpay_12', label: 'Crédito 12 cuotas sin interés (Webpay)' },
+];
+const lat90Choices = [
+    { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
+    { code: 'lat90_debit_webpay', label: 'Débito (Webpay)' },
+    { code: 'lat90_credit_0', label: 'Crédito sin cuotas (Webpay)' },
+    { code: 'lat90_installments_3', label: 'Lat90 3 cuotas' },
+    { code: 'lat90_installments_6', label: 'Lat90 6 cuotas' },
+    { code: 'lat90_installments_9', label: 'Lat90 9 cuotas' },
+    { code: 'lat90_installments_12', label: 'Lat90 12 cuotas' },
+];
 
 // Estado para el monto de descuento formateado
 const formattedDiscountAmount = ref('');
+// Cuotas permitidas según la fecha final de pago
+const allowedInstallments = computed(() => {
+    const options = [3, 6, 12];
+    const selectedDate = formData.value.final_payment_date;
+    if (!selectedDate) return options; // si no hay fecha, mostrar todas (validación en backend)
+
+    const now = new Date();
+    const end = new Date(selectedDate + 'T00:00:00');
+    // calcular meses completos entre hoy y la fecha final
+    let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+    // si el día del mes de hoy es mayor al de la fecha final, resta un mes (mes incompleto)
+    if (now.getDate() > end.getDate()) months -= 1;
+    if (months < 0) months = 0;
+
+    return options.filter(m => m <= months);
+});
+
 
 
 
@@ -838,16 +800,49 @@ onMounted(() => {
         });
     }
     
+    // Inicializar payment_options si no existe
+    if (!formData.value.payment_options) {
+        formData.value.payment_options = [];
+    }
+    
+    // Asegurar que el select inicie sin selección (placeholder)
+    formData.value.sales_executive_id = formData.value.sales_executive_id ?? '';
+
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     // Emitir el estado inicial
     emit('update:modelValue', formData.value);
+
+    // Asegurar arrays para checkboxes (evitar comportamiento booleano compartido)
+    if (!Array.isArray(formData.value.full_payment_options)) {
+        formData.value.full_payment_options = [];
+    }
+    if (!Array.isArray(formData.value.lat90_payment_options)) {
+        formData.value.lat90_payment_options = [];
+    }
 });
+
+// Handlers para checkboxes manuales (evitar efectos de referencia)
+const toggleFullOption = (code, event) => {
+    if (!Array.isArray(formData.value.full_payment_options)) formData.value.full_payment_options = [];
+    const set = new Set(formData.value.full_payment_options);
+    if (event.target.checked) set.add(code); else set.delete(code);
+    formData.value.full_payment_options = Array.from(set);
+    emit('update:modelValue', formData.value);
+};
+const toggleLat90Option = (code, event) => {
+    if (!Array.isArray(formData.value.lat90_payment_options)) formData.value.lat90_payment_options = [];
+    const set = new Set(formData.value.lat90_payment_options);
+    if (event.target.checked) set.add(code); else set.delete(code);
+    formData.value.lat90_payment_options = Array.from(set);
+    emit('update:modelValue', formData.value);
+};
 
 // Watch para sincronizar con el padre
 watch(
     formData,
     (newValue) => {
+        if (isSyncingFromProps.value) return;
         emit('update:modelValue', newValue);
     },
     { deep: true, immediate: true }
@@ -858,6 +853,7 @@ watch(
     () => props.modelValue,
     (newValue) => {
         if (props.mode === 'edit') {
+            isSyncingFromProps.value = true;
             // En modo edit, sincronizar los valores del modelValue con formData
             Object.keys(newValue).forEach((key) => {
                 if (newValue[key] !== undefined) {
@@ -867,6 +863,7 @@ watch(
             // Reinicializar los valores formateados después de sincronizar
             initializeFormattedPrice();
             initializeFormattedDiscountAmount();
+            nextTick(() => { isSyncingFromProps.value = false; });
         }
     },
     { deep: true, immediate: true }
@@ -877,8 +874,7 @@ watch(() => formData.value.institution_id, (newValue, oldValue) => {
     if (!newValue && oldValue) {
         // Si se deselecciona la institución, limpiar todos los campos dependientes
         formData.value.education_level = '';
-        formData.value.shift = '';
-        formData.value.grade = '';
+        formData.value.course_number = '';
         formData.value.group_benefit = '';
         formData.value.students_file = null;
         selectedStudentsFile.value = null;
@@ -914,6 +910,19 @@ watch(() => formData.value.discount_amount, (newValue) => {
     emit('update:modelValue', formData.value);
 }, { immediate: true });
 
+// Watchers para los métodos de pago
+watch(() => formData.value.full_payment_method, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+watch(() => formData.value.installments_payment_method, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+watch(() => formData.value.max_installments, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
 // Función para determinar si mostrar el input del Excel
 const shouldShowExcelInput = () => {
     if (props.mode === 'create') {
@@ -941,9 +950,7 @@ const canEnableCourseFields = () => {
 // Función para verificar si se puede habilitar el Excel
 const canEnableExcel = () => {
     return formData.value.institution_id && 
-           formData.value.education_level && 
-           formData.value.shift && 
-           formData.value.grade;
+           formData.value.education_level;
 };
 
 // Función para determinar si mostrar el botón Editar Grupo
@@ -981,29 +988,49 @@ const handleStudentsUpload = (event) => {
     }
 };
 
+// Función para verificar si una opción de pago está seleccionada
+const isPaymentOptionSelected = (option) => {
+    return formData.value.payment_options && formData.value.payment_options.includes(option);
+};
+
 // Función para manejar la selección de opciones de pago
-const handlePaymentOptionClick = (option) => {
-    // Si ya está seleccionado, lo deselecciona
-    if (formData.value.payment_option === option) {
-        formData.value.payment_option = "";
-        // Limpiar también los métodos de pago cuando se deselecciona
-        formData.value.full_payment_method = "";
-        formData.value.installments_payment_method = "";
-        formData.value.max_installments = "";
+const handlePaymentOptionChange = (option, event) => {
+    // Inicializar el array si no existe
+    if (!formData.value.payment_options) {
+        formData.value.payment_options = [];
+    }
+    
+    if (event.target.checked) {
+        // Agregar la opción si no está ya seleccionada
+        if (!formData.value.payment_options.includes(option)) {
+            formData.value.payment_options.push(option);
+        }
     } else {
-        // Si no está seleccionado, lo selecciona
-        formData.value.payment_option = option;
+        // Remover la opción si está seleccionada
+        const index = formData.value.payment_options.indexOf(option);
+        if (index > -1) {
+            formData.value.payment_options.splice(index, 1);
+        }
         
-        // Limpiar las selecciones de la otra modalidad
+        // Limpiar los campos relacionados cuando se deselecciona
         if (option === 'full_payment') {
-            // Si seleccionas pago total, limpia las opciones de cuotas
+            formData.value.full_payment_method = "";
+        } else if (option === 'installments') {
             formData.value.installments_payment_method = "";
             formData.value.max_installments = "";
-        } else if (option === 'installments') {
-            // Si seleccionas cuotas, limpia las opciones de pago total
-            formData.value.full_payment_method = "";
         }
     }
+    
+    // Debug: Log de los datos de pago
+    console.log('Datos de pago actualizados:', {
+        payment_options: formData.value.payment_options,
+        full_payment_method: formData.value.full_payment_method,
+        installments_payment_method: formData.value.installments_payment_method,
+        max_installments: formData.value.max_installments
+    });
+    
+    // Emitir inmediatamente para asegurar que los datos se envíen
+    emit('update:modelValue', formData.value);
 };
 
 // Función para crear una nueva institución
@@ -1368,23 +1395,45 @@ const viewPaymentStates = () => {
     position: relative;
 }
 
-.radio-input {
+.checkbox-input {
     width: 22.69px;
     height: 22.69px;
-    border-radius: 50%;
-    border: 1px solid var(--colores-neutro-gris-4, #5b5b5b);
+    border-radius: 43.963px;
+    border: 0.709px solid var(--Colores-OP2-Amarillo, #FFB232);
     appearance: none;
     cursor: pointer;
     position: relative;
     transition: all 0.2s ease;
+    display: flex;
+    padding: 5.673px;
+    align-items: center;
+    gap: 7.091px;
+    flex: 1 0 0;
 }
 
-.radio-input:checked {
-    background-color: var(--colores-op2-turquesa, #007e93);
-    border-color: var(--colores-op2-turquesa, #007e93);
+.checkbox-input:checked {
+    background-color: transparent;
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
 }
 
-.radio-label {
+.checkbox-input:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 29.781px;
+    background: #FAB547;
+    display: flex;
+    width: 11.345px;
+    height: 11.345px;
+    padding: 7.091px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7.091px;
+}
+
+.checkbox-label {
     position: absolute;
     top: 0;
     left: 0;

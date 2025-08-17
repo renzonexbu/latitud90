@@ -11,7 +11,9 @@ class Program extends Model
     use HasFactory;
 
     protected $fillable = [
+        'code',
         'name',
+        'institution_id',
         'destination',
         'departure_date',
         'trip_description',
@@ -22,11 +24,14 @@ class Program extends Model
         'travel_assistance_coverage',
         'equipment_list',
         'trip_price',
+        'year',
         'final_payment_date',
         'seller_name',
-        'payment_mode_id',
-        'payment_method_id',
-        'max_installments',
+        'sales_executive_id',
+        'enable_total_payment',
+        'enable_lat90_payment',
+        'lat90_max_installments',
+        // Campos de descuento
         'discount_type',
         'discount_value',
         'course_id',
@@ -39,6 +44,8 @@ class Program extends Model
         'final_payment_date' => 'date',
         'trip_price' => 'decimal:2',
         'discount_value' => 'decimal:2',
+        'enable_total_payment' => 'boolean',
+        'enable_lat90_payment' => 'boolean',
         'active' => 'boolean'
     ];
 
@@ -49,6 +56,18 @@ class Program extends Model
         'images'
     ];
 
+    // Relaciones para métodos de pago
+    public function totalPaymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'total_payment_method_id');
+    }
+
+    public function lat90PaymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'lat90_payment_method_id');
+    }
+
+    // Relaciones existentes (mantener compatibilidad)
     public function paymentMode()
     {
         return $this->belongsTo(PaymentMode::class);
@@ -76,7 +95,8 @@ class Program extends Model
 
     public function participants()
     {
-        return $this->hasManyThrough(Participant::class, Course::class, 'program_id', 'course_id', 'id', 'id');
+        // Esta relación no se usa directamente, se accede a través de course->participants()
+        return $this->course->participants() ?? collect();
     }
 
     public function features()

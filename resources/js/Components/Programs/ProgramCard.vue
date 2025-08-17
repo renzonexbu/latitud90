@@ -100,19 +100,21 @@
                     <span v-if="program.course?.institution?.name">{{
                         capitalizeFirst(program.course.institution.name)
                     }}</span>
-                    <span v-if="program.course?.grade" class="mx-2">|</span>
-                    <span v-if="program.course?.grade">{{
-                        capitalizeFirst(program.course.grade)
+                    <span
+                        v-if="program.course?.course_display && program.course?.institution?.name"
+                        class="mx-2"
+                        >|</span
+                    >
+                    <span v-if="program.course?.course_display">{{
+                        program.course.course_display
                     }}</span>
-                    <span v-if="program.course?.education_level" class="mx-2"
+                    <span
+                        v-if="program.course?.education_level && (program.course?.course_display || program.course?.institution?.name)"
+                        class="mx-2"
                         >|</span
                     >
                     <span v-if="program.course?.education_level">{{
                         capitalizeFirst(program.course.education_level)
-                    }}</span>
-                    <span v-if="program.course?.shift" class="mx-2">|</span>
-                    <span v-if="program.course?.shift">{{
-                        capitalizeFirst(program.course.shift)
                     }}</span>
                 </div>
             </div>
@@ -149,11 +151,11 @@
                                     >
                                         {{ formatPrice(program.paidAmount) }}
                                     </div>
-                                    <div
+                                     <div
                                         class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2"
-                                    >
-                                        /{{ formatPrice(program.totalAmount) }}
-                                    </div>
+                                     >
+                                         /{{ formatPrice(getDisplayTotalAmount()) }}
+                                     </div>
                                 </div>
                             </div>
 
@@ -245,6 +247,17 @@ export default {
         },
     },
     methods: {
+        getDisplayTotalAmount() {
+            // Siempre mostrar el total a pagar por el participante (base + ajuste)
+            const p = this.program;
+            if (p.participant_total_due !== undefined && p.participant_total_due !== null) {
+                return p.participant_total_due;
+            }
+            const base = p.participant_amount ?? p.individual_price ?? null;
+            const adj = p.participant_adjustments ?? 0;
+            if (base !== null) return base + adj;
+            return p.totalAmount ?? p.trip_price ?? 0;
+        },
         formatPrice(price) {
             return new Intl.NumberFormat("es-CL", {
                 style: "currency",
@@ -264,7 +277,17 @@ export default {
         },
         formatDate(dateString) {
             if (!dateString) return "";
+            // 1) Si viene en formato YYYY-MM-DD o YYYY-MM-DD HH:mm:ss, formatear manualmente
+            if (typeof dateString === 'string') {
+                const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (match) {
+                    const [, y, m, d] = match;
+                    return `${d}-${m}-${y}`;
+                }
+            }
+            // 2) Intento seguro con Date
             const date = new Date(dateString);
+            if (isNaN(date.getTime())) return "";
             return date.toLocaleDateString("es-CL", {
                 day: "2-digit",
                 month: "2-digit",

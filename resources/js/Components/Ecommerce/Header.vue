@@ -1,7 +1,12 @@
 <template>
-    <header :class="isIndexPage ? 'absolute top-4 left-4 right-4 z-50' : 'relative z-50'">
+    <header
+        :class="isIndexPage ? 'absolute top-4 left-4 right-4 z-50' : 'relative z-50'"
+    >
         <!-- Header normal (cuando el menú está cerrado) -->
-        <nav v-if="!mobileMenuOpen" :class="['header-off', { 'header-white': !isIndexPage }]">
+        <nav
+            v-if="!mobileMenuOpen"
+            :class="['header-off', { 'header-white': !isIndexPage }]"
+        >
             <div class="flex items-center">
                 <a href="/" class="capa-1">
                     <img
@@ -18,7 +23,13 @@
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                     >
-                        <g :clip-path="isIndexPage ? 'url(#clip0_2004_4564)' : 'url(#clip0_2004_4720)'">
+                        <g
+                            :clip-path="
+                                isIndexPage
+                                    ? 'url(#clip0_2004_4564)'
+                                    : 'url(#clip0_2004_4720)'
+                            "
+                        >
                             <path
                                 d="M12.3855 10.0134L9.91956 8.34999V8.33986L9.91196 8.34492L9.9069 8.33986V8.34999L7.4384 10.0134L4.95978 8.33986L2.48116 10.0134L0 8.33986V10.983L2.48116 12.6566L4.95978 10.983L7.4384 12.6566L9.91196 10.9881L12.3855 12.6566L14.8641 10.983V8.33986L12.3855 10.0134Z"
                                 :fill="isIndexPage ? 'white' : '#FBBD51'"
@@ -57,7 +68,13 @@
                             />
                         </g>
                         <defs>
-                            <clipPath :id="isIndexPage ? 'clip0_2004_4564' : 'clip0_2004_4720'">
+                            <clipPath
+                                :id="
+                                    isIndexPage
+                                        ? 'clip0_2004_4564'
+                                        : 'clip0_2004_4720'
+                                "
+                            >
                                 <rect
                                     width="44"
                                     height="29.9486"
@@ -90,12 +107,12 @@
 
             <div class="frame-1085 hidden md:flex">
                 <div class="frame-1084">
-                    <a href="#" class="placeholder">Sobre nosotros</a>
-                    <a href="#nuestrosProgramas" class="placeholder"
+                    <a href="/#about" class="placeholder" @click.prevent="smoothScrollToSection('about')">Sobre nosotros</a>
+                    <a href="/#courses" class="placeholder" @click.prevent="smoothScrollToSection('courses')"
                         >Nuestros programas</a
                     >
-                    <a href="#" class="placeholder">Preguntas frecuentes</a>
-                    <a href="#" class="placeholder">Contactanos</a>
+                    <a href="/#faq" class="placeholder" @click.prevent="smoothScrollToSection('faq')">Preguntas frecuentes</a>
+                    <a href="/#contact" class="placeholder" @click.prevent="smoothScrollToSection('contact')">Contactanos</a>
                 </div>
                 <div class="boton-l">
                     <div class="placeholder2">Pagar programa</div>
@@ -196,24 +213,25 @@
                     <div class="container mx-auto px-6 py-8">
                         <ul class="space-y-6">
                             <li>
-                                <a href="#" class="mobile-menu-link"
+                                <a href="/#about" class="mobile-menu-link" @click="smoothScrollToSection('about')"
                                     >Sobre nosotros</a
                                 >
                             </li>
                             <li>
                                 <a
-                                    href="#nuestrosProgramas"
+                                    href="/#courses"
                                     class="mobile-menu-link"
+                                    @click="smoothScrollToSection('courses')"
                                     >Nuestros programas</a
                                 >
                             </li>
                             <li>
-                                <a href="#" class="mobile-menu-link"
+                                <a href="/#faq" class="mobile-menu-link" @click="smoothScrollToSection('faq')"
                                     >Preguntas frecuentes</a
                                 >
                             </li>
                             <li>
-                                <a href="#" class="mobile-menu-link"
+                                <a href="/#contact" class="mobile-menu-link" @click="smoothScrollToSection('contact')"
                                     >Contactanos</a
                                 >
                             </li>
@@ -248,11 +266,35 @@ const page = usePage();
 const mobileMenuOpen = ref(false);
 
 const isIndexPage = computed(() => {
-    return page.url === '/' || page.url === '/index';
+    return page.url === "/" || page.url === "/index";
 });
 
 const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
+};
+
+// Función para navegar con scroll suave
+const smoothScrollToSection = (sectionId) => {
+    // Cerrar menú móvil si está abierto
+    mobileMenuOpen.value = false;
+    
+    // Si estamos en la página de inicio, hacer scroll suave
+    if (isIndexPage.value) {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            // Calcular offset para el header fijo
+            const headerHeight = 120; // Altura aproximada del header
+            const elementPosition = element.offsetTop - headerHeight;
+            
+            window.scrollTo({
+                top: elementPosition,
+                behavior: 'smooth'
+            });
+        }
+    } else {
+        // Si no estamos en la página de inicio, navegar al home con el hash
+        window.location.href = `/#${sectionId}`;
+    }
 };
 
 // Cerrar menú móvil cuando se cambie a desktop
@@ -263,11 +305,25 @@ const handleResize = () => {
 };
 
 onMounted(() => {
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    
+    // Manejar scroll automático si hay hash en la URL
+    if (isIndexPage.value && window.location.hash) {
+        const sectionId = window.location.hash.substring(1);
+        setTimeout(() => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }, 100);
+    }
 });
 
 onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
+    window.removeEventListener("resize", handleResize);
 });
 </script>
 
@@ -292,7 +348,7 @@ onUnmounted(() => {
 /* Estilos específicos para páginas que no son index */
 .header-white {
     background: var(--colores-neutro-blanco, #ffffff);
-    margin: 30px 90px;
+    margin: 0 90px;
 }
 
 .header-white {

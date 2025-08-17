@@ -43,7 +43,7 @@
                     <transition name="accordion-slide">
                         <div v-if="detailsOpen" class="accordion-content">
                             <div class="name-field-row">
-                                <div class="field-container">
+                                <div class="field-container" style="flex: 2;">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
                                             Nombre del programa *
@@ -62,6 +62,29 @@
                                             class="text-red-500 text-sm mt-1"
                                         >
                                             {{ errors.name }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="field-container" style="flex: 1;">
+                                    <div class="field-wrapper">
+                                        <div class="nombre-del-programa">
+                                            Código del programa (4 dígitos)
+                                        </div>
+                                        <input
+                                            type="text"
+                                            v-model="formData.code"
+                                            maxlength="8"
+                                            placeholder="1234"
+                                            class="input-text"
+                                            :class="{
+                                                'border-red-500': errors.code,
+                                            }"
+                                        />
+                                        <span
+                                            v-if="errors.code"
+                                            class="text-red-500 text-sm mt-1"
+                                        >
+                                            {{ errors.code }}
                                         </span>
                                     </div>
                                 </div>
@@ -117,15 +140,18 @@
                                     <div class="descripcion-del-viaje">
                                         Descripción del viaje
                                     </div>
-                                    <textarea
-                                        v-model="formData.description"
-                                        placeholder="Escriba aqui las condiciones medicas que presenta el alumno, si no tiene no es obligatorio completar."
-                                        class="input-text2"
-                                        :class="{
-                                            'border-red-500':
-                                                errors.description,
-                                        }"
-                                    ></textarea>
+                                    <div
+                                        class="wysiwyg-wrapper"
+                                        :class="{ 'has-error': errors.description }"
+                                    >
+                                        <QuillEditor
+                                            v-model:content="formData.description"
+                                            contentType="html"
+                                            theme="snow"
+                                            :toolbar="editorToolbar"
+                                            placeholder="Escriba aquí la descripción del viaje."
+                                        />
+                                    </div>
                                     <span
                                         v-if="errors.description"
                                         class="text-red-500 text-sm mt-1"
@@ -311,6 +337,7 @@
                                             v-model="formData.pilar_1"
                                             placeholder="Aventura"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                     <div class="pillar-item">
@@ -320,6 +347,7 @@
                                             v-model="formData.pilar_2"
                                             placeholder="Entretenimiento"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                 </div>
@@ -331,6 +359,7 @@
                                             v-model="formData.pilar_3"
                                             placeholder="Educación"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                     <div class="pillar-item">
@@ -340,6 +369,7 @@
                                             v-model="formData.pilar_4"
                                             placeholder="Seguridad"
                                             class="input-text4"
+                                            disabled
                                         />
                                     </div>
                                 </div>
@@ -393,11 +423,15 @@
                                         Escribe una breve descripción del
                                         itinerario.
                                     </div>
-                                    <textarea
-                                        v-model="formData.itinerary"
-                                        placeholder="Escriba aqui la descripción del itinerario."
-                                        class="input-text5"
-                                    ></textarea>
+                                    <div class="wysiwyg-wrapper" :class="{ 'has-error': errors.itinerary }">
+                                        <QuillEditor
+                                            v-model:content="formData.itinerary"
+                                            contentType="html"
+                                            theme="snow"
+                                            :toolbar="editorToolbar"
+                                            placeholder="Escriba aquí la descripción del itinerario."
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             <div class="pdf-upload-grid">
@@ -765,20 +799,37 @@
                         </div>
                     </transition>
                 </div>
+
+                <!-- Botón activar/desactivar programa (solo edición) -->
+                <div v-if="mode === 'edit'" class="mt-4 w-full">
+                    <button
+                        type="button"
+                        @click="$emit('toggle-status')"
+                        :class="[
+                            'rounded-full py-3 px-6 text-white font-bold text-sm transition-colors duration-200 w-full',
+                            isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                        ]"
+                    >
+                        {{ isActive ? 'Desactivar Programa' : 'Activar Programa' }}
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import { ref, watch, defineEmits } from "vue";
+import { ref, watch, defineEmits, onMounted, nextTick } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
+import { QuillEditor } from "@vueup/vue-quill";
+import "@vueup/vue-quill/dist/vue-quill.snow.css";
 
 // Props
 const props = defineProps({
     modelValue: {
         type: Object,
         default: () => ({
+            code: "",
             name: "",
             destination: "",
             departure_date: "",
@@ -791,6 +842,7 @@ const props = defineProps({
             itinerary_file: null,
             coverage_file: null,
             equipment_file: null,
+            code: "",
         }),
     },
     mode: {
@@ -814,24 +866,13 @@ const props = defineProps({
             equipment_file: null,
         }),
     },
+    isActive: {
+        type: Boolean,
+        default: true,
+    }
 });
 
-// Debug para verificar props recibidos
-console.log('ProgramDescription props:', {
-    mode: props.mode,
-    existingImages: props.existingImages,
-    existingFiles: props.existingFiles,
-    modelValue: props.modelValue
-});
-
-// Debug adicional para archivos existentes
-if (props.mode === 'edit') {
-    console.log('Archivos existentes en modo edit:', {
-        itinerary_file: props.existingFiles?.itinerary_file,
-        coverage_file: props.existingFiles?.coverage_file,
-        equipment_file: props.existingFiles?.equipment_file
-    });
-}
+//
 
 // Emits
 const emit = defineEmits([
@@ -839,10 +880,20 @@ const emit = defineEmits([
     "update:images",
     "remove:existingImage",
     "remove:existingFile",
+    "toggle-status",
 ]);
 
 // Reactive data
 const formData = ref({ ...props.modelValue });
+const isSyncingFromProps = ref(false);
+const editorToolbar = [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    [{ align: [] }],
+    ["link"],
+    ["clean"],
+];
 
 // Estados para los acordeones
 const detailsOpen = ref(true); // Abierto por defecto
@@ -854,26 +905,60 @@ const selectedImages = ref([]);
 
 // Cargar imágenes existentes en modo edit
 if (props.mode === "edit" && props.existingImages.length > 0) {
-    console.log('Cargando imágenes existentes en ProgramDescription:', props.existingImages);
     selectedImages.value = props.existingImages.map((image, index) => ({
         id: `existing-${index}`,
-        file: null, // No hay archivo para imágenes existentes
-        url: image.url, // Usar la URL directamente
+        file: null,
+        url: image.url,
         name: image.name || `Imagen ${index + 1}`,
         isExisting: true,
-        originalId: image.id || null,
+        // Usar el índice original que provee el padre para que backend borre por índice correctamente
+        originalId: typeof image.originalId !== 'undefined' ? image.originalId : index,
     }));
-    console.log('Imágenes procesadas en ProgramDescription:', selectedImages.value);
 }
 
 // Watch para sincronizar con el padre
 watch(
     formData,
     (newValue) => {
+        if (isSyncingFromProps.value) return;
         emit("update:modelValue", newValue);
     },
     { deep: true }
 );
+
+// Sincronizar cambios desde el padre (especialmente en modo edit)
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        if (!newValue) return;
+        isSyncingFromProps.value = true;
+        // Mezclar manteniendo campos locales no relacionados
+        formData.value = {
+            ...formData.value,
+            ...newValue,
+        };
+        nextTick(() => { isSyncingFromProps.value = false; });
+    },
+    { deep: true, immediate: true }
+);
+
+// Prefijar pilares por defecto en modo creación si están vacíos
+onMounted(() => {
+    if (props.mode === 'create') {
+        const isEmpty = (v) => !v || v.toString().trim() === '';
+        if (
+            isEmpty(formData.value.pilar_1) &&
+            isEmpty(formData.value.pilar_2) &&
+            isEmpty(formData.value.pilar_3) &&
+            isEmpty(formData.value.pilar_4)
+        ) {
+            formData.value.pilar_1 = 'Aventura';
+            formData.value.pilar_2 = 'Entretenimiento';
+            formData.value.pilar_3 = 'Educación';
+            formData.value.pilar_4 = 'Seguridad';
+        }
+    }
+});
 
 watch(
     selectedImages,
@@ -904,11 +989,6 @@ const handleFileUpload = (type, event) => {
         }
 
         formData.value[`${type}_file`] = file;
-        console.log(
-            `Archivo ${type} seleccionado:`,
-            file.name,
-            `(${formatFileSize(file.size)})`
-        );
     } else {
         event.target.value = "";
     }
@@ -953,28 +1033,23 @@ const removeImage = (index) => {
     const imageToRemove = selectedImages.value[index];
 
     if (imageToRemove.isExisting) {
-        console.log(
-            `Marcando imagen existente para eliminar: ${imageToRemove.originalId}`
-        );
         // En modo edit, emitir evento para marcar imagen como eliminada
         emit("remove:existingImage", imageToRemove.originalId);
     }
 
     selectedImages.value.splice(index, 1);
-    emitImages();
-    console.log(`Imagen ${index + 1} eliminada`);
+    // Emitir imágenes actualizadas al padre
+    emit("update:images", selectedImages.value);
 };
 
 // Función para eliminar archivo existente
 const removeExistingFile = (fileType) => {
-    console.log(`Marcando archivo existente para eliminar: ${fileType}`);
     emit("remove:existingFile", fileType);
 };
 
 // Función para remover un archivo PDF seleccionado
 const removePdfFile = (fileType) => {
     formData.value[`${fileType}_file`] = null;
-    console.log(`Archivo ${fileType} eliminado`);
 };
 
 // Función para formatear el tamaño del archivo
@@ -1867,5 +1942,34 @@ const formatFileSize = (bytes) => {
 
 .remove-pdf-btn:hover {
     background-color: rgba(255, 0, 0, 0.1);
+}
+
+/* WYSIWYG (Quill) Styles */
+.wysiwyg-wrapper {
+    width: 100%;
+}
+
+.wysiwyg-wrapper :deep(.ql-toolbar.ql-snow) {
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-radius: 8px 8px 0 0;
+}
+
+.wysiwyg-wrapper :deep(.ql-container.ql-snow) {
+    border-color: var(--colores-neutro-gris-4, #5b5b5b);
+    border-radius: 0 0 8px 8px;
+    min-height: 134px;
+}
+
+.wysiwyg-wrapper :deep(.ql-editor) {
+    min-height: 100px;
+    color: var(--colores-op2-turquesa, #007e93);
+    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
+    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
+    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
+}
+
+.wysiwyg-wrapper.has-error :deep(.ql-toolbar.ql-snow),
+.wysiwyg-wrapper.has-error :deep(.ql-container.ql-snow) {
+    border-color: #ef4444;
 }
 </style>

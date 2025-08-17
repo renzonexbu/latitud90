@@ -11,9 +11,13 @@ class Payment extends Model
 
     protected $fillable = [
         'order_id',
+        'order_detail_id',
+        'payment_gateway_id',
+        'payment_option_id',
         'buy_order',
         'session_id',
         'token',
+        'external_payment_id',
         'authorization_code',
         'response_code',
         'vci',
@@ -24,8 +28,10 @@ class Payment extends Model
         'installments_number',
         'status',
         'gateway_response',
+        'raw_notification',
         'commerce_code',
         'amount',
+        'currency',
         'balance',
         'error_message'
     ];
@@ -33,7 +39,8 @@ class Payment extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'balance' => 'decimal:2',
-        'gateway_response' => 'json',
+        'gateway_response' => 'array',
+        'raw_notification' => 'array',
         'transaction_date' => 'datetime',
         'accounting_date' => 'datetime'
     ];
@@ -41,6 +48,21 @@ class Payment extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function orderDetail()
+    {
+        return $this->belongsTo(OrderDetail::class);
+    }
+
+    public function paymentGateway()
+    {
+        return $this->belongsTo(PaymentGateway::class);
+    }
+
+    public function paymentOption()
+    {
+        return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
     public function getIsCompletedAttribute()

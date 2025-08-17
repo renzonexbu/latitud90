@@ -11,33 +11,22 @@ class Order extends Model
 
     protected $fillable = [
         'participant_id',
-        'payment_method_id',
-        'payment_mode_id',
-        'payment_gateway_id',
-        'buyer_first_name',
-        'buyer_last_name',
-        'buyer_email',
-        'buyer_phone',
-        'buyer_document_type',
-        'buyer_document_number',
-        'billing_address',
-        'billing_city',
-        'billing_country',
-        'billing_postal_code',
-        'price',
+        'program_id',
+        'total_amount',
         'discount',
-        'total',
+        'final_amount',
+        'total_installments',
+        'payment_type',
         'status',
         'notes',
-        'paid_at',
-        'order_number'
+        'order_number',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'total_amount' => 'decimal:2',
         'discount' => 'decimal:2',
-        'total' => 'decimal:2',
-        'paid_at' => 'datetime'
+        'final_amount' => 'decimal:2',
+        'total_installments' => 'integer',
     ];
 
     public function participant()
@@ -45,43 +34,55 @@ class Order extends Model
         return $this->belongsTo(Participant::class);
     }
 
-    public function paymentMethod()
+    public function program()
     {
-        return $this->belongsTo(PaymentMethod::class);
+        return $this->belongsTo(Program::class);
     }
 
-    public function paymentMode()
+    public function orderDetails()
     {
-        return $this->belongsTo(PaymentMode::class);
+        return $this->hasMany(OrderDetail::class);
     }
 
-    public function paymentGateway()
+    /**
+     * Recalcula y persiste el estado de la orden en base al progreso de pago.
+     * Reglas:
+     * - payment_type === 'total': pagada si el único detalle está pagado; si no, pending
+     * - payment_type === 'monthly':
+     *   - 0 cuotas pagadas => pending
+     *   - 1..(n-1) cuotas pagadas => processing
+     *   - n cuotas pagadas => paid
+     */
+    public function refreshStatus(): void
     {
-        return $this->belongsTo(PaymentGateway::class);
-    }
+        $this->loadMissing('orderDetails');
 
-    public function payments()
-    {
-        return $this->hasMany(Payment::class);
-    }
+        // Sin detalles, mantener estado actual para evitar falsos positivos
+        if ($this->orderDetails->isEmpty()) {
+            return;
+        }
 
-    public function getBuyerFullNameAttribute()
-    {
-        return $this->buyer_first_name . ' ' . $this->buyer_last_name;
-    }
+        if ($this->payment_type === 'total') {
+            $allPaid = $this->orderDetails->every(function ($detail) {
+                return (bool) ($detail->is_paid ?? false);
+            });
+            $this->status = $allPaid ? 'paid' : 'pending';
+            $this->save();
+            return;
+        }
 
-    public function getIsPaidAttribute()
-    {
-        return $this->status === 'paid';
-    }
+        // Mensual
+        $paidCount = $this->orderDetails->where('is_paid', true)->count();
+        $totalInstallments = (int) ($this->total_installments ?? $this->orderDetails->count());
 
-    public function getIsPendingAttribute()
-    {
-        return $this->status === 'pending';
-    }
+        if ($paidCount <= 0) {
+            $this->status = 'pending';
+        } elseif ($paidCount < $totalInstallments) {
+            $this->status = 'processing';
+        } else {
+            $this->status = 'paid';
+        }
 
-    public function getIsCancelledAttribute()
-    {
-        return $this->status === 'cancelled';
+        $this->save();
     }
 } 

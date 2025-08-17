@@ -8,6 +8,7 @@ use App\Services\Admin\Institutions\CreateInstitutionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
+use App\Http\Requests\Admin\Institutions\CreateInstitutionRequest;
 
 class InstitutionsController extends Controller
 {
@@ -41,24 +42,10 @@ class InstitutionsController extends Controller
     /**
      * Store a newly created institution
      */
-    public function store(Request $request): JsonResponse
+    public function store(CreateInstitutionRequest $request): JsonResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:institutions,name',
-            'type' => 'required|string|in:school,university,other',
-            'address' => 'nullable|string|max:500',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'website' => 'nullable|url|max:255',
-        ], [
-            'name.required' => 'El nombre de la institución es obligatorio.',
-            'name.unique' => 'Ya existe una institución con ese nombre.',
-            'type.required' => 'El tipo de institución es obligatorio.',
-            'type.in' => 'El tipo de institución seleccionado no es válido.',
-        ]);
-
         try {
-            $institution = $this->createInstitutionService->execute($request->all());
+            $institution = $this->createInstitutionService->execute($request->validated());
             
             return response()->json([
                 'success' => true,

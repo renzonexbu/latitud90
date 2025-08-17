@@ -53,6 +53,11 @@ export default {
             type: Object,
             required: true,
         },
+        // Cuando es true, prioriza métricas por-participante si están presentes
+        preferParticipantMetrics: {
+            type: Boolean,
+            default: false,
+        },
     },
     data() {
         return {
@@ -73,16 +78,37 @@ export default {
 
             // Usar la paginación del backend si está disponible
             if (this.programs.data) {
-                return this.programs.data.map((program) => ({
-                    ...program,
-                    // Agregar campos calculados para compatibilidad con el card
-                    price: program.trip_price,
-                    duration: this.calculateDuration(program.departure_date),
-                    participants: 0, // Por ahora 0, se puede calcular después
-                    paymentPercentage: 0, // Por ahora 0, se puede calcular después
-                    paidAmount: 0, // Por ahora 0, se puede calcular después
-                    totalAmount: program.trip_price,
-                }));
+                return this.programs.data.map((program) => {
+                    if (this.preferParticipantMetrics) {
+                        const totalAmount = program.participant_total_due ?? program.totalAmount ?? program.trip_price ?? 0;
+                        const paidAmount = program.paidAmount ?? 0;
+                        const paymentPercentage = program.paymentPercentage ?? (
+                            totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0
+                        );
+                        return {
+                            ...program,
+                            price: totalAmount,
+                            duration: this.calculateDuration(program.departure_date),
+                            participants: 0,
+                            paymentPercentage,
+                            paidAmount,
+                            totalAmount,
+                        };
+                    }
+                    // Por defecto (Index de Programas): métricas agregadas del curso/programa completo
+                    const totalAmount = program.course_total_amount ?? program.trip_price ?? 0;
+                    const paidAmount = program.course_paid_amount ?? 0;
+                    const paymentPercentage = program.course_payment_percentage ?? 0;
+                    return {
+                        ...program,
+                        price: totalAmount,
+                        duration: this.calculateDuration(program.departure_date),
+                        participants: program.course?.participants?.length || 0,
+                        paymentPercentage,
+                        paidAmount,
+                        totalAmount,
+                    };
+                });
             }
 
             return [];

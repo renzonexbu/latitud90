@@ -17,8 +17,10 @@
                         v-model="paymentData" 
                         :errors="{ ...errors, ...localErrors }"
                         :institutions="localInstitutions"
+                        :sales-executives="localSalesExecutives"
                         :has-participants="false"
                         @create-institution="openCreateInstitutionModal"
+                        @create-executive="openCreateExecutiveModal"
                     />
                 </div>
 
@@ -46,6 +48,13 @@
             @close="closeCreateInstitutionModal"
             @institution-created="handleInstitutionCreated"
         />
+        <!-- Create Executive Modal -->
+        <CreateExecutiveModal 
+            :show="showCreateExecutiveModal" 
+            :errors="errors"
+            @close="closeCreateExecutiveModal"
+            @executive-created="handleExecutiveCreated"
+        />
     </AdminLayout>
 </template>
 
@@ -56,6 +65,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
 import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
+import CreateExecutiveModal from "@/Components/Sales/CreateExecutiveModal.vue";
 
 // Props
 const props = defineProps({
@@ -66,11 +76,16 @@ const props = defineProps({
     institutions: {
         type: Array,
         default: () => []
+    },
+    salesExecutives: {
+        type: Array,
+        default: () => []
     }
 });
 
 const form = useForm({
     // Campos del programa
+    code: "",
     name: "",
     destination: "",
     departure_date: "",
@@ -88,16 +103,18 @@ const form = useForm({
     total_price: "",
     final_payment_date: "",
     sales_person: "",
+    sales_executive_id: "",
     institution_name: "",
     institution_id: "",
     education_level: "",
-    shift: "",
-    grade: "",
+    course_number: "",
     students_file: null,
     group_benefit: "",
     discount_type: "",
     discount_amount: "",
-    payment_option: "", // "full_payment" o "installments"
+    payment_options: [], // Array para múltiples opciones de pago
+    full_payment_options: [],
+    lat90_payment_options: [],
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",
@@ -107,6 +124,7 @@ const form = useForm({
 
 // Datos del programa que se sincronizan con el componente
 const programData = ref({
+    code: "",
     name: "",
     destination: "",
     departure_date: "",
@@ -129,16 +147,16 @@ const paymentData = ref({
     institution_name: "",
     institution_id: "",
     education_level: "",
-    shift: "",
-    grade: "",
+    course_number: "",
     students_file: null,
     group_benefit: "",
     discount_type: "",
     discount_amount: "",
-    payment_option: "", // "full_payment" o "installments"
+    payment_options: [],
     full_payment_method: "",
     installments_payment_method: "",
     max_installments: "",
+    sales_executive_id: "",
 });
 
 // Estado para las imágenes
@@ -146,9 +164,12 @@ const selectedImages = ref([]);
 
 // Estado para el modal de creación de institución
 const showCreateInstitutionModal = ref(false);
+// Estado para el modal de creación de ejecutivo
+const showCreateExecutiveModal = ref(false);
 
 // Estado local para las instituciones (para poder modificarlas)
 const localInstitutions = ref([...props.institutions]);
+const localSalesExecutives = ref([...props.salesExecutives]);
 
 // Estado para errores de validación local
 const localErrors = ref({});
@@ -167,6 +188,8 @@ watch(programData, (newValue) => {
     Object.keys(newValue).forEach((key) => {
         form[key] = newValue[key];
     });
+    // Asegurar que el código quede sincronizado
+    form.code = newValue.code || form.code;
 }, { deep: true });
 
 // Watcher para sincronizar paymentData con el formulario
@@ -175,6 +198,21 @@ watch(paymentData, (newValue) => {
     Object.keys(newValue).forEach((key) => {
         form[key] = newValue[key];
     });
+    // Forzar sincronización del ejecutivo comercial
+    form.sales_executive_id = newValue.sales_executive_id || form.sales_executive_id;
+    // Forzar sincronización de institución (requerido en backend)
+    form.institution_id = newValue.institution_id || form.institution_id;
+    
+    // Debug: Log de los datos de pago que se están sincronizando
+    console.log('Datos de pago sincronizados:', {
+        payment_options: newValue.payment_options,
+        full_payment_method: newValue.full_payment_method,
+        installments_payment_method: newValue.installments_payment_method,
+        max_installments: newValue.max_installments
+    });
+    
+    // Debug: Verificar que payment_options se esté asignando correctamente
+    console.log('Form payment_options después de sincronizar:', form.payment_options);
 }, { deep: true });
 
 // Watcher específico para discount_type y discount_amount
@@ -377,6 +415,14 @@ const closeCreateInstitutionModal = () => {
     showCreateInstitutionModal.value = false;
 };
 
+const openCreateExecutiveModal = () => {
+    showCreateExecutiveModal.value = true;
+};
+
+const closeCreateExecutiveModal = () => {
+    showCreateExecutiveModal.value = false;
+};
+
 // Función para manejar la creación de una nueva institución
 const handleInstitutionCreated = (newInstitution) => {
     // Agregar la nueva institución a la lista local
@@ -387,6 +433,12 @@ const handleInstitutionCreated = (newInstitution) => {
     closeCreateInstitutionModal();
 };
 
+const handleExecutiveCreated = (newExecutive) => {
+    localSalesExecutives.value.push(newExecutive);
+    paymentData.value.sales_executive_id = newExecutive.id;
+    closeCreateExecutiveModal();
+};
+
 const submit = () => {
     // Validar el formulario
     if (!validateForm()) {
@@ -395,8 +447,22 @@ const submit = () => {
         return;
     }
 
+    // Debug: Log de los datos que se van a enviar
+    console.log('Datos que se van a enviar al backend:', {
+        payment_options: form.payment_options,
+        full_payment_options: form.full_payment_options,
+        lat90_payment_options: form.lat90_payment_options,
+        form_data: form.data()
+    });
+
     // Establecer created_by
     form.created_by = null; // Se establecerá en el backend con auth()->id()
+
+    // Pilares fijos siempre
+    form.pilar_1 = 'Aventura';
+    form.pilar_2 = 'Entretenimiento';
+    form.pilar_3 = 'Educación';
+    form.pilar_4 = 'Seguridad';
 
     form.post(route("admin.programs.store"));
 };

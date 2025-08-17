@@ -168,8 +168,7 @@ export default {
                 search: "",
                 institution: "",
                 level: "",
-                grade: "",
-                turno: "",
+                course_number: "",
                 year: "",
             },
         };
@@ -185,7 +184,7 @@ export default {
                 filtered = filtered.filter(course => 
                     course.institution?.name?.toLowerCase().includes(searchTerm) ||
                     course.education_level?.toLowerCase().includes(searchTerm) ||
-                    course.grade?.toString().includes(searchTerm)
+                    course.course_display?.toLowerCase().includes(searchTerm)
                 );
             }
             
@@ -203,17 +202,10 @@ export default {
                 );
             }
             
-            // Filtro por grado
-            if (this.localFilters.grade) {
+            // Filtro por curso (course_number)
+            if (this.localFilters.course_number) {
                 filtered = filtered.filter(course => 
-                    course.grade?.toString() === this.localFilters.grade
-                );
-            }
-            
-            // Filtro por turno
-            if (this.localFilters.turno) {
-                filtered = filtered.filter(course => 
-                    course.shift === this.localFilters.turno
+                    String(course.course_number || '') === String(this.localFilters.course_number)
                 );
             }
             
@@ -239,10 +231,13 @@ export default {
         },
     },
     mounted() {
-        console.log('Courses data:', this.courses);
-        console.log('Courses type:', typeof this.courses);
-        console.log('Courses length:', this.courses?.length);
-        console.log('Courses data property:', this.courses?.data);
+        // Abrir modal de creación si viene desde acceso rápido del header
+        try {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            const params = new URLSearchParams(search);
+            const shouldOpen = params.has('openCreate') && (params.get('openCreate') === '1' || params.get('openCreate') === 'true' || params.get('openCreate') === 'yes' || params.get('openCreate') === 'on' || params.get('openCreate') === '');
+            if (shouldOpen) this.$nextTick(() => this.openCreateModal());
+        } catch (_) {}
     },
 
     methods: {

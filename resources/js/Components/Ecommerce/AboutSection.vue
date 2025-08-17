@@ -1,5 +1,5 @@
 <template>
-    <div class="about-section">
+    <div class="about-section" id="about">
         <div class="frame-1000006116">
             <!-- Columna izquierda -->
             <div class="frame-1000006115">
