@@ -11,6 +11,7 @@ use App\Models\Requirement;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\InstallmentPlan;
 use Illuminate\Support\Facades\DB;
 
 class ProgramDetailService
@@ -64,38 +65,35 @@ class ProgramDetailService
             }
         }
 
-        // Buscar orden mensual existente y preparar próxima cuota si ya hay pagos confirmados
+        // Buscar plan de cuotas activo usando la nueva arquitectura
         $activeInstallment = null;
         $paymentPlanLocked = false;
         if ($participant) {
-            $order = Order::where('participant_id', $participant->id)
+            $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
                 ->where('program_id', $program->id)
-                ->where('payment_type', 'monthly')
-                ->latest('id')
+                ->where('status', 'active')
                 ->first();
-            if ($order) {
-                // Bloquear la selección sólo si alguna cuota ya fue pagada
-                $paymentPlanLocked = $order->orderDetails()->where('is_paid', true)->exists();
+                
+            if ($installmentPlan) {
+                // Verificar si hay cuotas pagadas
+                $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
+                $paymentPlanLocked = $paidInstallments > 0;
+                
                 if ($paymentPlanLocked) {
-                $today = now()->startOfDay();
-                $overdueUnpaid = $order->orderDetails()
-                    ->where('is_paid', false)
-                    ->whereDate('due_date', '<', $today)
-                    ->get();
-                $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
-                $next = $order->orderDetails()
-                    ->where('is_paid', false)
-                    ->orderBy('due_date')
-                    ->first();
-                if ($next) {
-                    // Mostrar solo el monto de la próxima cuota
-                    $activeInstallment = [
-                        'number' => (int) $next->installment_number,
-                        'total' => (int) $order->total_installments,
-                        'amount' => round(((float) $next->amount), 2),
-                        'due_date' => optional($next->due_date)->toDateString(),
-                    ];
-                }
+                    // Obtener la próxima cuota pendiente
+                    $nextInstallment = $installmentPlan->installments()
+                        ->where('status', 'pending')
+                        ->orderBy('due_date')
+                        ->first();
+                        
+                    if ($nextInstallment) {
+                        $activeInstallment = [
+                            'number' => (int) $nextInstallment->installment_number,
+                            'total' => (int) $installmentPlan->total_installments,
+                            'amount' => round(((float) $nextInstallment->amount), 2),
+                            'due_date' => optional($nextInstallment->due_date)->toDateString(),
+                        ];
+                    }
                 }
             }
         }

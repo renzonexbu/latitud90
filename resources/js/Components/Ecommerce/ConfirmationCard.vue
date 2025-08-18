@@ -130,12 +130,18 @@
                     <div class="mt-2 text-sm text-red-700">
                         <p>{{ errorMessage }}</p>
                     </div>
-                    <div class="mt-4">
+                    <div class="mt-4 flex gap-2">
                         <button
                             @click="errorMessage = null"
                             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                         >
                             Cerrar
+                        </button>
+                        <button
+                            @click="reloadPage"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                        >
+                            Recargar página
                         </button>
                     </div>
                 </div>
@@ -380,17 +386,64 @@ export default {
 
                 console.log("Enviando datos de pago:", requestData);
 
+                // Obtener el token CSRF de múltiples formas
+                let csrfToken = null;
+                
+                // Método 1: Desde meta tag
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    csrfToken = metaTag.getAttribute('content');
+                }
+                
+                // Método 2: Desde Inertia (si está disponible)
+                if (!csrfToken && window.Inertia) {
+                    csrfToken = window.Inertia.page.props._csrf;
+                }
+                
+                // Método 2.1: Desde Inertia usando router
+                if (!csrfToken && window.Inertia) {
+                    csrfToken = window.Inertia.page.props._csrf;
+                }
+                
+                // Método 3: Desde el DOM (Laravel genera un input hidden)
+                if (!csrfToken) {
+                    const csrfInput = document.querySelector('input[name="_token"]');
+                    if (csrfInput) {
+                        csrfToken = csrfInput.value;
+                    }
+                }
+                
+                console.log('CSRF Token obtenido:', csrfToken ? 'SÍ' : 'NO');
+                
                 // Hacer la llamada al backend
                 const response = await fetch('/process-payment', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'Accept': 'application/json',
+                        ...(csrfToken && { 'X-CSRF-TOKEN': csrfToken })
                     },
                     body: JSON.stringify(requestData)
                 });
 
-                const result = await response.json();
+                // Verificar si hay error de CSRF
+                if (response.status === 419) {
+                    console.error("Error CSRF: Token expirado o inválido");
+                    this.isProcessing = false;
+                    this.errorMessage = "Error de seguridad. Por favor, recarga la página e intenta nuevamente.";
+                    return;
+                }
+                
+                // Verificar si la respuesta es JSON válido
+                let result;
+                try {
+                    result = await response.json();
+                } catch (error) {
+                    console.error("Error parsing JSON response:", error);
+                    this.isProcessing = false;
+                    this.errorMessage = "Error en la respuesta del servidor. Por favor, intenta nuevamente.";
+                    return;
+                }
 
                 if (result.success) {
                     console.log("Pago procesado exitosamente:", result);
@@ -447,6 +500,10 @@ export default {
                 // Si no hay RUT, ir a la página principal de programas
                 router.visit("/programs");
             }
+        },
+        reloadPage() {
+            // Recargar la página para obtener un nuevo token CSRF
+            window.location.reload();
         },
     },
 };

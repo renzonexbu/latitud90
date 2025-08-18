@@ -7,6 +7,7 @@ use App\Http\Controllers\Pdf\ContractPreviewController;
 
 // Preview de contrato en PDF (solo desarrollo)
 Route::get('/contract/preview', [ContractPreviewController::class, 'show'])->name('contract.preview');
+Route::get('/payment/preview', [ContractPreviewController::class, 'paymentShow'])->name('payment.preview');
 /*
 |--------------------------------------------------------------------------
 | Web Routes

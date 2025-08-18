@@ -254,12 +254,11 @@ export default {
             this.loadPaymentDataFromLocalStorage();
             this.$nextTick(() => this.reconcileSelection());
         } else {
-            // Estado base por defecto: mensual con mínima cuota permitida si está habilitado
-            if (this.program.enable_lat90_payment && !this.paymentType) {
+            // Si hay cuota activa, configurar automáticamente para esa cuota
+            if (this.program.active_installment && this.program.payment_plan_locked) {
                 this.paymentType = 'monthly';
                 this.accordionOpen = 'monthly';
-                const allowedInst = this.getAvailableInstallments();
-                this.selectedInstallments = allowedInst.length > 0 ? allowedInst[0] : 1;
+                this.selectedInstallments = this.program.active_installment.total;
                 const availableOptions = this.getMonthlyPaymentOptions();
                 if (availableOptions.length > 0) {
                     this.monthlyPaymentOption = availableOptions[0].value;
@@ -267,6 +266,21 @@ export default {
                 this.savePaymentDataToLocalStorage();
                 this.emitSelection();
                 this.$nextTick(() => this.reconcileSelection());
+            } else {
+                // Estado base por defecto: mensual con mínima cuota permitida si está habilitado
+                if (this.program.enable_lat90_payment && !this.paymentType) {
+                    this.paymentType = 'monthly';
+                    this.accordionOpen = 'monthly';
+                    const allowedInst = this.getAvailableInstallments();
+                    this.selectedInstallments = allowedInst.length > 0 ? allowedInst[0] : 1;
+                    const availableOptions = this.getMonthlyPaymentOptions();
+                    if (availableOptions.length > 0) {
+                        this.monthlyPaymentOption = availableOptions[0].value;
+                    }
+                    this.savePaymentDataToLocalStorage();
+                    this.emitSelection();
+                    this.$nextTick(() => this.reconcileSelection());
+                }
             }
         }
     },

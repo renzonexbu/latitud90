@@ -51,7 +51,7 @@
                             :is-confirmation="true"
                             :show-header="false"
                             :show-warning="true"
-                            :show-remaining-amount="!confirmationData.program.active_installment"
+                            :show-remaining-amount="false"
                             :show-payment-button="false"
                             @terms-accepted-updated="handleTermsAcceptedUpdate"
                             @payment-selection-updated="handlePaymentSelection"

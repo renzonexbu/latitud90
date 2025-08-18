@@ -42,6 +42,33 @@ class ContractPreviewController extends Controller
 		$pdf = PDF::loadView('PDF.contract', $data)->setPaper('A4', 'portrait');
 		return $pdf->stream('contrato-preview.pdf', ['Attachment' => false]);
 	}
+
+	public function paymentShow(Request $request)
+	{
+		// Datos específicos para el recibo de anticipo
+		$data = [
+			'folio' => $request->query('folio', '2928'),
+			'empresa_direccion' => 'Carlos Antúnez 1941, Providencia',
+			'empresa_region' => 'Región Metropolitana',
+			'empresa_telefono' => '+56 9 7909 1738',
+			'empresa_sitio' => 'www.latitud90.com',
+			'apoderado_nombre' => $request->query('apoderado_nombre', 'Rene Araya'),
+			'alumno_nombre' => $request->query('alumno_nombre', 'Araya Bisquett Laura Macarena'),
+			'alumno_rut' => $request->query('alumno_rut', '22.947.415-4'),
+			'monto' => $request->query('monto', '100.000'),
+			'monto_abono' => $request->query('monto_abono', '100.000'),
+			'fecha' => $request->query('fecha', '01 de mayo, 2025'),
+			'fecha_abono' => $request->query('fecha_abono', '01-05-2025'),
+			'destino' => $request->query('destino', 'San Pedro de Atacama'),
+			'fecha_programa' => $request->query('fecha_programa', 'Noviembre, 2026'),
+			'valor_programa' => $request->query('valor_programa', '1.419.000'),
+			'saldo_abonado' => $request->query('saldo_abonado', '100.000'),
+			'prestador_nombre_firma' => $request->query('prestador_nombre_firma', 'Experiencias Educativas y Capacitaciones'),
+			'firmante_nombre' => $request->query('firmante_nombre', 'Carmen Gutiérrez M'),
+			'firmante_cargo' => $request->query('firmante_cargo', 'Área de recaudación'),
+		];
+
+		$pdf = PDF::loadView('PDF.payment', $data)->setPaper('A4', 'portrait');
+		return $pdf->stream('anticipo-preview.pdf', ['Attachment' => false]);
+	}
 }
-
-

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Client\PaymentGateway\HandleNotificationService;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\Installment;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use Illuminate\Http\Request;
@@ -81,6 +82,12 @@ class PaymentGatewayController extends Controller
                 'transaction_id' => $token,
                 'gateway_response' => $confirmation,
             ]);
+            
+            // Si el pago fue aprobado y es una cuota, marcarla como pagada
+            if ($approved && $orderDetail->installment_number >= 1) {
+                $this->markInstallmentAsPaid($orderDetail);
+            }
+            
             // Recalcular estado de la orden
             if ($orderDetail->order) {
                 $orderDetail->order->refreshStatus();
@@ -259,6 +266,12 @@ class PaymentGatewayController extends Controller
                         'transaction_id' => $paymentId,
                         'gateway_response' => $status['data'] ?? $status,
                     ]);
+                    
+                    // Si el pago fue aprobado y es una cuota, marcarla como pagada
+                    if ($approved && $orderDetail->installment_number >= 1) {
+                        $this->markInstallmentAsPaid($orderDetail);
+                    }
+                    
                     // Recalcular estado de la orden
                     if ($orderDetail->order) {
                         $orderDetail->order->refreshStatus();
@@ -438,5 +451,49 @@ class PaymentGatewayController extends Controller
         ];
 
         return $methods[$methodId] ?? 'unknown';
+    }
+
+    /**
+     * Marcar una cuota como pagada cuando se confirma el pago
+     */
+    private function markInstallmentAsPaid(OrderDetail $orderDetail)
+    {
+        try {
+            // Buscar la cuota correspondiente usando el installment_number
+            $installment = Installment::where('installment_number', $orderDetail->installment_number)
+                ->whereHas('installmentPlan', function($query) use ($orderDetail) {
+                    $query->where('participant_id', $orderDetail->order->participant_id)
+                          ->where('program_id', $orderDetail->order->program_id);
+                })
+                ->first();
+
+            if ($installment) {
+                $installment->markAsPaid(
+                    $orderDetail->order_id,
+                    $orderDetail->id,
+                    $orderDetail->payments()->latest()->first()->id
+                );
+
+                Log::info('Installment marked as paid after payment confirmation', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'order_id' => $orderDetail->order_id,
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $orderDetail->payments()->latest()->first()->id
+                ]);
+            } else {
+                Log::warning('Installment not found for marking as paid', [
+                    'installment_number' => $orderDetail->installment_number,
+                    'participant_id' => $orderDetail->order->participant_id,
+                    'program_id' => $orderDetail->order->program_id
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error marking installment as paid', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+                'installment_number' => $orderDetail->installment_number
+            ]);
+        }
     }
 }

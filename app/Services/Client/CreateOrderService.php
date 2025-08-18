@@ -59,6 +59,10 @@ class CreateOrderService
                         ->where('amount', '>', 0)
                         ->orderBy('due_date')
                         ->first();
+                    
+                    // SIEMPRE actualizar los datos del comprador y método de pago en la cuota existente
+                    $this->updateExistingOrderDetail($nextPayable, $paymentData, $formData);
+                    
                     return [
                         'success' => true,
                         'order' => $existing,
@@ -343,6 +347,78 @@ class CreateOrderService
             'due_date' => $dueDate ?? now(),
             'is_paid' => false,
             'status' => 'pending',
+        ]);
+    }
+
+    private function updateExistingOrderDetail(OrderDetail $orderDetail, array $paymentData, array $formData)
+    {
+        // Determinar payment_option_id según el nuevo esquema
+        $paymentOptionId = $this->resolvePaymentOptionId((int) $orderDetail->order->program_id, $paymentData);
+
+        // Mapear las claves del frontend (camelCase) a las claves del backend (snake_case)
+        // Preferir buyerData si viene anidado (por compatibilidad futura)
+        if (isset($formData['buyerData']) && is_array($formData['buyerData'])) {
+            $formData = array_merge($formData, $formData['buyerData']);
+        }
+
+        $mappedFormData = [
+            'name' => $formData['name'] ?? ($formData['fullName'] ?? null),
+            'email' => $formData['email'] ?? null,
+            // IDs para persistencia
+            'country' => $formData['countryId'] ?? ($formData['country'] ?? null),
+            'region' => $formData['regionId'] ?? ($formData['region'] ?? null),
+            'city' => $formData['cityId'] ?? ($formData['city'] ?? null),
+            'code_phone' => $formData['code_phone'] ?? null,
+            'phone' => $formData['phone'] ?? null,
+            'document_type' => $formData['documentType'] ?? null,
+            'document_number' => $formData['documentNumber'] ?? null,
+            'terms_accepted' => $formData['termsAccepted'] ?? false,
+            'marketing_accepted' => $formData['marketingAccepted'] ?? false,
+            // Nombres para facturación
+            'country_name' => $formData['countryName'] ?? null,
+            'region_name' => $formData['regionName'] ?? null,
+            'city_name' => $formData['cityName'] ?? null,
+        ];
+
+        // Normalizar IDs (acepta id, código, o nombre)
+        $countryId = $this->resolveCountryId($mappedFormData['country'] ?? null);
+        $regionId = $this->resolveRegionId($mappedFormData['region'] ?? null);
+        $cityId = $this->resolveCityId($mappedFormData['city'] ?? null);
+        $documentTypeId = $this->resolveDocumentTypeId($mappedFormData['document_type'] ?? null);
+
+        $orderDetail->update([
+            'payment_option_id' => $paymentOptionId,
+            
+            // Datos del comprador
+            'name' => $mappedFormData['name'],
+            'email' => $mappedFormData['email'],
+            'country' => $countryId,
+            'region' => $regionId,
+            'city' => $cityId,
+            'code_phone' => $mappedFormData['code_phone'],
+            'phone' => $mappedFormData['phone'],
+            'document_type' => $documentTypeId,
+            'document_number' => $mappedFormData['document_number'],
+            
+            // Dirección de facturación (por ahora usando los mismos datos)
+            'billing_address' => $formData['billing_address'] ?? null,
+            'billing_city' => $mappedFormData['city_name'] ?? $mappedFormData['city'],
+            'billing_country' => $mappedFormData['country_name'] ?? $mappedFormData['country'],
+            'billing_postal_code' => $formData['billing_postal_code'] ?? null,
+            
+            // Acuerdos
+            'terms_accepted' => $mappedFormData['terms_accepted'],
+            'marketing_accepted' => $mappedFormData['marketing_accepted'],
+            'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
+        ]);
+        
+        Log::info('Existing OrderDetail updated with new buyer data and payment method', [
+            'order_detail_id' => $orderDetail->id,
+            'installment_number' => $orderDetail->installment_number,
+            'payment_option_id' => $paymentOptionId,
+            'buyer_name' => $mappedFormData['name'],
+            'buyer_email' => $mappedFormData['email'],
+            'payment_method' => $paymentData['paymentMethod'] ?? 'unknown'
         ]);
     }
 

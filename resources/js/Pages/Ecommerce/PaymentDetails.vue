@@ -805,8 +805,9 @@ export default {
             this.formData.code_phone = clientData.phone_code;
             this.formData.country = clientData.country_id;
             this.formData.region = clientData.region_id;
-            this.formData.termsAccepted = clientData.terms_accepted;
-            this.formData.marketingAccepted = clientData.marketing_accepted;
+            // NO autocompletar los checkboxes - el usuario debe seleccionarlos manualmente
+            // this.formData.termsAccepted = clientData.terms_accepted;
+            // this.formData.marketingAccepted = clientData.marketing_accepted;
 
             // Para la comuna, esperar a que se carguen las comunas después de establecer la región
             this.$nextTick(() => {
