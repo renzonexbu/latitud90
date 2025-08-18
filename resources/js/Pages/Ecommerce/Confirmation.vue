@@ -6,7 +6,7 @@
         <!-- Main Content -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Error Alert -->
-            <div v-if="$page.props.flash.error" class="mb-6">
+            <div v-if="showPaymentError" class="mb-6">
                 <div class="bg-red-50 border border-red-200 rounded-md p-4">
                     <div class="flex">
                         <div class="flex-shrink-0">
@@ -16,18 +16,44 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-red-800">
-                                Error en el pago
+                                {{ paymentErrorTitle }}
                             </h3>
                             <div class="mt-2 text-sm text-red-700">
-                                <p>{{ $page.props.flash.error }}</p>
+                                <p>{{ paymentErrorMessage }}</p>
                             </div>
-                            <div class="mt-4">
-                                <button
-                                    @click="retryPayment"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                >
-                                    Intentar nuevamente
-                                </button>
+                            <div v-if="showSuggestions" class="mt-4 space-y-2">
+                                <p class="text-xs text-red-600">
+                                    <strong>Sugerencias:</strong>
+                                    <ul class="mt-1 ml-4 list-disc">
+                                        <li>Verifica que los datos de tu tarjeta sean correctos</li>
+                                        <li>Confirma que tienes fondos suficientes</li>
+                                        <li>Intenta con otra tarjeta o método de pago</li>
+                                        <li>Contacta a tu banco si el problema persiste</li>
+                                    </ul>
+                                </p>
+                            </div>
+                            
+                            <div v-if="showActionButtons" class="mt-4">
+                                <div class="flex flex-col sm:flex-row gap-2">
+                                    <button
+                                        @click="retryPayment"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    >
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        Intentar con otro método de pago
+                                    </button>
+                                    <button
+                                        @click="goToHome"
+                                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                    >
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                                        </svg>
+                                        Volver al inicio
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -126,9 +152,55 @@ export default {
         },
     },
 
+    computed: {
+        showPaymentError() {
+            return this.$page.props.flash.error || this.paymentErrorStatus;
+        },
+        
+        paymentErrorTitle() {
+            if (this.paymentErrorStatus === 'rejected') {
+                return 'Pago Rechazado';
+            } else if (this.paymentErrorStatus === 'canceled') {
+                return 'Pago Cancelado';
+            } else if (this.paymentErrorStatus === 'error') {
+                return 'Ha Ocurrido un Error';
+            }
+            return 'Error en el Pago';
+        },
+        
+        paymentErrorMessage() {
+            if (this.paymentErrorStatus === 'rejected') {
+                return 'Tu pago fue rechazado por el banco o la pasarela de pago.';
+            } else if (this.paymentErrorStatus === 'canceled') {
+                return 'El pago fue cancelado.';
+            } else if (this.paymentErrorStatus === 'error') {
+                return 'Ha ocurrido un error durante el procesamiento del pago.';
+            }
+            return this.$page.props.flash.error || 'El pago no pudo ser procesado correctamente.';
+        },
+        
+                     showSuggestions() {
+                 return false; // No mostrar sugerencias para ningún tipo de error
+             },
+             
+             showActionButtons() {
+                 return false; // No mostrar botones de acción para ningún tipo de error
+             }
+    },
+
+    data() {
+        return {
+            paymentErrorStatus: null,
+            paymentErrorMessage: null
+        };
+    },
+
     mounted() {
         // Auto-scroll to top
         window.scrollTo(0, 0);
+        
+        // Verificar si hay parámetros de error en la URL
+        this.checkPaymentError();
     },
     methods: {
         formatDueDate(dateStr) {
@@ -155,12 +227,36 @@ export default {
                 }
             }
         },
+        checkPaymentError() {
+            // Obtener parámetros de la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status');
+            const message = urlParams.get('message');
+            
+            if (status) {
+                this.paymentErrorStatus = status;
+                if (message) {
+                    this.paymentErrorMessage = decodeURIComponent(message);
+                }
+                
+                // Limpiar la URL para evitar mostrar el error en recargas
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('status');
+                newUrl.searchParams.delete('message');
+                window.history.replaceState({}, '', newUrl);
+            }
+        },
+        
         retryPayment() {
-            // Simular un nuevo intento de pago
-            // Esto podría redirigir al usuario a procesar el pago nuevamente
-            console.log('Reintentando pago...');
-            // Por ahora, solo recargar la página
-            window.location.reload();
+            // Redirigir a la página de pago para intentar nuevamente
+            const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&rut=${this.rut}`;
+            window.location.href = paymentUrl;
+        },
+        
+        goToHome() {
+            // Redirigir al inicio
+            const homeUrl = this.rut ? `/?rut=${encodeURIComponent(this.rut)}` : '/';
+            window.location.href = homeUrl;
         },
     },
 };

@@ -5,29 +5,25 @@
     <meta charset="utf-8" />
     <title>Contrato de Reserva de Programa Educativo</title>
     @php
-        $cgRegularPath = resource_path('fonts/CenturyGothic.ttf');
-        $cgBoldPath = resource_path('fonts/CenturyGothic-Bold.ttf');
+        $cgRegularPath = resource_path(config('lat90.pdf.fonts.regular'));
+        $cgBoldPath = resource_path(config('lat90.pdf.fonts.bold'));
         $cgReg = file_exists($cgRegularPath) ? base64_encode(file_get_contents($cgRegularPath)) : null;
         $cgBold = file_exists($cgBoldPath) ? base64_encode(file_get_contents($cgBoldPath)) : null;
     @endphp
     <style>
-        @if (!empty($cgReg))
-            @font-face {
-                font-family: 'CenturyGothic';
-                src: url('data:font/ttf;base64,{{ $cgReg }}') format('truetype');
-                font-weight: normal;
-                font-style: normal;
-            }
-        @endif
+        @font-face {
+            font-family: 'CenturyGothic';
+            src: url('data:font/ttf;base64,{{ $cgReg }}') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
 
-        @if (!empty($cgBold))
-            @font-face {
-                font-family: 'CenturyGothic';
-                src: url('data:font/ttf;base64,{{ $cgBold }}') format('truetype');
-                font-weight: bold;
-                font-style: normal;
-            }
-        @endif
+        @font-face {
+            font-family: 'CenturyGothic';
+            src: url('data:font/ttf;base64,{{ $cgBold }}') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
 
         @page {
             margin: 60px 3cm 80px 3cm;
@@ -106,10 +102,10 @@
 
 <body>
     @php
-        $imgLogoLat = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/logo_lat90.png')));
-        $imgDivider = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/page_divider.png')));
-        $imgLogoFooter = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/logo_footer.png')));
-        $imgFirma = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/firma.png')));
+        $imgLogoLat = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.header'))));
+        $imgDivider = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.divider'))));
+        $imgLogoFooter = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.footer'))));
+        $imgFirma = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.signature'))));
     @endphp
     <header></header>
 
@@ -151,15 +147,14 @@
                 por concepto de abono a contrato de reserva del programa educativo, folio:
                 {{ $folio ?? '2959-22947415' }} de
                 fecha; {{ $fecha ?? '01 de mayo, 2025' }} para alumno (a) {{ $alumno_nombre ?? 'María Pérez' }},
-                cédula
-                nacional de identidad Nro. {{ $alumno_rut ?? '22.947.415-4' }}
+                {{ $document_type ?? 'cédula nacional de identidad Nro.' }} {{ $alumno_rut ?? '22.947.415-4' }}
             </p>
         </div>
 
         <div class="section">
             <h2
                 style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; text-align: center; text-decoration: underline; text-transform: none; margin-bottom: 30px; color: #222;">
-                ESTADO de cuenta</h2>
+                Estado de cuenta</h2>
             <p style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; color: #222;">Valor
                 programa
                 educativo, según cotización: ${{ $valor_programa ?? '1.419.000' }}</p>

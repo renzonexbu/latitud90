@@ -91,8 +91,7 @@ class TransbankService
                     break;
                 }
             }
-
-            return [
+            $response = [
                 'success' => $isSuccessful,
                 'response_code' => $isSuccessful ? 0 : -1,
                 'authorization_code' => $firstDetail ? $firstDetail->getAuthorizationCode() : null,
@@ -124,6 +123,10 @@ class TransbankService
                     'vci' => $commit->getVci(),
                 ],
             ];
+            Log::info('TransbankService: confirmTransaction response', [
+                'response' => $response
+            ]);
+            return $response;
         } catch (MallTransactionCommitException $e) {
             return [
                 'success' => false,

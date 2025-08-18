@@ -327,9 +327,9 @@ class ProcessPaymentController extends Controller
             'order_id' => $orderId
         ]);
 
-        // URLs de retorno
-        $transbankCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id]);
-        $khipuCallbackUrl = route('khipu.callback', ['orderDetailId' => $orderDetail->id]);
+        // URLs de retorno con parámetro gateway explícito
+        $transbankCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'transbank']);
+        $khipuCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'khipu']);
         $failureUrl = route('payment.failure', ['orderDetailId' => $orderDetail->id]);
 
         $method = (string) ($paymentData['paymentMethod'] ?? '');
@@ -369,7 +369,20 @@ class ProcessPaymentController extends Controller
                 );
 
             case 'khipu':
-                return $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, null);
+                // Para Khipu, necesitamos crear la transacción primero para obtener el payment_id
+                $khipuResult = $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, null);
+                
+                if ($khipuResult['success']) {
+                    // Agregar el payment_id a la URL de retorno
+                    $paymentId = $khipuResult['payment_id'] ?? null;
+                    if ($paymentId) {
+                        $khipuCallbackUrlWithPaymentId = $khipuCallbackUrl . '&payment_id=' . urlencode($paymentId);
+                        // Actualizar el resultado con la URL corregida
+                        $khipuResult['return_url'] = $khipuCallbackUrlWithPaymentId;
+                    }
+                }
+                
+                return $khipuResult;
 
             default:
                 return [
@@ -551,19 +564,19 @@ class ProcessPaymentController extends Controller
         return $id ? (int) $id : null;
     }
 
-    // Mantener métodos existentes para compatibilidad
+    // Métodos deprecados - redirigir al nuevo controlador
     public function paymentSuccess($orderDetailId)
     {
-        // Implementar lógica de éxito de pago
+        return redirect()->route('payment.success', $orderDetailId);
     }
 
     public function paymentFailure($orderDetailId)
     {
-        // Implementar lógica de fallo de pago
+        return redirect()->route('payment.failure', $orderDetailId);
     }
 
     public function confirmKhipu(Request $request)
     {
-        // Implementar confirmación de Khipu
+        return redirect()->route('payment.confirm');
     }
 }

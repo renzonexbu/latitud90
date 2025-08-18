@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 class Installment extends Model
 {
@@ -71,12 +72,27 @@ class Installment extends Model
 
     public function markAsPaid(int $orderId, int $orderDetailId, int $paymentId): void
     {
+        Log::info('Installment: markAsPaid called', [
+            'installment_id' => $this->id,
+            'installment_number' => $this->installment_number,
+            'current_status' => $this->status,
+            'order_id' => $orderId,
+            'order_detail_id' => $orderDetailId,
+            'payment_id' => $paymentId,
+        ]);
+
         $this->update([
             'status' => 'paid',
             'paid_at' => now(),
             'payment_order_id' => $orderId,
             'payment_order_detail_id' => $orderDetailId,
             'payment_id' => $paymentId,
+        ]);
+
+        Log::info('Installment: markAsPaid completed', [
+            'installment_id' => $this->id,
+            'new_status' => $this->status,
+            'paid_at' => $this->paid_at,
         ]);
     }
 }

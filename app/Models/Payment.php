@@ -33,7 +33,8 @@ class Payment extends Model
         'amount',
         'currency',
         'balance',
-        'error_message'
+        'error_message',
+        'email_sent'
     ];
 
     protected $casts = [
@@ -43,7 +44,8 @@ class Payment extends Model
         'raw_notification' => 'array',
         'transaction_date' => 'datetime',
         'accounting_date' => 'datetime',
-        'installments_number' => 'integer'
+        'installments_number' => 'integer',
+        'email_sent' => 'boolean'
     ];
 
     public function order()

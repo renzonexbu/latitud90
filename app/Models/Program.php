@@ -213,15 +213,6 @@ class Program extends Model
         $relativePath = str_replace('public/', '', $this->images_folder);
         $path = storage_path('app/public/' . $relativePath);
         
-        Log::info('Buscando imágenes en ruta', [
-            'program_id' => $this->id,
-            'images_folder' => $this->images_folder,
-            'relative_path' => $relativePath,
-            'full_path' => $path,
-            'path_exists' => is_dir($path),
-            'storage_path' => storage_path('app/public'),
-            'public_path' => public_path()
-        ]);
         
         if (!is_dir($path)) {
             Log::warning('La carpeta de imágenes no existe', [
@@ -232,11 +223,6 @@ class Program extends Model
         }
 
         $files = glob($path . '/*');
-        Log::info('Archivos encontrados en la carpeta', [
-            'program_id' => $this->id,
-            'files_count' => count($files),
-            'files' => $files
-        ]);
         
         $images = [];
         
@@ -248,13 +234,6 @@ class Program extends Model
                 'path' => $relativePath . '/' . $filename
             ];
         }
-
-        Log::info('Imágenes procesadas', [
-            'program_id' => $this->id,
-            'images_count' => count($images),
-            'images' => $images
-        ]);
-
         return $images;
     }
 }
