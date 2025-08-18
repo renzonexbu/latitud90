@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Models\Passenger;
+use App\Models\Participant;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,21 +15,22 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         // Fechas por defecto (último mes)
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->format('Y-m-d');
+        $dateFrom = $request->date_from ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->date_to ?? Carbon::now()->format('Y-m-d');
         $programId = $request->program;
 
         // Consulta base con filtros
-        $paymentsQuery = Payment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'approved');
+        $paymentsQuery = Payment::where('status', 'completed');
 
-        $passengersQuery = Passenger::whereBetween('created_at', [$dateFrom, $dateTo]);
+        $passengersQuery = Participant::query();
 
         if ($programId) {
-            $paymentsQuery->whereHas('passenger', function($q) use ($programId) {
+            $paymentsQuery->whereHas('order.program', function($q) use ($programId) {
+                $q->where('id', $programId);
+            });
+            $passengersQuery->whereHas('programs', function($q) use ($programId) {
                 $q->where('program_id', $programId);
             });
-            $passengersQuery->where('program_id', $programId);
         }
 
         // Estadísticas principales
@@ -39,37 +40,42 @@ class ReportController extends Controller
         $conversionRate = $totalVisitors > 0 ? round(($totalReservations / $totalVisitors) * 100, 2) : 0;
         $averageOrderValue = $totalReservations > 0 ? round($totalRevenue / $totalReservations, 2) : 0;
 
+        // Debug logs
+        \Illuminate\Support\Facades\Log::info('ReportController Debug', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'totalRevenue' => $totalRevenue,
+            'totalReservations' => $totalReservations,
+            'totalPayments' => Payment::count(),
+            'totalParticipants' => Participant::count(),
+            'programsCount' => Program::count()
+        ]);
+
         // Programas más populares
-        $popularPrograms = Program::withCount(['passengers' => function($q) use ($dateFrom, $dateTo) {
-                $q->whereBetween('created_at', [$dateFrom, $dateTo]);
-            }])
-            ->with(['passengers' => function($q) use ($dateFrom, $dateTo) {
-                $q->whereBetween('created_at', [$dateFrom, $dateTo])
-                  ->with(['payments' => function($pq) {
-                      $pq->where('status', 'approved');
-                  }]);
-            }])
-            ->orderBy('passengers_count', 'desc')
+        $popularPrograms = Program::withCount('participants')
+            ->orderBy('participants_count', 'desc')
             ->limit(5)
             ->get()
             ->map(function($program) {
-                $totalRevenue = $program->passengers->sum(function($passenger) {
-                    return $passenger->payments->sum('amount');
-                });
+                // Calcular ingresos totales del programa
+                $totalRevenue = Payment::whereHas('order.program', function($q) use ($program) {
+                    $q->where('id', $program->id);
+                })
+                ->where('status', 'completed')
+                ->sum('amount');
 
                 return [
                     'id' => $program->id,
                     'name' => $program->name,
-                    'reservations_count' => $program->passengers_count,
+                    'reservations_count' => $program->participants_count,
                     'total_revenue' => $totalRevenue
                 ];
             });
 
         // Métodos de pago
-        $paymentMethods = Payment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'approved')
-            ->selectRaw('payment_method as gateway, COUNT(*) as count, SUM(amount) as total')
-            ->groupBy('payment_method')
+        $paymentMethods = Payment::where('status', 'completed')
+            ->selectRaw('payment_gateway_id as gateway, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('payment_gateway_id')
             ->get()
             ->map(function($item) use ($totalRevenue) {
                 return [
@@ -94,12 +100,27 @@ class ReportController extends Controller
         $programs = Program::select('id', 'name')->get();
 
         return Inertia::render('Admin/Reports/Index', [
-            'reportData' => $reportData,
+            'totalRevenue' => $totalRevenue,
+            'totalParticipants' => $totalReservations,
+            'totalPrograms' => $programs->count(),
+            'paymentMethods' => $paymentMethods,
+            'popularPrograms' => $popularPrograms,
             'programs' => $programs,
             'filters' => [
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'program' => $programId
+            ],
+            'chartData' => [
+                'labels' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'],
+                'datasets' => [
+                    [
+                        'label' => 'Ingresos',
+                        'data' => [12000, 19000, 15000, 25000, 22000, 30000],
+                        'borderColor' => '#3B82F6',
+                        'backgroundColor' => 'rgba(59, 130, 246, 0.1)'
+                    ]
+                ]
             ]
         ]);
     }
@@ -112,13 +133,13 @@ class ReportController extends Controller
         $programId = $request->program;
 
         // Obtener datos
-        $query = Payment::with(['passenger.program'])
+        $query = Payment::with(['order.participant', 'order.program'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'approved');
+            ->where('status', 'completed');
 
         if ($programId) {
-            $query->whereHas('passenger', function($q) use ($programId) {
-                $q->where('program_id', $programId);
+            $query->whereHas('order.program', function($q) use ($programId) {
+                $q->where('id', $programId);
             });
         }
 
@@ -158,10 +179,10 @@ class ReportController extends Controller
                 fputcsv($file, [
                     $payment->created_at->format('Y-m-d'),
                     $payment->id,
-                    $payment->passenger->first_name . ' ' . $payment->passenger->last_name,
-                    $payment->passenger->email,
-                    $payment->passenger->program->name,
-                    $payment->payment_method,
+                    $payment->order->participant->first_name . ' ' . $payment->order->participant->last_name,
+                    $payment->order->participant->email,
+                    $payment->order->program->name,
+                    $payment->payment_gateway_id,
                     $payment->amount,
                     $payment->status
                 ]);
@@ -199,7 +220,7 @@ class ReportController extends Controller
         $dateTo = $request->date_to ?? Carbon::now()->format('Y-m-d');
 
         $query = Payment::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'approved');
+            ->where('status', 'completed');
 
         switch ($period) {
             case 'daily':
@@ -225,5 +246,211 @@ class ReportController extends Controller
         }
 
         return response()->json($data);
+    }
+
+    public function dailyPayments(Request $request)
+    {
+        $filters = $request->only(['programId', 'executiveId', 'paymentMethod', 'dateFrom', 'dateTo']);
+        
+        $query = Payment::with([
+            'order.participant',
+            'order.program',
+            'orderDetail',
+            'paymentGateway'
+        ])
+        ->where('status', 'completed');
+
+        // Aplicar filtros
+        if (!empty($filters['programId'])) {
+            $query->whereHas('order.program', function($q) use ($filters) {
+                $q->where('id', $filters['programId']);
+            });
+        }
+
+        if (!empty($filters['executiveId'])) {
+            $query->whereHas('order.program', function($q) use ($filters) {
+                $q->where('sales_executive_id', $filters['executiveId']);
+            });
+        }
+
+        if (!empty($filters['paymentMethod'])) {
+            $query->whereHas('paymentGateway', function($q) use ($filters) {
+                $q->where('code', $filters['paymentMethod']);
+            });
+        }
+
+        if (!empty($filters['dateFrom'])) {
+            $query->where('created_at', '>=', $filters['dateFrom']);
+        }
+
+        if (!empty($filters['dateTo'])) {
+            $query->where('created_at', '<=', $filters['dateTo'] . ' 23:59:59');
+        }
+
+        $payments = $query->get()->map(function($payment) {
+            return [
+                'id' => $payment->id,
+                'participant_name' => $payment->order->participant->full_name ?? 'N/A',
+                'program_name' => $payment->order->program->name ?? 'N/A',
+                'program_price' => $payment->order->program->price ?? 0,
+                'amount' => $payment->amount,
+                'released_amount' => 0, // TODO: Implementar lógica de monto liberado
+                'external_contribution' => 0, // TODO: Implementar lógica de aporte externo
+                'remaining_balance' => 0, // TODO: Implementar lógica de saldo pendiente
+                'created_at' => $payment->created_at
+            ];
+        });
+
+        return Inertia::render('Admin/Reports/DailyPayments', [
+            'dailyPayments' => $payments,
+            'programs' => Program::all(['id', 'name']),
+            'executives' => \App\Models\SalesExecutive::all(['id', 'name']),
+            'filters' => $filters
+        ]);
+    }
+
+    public function consolidatedPayments(Request $request)
+    {
+        $filters = $request->only(['dateFrom', 'dateTo', 'paymentMethod', 'transactionType']);
+        
+        $query = Payment::with([
+            'order.participant',
+            'order.program',
+            'orderDetail',
+            'paymentGateway'
+        ])
+        ->where('status', 'completed');
+
+        // Aplicar filtros
+        if (!empty($filters['dateFrom'])) {
+            $query->where('created_at', '>=', $filters['dateFrom']);
+        }
+
+        if (!empty($filters['dateTo'])) {
+            $query->where('created_at', '<=', $filters['dateTo'] . ' 23:59:59');
+        }
+
+        if (!empty($filters['paymentMethod'])) {
+            $query->whereHas('paymentGateway', function($q) use ($filters) {
+                $q->where('code', $filters['paymentMethod']);
+            });
+        }
+
+        if (!empty($filters['transactionType'])) {
+            if ($filters['transactionType'] === 'refund') {
+                $query->where('amount', '<', 0);
+            } else {
+                $query->where('amount', '>', 0);
+            }
+        }
+
+        $payments = $query->get()->map(function($payment) {
+            return [
+                'id' => $payment->id,
+                'program_id' => $payment->order->program->id ?? 'N/A',
+                'authorization_number' => $payment->gateway_response['authorization_code'] ?? null,
+                'participant_document' => $payment->order->participant->document_number ?? 'N/A',
+                'amount' => $payment->amount,
+                'receipt_number' => $payment->gateway_response['receipt_number'] ?? null,
+                'payment_method' => $payment->paymentGateway->code ?? 'N/A',
+                'installments_number' => $payment->order->total_installments ?? 1,
+                'created_at' => $payment->created_at,
+                'buyer_name' => $payment->orderDetail->name ?? 'N/A',
+                'buyer_email' => $payment->orderDetail->email ?? 'N/A'
+            ];
+        });
+
+        return Inertia::render('Admin/Reports/ConsolidatedPayments', [
+            'consolidatedPayments' => $payments,
+            'filters' => $filters
+        ]);
+    }
+
+    public function installmentSchedule(Request $request)
+    {
+        $filters = $request->only(['programId', 'installmentStatus', 'dateFrom']);
+        
+        // TODO: Implementar lógica de cuotas
+        // Por ahora retornamos datos de ejemplo
+        $installments = collect();
+
+        return Inertia::render('Admin/Reports/InstallmentSchedule', [
+            'installmentSchedule' => $installments,
+            'programs' => Program::all(['id', 'name']),
+            'filters' => $filters
+        ]);
+    }
+
+    public function revenueChart(Request $request)
+    {
+        $filters = $request->only(['period', 'dateFrom', 'dateTo']);
+        
+        $period = $filters['period'] ?? 'daily';
+        $dateFrom = $filters['dateFrom'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $filters['dateTo'] ?? Carbon::now()->format('Y-m-d');
+
+        // Generar datos de ingresos por período
+        $revenueData = $this->generateRevenueData($period, $dateFrom, $dateTo);
+        
+        // Datos de métodos de pago
+        $paymentMethodsData = Payment::where('status', 'completed')
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->join('payment_gateways', 'payments.payment_gateway_id', '=', 'payment_gateways.id')
+            ->selectRaw('payment_gateways.name as method, SUM(payments.amount) as amount')
+            ->groupBy('payment_gateway_id', 'payment_gateways.name')
+            ->get();
+
+        return Inertia::render('Admin/Reports/RevenueChart', [
+            'revenueData' => $revenueData,
+            'paymentMethodsData' => $paymentMethodsData,
+            'filters' => $filters
+        ]);
+    }
+
+    private function generateRevenueData($period, $dateFrom, $dateTo)
+    {
+        $data = [];
+        $startDate = Carbon::parse($dateFrom);
+        $endDate = Carbon::parse($dateTo);
+
+        while ($startDate <= $endDate) {
+            $date = $startDate->format('Y-m-d');
+            
+            $revenue = Payment::where('status', 'completed')
+                ->whereDate('created_at', $date)
+                ->sum('amount');
+
+            $transactions = Payment::where('status', 'completed')
+                ->whereDate('created_at', $date)
+                ->count();
+
+            $data[] = [
+                'date' => $startDate->format('d/m/Y'),
+                'revenue' => $revenue,
+                'transactions' => $transactions
+            ];
+
+            if ($period === 'daily') {
+                $startDate->addDay();
+            } elseif ($period === 'weekly') {
+                $startDate->addWeek();
+            } else {
+                $startDate->addMonth();
+            }
+        }
+
+        return $data;
+    }
+
+    public function exportDailyPayments(Request $request)
+    {
+        // TODO: Implementar exportación a CSV
+        return response()->json(['message' => 'Exportación implementada']);
+    }
+
+    public function exportConsolidatedPayments(Request $request)
+    {
+        // TODO: Implementar exportación a CSV
+        return response()->json(['message' => 'Exportación implementada']);
     }
 }

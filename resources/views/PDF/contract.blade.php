@@ -228,10 +228,10 @@
 
 <body>
     @php
-        $imgLogoLat = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/logo_lat90.png')));
-        $imgDivider = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/page_divider.png')));
-        $imgLogoFooter = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/logo_footer.png')));
-        $imgFirma = base64_encode(file_get_contents(resource_path('images/PDFS/Contracts/firma.png')));
+        $imgLogoLat = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.header'))));
+        $imgDivider = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.divider'))));
+        $imgLogoFooter = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.footer'))));
+        $imgFirma = base64_encode(file_get_contents(resource_path(config('lat90.pdf.logo.signature'))));
     @endphp
     <header></header>
 

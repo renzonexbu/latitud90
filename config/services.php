@@ -47,4 +47,14 @@ return [
         'base_url' => env('KHIPU_BASE_URL', 'https://payment-api.khipu.com'),
     ],
 
+    'bsale' => [
+        'token' => env('BSALE_TOKEN'),
+        'base_url' => env('BSALE_BASE_URL', 'https://api.bsale.io/v1'),
+        // IDs configurables por ambiente/cuenta
+        'document_type_id' => env('BSALE_DOCUMENT_TYPE_ID', 3), // NOTA VENTA por defecto
+        'price_list_id' => env('BSALE_PRICE_LIST_ID', 2), // Lista Base detectada en sandbox
+        // Modo pruebas: invertir lógica de "mismo año"
+        'invert_same_year_logic' => env('BSALE_INVERT_SAME_YEAR_LOGIC', false),
+    ],
+
 ];

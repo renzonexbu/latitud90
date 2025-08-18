@@ -1,21 +1,10 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 w-full p-3">
     <!-- Header -->
-    <div class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
-            <img src="/images/logo_lat90.png" alt="Latitud 90" class="h-8">
-          </div>
-          <div class="text-sm text-gray-500">
-            Pago Confirmado
-          </div>
-        </div>
-      </div>
-    </div>
+    <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
     <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-6xl mx-auto py-8 px-4">
       <!-- Success Icon and Title -->
       <div class="text-center mb-8">
         <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
@@ -146,19 +135,15 @@
     </div>
 
     <!-- Footer -->
-    <div class="bg-gray-800 text-white py-8 mt-16">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <p class="text-sm text-gray-300">
-          © 2024 Latitud 90. Todos los derechos reservados.
-        </p>
-      </div>
-    </div>
+    <Footer class="rounded-lg"></Footer>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { router } from '@inertiajs/vue3'
+import Header from "@/Components/Ecommerce/Header.vue";
+import Footer from "@/Components/Ecommerce/Footer.vue";
 
 const props = defineProps({
   paymentData: {

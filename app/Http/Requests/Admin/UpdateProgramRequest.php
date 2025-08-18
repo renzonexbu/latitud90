@@ -51,7 +51,7 @@ class UpdateProgramRequest extends FormRequest
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
             'final_payment_date' => 'nullable|date',
             'seller_name' => 'nullable|string|max:255',
-            'sales_executive_id' => 'nullable|exists:sales_executives,id',
+            'sales_executive_id' => 'nullable|integer|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
             // Campos del detalle administrativo (todos opcionales)
@@ -68,9 +68,9 @@ class UpdateProgramRequest extends FormRequest
             'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_options' => 'nullable|array',
-            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12',
             'lat90_payment_options' => 'nullable|array',
-            'lat90_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0,lat90_installments_3,lat90_installments_6,lat90_installments_9,lat90_installments_12',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             // Aceptar claves antiguas y nuevas para mantener compatibilidad
             'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
@@ -164,6 +164,9 @@ class UpdateProgramRequest extends FormRequest
             'final_payment_date.date' => 'La fecha final de pago debe tener un formato válido.',
             'final_payment_date.after' => 'La fecha final de pago debe ser posterior a hoy.',
             
+            'sales_executive_id.integer' => 'El ejecutivo de ventas debe ser un número válido.',
+            'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe.',
+            
             'seller_name.required_without' => 'El nombre del vendedor es obligatorio.',
             'sales_person.required_without' => 'El nombre del vendedor es obligatorio.',
             'seller_name.string' => 'El nombre del vendedor debe ser texto.',
@@ -193,6 +196,10 @@ class UpdateProgramRequest extends FormRequest
             'students_file.file' => 'El archivo de estudiantes debe ser un archivo válido.',
             'students_file.mimes' => 'El archivo de estudiantes debe ser Excel (.xlsx, .xls) o CSV.',
             'students_file.max' => 'El archivo de estudiantes no puede exceder 10MB.',
+            
+            // Mensajes para opciones de pago
+            'full_payment_options.*.in' => 'La opción de pago total seleccionada no es válida.',
+            'lat90_payment_options.*.in' => 'La opción de pago mensual seleccionada no es válida.',
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',

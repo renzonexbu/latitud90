@@ -593,17 +593,15 @@ const formattedPrice = ref('');
 // Catálogos locales (idealmente venir desde backend)
 const fullPaymentChoices = [
     { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)' },
-    { code: 'full_debit_webpay', label: 'Débito (Webpay)' },
-    { code: 'full_credit_webpay_0', label: 'Crédito sin cuotas (Webpay)' },
-    { code: 'full_credit_webpay_3', label: 'Crédito 3 cuotas sin interés (Webpay)' },
-    { code: 'full_credit_webpay_6', label: 'Crédito 6 cuotas sin interés (Webpay)' },
-    { code: 'full_credit_webpay_9', label: 'Crédito 9 cuotas sin interés (Webpay)' },
-    { code: 'full_credit_webpay_12', label: 'Crédito 12 cuotas sin interés (Webpay)' },
+    { code: 'full_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
+    { code: 'full_debit_credit_3', label: 'Débito y crédito hasta 3 cuotas sin interés (Webpay)' },
+    { code: 'full_debit_credit_6', label: 'Débito y crédito hasta 6 cuotas sin interés (Webpay)' },
+    { code: 'full_debit_credit_9', label: 'Débito y crédito hasta 9 cuotas sin interés (Webpay)' },
+    { code: 'full_debit_credit_12', label: 'Débito y crédito hasta 12 cuotas sin interés (Webpay)' },
 ];
 const lat90Choices = [
     { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
-    { code: 'lat90_debit_webpay', label: 'Débito (Webpay)' },
-    { code: 'lat90_credit_0', label: 'Crédito sin cuotas (Webpay)' },
+    { code: 'lat90_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
     { code: 'lat90_installments_3', label: 'Lat90 3 cuotas' },
     { code: 'lat90_installments_6', label: 'Lat90 6 cuotas' },
     { code: 'lat90_installments_9', label: 'Lat90 9 cuotas' },

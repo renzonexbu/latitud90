@@ -43,6 +43,9 @@ return new class extends Migration
 
             // Respuesta completa de la pasarela (JSON)
             $table->json('gateway_response')->nullable();
+            $table->string('bsale_document_id')->nullable();
+            $table->string('bsale_number')->nullable();
+            $table->string('bsale_token')->nullable();
             $table->json('raw_notification')->nullable();
 
             // Campos adicionales
@@ -51,7 +54,8 @@ return new class extends Migration
             $table->char('currency', 3)->default('CLP');        // Moneda
             $table->decimal('balance', 10, 2)->nullable();      // Saldo restante (para cuotas)
             $table->text('error_message')->nullable();          // Mensaje de error si falla
-
+            $table->boolean('email_sent')->default(false);
+            
             $table->timestamps();
 
             // Índices para optimizar consultas

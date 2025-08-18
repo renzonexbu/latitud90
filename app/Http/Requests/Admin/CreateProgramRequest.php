@@ -44,7 +44,7 @@ class CreateProgramRequest extends FormRequest
             'trip_price' => 'required_without:total_price|numeric|min:0',
             'total_price' => 'required_without:trip_price|numeric|min:0', // Campo del frontend
             'final_payment_date' => 'required|date|after:today',
-            'sales_executive_id' => ['required','integer','exists:sales_executives,id'],
+            'sales_executive_id' => ['nullable','integer','exists:sales_executives,id'],
             'seller_name' => 'nullable|string|max:255',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
@@ -61,9 +61,9 @@ class CreateProgramRequest extends FormRequest
             'payment_options.*' => 'string|in:full_payment,installments',
             // Nuevas selecciones por checkbox
             'full_payment_options' => 'nullable|array',
-            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12',
             'lat90_payment_options' => 'nullable|array',
-            'lat90_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0,lat90_installments_3,lat90_installments_6,lat90_installments_9,lat90_installments_12',
             'created_by' => 'nullable|exists:users,id',
             'active' => 'boolean',
         ];
@@ -112,6 +112,9 @@ class CreateProgramRequest extends FormRequest
             'final_payment_date.date' => 'La fecha final de pago debe tener un formato válido.',
             'final_payment_date.after' => 'La fecha final de pago debe ser posterior a hoy.',
             
+            'sales_executive_id.integer' => 'El ejecutivo de ventas debe ser un número válido.',
+            'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe.',
+            
             'seller_name.required_without' => 'El nombre del vendedor es obligatorio.',
             'sales_person.required_without' => 'El nombre del vendedor es obligatorio.',
             'seller_name.string' => 'El nombre del vendedor debe ser texto.',
@@ -143,6 +146,10 @@ class CreateProgramRequest extends FormRequest
             'students_file.file' => 'El archivo de estudiantes debe ser un archivo válido.',
             'students_file.mimes' => 'El archivo de estudiantes debe ser Excel (.xlsx, .xls) o CSV.',
             'students_file.max' => 'El archivo de estudiantes no puede exceder 10MB.',
+            
+            // Mensajes para opciones de pago
+            'full_payment_options.*.in' => 'La opción de pago total seleccionada no es válida.',
+            'lat90_payment_options.*.in' => 'La opción de pago mensual seleccionada no es válida.',
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',

@@ -9,6 +9,7 @@ use App\Models\PendingPayment;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Mail\SuccessPaymentEmailService;
+use App\Services\Client\BsaleService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -17,15 +18,18 @@ class PaymentConfirmationService
     private $transbankService;
     private $khipuService;
     private $emailService;
+    private $bsaleService;
 
     public function __construct(
         TransbankService $transbankService,
         KhipuService $khipuService,
-        SuccessPaymentEmailService $emailService
+        SuccessPaymentEmailService $emailService,
+        BsaleService $bsaleService
     ) {
         $this->transbankService = $transbankService;
         $this->khipuService = $khipuService;
         $this->emailService = $emailService;
+        $this->bsaleService = $bsaleService;
     }
 
     /**
@@ -360,6 +364,9 @@ class PaymentConfirmationService
         // Procesar cuotas si aplica
         $this->processInstallments($orderDetail, $payment);
 
+        // Generar boleta en Bsale si es programa de entrega el mismo año
+        $this->generateBsaleInvoice($orderDetail, $payment);
+
         // Enviar email de confirmación
         $this->sendSuccessEmail($orderDetail, $payment);
 
@@ -518,6 +525,38 @@ class PaymentConfirmationService
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+    }
+
+    /**
+     * Generar boleta en Bsale para programas de entrega el mismo año
+     */
+    private function generateBsaleInvoice(OrderDetail $orderDetail, Payment $payment): void
+    {
+        try {
+            $bsaleResult = $this->bsaleService->generateInvoice($orderDetail, $payment);
+            
+            if ($bsaleResult) {
+                // Guardar información de la boleta en el pago
+                $payment->update([
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                ]);
+                
+                Log::info('PaymentConfirmationService: Boleta Bsale generada exitosamente', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('PaymentConfirmationService: Error generando boleta Bsale', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+            // No lanzar excepción para no interrumpir el flujo de pago
         }
     }
 

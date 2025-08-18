@@ -450,11 +450,19 @@ const submit = () => {
         return;
     }
 
+    // Convertir sales_executive_id a entero si no está vacío
+    if (form.sales_executive_id && form.sales_executive_id !== '') {
+        form.sales_executive_id = parseInt(form.sales_executive_id);
+    } else {
+        form.sales_executive_id = null;
+    }
+
     // Debug: Log de los datos que se van a enviar
     console.log('Datos que se van a enviar al backend:', {
         payment_options: form.payment_options,
         full_payment_options: form.full_payment_options,
         lat90_payment_options: form.lat90_payment_options,
+        sales_executive_id: form.sales_executive_id,
         form_data: form.data()
     });
 

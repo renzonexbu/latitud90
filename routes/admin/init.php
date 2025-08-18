@@ -44,6 +44,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
     Route::get('reports/sales-chart', [ReportController::class, 'salesChart'])->name('reports.sales-chart');
+    
+    // Incluir rutas de reportes específicos
+    include __DIR__ . '/reports.php';
 
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
     // Route::get('reports/passengers', [PassengerController::class, 'reportsIndex'])->name('reports.passengers');

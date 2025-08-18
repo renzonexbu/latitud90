@@ -34,7 +34,10 @@ class Payment extends Model
         'currency',
         'balance',
         'error_message',
-        'email_sent'
+        'email_sent',
+        'bsale_document_id',
+        'bsale_number',
+        'bsale_token'
     ];
 
     protected $casts = [

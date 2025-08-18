@@ -13,12 +13,22 @@ return [
 
     'company' => [
         'name' => 'Latitud 90',
-        'legal_name' => 'Experiencias Educativas y Capacitaciones',
-        'address' => 'Carlos Antúnez 1941, Providencia',
-        'region' => 'Región Metropolitana',
+        'legal_name' => 'Experiencias Educativas y Capacitaciones SpA',
+        'rut' => '76.203.719-K',
+        'address' => [
+            'full' => 'Carlos Antúnez 1941, Providencia',
+            'street' => 'Carlos Antúnez 1941',
+            'commune' => 'Providencia',
+            'city' => 'Santiago',
+            'region' => 'Región Metropolitana',
+        ],
         'phone' => '+56 9 7909 1738',
         'email' => 'info@latitud90.cl',
         'website' => 'www.latitud90.com',
+        'representative' => [
+            'name' => 'Carolina Emhart García',
+            'rut' => '13.670.825-2',
+        ],
     ],
 
     'pdf' => [
@@ -33,8 +43,8 @@ return [
             'bold' => 'fonts/CenturyGothic-Bold.ttf',
         ],
         'signature' => [
-            'name' => 'Carmen Gutiérrez M',
-            'position' => 'Área de recaudación',
+            'name' => 'Carmen Gutiérrez M.',
+            'position' => 'Jefa área de recaudación',
         ],
     ],
 

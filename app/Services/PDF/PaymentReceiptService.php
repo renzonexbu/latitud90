@@ -109,15 +109,15 @@ class PaymentReceiptService
             'saldo_abonado' => number_format($totalPaid, 0, ',', '.'),
             
             // Datos de la empresa
-            'empresa_direccion' => config('lat90.company.address'),
-            'empresa_region' => config('lat90.company.region'),
-            'empresa_telefono' => config('lat90.company.phone'),
-            'empresa_sitio' => config('lat90.company.website'),
+            'empresa_direccion' => config('lat90.company.address.full', 'Carlos Antúnez 1941, Providencia'),
+            'empresa_region' => config('lat90.company.address.region', 'Región Metropolitana'),
+            'empresa_telefono' => config('lat90.company.phone', '+56 9 7909 1738'),
+            'empresa_sitio' => config('lat90.company.website', 'www.latitud90.com'),
             
             // Datos del firmante
-            'prestador_nombre_firma' => config('lat90.company.legal_name'),
-            'firmante_nombre' => config('lat90.pdf.signature.name'),
-            'firmante_cargo' => config('lat90.pdf.signature.position'),
+            'prestador_nombre_firma' => config('lat90.company.legal_name', 'Experiencias Educativas y Capacitaciones SpA'),
+            'firmante_nombre' => config('lat90.pdf.signature.name', 'Carmen Gutiérrez M.'),
+            'firmante_cargo' => config('lat90.pdf.signature.position', 'Jefa área de recaudación'),
         ];
     }
     

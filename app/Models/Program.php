@@ -108,8 +108,9 @@ class Program extends Model
 
     public function participants()
     {
-        // Esta relación no se usa directamente, se accede a través de course->participants()
-        return $this->course->participants() ?? collect();
+        return $this->belongsToMany(Participant::class, 'participant_program')
+                    ->withPivot('enrollment_code', 'individual_price', 'status', 'created_at', 'updated_at')
+                    ->withTimestamps();
     }
 
     public function features()

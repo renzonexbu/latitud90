@@ -55,6 +55,8 @@
           </div>
         </div>
 
+
+
         <!-- Resumen Ejecutivo -->
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div class="p-6 text-gray-900">
@@ -79,7 +81,7 @@
                   <div>
                     <p class="text-sm text-gray-600">Ingresos Totales</p>
                     <p class="text-xl font-bold text-blue-600">
-                      ${{ (safeReportData.totalRevenue || 0).toLocaleString() }}
+                      ${{ (totalRevenue || 0).toLocaleString() }}
                     </p>
                   </div>
                 </div>
@@ -103,7 +105,7 @@
                   <div>
                     <p class="text-sm text-gray-600">Reservas</p>
                     <p class="text-xl font-bold text-green-600">
-                      {{ safeReportData.totalReservations || 0 }}
+                      {{ totalParticipants || 0 }}
                     </p>
                   </div>
                 </div>
@@ -125,9 +127,9 @@
                     </svg>
                   </div>
                   <div>
-                    <p class="text-sm text-gray-600">Tasa Conversión</p>
+                    <p class="text-sm text-gray-600">Total Programas</p>
                     <p class="text-xl font-bold text-yellow-600">
-                      {{ safeReportData.conversionRate || 0 }}%
+                      {{ totalPrograms || 0 }}
                     </p>
                   </div>
                 </div>
@@ -151,9 +153,7 @@
                   <div>
                     <p class="text-sm text-gray-600">Valor Promedio</p>
                     <p class="text-xl font-bold text-purple-600">
-                      ${{
-                        (safeReportData.averageOrderValue || 0).toLocaleString()
-                      }}
+                      ${{ ((totalRevenue || 0) / (totalParticipants || 1)).toLocaleString() }}
                     </p>
                   </div>
                 </div>
@@ -166,7 +166,7 @@
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div class="p-6 text-gray-900">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-lg font-semibold">Tendencia de Ventas</h3>
+              <h3 class="text-lg font-semibold">Gráfico de Ventas</h3>
               <div class="flex space-x-2">
                 <button
                   @click="chartPeriod = 'daily'"
@@ -201,11 +201,8 @@
               </div>
             </div>
 
-            <div
-              class="h-64 flex items-center justify-center bg-gray-50 rounded">
-              <p class="text-gray-500">
-                Gráfico de ventas (Chart.js se implementaría aquí)
-              </p>
+            <div class="h-64">
+              <canvas ref="salesChart"></canvas>
             </div>
           </div>
         </div>
@@ -220,7 +217,7 @@
 
               <div class="space-y-3">
                 <div
-                  v-for="(program, index) in safeReportData.popularPrograms"
+                  v-for="(program, index) in popularPrograms"
                   :key="program.id"
                   class="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <div class="flex items-center">
@@ -255,14 +252,14 @@
 
               <div class="space-y-3">
                 <div
-                  v-for="payment in safeReportData.paymentMethods"
+                  v-for="payment in paymentMethods"
                   :key="payment.gateway"
                   class="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <div class="flex items-center">
                     <span
                       :class="getGatewayClass(payment.gateway)"
                       class="px-2 py-1 text-xs font-semibold rounded-full mr-3">
-                      {{ (payment.gateway || "desconocido").toUpperCase() }}
+                      {{ (typeof payment.gateway === 'string' ? payment.gateway : "desconocido").toUpperCase() }}
                     </span>
                     <span class="font-medium"
                       >{{ payment.count || 0 }} transacciones</span
@@ -347,24 +344,43 @@
 </template>
 
 <script setup>
-  import { ref, reactive, onMounted, computed } from "vue";
-  import { Head, router } from "@inertiajs/vue3";
+  import { ref, reactive, onMounted, computed, nextTick } from "vue";
+  import { Head, router, Link } from "@inertiajs/vue3";
   import AdminLayout from "@/Layouts/AdminLayout.vue";
+  import { Chart, registerables } from 'chart.js';
+
+  Chart.register(...registerables);
 
   const props = defineProps({
     programs: {
       type: Array,
       default: () => []
     },
-    reportData: {
+    totalRevenue: {
+      type: Number,
+      default: 0
+    },
+    totalParticipants: {
+      type: Number,
+      default: 0
+    },
+    totalPrograms: {
+      type: Number,
+      default: 0
+    },
+    paymentMethods: {
+      type: Array,
+      default: () => []
+    },
+    popularPrograms: {
+      type: Array,
+      default: () => []
+    },
+    chartData: {
       type: Object,
       default: () => ({
-        totalRevenue: 0,
-        totalReservations: 0,
-        conversionRate: 0,
-        averageOrderValue: 0,
-        popularPrograms: [],
-        paymentMethods: []
+        labels: [],
+        datasets: []
       })
     }
   });
@@ -376,18 +392,9 @@
   });
 
   const chartPeriod = ref("daily");
+  const salesChart = ref(null);
 
-  // Valores seguros para los datos
-  const safeReportData = computed(() => {
-    return {
-      totalRevenue: props.reportData?.totalRevenue || 0,
-      totalReservations: props.reportData?.totalReservations || 0,
-      conversionRate: props.reportData?.conversionRate || 0,
-      averageOrderValue: props.reportData?.averageOrderValue || 0,
-      popularPrograms: props.reportData?.popularPrograms || [],
-      paymentMethods: props.reportData?.paymentMethods || []
-    };
-  });
+
 
   // Establecer fechas por defecto (último mes)
   onMounted(() => {
@@ -400,13 +407,51 @@
 
     filters.dateTo = today.toISOString().split("T")[0];
     filters.dateFrom = lastMonth.toISOString().split("T")[0];
+
+    // Crear gráfico después de que el DOM esté listo
+    nextTick(() => {
+      createChart();
+    });
   });
+
+  const createChart = () => {
+    if (salesChart.value && props.chartData) {
+      const ctx = salesChart.value.getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: props.chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Ingresos ($)'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top'
+            }
+          }
+        }
+      });
+    }
+  };
 
   const generateReport = () => {
     try {
       router.get("/admin/reports", filters, {
         preserveState: true,
-        preserveScroll: true
+        preserveScroll: true,
+        onSuccess: () => {
+          nextTick(() => {
+            createChart();
+          });
+        }
       });
     } catch (error) {
       console.error("Error al generar reporte:", error);
@@ -414,7 +459,7 @@
   };
 
   const getGatewayClass = (gateway) => {
-    if (!gateway) return "bg-gray-100 text-gray-800";
+    if (!gateway || typeof gateway !== 'string') return "bg-gray-100 text-gray-800";
 
     const classes = {
       transbank: "bg-blue-100 text-blue-800",

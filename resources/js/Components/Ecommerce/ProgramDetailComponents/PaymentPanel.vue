@@ -294,8 +294,7 @@ export default {
             // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                { value: 'debit',  label: 'Tarjeta de Débito',    description: null },
-                { value: 'credit', label: 'Tarjeta de Crédito',   description: 'Cuotas según configuración del programa' },
+                { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
             ],
         };
     },
@@ -349,19 +348,17 @@ export default {
                 codes.forEach(code => {
                     if (code.includes('khipu')) {
                         pushUnique('khipu', 'Pagar con Transferencia Khipu');
-                    } else if (code.includes('debit')) {
-                        pushUnique('debit', 'Pagar con Tarjeta de Débito (Webpay)');
-                    } else if (code.includes('credit')) {
+                    } else if (code.includes('debit_credit')) {
                         const match = code.match(/(\d+)(?!.*\d)/);
                         if (match) {
                             const n = parseInt(match[1], 10);
                             if (!isNaN(n) && n > 0) {
-                                pushUnique(`credit_${n}`, `Pagar con Tarjeta de Crédito ${n} cuotas sin interés (Webpay)`);
+                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés (Webpay)`);
                             } else {
-                                pushUnique('credit_0', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)');
+                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)');
                             }
                         } else {
-                            pushUnique('credit_0', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)');
+                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)');
                         }
                     }
                 });
@@ -387,8 +384,7 @@ export default {
                     }
                 };
                 if (codes.some(c => c.includes('khipu'))) pushUnique('khipu', 'Pagar con Transferencia Khipu');
-                if (codes.some(c => c.includes('debit'))) pushUnique('debit', 'Pagar con Tarjeta de Débito (Webpay)');
-                if (codes.some(c => c.includes('credit'))) pushUnique('credit', 'Pagar con Tarjeta de Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
+                if (codes.some(c => c.includes('debit_credit'))) pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
                 return result;
             }
             // Legacy fallback
@@ -401,25 +397,32 @@ export default {
         filterPaymentOptionsByMethod(methodId) {
             switch (methodId) {
                 case 1: // Todos los medios (Débito/Crédito/Transferencia)
-                    return this.allPaymentOptions;
+                    return [
+                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                    ];
                 
                 case 2: // Solo pago con Tarjeta (Débito/Crédito)
-                    return this.allPaymentOptions.filter(option => 
-                        option.value === 'debit' || option.value === 'credit'
-                    );
+                    return [
+                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                    ];
                 
                 case 3: // Solo pago transferencia
-                    return this.allPaymentOptions.filter(option => 
-                        option.value === 'khipu'
-                    );
+                    return [
+                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                    ];
                 
                 case 4: // Solo pago contado (Débito/Transferencia)
-                    return this.allPaymentOptions.filter(option => 
-                        option.value === 'debit' || option.value === 'khipu'
-                    );
+                    return [
+                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                    ];
                 
                 default:
-                    return this.allPaymentOptions;
+                    return [
+                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                    ];
             }
         },
 
@@ -496,13 +499,13 @@ export default {
             this.monthlyPaymentOption = option;
             // Ajustar cuotas disponibles al cambiar el método
             const allowed = this.getAvailableInstallments();
-            if (option === 'credit') {
+            if (option === 'debit_credit_0') {
                 // Si no contiene la cuota actual, seleccionar la mínima disponible
                 if (!allowed.includes(this.selectedInstallments)) {
                     this.selectedInstallments = allowed[0] || 1;
                 }
             } else {
-                // Débito/Khipu: 1 cuota
+                // Khipu: 1 cuota
                 this.selectedInstallments = 1;
             }
             // Guardar en localStorage en tiempo real
