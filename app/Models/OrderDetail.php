@@ -88,7 +88,7 @@ class OrderDetail extends Model
 
     public function country()
     {
-        return $this->belongsTo(Country::class, 'country', 'code');
+        return $this->belongsTo(Country::class, 'country');
     }
 
     public function region()

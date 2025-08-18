@@ -68,6 +68,53 @@ class Payment extends Model
         return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
+    /**
+     * Relación para acceder al participante a través de orderDetail -> order -> participant
+     */
+    public function passenger()
+    {
+        return $this->hasOneThrough(
+            Participant::class,
+            OrderDetail::class,
+            'id', // Clave foránea en order_details
+            'id', // Clave foránea en participants
+            'order_detail_id', // Clave local en payments
+            'order_id' // Clave local en order_details
+        )->join('orders', 'order_details.order_id', '=', 'orders.id')
+         ->join('participants', 'orders.participant_id', '=', 'participants.id')
+         ->select('participants.*');
+    }
+
+    /**
+     * Relación más directa para acceder al participante
+     */
+    public function participant()
+    {
+        return $this->hasOneThrough(
+            Participant::class,
+            Order::class,
+            'id', // Clave foránea en orders
+            'id', // Clave foránea en participants
+            'order_id', // Clave local en payments
+            'participant_id' // Clave local en orders
+        );
+    }
+
+    /**
+     * Relación para acceder al programa
+     */
+    public function program()
+    {
+        return $this->hasOneThrough(
+            Program::class,
+            Order::class,
+            'id', // Clave foránea en orders
+            'id', // Clave foránea en programs
+            'order_id', // Clave local en payments
+            'program_id' // Clave local en orders
+        );
+    }
+
     public function getIsCompletedAttribute()
     {
         return $this->status === 'completed';
@@ -86,5 +133,38 @@ class Payment extends Model
     public function getFormattedAmountAttribute()
     {
         return '$' . number_format($this->amount, 0, ',', '.');
+    }
+
+    /**
+     * Obtener el nombre completo del participante
+     */
+    public function getParticipantNameAttribute()
+    {
+        if ($this->order && $this->order->participant) {
+            return $this->order->participant->first_name . ' ' . $this->order->participant->last_name;
+        }
+        return 'N/A';
+    }
+
+    /**
+     * Obtener el nombre del programa
+     */
+    public function getProgramNameAttribute()
+    {
+        if ($this->order && $this->order->program) {
+            return $this->order->program->name;
+        }
+        return 'N/A';
+    }
+
+    /**
+     * Obtener el nombre de la institución
+     */
+    public function getInstitutionNameAttribute()
+    {
+        if ($this->order && $this->order->program && $this->order->program->course && $this->order->program->course->institution) {
+            return $this->order->program->course->institution->name;
+        }
+        return 'N/A';
     }
 }

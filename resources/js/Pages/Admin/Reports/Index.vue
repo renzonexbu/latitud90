@@ -418,7 +418,8 @@
 
     const classes = {
       transbank: "bg-blue-100 text-blue-800",
-      khipu: "bg-green-100 text-green-800"
+      khipu: "bg-green-100 text-green-800",
+      presencial: "bg-purple-100 text-purple-800"
     };
     return classes[gateway.toLowerCase()] || "bg-gray-100 text-gray-800";
   };

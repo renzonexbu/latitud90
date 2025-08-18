@@ -1,25 +1,23 @@
 <template>
-    <div class="flex flex-col gap-[27px] items-start justify-start relative">
-        <!-- Header Row -->
-        <div class="flex flex-row items-start justify-between flex-shrink-0 w-full relative">
+    <div class="flex flex-col gap-[18px] items-start justify-start relative">
+        <!-- Header Row con título y búsqueda -->
+        <div class="flex flex-row items-center justify-between w-full relative gap-[510px]">
+            <!-- Título -->
             <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
                 Filtros de busqueda
             </div>
-        </div>
-
-        <!-- Filters Row -->
-        <div class="flex flex-wrap gap-5 items-center justify-start w-full relative">
-            <!-- Search Input -->
-            <div class="relative w-[297.28px]">
+            
+            <!-- Campo de búsqueda -->
+            <div class="relative w-[445px]">
                 <input
                     v-model="filters.search"
                     type="text"
-                    placeholder="Buscar orden o participante"
-                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
+                    placeholder="Buscar pago por ID, orden, participante, programa..."
+                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
                 <button 
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-turquesa rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
+                    class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#007e93] rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                     @click="performSearch"
                 >
                     <svg class="w-[14.79px] h-[14.79px]" viewBox="0 0 24 24" fill="none">
@@ -27,69 +25,69 @@
                     </svg>
                 </button>
             </div>
+        </div>
 
-            <!-- Status Dropdown -->
-            <div class="relative w-[160px]">
+        <!-- Filtros Row -->
+        <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
+            <!-- Estado del pago -->
+            <div class="relative flex-shrink-0 w-[134px]">
                 <select
                     v-model="filters.status"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Estado de pago</option>
+                    <option value="">Estado del pago</option>
                     <option value="pending">Pendiente</option>
-                    <option value="authorized">Autorizado</option>
                     <option value="completed">Completado</option>
                     <option value="failed">Fallido</option>
-                    <option value="reversed">Reversado</option>
-                    <option value="nullified">Anulado</option>
+                    <option value="authorized">Autorizado</option>
                 </select>
             </div>
 
-            <!-- Card Type Dropdown -->
-            <div class="relative w-[140px]">
+            <!-- Gateway de pago -->
+            <div class="relative flex-shrink-0 w-[134px]">
                 <select
-                    v-model="filters.card_type"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+                    v-model="filters.gateway"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Tipo de tarjeta</option>
-                    <option value="Visa">Visa</option>
-                    <option value="Mastercard">Mastercard</option>
-                    <option value="American Express">American Express</option>
-                    <option value="Diners">Diners</option>
+                    <option value="">Gateway de pago</option>
+                    <option value="transbank">Transbank</option>
+                    <option value="khipu">Khipu</option>
+                    <option value="presencial">Presencial</option>
                 </select>
             </div>
 
-            <!-- Amount Range Dropdown -->
-            <div class="relative w-[150px]">
-                <select
-                    v-model="filters.amount_range"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+            <!-- Fecha desde -->
+            <div class="relative flex-shrink-0 w-[134px]">
+                <input
+                    v-model="filters.date_from"
+                    type="date"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
                     @change="performSearch"
-                >
-                    <option value="">Rango de monto</option>
-                    <option value="0-300000">$0 - $300.000</option>
-                    <option value="300000-500000">$300.000 - $500.000</option>
-                    <option value="500000-700000">$500.000 - $700.000</option>
-                    <option value="700000+">$700.000+</option>
-                </select>
+                />
             </div>
 
-            <!-- Date Range Dropdown -->
-            <div class="relative w-[140px]">
-                <select
-                    v-model="filters.date_range"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+            <!-- Fecha hasta -->
+            <div class="relative flex-shrink-0 w-[134px]">
+                <input
+                    v-model="filters.date_to"
+                    type="date"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
                     @change="performSearch"
-                >
-                    <option value="">Fecha</option>
-                    <option value="today">Hoy</option>
-                    <option value="week">Esta semana</option>
-                    <option value="month">Este mes</option>
-                    <option value="quarter">Este trimestre</option>
-                    <option value="year">Este año</option>
-                </select>
+                />
             </div>
+
+            <!-- Clear Filters Button -->
+            <button
+                @click="clearFilters"
+                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Limpiar filtros
+            </button>
         </div>
     </div>
 </template>
@@ -110,16 +108,27 @@ export default {
             filters: {
                 search: this.initialFilters.search || "",
                 status: this.initialFilters.status || "",
-                card_type: this.initialFilters.card_type || "",
-                amount_range: this.initialFilters.amount_range || "",
-                date_range: this.initialFilters.date_range || "",
+                gateway: this.initialFilters.gateway || "",
+                date_from: this.initialFilters.date_from || "",
+                date_to: this.initialFilters.date_to || "",
             }
         };
     },
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
-        }, 300)
+        }, 300),
+        
+        clearFilters() {
+            this.filters = {
+                search: "",
+                status: "",
+                gateway: "",
+                date_from: "",
+                date_to: "",
+            };
+            this.performSearch();
+        }
     }
 };
 </script>

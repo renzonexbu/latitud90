@@ -16,10 +16,10 @@
 
         <!-- Right side - Action buttons -->
         <div v-if="showCreateButton" class="flex flex-row items-center justify-end flex-shrink-0 relative">
-            <!-- Create Course Button Container -->
+            <!-- Create Payment Button Container -->
             <div class="relative">
                 <!-- Plus icon positioned above the button -->
-                <div class="absolute top-[0.8rem] -right-52 z-10 flex-shrink-0 w-[21.289px] h-[21.289px] relative overflow-visible">
+                <div class="absolute top-[0.8rem] -right-[230px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] relative overflow-visible">
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
                         width="21.289" 
@@ -33,19 +33,28 @@
                     </svg>
                 </div>
                 
-                <!-- Create Course Button -->
+                <!-- Create Payment Button -->
                 <button
-                    @click="handleCreateCourse"
+                    @click="handleCreatePayment"
                     class="bg-turquesa rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center hover:bg-turquesa-dark transition-colors"
                 >
-                    <div class="flex-shrink-0 w-[21.52px] h-[21.52px] relative overflow-hidden aspect-square">
-                        <CourseIcon 
-                            class="w-full h-full"
-                            stroke-color="white"
-                        />
+                    <div 
+                        class="flex-shrink-0 relative overflow-hidden"
+                        style="width: 22px; height: 22px; aspect-ratio: 1/1;"
+                    >
+                        <svg 
+                            width="22" 
+                            height="22" 
+                            viewBox="0 0 24 24" 
+                            fill="none" 
+                            stroke="white" 
+                            stroke-width="2"
+                        >
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
                     </div>
                     <div class="text-white text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start">
-                        Agregar nuevo curso
+                        Registrar Pago Presencial
                     </div>
                 </button>
             </div>
@@ -54,13 +63,8 @@
 </template>
 
 <script>
-import { CourseIcon } from "@/Components/Icons";
-
 export default {
     name: "PaymentsHeader",
-    components: {
-        CourseIcon,
-    },
     props: {
         subtitle: {
             type: String,
@@ -69,12 +73,12 @@ export default {
 
         showCreateButton: {
             type: Boolean,
-            default: false
+            default: true
         }
     },
     methods: {
-        handleCreateCourse() {
-            this.$emit('create-course');
+        handleCreatePayment() {
+            this.$emit('create-payment');
         }
     }
 };
