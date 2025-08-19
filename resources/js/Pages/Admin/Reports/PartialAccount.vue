@@ -93,7 +93,7 @@
 
                         <div class="flex space-x-4">
                             <button
-                                @click="exportReport"
+                                @click="openExportModal"
                                 class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
                             >
                                 Exportar
@@ -218,6 +218,12 @@
                                             >Código de Inscripción:</span
                                         >
                                         {{ selectedAccount.enrollment_code }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium"
+                                            >Ejecutivo de Ventas:</span
+                                        >
+                                        {{ selectedAccount.sales_executive_name || 'N/A' }}
                                     </p>
                                 </div>
                             </div>
@@ -535,6 +541,161 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal de Exportación -->
+        <div
+            v-if="showExportModal"
+            class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        >
+            <div
+                class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white"
+            >
+                <div class="mt-3">
+                    <!-- Header del Modal -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">
+                            Exportar Estado de Cuenta Parcial
+                        </h3>
+                        <button
+                            @click="closeExportModal"
+                            class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Selección de Campos -->
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                                Seleccionar Campos para Exportar
+                            </h4>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <!-- Información del Participante -->
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <h5 class="font-semibold text-gray-800 mb-3">Información del Participante</h5>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.participant.name" class="mr-2">
+                                            <span class="text-sm">Nombre</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.participant.email" class="mr-2">
+                                            <span class="text-sm">Email</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.participant.document" class="mr-2">
+                                            <span class="text-sm">Documento</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.participant.phone" class="mr-2">
+                                            <span class="text-sm">Teléfono</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Información del Programa -->
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <h5 class="font-semibold text-gray-800 mb-3">Información del Programa</h5>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.program.name" class="mr-2">
+                                            <span class="text-sm">Nombre del Programa</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.program.departureDate" class="mr-2">
+                                            <span class="text-sm">Fecha de Salida</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.program.enrollmentCode" class="mr-2">
+                                            <span class="text-sm">Código de Inscripción</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.program.salesExecutive" class="mr-2">
+                                            <span class="text-sm">Ejecutivo de Ventas</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Información Financiera -->
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <h5 class="font-semibold text-gray-800 mb-3">Información Financiera</h5>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.totalAmount" class="mr-2">
+                                            <span class="text-sm">Precio Total</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.discounts" class="mr-2">
+                                            <span class="text-sm">Descuentos</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.netAmount" class="mr-2">
+                                            <span class="text-sm">Monto Neto</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.totalPaid" class="mr-2">
+                                            <span class="text-sm">Total Pagado</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.pendingAmount" class="mr-2">
+                                            <span class="text-sm">Saldo Pendiente</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" v-model="exportFields.financial.progressPercentage" class="mr-2">
+                                            <span class="text-sm">Progreso de Pago (%)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Opciones de Exportación -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Formato de Archivo
+                                    </label>
+                                    <select v-model="exportOptions.format" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="xlsx">Excel (.xlsx)</option>
+                                        <option value="csv">CSV (.csv)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Incluir Todos los Registros
+                                    </label>
+                                    <select v-model="exportOptions.includeAll" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="current">Solo página actual</option>
+                                        <option value="all">Todos los registros</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                @click="closeExportModal"
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                @click="exportReport"
+                                :disabled="!hasSelectedFields"
+                                class="bg-green-500 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg"
+                            >
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </AdminLayout>
 </template>
 
@@ -579,6 +740,35 @@ const selectedAccount = ref(null);
 // Estado de paginación
 const currentPage = ref(1);
 const accountsPerPage = ref(10);
+
+// Estado del modal de exportación
+const showExportModal = ref(false);
+const exportFields = reactive({
+    participant: {
+        name: true,
+        email: true,
+        document: true,
+        phone: true,
+    },
+    program: {
+        name: true,
+        departureDate: true,
+        enrollmentCode: true,
+        salesExecutive: true,
+    },
+    financial: {
+        totalAmount: true,
+        discounts: true,
+        netAmount: true,
+        totalPaid: true,
+        pendingAmount: true,
+        progressPercentage: true,
+    },
+});
+const exportOptions = reactive({
+    format: "xlsx",
+    includeAll: "current",
+});
 
 // Establecer fechas por defecto (último mes)
 onMounted(() => {
@@ -633,10 +823,27 @@ const applyFilters = () => {
 
 const exportReport = () => {
     const params = new URLSearchParams(filters);
+    const selectedFields = Object.keys(exportFields).reduce((acc, key) => {
+        acc[key] = Object.keys(exportFields[key]).filter(field => exportFields[key][field]);
+        return acc;
+    }, {});
+    params.append('fields', JSON.stringify(selectedFields));
+    params.append('format', exportOptions.format);
+    params.append('include_all', exportOptions.includeAll);
+
+    // Log para debug
+    console.log('Export Debug:', {
+        selectedFields,
+        format: exportOptions.format,
+        includeAll: exportOptions.includeAll,
+        url: `/admin/reports/export/partial-account?${params.toString()}`
+    });
+
     window.open(
         `/admin/reports/export/partial-account?${params.toString()}`,
         "_blank"
     );
+    closeExportModal();
 };
 
 const openDetailModal = (account) => {
@@ -647,6 +854,22 @@ const openDetailModal = (account) => {
 const closeDetailModal = () => {
     showDetailModal.value = false;
     selectedAccount.value = null;
+};
+
+const openExportModal = () => {
+    showExportModal.value = true;
+    // Resetear campos de exportación al abrir
+    Object.keys(exportFields).forEach(key => {
+        Object.keys(exportFields[key]).forEach(field => {
+            exportFields[key][field] = true; // Por defecto todos seleccionados
+        });
+    });
+    exportOptions.format = "xlsx";
+    exportOptions.includeAll = "current";
+};
+
+const closeExportModal = () => {
+    showExportModal.value = false;
 };
 
 const handlePageChange = (page) => {
@@ -684,4 +907,9 @@ const formatDate = (date) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString("es-CL");
 };
+
+const hasSelectedFields = computed(() => {
+    return Object.values(exportFields).some(fields => Object.values(fields).some(field => field));
+});
+
 </script>

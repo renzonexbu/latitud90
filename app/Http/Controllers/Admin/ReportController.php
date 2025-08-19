@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Helpers\ParticipantPriceHelper;
 
 class ReportController extends Controller
 {
@@ -27,10 +26,10 @@ class ReportController extends Controller
         $passengersQuery = Participant::query();
 
         if ($programId) {
-            $paymentsQuery->whereHas('order.program', function($q) use ($programId) {
+            $paymentsQuery->whereHas('order.program', function ($q) use ($programId) {
                 $q->where('id', $programId);
             });
-            $passengersQuery->whereHas('programs', function($q) use ($programId) {
+            $passengersQuery->whereHas('programs', function ($q) use ($programId) {
                 $q->where('program_id', $programId);
             });
         }
@@ -58,13 +57,13 @@ class ReportController extends Controller
             ->orderBy('participants_count', 'desc')
             ->limit(5)
             ->get()
-            ->map(function($program) {
+            ->map(function ($program) {
                 // Calcular ingresos totales del programa
-                $totalRevenue = Payment::whereHas('order.program', function($q) use ($program) {
+                $totalRevenue = Payment::whereHas('order.program', function ($q) use ($program) {
                     $q->where('id', $program->id);
                 })
-                ->where('status', 'completed')
-                ->sum('amount');
+                    ->where('status', 'completed')
+                    ->sum('amount');
 
                 return [
                     'id' => $program->id,
@@ -79,7 +78,7 @@ class ReportController extends Controller
             ->selectRaw('payment_gateway_id as gateway, COUNT(*) as count, SUM(amount) as total')
             ->groupBy('payment_gateway_id')
             ->get()
-            ->map(function($item) use ($totalRevenue) {
+            ->map(function ($item) use ($totalRevenue) {
                 return [
                     'gateway' => $item->gateway ?? 'unknown',
                     'count' => $item->count,
@@ -140,7 +139,7 @@ class ReportController extends Controller
             ->where('status', 'completed');
 
         if ($programId) {
-            $query->whereHas('order.program', function($q) use ($programId) {
+            $query->whereHas('order.program', function ($q) use ($programId) {
                 $q->where('id', $programId);
             });
         }
@@ -168,13 +167,19 @@ class ReportController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function() use ($payments) {
+        $callback = function () use ($payments) {
             $file = fopen('php://output', 'w');
 
             // Encabezados CSV
             fputcsv($file, [
-                'Fecha', 'ID Pago', 'Pasajero', 'Email', 'Programa',
-                'Método Pago', 'Monto', 'Estado'
+                'Fecha',
+                'ID Pago',
+                'Pasajero',
+                'Email',
+                'Programa',
+                'Método Pago',
+                'Monto',
+                'Estado'
             ]);
 
             foreach ($payments as $payment) {
@@ -253,30 +258,30 @@ class ReportController extends Controller
     public function dailyPayments(Request $request)
     {
         $filters = $request->only(['programId', 'executiveId', 'paymentMethod', 'dateFrom', 'dateTo']);
-        
+
         $query = Payment::with([
             'order.participant',
             'order.program',
             'orderDetail',
             'paymentGateway'
         ])
-        ->where('status', 'completed');
+            ->where('status', 'completed');
 
         // Aplicar filtros
         if (!empty($filters['programId'])) {
-            $query->whereHas('order.program', function($q) use ($filters) {
+            $query->whereHas('order.program', function ($q) use ($filters) {
                 $q->where('id', $filters['programId']);
             });
         }
 
         if (!empty($filters['executiveId'])) {
-            $query->whereHas('order.program', function($q) use ($filters) {
+            $query->whereHas('order.program', function ($q) use ($filters) {
                 $q->where('sales_executive_id', $filters['executiveId']);
             });
         }
 
         if (!empty($filters['paymentMethod'])) {
-            $query->whereHas('paymentGateway', function($q) use ($filters) {
+            $query->whereHas('paymentGateway', function ($q) use ($filters) {
                 $q->where('code', $filters['paymentMethod']);
             });
         }
@@ -289,7 +294,7 @@ class ReportController extends Controller
             $query->where('created_at', '<=', $filters['dateTo'] . ' 23:59:59');
         }
 
-        $payments = $query->get()->map(function($payment) {
+        $payments = $query->get()->map(function ($payment) {
             return [
                 'id' => $payment->id,
                 'participant_name' => $payment->order->participant->full_name ?? 'N/A',
@@ -314,14 +319,14 @@ class ReportController extends Controller
     public function consolidatedPayments(Request $request)
     {
         $filters = $request->only(['dateFrom', 'dateTo', 'paymentMethod', 'transactionType']);
-        
+
         $query = Payment::with([
             'order.participant',
             'order.program',
             'orderDetail',
             'paymentGateway'
         ])
-        ->where('status', 'completed');
+            ->where('status', 'completed');
 
         // Aplicar filtros
         if (!empty($filters['dateFrom'])) {
@@ -333,7 +338,7 @@ class ReportController extends Controller
         }
 
         if (!empty($filters['paymentMethod'])) {
-            $query->whereHas('paymentGateway', function($q) use ($filters) {
+            $query->whereHas('paymentGateway', function ($q) use ($filters) {
                 $q->where('code', $filters['paymentMethod']);
             });
         }
@@ -346,7 +351,7 @@ class ReportController extends Controller
             }
         }
 
-        $payments = $query->get()->map(function($payment) {
+        $payments = $query->get()->map(function ($payment) {
             return [
                 'id' => $payment->id,
                 'program_id' => $payment->order->program->id ?? 'N/A',
@@ -371,7 +376,7 @@ class ReportController extends Controller
     public function installmentSchedule(Request $request)
     {
         $filters = $request->only(['programId', 'installmentStatus', 'dateFrom']);
-        
+
         // TODO: Implementar lógica de cuotas
         // Por ahora retornamos datos de ejemplo
         $installments = collect();
@@ -386,14 +391,14 @@ class ReportController extends Controller
     public function revenueChart(Request $request)
     {
         $filters = $request->only(['period', 'dateFrom', 'dateTo']);
-        
+
         $period = $filters['period'] ?? 'daily';
         $dateFrom = $filters['dateFrom'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $filters['dateTo'] ?? Carbon::now()->format('Y-m-d');
 
         // Generar datos de ingresos por período
         $revenueData = $this->generateRevenueData($period, $dateFrom, $dateTo);
-        
+
         // Datos de métodos de pago
         $paymentMethodsData = Payment::where('status', 'completed')
             ->whereBetween('created_at', [$dateFrom, $dateTo])
@@ -417,7 +422,7 @@ class ReportController extends Controller
 
         while ($startDate <= $endDate) {
             $date = $startDate->format('Y-m-d');
-            
+
             $revenue = Payment::where('status', 'completed')
                 ->whereDate('created_at', $date)
                 ->sum('amount');
@@ -459,147 +464,19 @@ class ReportController extends Controller
     public function partialAccount(Request $request)
     {
         $filters = $request->only(['programId', 'participantId', 'dateFrom', 'dateTo', 'page']);
-        
-        // Usar la misma lógica que funciona en ParticipantsController
-        $query = DB::table('participants as p')
-            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
-            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
-            ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
-            ->leftJoin('orders as o', function($join) {
-                $join->on('o.participant_id', '=', 'p.id')
-                     ->on('o.program_id', '=', 'pr.id');
-            })
-            ->leftJoin('orders_detail as od', function ($join) {
-                $join->on('od.order_id', '=', 'o.id')
-                    ->where('od.is_paid', true);
-            });
 
-        // Aplicar filtros
-        if (!empty($filters['programId'])) {
-            $query->where('pr.id', $filters['programId']);
-        }
+        $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
 
-        if (!empty($filters['participantId'])) {
-            $query->where('p.id', $filters['participantId']);
-        }
+        // Obtener datos del estado de cuenta parcial
+        $partialAccounts = $partialAccountService->getPartialAccounts($filters);
 
-        if (!empty($filters['dateFrom'])) {
-            $query->where('pp.created_at', '>=', $filters['dateFrom']);
-        }
-
-        if (!empty($filters['dateTo'])) {
-            $query->where('pp.created_at', '<=', $filters['dateTo'] . ' 23:59:59');
-        }
-
-        $enrollmentsBase = $query
-            ->groupBy([
-                'p.id', 'p.first_name', 'p.last_name', 'p.email', 'p.document_number', 'p.phone',
-                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
-                'pr.id', 'pr.name', 'pr.departure_date',
-                'c.education_level', 'c.course_number',
-                'i.name',
-            ])
-            ->select([
-                'p.id as participant_id',
-                'p.first_name',
-                'p.last_name',
-                'p.email',
-                'p.document_number',
-                'p.phone',
-                'pp.id as participant_program_id',
-                'pp.enrollment_code',
-                'pp.individual_price',
-                'pp.status as enrollment_status',
-                'pp.created_at',
-                'pr.id as program_id',
-                'pr.name as program_name',
-                'pr.departure_date',
-                'c.education_level',
-                'c.course_number',
-                'i.name as institution_name',
-                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
-            ])
-            ->orderByDesc('pp.created_at')
-            ->paginate(10); // Paginación de 10 registros por página
-
-        $partialAccounts = collect($enrollmentsBase->items())->map(function($enrollment) {
-            // Usar el mismo helper que usa ParticipantsController
-            $participant = Participant::find($enrollment->participant_id);
-            $program = Program::find($enrollment->program_id);
-            
-            $priceData = null;
-            if ($participant && $program) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            }
-            
-            $totalAmount = $enrollment->individual_price ?? 0;
-            $totalDiscounts = $priceData ? $priceData['discounts'] : 0;
-            $netAmount = $priceData ? $priceData['final_price'] : $totalAmount;
-            $totalPaid = $enrollment->paid_amount ?? 0;
-            $pendingAmount = $netAmount - $totalPaid;
-            
-            // Determinar estado
-            $status = 'pending';
-            if ($pendingAmount <= 0) {
-                $status = 'paid';
-            } elseif ($pendingAmount < $netAmount) {
-                $status = 'partial';
-            }
-
-            // Calcular porcentaje de avance
-            $progressPercentage = $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 0;
-
-            return [
-                'id' => $enrollment->participant_program_id,
-                'participant_id' => $enrollment->participant_id,
-                'program_id' => $enrollment->program_id,
-                'created_at' => $enrollment->created_at,
-                'participant_name' => $enrollment->first_name . ' ' . $enrollment->last_name,
-                'participant_email' => $enrollment->email,
-                'participant_document' => $enrollment->document_number,
-                'participant_phone' => $enrollment->phone,
-                'program_name' => $enrollment->program_name,
-                'program_departure_date' => $enrollment->departure_date,
-                'enrollment_code' => $enrollment->enrollment_code,
-                'total_amount' => $totalAmount,
-                'total_discounts' => $totalDiscounts,
-                'net_amount' => $netAmount,
-                'total_paid' => $totalPaid,
-                'pending_amount' => $pendingAmount,
-                'progress_percentage' => $progressPercentage,
-                'status' => $status,
-                'payment_history' => [], // TODO: Implementar si es necesario
-                'upcoming_payments' => [], // TODO: Implementar si es necesario
-                'discounts_detail' => [] // TODO: Implementar si es necesario
-            ];
-        });
-
-        // Crear objeto de paginación personalizado
-        $paginatedAccounts = new \Illuminate\Pagination\LengthAwarePaginator(
-            $partialAccounts,
-            $enrollmentsBase->total(),
-            $enrollmentsBase->perPage(),
-            $enrollmentsBase->currentPage(),
-            [
-                'path' => request()->url(),
-                'pageName' => 'page',
-            ]
-        );
-
-        // Debug logs finales
-        \Illuminate\Support\Facades\Log::info('PartialAccount Response', [
-            'total' => $paginatedAccounts->total(),
-            'per_page' => $paginatedAccounts->perPage(),
-            'current_page' => $paginatedAccounts->currentPage(),
-            'last_page' => $paginatedAccounts->lastPage(),
-            'items_count' => $paginatedAccounts->count(),
-        ]);
+        // Obtener datos de filtros
+        $filterData = $partialAccountService->getFilterData();
 
         return Inertia::render('Admin/Reports/PartialAccount', [
-            'partialAccounts' => $paginatedAccounts,
-            'programs' => Program::all(['id', 'name']),
-            'participants' => Participant::all(['id', 'first_name', 'last_name']),
+            'partialAccounts' => $partialAccounts,
+            'programs' => $filterData['programs'],
+            'participants' => $filterData['participants'],
             'filters' => $filters
         ]);
     }
@@ -607,7 +484,7 @@ class ReportController extends Controller
     public function paymentSchedule(Request $request)
     {
         $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status']);
-        
+
         // TODO: Implementar lógica de cronograma de recuperación
         // Por ahora retornamos datos de ejemplo
         $paymentSchedules = collect();
@@ -621,9 +498,48 @@ class ReportController extends Controller
 
     public function exportPartialAccount(Request $request)
     {
-        // TODO: Implementar exportación a CSV
-        return response()->json(['message' => 'Exportación implementada']);
+        $filters = $request->only(['programId', 'participantId', 'dateFrom', 'dateTo']);
+        $fields = json_decode($request->get('fields', '{}'), true);
+        $format = $request->get('format', 'xlsx');
+        $includeAll = $request->get('include_all', 'current');
+
+        $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
+        $exportService = app(\App\Services\Admin\Reports\PartialReport\ExportService::class);
+
+        // Validar campos de exportación
+        if (!$exportService->validateExportFields($fields)) {
+            return response()->json(['error' => 'Debe seleccionar al menos un campo para exportar'], 400);
+        }
+
+        try {
+            // Obtener datos para exportación
+            $exportData = $partialAccountService->getExportData($filters, $fields, $includeAll);
+
+            // Validar que tenemos datos para exportar
+            if ($exportData->isEmpty()) {
+                return response()->json(['error' => 'No hay datos válidos para exportar'], 400);
+            }
+
+            // Generar nombre de archivo
+            $filename = $exportService->generateFilename('estado_cuenta_parcial');
+
+            // Exportar según el formato
+            return $exportService->export($exportData, $format, $filename);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Export Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
     }
+
+
+
+
 
     public function exportPaymentSchedule(Request $request)
     {
