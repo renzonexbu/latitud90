@@ -97,8 +97,18 @@ export default {
             // Guardar enrollment_code en localStorage para identificar pagos
             try {
                 const participant = this.participant || {};
-                const rutFirst6 = participant.rut_first6 || (participant.document_number ? String(participant.document_number).replace(/\D/g, '').slice(0,6) : '');
-                const enrollmentCode = program.enrollment_code || (program.code && rutFirst6 ? `${program.code}${rutFirst6}` : null);
+                let enrollmentCode = program.enrollment_code;
+                
+                if (!enrollmentCode && program.code && participant.document_number) {
+                    if (participant.document_type && participant.document_type.toLowerCase() === 'rut') {
+                        // Para RUT: usar código del programa + RUT completo sin dígito verificador
+                        const rutDigits = String(participant.document_number).replace(/\D/g, '').slice(0, -1);
+                        enrollmentCode = `${program.code}${rutDigits}`;
+                    } else {
+                        // Para pasaporte: usar código del programa + número completo del pasaporte
+                        enrollmentCode = `${program.code}${participant.document_number}`;
+                    }
+                }
                 const payload = {
                     enrollment_code: enrollmentCode,
                     program_id: program.id,

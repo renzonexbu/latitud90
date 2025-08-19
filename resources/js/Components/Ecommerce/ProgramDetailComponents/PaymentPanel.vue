@@ -148,7 +148,50 @@
 
             <!-- Payment Summary Section -->
             <div v-if="showRemainingAmount" class="border-t border-[#D3D3D3] pt-[14px]">
-                <div class="flex flex-row items-center justify-between">
+                <!-- Mensaje de pago completo -->
+                <div v-if="isPaymentComplete" class="mb-4">
+                    <div class="bg-green-50 border border-green-200 rounded-md p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-green-800">
+                                    Pago Completo
+                                </h3>
+                                <div class="mt-2 text-sm text-green-700">
+                                    <p>Ya has pagado el monto total del programa. No hay pagos pendientes.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mensaje de monto excedido -->
+                <div v-else-if="isAmountExceeded" class="mb-4">
+                    <div class="bg-red-50 border border-red-200 rounded-md p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">
+                                    Monto Excedido
+                                </h3>
+                                <div class="mt-2 text-sm text-red-700">
+                                    <p>El monto a pagar excede el saldo pendiente. Por favor, selecciona un número menor de cuotas.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen de pago normal -->
+                <div v-else class="flex flex-row items-center justify-between">
                     <span
                         class="text-[#434343] font-nexa text-[20px] leading-[28px] font-bold"
                     >
@@ -167,16 +210,16 @@
                 v-if="showPaymentButton"
                 class="rounded-[35px] p-[11px_20px] h-[55.94px] w-full transition-colors duration-300"
                 :class="{
-                    'bg-[#FBBD51] cursor-pointer': paymentType !== null,
-                    'bg-[#C7C7C7] cursor-not-allowed': paymentType === null,
+                    'bg-[#FBBD51] cursor-pointer': canProceedWithPayment,
+                    'bg-[#C7C7C7] cursor-not-allowed': !canProceedWithPayment,
                 }"
-                :disabled="paymentType === null"
+                :disabled="!canProceedWithPayment"
                 @click="initiatePayment"
             >
                 <span
                     class="text-white font-urbanist-semibold text-[18px] leading-[18px] font-semibold"
                 >
-                    Iniciar pago
+                    {{ getPaymentButtonText() }}
                 </span>
             </button>
         </div>
@@ -188,6 +231,7 @@ import PaymentOption from "./PaymentOption.vue";
 import PaymentSubOption from "./PaymentSubOption.vue";
 import MonthlyWarningMessage from "./MonthlyWarningMessage.vue";
 import { router } from "@inertiajs/vue3";
+import { getFirstInstallmentAmount, formatPrice, splitAmountInInstallments } from "@/utils/paymentUtils";
 
 export default {
     name: "PaymentPanel",
@@ -300,15 +344,7 @@ export default {
     },
     methods: {
         formatPrice(amount) {
-            const safe = Number(amount ?? 0);
-            return new Intl.NumberFormat("es-CL", {
-                style: "currency",
-                currency: "CLP",
-                maximumFractionDigits: 0,
-            })
-                .format(safe)
-                .replace("CLP", "")
-                .trim();
+            return formatPrice(amount);
         },
         containerBaseClasses() {
             return "w-full h-fit";
@@ -631,6 +667,17 @@ export default {
                 return;
             }
 
+            // Validaciones adicionales
+            if (this.isPaymentComplete) {
+                alert('Ya has pagado el monto total del programa. No hay pagos pendientes.');
+                return;
+            }
+
+            if (this.isAmountExceeded) {
+                alert('El monto a pagar excede el saldo pendiente. Por favor, selecciona un número menor de cuotas.');
+                return;
+            }
+
             // Guardar los datos de pago en la sesión o localStorage
             const paymentData = {
                 paymentType: this.paymentType,
@@ -655,6 +702,18 @@ export default {
                 data: { rut: this.$page.props.rut || this.$page.props.participant?.rut }
             });
         },
+        getPaymentButtonText() {
+            if (this.isPaymentComplete) {
+                return 'Pago Completo';
+            }
+            if (this.isAmountExceeded) {
+                return 'Monto Excedido';
+            }
+            if (this.paymentType === null) {
+                return 'Selecciona método de pago';
+            }
+            return 'Iniciar pago';
+        },
     },
     computed: {
         containerClass() {
@@ -672,7 +731,70 @@ export default {
                 return Number(base) || 0;
             }
             const installments = Math.max(1, Number(this.selectedInstallments || 1));
-            return Math.round(((Number(base) || 0) / installments) * 100) / 100;
+            
+            // Usar el método estandarizado de redondeo
+            const result = getFirstInstallmentAmount(Number(base) || 0, installments);
+            
+            // Debug log
+            console.log('=== DEBUG displayRemainingAmount ===');
+            console.log('base:', base);
+            console.log('participant_balance:', this.program.participant_balance);
+            console.log('participant_total_due:', this.program.participant_total_due);
+            console.log('trip_price:', this.program.trip_price);
+            console.log('paymentType:', this.paymentType);
+            console.log('selectedInstallments:', this.selectedInstallments);
+            console.log('installments:', installments);
+            console.log('result:', result);
+            console.log('====================================');
+            
+            return result;
+        },
+        isPaymentComplete() {
+            const balance = Number(this.program.participant_balance ?? 0);
+            return balance <= 0;
+        },
+        isAmountExceeded() {
+            if (this.isPaymentComplete) return false;
+            
+            const balance = Number(this.program.participant_balance ?? 0);
+            
+            // Para pagos totales, verificar que no exceda el balance
+            if (this.paymentType === 'total') {
+                const amountToPay = Number(this.displayRemainingAmount ?? 0);
+                return amountToPay > balance;
+            }
+            
+            // Para pagos mensuales, verificar que el total de las cuotas no exceda el balance
+            if (this.paymentType === 'monthly') {
+                const totalInstallments = Number(this.selectedInstallments || 1);
+                const amounts = splitAmountInInstallments(balance, totalInstallments);
+                const totalToPay = amounts.reduce((sum, amount) => sum + amount, 0);
+                
+                // Usar una tolerancia pequeña para manejar errores de redondeo (1 peso)
+                const tolerance = 1;
+                const isExceeded = (totalToPay - balance) > tolerance;
+                
+                // Debug log
+                console.log('=== DEBUG isAmountExceeded ===');
+                console.log('balance:', balance);
+                console.log('totalInstallments:', totalInstallments);
+                console.log('amounts:', amounts);
+                console.log('totalToPay:', totalToPay);
+                console.log('difference:', totalToPay - balance);
+                console.log('tolerance:', tolerance);
+                console.log('isExceeded:', isExceeded);
+                console.log('==============================');
+                
+                return isExceeded;
+            }
+            
+            return false;
+        },
+        canProceedWithPayment() {
+            return this.paymentType !== null && 
+                   !this.isPaymentComplete && 
+                   !this.isAmountExceeded &&
+                   this.displayRemainingAmount > 0;
         }
     }
 };

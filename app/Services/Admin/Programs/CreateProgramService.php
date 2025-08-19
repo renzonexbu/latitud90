@@ -18,6 +18,11 @@ class CreateProgramService
      */
     public function execute(array $programData): Program
     {
+        // Validar que sales_executive_id esté presente
+        if (empty($programData['sales_executive_id'])) {
+            throw new \InvalidArgumentException('El ejecutivo de ventas es obligatorio.');
+        }
+        
         try {
             DB::beginTransaction();
 
@@ -59,7 +64,7 @@ class CreateProgramService
                 'year' => (int) date('Y', strtotime($programData['departure_date'])),
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => null,
-                'sales_executive_id' => $programData['sales_executive_id'],
+                'sales_executive_id' => $programData['sales_executive_id'] ?? null,
 
                 // Configuración de pago total
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
@@ -713,17 +718,11 @@ class CreateProgramService
      */
     private function ensureParticipantProgram(Participant $participant, Program $program, ?float $individualPrice = null): void
     {
-        $code = (string) ($program->code ?? '');
-        // Preferir rut_first6 si existe, si no, derivarlo de document_number
-        $rutFirst6 = $participant->rut_first6;
-        if (!$rutFirst6) {
-            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
-            $rutFirst6 = substr($digits, 0, 6) ?: null;
-        }
-        if (!$code || !$rutFirst6) {
+        $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
+        
+        if (!$enrollmentCode) {
             return; // No podemos generar enrollment_code
         }
-        $enrollmentCode = $code . $rutFirst6;
 
         // Evitar duplicados por la clave única (participant_id, program_id)
         \Illuminate\Support\Facades\DB::table('participant_program')->updateOrInsert(
@@ -780,6 +779,11 @@ class CreateProgramService
         // Si es solo números, podría ser un RUT sin formato
         if (is_numeric(str_replace(['.', '-'], '', $documentNumber))) {
             return 'RUT';
+        }
+
+        // Si contiene letras, es un pasaporte
+        if (preg_match('/[A-Za-z]/', $documentNumber)) {
+            return 'PASSPORT';
         }
 
         // Por defecto, asumir que es un RUT

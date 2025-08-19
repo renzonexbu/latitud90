@@ -35,6 +35,10 @@ return new class extends Migration
 
 			$table->index(['rut_digits']);
 			$table->index(['rut_first6']);
+			$table->index(['created_at']); // Para filtros por fecha
+			$table->index(['status', 'created_at']); // Para filtros combinados
+			$table->index(['document_number']); // Para búsquedas por documento
+			$table->index(['email']); // Para búsquedas por email
         });
 
         // Tabla pivote para la relación muchos a muchos entre participants y courses

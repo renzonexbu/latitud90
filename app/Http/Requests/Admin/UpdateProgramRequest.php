@@ -49,7 +49,7 @@ class UpdateProgramRequest extends FormRequest
             'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
             'trip_price' => 'nullable|numeric|min:0',
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
-            'final_payment_date' => 'nullable|date',
+            'final_payment_date' => 'nullable|date|before_or_equal:departure_date',
             'seller_name' => 'nullable|string|max:255',
             'sales_executive_id' => 'nullable|integer|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
@@ -163,6 +163,7 @@ class UpdateProgramRequest extends FormRequest
             'final_payment_date.required' => 'La fecha final de pago es obligatoria.',
             'final_payment_date.date' => 'La fecha final de pago debe tener un formato válido.',
             'final_payment_date.after' => 'La fecha final de pago debe ser posterior a hoy.',
+            'final_payment_date.before_or_equal' => 'La fecha final de pago no puede ser posterior a la fecha de salida.',
             
             'sales_executive_id.integer' => 'El ejecutivo de ventas debe ser un número válido.',
             'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe.',

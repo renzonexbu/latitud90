@@ -30,6 +30,13 @@ return new class extends Migration
             $table->decimal('target_amount', 10, 2)->nullable();
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();
+            
+            // Índices para optimizar consultas
+            $table->index(['program_id']); // Para joins con programs
+            $table->index(['institution_id']); // Para joins con institutions
+            $table->index(['status']); // Para filtros por status
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
         });
 
         // Agregar el campo course_id a la tabla programs

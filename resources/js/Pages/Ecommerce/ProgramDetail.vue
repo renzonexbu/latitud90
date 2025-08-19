@@ -105,7 +105,7 @@
         <Footer class="rounded-lg"></Footer>
 
         <!-- Sticky Payment Bar (Mobile Only) -->
-        <div class="md:hidden fixed bottom-0 left-0 right-0 z-50" v-show="!isMobilePaymentOpen">
+        <div class="md:hidden fixed bottom-0 left-0 right-0 z-50" v-show="!isMobilePaymentOpen && canProceedWithPayment">
             <div
                 class="flex w-full max-w-[375px] h-[88px] pt-[19px] pb-[21px] px-[20px] justify-center items-center mx-auto flex-shrink-0
                        rounded-t-[16px] border-t border-[#F0F0F0] bg-white shadow-[0_4px_11.6px_0_rgba(163,163,163,0.11)]"
@@ -121,6 +121,26 @@
                     >
                         <span class="text-white font-nexa-xbold text-[14px] leading-[22px]">Iniciar pago</span>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mensaje de pago completo (Mobile Only) -->
+        <div class="md:hidden fixed bottom-0 left-0 right-0 z-50" v-show="!isMobilePaymentOpen && isPaymentComplete">
+            <div
+                class="flex w-full max-w-[375px] h-[88px] pt-[19px] pb-[21px] px-[20px] justify-center items-center mx-auto flex-shrink-0
+                       rounded-t-[16px] border-t border-[#F0F0F0] bg-green-50 shadow-[0_4px_11.6px_0_rgba(163,163,163,0.11)]"
+            >
+                <div class="flex flex-row items-center justify-between w-full">
+                    <div class="flex flex-col items-start">
+                        <span class="text-green-800 font-nexa text-[16px] leading-[22px] font-bold">Pago Completo</span>
+                        <span class="text-green-700 font-nexa text-[14px] leading-[20px]">No hay pagos pendientes</span>
+                    </div>
+                    <div class="flex items-center">
+                        <svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
                 </div>
             </div>
         </div>
@@ -179,6 +199,7 @@ import ProgramPillars from "@/Components/Ecommerce/ProgramDetailComponents/Progr
 import ProgramDocuments from "@/Components/Ecommerce/ProgramDetailComponents/ProgramDocuments.vue";
 import ItineraryDescription from "@/Components/Ecommerce/ProgramDetailComponents/ItineraryDescription.vue";
 import PaymentPanel from "@/Components/Ecommerce/ProgramDetailComponents/PaymentPanel.vue";
+import { getFirstInstallmentAmount, formatPrice } from "@/utils/paymentUtils";
 
 export default {
     components: {
@@ -229,15 +250,7 @@ export default {
             return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         },
         formatPrice(amount) {
-            const safe = Number(amount ?? 0);
-            return new Intl.NumberFormat("es-CL", {
-                style: "currency",
-                currency: "CLP",
-                maximumFractionDigits: 0,
-            })
-                .format(safe)
-                .replace("CLP", "")
-                .trim();
+            return formatPrice(amount);
         },
         openMobilePaymentPanel() {
             this.isMobilePaymentOpen = true;
@@ -246,6 +259,16 @@ export default {
             this.isMobilePaymentOpen = false;
         },
         startPayment() {
+            if (this.isPaymentComplete) {
+                alert('Ya has pagado el monto total del programa. No hay pagos pendientes.');
+                return;
+            }
+            
+            if (!this.canProceedWithPayment) {
+                alert('No se puede proceder con el pago. Verifica que tengas un saldo pendiente válido.');
+                return;
+            }
+            
             router.visit(`/programs/${this.program.id}/payment`, {
                 data: { rut: this.rut }
             });
@@ -253,9 +276,30 @@ export default {
     },
     computed: {
         displayPayAmount() {
+            // Si hay cuota activa, mostrar el monto de esa cuota
+            if (this.program.active_installment) {
+                return Number(this.program.active_installment.amount) || 0;
+            }
+            
+            // Si ya se pagó todo, mostrar 0
+            const balance = Number(this.program.participant_balance ?? 0);
+            if (balance <= 0) {
+                return 0;
+            }
+            
+            // Para pagos normales, calcular según las cuotas seleccionadas
             const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
             const installments = Math.max(1, Number(this.currentInstallments || 1));
-            return Math.round((Number(base) / installments) * 100) / 100;
+            
+            // Usar el método estandarizado de redondeo
+            return getFirstInstallmentAmount(Number(base), installments);
+        },
+        isPaymentComplete() {
+            const balance = Number(this.program.participant_balance ?? 0);
+            return balance <= 0;
+        },
+        canProceedWithPayment() {
+            return !this.isPaymentComplete && this.displayPayAmount > 0;
         }
     }
 };

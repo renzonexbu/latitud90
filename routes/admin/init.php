@@ -30,7 +30,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // Gestión de participantes
     include __DIR__ . '/participants.php';
-    
+
     // Gestión de pagos
     Route::resource('payments', PaymentController::class);
     Route::patch('payments/{payment}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
@@ -40,12 +40,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('payments/pending-report', [PaymentController::class, 'pendingReport'])->name('payments.pending-report');
     Route::get('payments/revenue-report', [PaymentController::class, 'revenueReport'])->name('payments.revenue-report');
 
-    // Reportes generales
-    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
-    Route::get('reports/sales-chart', [ReportController::class, 'salesChart'])->name('reports.sales-chart');
-    
-    // Incluir rutas de reportes específicos
+    // Gestión de reportes
     include __DIR__ . '/reports.php';
 
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');

@@ -65,6 +65,9 @@ return new class extends Migration
             $table->index(['external_payment_id']);
             $table->index(['authorization_code']);
             $table->index(['order_id', 'status']);
+            $table->index(['status']); // Para filtros por status
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
         });
     }
 

@@ -55,6 +55,9 @@ return new class extends Migration
 			$table->index(['status', 'departure_date']);
 			$table->index(['code']);
             $table->index(['destination']);
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
+            $table->index(['institution_id']); // Para joins con institutions
         });
 
         // Crear trigger para actualizar status a 'realizado' cuando pase la fecha de salida

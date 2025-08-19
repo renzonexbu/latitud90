@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Helpers\ParticipantPriceHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +39,18 @@ class InstallmentService
             // Determinar número total de cuotas
             $totalInstallments = (int) ($paymentData['installments'] ?? ($program->lat90_max_installments ?? 1));
             if ($totalInstallments < 1) { $totalInstallments = 1; }
+
+            // Log para verificar los montos antes de crear el plan
+            Log::info('InstallmentService: createOrGetInstallmentPlan - Montos calculados', [
+                'program_id' => $programId,
+                'participant_rut' => $rut,
+                'participant_total_amount' => $participantTotalAmount,
+                'paid_amount' => $paidAmount,
+                'participant_balance' => $participantBalance,
+                'final_amount' => $finalAmount,
+                'total_installments' => $totalInstallments,
+                'payment_data' => $paymentData
+            ]);
 
             // Buscar si ya existe un plan de cuotas activo
             $existingPlan = InstallmentPlan::where('participant_id', $participant->id)
@@ -161,14 +174,29 @@ class InstallmentService
             $amounts = $this->splitAmountInInstallments($finalAmount, $totalInstallments);
             $dueDates = $this->generateMonthlyDueDates($program, $totalInstallments);
             
+            Log::info('InstallmentService: Creando cuotas individuales', [
+                'plan_id' => $installmentPlan->id,
+                'final_amount' => $finalAmount,
+                'total_installments' => $totalInstallments,
+                'amounts' => $amounts,
+                'due_dates' => $dueDates
+            ]);
+            
             for ($i = 1; $i <= $totalInstallments; $i++) {
-                Installment::create([
+                $installment = Installment::create([
                     'installment_plan_id' => $installmentPlan->id,
                     'installment_number' => $i,
                     'amount' => $amounts[$i - 1],
                     'due_date' => $dueDates[$i - 1],
                     'status' => 'pending',
                     'notes' => "Cuota {$i} de {$totalInstallments}"
+                ]);
+
+                Log::info('InstallmentService: Cuota creada', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $i,
+                    'amount' => $amounts[$i - 1],
+                    'due_date' => $dueDates[$i - 1]
                 ]);
             }
 
@@ -256,13 +284,21 @@ class InstallmentService
      */
     private function computeParticipantAmounts(Program $program, Participant $participant): array
     {
-        // Implementar lógica de cálculo de montos
-        // Por ahora retornar valores básicos
-        $totalAmount = 550000; // Monto del programa
-        $paidAmount = 0; // Monto ya pagado
-        $balance = $totalAmount - $paidAmount;
-        
-        return [$totalAmount, $paidAmount, $balance];
+        // Usar el helper para calcular el precio final con descuentos
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $participantTotalAmount = $priceData['final_price'];
+
+        // Pagos aprobados previos de este participante para este programa
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $program->id);
+            })
+            ->where('status', 'approved')
+            ->sum('amount');
+        $paidAmount = round($paidAmount, 2);
+        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+
+        return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
 
     /**
@@ -281,18 +317,41 @@ class InstallmentService
             $remainder = round($remainder - 0.01, 2);
             $i++;
         }
+
+        // Log detallado para debugging
+        Log::info('InstallmentService: splitAmountInInstallments', [
+            'total_amount' => $total,
+            'installments' => $installments,
+            'base_amount' => $base,
+            'allocated' => $allocated,
+            'remainder' => $remainder,
+            'final_amounts' => $amounts,
+            'sum_of_amounts' => array_sum($amounts),
+            'difference' => $total - array_sum($amounts)
+        ]);
+
         return $amounts;
     }
 
     /**
      * Generar fechas de vencimiento mensuales
+     * - Si el programa tiene final_payment_date, la última cuota vence ese día y las anteriores se van restando meses.
+     * - Si no, usa el día actual como día base y genera hacia adelante.
      */
     private function generateMonthlyDueDates(Program $program, int $installments): array
     {
         $dates = [];
+        if ($program->final_payment_date) {
+            $last = Carbon::parse($program->final_payment_date);
+            for ($i = $installments - 1; $i >= 0; $i--) {
+                $dates[$i] = $last->copy()->subMonthsNoOverflow(($installments - 1) - $i);
+            }
+            ksort($dates);
+            return array_values($dates);
+        }
+
         $base = now();
         $baseDay = $base->day;
-        
         for ($i = 0; $i < $installments; $i++) {
             $month = $base->copy()->addMonthsNoOverflow($i);
             $dates[] = $month->copy()->day(min($baseDay, $month->daysInMonth));

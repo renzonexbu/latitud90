@@ -282,6 +282,11 @@ const validateForm = () => {
         errors.images = 'Debe seleccionar al menos una imagen para el programa';
     }
     
+    // Validar que el ejecutivo comercial sea obligatorio
+    if (!paymentData.value.sales_executive_id || paymentData.value.sales_executive_id === '') {
+        errors.sales_executive_id = 'El ejecutivo comercial es obligatorio';
+    }
+    
     // Asignar errores locales
     localErrors.value = errors;
     
@@ -310,6 +315,7 @@ const scrollToFirstError = () => {
                 'total_price': 'input[placeholder="--------"]',
                 'final_payment_date': 'input[type="date"]',
                 'sales_person': 'input[placeholder="Nombre"]',
+                'sales_executive_id': 'select[v-model*="sales_executive_id"]',
                 'institution_id': 'select[id*="institution"]',
                 'education_level': 'select:has(option[value="inicial"])',
                 'shift': 'select:has(option[value="mañana"])',
@@ -453,8 +459,6 @@ const submit = () => {
     // Convertir sales_executive_id a entero si no está vacío
     if (form.sales_executive_id && form.sales_executive_id !== '') {
         form.sales_executive_id = parseInt(form.sales_executive_id);
-    } else {
-        form.sales_executive_id = null;
     }
 
     // Debug: Log de los datos que se van a enviar

@@ -247,16 +247,11 @@ class UpdateProgramService
      */
     private function ensureParticipantProgram(\App\Models\Participant $participant, Program $program, ?float $individualPrice = null): void
     {
-        $code = (string) ($program->code ?? '');
-        $rutFirst6 = $participant->rut_first6;
-        if (!$rutFirst6) {
-            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
-            $rutFirst6 = substr($digits, 0, 6) ?: null;
+        $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
+        
+        if (!$enrollmentCode) {
+            return; // No podemos generar enrollment_code
         }
-        if (!$code || !$rutFirst6) {
-            return;
-        }
-        $enrollmentCode = $code . $rutFirst6;
 
         DB::table('participant_program')->updateOrInsert(
             [
@@ -930,6 +925,11 @@ class UpdateProgramService
         // Si es solo números, podría ser un RUT sin formato
         if (is_numeric(str_replace(['.', '-'], '', $documentNumber))) {
             return 'RUT';
+        }
+        
+        // Si contiene letras, es un pasaporte
+        if (preg_match('/[A-Za-z]/', $documentNumber)) {
+            return 'PASSPORT';
         }
         
         // Por defecto, asumir que es un RUT

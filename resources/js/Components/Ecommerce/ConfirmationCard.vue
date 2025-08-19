@@ -215,6 +215,7 @@
 
 <script>
 import { router } from "@inertiajs/vue3";
+import { getFirstInstallmentAmount, formatPrice } from "@/utils/paymentUtils";
 
 export default {
     name: "ConfirmationCard",
@@ -289,8 +290,18 @@ export default {
                 }
             }
             
-            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando
-            return hasPaymentMethod && this.termsAccepted && !this.isProcessing;
+            // Verificar que no se haya pagado todo
+            const isPaymentComplete = Number(this.program.participant_balance ?? 0) <= 0;
+            
+            // Verificar que el monto a pagar sea válido
+            const hasValidAmount = this.displayPayAmount > 0;
+            
+            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando Y no se pagó todo Y hay monto válido
+            return hasPaymentMethod && 
+                   this.termsAccepted && 
+                   !this.isProcessing && 
+                   !isPaymentComplete && 
+                   hasValidAmount;
         },
         displayPayAmount() {
             // Si hay plan mensual activo, siempre se paga SOLO la próxima cuota
@@ -300,14 +311,15 @@ export default {
             // Caso pago total (o mensual sin plan creado): dividir según selección
             const base = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
             const installments = Math.max(1, Number(this.currentInstallments || 1));
-            const per = Math.round((Number(base) / installments) * 100) / 100;
-            return per;
+            
+            // Usar el método estandarizado de redondeo
+            const result = getFirstInstallmentAmount(base, installments);
+            return result;
         }
     },
     methods: {
         formatCurrency(amount) {
-            if (!amount) return "0";
-            return new Intl.NumberFormat("es-CL").format(amount);
+            return formatPrice(amount);
         },
         formatDateRange(dateString) {
             if (!dateString) return "";
@@ -338,6 +350,18 @@ export default {
         },
         async handlePayment() {
             try {
+                // Validaciones previas
+                const isPaymentComplete = Number(this.program.participant_balance ?? 0) <= 0;
+                if (isPaymentComplete) {
+                    this.errorMessage = "Ya has pagado el monto total del programa. No hay pagos pendientes.";
+                    return;
+                }
+
+                if (this.displayPayAmount <= 0) {
+                    this.errorMessage = "El monto a pagar no es válido. Verifica tu selección de cuotas.";
+                    return;
+                }
+
                 // Limpiar errores anteriores
                 this.errorMessage = null;
                 

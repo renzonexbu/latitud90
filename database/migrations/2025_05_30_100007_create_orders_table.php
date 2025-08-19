@@ -40,6 +40,10 @@ return new class extends Migration
             // Índices para optimizar consultas
             $table->index(['order_number']);
             $table->index(['status', 'created_at']);
+            $table->index(['participant_id', 'program_id']); // Para joins con participant_program
+            $table->index(['participant_id', 'created_at']); // Para consultas por participante
+            $table->index(['program_id', 'created_at']); // Para consultas por programa
+            $table->index(['status']); // Para filtros por status
         });
 
         Schema::create('orders_detail', function (Blueprint $table) {
@@ -99,6 +103,10 @@ return new class extends Migration
             $table->index(['email', 'status']);
             $table->index(['due_date', 'status']);
             $table->index(['is_paid', 'due_date']);
+            $table->index(['is_paid']); // Para filtros de pagos realizados
+            $table->index(['order_id', 'is_paid']); // Para consultas de pagos por orden
+            $table->index(['status']); // Para filtros por status
+            $table->index(['created_at']); // Para filtros por fecha
         });
     }
 
