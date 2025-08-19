@@ -62,7 +62,7 @@ class ProgramController extends Controller
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
                 $q->where('program_id', $program->id);
             })
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'completed'])
                 ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
 
@@ -100,9 +100,9 @@ class ProgramController extends Controller
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
                 $q->where('program_id', $program->id);
             })
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'completed'])
                 ->sum('amount');
-            $coursePaidAmount = round($coursePaidAmount, 2);
+            $coursePaidAmount = round($coursePaidAmount, 0);
 
             $coursePaymentPercentage = $courseTotalAmount > 0
                 ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
@@ -197,7 +197,7 @@ class ProgramController extends Controller
         $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
             $q->where('program_id', $program->id);
         })
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
         $coursePaidAmount = round($coursePaidAmount, 2);
 

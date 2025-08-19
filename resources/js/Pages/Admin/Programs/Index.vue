@@ -51,7 +51,7 @@ export default {
         return { page };
     },
     components: {
-        Head,
+        Head,Arregl
         Link,
         AdminLayout,
         ProgramsHeader,
@@ -94,12 +94,12 @@ export default {
             
             return this.allPrograms.map(program => ({
                 ...program,
-                price: program.trip_price,
+                price: program.course_total_amount || program.trip_price,
                 duration: this.calculateDuration(program.departure_date),
-                participants: 0,
-                paymentPercentage: 0,
-                paidAmount: 0,
-                totalAmount: program.trip_price,
+                participants: program.course?.participants?.length || 0,
+                paymentPercentage: program.course_payment_percentage || 0,
+                paidAmount: program.course_paid_amount || 0,
+                totalAmount: program.course_total_amount || program.trip_price,
             }));
         },
         
@@ -144,14 +144,11 @@ export default {
                 );
             }
             
-            // Filtro por porcentaje de pago (simulado)
+            // Filtro por porcentaje de pago
             if (this.localFilters.paymentPercentage) {
-                // Por ahora filtramos por un porcentaje simulado
                 const percentage = parseInt(this.localFilters.paymentPercentage);
                 filtered = filtered.filter(program => {
-                    // Simular porcentaje de pago basado en algún criterio
-                    const simulatedPercentage = Math.floor(Math.random() * 100);
-                    return simulatedPercentage >= percentage;
+                    return (program.paymentPercentage || 0) >= percentage;
                 });
             }
             

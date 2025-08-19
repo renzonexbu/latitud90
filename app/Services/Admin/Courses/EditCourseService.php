@@ -39,7 +39,7 @@ class EditCourseService
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
                     $q->where('program_id', $course->program->id);
                 })
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'completed'])
                 ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
 

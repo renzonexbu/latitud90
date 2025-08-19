@@ -96,14 +96,14 @@ export default {
                         };
                     }
                     // Por defecto (Index de Programas): métricas agregadas del curso/programa completo
-                    const totalAmount = program.course_total_amount ?? program.trip_price ?? 0;
-                    const paidAmount = program.course_paid_amount ?? 0;
-                    const paymentPercentage = program.course_payment_percentage ?? 0;
+                    const totalAmount = program.course_total_amount ?? program.totalAmount ?? program.trip_price ?? 0;
+                    const paidAmount = program.course_paid_amount ?? program.paidAmount ?? 0;
+                    const paymentPercentage = program.course_payment_percentage ?? program.paymentPercentage ?? 0;
                     return {
                         ...program,
                         price: totalAmount,
                         duration: this.calculateDuration(program.departure_date),
-                        participants: program.course?.participants?.length || 0,
+                        participants: program.course?.participants?.length || program.participants || 0,
                         paymentPercentage,
                         paidAmount,
                         totalAmount,
