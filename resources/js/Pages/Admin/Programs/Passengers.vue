@@ -455,7 +455,7 @@
       getStatusLabel(status) {
         const labels = {
           confirmed: "Confirmado",
-          pending_payment: "Pago Pendiente",
+          pending_payment: "Pendiente de Pago",
           cancelled: "Cancelado"
         };
         return labels[status] || status;

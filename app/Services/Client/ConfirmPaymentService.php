@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Participant;
 use App\Models\InstallmentPlan;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -44,9 +45,11 @@ class ConfirmPaymentService
                 ->firstWhere('id', $participant->id);
             if ($pivotParticipant) {
                 $isEnrolled = true;
-                $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
-                $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
-                $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+                
+                // Usar el helper para calcular el precio final con descuentos
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $participantTotalAmount = $priceData['final_price'];
+                
                 // Sumar por cuotas efectivamente pagadas en OrderDetail (más fiable)
                 $paidAmount = (float) \App\Models\OrderDetail::whereHas('order', function ($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
@@ -134,8 +137,8 @@ class ConfirmPaymentService
                 'lat90_payment_options' => $lat90PaymentOptions,
                 'lat90_max_installments' => $program->lat90_max_installments,
                 // Montos por participante
-                'participant_amount' => $participantAmount,
-                'participant_adjustments' => $participantAdjustments,
+                'participant_amount' => $priceData['base_price'],
+                'participant_adjustments' => $priceData['adjustments'],
                 'participant_total_due' => $participantTotalAmount,
                 'paidAmount' => $paidAmount,
                 'participant_balance' => $participantBalance,

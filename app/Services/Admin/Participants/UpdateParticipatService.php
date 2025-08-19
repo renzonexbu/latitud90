@@ -3,7 +3,10 @@
 namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
+use App\Models\ParticipantProgramDiscount;
+use App\Models\Course;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class UpdateParticipatService
 {
@@ -17,6 +20,7 @@ class UpdateParticipatService
     public function execute(array $data, Participant $participant): Participant
     {
         try {
+            DB::beginTransaction();
 
             // Validar que el RUT no se esté intentando modificar
             if (isset($data['document_number']) && $data['document_number'] !== $participant->document_number) {
@@ -35,62 +39,142 @@ class UpdateParticipatService
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
 
-            // El precio y ajustes se gestionan en el pivote, no en la tabla participants
-
             // Actualizar el participante
             $participant->update($updateData);
 
-            // Si se especificó un curso, aplicar ajuste/individual_price al pivote de ese curso
+            // Si se especificó un curso, gestionar descuentos y precio individual
             if (!empty($data['pivot_course_id'])) {
-                $pivotUpdate = [];
-                if (array_key_exists('individual_price', $data)) {
-                    $pivotUpdate['individual_price'] = $data['individual_price'];
-                }
-                if (array_key_exists('price_adjustments', $data)) {
-                    $pivotUpdate['price_adjustments'] = $data['price_adjustments'];
-                }
-                if (array_key_exists('adjustment_reason', $data)) {
-                    $pivotUpdate['adjustment_reason'] = $data['adjustment_reason'];
-                }
-                if (!empty($pivotUpdate)) {
-                    $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], $pivotUpdate);
-                }
-
-                // Reflejar en participant_program.individual_price si existe el programa asociado
-                $course = \App\Models\Course::find((int) $data['pivot_course_id']);
+                $course = Course::find((int) $data['pivot_course_id']);
                 if ($course && $course->program_id) {
-                    $pp = \Illuminate\Support\Facades\DB::table('participant_program')
+                    // Buscar o crear el participant_program
+                    $participantProgram = DB::table('participant_program')
                         ->where('participant_id', $participant->id)
                         ->where('program_id', $course->program_id)
                         ->first();
-                    if ($pp) {
-                        $newPrice = null;
+
+                    if (!$participantProgram) {
+                        // Crear el participant_program si no existe
+                        $participantProgramId = DB::table('participant_program')->insertGetId([
+                            'participant_id' => $participant->id,
+                            'program_id' => $course->program_id,
+                            'enrollment_code' => 'ENR-' . time(),
+                            'individual_price' => $data['individual_price'] ?? 0,
+                            'status' => 'active',
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    } else {
+                        $participantProgramId = $participantProgram->id;
+                        
+                        // Actualizar el precio individual si se proporciona
                         if (array_key_exists('individual_price', $data)) {
-                            $newPrice = $data['individual_price'];
-                        } elseif (isset($pivotUpdate['individual_price'])) {
-                            $newPrice = $pivotUpdate['individual_price'];
-                        }
-                        // Aplicar ajuste para reflejar descuentos (price_adjustments negativo)
-                        if ($newPrice !== null) {
-                            $adj = (float) ($data['price_adjustments'] ?? 0);
-                            $final = max(0.0, (float) $newPrice + $adj);
-                            \Illuminate\Support\Facades\DB::table('participant_program')
-                                ->where('id', $pp->id)
+                            DB::table('participant_program')
+                                ->where('id', $participantProgramId)
                                 ->update([
-                                    'individual_price' => round($final, 2),
+                                    'individual_price' => $data['individual_price'],
                                     'updated_at' => now(),
                                 ]);
                         }
                     }
+
+                    // Procesar descuentos si se proporcionan
+                    if (isset($data['discounts'])) {
+                        $this->processDiscounts($participantProgramId, $data['discounts']);
+                    }
+                }
+
+                // Actualizar el pivot del curso con el precio individual
+                if (array_key_exists('individual_price', $data)) {
+                    $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
+                        'individual_price' => $data['individual_price']
+                    ]);
                 }
             }
 
-            
-
+            DB::commit();
             return $participant;
 
         } catch (\Exception $e) {
+            DB::rollBack();
             throw $e;
+        }
+    }
+
+    /**
+     * Procesa los descuentos para un participant_program
+     *
+     * @param int $participantProgramId
+     * @param string $discountsJson
+     * @return void
+     */
+    private function processDiscounts(int $participantProgramId, string $discountsJson): void
+    {
+        $discounts = json_decode($discountsJson, true);
+        
+        if (!is_array($discounts)) {
+            return;
+        }
+
+        // Obtener descuentos existentes
+        $existingDiscounts = ParticipantProgramDiscount::where('participant_program_id', $participantProgramId)
+            ->get()
+            ->keyBy('id');
+
+        $processedDiscountIds = [];
+
+        foreach ($discounts as $discountData) {
+            if (isset($discountData['id']) && $discountData['id']) {
+                // Actualizar descuento existente
+                $discount = $existingDiscounts->get($discountData['id']);
+                if ($discount) {
+                    // Mapear el tipo y valor a percent/amount según corresponda
+                    $percent = null;
+                    $amount = null;
+                    
+                    if ($discountData['type'] === 'percent') {
+                        $percent = $discountData['value'] ?? null;
+                    } elseif ($discountData['type'] === 'amount') {
+                        $amount = $discountData['value'] ?? null;
+                    } elseif ($discountData['type'] === 'liberado') {
+                        $percent = 100; // Liberado = 100%
+                    }
+                    
+                    $discount->update([
+                        'percent' => $percent,
+                        'amount' => $amount,
+                        'comment' => $discountData['comment'] ?? null,
+                    ]);
+                    $processedDiscountIds[] = $discount->id;
+                }
+            } else {
+                // Crear nuevo descuento
+                // Mapear el tipo y valor a percent/amount según corresponda
+                $percent = null;
+                $amount = null;
+                
+                if ($discountData['type'] === 'percent') {
+                    $percent = $discountData['value'] ?? null;
+                } elseif ($discountData['type'] === 'amount') {
+                    $amount = $discountData['value'] ?? null;
+                } elseif ($discountData['type'] === 'liberado') {
+                    $percent = 100; // Liberado = 100%
+                }
+                
+                $newDiscount = ParticipantProgramDiscount::create([
+                    'participant_program_id' => $participantProgramId,
+                    'percent' => $percent,
+                    'amount' => $amount,
+                    'comment' => $discountData['comment'] ?? null,
+                    'approved_by' => auth()->id(),
+                ]);
+                $processedDiscountIds[] = $newDiscount->id;
+            }
+        }
+
+        // Eliminar descuentos que ya no están en la lista
+        $discountsToDelete = $existingDiscounts->whereNotIn('id', $processedDiscountIds);
+        foreach ($discountsToDelete as $discount) {
+            $discount->delete();
         }
     }
 }

@@ -339,20 +339,35 @@ class PaymentConfirmationService
      */
     private function processSuccessfulPayment(OrderDetail $orderDetail, array $result, string $gatewayType): void
     {
-        // Crear registro de pago
-        $payment = Payment::create([
-            'order_id' => $orderDetail->order_id,
-            'order_detail_id' => $orderDetail->id,
-            'payment_gateway_id' => $orderDetail->payment_gateway_id,
-            'payment_option_id' => $orderDetail->payment_option_id,
-            'buy_order' => $orderDetail->order->buy_order ?? null,
-            'session_id' => $orderDetail->order->session_id ?? null,
-            'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
-            'amount' => $orderDetail->amount,
-            'status' => 'completed',
-            'gateway_response' => $result,
-            'email_sent' => false, // Marcar que aún no se ha enviado el email
-        ]);
+        // Buscar pago existente por order_detail_id (sin importar external_payment_id)
+        $payment = Payment::where('order_detail_id', $orderDetail->id)
+            ->latest()
+            ->first();
+
+        if (!$payment) {
+            // Crear registro de pago solo si no existe
+            $payment = Payment::create([
+                'order_id' => $orderDetail->order_id,
+                'order_detail_id' => $orderDetail->id,
+                'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                'payment_option_id' => $orderDetail->payment_option_id,
+                'buy_order' => $orderDetail->order->buy_order ?? null,
+                'session_id' => $orderDetail->order->session_id ?? null,
+                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
+                'amount' => $orderDetail->amount,
+                'status' => 'completed',
+                'gateway_response' => $result,
+                'email_sent' => false, // Marcar que aún no se ha enviado el email
+            ]);
+        } else {
+            // Actualizar el pago existente
+            $payment->update([
+                'status' => 'completed',
+                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
+                'gateway_response' => $result,
+                'email_sent' => false,
+            ]);
+        }
 
         // Actualizar estado del order detail
         $orderDetail->update([
@@ -382,19 +397,33 @@ class PaymentConfirmationService
      */
     private function processFailedPayment(OrderDetail $orderDetail, array $result, string $gatewayType, string $errorMessage): void
     {
-        // Crear registro de pago fallido para seguimiento
-        $payment = Payment::create([
-            'order_id' => $orderDetail->order_id,
-            'order_detail_id' => $orderDetail->id,
-            'payment_gateway_id' => $orderDetail->payment_gateway_id,
-            'payment_option_id' => $orderDetail->payment_option_id,
-            'buy_order' => $orderDetail->order->buy_order ?? null,
-            'session_id' => $orderDetail->order->session_id ?? null,
-            'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
-            'amount' => $orderDetail->amount,
-            'status' => 'failed',
-            'gateway_response' => $result,
-        ]);
+        // Buscar pago existente por order_detail_id (sin importar external_payment_id)
+        $payment = Payment::where('order_detail_id', $orderDetail->id)
+            ->latest()
+            ->first();
+
+        if (!$payment) {
+            // Crear registro de pago fallido solo si no existe
+            $payment = Payment::create([
+                'order_id' => $orderDetail->order_id,
+                'order_detail_id' => $orderDetail->id,
+                'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                'payment_option_id' => $orderDetail->payment_option_id,
+                'buy_order' => $orderDetail->order->buy_order ?? null,
+                'session_id' => $orderDetail->order->session_id ?? null,
+                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
+                'amount' => $orderDetail->amount,
+                'status' => 'failed',
+                'gateway_response' => $result,
+            ]);
+        } else {
+            // Actualizar el pago existente
+            $payment->update([
+                'status' => 'failed',
+                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
+                'gateway_response' => $result,
+            ]);
+        }
 
         // Actualizar estado del order detail como cancelado (fallido)
         $orderDetail->update([

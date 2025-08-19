@@ -11,6 +11,7 @@ use App\Models\Region;
 use App\Models\Comune;
 use App\Models\Document;
 use Carbon\Carbon;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -163,24 +164,9 @@ class CreateOrderService
      */
     private function computeParticipantAmounts(Program $program, Participant $participant): array
     {
-        // 1) Preferir el precio de participant_program (precio individual del participante para este programa)
-        $pp = DB::table('participant_program')
-            ->where('participant_id', $participant->id)
-            ->where('program_id', $program->id)
-            ->first();
-
-        if ($pp) {
-            $participantAmount = (float) ($pp->individual_price ?? 0);
-            $participantAdjustments = 0.0; // Los ajustes ya deberían estar reflejados en individual_price
-        } else {
-            // 2) Fallback al pivote antiguo participant_course si existe
-            $program->loadMissing('course.participants');
-            $pivotParticipant = $program->course?->participants?->firstWhere('id', $participant->id);
-            $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
-            $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
-        }
-
-        $participantTotalAmount = round(($participantAmount + $participantAdjustments), 2);
+        // Usar el helper para calcular el precio final con descuentos
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $participantTotalAmount = $priceData['final_price'];
 
         // Pagos aprobados previos de este participante para este programa
         $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {

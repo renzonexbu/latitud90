@@ -197,6 +197,15 @@ export default {
             return firstCourse.pivot.status || 'pending_payment';
         },
         
+        getStatusLabel(status) {
+            const labels = {
+                'pending_payment': 'Pendiente de Pago',
+                'confirmed': 'Confirmado',
+                'cancelled': 'Cancelado'
+            };
+            return labels[status] || status;
+        },
+        
         getFirstCoursePivotPercentage(participant) {
             const total = this.getTotalDue(participant);
             const paid = this.getPaidAmount(participant);
@@ -260,6 +269,11 @@ export default {
             if (typeof participant.__total_due !== 'undefined') return Number(participant.__total_due || 0);
             const firstCourse = this.getFirstCourse(participant);
             if (!firstCourse || !firstCourse.pivot) return 0;
+            // Usar participant_total_due si está disponible (ya incluye descuentos)
+            if (firstCourse.participant_total_due !== undefined) {
+                return Number(firstCourse.participant_total_due || 0);
+            }
+            // Fallback al cálculo antiguo
             const individualPrice = parseFloat(firstCourse.pivot.individual_price) || 0;
             const adjustments = parseFloat(firstCourse.pivot.price_adjustments) || 0;
             return individualPrice + adjustments;

@@ -95,7 +95,7 @@
                     @change="performSearch"
                 >
                     <option value="">Estado de pago</option>
-                    <option value="pending_payment">Pendiente</option>
+                                            <option value="pending_payment">Pendiente de Pago</option>
                     <option value="confirmed">Completado</option>
                     <option value="cancelled">Liberado</option>
                 </select>

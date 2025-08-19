@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\InstallmentPlan;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
 
 class ProgramDetailService
@@ -46,9 +47,10 @@ class ProgramDetailService
                 ->firstWhere('id', $participant->id);
             if ($pivotParticipant) {
                 $isEnrolled = true;
-                $participantAmount = (float) ($pivotParticipant->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
-                $participantAdjustments = (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
-                $participantTotalAmount = round($participantAmount + $participantAdjustments, 2);
+                
+                // Usar el helper para calcular el precio final con descuentos
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $participantTotalAmount = $priceData['final_price'];
 
                 // Sumar pagos aprobados del participante para este programa
                 $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {

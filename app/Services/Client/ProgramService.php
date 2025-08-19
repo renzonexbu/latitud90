@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Program;
 use App\Models\Payment;
 use App\Models\OrderDetail;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
 
 class ProgramService
@@ -83,10 +84,9 @@ class ProgramService
                     ->first();
                 $enrollmentCode = $pp->enrollment_code ?? null;
                 
-                // Determinar total por participante (precio individual + ajustes)
-                $individualPrice = (float) ($enrollment->pivot->individual_price ?? $participant->individual_price ?? $program->trip_price);
-                $priceAdjustments = (float) ($enrollment->pivot->price_adjustments ?? 0);
-                $totalAmount = round($individualPrice + $priceAdjustments, 2);
+                // Usar el helper para calcular el precio final con descuentos
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $totalAmount = $priceData['final_price'];
 
                 // Sumar pagos confirmados usando OrderDetails pagados (más fiable que estado del payment)
                 $paidAmount = (float) OrderDetail::whereHas('order', function($q) use ($participant, $program) {
@@ -115,9 +115,9 @@ class ProgramService
                     'totalAmount' => $totalAmount,
                     'participant_total_due' => $participantTotalAmount, // mismo uso que Admin/Edit.vue
                     'participant_balance' => $participantBalance,
-                    'participant_amount' => $individualPrice,
-                    'participant_adjustments' => $priceAdjustments,
-                    'status' => $enrollment->pivot->status ?? 'enrolled',
+                    'participant_amount' => $priceData['base_price'],
+                    'participant_adjustments' => $priceData['adjustments'],
+                    'status' => $this->translateStatus($enrollment->pivot->status ?? 'enrolled'),
                     'enrollment_date' => $enrollment->pivot->created_at ?? null
                     ,
                     'enrollment_code' => $enrollmentCode
@@ -175,5 +175,17 @@ class ProgramService
     {
         // Remover puntos y guiones del RUT
         return preg_replace('/[.-]/', '', $rut);
+    }
+    
+    private function translateStatus(string $status): string
+    {
+        $translations = [
+            'pending_payment' => 'Pendiente de Pago',
+            'confirmed' => 'Confirmado',
+            'cancelled' => 'Cancelado',
+            'enrolled' => 'Inscrito'
+        ];
+        
+        return $translations[$status] ?? $status;
     }
 }

@@ -45,8 +45,8 @@ class Payment extends Model
         'balance' => 'decimal:2',
         'gateway_response' => 'array',
         'raw_notification' => 'array',
-        'transaction_date' => 'datetime',
-        'accounting_date' => 'datetime',
+        'transaction_date' => 'datetime:America/Santiago',
+        'accounting_date' => 'datetime:America/Santiago',
         'installments_number' => 'integer',
         'email_sent' => 'boolean'
     ];
@@ -169,5 +169,24 @@ class Payment extends Model
             return $this->order->program->course->institution->name;
         }
         return 'N/A';
+    }
+
+    /**
+     * Boot method para configurar timezone automáticamente
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($payment) {
+            // Asegurar que las fechas se guarden en timezone de Santiago
+            $payment->created_at = now()->setTimezone('America/Santiago');
+            $payment->updated_at = now()->setTimezone('America/Santiago');
+        });
+
+        static::updating(function ($payment) {
+            // Asegurar que updated_at se guarde en timezone de Santiago
+            $payment->updated_at = now()->setTimezone('America/Santiago');
+        });
     }
 }

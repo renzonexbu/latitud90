@@ -7,10 +7,12 @@ use App\Http\Requests\Admin\CreateParticipantRequest;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\Institution;
+use App\Models\Program;
 use App\Models\EmergencyContact;
 use App\Services\Admin\Participants\CreateParticipantService;
 use App\Services\Admin\Participants\UpdateParticipatService;
 use App\Services\Admin\Participants\UpdateMedicalConditionsService;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -56,8 +58,8 @@ class ParticipantsController extends Controller
             ->get();
 
         // Dataset de inscripciones (una fila por participante-programa) + montos pagados
-        // Usar la misma lógica que ProgramService del cliente
-        $enrollments = DB::table('participants as p')
+        // Obtener datos base y luego calcular precios con descuentos
+        $enrollmentsBase = DB::table('participants as p')
             ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
             ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
             ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
@@ -84,7 +86,7 @@ class ParticipantsController extends Controller
                 'p.document_number',
                 'pp.id as participant_program_id',
                 'pp.enrollment_code',
-                'pp.individual_price as total_due',
+                'pp.individual_price',
                 'pp.status as enrollment_status',
                 'pr.id as program_id',
                 'pr.code as program_code',
@@ -98,6 +100,21 @@ class ParticipantsController extends Controller
             ])
             ->orderByDesc('pp.created_at')
             ->get();
+
+        // Calcular precios finales con descuentos usando el helper
+        $enrollments = $enrollmentsBase->map(function ($enrollment) {
+            $participant = Participant::find($enrollment->participant_id);
+            $program = Program::find($enrollment->program_id);
+            
+            if ($participant && $program) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $enrollment->total_due = $priceData['final_price'];
+            } else {
+                $enrollment->total_due = $enrollment->individual_price ?? 0;
+            }
+            
+            return $enrollment;
+        });
 
         $courses = Course::with(['program', 'institution'])
             ->where('status', 'active')
@@ -192,8 +209,13 @@ class ParticipantsController extends Controller
     {
         $participant->load(['courses', 'courses.institution', 'courses.program', 'emergencyContacts']);
         
+        // Cargar participant_programs con sus descuentos
+        $participantPrograms = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+            ->with(['program', 'discounts'])
+            ->get();
+        
         // Buscar todos los programas relacionados al RUT del participante
-        $participantPrograms = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
+        $participantProgramsData = \App\Models\Program::whereHas('course.participants', function($query) use ($participant) {
             $query->where('participants.id', $participant->id);
         })
         ->with(['course' => function($q) use ($participant) {
@@ -202,11 +224,10 @@ class ParticipantsController extends Controller
             }]);
         }])
         ->get()
-        ->map(function($program) use ($participant) {
-            $pivotParticipant = optional($program->course)->participants->first();
-            $individual = optional($pivotParticipant)->pivot->individual_price ?? $participant->individual_price ?? null;
-            $adjust = optional($pivotParticipant)->pivot->price_adjustments ?? 0;
-            $totalDue = is_null($individual) ? null : (float) $individual + (float) $adjust;
+        ->map(function($program) use ($participant, $participantPrograms) {
+            // Usar el helper para calcular el precio final con descuentos
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            
             // Pagos aprobados/completados del participante para este programa
             $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
                     $q->where('participant_id', $participant->id)
@@ -215,15 +236,15 @@ class ParticipantsController extends Controller
                 ->whereIn('status', ['approved', 'completed'])
                 ->sum('amount');
             $paidAmount = round($paidAmount, 2);
-            $balance = is_null($totalDue) ? null : max(round($totalDue - $paidAmount, 2), 0);
-            $paymentPercentage = (!is_null($totalDue) && $totalDue > 0)
-                ? round(($paidAmount / $totalDue) * 100, 0)
+            $balance = max(round($priceData['final_price'] - $paidAmount, 2), 0);
+            $paymentPercentage = ($priceData['final_price'] > 0)
+                ? round(($paidAmount / $priceData['final_price']) * 100, 0)
                 : 0;
 
             $array = $program->toArray();
-            $array['participant_amount'] = $individual; // precio base por participante
-            $array['participant_adjustments'] = $adjust; // ajuste del pivote
-            $array['participant_total_due'] = $totalDue; // total a pagar (base + ajuste)
+            $array['participant_amount'] = $priceData['base_price']; // precio base por participante
+            $array['participant_adjustments'] = $priceData['adjustments']; // ajuste del pivote
+            $array['participant_total_due'] = $priceData['final_price']; // total a pagar (base + ajuste - descuentos)
             $array['paidAmount'] = $paidAmount;
             $array['participant_balance'] = $balance;
             $array['paymentPercentage'] = $paymentPercentage;
@@ -232,7 +253,8 @@ class ParticipantsController extends Controller
 
         return Inertia::render('Admin/Participants/Edit', [
             'participant' => $participant,
-            'participantPrograms' => $participantPrograms,
+            'participantPrograms' => $participantProgramsData,
+            'participantProgramsWithDiscounts' => $participantPrograms,
         ]);
     }
 

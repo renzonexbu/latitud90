@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Requests\Admin\Programs\BulkProgramsActionRequest;
 use App\Models\SalesExecutive;
 use App\Services\Admin\Programs\BulkProgramsActionService;
+use App\Helpers\ParticipantPriceHelper;
 
 class ProgramController extends Controller
 {
@@ -33,8 +34,11 @@ class ProgramController extends Controller
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('destination', 'like', "%{$search}%");
             })
+            ->when($request->active !== null, function ($query) use ($request) {
+                $query->where('active', $request->active);
+            })
             ->when($request->status, function ($query, $status) {
-                $query->where('active', $status === 'active');
+                $query->where('status', $status);
             })
             ->orderBy('created_at', 'desc')
             ->paginate(10)
@@ -50,9 +54,9 @@ class ProgramController extends Controller
             });
 
             $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
-                $adj = (float) ($p->pivot->price_adjustments ?? 0);
-                return $carry + round($base + $adj, 2);
+                // Usar el helper para calcular el precio final con descuentos
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
+                return $carry + $priceData['final_price'];
             }, 0.0);
 
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
@@ -88,9 +92,9 @@ class ProgramController extends Controller
             });
 
             $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
-                $adj = (float) ($p->pivot->price_adjustments ?? 0);
-                return $carry + round($base + $adj, 2);
+                // Usar el helper para calcular el precio final con descuentos
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
+                return $carry + $priceData['final_price'];
             }, 0.0);
 
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
@@ -114,7 +118,7 @@ class ProgramController extends Controller
         return Inertia::render('Admin/Programs/Index', [
             'programs' => $programs,
             'allPrograms' => $allPrograms,
-            'filters' => $request->only(['search', 'status']),
+            'filters' => $request->only(['search', 'status', 'active']),
         ]);
     }
 

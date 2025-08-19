@@ -11,21 +11,15 @@ class ParticipantProgramDiscount extends Model
 
     protected $fillable = [
         'participant_program_id',
-        'type',
         'percent',
         'amount',
-        'effective_from',
-        'effective_to',
-        'status',
         'comment',
         'approved_by'
     ];
 
     protected $casts = [
         'percent' => 'decimal:2',
-        'amount' => 'decimal:2',
-        'effective_from' => 'date',
-        'effective_to' => 'date'
+        'amount' => 'decimal:2'
     ];
 
     public function participantProgram()

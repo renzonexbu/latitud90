@@ -39,7 +39,8 @@ class Program extends Model
         'discount_value',
         'course_id',
         'created_by',
-        'active'
+        'active',
+        'status'
     ];
 
     protected $casts = [
@@ -49,7 +50,8 @@ class Program extends Model
         'discount_value' => 'decimal:2',
         'enable_total_payment' => 'boolean',
         'enable_lat90_payment' => 'boolean',
-        'active' => 'boolean'
+        'active' => 'boolean',
+        'status' => 'string'
     ];
 
     protected $appends = [
@@ -236,5 +238,55 @@ class Program extends Model
             ];
         }
         return $images;
+    }
+
+    /**
+     * Scope para filtrar por status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope para programas en reserva
+     */
+    public function scopeReserva($query)
+    {
+        return $query->where('status', 'reserva');
+    }
+
+    /**
+     * Scope para programas realizados
+     */
+    public function scopeRealizado($query)
+    {
+        return $query->where('status', 'realizado');
+    }
+
+    /**
+     * Obtener el label del status
+     */
+    public function getStatusLabelAttribute()
+    {
+        $labels = [
+            'reserva' => 'Reserva',
+            'realizado' => 'Realizado'
+        ];
+
+        return $labels[$this->status] ?? null;
+    }
+
+    /**
+     * Obtener la clase CSS del status
+     */
+    public function getStatusClassAttribute()
+    {
+        $classes = [
+            'reserva' => 'bg-yellow-100 text-yellow-800',
+            'realizado' => 'bg-blue-100 text-blue-800'
+        ];
+
+        return $classes[$this->status] ?? null;
     }
 }

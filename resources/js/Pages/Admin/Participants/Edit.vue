@@ -430,6 +430,7 @@
         <EditParticipantModal
             :show="showEditModal"
             :participant="participant"
+            :participant-programs-with-discounts="participantProgramsWithDiscounts"
             :errors="errors"
             @close="closeEditModal"
         />
@@ -465,6 +466,10 @@ import { ref, computed } from "vue";
 const props = defineProps({
     participant: Object,
     participantPrograms: {
+        type: Array,
+        default: () => [],
+    },
+    participantProgramsWithDiscounts: {
         type: Array,
         default: () => [],
     },

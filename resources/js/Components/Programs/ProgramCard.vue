@@ -66,25 +66,37 @@
                 </div>
             </div>
 
-            <!-- SVG Icon (Right side) -->
-            <div
-                class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 19 19"
-                    fill="none"
+            <!-- SVG Icon and Status Badge (Right side) -->
+            <div class="flex flex-col items-end gap-2">
+                <!-- Status Badge -->
+                <div 
+                    v-if="showStatusBadge && program.status"
+                    class="px-2 py-1 rounded-full text-xs font-medium"
+                    :class="getStatusClass(program.status)"
                 >
-                    <path
-                        d="M2 17L17 2M17 2H4.72727M17 2V14.2727"
-                        stroke="white"
-                        stroke-width="2.187"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                </svg>
+                    {{ getStatusLabel(program.status) }}
+                </div>
+                
+                <!-- SVG Icon -->
+                <div
+                    class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 19 19"
+                        fill="none"
+                    >
+                        <path
+                            d="M2 17L17 2M17 2H4.72727M17 2V14.2727"
+                            stroke="white"
+                            stroke-width="2.187"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                </div>
             </div>
         </div>
 
@@ -223,6 +235,10 @@ export default {
             type: Object,
             required: true,
         },
+        showStatusBadge: {
+            type: Boolean,
+            default: true,
+        },
     },
     emits: ["click"],
     data() {
@@ -293,6 +309,20 @@ export default {
                 month: "2-digit",
                 year: "numeric",
             });
+        },
+        getStatusLabel(status) {
+            const labels = {
+                'reserva': 'Reserva',
+                'realizado': 'Realizado'
+            };
+            return labels[status] || status;
+        },
+        getStatusClass(status) {
+            const classes = {
+                'reserva': 'bg-yellow-100 text-yellow-800',
+                'realizado': 'bg-blue-100 text-blue-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
         },
     },
 };

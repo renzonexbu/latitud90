@@ -5,6 +5,7 @@ namespace App\Services\Admin\Courses;
 use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
+use App\Helpers\ParticipantPriceHelper;
 
 class EditCourseService
 {
@@ -24,7 +25,13 @@ class EditCourseService
             });
 
             $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
-                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? ($course->program->trip_price ?? 0));
+                // Usar el helper para calcular el precio final con descuentos
+                if ($course->program) {
+                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $course->program);
+                    return $carry + $priceData['final_price'];
+                }
+                // Fallback si no hay programa
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
                 $adj = (float) ($p->pivot->price_adjustments ?? 0);
                 return $carry + round($base + $adj, 2);
             }, 0.0);

@@ -223,9 +223,8 @@ class PaymentGatewayController extends Controller
                 ]);
                 $status = $khipuService->getPaymentStatus($paymentId);
 
-                // Actualizar/crear registro en payments
-                $payment = Payment::where('external_payment_id', $paymentId)
-                    ->where('order_detail_id', $orderDetailId)
+                // Buscar pago existente por order_detail_id (sin importar external_payment_id)
+                $payment = Payment::where('order_detail_id', $orderDetailId)
                     ->latest()
                     ->first();
 
@@ -242,6 +241,11 @@ class PaymentGatewayController extends Controller
                         'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
                         'external_payment_id' => $paymentId,
                     ]);
+                } else {
+                    // Actualizar el external_payment_id si no lo tiene
+                    if (!$payment->external_payment_id) {
+                        $payment->update(['external_payment_id' => $paymentId]);
+                    }
                 }
 
                 $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);

@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -46,13 +47,41 @@ return new class extends Migration
             // Campos de auditoría
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->boolean('active')->default(true);
+            $table->enum('status', ['reserva', 'realizado'])->nullable();
             $table->timestamps();
 
             // Índices
 			$table->index(['active', 'departure_date']);
+			$table->index(['status', 'departure_date']);
 			$table->index(['code']);
             $table->index(['destination']);
         });
+
+        // Crear trigger para actualizar status a 'realizado' cuando pase la fecha de salida
+        DB::unprepared('
+            CREATE TRIGGER update_program_status_to_realizado
+            BEFORE UPDATE ON programs
+            FOR EACH ROW
+            BEGIN
+                IF NEW.departure_date < CURDATE() AND NEW.status != "realizado" THEN
+                    SET NEW.status = "realizado";
+                END IF;
+            END;
+        ');
+
+        // Crear trigger para insertar
+        DB::unprepared('
+            CREATE TRIGGER insert_program_status_check
+            BEFORE INSERT ON programs
+            FOR EACH ROW
+            BEGIN
+                IF NEW.departure_date < CURDATE() THEN
+                    SET NEW.status = "realizado";
+                ELSEIF NEW.departure_date > DATE_ADD(CURDATE(), INTERVAL 1 YEAR) THEN
+                    SET NEW.status = "reserva";
+                END IF;
+            END;
+        ');
     }
 
     /**
@@ -60,6 +89,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Eliminar triggers antes de eliminar la tabla
+        DB::unprepared('DROP TRIGGER IF EXISTS update_program_status_to_realizado');
+        DB::unprepared('DROP TRIGGER IF EXISTS insert_program_status_check');
+        
         Schema::dropIfExists('programs');
     }
 };

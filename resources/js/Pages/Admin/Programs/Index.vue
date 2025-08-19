@@ -82,6 +82,7 @@ export default {
                 institution: "",
                 level: "",
                 course_number: "",
+                status: "",
                 active: true,
             },
         };
@@ -158,6 +159,13 @@ export default {
             if (this.localFilters.active !== undefined) {
                 filtered = filtered.filter(program => 
                     program.active === this.localFilters.active
+                );
+            }
+            
+            // Filtro por status (reserva, realizado)
+            if (this.localFilters.status) {
+                filtered = filtered.filter(program => 
+                    program.status === this.localFilters.status
                 );
             }
             

@@ -22,6 +22,7 @@
                 v-for="program in paginatedPrograms"
                 :key="program.id"
                 :program="program"
+                :show-status-badge="false"
                 @click="handleProgramClick(program)"
             />
         </div>

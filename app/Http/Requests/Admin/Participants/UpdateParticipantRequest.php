@@ -27,6 +27,8 @@ class UpdateParticipantRequest extends FormRequest
             'adjustment_reason' => 'required_with:price_adjustments|string|max:1000',
             // Aplicación del ajuste a un curso específico del participante
             'pivot_course_id' => 'nullable|integer|exists:courses,id',
+            // Descuentos múltiples
+            'discounts' => 'nullable|string',
         ];
     }
 }

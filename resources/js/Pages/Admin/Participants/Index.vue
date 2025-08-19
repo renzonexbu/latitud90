@@ -312,9 +312,9 @@ export default {
         getFirstCoursePivotStatus(participant) {
             const firstCourse = this.getFirstCourse(participant);
             if (!firstCourse || !firstCourse.pivot) {
-                return 'pending_payment';
+                return 'pendiente_pago';
             }
-            return firstCourse.pivot.status || 'pending_payment';
+            return firstCourse.pivot.status || 'pendiente_pago';
         },
     },
 };

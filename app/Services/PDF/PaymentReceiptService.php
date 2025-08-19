@@ -4,6 +4,7 @@ namespace App\Services\PDF;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Helpers\ParticipantPriceHelper;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 
@@ -62,19 +63,9 @@ class PaymentReceiptService
         $documentNumber = $this->formatDocumentNumber($participant->document_number, $participant->document_type);
         $documentType = $this->getDocumentTypeLabel($participant->document_type);
         
-        // Calcular el monto total que debe pagar el participante (base + ajuste)
-        // El participante se relaciona con el programa a través del curso
-        $course = $program->course;
-        $participantCourse = $participant->courses()->where('course_id', $course->id)->first();
-        
-        if ($participantCourse && $participantCourse->pivot) {
-            $base = $participantCourse->pivot->individual_price ?? null;
-            $adj = $participantCourse->pivot->price_adjustments ?? 0;
-            $totalDue = $base !== null ? $base + $adj : $program->trip_price;
-        } else {
-            // Fallback si no hay relación directa
-            $totalDue = $program->trip_price;
-        }
+        // Calcular el monto total que debe pagar el participante usando el helper
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $totalDue = $priceData['final_price'];
         
         // Calcular saldo abonado (suma de todos los pagos del participante para este programa)
         $totalPaid = Payment::whereHas('orderDetail', function($query) use ($participant, $program) {

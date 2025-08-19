@@ -422,25 +422,56 @@ class ProcessPaymentController extends Controller
                 'gateway_response' => $gatewayResult,
             ];
 
-            if ($gatewayType === 'khipu') {
-                $paymentId = $gatewayResult['payment_id'] ?? null;
-                if (!$paymentId) {
-                    $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
-                    if (is_string($paymentUrl) && $paymentUrl !== '') {
-                        $parts = explode('/', rtrim($paymentUrl, '/'));
-                        $paymentId = end($parts) ?: null;
-                    }
-                }
-                $data = array_merge($commonData, [
-                    'external_payment_id' => $paymentId,
-                ]);
-            } else {
-                $data = array_merge($commonData, [
-                    'token' => $gatewayResult['token'] ?? null,
-                ]);
-            }
+            // Buscar pago existente por order_detail_id
+            $existingPayment = Payment::where('order_detail_id', $orderDetail->id)
+                ->latest()
+                ->first();
 
-            $payment = Payment::create($data);
+            if ($existingPayment) {
+                // Actualizar el pago existente
+                $updateData = [
+                    'status' => 'pending',
+                    'gateway_response' => $gatewayResult,
+                ];
+
+                if ($gatewayType === 'khipu') {
+                    $paymentId = $gatewayResult['payment_id'] ?? null;
+                    if (!$paymentId) {
+                        $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
+                        if (is_string($paymentUrl) && $paymentUrl !== '') {
+                            $parts = explode('/', rtrim($paymentUrl, '/'));
+                            $paymentId = end($parts) ?: null;
+                        }
+                    }
+                    $updateData['external_payment_id'] = $paymentId;
+                } else {
+                    $updateData['token'] = $gatewayResult['token'] ?? null;
+                }
+
+                $existingPayment->update($updateData);
+                $payment = $existingPayment;
+            } else {
+                // Crear nuevo pago solo si no existe
+                if ($gatewayType === 'khipu') {
+                    $paymentId = $gatewayResult['payment_id'] ?? null;
+                    if (!$paymentId) {
+                        $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
+                        if (is_string($paymentUrl) && $paymentUrl !== '') {
+                            $parts = explode('/', rtrim($paymentUrl, '/'));
+                            $paymentId = end($parts) ?: null;
+                        }
+                    }
+                    $data = array_merge($commonData, [
+                        'external_payment_id' => $paymentId,
+                    ]);
+                } else {
+                    $data = array_merge($commonData, [
+                        'token' => $gatewayResult['token'] ?? null,
+                    ]);
+                }
+
+                $payment = Payment::create($data);
+            }
             
             Log::info('Payment record created successfully', [
                 'payment_id' => $payment->id,
