@@ -51,7 +51,7 @@ export default {
         return { page };
     },
     components: {
-        Head,Arregl
+        Head,
         Link,
         AdminLayout,
         ProgramsHeader,
