@@ -14,7 +14,7 @@ class PartialAccountDataProvider
      */
     public function getEnrollments(Builder $query, int $page = 1): LengthAwarePaginator
     {
-        return $query
+        $result = $query
             ->groupBy([
                 'p.id', 'p.first_name', 'p.last_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
@@ -46,6 +46,10 @@ class PartialAccountDataProvider
             ])
             ->orderByDesc('pp.created_at')
             ->paginate(10);
+
+
+
+        return $result;
     }
 
     /**
@@ -53,7 +57,7 @@ class PartialAccountDataProvider
      */
     public function getAllEnrollments(Builder $query): Collection
     {
-        return $query
+        $result = $query
             ->groupBy([
                 'p.id', 'p.first_name', 'p.last_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
@@ -85,6 +89,10 @@ class PartialAccountDataProvider
             ])
             ->orderByDesc('pp.created_at')
             ->get();
+
+
+
+        return $result;
     }
 
     /**

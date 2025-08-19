@@ -25,11 +25,15 @@ class PartialAccountTransformer
      */
     public function transformForExport(Collection $enrollments, array $selectedFields): Collection
     {
-        return $enrollments->map(function($enrollment) use ($selectedFields) {
+        $transformedData = $enrollments->map(function($enrollment) use ($selectedFields) {
             return $this->transformForExportRow($enrollment, $selectedFields);
         })->filter(function($row) {
             return $row !== null;
         });
+
+
+
+        return $transformedData;
     }
 
     /**
@@ -208,13 +212,27 @@ class PartialAccountTransformer
         if (empty($string)) {
             return $string;
         }
+
+
         
-        // Reemplazar directamente los caracteres mal codificados
+        // Detectar y convertir codificación si es necesario
+        $encoding = mb_detect_encoding($string, ['UTF-8', 'ISO-8859-1', 'Windows-1252']);
+        
+        if ($encoding && $encoding !== 'UTF-8') {
+            $string = mb_convert_encoding($string, 'UTF-8', $encoding);
+
+        }
+        
+        // Reemplazar directamente los caracteres mal codificados más comunes
         $string = str_replace(
             ['Ã©', 'Ã³', 'Ã­', 'Ã¡', 'Ãº', 'Ã±', 'Ã', 'Ã', 'Ã', 'Ã', 'Ã', 'Ã'],
             ['é', 'ó', 'í', 'á', 'ú', 'ñ', 'Á', 'É', 'Í', 'Ó', 'Ú', 'Ñ'],
             $string
         );
+        
+        // Limpiar caracteres de control y normalizar
+        $string = preg_replace('/[\x00-\x1F\x7F]/', '', $string);
+        $string = trim($string);
         
         return $string;
     }

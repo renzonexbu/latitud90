@@ -14,7 +14,7 @@ class ExportService
     /**
      * Exporta los datos según el formato especificado
      */
-    public function export(Collection $data, string $format, string $filename): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function export(Collection $data, string $format, string $filename): \Symfony\Component\HttpFoundation\Response
     {
         return match ($format) {
             'csv' => $this->csvExporter->export($data, $filename),
