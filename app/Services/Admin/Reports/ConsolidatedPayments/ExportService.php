@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\ConsolidatedPayments;
 
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
@@ -8,8 +8,8 @@ use Symfony\Component\HttpFoundation\Response;
 class ExportService
 {
     public function __construct(
-        private CsvExporter $csvExporter,
-        private ExcelExporter $excelExporter
+        private ConsolidatedPaymentsCsvExporter $csvExporter,
+        private ConsolidatedPaymentsExcelExporter $excelExporter
     ) {}
 
     public function export(Collection $data, string $filename, string $format = 'xlsx', array $selectedFields = []): Response
@@ -43,12 +43,12 @@ class ExportService
     private function generateFilename(string $baseFilename): string
     {
         // Si el nombre base ya contiene fecha, usarlo tal como viene
-        if (str_contains($baseFilename, 'cronograma_cuotas_')) {
+        if (str_contains($baseFilename, 'consolidado_pagos_')) {
             return $baseFilename;
         }
         
         // Si no, agregar el prefijo y fecha
         $date = now()->format('Y-m-d_H-i-s');
-        return "cronograma_cuotas_{$baseFilename}_{$date}";
+        return "consolidado_pagos_{$baseFilename}_{$date}";
     }
 }

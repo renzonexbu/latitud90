@@ -208,7 +208,6 @@ class Program extends Model
     public function getImagesAttribute()
     {
         if (!$this->images_folder) {
-            Log::info('No hay images_folder para el programa', ['program_id' => $this->id]);
             return [];
         }
 

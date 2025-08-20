@@ -1,35 +1,33 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\ConsolidatedPayments;
 
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Log;
 
-class RecoveryScheduleService
+class ConsolidatedPaymentsService
 {
     public function __construct(
-        private RecoveryScheduleDataProvider $dataProvider,
-        private RecoveryScheduleFilters $filters,
-        private RecoveryScheduleTransformer $transformer
+        private ConsolidatedPaymentsDataProvider $dataProvider,
+        private ConsolidatedPaymentsFilters $filters,
+        private ConsolidatedPaymentsTransformer $transformer
     ) {}
 
-    public function getPaymentSchedules(array $filters, int $page = 1): LengthAwarePaginator
+    public function getConsolidatedPayments(array $filters, int $page = 1): LengthAwarePaginator
     {
         $query = $this->dataProvider->buildBaseQuery();
         $query = $this->filters->applyFilters($query, $filters);
-        
-        $data = $this->dataProvider->getPaymentSchedules($query, $page);
+        $data = $this->dataProvider->getConsolidatedPayments($query, $page);
         $transformed = $this->transformer->transformForView($data);
         
         return $transformed;
     }
 
-    public function getAllPaymentSchedules(array $filters, array $selectedFields = []): Collection
+    public function getAllConsolidatedPayments(array $filters, array $selectedFields = []): Collection
     {
         $query = $this->dataProvider->buildBaseQuery();
         $query = $this->filters->applyFilters($query, $filters);
-        $data = $this->dataProvider->getAllPaymentSchedules($query);
+        $data = $this->dataProvider->getAllConsolidatedPayments($query);
         return $this->transformer->transformForExport($data, $selectedFields);
     }
 
@@ -38,12 +36,17 @@ class RecoveryScheduleService
         $query = $this->dataProvider->buildBaseQuery();
         $query = $this->filters->applyFilters($query, $filters);
         $summary = $this->dataProvider->getSummary($query);
+        
         return $summary;
     }
 
-    public function getPrograms(): Collection
+    public function getPaymentMethods(): Collection
     {
-        $programs = $this->dataProvider->getPrograms();
-        return $programs;
+        return $this->dataProvider->getPaymentMethods();
+    }
+
+    public function getDefaultDateRange(): array
+    {
+        return $this->dataProvider->getDefaultDateRange();
     }
 }

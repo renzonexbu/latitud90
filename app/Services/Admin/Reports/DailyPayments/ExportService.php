@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\DailyPayments;
 
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,12 +43,12 @@ class ExportService
     private function generateFilename(string $baseFilename): string
     {
         // Si el nombre base ya contiene fecha, usarlo tal como viene
-        if (str_contains($baseFilename, 'cronograma_cuotas_')) {
+        if (str_contains($baseFilename, 'pagos_diarios_')) {
             return $baseFilename;
         }
         
         // Si no, agregar el prefijo y fecha
         $date = now()->format('Y-m-d_H-i-s');
-        return "cronograma_cuotas_{$baseFilename}_{$date}";
+        return "pagos_diarios_{$baseFilename}_{$date}";
     }
 }

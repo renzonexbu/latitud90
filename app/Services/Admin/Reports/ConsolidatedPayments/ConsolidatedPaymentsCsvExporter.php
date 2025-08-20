@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\ConsolidatedPayments;
 
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -8,7 +8,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
-class CsvExporter
+class ConsolidatedPaymentsCsvExporter
 {
     public function export(Collection $data, string $filename, array $selectedFields = []): BinaryFileResponse
     {
@@ -98,17 +98,10 @@ class CsvExporter
     
     private function optimizeForExcel(string $filePath): void
     {
-        if (!file_exists($filePath)) {
-            return;
-        }
-        
+        // Agregar BOM UTF-8 al inicio del archivo para Excel
         $content = file_get_contents($filePath);
-        
-        // Asegurar que el BOM esté presente
         if (substr($content, 0, 3) !== "\xEF\xBB\xBF") {
-            $content = "\xEF\xBB\xBF" . $content;
+            file_put_contents($filePath, "\xEF\xBB\xBF" . $content);
         }
-        
-        file_put_contents($filePath, $content);
     }
 }

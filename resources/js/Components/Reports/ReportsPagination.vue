@@ -1,8 +1,8 @@
 <template>
     <div class="flex flex-row items-center justify-end gap-6 relative">
-        <!-- Total Accounts -->
+        <!-- Total Items -->
         <div class="text-[#9ca3af] font-normal text-sm">
-            Total {{ totalAccounts }} Estados de Cuenta
+            Total {{ totalItems }} Registros
         </div>
         
         <!-- Page Numbers -->
@@ -34,11 +34,11 @@ export default {
             type: Number,
             default: 1,
         },
-        totalAccounts: {
+        totalItems: {
             type: Number,
             required: true,
         },
-        accountsPerPage: {
+        itemsPerPage: {
             type: Number,
             default: 10,
         },
@@ -46,8 +46,8 @@ export default {
     computed: {
         totalPages() {
             // Validar que tengamos valores numéricos válidos
-            const total = Number(this.totalAccounts) || 0;
-            const perPage = Number(this.accountsPerPage) || 10;
+            const total = Number(this.totalItems) || 0;
+            const perPage = Number(this.itemsPerPage) || 10;
             
             if (total <= 0 || perPage <= 0) {
                 return 1; // Al menos una página

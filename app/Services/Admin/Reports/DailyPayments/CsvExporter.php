@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\DailyPayments;
 
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

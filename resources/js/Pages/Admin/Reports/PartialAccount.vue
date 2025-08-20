@@ -179,7 +179,7 @@
                                             >Documento:</span
                                         >
                                         {{
-                                            selectedAccount.participant_document
+                                            formatRut(selectedAccount.participant_document)
                                         }}
                                     </p>
                                     <p>
@@ -906,6 +906,25 @@ const getStatusLabel = (status) => {
 const formatDate = (date) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString("es-CL");
+};
+
+const formatRut = (rut) => {
+    if (!rut) return "N/A";
+    
+    // Limpiar el RUT de puntos y guiones
+    let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
+    
+    if (rutLimpio.length < 2) return rut;
+    
+    // Separar número y dígito verificador
+    let dv = rutLimpio.slice(-1);
+    let numero = rutLimpio.slice(0, -1);
+    
+    // Formatear número con puntos
+    let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    
+    // Retornar RUT formateado
+    return `${numeroFormateado}-${dv.toUpperCase()}`;
 };
 
 const hasSelectedFields = computed(() => {

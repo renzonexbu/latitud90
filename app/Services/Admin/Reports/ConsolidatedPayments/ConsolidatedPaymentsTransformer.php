@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Services\Admin\Reports\ConsolidatedPayments;
+
+use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
+
+class ConsolidatedPaymentsTransformer
+{
+    public function transformForView(LengthAwarePaginator $data): LengthAwarePaginator
+    {
+        $data->getCollection()->transform(function ($item) {
+            return $this->transformPaymentItem($item);
+        });
+        
+        return $data;
+    }
+    
+    public function transformForExport(Collection $data, array $selectedFields = []): Collection
+    {
+        return $data->map(function ($item) use ($selectedFields) {
+            return $this->transformForExportRow($item, $selectedFields);
+        });
+    }
+    
+    private function transformPaymentItem($item): array
+    {
+        return [
+            'id' => $item->order_id,
+            'program_id' => $item->program_id ?? 'N/A',
+            'participant_rut' => $this->cleanUtf8($item->participant_rut ?? 'N/A'),
+            'authorization_code' => $item->authorization_code ?? 'N/A',
+            'payment_amount' => (float) ($item->payment_amount ?? 0),
+            'payment_status' => $item->payment_status ?? 'N/A',
+            'invoice_number' => $item->invoice_number ?? 'N/A',
+            'payment_method_code' => $item->payment_method_code ?? 'N/A',
+            'payment_method_name' => $this->cleanUtf8($item->payment_method_name ?? 'N/A'),
+            'installments_number' => $item->installments_number ?? 1,
+            'payment_date' => $item->payment_date,
+            'payer_name' => $this->cleanUtf8($item->payer_name ?? 'N/A'),
+            'payer_email' => $this->cleanUtf8($item->payer_email ?? 'N/A'),
+            'is_refund' => ($item->payment_amount ?? 0) < 0,
+        ];
+    }
+    
+    private function transformForExportRow($item, array $selectedFields = []): array
+    {
+        $transformed = $this->transformPaymentItem($item);
+        $row = [];
+        
+        // Campos de identificación
+        if (isset($selectedFields['identification'])) {
+            if (in_array('programId', $selectedFields['identification'])) {
+                $row['ID Programa'] = $transformed['program_id'];
+            }
+            if (in_array('authorizationCode', $selectedFields['identification'])) {
+                $row['N° Autorización'] = $transformed['authorization_code'];
+            }
+            if (in_array('participantRut', $selectedFields['identification'])) {
+                $row['RUT Participante'] = $transformed['participant_rut'];
+            }
+        }
+        
+        // Campos del pago
+        if (isset($selectedFields['payment'])) {
+            if (in_array('amount', $selectedFields['payment'])) {
+                $row['Pago o Devolución'] = $transformed['payment_amount'];
+            }
+            if (in_array('invoiceNumber', $selectedFields['payment'])) {
+                $row['N° de Boleta'] = $transformed['invoice_number'];
+            }
+            if (in_array('paymentMethod', $selectedFields['payment'])) {
+                $row['Forma de Pago'] = $transformed['payment_method_code'];
+            }
+            if (in_array('installmentsNumber', $selectedFields['payment'])) {
+                $row['N° de Cuotas'] = $transformed['installments_number'];
+            }
+            if (in_array('paymentDate', $selectedFields['payment'])) {
+                $row['Fecha de Pago'] = $this->formatDate($transformed['payment_date']);
+            }
+        }
+        
+        // Campos del pagador
+        if (isset($selectedFields['payer'])) {
+            if (in_array('name', $selectedFields['payer'])) {
+                $row['Nombre Contacto Pagador'] = $transformed['payer_name'];
+            }
+            if (in_array('email', $selectedFields['payer'])) {
+                $row['E-mail Contacto Pagador'] = $transformed['payer_email'];
+            }
+        }
+        
+        // Si no hay campos seleccionados, incluir todos por defecto
+        if (empty($selectedFields)) {
+            $row = [
+                'ID Programa' => $transformed['program_id'],
+                'N° Autorización' => $transformed['authorization_code'],
+                'RUT Participante' => $transformed['participant_rut'],
+                'Pago o Devolución' => $transformed['payment_amount'],
+                'N° de Boleta' => $transformed['invoice_number'],
+                'Forma de Pago' => $transformed['payment_method_code'],
+                'N° de Cuotas' => $transformed['installments_number'],
+                'Fecha de Pago' => $this->formatDate($transformed['payment_date']),
+                'Nombre Contacto Pagador' => $transformed['payer_name'],
+                'E-mail Contacto Pagador' => $transformed['payer_email'],
+            ];
+        }
+        
+        return $row;
+    }
+    
+    private function formatDate($date): string
+    {
+        if (!$date) return 'N/A';
+        return \Carbon\Carbon::parse($date)->format('d/m/Y');
+    }
+    
+    private function cleanUtf8(string $text): string
+    {
+        if (!$text) return '';
+        
+        // Detectar encoding
+        $encoding = mb_detect_encoding($text, ['UTF-8', 'ISO-8859-1', 'ASCII'], true);
+        
+        if ($encoding === false) {
+            $encoding = 'ISO-8859-1';
+        }
+        
+        // Convertir a UTF-8 si es necesario
+        if ($encoding !== 'UTF-8') {
+            $text = mb_convert_encoding($text, 'UTF-8', $encoding);
+        }
+        
+        return $text;
+    }
+}

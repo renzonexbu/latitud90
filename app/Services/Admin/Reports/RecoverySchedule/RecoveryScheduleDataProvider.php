@@ -15,19 +15,25 @@ class RecoveryScheduleDataProvider
         // Según las migraciones: installments -> installment_plans -> orders -> participants -> programs
         // MOSTRAR TODOS los installments sin filtrar por estado
         return DB::table('installments as i')
-            ->join('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
-            ->join('orders as o', 'ip.order_id', '=', 'o.id')
-            ->join('participants as p', 'o.participant_id', '=', 'p.id')
-            ->join('programs as prog', 'o.program_id', '=', 'prog.id')
+            ->leftJoin('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
+            ->leftJoin('orders as o', 'ip.order_id', '=', 'o.id')
+            ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
+            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
             ->select([
                 'i.id',
                 'p.first_name',
                 'p.last_name',
+                DB::raw('CONCAT(p.first_name, " ", p.last_name) as participant_name'),
                 'p.email',
                 'p.document_number',
                 'p.phone',
                 'prog.name as program_name',
                 'prog.departure_date as program_departure_date',
+                'prog.sales_executive_id',
+                'se.name as sales_executive_name',
+                'se.email as sales_executive_email',
+                'se.phone as sales_executive_phone',
                 'i.installment_number',
                 'i.due_date', // Esta es la fecha máxima de pago
                 DB::raw('ROUND(i.amount) as amount'),

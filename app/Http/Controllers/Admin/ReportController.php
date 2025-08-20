@@ -12,12 +12,20 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Services\Admin\Reports\RecoverySchedule\RecoveryScheduleService;
 use App\Services\Admin\Reports\RecoverySchedule\ExportService;
+use App\Services\Admin\Reports\DailyPayments\DailyPaymentsService;
+use App\Services\Admin\Reports\DailyPayments\ExportService as DailyPaymentsExportService;
+use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
+use App\Services\Admin\Reports\ConsolidatedPayments\ExportService as ConsolidatedPaymentsExportService;
 
 class ReportController extends Controller
 {
     public function __construct(
         private RecoveryScheduleService $recoveryScheduleService,
-        private ExportService $exportService
+        private ExportService $exportService,
+        private DailyPaymentsService $dailyPaymentsService,
+        private DailyPaymentsExportService $dailyPaymentsExportService,
+        private ConsolidatedPaymentsService $consolidatedPaymentsService,
+        private ConsolidatedPaymentsExportService $consolidatedPaymentsExportService
     ) {}
 
     public function index(Request $request)
@@ -47,17 +55,6 @@ class ReportController extends Controller
         $totalVisitors = $passengersQuery->count(); // Simplificado, podría ser más complejo
         $conversionRate = $totalVisitors > 0 ? round(($totalReservations / $totalVisitors) * 100, 2) : 0;
         $averageOrderValue = $totalReservations > 0 ? round($totalRevenue / $totalReservations, 2) : 0;
-
-        // Debug logs
-        \Illuminate\Support\Facades\Log::info('ReportController Debug', [
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'totalRevenue' => $totalRevenue,
-            'totalReservations' => $totalReservations,
-            'totalPayments' => Payment::count(),
-            'totalParticipants' => Participant::count(),
-            'programsCount' => Program::count()
-        ]);
 
         // Programas más populares
         $popularPrograms = Program::withCount('participants')
@@ -262,121 +259,32 @@ class ReportController extends Controller
         return response()->json($data);
     }
 
-    public function dailyPayments(Request $request)
-    {
-        $filters = $request->only(['programId', 'executiveId', 'paymentMethod', 'dateFrom', 'dateTo']);
-        
-        $query = Payment::with([
-            'order.participant',
-            'order.program',
-            'orderDetail',
-            'paymentGateway'
-        ])
-        ->where('status', 'completed');
 
-        // Aplicar filtros
-        if (!empty($filters['programId'])) {
-            $query->whereHas('order.program', function ($q) use ($filters) {
-                $q->where('id', $filters['programId']);
-            });
-        }
-
-        if (!empty($filters['executiveId'])) {
-            $query->whereHas('order.program', function ($q) use ($filters) {
-                $q->where('sales_executive_id', $filters['executiveId']);
-            });
-        }
-
-        if (!empty($filters['paymentMethod'])) {
-            $query->whereHas('paymentGateway', function ($q) use ($filters) {
-                $q->where('code', $filters['paymentMethod']);
-            });
-        }
-
-        if (!empty($filters['dateFrom'])) {
-            $query->where('created_at', '>=', $filters['dateFrom']);
-        }
-
-        if (!empty($filters['dateTo'])) {
-            $query->where('created_at', '<=', $filters['dateTo'] . ' 23:59:59');
-        }
-
-        $payments = $query->get()->map(function ($payment) {
-            return [
-                'id' => $payment->id,
-                'participant_name' => $payment->order->participant->full_name ?? 'N/A',
-                'program_name' => $payment->order->program->name ?? 'N/A',
-                'program_price' => $payment->order->program->price ?? 0,
-                'amount' => $payment->amount,
-                'released_amount' => 0, // TODO: Implementar lógica de monto liberado
-                'external_contribution' => 0, // TODO: Implementar lógica de aporte externo
-                'remaining_balance' => 0, // TODO: Implementar lógica de saldo pendiente
-                'created_at' => $payment->created_at
-            ];
-        });
-
-        return Inertia::render('Admin/Reports/DailyPayments', [
-            'dailyPayments' => $payments,
-            'programs' => Program::all(['id', 'name']),
-            'executives' => \App\Models\SalesExecutive::all(['id', 'name']),
-            'filters' => $filters
-        ]);
-    }
 
     public function consolidatedPayments(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'paymentMethod', 'transactionType']);
+        $filters = $request->only([
+            'paymentMethodId',
+            'dateFrom',
+            'dateTo',
+            'page'
+        ]);
         
-        $query = Payment::with([
-            'order.participant',
-            'order.program',
-            'orderDetail',
-            'paymentGateway'
-        ])
-        ->where('status', 'completed');
-
-        // Aplicar filtros
-        if (!empty($filters['dateFrom'])) {
-            $query->where('created_at', '>=', $filters['dateFrom']);
-        }
-
-        if (!empty($filters['dateTo'])) {
-            $query->where('created_at', '<=', $filters['dateTo'] . ' 23:59:59');
-        }
-
-        if (!empty($filters['paymentMethod'])) {
-            $query->whereHas('paymentGateway', function ($q) use ($filters) {
-                $q->where('code', $filters['paymentMethod']);
-            });
-        }
-
-        if (!empty($filters['transactionType'])) {
-            if ($filters['transactionType'] === 'refund') {
-                $query->where('amount', '<', 0);
-            } else {
-                $query->where('amount', '>', 0);
-            }
-        }
-
-        $payments = $query->get()->map(function ($payment) {
-            return [
-                'id' => $payment->id,
-                'program_id' => $payment->order->program->id ?? 'N/A',
-                'authorization_number' => $payment->gateway_response['authorization_code'] ?? null,
-                'participant_document' => $payment->order->participant->document_number ?? 'N/A',
-                'amount' => $payment->amount,
-                'receipt_number' => $payment->gateway_response['receipt_number'] ?? null,
-                'payment_method' => $payment->paymentGateway->code ?? 'N/A',
-                'installments_number' => $payment->order->total_installments ?? 1,
-                'created_at' => $payment->created_at,
-                'buyer_name' => $payment->orderDetail->name ?? 'N/A',
-                'buyer_email' => $payment->orderDetail->email ?? 'N/A'
-            ];
-        });
+        // Obtener datos paginados
+        $page = $request->get('page', 1);
+        $consolidatedPayments = $this->consolidatedPaymentsService->getConsolidatedPayments($filters, $page);
+        
+        // Obtener resumen
+        $summary = $this->consolidatedPaymentsService->getSummary($filters);
+        
+        // Obtener datos para filtros
+        $paymentMethods = $this->consolidatedPaymentsService->getPaymentMethods();
 
         return Inertia::render('Admin/Reports/ConsolidatedPayments', [
-            'consolidatedPayments' => $payments,
-            'filters' => $filters
+            'consolidatedPayments' => $consolidatedPayments,
+            'paymentMethods' => $paymentMethods,
+            'filters' => $filters,
+            'summary' => $summary
         ]);
     }
 
@@ -456,16 +364,42 @@ class ReportController extends Controller
         return $data;
     }
 
-    public function exportDailyPayments(Request $request)
-    {
-        // TODO: Implementar exportación a CSV
-        return response()->json(['message' => 'Exportación implementada']);
-    }
+
 
     public function exportConsolidatedPayments(Request $request)
     {
-        // TODO: Implementar exportación a CSV
-        return response()->json(['message' => 'Exportación implementada']);
+        $filters = $request->only([
+            'paymentMethodId',
+            'dateFrom',
+            'dateTo'
+        ]);
+        $fields = json_decode($request->get('fields', '{}'), true);
+        $format = $request->get('format', 'xlsx');
+        $includeAll = $request->get('include_all', 'current');
+        
+        try {
+            // Obtener datos para exportación
+            if ($includeAll === 'all') {
+                $exportData = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, $fields);
+            } else {
+                // Solo página actual (implementar lógica si es necesario)
+                $exportData = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, $fields);
+            }
+            
+            // Validar que tenemos datos para exportar
+            if ($exportData->isEmpty()) {
+                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
+            }
+            
+            // Generar nombre de archivo
+            $filename = 'consolidado_pagos_' . now()->format('Y-m-d_H-i-s');
+            
+            // Exportar según el formato
+            return $this->consolidatedPaymentsExportService->export($exportData, $filename, $format, $fields);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
     }
 
     public function partialAccount(Request $request)
@@ -571,16 +505,17 @@ class ReportController extends Controller
     public function exportPaymentSchedule(Request $request)
     {
         $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status']);
+        $fields = json_decode($request->get('fields', '{}'), true);
         $format = $request->get('format', 'xlsx');
         $includeAll = $request->get('include_all', 'current');
         
         try {
             // Obtener datos para exportación
             if ($includeAll === 'all') {
-                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters);
+                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters, $fields);
             } else {
                 // Solo página actual (implementar lógica si es necesario)
-                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters);
+                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters, $fields);
             }
             
             // Validar que tenemos datos para exportar
@@ -592,7 +527,7 @@ class ReportController extends Controller
             $filename = 'cronograma_cuotas_' . now()->format('Y-m-d_H-i-s');
             
             // Exportar según el formato
-            return $this->exportService->export($exportData, $filename, $format);
+            return $this->exportService->export($exportData, $filename, $format, $fields);
             
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Export Payment Schedule Error', [
@@ -605,4 +540,87 @@ class ReportController extends Controller
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }
     }
+
+    public function dailyPayments(Request $request)
+    {
+        $filters = $request->only([
+            'programId',
+            'salesExecutiveId',
+            'financingType',
+            'paymentMethodId',
+            'dateFrom',
+            'dateTo',
+            'page'
+        ]);
+        
+        // Obtener datos paginados
+        $page = $request->get('page', 1);
+        $dailyPayments = $this->dailyPaymentsService->getDailyPayments($filters, $page);
+        
+        // Obtener resumen
+        $summary = $this->dailyPaymentsService->getSummary($filters);
+        
+        // Obtener datos para filtros
+        $programs = $this->dailyPaymentsService->getPrograms();
+        $salesExecutives = $this->dailyPaymentsService->getSalesExecutives();
+        $financingTypes = $this->dailyPaymentsService->getFinancingTypes();
+        $paymentMethods = $this->dailyPaymentsService->getPaymentMethods();
+
+        return Inertia::render('Admin/Reports/DailyPayments', [
+            'dailyPayments' => $dailyPayments,
+            'programs' => $programs,
+            'salesExecutives' => $salesExecutives,
+            'financingTypes' => $financingTypes,
+            'paymentMethods' => $paymentMethods,
+            'filters' => $filters,
+            'summary' => $summary
+        ]);
+    }
+
+    public function exportDailyPayments(Request $request)
+    {
+        $filters = $request->only([
+            'programId',
+            'salesExecutiveId',
+            'financingType',
+            'paymentMethodId',
+            'dateFrom',
+            'dateTo'
+        ]);
+        $fields = json_decode($request->get('fields', '{}'), true);
+        $format = $request->get('format', 'xlsx');
+        $includeAll = $request->get('include_all', 'current');
+        
+        try {
+            // Obtener datos para exportación
+            if ($includeAll === 'all') {
+                $exportData = $this->dailyPaymentsService->getAllDailyPayments($filters, $fields);
+            } else {
+                // Solo página actual (implementar lógica si es necesario)
+                $exportData = $this->dailyPaymentsService->getAllDailyPayments($filters, $fields);
+            }
+            
+            // Validar que tenemos datos para exportar
+            if ($exportData->isEmpty()) {
+                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
+            }
+            
+            // Generar nombre de archivo
+            $filename = 'pagos_diarios_' . now()->format('Y-m-d_H-i-s');
+            
+            // Exportar según el formato
+            return $this->dailyPaymentsExportService->export($exportData, $filename, $format, $fields);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Export Daily Payments Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
+    }
+
 }

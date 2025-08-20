@@ -3,9 +3,12 @@
     <Head title="Consolidado de Pagos" />
 
     <div class="py-12">
-      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+      <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
         <ConsolidatedPaymentsReport 
-          :initial-data="consolidatedPayments"
+          :consolidated-payments="consolidatedPayments"
+          :payment-methods="paymentMethods"
+          :filters="filters"
+          :summary="summary"
         />
       </div>
     </div>
@@ -19,8 +22,23 @@ import ConsolidatedPaymentsReport from '@/Components/Reports/ConsolidatedPayment
 
 defineProps({
   consolidatedPayments: {
+    type: Object,
+    default: () => ({
+      data: [],
+      links: []
+    })
+  },
+  paymentMethods: {
     type: Array,
     default: () => []
+  },
+  filters: {
+    type: Object,
+    default: () => ({})
+  },
+  summary: {
+    type: Object,
+    default: () => ({})
   }
 })
 </script>

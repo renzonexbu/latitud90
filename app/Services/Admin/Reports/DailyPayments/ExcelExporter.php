@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\DailyPayments;
 
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -112,7 +112,7 @@ class ExcelExporter
         $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . '1')->applyFromArray($headerStyle);
         
         // Formato para columnas específicas
-        $textColumns = ['Código Inscripción', 'Documento', 'N° Cuota'];
+        $textColumns = ['N° Orden', 'Documento'];
         
         foreach ($headers as $index => $header) {
             $col = chr(65 + $index);

@@ -7,39 +7,39 @@
                 class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
             >
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[140px]"
                 >
                     Participante
                 </div>
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[180px]"
                 >
                     Programa
                 </div>
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    N° Cuota
+                    N° Orden
                 </div>
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    Fecha Vencimiento
+                    Fecha Pago
                 </div>
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    Monto Cuota
+                    Monto Pagado
                 </div>
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
+                >
+                    Método Pago
+                </div>
+                <div
+                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[100px]"
                 >
                     Estado
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Días Vencimiento
                 </div>
                 <!-- Columna de acciones -->
                 <div class="w-[80px]"></div>
@@ -48,8 +48,8 @@
             <!-- Table Body -->
             <div class="flex flex-col">
                 <div
-                    v-for="(schedule, index) in schedules"
-                    :key="schedule.id"
+                    v-for="(payment, index) in payments"
+                    :key="payment.id"
                     :class="[
                         'px-5 py-[14px] flex items-center justify-between',
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
@@ -57,93 +57,96 @@
                 >
                     <!-- Participante -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[140px]"
                     >
                         <div class="text-center">
                             <div class="font-semibold">
-                                {{ schedule.participant_name }}
+                                {{ payment.participant_name }}
                             </div>
                             <div class="text-xs text-gray-500">
-                                {{ schedule.participant_email }}
+                                {{ payment.participant_email }}
                             </div>
                             <div class="text-xs text-gray-400">
-                                {{ formatRut(schedule.participant_document) }}
+                                {{ formatRut(payment.participant_document) }}
                             </div>
                         </div>
                     </div>
 
                     <!-- Programa -->
                     <div
-                        class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
+                        class="text-[#1c4f4a] font-bold text-[14px] leading-[18px] text-center w-[180px]"
                     >
                         <div class="text-center">
                             <div class="font-semibold">
-                                {{ schedule.program_name }}
+                                {{ payment.program_name }}
                             </div>
                             <div class="text-xs text-gray-500">
-                                {{
-                                    formatDate(schedule.program_departure_date)
-                                }}
+                                {{ payment.program_destination }}
+                            </div>
+                            <div class="text-xs text-gray-400">
+                                {{ formatDate(payment.program_departure_date) }}
                             </div>
                         </div>
                     </div>
 
-                    <!-- N° Cuota -->
+                    <!-- N° Orden -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ schedule.installment_number }}
+                        {{ payment.order_number }}
                     </div>
 
-                    <!-- Fecha Vencimiento -->
+                    <!-- Fecha Pago -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ formatDate(schedule.due_date) }}
+                        {{ formatDate(payment.payment_date) }}
                     </div>
 
-                    <!-- Monto Cuota -->
+                    <!-- Monto Pagado -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
+                    >
+                        <div class="text-center">
+                            <div class="font-semibold text-green-600">
+                                ${{ formatPrice(payment.payment_amount) }}
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                Cuota {{ payment.installment_number }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Método Pago -->
+                    <div
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
                         <div class="text-center">
                             <div class="font-semibold">
-                                ${{ formatPrice(schedule.amount) }}
+                                {{ payment.payment_method_name }}
                             </div>
-                            <div
-                                v-if="schedule.discount_amount > 0"
-                                class="text-xs text-red-500"
-                            >
-                                -${{ formatPrice(schedule.discount_amount) }}
+                            <div class="text-xs text-gray-500">
+                                {{ payment.financing_type_label }}
                             </div>
                         </div>
                     </div>
 
                     <!-- Estado -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[100px]"
                     >
                         <span
-                            :class="getStatusClass(schedule.status)"
-                            class="px-2 py-1 text-xs font-semibold rounded-full"
+                            :class="getStatusClass(payment.payment_status)"
+                            class="px-3 py-1 text-xs font-semibold rounded-full inline-block"
                         >
-                            {{ getStatusLabel(schedule.status) }}
-                        </span>
-                    </div>
-
-                    <!-- Días Vencimiento -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        <span :class="getDaysClass(schedule.days_overdue)">
-                            {{ schedule.days_overdue || 0 }} días
+                            {{ getStatusLabel(payment.payment_status) }}
                         </span>
                     </div>
 
                     <!-- Acciones -->
                     <div class="w-[80px] flex justify-center">
                         <button
-                            @click="$emit('view-details', schedule)"
+                            @click="$emit('view-details', payment)"
                             class="w-[30px] h-[30px] hover:opacity-75 transition-opacity flex items-center justify-center"
                         >
                             <svg
@@ -176,7 +179,7 @@
         </div>
 
         <!-- Mensaje cuando no hay datos -->
-        <div v-if="schedules.length === 0" class="p-8 text-center">
+        <div v-if="payments.length === 0" class="p-8 text-center">
             <div class="text-gray-500">
                 <svg
                     class="mx-auto h-12 w-12 text-gray-400 mb-4"
@@ -188,12 +191,12 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
                     ></path>
                 </svg>
-                <p class="text-lg font-medium">No hay cuotas para mostrar</p>
+                <p class="text-lg font-medium">No hay pagos para mostrar</p>
                 <p class="text-sm">
-                    Intenta ajustar los filtros o verifica que existan cuotas en
+                    Intenta ajustar los filtros o verifica que existan pagos en
                     el sistema
                 </p>
             </div>
@@ -205,7 +208,7 @@
 import { computed } from "vue";
 
 const props = defineProps({
-    schedules: {
+    payments: {
         type: Array,
         default: () => [],
     },
@@ -245,29 +248,40 @@ const formatRut = (rut) => {
 };
 
 const getStatusClass = (status) => {
+    // Normalizar el status a minúsculas para evitar problemas de case
+    const normalizedStatus = (status || '').toLowerCase();
+    
     const classes = {
-        pending: "bg-yellow-100 text-yellow-800",
-        overdue: "bg-red-100 text-red-800",
-        paid: "bg-green-100 text-green-800",
-        upcoming: "bg-blue-100 text-blue-800",
+        pending: "bg-yellow-100 text-yellow-800 border border-yellow-200",
+        completed: "bg-green-100 text-green-800 border border-green-200",
+        failed: "bg-red-100 text-red-800 border border-red-200",
+        authorized: "bg-blue-100 text-blue-800 border border-blue-200",
+        processing: "bg-blue-100 text-blue-800 border border-blue-200",
+        success: "bg-green-100 text-green-800 border border-green-200",
+        paid: "bg-green-100 text-green-800 border border-green-200",
+        approved: "bg-green-100 text-green-800 border border-green-200",
+        rejected: "bg-red-100 text-red-800 border border-red-200",
+        cancelled: "bg-gray-100 text-gray-800 border border-gray-200",
     };
-    return classes[status] || "bg-gray-100 text-gray-800";
+    return classes[normalizedStatus] || "bg-gray-100 text-gray-800 border border-gray-200";
 };
 
 const getStatusLabel = (status) => {
+    // Normalizar el status a minúsculas para evitar problemas de case
+    const normalizedStatus = (status || '').toLowerCase();
+    
     const labels = {
         pending: "Pendiente",
-        overdue: "Vencida",
-        paid: "Pagada",
-        upcoming: "Próxima",
+        completed: "Completado",
+        failed: "Fallido",
+        authorized: "Autorizado",
+        processing: "Procesando",
+        success: "Exitoso",
+        paid: "Pagado",
+        approved: "Aprobado",
+        rejected: "Rechazado",
+        cancelled: "Cancelado",
     };
-    return labels[status] || status;
-};
-
-const getDaysClass = (days) => {
-    if (!days || days <= 0) return "text-gray-500";
-    if (days <= 7) return "text-yellow-600";
-    if (days <= 30) return "text-orange-600";
-    return "text-red-600";
+    return labels[normalizedStatus] || (status || "Desconocido");
 };
 </script>

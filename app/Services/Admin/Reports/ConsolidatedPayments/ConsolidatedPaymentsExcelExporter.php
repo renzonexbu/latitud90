@@ -1,13 +1,16 @@
 <?php
 
-namespace App\Services\Admin\Reports\RecoverySchedule;
+namespace App\Services\Admin\Reports\ConsolidatedPayments;
 
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class ExcelExporter
+class ConsolidatedPaymentsExcelExporter
 {
     public function export(Collection $data, string $filename, array $selectedFields = []): StreamedResponse
     {
@@ -64,8 +67,8 @@ class ExcelExporter
                 $rowIndex++;
             }
             
-            // Aplicar formato Excel
-            $this->applyExcelFormatting($sheet, $headers);
+            // Aplicar estilos profesionales
+            $this->applyProfessionalStyles($sheet, $data->count() + 1);
             
             // Configurar writer XLSX
             $writer = new Xlsx($spreadsheet);
@@ -91,55 +94,47 @@ class ExcelExporter
         }
     }
     
-    private function applyExcelFormatting($sheet, array $headers): void
+    private function applyProfessionalStyles($sheet, int $lastRow): void
     {
-        // Formato para headers
+        // Estilo para headers
         $headerStyle = [
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => '4472C4'],
             ],
             'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
             ],
-        ];
-        
-        $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . '1')->applyFromArray($headerStyle);
-        
-        // Formato para columnas específicas
-        $textColumns = ['Código Inscripción', 'Documento', 'N° Cuota'];
-        
-        foreach ($headers as $index => $header) {
-            $col = chr(65 + $index);
-            
-            if (in_array($header, $textColumns)) {
-                // Aplicar formato de texto para columnas que deben ser tratadas como texto
-                $sheet->getStyle($col . '2:' . $col . '1000')->getNumberFormat()->setFormatCode('@');
-                $sheet->getStyle($col . '2:' . $col . '1000')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
-            }
-        }
-        
-        // Auto-ajustar columnas
-        foreach (range('A', chr(65 + count($headers) - 1)) as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
-        
-        // Bordes para toda la tabla
-        $borderStyle = [
             'borders' => [
                 'allBorders' => [
-                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'borderStyle' => Border::BORDER_THIN,
                     'color' => ['rgb' => '000000'],
                 ],
             ],
         ];
         
-        $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . $lastRow)->applyFromArray($borderStyle);
+        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray($headerStyle);
+        
+        // Estilo para datos
+        $dataStyle = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'CCCCCC'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        
+        if ($lastRow > 1) {
+            $sheet->getStyle('A2:' . $sheet->getHighestColumn() . $lastRow)->applyFromArray($dataStyle);
+        }
     }
 }

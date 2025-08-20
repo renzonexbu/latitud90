@@ -3,7 +3,7 @@
         <!-- Left side - Breadcrumb and title -->
         <div class="flex flex-row gap-4 items-center justify-start flex-shrink-0 relative">
             <div class="text-[30px] leading-9 font-normal text-turquesa font-nexa-xbold">
-                Reportes
+                {{ title }}
             </div>
             <div class="w-0 h-[35px] relative overflow-visible">
                 <!-- Vector separator -->
@@ -36,6 +36,10 @@ export default {
         Link,
     },
     props: {
+        title: {
+            type: String,
+            default: "Reporte"
+        },
         subtitle: {
             type: String,
             default: "Estado de Cuenta Parcial"
