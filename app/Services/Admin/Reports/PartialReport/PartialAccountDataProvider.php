@@ -16,7 +16,7 @@ class PartialAccountDataProvider
     {
         $result = $query
             ->groupBy([
-                'p.id', 'p.first_name', 'p.last_name', 'p.email', 'p.document_number', 'p.phone',
+                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
                 'pr.id', 'pr.name', 'pr.departure_date', 'pr.sales_executive_id',
                 'c.education_level', 'c.course_number',
@@ -24,8 +24,10 @@ class PartialAccountDataProvider
             ])
             ->select([
                 'p.id as participant_id',
+                'p.first_last_name',
+                'p.second_last_name',
                 'p.first_name',
-                'p.last_name',
+                'p.second_name',
                 'p.email',
                 'p.document_number',
                 'p.phone',
@@ -59,7 +61,7 @@ class PartialAccountDataProvider
     {
         $result = $query
             ->groupBy([
-                'p.id', 'p.first_name', 'p.last_name', 'p.email', 'p.document_number', 'p.phone',
+                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
                 'pr.id', 'pr.name', 'pr.departure_date', 'pr.sales_executive_id',
                 'c.education_level', 'c.course_number',
@@ -67,8 +69,10 @@ class PartialAccountDataProvider
             ])
             ->select([
                 'p.id as participant_id',
+                'p.first_last_name',
+                'p.second_last_name',
                 'p.first_name',
-                'p.last_name',
+                'p.second_name',
                 'p.email',
                 'p.document_number',
                 'p.phone',

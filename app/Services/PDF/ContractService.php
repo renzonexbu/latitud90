@@ -58,21 +58,33 @@ class ContractService
         $program = $orderDetail->order->program;
         $participant = $orderDetail->order->participant;
 
-        // Formatear RUT del participante
-        $participantDocumentNumber = $this->formatDocumentNumber($participant->document_number, $participant->document_type);
+        // Obtener el tipo de documento del participante desde la tabla document
+        $documentType = $participant->documentType;
+        $documentTypeName = $documentType ? $documentType->name : 'N/A';
 
-        // Generar folio del contrato: código del programa - RUT del participante (sin puntos ni guiones ni dígito verificador)
+        // Formatear número de documento del participante
+        $participantDocumentNumber = $this->formatDocumentNumber($participant->document_number, $documentTypeName);
+
+        // Obtener el contacto de emergencia como apoderado
+        $emergencyContact = $participant->emergencyContacts()->first();
+        $apoderadoNombre = $emergencyContact ? $this->capitalizeWords($emergencyContact->name) : 'N/A';
+        $apoderadoDocument = $emergencyContact ? $this->formatDocumentNumber($emergencyContact->document_number, 'RUT') : 'N/A';
+
+        // Generar folio del contrato: código del programa - documento del participante (sin puntos ni guiones ni dígito verificador)
         $programCode = $program->code ?? 'PROG';
-        $cleanRut = '';
+        $cleanDocument = '';
         
-        if (strtolower($participant->document_type) === 'rut') {
-            $cleanRut = preg_replace('/[.-]/', '', $participant->document_number);
-            $cleanRut = substr($cleanRut, 0, -1);
+        if (strtolower($documentTypeName) === 'rut') {
+            $cleanDocument = preg_replace('/[.-]/', '', $participant->document_number);
+            $cleanDocument = substr($cleanDocument, 0, -1); // Sin dígito verificador
         } else {
-            $cleanRut = preg_replace('/[.-]/', '', $participant->document_number);
+            $cleanDocument = preg_replace('/[.-]/', '', $participant->document_number);
         }
         
-        $folio = $programCode . '-' . $cleanRut;
+        $folio = $programCode . '-' . $cleanDocument;
+
+        // Construir nombre completo del participante
+        $participantFullName = $this->buildParticipantFullName($participant);
 
         return [
             // Datos del contrato
@@ -89,13 +101,15 @@ class ContractService
             'domicilio_comuna' => config('lat90.company.address.commune', 'Providencia'),
             'domicilio_calle' => config('lat90.company.address.street', 'Carlos Antúnez 1941'),
 
-            // Datos del apoderado (datos del comprador desde order detail)
-            'apoderado_nombre' => $orderDetail->name,
-            'apoderado_rut' => $this->formatDocumentNumber($orderDetail->document_number, $orderDetail->document_type),
+            // Datos del apoderado (contacto de emergencia)
+            'apoderado_nombre' => $apoderadoNombre,
+            'apoderado_rut' => $apoderadoDocument,
+            'apoderado_tipo_documento' => $emergencyContact && $emergencyContact->documentType ? $emergencyContact->documentType->name : 'N/A',
 
-            // Datos del alumno/participante (desde la base de datos)
-            'alumno_nombre' => $participant->full_name,
+            // Datos del alumno/participante
+            'alumno_nombre' => $participantFullName,
             'alumno_rut' => $participantDocumentNumber,
+            'alumno_tipo_documento' => $documentTypeName,
 
             // Datos del programa
             'cotizacion_fecha' => $program->created_at->format('d \d\e F \d\e Y'),
@@ -113,6 +127,30 @@ class ContractService
             'firmante_nombre' => config('lat90.pdf.signature.name', 'Carmen Gutiérrez M.'),
             'firmante_cargo' => config('lat90.pdf.signature.position', 'Jefa área de recaudación'),
         ];
+    }
+
+    /**
+     * Construir nombre completo del participante
+     */
+    private function buildParticipantFullName($participant): string
+    {
+        $parts = [];
+        
+        // Primero nombres, luego apellidos
+        if ($participant->first_name) {
+            $parts[] = $this->capitalizeWords($participant->first_name);
+        }
+        if ($participant->second_name) {
+            $parts[] = $this->capitalizeWords($participant->second_name);
+        }
+        if ($participant->first_last_name) {
+            $parts[] = $this->capitalizeWords($participant->first_last_name);
+        }
+        if ($participant->second_last_name) {
+            $parts[] = $this->capitalizeWords($participant->second_last_name);
+        }
+        
+        return !empty($parts) ? implode(' ', $parts) : 'N/A';
     }
 
     /**
@@ -134,6 +172,14 @@ class ContractService
 
         // Para pasaporte, devolver en mayúsculas
         return strtoupper($documentNumber);
+    }
+
+    /**
+     * Capitalizar palabras en una cadena
+     */
+    private function capitalizeWords(string $string): string
+    {
+        return ucwords(strtolower($string));
     }
 
     /**

@@ -274,11 +274,17 @@
                 {{ $representante_nombre ?? 'Carolina Emhart García' }}, cédula nacional de identidad número
                 {{ $representante_rut ?? '13.670.825-2' }}, ambos domiciliados en la ciudad de
                 {{ $domicilio_ciudad ?? 'Santiago' }} y comuna de {{ $domicilio_comuna ?? 'Providencia' }},
-                {{ $domicilio_calle ?? 'Carlos Antúnez 1941' }}, en adelante “El Prestador de servicios”; y por otra
-                parte, don/a {{ $apoderado_nombre ?? 'Macarena Cataldo' }}, cédula nacional de identidad número
-                {{ $apoderado_rut ?? '8.658.884-7' }} como apoderado(a) del alumno(a)
-                {{ $alumno_nombre ?? 'Torrealba Cataldo Carolina Del Pilar' }}, cédula nacional de identidad número
-                {{ $alumno_rut ?? '23.047.791-4' }}, se ha convenido el presente contrato de Reserva de Programa
+                {{ $domicilio_calle ?? 'Carlos Antúnez 1941' }}, en adelante "El Prestador de servicios"; y por otra
+                parte, don/a {{ $apoderado_nombre ?? 'N/A' }}, 
+                cédula nacional de identidad número
+                {{ $apoderado_rut ?? 'N/A' }} como apoderado(a) del alumno(a)
+                {{ $alumno_nombre ?? 'N/A' }}, 
+                @if(isset($alumno_tipo_documento) && strtolower($alumno_tipo_documento) === 'rut')
+                    cédula nacional de identidad número
+                @else
+                    pasaporte
+                @endif
+                {{ $alumno_rut ?? 'N/A' }}, se ha convenido el presente contrato de Reserva de Programa
                 Educativo.
             </p>
         </div>

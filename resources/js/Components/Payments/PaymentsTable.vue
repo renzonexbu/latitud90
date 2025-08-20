@@ -129,10 +129,8 @@ export default {
     },
     methods: {
         getParticipantName(payment) {
-            if (payment.order?.participant) {
-                return `${payment.order.participant.first_name} ${payment.order.participant.last_name}`;
-            }
-            return 'N/A';
+            // Usar el atributo del modelo Payment que ya está construido correctamente
+            return payment.participant_name || 'N/A';
         },
 
         getBuyerName(payment) {
@@ -142,7 +140,7 @@ export default {
             }
             // Fallback al participante si no hay datos del comprador
             if (payment.order?.participant) {
-                return `${payment.order.participant.first_name} ${payment.order.participant.last_name}`;
+                return this.getParticipantName(payment);
             }
             return 'N/A';
         },

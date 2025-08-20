@@ -14,13 +14,16 @@ class StorePassengerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'rut' => 'required|string|unique:passengers,rut',
+            'first_last_name' => 'required|string|max:255',
+            'second_last_name' => 'nullable|string|max:255',
             'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'second_name' => 'nullable|string|max:255',
             'email' => 'required|email|max:255',
-            'phone' => 'nullable|string|max:255',
-            'program_id' => 'required|exists:programs,id',
-            'status' => 'required|in:active,inactive,withdrawn',
+            'phone' => 'required|string|max:255',
+            'code_phone' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'birth_date' => 'required|date',
+            'address' => 'nullable|string|max:255',
         ];
     }
 }

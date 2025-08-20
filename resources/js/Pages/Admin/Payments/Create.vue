@@ -823,7 +823,7 @@ const getPaymentStatusLabel = (status) => {
         case 'no_enrolled':
             return 'No inscrito';
         case 'no_payments':
-            return 'Sin pagos realizados';
+            return 'Sin pagos ejecutados';
         case 'partial_payments':
             return 'Pagos parciales';
         case 'fully_paid':
@@ -840,7 +840,7 @@ const getDetailedPaymentStatus = (paymentInfo) => {
         case 'no_enrolled':
             return 'No inscrito en el programa';
         case 'no_payments':
-            return 'Inscrito pero sin pagos realizados';
+            return 'Inscrito pero sin pagos ejecutados';
         case 'partial_payments':
             return `Pagos parciales (${paymentInfo.installments_summary} cuotas pagadas)`;
         case 'fully_paid':

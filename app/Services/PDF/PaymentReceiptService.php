@@ -59,9 +59,18 @@ class PaymentReceiptService
         $program = $orderDetail->order->program;
         $participant = $orderDetail->order->participant;
         
-        // Formatear RUT si es necesario
-        $documentNumber = $this->formatDocumentNumber($participant->document_number, $participant->document_type);
-        $documentType = $this->getDocumentTypeLabel($participant->document_type);
+        // Obtener el tipo de documento del participante desde la tabla document
+        $documentType = $participant->documentType;
+        $documentTypeName = $documentType ? $documentType->name : 'N/A';
+        
+        // Formatear número de documento del participante
+        $documentNumber = $this->formatDocumentNumber($participant->document_number, $documentTypeName);
+        
+        // Obtener etiqueta del tipo de documento
+        $documentTypeLabel = $this->getDocumentTypeLabel($documentTypeName);
+        
+        // Construir nombre completo del participante
+        $participantFullName = $this->buildParticipantFullName($participant);
         
         // Calcular el monto total que debe pagar el participante usando el helper
         $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
@@ -77,21 +86,21 @@ class PaymentReceiptService
         
         return [
             // Datos del comprobante
-            'folio' => $program->code,
+            'folio' => $program->code ?? 'N/A',
             'fecha' => $payment->created_at->format('d \d\e F, Y'),
             'monto' => number_format($payment->amount, 0, ',', '.'),
             
             // Datos del comprador/apoderado
-            'apoderado_nombre' => $orderDetail->name,
+            'apoderado_nombre' => $orderDetail->name ?? 'N/A',
             
             // Datos del alumno/participante
-            'alumno_nombre' => $participant->full_name,
+            'alumno_nombre' => $participantFullName,
             'alumno_rut' => $documentNumber,
-            'document_type' => $documentType,
+            'document_type' => $documentTypeLabel,
             
             // Datos del programa
             'valor_programa' => number_format($totalDue, 0, ',', '.'),
-            'destino' => $program->destination ?? $program->name,
+            'destino' => $program->destination ?? $program->name ?? 'N/A',
             'fecha_programa' => $program->departure_date ? $program->departure_date->format('F, Y') : 'Por definir',
             
             // Datos del abono
@@ -139,6 +148,38 @@ class PaymentReceiptService
     private function getDocumentTypeLabel(string $documentType): string
     {
         return strtolower($documentType) === 'rut' ? 'cédula nacional de identidad Nro.' : 'PASAPORTE';
+    }
+
+    /**
+     * Construir nombre completo del participante
+     */
+    private function buildParticipantFullName($participant): string
+    {
+        $parts = [];
+        
+        // Primero nombres, luego apellidos
+        if ($participant->first_name) {
+            $parts[] = $this->capitalizeWords($participant->first_name);
+        }
+        if ($participant->second_name) {
+            $parts[] = $this->capitalizeWords($participant->second_name);
+        }
+        if ($participant->first_last_name) {
+            $parts[] = $this->capitalizeWords($participant->first_last_name);
+        }
+        if ($participant->second_last_name) {
+            $parts[] = $this->capitalizeWords($participant->second_last_name);
+        }
+        
+        return !empty($parts) ? implode(' ', $parts) : 'N/A';
+    }
+
+    /**
+     * Capitalizar palabras en una cadena
+     */
+    private function capitalizeWords(string $string): string
+    {
+        return ucwords(strtolower($string));
     }
     
     /**

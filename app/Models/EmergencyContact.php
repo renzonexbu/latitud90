@@ -12,9 +12,10 @@ class EmergencyContact extends Model
     protected $table = 'emergency_contact';
 
     protected $fillable = [
-        'first_name',
-        'last_name',
+        'name',
         'email',
+        'document_type',
+        'document_number',
         'code_phone',
         'phone',
         'country',
@@ -40,6 +41,6 @@ class EmergencyContact extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        return $this->name;
     }
 } 

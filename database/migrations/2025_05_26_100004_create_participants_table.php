@@ -13,32 +13,44 @@ return new class extends Migration
     {
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name');
-            $table->string('last_name');
+            // Nombres y apellidos
+            $table->string('first_last_name'); // Primer apellido
+            $table->string('second_last_name')->nullable(); // Segundo apellido
+            $table->string('first_name'); // Primer nombre
+            $table->string('second_name')->nullable(); // Segundo nombre
+            
+            // Documento
+            $table->foreignId('document_type')->default(1)->constrained('document'); // Tipo de documento (RUT, Pasaporte, etc.)
+            $table->string('document_number'); // Número de documento
+            
+            // Información personal
+            $table->date('birth_date'); // Fecha de nacimiento
+            $table->string('nationality'); // Nacionalidad
+            $table->enum('gender', ['Masculino', 'Femenino']); // Sexo
+            
+            // Información de contacto
             $table->string('email');
             $table->string('code_phone');
             $table->string('phone');
-            $table->string('document_type');
-            $table->string('document_number');
-			$table->string('rut_digits')->nullable();
-			$table->string('rut_first6', 6)->nullable();
             $table->string('country');
-            $table->date('birth_date');
             $table->text('address')->nullable();
-            $table->text('dietary_restrictions')->nullable();
-            $table->text('medical_conditions')->nullable();
+            
+            // Información médica y alimentaria
+            $table->text('dietary_restrictions')->nullable(); // Restricción alimenticia
+            $table->text('intolerances')->nullable(); // Intolerancia
+            $table->text('allergies')->nullable(); // Alergias
+            
+            // Campos de sistema
             $table->enum('status', ['pending_payment', 'confirmed', 'cancelled']);
             $table->datetime('registration_date');
-            // Campos de pago se gestionan en el pivote participant_course
             $table->timestamps();
             $table->softDeletes();
 
-			$table->index(['rut_digits']);
-			$table->index(['rut_first6']);
-			$table->index(['created_at']); // Para filtros por fecha
-			$table->index(['status', 'created_at']); // Para filtros combinados
-			$table->index(['document_number']); // Para búsquedas por documento
-			$table->index(['email']); // Para búsquedas por email
+            // Índices
+            $table->index(['document_number']); // Para búsquedas por documento
+            $table->index(['email']); // Para búsquedas por email
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
         });
 
         // Tabla pivote para la relación muchos a muchos entre participants y courses

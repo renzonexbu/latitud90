@@ -73,7 +73,7 @@ class ParticipantsController extends Controller
                     ->where('od.is_paid', true);
             })
             ->groupBy([
-                'p.id', 'p.first_name', 'p.last_name', 'p.document_number',
+                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.document_number', 'p.document_type',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
                 'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
                 'c.education_level', 'c.course_number',
@@ -81,9 +81,12 @@ class ParticipantsController extends Controller
             ])
             ->select([
                 'p.id as participant_id',
+                'p.first_last_name',
+                'p.second_last_name',
                 'p.first_name',
-                'p.last_name',
+                'p.second_name',
                 'p.document_number',
+                'p.document_type',
                 'pp.id as participant_program_id',
                 'pp.enrollment_code',
                 'pp.individual_price',
@@ -163,7 +166,7 @@ class ParticipantsController extends Controller
         try {
             // Separar los datos del participante
             $participantData = array_intersect_key($request->validated(), array_flip([
-                'course_id', 'first_name', 'last_name', 'email', 'code_phone', 'phone',
+                'course_id', 'first_last_name', 'second_last_name', 'first_name', 'second_name', 'email', 'code_phone', 'phone',
                 'document_type', 'document_number', 'country', 'birth_date', 'address',
                 'dietary_restrictions', 'medical_conditions'
             ]));
@@ -314,8 +317,7 @@ class ParticipantsController extends Controller
             foreach ($emergencyContactsData as $contactData) {
                 EmergencyContact::create([
                     'participant_id' => $participant->id,
-                    'first_name' => $contactData['first_name'],
-                    'last_name' => $contactData['last_name'],
+                    'name' => $contactData['name'],
                     'email' => $contactData['email'],
                     'code_phone' => $contactData['code_phone'],
                     'phone' => $contactData['phone'],

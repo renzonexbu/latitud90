@@ -11,28 +11,34 @@ class Participant extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'first_last_name',
+        'second_last_name',
         'first_name',
-        'last_name',
+        'second_name',
         'email',
         'code_phone',
         'phone',
         'document_type',
         'document_number',
-        'rut_digits',
-        'rut_first6',
         'country',
         'birth_date',
+        'nationality',
+        'gender',
         'address',
         'dietary_restrictions',
-        'medical_conditions',
+        'intolerances',
+        'allergies',
         'status',
-        'registration_date',
-        'course_id'
+        'registration_date'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'registration_date' => 'datetime',
+    ];
+
+    protected $appends = [
+        'full_name'
     ];
 
     public function emergencyContacts()
@@ -104,7 +110,31 @@ class Participant extends Model
 
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        $parts = [];
+        
+        // Construir nombre completo usando el orden correcto: nombres primero, luego apellidos
+        if ($this->first_name) {
+            $parts[] = $this->capitalizeWords($this->first_name);
+        }
+        if ($this->second_name) {
+            $parts[] = $this->capitalizeWords($this->second_name);
+        }
+        if ($this->first_last_name) {
+            $parts[] = $this->capitalizeWords($this->first_last_name);
+        }
+        if ($this->second_last_name) {
+            $parts[] = $this->capitalizeWords($this->second_last_name);
+        }
+        
+        return !empty($parts) ? implode(' ', $parts) : 'N/A';
+    }
+
+    /**
+     * Aplicar CapitalCase a un string
+     */
+    private function capitalizeWords(string $text): string
+    {
+        return ucwords(strtolower(trim($text)));
     }
 
     // Totales deben calcularse desde el pivote y pagos; se eliminaron campos locales de pago

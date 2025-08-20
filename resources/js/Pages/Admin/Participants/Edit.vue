@@ -7,9 +7,7 @@
                 <!-- Header -->
                 <ParticipantsHeader
                     subtitle="Visualización de participantes"
-                    :participant-name="
-                        participant.first_name + ' ' + participant.last_name
-                    "
+                    :participant-name="getFullName(participant)"
                 />
 
                 <!-- Participant Info Card -->
@@ -43,12 +41,7 @@
                                                     <div
                                                         class="text-turquesa text-left font-nexa-bold text-[24px] leading-[28px] font-bold relative self-stretch"
                                                     >
-                                                        {{
-                                                            participant.first_name
-                                                        }}
-                                                        {{
-                                                            participant.last_name
-                                                        }}
+                                                        {{ getFullName(participant) }}
                                                     </div>
                                                 </div>
                                                 <div
@@ -127,7 +120,6 @@
                                 <div
                                     class="flex flex-row gap-[9.56px] items-center justify-start flex-shrink-0 relative"
                                 >
-    
                                     <!-- <div
                                         class="flex flex-row gap-[5.98px] items-center justify-start flex-shrink-0 relative"
                                     >
@@ -304,12 +296,11 @@
                                                 <div
                                                     class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[131px] h-[10px]"
                                                 >
-                                                    RUT:
+                                                    RUT/PASAPORTE:
                                                     {{
                                                         formatRutDisplay(
                                                             participant.document_number
-                                                        ) ||
-                                                        "00.000.000-0"
+                                                        ) || "00.000.000-0"
                                                     }}
                                                 </div>
                                             </div>
@@ -411,7 +402,10 @@
                         Programas del Participante
                     </h3>
 
-                    <ProgramsGrid :programs="formattedPrograms" :prefer-participant-metrics="true" />
+                    <ProgramsGrid
+                        :programs="formattedPrograms"
+                        :prefer-participant-metrics="true"
+                    />
                 </div>
 
                 <!-- Back Button -->
@@ -430,7 +424,9 @@
         <EditParticipantModal
             :show="showEditModal"
             :participant="participant"
-            :participant-programs-with-discounts="participantProgramsWithDiscounts"
+            :participant-programs-with-discounts="
+                participantProgramsWithDiscounts
+            "
             :errors="errors"
             @close="closeEditModal"
         />
@@ -489,12 +485,24 @@ const formatCurrency = (amount) => {
 // Formatear RUT (12.345.678-9)
 const formatRutDisplay = (rut) => {
     if (!rut) return null;
-    const clean = String(rut).replace(/\./g, '').replace(/-/g, '').toUpperCase();
-    if (!/^\d+[\dK]$/.test(clean)) return rut; // fallback si no calza
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return `${withDots}-${dv}`;
+    
+    // Detectar si es RUT o PASAPORTE basándose en el formato
+    const isRut = /^\d+[\dK]$/.test(rut.replace(/\./g, "").replace(/-/g, ""));
+    
+    if (isRut) {
+        // Formatear como RUT
+        const clean = String(rut)
+            .replace(/\./g, "")
+            .replace(/-/g, "")
+            .toUpperCase();
+        const body = clean.slice(0, -1);
+        const dv = clean.slice(-1);
+        const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `${withDots}-${dv}`;
+    } else {
+        // Para pasaporte u otros documentos, mostrar en uppercase
+        return String(rut).toUpperCase();
+    }
 };
 
 // Computed property para formatear los programas al formato que espera ProgramsGrid
@@ -513,14 +521,13 @@ const formattedPrograms = computed(() => {
             const totalForParticipant =
                 program.participant_total_due ??
                 program.totalAmount ??
-                program.trip_price ?? 0;
-            const paid =
-                program.paidAmount ??
-                program.paid_amount ??
+                program.trip_price ??
                 0;
-            const percentage = totalForParticipant > 0
-                ? Math.round((paid / totalForParticipant) * 10000) / 100
-                : 0;
+            const paid = program.paidAmount ?? program.paid_amount ?? 0;
+            const percentage =
+                totalForParticipant > 0
+                    ? Math.round((paid / totalForParticipant) * 10000) / 100
+                    : 0;
 
             return {
                 ...program,
@@ -551,6 +558,15 @@ const calculateDuration = (departureDate) => {
 
     // Por ahora retornar un valor fijo, se puede calcular basado en la lógica del negocio
     return 7; // 7 días por defecto
+};
+
+const getFullName = (participant) => {
+    const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1) : '';
+    const secondName = participant.second_name ? participant.second_name.charAt(0).toUpperCase() + participant.second_name.slice(1) : '';
+    const firstLastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1) : '';
+    const secondLastName = participant.second_last_name ? participant.second_last_name.charAt(0).toUpperCase() + participant.second_last_name.slice(1) : '';
+
+    return `${firstLastName} ${secondLastName} ${firstName} ${secondName}`;
 };
 
 // Modal state

@@ -24,8 +24,10 @@ class PassengerController extends Controller
         // Filtros
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('first_name', 'like', '%' . $request->search . '%')
-                  ->orWhere('last_name', 'like', '%' . $request->search . '%')
+                $q->where('first_last_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('second_last_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('first_name', 'like', '%' . $request->search . '%')
+                  ->orWhere('second_name', 'like', '%' . $request->search . '%')
                   ->orWhere('email', 'like', '%' . $request->search . '%')
                   ->orWhere('phone', 'like', '%' . $request->search . '%');
             });

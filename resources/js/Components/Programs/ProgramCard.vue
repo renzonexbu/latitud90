@@ -313,14 +313,14 @@ export default {
         getStatusLabel(status) {
             const labels = {
                 'reserva': 'Reserva',
-                'realizado': 'Realizado'
+                'ejecutado': 'Ejecutado'
             };
             return labels[status] || status;
         },
         getStatusClass(status) {
             const classes = {
                 'reserva': 'bg-yellow-100 text-yellow-800',
-                'realizado': 'bg-blue-100 text-blue-800'
+                'ejecutado': 'bg-blue-100 text-blue-800'
             };
             return classes[status] || 'bg-gray-100 text-gray-800';
         },

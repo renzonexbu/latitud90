@@ -42,12 +42,47 @@
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            Nombre *
+                                            Primer Apellido *
+                                        </label>
+                                        <input 
+                                            v-model="form.first_last_name"
+                                            type="text"
+                                            placeholder="Primer Apellido"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.first_last_name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
+                                        />
+                                        <span v-if="errors.first_last_name" class="text-red-500 text-xs mt-1">{{ errors.first_last_name }}</span>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
+                                            Segundo Apellido
+                                        </label>
+                                        <input 
+                                            v-model="form.second_last_name"
+                                            type="text"
+                                            placeholder="Segundo Apellido (opcional)"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                errors.second_last_name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                            ]"
+                                        />
+                                        <span v-if="errors.second_last_name" class="text-red-500 text-xs mt-1">{{ errors.second_last_name }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Nombres -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
+                                            Primer Nombre *
                                         </label>
                                         <input 
                                             v-model="form.first_name"
                                             type="text"
-                                            placeholder="Nombre"
+                                            placeholder="Primer Nombre"
                                             :class="[
                                                 'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
                                                 errors.first_name ? 'border-red-500' : 'border-[#5b5b5b]'
@@ -58,18 +93,18 @@
                                     
                                     <div>
                                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2">
-                                            Apellido *
+                                            Segundo Nombre
                                         </label>
                                         <input 
-                                            v-model="form.last_name"
+                                            v-model="form.second_name"
                                             type="text"
-                                            placeholder="Apellido"
+                                            placeholder="Segundo Nombre (opcional)"
                                             :class="[
                                                 'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                errors.last_name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                                errors.second_name ? 'border-red-500' : 'border-[#5b5b5b]'
                                             ]"
                                         />
-                                        <span v-if="errors.last_name" class="text-red-500 text-xs mt-1">{{ errors.last_name }}</span>
+                                        <span v-if="errors.second_name" class="text-red-500 text-xs mt-1">{{ errors.second_name }}</span>
                                     </div>
                                 </div>
 
@@ -644,8 +679,10 @@ export default {
             isSubmitting: false,
             form: {
                 // Datos del participante
+                first_last_name: "",
+                second_last_name: "",
                 first_name: "",
-                last_name: "",
+                second_name: "",
                 document_number: "",
                 birth_date: "",
                 email: "",
@@ -666,7 +703,6 @@ export default {
                 
                 // Contacto de emergencia principal
                 emergency_contact_name: "",
-                emergency_contact_last_name: "",
                 emergency_contact_relationship: "",
                 emergency_contact_email: "",
                 emergency_contact_phone: "",
@@ -697,8 +733,10 @@ export default {
         
         resetForm() {
             this.form = {
+                first_last_name: "",
+                second_last_name: "",
                 first_name: "",
-                last_name: "",
+                second_name: "",
                 document_number: "",
                 birth_date: "",
                 email: "",
@@ -718,7 +756,6 @@ export default {
                 dietary_restrictions: "",
                 
                 emergency_contact_name: "",
-                emergency_contact_last_name: "",
                 emergency_contact_relationship: "",
                 emergency_contact_email: "",
                 emergency_contact_phone: "",
@@ -747,29 +784,32 @@ export default {
             try {
                 // Preparar datos del participante
                 const participantData = {
-                    course_id: this.form.course_id,
+                    first_last_name: this.form.first_last_name,
+                    second_last_name: this.form.second_last_name,
                     first_name: this.form.first_name,
-                    last_name: this.form.last_name,
-                    email: this.form.email,
-                    code_phone: this.form.code_phone,
-                    phone: this.form.phone,
-                    document_type: this.form.document_type,
-                    document_number: this.form.document_number.replace(/\./g, '').replace(/-/g, ''), // Limpiar RUT
-                    country: this.form.country,
+                    second_name: this.form.second_name,
+                    document_number: this.form.document_number,
                     birth_date: this.form.birth_date,
-                    address: this.form.address,
-                    dietary_restrictions: this.form.dietary_restrictions,
-                    medical_conditions: this.form.medical_conditions,
+                    email: this.form.email,
+                    phone: this.form.phone,
+                    code_phone: this.form.code_phone,
+                    course_id: this.form.course_id,
+                    education_level: this.form.education_level,
+                    year: this.form.year,
+                    grade: this.form.grade,
                     individual_price: this.form.individual_price,
                     price_adjustments: this.form.price_adjustments,
                     adjustment_reason: this.form.adjustment_reason,
+                    country: this.form.country,
+                    document_type: this.form.document_type,
+                    address: this.form.address,
+                    dietary_restrictions: this.form.dietary_restrictions,
                 };
 
                 // Preparar contactos de emergencia
                 const emergencyContacts = [
                     {
-                        first_name: this.form.emergency_contact_name,
-                        last_name: this.form.emergency_contact_last_name,
+                        name: this.form.emergency_contact_name,
                         email: this.form.emergency_contact_email,
                         code_phone: this.form.emergency_contact_code_phone,
                         phone: this.form.emergency_contact_phone,
@@ -783,8 +823,7 @@ export default {
                 // Agregar contactos adicionales
                 this.additionalContacts.forEach(contact => {
                     emergencyContacts.push({
-                        first_name: contact.name,
-                        last_name: contact.last_name,
+                        name: contact.name,
                         email: contact.email,
                         code_phone: contact.code_phone || "+56",
                         phone: contact.phone,
@@ -823,7 +862,6 @@ export default {
             if (this.additionalContacts.length < 2) {
                 this.additionalContacts.push({
                     name: "",
-                    last_name: "",
                     relationship: "",
                     email: "",
                     phone: "",

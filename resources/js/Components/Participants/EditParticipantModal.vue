@@ -64,17 +64,63 @@
                     </h3>
 
                     <div class="grid grid-cols-2 gap-6">
-                        <!-- Nombre -->
+                        <!-- Primer Apellido -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                Nombre *
+                                Primer Apellido *
+                            </label>
+                            <input
+                                v-model="form.first_last_name"
+                                type="text"
+                                placeholder="Primer Apellido"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :class="{
+                                    'border-red-500': errors?.first_last_name,
+                                }"
+                            />
+                            <div
+                                v-if="errors?.first_last_name"
+                                class="text-red-500 text-sm mt-1"
+                            >
+                                {{ errors.first_last_name }}
+                            </div>
+                        </div>
+
+                        <!-- Segundo Apellido -->
+                        <div>
+                            <label
+                                class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
+                            >
+                                Segundo Apellido
+                            </label>
+                            <input
+                                v-model="form.second_last_name"
+                                type="text"
+                                placeholder="Segundo Apellido (opcional)"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :class="{ 'border-red-500': errors?.second_last_name }"
+                            />
+                            <div
+                                v-if="errors?.second_last_name"
+                                class="text-red-500 text-sm mt-1"
+                            >
+                                {{ errors.second_last_name }}
+                            </div>
+                        </div>
+
+                        <!-- Primer Nombre -->
+                        <div>
+                            <label
+                                class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
+                            >
+                                Primer Nombre *
                             </label>
                             <input
                                 v-model="form.first_name"
                                 type="text"
-                                placeholder="Nombre"
+                                placeholder="Primer Nombre"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
                                 :class="{
                                     'border-red-500': errors?.first_name,
@@ -88,44 +134,44 @@
                             </div>
                         </div>
 
-                        <!-- Apellido -->
+                        <!-- Segundo Nombre -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                Apellido *
+                                Segundo Nombre
                             </label>
                             <input
-                                v-model="form.last_name"
+                                v-model="form.second_name"
                                 type="text"
-                                placeholder="Apellido"
+                                placeholder="Segundo Nombre (opcional)"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
-                                :class="{ 'border-red-500': errors?.last_name }"
+                                :class="{ 'border-red-500': errors?.second_name }"
                             />
                             <div
-                                v-if="errors?.last_name"
+                                v-if="errors?.second_name"
                                 class="text-red-500 text-sm mt-1"
                             >
-                                {{ errors.last_name }}
+                                {{ errors.second_name }}
                             </div>
                         </div>
 
-                        <!-- RUT (bloqueado y formateado) -->
+                        <!-- RUT/PASAPORTE (bloqueado y formateado) -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                RUT *
+                                RUT/PASAPORTE *
                             </label>
                             <input
-                                :value="formattedRut"
+                                :value="formattedDocument"
                                 type="text"
                                 placeholder="000000000"
                                 disabled
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                             />
                             <p class="text-gray-500 text-sm mt-1">
-                                El RUT no se puede modificar
+                                El documento no se puede modificar
                             </p>
                         </div>
 
@@ -451,8 +497,10 @@ const isSubmitting = ref(false);
 const discounts = ref([]);
 
 const form = ref({
+    first_last_name: "",
+    second_last_name: "",
     first_name: "",
-    last_name: "",
+    second_name: "",
     document_number: "",
     birth_date: "",
     email: "",
@@ -520,8 +568,10 @@ watch(
     (newParticipant) => {
         if (newParticipant && Object.keys(newParticipant).length > 0) {
             form.value = {
+                first_last_name: newParticipant.first_last_name || "",
+                second_last_name: newParticipant.second_last_name || "",
                 first_name: newParticipant.first_name || "",
-                last_name: newParticipant.last_name || "",
+                second_name: newParticipant.second_name || "",
                 document_number: newParticipant.document_number || "",
                 birth_date: formatDateForInput(newParticipant.birth_date),
                 email: newParticipant.email || "",
@@ -630,8 +680,10 @@ const updateParticipant = () => {
     isSubmitting.value = true;
 
     const formData = new FormData();
+    formData.append("first_last_name", form.value.first_last_name);
+    formData.append("second_last_name", form.value.second_last_name);
     formData.append("first_name", form.value.first_name);
-    formData.append("last_name", form.value.last_name);
+    formData.append("second_name", form.value.second_name);
     formData.append("document_number", form.value.document_number);
     formData.append("birth_date", form.value.birth_date);
     formData.append("email", form.value.email);
@@ -671,15 +723,22 @@ const updateParticipant = () => {
     );
 };
 
-// Formatear RUT para visualización
-const formattedRut = computed(() => {
-    const rut = form.value.document_number || "";
-    const clean = rut.replace(/\./g, "").replace(/-/g, "");
-    if (clean.length < 2) return rut;
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return `${withDots}-${dv}`;
+// Formatear documento para visualización
+const formattedDocument = computed(() => {
+    const document = form.value.document_number || "";
+    const documentType = props.participant?.document_type || 'RUT';
+    
+    if (documentType === 'RUT') {
+        const clean = document.replace(/\./g, "").replace(/-/g, "");
+        if (clean.length < 2) return document;
+        const body = clean.slice(0, -1);
+        const dv = clean.slice(-1);
+        const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `${withDots}-${dv}`;
+    } else {
+        // Para pasaporte u otros documentos, mostrar en uppercase
+        return document.toUpperCase();
+    }
 });
 
 const formatNumber = (n) => new Intl.NumberFormat('es-CL').format(Number(n || 0));

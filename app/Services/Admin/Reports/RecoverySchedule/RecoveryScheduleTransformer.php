@@ -27,7 +27,7 @@ class RecoveryScheduleTransformer
     {
         return [
             'id' => $item->id,
-            'participant_name' => $this->cleanUtf8($item->first_name . ' ' . $item->last_name),
+            'participant_name' => $this->cleanUtf8($item->first_last_name . ' ' . ($item->second_last_name ? $item->second_last_name . ' ' : '') . $item->first_name . ' ' . ($item->second_name ? $item->second_name : '')),
             'participant_email' => $this->cleanUtf8($item->email),
             'participant_document' => $this->cleanUtf8($item->document_number),
             'participant_phone' => $this->cleanUtf8($item->phone),

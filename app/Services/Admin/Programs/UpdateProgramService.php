@@ -378,7 +378,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->itinerary_file);
             }
             $filename = "itinerario_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['itinerary_file'], $filename);
+            $file = $programData['itinerary_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['itinerary_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -388,7 +393,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->travel_assistance_coverage);
             }
             $filename = "cobertura_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['coverage_file'], $filename);
+            $file = $programData['coverage_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['coverage_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -398,7 +408,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->equipment_list);
             }
             $filename = "equipo_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['equipment_file'], $filename);
+            $file = $programData['equipment_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['equipment_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -409,7 +424,11 @@ class UpdateProgramService
                 if ($image && $image->isValid()) {
                     $ext = $image->getClientOriginalExtension();
                     $filename = "imagen_{$programId}_{$timestamp}_{$index}.{$ext}";
-                    Storage::disk('public')->putFileAs($imagesDir, $image, $filename);
+                    if (method_exists($image, 'storeAs')) {
+                        $image->storeAs($imagesDir, $filename, 'public');
+                    } else {
+                        Storage::disk('public')->put($imagesDir . '/' . $filename, file_get_contents($image));
+                    }
                     $storedAny = true;
                 }
             }
@@ -717,8 +736,10 @@ class UpdateProgramService
                         
                         // Actualizar datos del participante
                         $existingParticipant->update([
-                            'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
-                            'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
+                            'first_last_name' => $participantData['Primer apellido'] ?? $existingParticipant->first_last_name,
+                            'second_last_name' => $participantData['Segundo apellido'] ?? $existingParticipant->second_last_name,
+                            'first_name' => $participantData['Primer Nombre'] ?? $existingParticipant->first_name,
+                            'second_name' => $participantData['Segundo Nombre'] ?? $existingParticipant->second_name,
                             'email' => isset($participantData['Email']) && $participantData['Email'] !== ''
                                 ? $this->normalizeEmail($participantData['Email'])
                                 : $existingParticipant->email,
@@ -726,7 +747,8 @@ class UpdateProgramService
                             'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
                             'address' => $participantData['Dirección'] ?? $existingParticipant->address,
                             'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
-                            'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                            'intolerances' => $participantData['Intolerancia'] ?? $existingParticipant->intolerances,
+                            'allergies' => $participantData['Alergias'] ?? $existingParticipant->allergies,
                         ]);
                         
                         // Actualizar relación con el curso
@@ -769,8 +791,10 @@ class UpdateProgramService
                     
                     
                     $participant = Participant::create([
-                        'first_name' => $participantData['Nombre'] ?? '',
-                        'last_name' => $participantData['Apellido'] ?? '',
+                        'first_last_name' => $participantData['Primer apellido'] ?? '',
+                        'second_last_name' => $participantData['Segundo apellido'] ?? '',
+                        'first_name' => $participantData['Primer Nombre'] ?? '',
+                        'second_name' => $participantData['Segundo Nombre'] ?? '',
                         'email' => $this->normalizeEmail($participantData['Email'] ?? ''),
                         'code_phone' => '+56', // Código por defecto para Chile
                         'phone' => $participantData['Teléfono'] ?? '',
@@ -780,7 +804,8 @@ class UpdateProgramService
                         'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
                         'address' => $participantData['Dirección'] ?? null,
                         'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-                        'medical_conditions' => $participantData['Condición médica'] ?? null,
+                        'intolerances' => $participantData['Intolerancia'] ?? null,
+                        'allergies' => $participantData['Alergias'] ?? null,
                         'status' => 'pending_payment',
                         'registration_date' => now(),
                         'individual_price' => 0, // Se calculará después
@@ -808,8 +833,7 @@ class UpdateProgramService
                 $participants[] = $participant; // Guardar referencia al participante
                 
                 // Manejar contacto de emergencia
-                if (!empty($participantData['Nombre contacto emergencia']) && 
-                    !empty($participantData['Apellido contacto emergencia'])) {
+                if (!empty($participantData['Nombre contacto emergencia'])) {
                     
                     // Verificar si ya existe un contacto de emergencia para este participante
                     $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
@@ -817,8 +841,7 @@ class UpdateProgramService
                     if ($existingEmergencyContact) {
                         // UPDATE: Actualizar contacto de emergencia existente
                         $existingEmergencyContact->update([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'name' => $participantData['Nombre contacto emergencia'],
                             'email' => isset($participantData['Email contacto emergencia']) && $participantData['Email contacto emergencia'] !== ''
                                 ? $this->normalizeEmail($participantData['Email contacto emergencia'])
                                 : $existingEmergencyContact->email,
@@ -831,8 +854,7 @@ class UpdateProgramService
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
                         $emergencyContact = EmergencyContact::create([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'name' => $participantData['Nombre contacto emergencia'],
                             'email' => $this->normalizeEmail($participantData['Email contacto emergencia'] ?? ''),
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? '',

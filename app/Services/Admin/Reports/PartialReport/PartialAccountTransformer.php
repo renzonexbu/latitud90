@@ -56,7 +56,7 @@ class PartialAccountTransformer
             'participant_id' => $enrollment->participant_id,
             'program_id' => $enrollment->program_id,
             'created_at' => $enrollment->created_at,
-            'participant_name' => $enrollment->first_name . ' ' . $enrollment->last_name,
+            'participant_name' => $enrollment->first_last_name . ' ' . ($enrollment->second_last_name ? $enrollment->second_last_name . ' ' : '') . $enrollment->first_name . ' ' . ($enrollment->second_name ? $enrollment->second_name : ''),
             'participant_email' => $enrollment->email,
             'participant_document' => $enrollment->document_number,
             'participant_phone' => $enrollment->phone,
@@ -97,7 +97,7 @@ class PartialAccountTransformer
         // Campos del participante
         if (isset($selectedFields['participant'])) {
             if (in_array('name', $selectedFields['participant'])) {
-                $row['Nombre del Participante'] = $this->cleanUtf8(($enrollment->first_name ?? '') . ' ' . ($enrollment->last_name ?? ''));
+                $row['Nombre del Participante'] = $this->cleanUtf8(($enrollment->first_last_name ?? '') . ' ' . ($enrollment->second_last_name ?? '') . ' ' . ($enrollment->first_name ?? '') . ' ' . ($enrollment->second_name ?? ''));
             }
             if (in_array('email', $selectedFields['participant'])) {
                 $row['Email'] = $this->cleanUtf8($enrollment->email ?? '');

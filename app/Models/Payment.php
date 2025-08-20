@@ -51,6 +51,12 @@ class Payment extends Model
         'email_sent' => 'boolean'
     ];
 
+    protected $appends = [
+        'participant_name',
+        'program_name',
+        'institution_name'
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class, 'order_id');
@@ -144,7 +150,7 @@ class Payment extends Model
     public function getParticipantNameAttribute()
     {
         if ($this->order && $this->order->participant) {
-            return $this->order->participant->first_name . ' ' . $this->order->participant->last_name;
+            return $this->order->participant->full_name;
         }
         return 'N/A';
     }

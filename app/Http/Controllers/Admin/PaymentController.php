@@ -28,7 +28,7 @@ class PaymentController extends Controller
     {
         $query = Payment::with([
             'order', 
-            'order.participant', 
+            'order.participant.documentType', 
             'order.program.course.institution', 
             'orderDetail.country', 
             'orderDetail.region', 
@@ -44,9 +44,10 @@ class PaymentController extends Controller
                   ->orWhere('buy_order', 'like', '%' . $request->search . '%')
                   ->orWhere('authorization_code', 'like', '%' . $request->search . '%')
                   ->orWhereHas('order.participant', function ($sq) use ($request) {
-                      $sq->where('first_name', 'like', '%' . $request->search . '%')
-                        ->orWhere('last_name', 'like', '%' . $request->search . '%')
-                        ->orWhere('email', 'like', '%' . $request->search . '%');
+                      $sq->where('first_last_name', 'like', '%' . $request->search . '%')
+                        ->orWhere('second_last_name', 'like', '%' . $request->search . '%')
+                        ->orWhere('first_name', 'like', '%' . $request->search . '%')
+                        ->orWhere('second_name', 'like', '%' . $request->search . '%');
                   })
                   ->orWhereHas('order.program', function ($sq) use ($request) {
                       $sq->where('name', 'like', '%' . $request->search . '%');
@@ -94,7 +95,7 @@ class PaymentController extends Controller
     {
         $payment->load([
             'order', 
-            'order.participant', 
+            'order.participant.documentType', 
             'order.program.course.institution', 
             'orderDetail.country', 
             'orderDetail.region', 
@@ -480,7 +481,7 @@ class PaymentController extends Controller
                 'data' => [
                     'participant' => [
                         'id' => $participant->id,
-                        'name' => $participant->first_name . ' ' . $participant->last_name,
+                        'name' => $participant->first_last_name . ' ' . ($participant->second_last_name ? $participant->second_last_name . ' ' : '') . $participant->first_name . ' ' . ($participant->second_name ? $participant->second_name : ''),
                         'document_number' => $participant->document_number,
                         'email' => $participant->email,
                     ],

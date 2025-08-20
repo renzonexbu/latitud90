@@ -81,7 +81,7 @@
                 >
                     <option value="">Estado</option>
                     <option value="reserva">Reserva</option>
-                    <option value="realizado">Realizado</option>
+                    <option value="ejecutado">Ejecutado</option>
                 </select>
             </div>
 

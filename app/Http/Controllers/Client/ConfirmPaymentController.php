@@ -19,31 +19,43 @@ class ConfirmPaymentController extends Controller
 
     public function show(Request $request, $programId)
     {
-        $rutFromQuery = $request->query('rut');
-        $rut = $rutFromQuery ?? session('current_rut', '');
-        if ($rut) {
-            $cleanRut = preg_replace('/[.-]/', '', $rut);
-            session(['current_rut' => $cleanRut]);
-            $rut = $cleanRut;
+        $documentFromQuery = $request->query('document');
+        $documentTypeFromQuery = $request->query('document_type');
+        
+        // Obtener de sesión si no vienen en la URL
+        $document = $documentFromQuery ?? session('current_document', '');
+        $documentType = $documentTypeFromQuery ?? session('current_document_type', '');
+        
+        if ($document && $documentType) {
+            // Persistir en sesión
+            session(['current_document' => $document, 'current_document_type' => $documentType]);
         }
 
-        // Si no viene rut en la URL pero existe en sesión, redirigir agregando ?rut para persistir en URL
-        if (!$rutFromQuery && !empty($rut)) {
-            Log::info('ConfirmPaymentController.show adding rut to URL', [
+        // Si no vienen los parámetros en la URL pero existen en sesión, redirigir agregándolos para persistir en URL
+        if ((!$documentFromQuery || !$documentTypeFromQuery) && (!empty($document) && !empty($documentType))) {
+            Log::info('ConfirmPaymentController.show adding document params to URL', [
                 'program_id' => $programId,
-                'rut' => $rut,
+                'document' => $document,
+                'document_type' => $documentType,
             ]);
-            $redirect = redirect()->route('payment.confirmation', ['programId' => $programId, 'rut' => $rut]);
+            $redirect = redirect()->route('payment.confirmation', [
+                'programId' => $programId, 
+                'document' => $document, 
+                'document_type' => $documentType
+            ]);
             if (session()->has('error')) {
                 $redirect->with('error', session('error'));
             }
             return $redirect;
         }
-        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null, $rut);
+        
+        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null, $document);
+        
         return Inertia::render('Ecommerce/Confirmation', [
             'confirmationData' => $confirmationData,
             'programId' => $programId,
-            'rut' => $rut
+            'document' => $document,
+            'document_type' => $documentType
         ]);
     }
 }

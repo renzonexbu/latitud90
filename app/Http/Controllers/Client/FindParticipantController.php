@@ -24,11 +24,14 @@ class FindParticipantController extends Controller
     public function searchParticipant(Request $request)
     {
         $request->validate([
-            'rut' => 'required|string|min:7'
+            'document' => 'required|string|min:3',
+            'document_type' => 'nullable|string|in:RUT,PASAPORTE'
         ]);
 
-        $rut = $request->input('rut');
-        $participant = $this->findParticipantService->findByRut($rut);
+        $document = $request->input('document');
+        $documentType = $request->input('document_type');
+        
+        $participant = $this->findParticipantService->findByDocument($document, $documentType);
 
         return response()->json([
             'found' => !is_null($participant),

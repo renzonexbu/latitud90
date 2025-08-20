@@ -159,7 +159,7 @@ export default {
                 );
             }
             
-            // Filtro por status (reserva, realizado)
+            // Filtro por status (reserva, ejecutado)
             if (this.localFilters.status) {
                 filtered = filtered.filter(program => 
                     program.status === this.localFilters.status

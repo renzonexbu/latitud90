@@ -14,21 +14,17 @@ class UpdateParticipantRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'first_last_name' => 'required|string|max:255',
+            'second_last_name' => 'nullable|string|max:255',
             'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'code_phone' => 'nullable|string|max:10',
-            'phone' => 'nullable|string|max:20',
-            'document_number' => 'required|string|max:20',
-            'birth_date' => 'nullable|date',
-            // Ajustes de precio por participante (solo pivote)
-            'individual_price' => 'nullable|numeric|min:0',
-            'price_adjustments' => 'nullable|numeric',
-            'adjustment_reason' => 'required_with:price_adjustments|string|max:1000',
-            // Aplicación del ajuste a un curso específico del participante
-            'pivot_course_id' => 'nullable|integer|exists:courses,id',
-            // Descuentos múltiples
-            'discounts' => 'nullable|string',
+            'second_name' => 'nullable|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:255',
+            'code_phone' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'birth_date' => 'required|date',
+            'address' => 'nullable|string|max:255',
+            'dietary_restrictions' => 'nullable|string|max:255',
         ];
     }
 }

@@ -91,8 +91,8 @@
                                     <span class="font-semibold text-gray-900">{{ payment.order?.participant?.email || 'N/A' }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">RUT:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order?.participant?.document_number || 'N/A' }}</span>
+                                    <span class="text-gray-600 font-medium">RUT / PASAPORTE:</span>
+                                    <span class="font-semibold text-gray-900">{{ formatDocument(payment.order?.participant?.document_number, payment.order?.participant?.documentType) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Teléfono:</span>
@@ -282,10 +282,8 @@ const props = defineProps({
 defineEmits(['close']);
 
 const getParticipantName = (payment) => {
-    if (payment.order?.participant) {
-        return `${payment.order.participant.first_name} ${payment.order.participant.last_name}`;
-    }
-    return 'N/A';
+    // Usar el atributo del modelo Payment que ya está construido correctamente
+    return payment.participant_name || 'N/A';
 };
 
 const getBuyerName = (payment) => {
@@ -399,6 +397,50 @@ const formatDate = (date) => {
         hour: '2-digit',
         minute: '2-digit'
     });
+};
+
+/**
+ * Formatea documentos según su tipo:
+ * - RUT: Aplica formato 12.345.678-9
+ * - PASAPORTE: Convierte a uppercase
+ * - Fallback: Detecta automáticamente si es RUT por formato
+ */
+const formatDocument = (documentNumber, documentType) => {
+    if (!documentNumber) return 'N/A';
+    
+    // Si tenemos el tipo de documento, usarlo para determinar el formato
+    if (documentType && typeof documentType === 'object' && documentType.name) {
+        if (documentType.name === 'RUT') {
+            // Formatear como RUT
+            const cleanNumber = documentNumber.toString().replace(/\./g, "").replace(/-/g, "");
+            const isRut = /^\d{7,8}[\dK]$/.test(cleanNumber);
+            
+            if (isRut) {
+                const body = cleanNumber.slice(0, -1);
+                const dv = cleanNumber.slice(-1);
+                const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                return `${withDots}-${dv.toUpperCase()}`;
+            }
+        } else if (documentType.name === 'PASAPORTE') {
+            // Para pasaporte, mostrar en uppercase
+            return documentNumber.toString().toUpperCase();
+        }
+    }
+    
+    // Fallback: detectar automáticamente si es RUT basándose en el formato
+    const cleanNumber = documentNumber.toString().replace(/\./g, "").replace(/-/g, "");
+    const isRut = /^\d{7,8}[\dK]$/.test(cleanNumber);
+    
+    if (isRut) {
+        // Formatear como RUT
+        const body = cleanNumber.slice(0, -1);
+        const dv = cleanNumber.slice(-1);
+        const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `${withDots}-${dv.toUpperCase()}`;
+    } else {
+        // Para otros documentos, mostrar en uppercase
+        return documentNumber.toString().toUpperCase();
+    }
 };
 
 const getNotes = (payment) => {

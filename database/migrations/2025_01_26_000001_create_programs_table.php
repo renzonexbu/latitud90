@@ -47,7 +47,7 @@ return new class extends Migration
             // Campos de auditoría
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->boolean('active')->default(true);
-            $table->enum('status', ['reserva', 'realizado'])->nullable();
+            $table->enum('status', ['reserva', 'ejecutado'])->nullable();
             $table->timestamps();
 
             // Índices
@@ -60,14 +60,15 @@ return new class extends Migration
             $table->index(['institution_id']); // Para joins con institutions
         });
 
-        // Crear trigger para actualizar status a 'realizado' cuando pase la fecha de salida
+        // Crear trigger para actualizar status a 'ejecutado' cuando pase la fecha de salida
         DB::unprepared('
-            CREATE TRIGGER update_program_status_to_realizado
+            CREATE TRIGGER update_program_status_to_ejecutado
             BEFORE UPDATE ON programs
             FOR EACH ROW
             BEGIN
-                IF NEW.departure_date < CURDATE() AND NEW.status != "realizado" THEN
-                    SET NEW.status = "realizado";
+                IF NEW.departure_date < CURDATE() AND NEW.status != "ejecutado" THEN
+                    SET NEW.status = "ejecutado";
+                    SET NEW.active = false;
                 END IF;
             END;
         ');
@@ -79,7 +80,8 @@ return new class extends Migration
             FOR EACH ROW
             BEGIN
                 IF NEW.departure_date < CURDATE() THEN
-                    SET NEW.status = "realizado";
+                    SET NEW.status = "ejecutado";
+                    SET NEW.active = false;
                 ELSEIF NEW.departure_date > DATE_ADD(CURDATE(), INTERVAL 1 YEAR) THEN
                     SET NEW.status = "reserva";
                 END IF;
@@ -93,7 +95,7 @@ return new class extends Migration
     public function down(): void
     {
         // Eliminar triggers antes de eliminar la tabla
-        DB::unprepared('DROP TRIGGER IF EXISTS update_program_status_to_realizado');
+        DB::unprepared('DROP TRIGGER IF EXISTS update_program_status_to_ejecutado');
         DB::unprepared('DROP TRIGGER IF EXISTS insert_program_status_check');
         
         Schema::dropIfExists('programs');

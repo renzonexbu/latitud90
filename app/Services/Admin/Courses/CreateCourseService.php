@@ -73,11 +73,8 @@ class CreateCourseService
     {
         try {
             
-            
             // Guardar el archivo
             $filePath = $file->store('courses/students', 'public');
-            
-            
             
             // Actualizar el curso con la información del archivo
             $course->update([
@@ -105,7 +102,6 @@ class CreateCourseService
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
-                    
                     continue;
                 }
                 
@@ -115,14 +111,34 @@ class CreateCourseService
                 }
                 
                 $participantData = array_combine($headers, $row);
-                $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
                 
+                // Función helper para obtener valor de múltiples nombres de columna
+                $getFieldValue = function($possibleNames) use ($participantData) {
+                    foreach ($possibleNames as $name) {
+                        if (isset($participantData[$name]) && !empty($participantData[$name])) {
+                            return $participantData[$name];
+                        }
+                    }
+                    return null;
+                };
+
+                $cleanRut = $this->cleanRut($getFieldValue([
+                    'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento', 'Documento del participante', 'documento del participante'
+                ]));
                 
+                if (empty($cleanRut)) {
+                    continue; // Saltar filas sin RUT
+                }
+                
+                // Obtener tipo de documento del participante
+                $documentType = $getFieldValue([
+                    'rut/pasaporte', 'tipo documento', 'tipo de documento', 'documento tipo'
+                ]);
+                $documentTypeId = $this->getDocumentTypeId($documentType);
                 
                 // Buscar participante existente por RUT
-                $documentType = $this->getDocumentType($participantData);
                 $existingParticipant = Participant::where('document_number', $cleanRut)
-                    ->where('document_type', $documentType)
+                    ->where('document_type', $documentTypeId)
                     ->where('country', 'CL')
                     ->first();
                 
@@ -138,16 +154,45 @@ class CreateCourseService
                         
                         // Actualizar datos del participante
                         $existingParticipant->update([
-                            'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
-                            'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
-                            'email' => isset($participantData['Email']) && $participantData['Email'] !== ''
-                                ? $this->normalizeEmail($participantData['Email'])
-                                : $existingParticipant->email,
-                            'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
-                            'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
-                            'address' => $participantData['Dirección'] ?? $existingParticipant->address,
-                            'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
-                            'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                            'first_last_name' => $this->toLowercase($getFieldValue([
+                                'Primer apellido', 'primer apellido', 'apellido paterno'
+                            ])) ?? $existingParticipant->first_last_name,
+                            'second_last_name' => $this->toLowercase($getFieldValue([
+                                'Segundo apellido', 'segundo apellido', 'apellido materno'
+                            ])) ?? $existingParticipant->second_last_name,
+                            'first_name' => $this->toLowercase($getFieldValue([
+                                'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                            ])) ?? $existingParticipant->first_name,
+                            'second_name' => $this->toLowercase($getFieldValue([
+                                'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                            ])) ?? $existingParticipant->second_name,
+                            'email' => $this->toLowercase($getFieldValue([
+                                'Email', 'email', 'correo', 'correo electronico'
+                            ])) ?? $existingParticipant->email,
+                            'phone' => $getFieldValue([
+                                'Teléfono', 'telefono', 'fono', 'celular'
+                            ]) ?? $existingParticipant->phone,
+                            'birth_date' => $getFieldValue([
+                                'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                            ]) ?? $existingParticipant->birth_date,
+                            'nationality' => $this->toLowercase($getFieldValue([
+                                'nacionalidad', 'pais', 'origen'
+                            ])) ?? $existingParticipant->nationality,
+                            'gender' => $this->normalizeGender($getFieldValue([
+                                'sexo', 'genero', 'género'
+                            ])) ?? $existingParticipant->gender,
+                            'address' => $getFieldValue([
+                                'Dirección', 'direccion', 'domicilio', 'domicilio'
+                            ]) ?? $existingParticipant->address,
+                            'dietary_restrictions' => $getFieldValue([
+                                'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                            ]) ?? $existingParticipant->dietary_restrictions, // NO convertir a lowercase
+                            'intolerances' => $getFieldValue([
+                                'intolerancia', 'intolerancias'
+                            ]) ?? $existingParticipant->intolerances, // NO convertir a lowercase
+                            'allergies' => $getFieldValue([
+                                'alergias', 'alergia'
+                            ]) ?? $existingParticipant->allergies, // NO convertir a lowercase
                         ]);
                         
                         // Actualizar relación con el curso
@@ -192,22 +237,51 @@ class CreateCourseService
                     
                     
                     $participant = Participant::create([
-                        'first_name' => $participantData['Nombre'] ?? '',
-                        'last_name' => $participantData['Apellido'] ?? '',
-                        'email' => $this->normalizeEmail($participantData['Email'] ?? ''),
+                        'first_last_name' => $this->toLowercase($getFieldValue([
+                            'Primer apellido', 'primer apellido', 'apellido paterno'
+                        ])) ?? '',
+                        'second_last_name' => $this->toLowercase($getFieldValue([
+                            'Segundo apellido', 'segundo apellido', 'apellido materno'
+                        ])) ?? '',
+                        'first_name' => $this->toLowercase($getFieldValue([
+                            'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                        ])) ?? '',
+                        'second_name' => $this->toLowercase($getFieldValue([
+                            'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                        ])) ?? '',
+                        'email' => $this->toLowercase($getFieldValue([
+                            'Email', 'email', 'correo', 'correo electronico'
+                        ])) ?? '',
                         'code_phone' => '+56', // Código por defecto para Chile
-                        'phone' => $participantData['Teléfono'] ?? '',
-                        'document_type' => $documentType,
+                        'phone' => $getFieldValue([
+                            'Teléfono', 'telefono', 'fono', 'celular'
+                        ]) ?? '',
+                        'document_type' => $documentTypeId,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
-                        'address' => $participantData['Dirección'] ?? null,
-                        'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-                        'medical_conditions' => $participantData['Condición médica'] ?? null,
+                        'birth_date' => $getFieldValue([
+                            'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                        ]) ?? null,
+                        'nationality' => $this->toLowercase($getFieldValue([
+                            'nacionalidad', 'pais', 'origen'
+                        ])) ?? 'chilena',
+                        'gender' => $this->normalizeGender($getFieldValue([
+                            'sexo', 'genero', 'género'
+                        ])) ?? 'Masculino',
+                        'address' => $getFieldValue([
+                            'Dirección', 'direccion', 'domicilio', 'domicilio'
+                        ]) ?? null,
+                        'dietary_restrictions' => $getFieldValue([
+                            'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                        ]) ?? null, // NO convertir a lowercase
+                        'intolerances' => $getFieldValue([
+                            'intolerancia', 'intolerancias'
+                        ]) ?? null, // NO convertir a lowercase
+                        'allergies' => $getFieldValue([
+                            'alergias', 'alergia'
+                        ]) ?? null, // NO convertir a lowercase
                         'status' => 'pending_payment',
                         'registration_date' => now(),
-                        'individual_price' => 0, // Se calculará después si se asigna a un programa
-                        'price_adjustments' => 0,
                     ]);
                     
                     // Asociar al curso
@@ -229,38 +303,73 @@ class CreateCourseService
                 }
                 
                 // Manejar contacto de emergencia
-                if (!empty($participantData['Nombre contacto emergencia']) && 
-                    !empty($participantData['Apellido contacto emergencia'])) {
+                if ($getFieldValue([
+                    'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                ])) {
+                    
+                    // Obtener datos del apoderado
+                    $guardianName = $getFieldValue([
+                        'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                    ]);
+                    $guardianEmail = $getFieldValue([
+                        'correo electronico del apoderado', 'correo apoderado', 'email apoderado', 'email del apoderado'
+                    ]);
                     
                     // Verificar si ya existe un contacto de emergencia para este participante
                     $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
                     
                     if ($existingEmergencyContact) {
                         // UPDATE: Actualizar contacto de emergencia existente
+                        
+                        // Obtener tipo de documento del apoderado (por defecto RUT)
+                        $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
+                        
+                        // Limpiar RUT del apoderado
+                        $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
+                        
                         $existingEmergencyContact->update([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => isset($participantData['Email contacto emergencia']) && $participantData['Email contacto emergencia'] !== ''
-                                ? $this->normalizeEmail($participantData['Email contacto emergencia'])
-                                : $existingEmergencyContact->email,
-                            'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
-                            'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
+                            'name' => $this->toLowercase($guardianName) ?? $existingEmergencyContact->name,
+                            'email' => $this->toLowercase($guardianEmail) ?? $existingEmergencyContact->email,
+                            'document_type' => $guardianDocumentTypeId,
+                            'document_number' => $cleanGuardianRut,
+                            'phone' => $getFieldValue([
+                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                            ]) ?? $existingEmergencyContact->phone,
+                            'birth_date' => $getFieldValue([
+                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                            ]) ?? $existingEmergencyContact->birth_date,
+                            'relationship' => $getFieldValue([
+                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                            ]) ?? $existingEmergencyContact->relationship,
                         ]);
                         
                         
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
+                        
+                        // Obtener tipo de documento del apoderado (por defecto RUT)
+                        $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
+                        
+                        // Limpiar RUT del apoderado
+                        $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
+                        
                         $emergencyContact = EmergencyContact::create([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => $this->normalizeEmail($participantData['Email contacto emergencia'] ?? ''),
+                            'name' => $this->toLowercase($guardianName),
+                            'email' => $this->toLowercase($guardianEmail),
+                            'document_type' => $guardianDocumentTypeId,
+                            'document_number' => $cleanGuardianRut,
                             'code_phone' => '+56', // Código por defecto para Chile
-                            'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
+                            'phone' => $getFieldValue([
+                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                            ]) ?? '',
                             'country' => 'CL', // Chile por defecto
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
+                            'birth_date' => $getFieldValue([
+                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                            ]) ?? null,
                             'address' => null,
-                            'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
+                            'relationship' => $getFieldValue([
+                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                            ]) ?? 'Familiar',
                             'participant_id' => $participant->id,
                         ]);
                         
@@ -333,5 +442,41 @@ class CreateCourseService
     {
         // Quitar puntos y guiones, mantener solo números y dígito verificador
         return str_replace(['.', '-'], '', $rut);
+    }
+
+    /**
+     * Convertir texto a lowercase (excepto datos médicos)
+     */
+    private function toLowercase(?string $text): ?string
+    {
+        if (empty($text)) return $text;
+        return strtolower(trim($text));
+    }
+
+    /**
+     * Normalizar género
+     */
+    private function normalizeGender(string $gender): string
+    {
+        $gender = strtolower(trim($gender));
+        
+        if (in_array($gender, ['m', 'masculino', 'male', 'hombre'])) {
+            return 'Masculino';
+        }
+        
+        if (in_array($gender, ['f', 'femenino', 'female', 'mujer'])) {
+            return 'Femenino';
+        }
+        
+        return 'Masculino'; // Por defecto
+    }
+
+    /**
+     * Obtener el ID del tipo de documento
+     */
+    private function getDocumentTypeId(string $documentType): int
+    {
+        $document = \App\Models\Document::where('name', 'LIKE', "%{$documentType}%")->first();
+        return $document ? $document->id : 1; // Por defecto ID 1 (RUT)
     }
 }

@@ -29,8 +29,10 @@ class UpdateParticipatService
 
             // Preparar los datos para actualización
             $updateData = [
+                'first_last_name' => $data['first_last_name'] ?? $participant->first_last_name,
+                'second_last_name' => $data['second_last_name'] ?? $participant->second_last_name,
                 'first_name' => $data['first_name'] ?? $participant->first_name,
-                'last_name' => $data['last_name'] ?? $participant->last_name,
+                'second_name' => $data['second_name'] ?? $participant->second_name,
                 'email' => $data['email'] ?? $participant->email,
                 'code_phone' => $data['code_phone'] ?? $participant->code_phone,
                 'phone' => $data['phone'] ?? $participant->phone,

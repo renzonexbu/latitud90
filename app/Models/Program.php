@@ -256,11 +256,11 @@ class Program extends Model
     }
 
     /**
-     * Scope para programas realizados
+     * Scope para programas ejecutados
      */
-    public function scopeRealizado($query)
+    public function scopeEjecutado($query)
     {
-        return $query->where('status', 'realizado');
+        return $query->where('status', 'ejecutado');
     }
 
     /**
@@ -270,7 +270,7 @@ class Program extends Model
     {
         $labels = [
             'reserva' => 'Reserva',
-            'realizado' => 'Realizado'
+            'ejecutado' => 'Ejecutado'
         ];
 
         return $labels[$this->status] ?? null;
@@ -283,7 +283,7 @@ class Program extends Model
     {
         $classes = [
             'reserva' => 'bg-yellow-100 text-yellow-800',
-            'realizado' => 'bg-blue-100 text-blue-800'
+            'ejecutado' => 'bg-blue-100 text-blue-800'
         ];
 
         return $classes[$this->status] ?? null;

@@ -24,9 +24,20 @@ class ConfirmPaymentService
         $formData = $this->getFormDataFromRut($rut);
         $participant = null;
         if ($rut) {
-            $participant = Participant::where('document_number', preg_replace('/[.-]/', '', $rut))
-                ->where('document_type', 'RUT')
+            // Limpiar el documento de puntos y guiones
+            $cleanDocument = preg_replace('/[.-]/', '', $rut);
+            
+            // Buscar primero por RUT (compatibilidad)
+            $participant = Participant::where('document_number', $cleanDocument)
+                ->whereHas('documentType', function($query) {
+                    $query->where('name', 'RUT');
+                })
                 ->first();
+                
+            // Si no se encuentra por RUT, buscar por cualquier tipo de documento
+            if (!$participant) {
+                $participant = Participant::where('document_number', $cleanDocument)->first();
+            }
         } elseif ($participantId) {
             $participant = Participant::find($participantId);
         }
@@ -39,6 +50,13 @@ class ConfirmPaymentService
         $paidAmount = 0.0;
         $participantBalance = (float) $program->trip_price;
         $paymentPercentage = 0.0;
+        
+        // Inicializar priceData con valores por defecto
+        $priceData = [
+            'base_price' => (float) $program->trip_price,
+            'adjustments' => 0.0,
+            'final_price' => (float) $program->trip_price
+        ];
 
         if ($participant && $program->course) {
             $pivotParticipant = $program->course->participants
@@ -49,6 +67,16 @@ class ConfirmPaymentService
                 // Usar el helper para calcular el precio final con descuentos
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
                 $participantTotalAmount = $priceData['final_price'];
+                
+                // Log para debug
+                Log::info('ConfirmPaymentService: Cálculo de precios del participante', [
+                    'participant_id' => $participant->id,
+                    'program_id' => $program->id,
+                    'program_trip_price' => $program->trip_price,
+                    'priceData' => $priceData,
+                    'participantTotalAmount' => $participantTotalAmount,
+                    'isEnrolled' => $isEnrolled
+                ]);
                 
                 // Sumar por cuotas efectivamente pagadas en OrderDetail (más fiable)
                 $paidAmount = (float) \App\Models\OrderDetail::whereHas('order', function ($q) use ($participant, $program) {
@@ -62,6 +90,15 @@ class ConfirmPaymentService
                 $paymentPercentage = $participantTotalAmount > 0
                     ? round(($paidAmount / $participantTotalAmount) * 100, 2)
                     : 0.0;
+                    
+                // Log para debug de pagos
+                Log::info('ConfirmPaymentService: Información de pagos del participante', [
+                    'participant_id' => $participant->id,
+                    'program_id' => $program->id,
+                    'paidAmount' => $paidAmount,
+                    'participantBalance' => $participantBalance,
+                    'paymentPercentage' => $paymentPercentage
+                ]);
             }
         }
         $paymentData = $this->getPaymentDataFromSession();
@@ -119,7 +156,7 @@ class ConfirmPaymentService
             })
             ->toArray();
 
-        return [
+        $result = [
             'program' => [
                 'id' => $program->id,
                 'name' => $program->name,
@@ -154,6 +191,20 @@ class ConfirmPaymentService
             'confirmation_number' => 'CONF-' . time() . '-' . rand(1000, 9999),
             'status' => 'confirmed'
         ];
+        
+        // Log para debug del resultado final
+        Log::info('ConfirmPaymentService: Resultado final', [
+            'program_id' => $program->id,
+            'participant_id' => $participantId,
+            'rut' => $rut,
+            'trip_price' => $result['program']['trip_price'],
+            'participant_total_due' => $result['program']['participant_total_due'],
+            'participant_balance' => $result['program']['participant_balance'],
+            'participant_amount' => $result['program']['participant_amount'],
+            'participant_adjustments' => $result['program']['participant_adjustments']
+        ]);
+        
+        return $result;
     }
 
     private function getFormDataFromRut($rut)
@@ -162,12 +213,25 @@ class ConfirmPaymentService
             return $this->getFormDataFromSession();
         }
 
-        // Buscar participante por RUT en la tabla participants
-        $participant = Participant::where('document_number', $rut)->first();
+        // Buscar participante por documento en la tabla participants
+        // Limpiar el documento de puntos y guiones
+        $cleanDocument = preg_replace('/[.-]/', '', $rut);
+        
+        // Buscar primero por RUT (compatibilidad)
+        $participant = Participant::where('document_number', $cleanDocument)
+            ->whereHas('documentType', function($query) {
+                $query->where('name', 'RUT');
+            })
+            ->first();
+            
+        // Si no se encuentra por RUT, buscar por cualquier tipo de documento
+        if (!$participant) {
+            $participant = Participant::where('document_number', $cleanDocument)->first();
+        }
         
         if ($participant) {
             $formData = [
-                'name' => $participant->first_name . ' ' . $participant->last_name,
+                'name' => $participant->first_last_name . ' ' . ($participant->second_last_name ? $participant->second_last_name . ' ' : '') . $participant->first_name . ' ' . ($participant->second_name ? $participant->second_name : ''),
                 'document_number' => $participant->document_number,
                 'email' => $participant->email,
                 'phone' => $participant->phone,

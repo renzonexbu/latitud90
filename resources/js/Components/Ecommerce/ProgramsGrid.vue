@@ -54,7 +54,11 @@ export default {
             type: Object,
             required: true,
         },
-        rut: {
+        document: {
+            type: String,
+            required: true,
+        },
+        document_type: {
             type: String,
             required: true,
         },
@@ -106,7 +110,8 @@ export default {
                 route("ecommerce.programs"),
                 { 
                     page,
-                    rut: this.rut
+                    document: this.document,
+                    document_type: this.document_type
                 },
                 {
                     preserveState: true,

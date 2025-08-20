@@ -22,12 +22,11 @@ class RecoveryScheduleDataProvider
             ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
             ->select([
                 'i.id',
-                'p.first_name',
-                'p.last_name',
-                DB::raw('CONCAT(p.first_name, " ", p.last_name) as participant_name'),
-                'p.email',
-                'p.document_number',
-                'p.phone',
+                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
+                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
+                'c.education_level', 'c.course_number',
+                'i.name',
                 'prog.name as program_name',
                 'prog.departure_date as program_departure_date',
                 'prog.sales_executive_id',
@@ -61,6 +60,17 @@ class RecoveryScheduleDataProvider
                     WHEN i.status = "paid" THEN "paid"
                     ELSE "pending"
                 END as calculated_status')
+            ])
+            ->groupBy([
+                'i.id', 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
+                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
+                'c.education_level', 'c.course_number',
+                'i.name',
+                'prog.name', 'prog.departure_date', 'prog.sales_executive_id',
+                'se.name', 'se.email', 'se.phone',
+                'i.installment_number', 'i.due_date', 'i.amount', 'i.status', 'i.paid_at',
+                'o.order_number', 'o.total_amount', 'o.final_amount'
             ])
             ->where('o.status', '!=', 'cancelled') // Solo excluir órdenes canceladas
             ->orderBy('i.due_date', 'asc'); // Ordenar por fecha de vencimiento (fecha máxima de pago)

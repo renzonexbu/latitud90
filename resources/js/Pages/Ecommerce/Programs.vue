@@ -25,13 +25,14 @@
             <!-- Grid de Programas -->
             <ProgramsGrid
                 :programs="programs"
-                :rut="rut"
+                :document="document"
+                :document-type="document_type"
                 @program-click="handleProgramClick"
             />
 
             <!-- Botón Volver al Home -->
             <div class="mt-8">
-                <BackToHomeButton :rut="rut" variant="home" />
+                <BackToHomeButton :document="document" :document-type="document_type" variant="home" />
             </div>
         </div>
 
@@ -69,7 +70,11 @@ export default {
             type: Array,
             required: true,
         },
-        rut: {
+        document: {
+            type: String,
+            required: true,
+        },
+        document_type: {
             type: String,
             required: true,
         },
@@ -100,7 +105,7 @@ export default {
                 let enrollmentCode = program.enrollment_code;
                 
                 if (!enrollmentCode && program.code && participant.document_number) {
-                    if (participant.document_type && participant.document_type.toLowerCase() === 'rut') {
+                    if (this.document_type === 'RUT') {
                         // Para RUT: usar código del programa + RUT completo sin dígito verificador
                         const rutDigits = String(participant.document_number).replace(/\D/g, '').slice(0, -1);
                         enrollmentCode = `${program.code}${rutDigits}`;
@@ -120,7 +125,8 @@ export default {
             }
             // Navegar al detalle del programa
             router.get(route("ecommerce.program-detail", program.id), {
-                rut: this.rut,
+                document: this.document,
+                document_type: this.document_type,
             });
         },
     },

@@ -20,7 +20,11 @@ import { router } from "@inertiajs/vue3";
 
 export default {
   props: {
-    rut: {
+    document: {
+      type: String,
+      required: true
+    },
+    document_type: {
       type: String,
       required: true
     },
@@ -56,7 +60,8 @@ export default {
         if (this.variant === 'programs') {
           // En ProgramDetail.vue - volver a programas
           router.get(route('ecommerce.programs'), {
-            rut: this.rut
+            document: this.document,
+            document_type: this.document_type
           });
         } else {
           // En Programs.vue - volver al home
@@ -65,7 +70,10 @@ export default {
       } else {
         // Si es una ruta personalizada diferente a '/'
         router.visit(this.route, {
-          data: { rut: this.rut }
+          data: { 
+            document: this.document,
+            document_type: this.document_type
+          }
         });
       }
     }

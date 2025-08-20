@@ -174,9 +174,12 @@ export default {
             // Mapear al formato que la tabla espera: un objeto de participante por fila
             return enrollments.map((enr) => ({
                 id: enr.participant_id,
+                first_last_name: enr.participant?.first_last_name ?? enr.first_last_name ?? '',
+                second_last_name: enr.participant?.second_last_name ?? enr.second_last_name ?? '',
                 first_name: enr.participant?.first_name ?? enr.first_name ?? '',
-                last_name: enr.participant?.last_name ?? enr.last_name ?? '',
+                second_name: enr.participant?.second_name ?? enr.second_name ?? '',
                 document_number: enr.participant?.document_number ?? enr.document_number ?? '',
+                document_type: enr.participant?.document_type ?? enr.document_type ?? 'RUT',
                 phone: enr.participant?.phone,
                 code_phone: enr.participant?.code_phone,
                 courses: [
@@ -204,7 +207,9 @@ export default {
                 const searchTerm = this.localFilters.search.toLowerCase();
                 filtered = filtered.filter(participant => 
                     participant.first_name?.toLowerCase().includes(searchTerm) ||
-                    participant.last_name?.toLowerCase().includes(searchTerm) ||
+                    participant.second_name?.toLowerCase().includes(searchTerm) ||
+                    participant.first_last_name?.toLowerCase().includes(searchTerm) ||
+                    participant.second_last_name?.toLowerCase().includes(searchTerm) ||
                     participant.document_number?.toLowerCase().includes(searchTerm) ||
                     this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
                 );

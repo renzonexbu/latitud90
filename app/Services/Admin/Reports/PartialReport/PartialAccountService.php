@@ -69,7 +69,7 @@ class PartialAccountService
     {
         return [
             'programs' => Program::select('id', 'name')->get(),
-            'participants' => Participant::select('id', 'first_name', 'last_name')->get(),
+            'participants' => Participant::select('id', 'first_last_name', 'second_last_name', 'first_name', 'second_name')->get(),
         ];
     }
 }

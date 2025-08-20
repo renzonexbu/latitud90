@@ -40,12 +40,7 @@ class DailyPaymentsDataProvider
                 'o.payment_type',
                 'o.created_at as order_date',
                 // Datos del participante
-                'p.id as participant_id',
-                'p.first_name',
-                'p.last_name',
-                'p.email',
-                'p.document_number',
-                'p.phone',
+                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 // Datos del programa
                 'pr.id as program_id',
                 'pr.name as program_name',

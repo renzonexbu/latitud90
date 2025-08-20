@@ -21,17 +21,17 @@ class ProgramController extends Controller
 
     public function index(Request $request)
     {
-        $rut = $request->query('rut');
+        $document = $request->query('document');
+        $documentType = $request->query('document_type');
         
-        if (!$rut) {
+        if (!$document || !$documentType) {
             return redirect()->route('ecommerce.index');
         }
 
-        // Persistir RUT en sesión para pasos posteriores (normalizado sin puntos ni guiones)
-        $cleanRut = $rut ? preg_replace('/[.-]/', '', $rut) : $rut;
-        session(['current_rut' => $cleanRut]);
+        // Persistir documento en sesión para pasos posteriores
+        session(['current_document' => $document, 'current_document_type' => $documentType]);
 
-        $participant = $this->programService->getParticipantByRut($rut);
+        $participant = $this->programService->getParticipantByDocument($document, $documentType);
         
         if (!$participant) {
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
@@ -51,27 +51,29 @@ class ProgramController extends Controller
         return Inertia::render('Ecommerce/Programs', [
             'participant' => $participant,
             'programs' => $formattedPrograms,
-            'rut' => $rut
+            'document' => $document,
+            'document_type' => $documentType
         ]);
     }
 
     public function show(Request $request, $programId)
     {
-        $rut = $request->query('rut');
+        $document = $request->query('document');
+        $documentType = $request->query('document_type');
         
-        if (!$rut) {
+        if (!$document || !$documentType) {
             // Intentar recuperar de sesión
-            $rut = session('current_rut');
-            if (!$rut) {
+            $document = session('current_document');
+            $documentType = session('current_document_type');
+            if (!$document || !$documentType) {
                 return redirect()->route('ecommerce.index');
             }
         }
 
-        // Persistir RUT en sesión para continuidad (normalizado)
-        $cleanRut = $rut ? preg_replace('/[.-]/', '', $rut) : $rut;
-        session(['current_rut' => $cleanRut]);
+        // Persistir documento en sesión para continuidad
+        session(['current_document' => $document, 'current_document_type' => $documentType]);
 
-        $participant = $this->programService->getParticipantByRut($rut);
+        $participant = $this->programService->getParticipantByDocument($document, $documentType);
         
         if (!$participant) {
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
@@ -80,13 +82,17 @@ class ProgramController extends Controller
         $programDetails = $this->programDetailService->getProgramDetails($programId, $participant->id);
         
         if (!$programDetails) {
-            return redirect()->route('ecommerce.programs', ['rut' => $rut])->with('error', 'Programa no encontrado');
+            return redirect()->route('ecommerce.programs', [
+                'document' => $document,
+                'document_type' => $documentType
+            ])->with('error', 'Programa no encontrado');
         }
 
         return Inertia::render('Ecommerce/ProgramDetail', [
             'participant' => $participant,
             'program' => $programDetails,
-            'rut' => $rut
+            'document' => $document,
+            'document_type' => $documentType
         ]);
     }
 }

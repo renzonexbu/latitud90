@@ -142,12 +142,12 @@
             ANTICIPO CLIENTE RESERVA PROGRAMA Nro. {{ $folio ?? '2928' }}</h1>
         <div class="section">
             <p style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; color: #222;">
-                Hemos recibido de: {{ $apoderado_nombre ?? 'Juan Pérez' }}, la cantidad de: ${{ $monto ?? '100.000' }}
+                Hemos recibido de: {{ $apoderado_nombre ?? 'N/A' }}, la cantidad de: ${{ $monto ?? '100.000' }}
                 pesos chilenos,
                 por concepto de abono a contrato de reserva del programa educativo, folio:
-                {{ $folio ?? '2959-22947415' }} de
-                fecha; {{ $fecha ?? '01 de mayo, 2025' }} para alumno (a) {{ $alumno_nombre ?? 'María Pérez' }},
-                {{ $document_type ?? 'cédula nacional de identidad Nro.' }} {{ $alumno_rut ?? '22.947.415-4' }}
+                {{ $folio ?? 'N/A' }} de
+                fecha; {{ $fecha ?? '01 de mayo, 2025' }} para alumno (a) {{ $alumno_nombre ?? 'N/A' }},
+                {{ $document_type ?? 'N/A' }} {{ $alumno_rut ?? 'N/A' }}
             </p>
         </div>
 
@@ -157,11 +157,11 @@
                 Estado de cuenta</h2>
             <p style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; color: #222;">Valor
                 programa
-                educativo, según cotización: ${{ $valor_programa ?? '1.419.000' }}</p>
+                educativo, según cotización: ${{ $valor_programa ?? 'N/A' }}</p>
             <p style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; color: #222;">Destino:
-                {{ $destino ?? 'San Pedro de Atacama' }}</p>
+                {{ $destino ?? 'N/A' }}</p>
             <p style="font-family: 'CenturyGothic', Century Gothic, sans-serif; font-size: 14px; color: #222;">Fecha:
-                {{ $fecha_programa ?? 'Noviembre, 2026' }}</p>
+                {{ $fecha_programa ?? 'Por definir' }}</p>
         </div>
 
         <div class="section">
@@ -176,9 +176,9 @@
                 </thead>
                 <tbody>
                     <tr style="border-top: 1px solid black;">
-                        <td style="padding: 8px; color: #222;">${{ $monto_abono ?? '100.000' }}</td>
-                        <td style="padding: 8px; color: #222;">{{ $fecha_abono ?? '01-05-2025' }}</td>
-                        <td style="padding: 8px; color: #222;">${{ $saldo_abonado ?? '100.000' }}</td>
+                        <td style="padding: 8px; color: #222;">${{ $monto_abono ?? 'N/A' }}</td>
+                        <td style="padding: 8px; color: #222;">{{ $fecha_abono ?? 'N/A' }}</td>
+                        <td style="padding: 8px; color: #222;">${{ $saldo_abonado ?? 'N/A' }}</td>
                     </tr>
                 </tbody>
             </table>

@@ -114,7 +114,7 @@ class ReportController extends Controller
                 fputcsv($file, [
                     $payment->created_at->format('Y-m-d'),
                     $payment->id,
-                    $payment->order->participant->first_name . ' ' . $payment->order->participant->last_name,
+                    $payment->order->participant->first_last_name . ' ' . ($payment->order->participant->second_last_name ? $payment->order->participant->second_last_name . ' ' : '') . $payment->order->participant->first_name . ' ' . ($payment->order->participant->second_name ? $payment->order->participant->second_name : ''),
                     $payment->order->participant->email,
                     $payment->order->program->name,
                     $payment->payment_gateway_id,

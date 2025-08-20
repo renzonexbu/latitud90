@@ -62,7 +62,6 @@
 
             <!-- Process Steps -->
             <ProcessSteps :current-step="4" />
-
             <!-- Cards Container -->
             <div class="flex flex-col md:flex-row items-center md:items-start justify-center gap-6 my-8">
                 <!-- Left Card - Payment Panel -->
@@ -106,10 +105,11 @@
             <!-- Botón Volver a Completar Datos -->
             <div class="mx-4 md:mx-[120px] mt-8">
                 <BackToHomeButton
-                    :rut="rut"
+                    :document="document"
+                    :document-type="document_type"
                     variant="programs"
                     text="Volver a completar datos"
-                    :route="`/programs/${programId}/payment?from=confirmation&rut=${rut}`"
+                    :route="`/programs/${programId}/payment?from=confirmation&document=${document}&document_type=${document_type}`"
                 />
             </div>
         </div>
@@ -146,7 +146,11 @@ export default {
             type: [String, Number],
             required: true,
         },
-        rut: {
+        document: {
+            type: String,
+            default: "",
+        },
+        document_type: {
             type: String,
             default: "",
         },
@@ -179,13 +183,29 @@ export default {
             return this.$page.props.flash.error || 'El pago no pudo ser procesado correctamente.';
         },
         
-                     showSuggestions() {
-                 return false; // No mostrar sugerencias para ningún tipo de error
-             },
-             
-             showActionButtons() {
-                 return false; // No mostrar botones de acción para ningún tipo de error
-             }
+        showSuggestions() {
+            return false; // No mostrar sugerencias para ningún tipo de error
+        },
+        
+        showActionButtons() {
+            return false; // No mostrar botones de acción para ningún tipo de error
+        },
+        
+        // Debug: Mostrar información de los montos del programa
+        debugProgramAmounts() {
+            if (!this.confirmationData?.program) return 'No hay datos del programa';
+            
+            const program = this.confirmationData.program;
+            return {
+                trip_price: program.trip_price,
+                participant_total_due: program.participant_total_due,
+                participant_balance: program.participant_balance,
+                participant_amount: program.participant_amount,
+                participant_adjustments: program.participant_adjustments,
+                paidAmount: program.paidAmount,
+                paymentPercentage: program.paymentPercentage
+            };
+        }
     },
 
     data() {
@@ -249,13 +269,13 @@ export default {
         
         retryPayment() {
             // Redirigir a la página de pago para intentar nuevamente
-            const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&rut=${this.rut}`;
+            const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&document=${this.document}&document_type=${this.document_type}`;
             window.location.href = paymentUrl;
         },
         
         goToHome() {
             // Redirigir al inicio
-            const homeUrl = this.rut ? `/?rut=${encodeURIComponent(this.rut)}` : '/';
+            const homeUrl = this.document ? `/?document=${encodeURIComponent(this.document)}&document_type=${encodeURIComponent(this.document_type)}` : '/';
             window.location.href = homeUrl;
         },
     },

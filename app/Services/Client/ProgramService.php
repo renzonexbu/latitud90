@@ -12,18 +12,26 @@ use Illuminate\Support\Facades\DB;
 
 class ProgramService
 {
-    public function getParticipantByRut(string $rut): ?Participant
+    public function getParticipantByDocument(string $document, string $documentType): ?Participant
     {
-        // Limpiar el RUT de puntos y guiones
-        $cleanRut = $this->cleanRut($rut);
+        // Limpiar el documento de puntos y guiones
+        $cleanDocument = $this->cleanDocument($document);
         
-        // Buscar el participante en la base de datos
-        $participant = Participant::where('document_number', $cleanRut)
-            ->where('document_type', 'RUT')
+        // Buscar el participante en la base de datos usando join con la tabla document
+        $participant = Participant::join('document', 'participants.document_type', '=', 'document.id')
+            ->where('participants.document_number', $cleanDocument)
+            ->where('document.name', $documentType)
+            ->select('participants.*')
             ->with(['courses', 'emergencyContacts'])
             ->first();
             
         return $participant;
+    }
+
+    public function getParticipantByRut(string $rut): ?Participant
+    {
+        // Mantener compatibilidad con el método anterior
+        return $this->getParticipantByDocument($rut, 'RUT');
     }
 
     public function getAvailablePrograms(Participant $participant): array
@@ -175,6 +183,12 @@ class ProgramService
     {
         // Remover puntos y guiones del RUT
         return preg_replace('/[.-]/', '', $rut);
+    }
+    
+    private function cleanDocument(string $document): string
+    {
+        // Remover puntos y guiones del documento
+        return preg_replace('/[.-]/', '', $document);
     }
     
     private function translateStatus(string $status): string

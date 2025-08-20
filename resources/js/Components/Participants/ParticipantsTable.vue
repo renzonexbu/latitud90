@@ -7,9 +7,9 @@
                 class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
             >
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    RUT
+                    RUT / PASAPORTE
                 </div>
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
@@ -66,25 +66,25 @@
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                     ]"
                 >
-                    <!-- RUT -->
+                    <!-- RUT/PASAPORTE -->
                     <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ formatRut(participant.document_number) }}
+                        {{ formatDocument(participant.document_number, participant.document_type) }}
                     </div>
 
                     <!-- Nombre -->
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ participant.first_name }}
+                        {{ getFullName(participant) }}
                     </div>
 
                     <!-- Apellido -->
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ participant.last_name }}
+                        {{ getFullLastName(participant) }}
                     </div>
 
                     <!-- Institución -->
@@ -224,6 +224,11 @@ export default {
 
             // Limpiar el RUT de puntos y guiones
             let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
+
+            // Verificar que tenga el formato correcto de RUT chileno
+            if (!/^\d{7,8}[\dK]$/.test(rutLimpio)) {
+                return rut.toString().toUpperCase(); // Fallback si no es RUT válido
+            }
 
             // Separar número y dígito verificador
             let dv = rutLimpio.slice(-1);
@@ -402,6 +407,54 @@ export default {
             } else {
                 return `${code} ${phone}`;
             }
+        },
+
+        formatDocument(documentNumber, documentType) {
+            if (!documentNumber) return "N/A";
+            
+            // Detectar si es RUT basándose en el formato del número
+            // Los RUTs chilenos tienen formato: 12345678-9 o 12.345.678-9
+            const cleanNumber = documentNumber.toString().replace(/\./g, "").replace(/-/g, "");
+            const isRut = /^\d{7,8}[\dK]$/.test(cleanNumber);
+            
+            if (isRut) {
+                return this.formatRut(documentNumber);
+            } else {
+                // Para pasaporte u otros documentos, mostrar en uppercase
+                return documentNumber.toString().toUpperCase();
+            }
+        },
+
+        getFullName(participant) {
+            if (!participant) return "N/A";
+            
+            let firstName = participant.first_name || '';
+            let secondName = participant.second_name || '';
+            
+            // Concatenar solo nombres
+            let fullName = firstName;
+            if (secondName) {
+                fullName += ' ' + secondName;
+            }
+            
+            // Aplicar CapitalCase
+            return this.capitalizeWords(fullName.trim());
+        },
+
+        getFullLastName(participant) {
+            if (!participant) return "N/A";
+            
+            let firstLastName = participant.first_last_name || '';
+            let secondLastName = participant.second_last_name || '';
+            
+            // Concatenar apellidos
+            let fullLastName = firstLastName;
+            if (secondLastName) {
+                fullLastName += ' ' + secondLastName;
+            }
+            
+            // Aplicar CapitalCase
+            return this.capitalizeWords(fullLastName.trim());
         },
     },
 };
