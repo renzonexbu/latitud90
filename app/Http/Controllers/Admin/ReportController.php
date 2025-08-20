@@ -10,9 +10,16 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\Admin\Reports\RecoverySchedule\RecoveryScheduleService;
+use App\Services\Admin\Reports\RecoverySchedule\ExportService;
 
 class ReportController extends Controller
 {
+    public function __construct(
+        private RecoveryScheduleService $recoveryScheduleService,
+        private ExportService $exportService
+    ) {}
+
     public function index(Request $request)
     {
         // Fechas por defecto (último mes)
@@ -62,8 +69,8 @@ class ReportController extends Controller
                 $totalRevenue = Payment::whereHas('order.program', function ($q) use ($program) {
                     $q->where('id', $program->id);
                 })
-                    ->where('status', 'completed')
-                    ->sum('amount');
+                ->where('status', 'completed')
+                ->sum('amount');
 
                 return [
                     'id' => $program->id,
@@ -258,14 +265,14 @@ class ReportController extends Controller
     public function dailyPayments(Request $request)
     {
         $filters = $request->only(['programId', 'executiveId', 'paymentMethod', 'dateFrom', 'dateTo']);
-
+        
         $query = Payment::with([
             'order.participant',
             'order.program',
             'orderDetail',
             'paymentGateway'
         ])
-            ->where('status', 'completed');
+        ->where('status', 'completed');
 
         // Aplicar filtros
         if (!empty($filters['programId'])) {
@@ -319,14 +326,14 @@ class ReportController extends Controller
     public function consolidatedPayments(Request $request)
     {
         $filters = $request->only(['dateFrom', 'dateTo', 'paymentMethod', 'transactionType']);
-
+        
         $query = Payment::with([
             'order.participant',
             'order.program',
             'orderDetail',
             'paymentGateway'
         ])
-            ->where('status', 'completed');
+        ->where('status', 'completed');
 
         // Aplicar filtros
         if (!empty($filters['dateFrom'])) {
@@ -376,7 +383,7 @@ class ReportController extends Controller
     public function installmentSchedule(Request $request)
     {
         $filters = $request->only(['programId', 'installmentStatus', 'dateFrom']);
-
+        
         // TODO: Implementar lógica de cuotas
         // Por ahora retornamos datos de ejemplo
         $installments = collect();
@@ -391,14 +398,14 @@ class ReportController extends Controller
     public function revenueChart(Request $request)
     {
         $filters = $request->only(['period', 'dateFrom', 'dateTo']);
-
+        
         $period = $filters['period'] ?? 'daily';
         $dateFrom = $filters['dateFrom'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $filters['dateTo'] ?? Carbon::now()->format('Y-m-d');
 
         // Generar datos de ingresos por período
         $revenueData = $this->generateRevenueData($period, $dateFrom, $dateTo);
-
+        
         // Datos de métodos de pago
         $paymentMethodsData = Payment::where('status', 'completed')
             ->whereBetween('created_at', [$dateFrom, $dateTo])
@@ -422,7 +429,7 @@ class ReportController extends Controller
 
         while ($startDate <= $endDate) {
             $date = $startDate->format('Y-m-d');
-
+            
             $revenue = Payment::where('status', 'completed')
                 ->whereDate('created_at', $date)
                 ->sum('amount');
@@ -464,7 +471,7 @@ class ReportController extends Controller
     public function partialAccount(Request $request)
     {
         $filters = $request->only(['programId', 'participantId', 'dateFrom', 'dateTo', 'page']);
-
+        
         $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
 
         // Obtener datos del estado de cuenta parcial
@@ -483,16 +490,36 @@ class ReportController extends Controller
 
     public function paymentSchedule(Request $request)
     {
-        $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status']);
-
-        // TODO: Implementar lógica de cronograma de recuperación
-        // Por ahora retornamos datos de ejemplo
-        $paymentSchedules = collect();
+        $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status', 'page']);
+        
+        // Solo aplicar filtros de fecha si el usuario los especifica explícitamente
+        // Si no hay filtros, mostrar TODOS los datos
+        if (!empty($filters['dateFrom']) && !empty($filters['dateTo'])) {
+            // Validar que las fechas sean válidas
+            if (strtotime($filters['dateFrom']) > strtotime($filters['dateTo'])) {
+                $filters['dateFrom'] = now()->format('Y-m-d');
+                $filters['dateTo'] = now()->addMonth()->format('Y-m-d');
+            }
+        } else {
+            // Si no hay filtros de fecha, no aplicar restricciones
+            unset($filters['dateFrom']);
+            unset($filters['dateTo']);
+        }
+        
+        // Obtener datos del cronograma de cuotas
+        $paymentSchedules = $this->recoveryScheduleService->getPaymentSchedules($filters, $filters['page'] ?? 1);
+        
+        // Obtener resumen
+        $summary = $this->recoveryScheduleService->getSummary($filters);
+        
+        // Obtener programas para filtros
+        $programs = $this->recoveryScheduleService->getPrograms();
 
         return Inertia::render('Admin/Reports/PaymentSchedule', [
             'paymentSchedules' => $paymentSchedules,
-            'programs' => Program::all(['id', 'name']),
-            'filters' => $filters
+            'programs' => $programs,
+            'filters' => $filters,
+            'summary' => $summary
         ]);
     }
 
@@ -502,7 +529,7 @@ class ReportController extends Controller
         $fields = json_decode($request->get('fields', '{}'), true);
         $format = $request->get('format', 'xlsx');
         $includeAll = $request->get('include_all', 'current');
-
+        
         $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
         $exportService = app(\App\Services\Admin\Reports\PartialReport\ExportService::class);
 
@@ -510,15 +537,15 @@ class ReportController extends Controller
         if (!$exportService->validateExportFields($fields)) {
             return response()->json(['error' => 'Debe seleccionar al menos un campo para exportar'], 400);
         }
-
+        
         try {
             // Obtener datos para exportación
             $exportData = $partialAccountService->getExportData($filters, $fields, $includeAll);
 
-            // Validar que tenemos datos para exportar
-            if ($exportData->isEmpty()) {
-                return response()->json(['error' => 'No hay datos válidos para exportar'], 400);
-            }
+        // Validar que tenemos datos para exportar
+        if ($exportData->isEmpty()) {
+            return response()->json(['error' => 'No hay datos válidos para exportar'], 400);
+        }
 
             // Generar nombre de archivo
             $filename = $exportService->generateFilename('estado_cuenta_parcial');
@@ -532,7 +559,7 @@ class ReportController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
+            
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }
     }
@@ -543,7 +570,39 @@ class ReportController extends Controller
 
     public function exportPaymentSchedule(Request $request)
     {
-        // TODO: Implementar exportación a CSV
-        return response()->json(['message' => 'Exportación implementada']);
+        $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status']);
+        $format = $request->get('format', 'xlsx');
+        $includeAll = $request->get('include_all', 'current');
+        
+        try {
+            // Obtener datos para exportación
+            if ($includeAll === 'all') {
+                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters);
+            } else {
+                // Solo página actual (implementar lógica si es necesario)
+                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters);
+            }
+            
+            // Validar que tenemos datos para exportar
+            if ($exportData->isEmpty()) {
+                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
+            }
+            
+            // Generar nombre de archivo
+            $filename = 'cronograma_cuotas_' . now()->format('Y-m-d_H-i-s');
+            
+            // Exportar según el formato
+            return $this->exportService->export($exportData, $filename, $format);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Export Payment Schedule Error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
     }
 }

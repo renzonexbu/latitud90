@@ -3,27 +3,15 @@
         <Head title="Cronograma de Recuperación de Cuotas" />
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-2xl font-bold">Cronograma de Recuperación de Cuotas</h2>
-                            <Link
-                                :href="route('admin.reports.index')"
-                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
-                            >
-                                Volver a Reportes
-                            </Link>
-                        </div>
-                        <p class="text-gray-600 mb-6">
-                            Cuotas pactadas diariamente, vencimientos futuros y cuotas por cobrar en período determinado
-                        </p>
-                    </div>
-                </div>
+                <ReportsHeader 
+                    title="Cronograma de Recuperación de Cuotas"
+                    subtitle="Cuotas pactadas diariamente, vencimientos futuros y cuotas por cobrar en período determinado"
+                />
 
                 <!-- Filtros -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="bg-white rounded-[20px] overflow-hidden">
                     <div class="p-6 text-gray-900">
                         <h3 class="text-lg font-semibold mb-4">Filtros</h3>
                         
@@ -34,6 +22,7 @@
                                 </label>
                                 <select
                                     v-model="filters.programId"
+                                    @change="applyFilters"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 >
                                     <option value="">Todos los programas</option>
@@ -42,7 +31,7 @@
                                         :key="program.id"
                                         :value="program.id"
                                     >
-                                        {{ program.name }}
+                                        {{ program.name }} - {{ program.destination }}
                                     </option>
                                 </select>
                             </div>
@@ -53,6 +42,7 @@
                                 </label>
                                 <select
                                     v-model="filters.status"
+                                    @change="applyFilters"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 >
                                     <option value="">Todos los estados</option>
@@ -69,6 +59,7 @@
                                 </label>
                                 <input
                                     v-model="filters.dateFrom"
+                                    @change="applyFilters"
                                     type="date"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 />
@@ -80,6 +71,7 @@
                                 </label>
                                 <input
                                     v-model="filters.dateTo"
+                                    @change="applyFilters"
                                     type="date"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 />
@@ -88,14 +80,13 @@
                         
                         <div class="flex space-x-4">
                             <button
-                                @click="generateReport"
+                                @click="showAllData"
                                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
                             >
-                                Generar Reporte
+                                Mostrar Todos
                             </button>
-                            
                             <button
-                                @click="exportReport"
+                                @click="openExportModal"
                                 class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
                             >
                                 Exportar
@@ -105,7 +96,7 @@
                 </div>
 
                 <!-- Resumen -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
                     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-6">
                             <div class="flex items-center">
@@ -148,7 +139,11 @@
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600">Monto por Cobrar</p>
-                                    <p class="text-xl font-bold text-yellow-600">${{ (summary.totalAmount || 0).toLocaleString() }}</p>
+                                    <p class="text-xl font-bold text-yellow-600">${{ formatCurrency((summary.totalPending || 0) + (summary.totalOverdue || 0)) }}</p>
+                                    <p class="text-xs text-gray-500">
+                                        Pendientes: ${{ formatCurrency(summary.totalPending || 0) }} | 
+                                        Vencidas: ${{ formatCurrency(summary.totalOverdue || 0) }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -169,92 +164,275 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="p-2 bg-orange-100 rounded-lg mr-3">
+                                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Monto Vencido</p>
+                                    <p class="text-xl font-bold text-orange-600">${{ formatCurrency(summary.totalOverdue || 0) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <div class="flex items-center">
+                                <div class="p-2 bg-purple-100 rounded-lg mr-3">
+                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Total Cuotas</p>
+                                    <p class="text-xl font-bold text-purple-600">{{ summary.total || 0 }}</p>
+                                    <p class="text-xs text-gray-500">Todas las cuotas</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Tabla de Resultados -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900">
-                        <h3 class="text-lg font-semibold mb-4">Cronograma de Cuotas</h3>
-                        
-                        <div v-if="paymentSchedules.length === 0" class="text-center py-8">
-                            <p class="text-gray-500">No hay datos para mostrar</p>
+                <!-- Lista de Cronograma de Cuotas -->
+                <div>
+                    <PaymentScheduleTable
+                        :schedules="filteredSchedules"
+                        @view-details="openDetailModal"
+                    />
+                    
+                    <!-- Paginación -->
+                    <div class="mt-6">
+                        <ReportsPagination
+                            :current-page="props.paymentSchedules?.current_page || currentPage"
+                            :total-accounts="props.paymentSchedules?.total || 0"
+                            :accounts-per-page="props.paymentSchedules?.per_page || schedulesPerPage"
+                            @page-changed="handlePageChange"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Detalles -->
+        <div
+            v-if="showDetailModal"
+            class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        >
+            <div
+                class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white"
+            >
+                <div class="mt-3">
+                    <!-- Header del Modal -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">
+                            Detalles de Cuota - {{ selectedSchedule?.participant_name }}
+                        </h3>
+                        <button
+                            @click="closeDetailModal"
+                            class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div v-if="selectedSchedule" class="space-y-6">
+                        <!-- Información del Participante y Programa -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-3">
+                                    Información del Participante
+                                </h4>
+                                <div class="space-y-2">
+                                    <p>
+                                        <span class="font-medium">Nombre:</span>
+                                        {{ selectedSchedule.participant_name }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Email:</span>
+                                        {{ selectedSchedule.participant_email }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Documento:</span>
+                                        {{ selectedSchedule.participant_document }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Teléfono:</span>
+                                        {{ selectedSchedule.participant_phone }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold text-gray-900 mb-3">
+                                    Información de la Cuota
+                                </h4>
+                                <div class="space-y-2">
+                                    <p>
+                                        <span class="font-medium">Programa:</span>
+                                        {{ selectedSchedule.program_name }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Fecha de Salida:</span>
+                                        {{ formatDate(selectedSchedule.program_departure_date) }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">N° Cuota:</span>
+                                        {{ selectedSchedule.installment_number }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Fecha Vencimiento:</span>
+                                        {{ formatDate(selectedSchedule.due_date) }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Estado:</span>
+                                        <span :class="getStatusClass(selectedSchedule.status)" class="px-2 py-1 text-xs font-semibold rounded-full">
+                                            {{ getStatusLabel(selectedSchedule.status) }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div v-else class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Participante
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Programa
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            N° Cuota
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Fecha Vencimiento
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Monto Cuota
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Estado
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Días Vencimiento
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="schedule in paymentSchedules" :key="schedule.id">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">
-                                                {{ schedule.participant_name }}
-                                            </div>
-                                            <div class="text-sm text-gray-500">
-                                                {{ schedule.participant_email }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                {{ schedule.program_name }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                {{ schedule.installment_number }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                {{ formatDate(schedule.due_date) }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                ${{ schedule.amount?.toLocaleString() }}
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span
-                                                :class="getStatusClass(schedule.status)"
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                            >
-                                                {{ getStatusLabel(schedule.status) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">
-                                                <span :class="getDaysClass(schedule.days_overdue)">
-                                                    {{ schedule.days_overdue || 0 }} días
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+
+                        <!-- Información Financiera -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-4">
+                                Información Financiera
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">Monto Base</p>
+                                    <p class="text-xl font-bold text-gray-900">
+                                        ${{ formatCurrency(selectedSchedule.base_amount || 0) }}
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">Descuento</p>
+                                    <p class="text-xl font-bold text-red-600">
+                                        -${{ formatCurrency(selectedSchedule.discount_amount || 0) }}
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">Monto Cuota</p>
+                                    <p class="text-xl font-bold text-blue-600">
+                                        ${{ formatCurrency(selectedSchedule.amount || 0) }}
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">Monto Pagado</p>
+                                    <p class="text-xl font-bold text-green-600">
+                                        ${{ formatCurrency(selectedSchedule.paid_amount || 0) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Días de Vencimiento -->
+                            <div class="mt-4 text-center">
+                                <p class="text-sm text-gray-600">
+                                    Días de Vencimiento
+                                </p>
+                                <p class="text-2xl font-bold" :class="getDaysClass(selectedSchedule.days_overdue)">
+                                    {{ selectedSchedule.days_overdue || 0 }} días
+                                </p>
+                            </div>
+
+                            <!-- Información de la Orden -->
+                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">N° Orden</p>
+                                    <p class="text-lg font-bold text-gray-900">
+                                        {{ selectedSchedule.order_number }}
+                                    </p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm text-gray-600">Monto Total Orden</p>
+                                    <p class="text-lg font-bold text-gray-900">
+                                        ${{ formatCurrency(selectedSchedule.order_final_amount || 0) }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones del Modal -->
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button
+                            @click="closeDetailModal"
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Exportación -->
+        <div
+            v-if="showExportModal"
+            class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        >
+            <div
+                class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white"
+            >
+                <div class="mt-3">
+                    <!-- Header del Modal -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">
+                            Exportar Cronograma de Cuotas
+                        </h3>
+                        <button
+                            @click="closeExportModal"
+                            class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                        >
+                            &times;
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Opciones de Exportación -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Formato de Archivo
+                                    </label>
+                                    <select v-model="exportOptions.format" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="xlsx">Excel (.xlsx)</option>
+                                        <option value="csv">CSV (.csv)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Incluir Todos los Registros
+                                    </label>
+                                    <select v-model="exportOptions.includeAll" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="current">Solo página actual</option>
+                                        <option value="all">Todos los registros</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="flex justify-end space-x-3">
+                            <button
+                                @click="closeExportModal"
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                @click="exportReport"
+                                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+                            >
+                                Exportar
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -264,14 +442,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { Head, router, Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import ReportsHeader from "@/Components/Reports/ReportsHeader.vue";
+import PaymentScheduleTable from "@/Components/Reports/PaymentScheduleTable.vue";
+import ReportsPagination from "@/Components/Reports/ReportsPagination.vue";
 
 const props = defineProps({
     paymentSchedules: {
-        type: Array,
-        default: () => [],
+        type: Object,
+        default: () => ({}),
     },
     programs: {
         type: Array,
@@ -294,22 +475,56 @@ const filters = reactive({
     dateTo: props.filters.dateTo || "",
 });
 
-// Establecer fechas por defecto (próximo mes)
-onMounted(() => {
-    if (!filters.dateFrom || !filters.dateTo) {
-        const today = new Date();
-        const nextMonth = new Date(
-            today.getFullYear(),
-            today.getMonth() + 1,
-            today.getDate()
-        );
+// Estado del modal
+const showDetailModal = ref(false);
+const selectedSchedule = ref(null);
 
-        filters.dateFrom = today.toISOString().split("T")[0];
-        filters.dateTo = nextMonth.toISOString().split("T")[0];
-    }
+// Estado de paginación
+const currentPage = ref(1);
+const schedulesPerPage = ref(10);
+
+// Estado del modal de exportación
+const showExportModal = ref(false);
+const exportOptions = reactive({
+    format: "xlsx",
+    includeAll: "current",
 });
 
-const generateReport = () => {
+// Establecer fechas por defecto solo si el usuario las especifica
+onMounted(() => {
+    // No establecer fechas por defecto automáticamente
+    // Esto permite que se muestren todos los datos al inicio
+});
+
+// Filtrado en tiempo real
+const filteredSchedules = computed(() => {
+    const schedules = props.paymentSchedules;
+    
+    // Si es un objeto de paginación (del backend), usar data directamente
+    if (schedules && schedules.data && Array.isArray(schedules.data)) {
+        return schedules.data;
+    }
+    
+    // Si es un array simple, aplicar paginación del frontend
+    if (Array.isArray(schedules)) {
+        const startIndex = (currentPage.value - 1) * schedulesPerPage.value;
+        const endIndex = startIndex + schedulesPerPage.value;
+        return schedules.slice(startIndex, endIndex);
+    }
+    
+    // Si no es ninguno de los anteriores, retornar array vacío
+    return [];
+});
+
+const applyFilters = () => {
+    // Resetear a la primera página cuando se aplican filtros
+    if (props.paymentSchedules && props.paymentSchedules.data) {
+        filters.page = 1;
+    } else {
+        currentPage.value = 1;
+    }
+    
+    // Aplicar filtros al backend
     router.get("/admin/reports/payment-schedule", filters, {
         preserveState: true,
         preserveScroll: true,
@@ -318,7 +533,43 @@ const generateReport = () => {
 
 const exportReport = () => {
     const params = new URLSearchParams(filters);
-    window.open(`/admin/reports/export/payment-schedule?${params.toString()}`, "_blank");
+    params.append('format', exportOptions.format);
+    params.append('include_all', exportOptions.includeAll);
+
+    window.open(
+        `/admin/reports/export/payment-schedule?${params.toString()}`,
+        "_blank"
+    );
+    closeExportModal();
+};
+
+const openDetailModal = (schedule) => {
+    selectedSchedule.value = schedule;
+    showDetailModal.value = true;
+};
+
+const closeDetailModal = () => {
+    showDetailModal.value = false;
+    selectedSchedule.value = null;
+};
+
+const openExportModal = () => {
+    showExportModal.value = true;
+};
+
+const closeExportModal = () => {
+    showExportModal.value = false;
+};
+
+const handlePageChange = (page) => {
+    // Actualizar los filtros con la nueva página
+    filters.page = page;
+    
+    // Aplicar filtros al backend con la nueva página
+    router.get("/admin/reports/payment-schedule", filters, {
+        preserveState: true,
+        preserveScroll: true,
+    });
 };
 
 const formatDate = (date) => {
@@ -351,5 +602,26 @@ const getDaysClass = (days) => {
     if (days <= 7) return 'text-yellow-600';
     if (days <= 30) return 'text-orange-600';
     return 'text-red-600';
+};
+
+const showAllData = () => {
+    // Limpiar todos los filtros
+    filters.programId = "";
+    filters.status = "";
+    filters.dateFrom = "";
+    filters.dateTo = "";
+    
+    // Aplicar filtros limpios al backend
+    router.get("/admin/reports/payment-schedule", {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const formatCurrency = (value) => {
+    // Convertir a número y redondear para evitar decimales
+    const numericValue = Math.round(Number(value) || 0);
+    // Formatear solo el número sin el símbolo de moneda, ya que lo agregamos manualmente
+    return numericValue.toLocaleString('es-CL');
 };
 </script>
