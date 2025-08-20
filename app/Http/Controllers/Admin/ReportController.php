@@ -16,6 +16,8 @@ use App\Services\Admin\Reports\DailyPayments\DailyPaymentsService;
 use App\Services\Admin\Reports\DailyPayments\ExportService as DailyPaymentsExportService;
 use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
 use App\Services\Admin\Reports\ConsolidatedPayments\ExportService as ConsolidatedPaymentsExportService;
+use App\Services\Admin\Reports\ReportsSummaryService;
+use App\Services\Admin\Reports\ConsolidatedExportService;
 
 class ReportController extends Controller
 {
@@ -25,95 +27,34 @@ class ReportController extends Controller
         private DailyPaymentsService $dailyPaymentsService,
         private DailyPaymentsExportService $dailyPaymentsExportService,
         private ConsolidatedPaymentsService $consolidatedPaymentsService,
-        private ConsolidatedPaymentsExportService $consolidatedPaymentsExportService
+        private ConsolidatedPaymentsExportService $consolidatedPaymentsExportService,
+        private ReportsSummaryService $reportsSummaryService,
+        private ConsolidatedExportService $consolidatedExportService
     ) {}
 
     public function index(Request $request)
     {
         // Fechas por defecto (último mes)
-        $dateFrom = $request->date_from ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->date_to ?? Carbon::now()->format('Y-m-d');
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
         $programId = $request->program;
 
-        // Consulta base con filtros
-        $paymentsQuery = Payment::where('status', 'completed');
-
-        $passengersQuery = Participant::query();
-
-        if ($programId) {
-            $paymentsQuery->whereHas('order.program', function ($q) use ($programId) {
-                $q->where('id', $programId);
-            });
-            $passengersQuery->whereHas('programs', function ($q) use ($programId) {
-                $q->where('program_id', $programId);
-            });
-        }
-
-        // Estadísticas principales
-        $totalRevenue = $paymentsQuery->sum('amount');
-        $totalReservations = $passengersQuery->count();
-        $totalVisitors = $passengersQuery->count(); // Simplificado, podría ser más complejo
-        $conversionRate = $totalVisitors > 0 ? round(($totalReservations / $totalVisitors) * 100, 2) : 0;
-        $averageOrderValue = $totalReservations > 0 ? round($totalRevenue / $totalReservations, 2) : 0;
-
-        // Programas más populares
-        $popularPrograms = Program::withCount('participants')
-            ->orderBy('participants_count', 'desc')
-            ->limit(5)
-            ->get()
-            ->map(function ($program) {
-                // Calcular ingresos totales del programa
-                $totalRevenue = Payment::whereHas('order.program', function ($q) use ($program) {
-                    $q->where('id', $program->id);
-                })
-                ->where('status', 'completed')
-                ->sum('amount');
-
-                return [
-                    'id' => $program->id,
-                    'name' => $program->name,
-                    'reservations_count' => $program->participants_count,
-                    'total_revenue' => $totalRevenue
-                ];
-            });
-
-        // Métodos de pago
-        $paymentMethods = Payment::where('status', 'completed')
-            ->selectRaw('payment_gateway_id as gateway, COUNT(*) as count, SUM(amount) as total')
-            ->groupBy('payment_gateway_id')
-            ->get()
-            ->map(function ($item) use ($totalRevenue) {
-                return [
-                    'gateway' => $item->gateway ?? 'unknown',
-                    'count' => $item->count,
-                    'total' => $item->total,
-                    'percentage' => $totalRevenue > 0 ? round(($item->total / $totalRevenue) * 100, 2) : 0
-                ];
-            });
-
-        // Datos del reporte
-        $reportData = [
-            'totalRevenue' => $totalRevenue,
-            'totalReservations' => $totalReservations,
-            'conversionRate' => $conversionRate,
-            'averageOrderValue' => $averageOrderValue,
-            'popularPrograms' => $popularPrograms,
-            'paymentMethods' => $paymentMethods
-        ];
+        // Obtener resumen de todos los módulos
+        $summary = $this->reportsSummaryService->getSummary([
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'programId' => $programId
+        ]);
 
         // Lista de programas para el filtro
         $programs = Program::select('id', 'name')->get();
 
         return Inertia::render('Admin/Reports/Index', [
-            'totalRevenue' => $totalRevenue,
-            'totalParticipants' => $totalReservations,
-            'totalPrograms' => $programs->count(),
-            'paymentMethods' => $paymentMethods,
-            'popularPrograms' => $popularPrograms,
+            'summary' => $summary,
             'programs' => $programs,
             'filters' => [
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
                 'program' => $programId
             ],
             'chartData' => [
@@ -132,33 +73,16 @@ class ReportController extends Controller
 
     public function export(Request $request)
     {
-        $format = $request->format ?? 'csv';
-        $dateFrom = $request->date_from ?? Carbon::now()->subMonth()->format('Y-m-d');
-        $dateTo = $request->date_to ?? Carbon::now()->format('Y-m-d');
-        $programId = $request->program;
+        $filters = [
+            'dateFrom' => $request->dateFrom ?? Carbon::now()->subMonth()->format('Y-m-d'),
+            'dateTo' => $request->dateTo ?? Carbon::now()->format('Y-m-d'),
+            'programId' => $request->program
+        ];
 
-        // Obtener datos
-        $query = Payment::with(['order.participant', 'order.program'])
-            ->whereBetween('created_at', [$dateFrom, $dateTo])
-            ->where('status', 'completed');
-
-        if ($programId) {
-            $query->whereHas('order.program', function ($q) use ($programId) {
-                $q->where('id', $programId);
-            });
-        }
-
-        $payments = $query->get();
-
-        switch ($format) {
-            case 'csv':
-                return $this->exportCSV($payments, $dateFrom, $dateTo);
-            case 'excel':
-                return $this->exportExcel($payments, $dateFrom, $dateTo);
-            case 'pdf':
-                return $this->exportPDF($payments, $dateFrom, $dateTo);
-            default:
-                return $this->exportCSV($payments, $dateFrom, $dateTo);
+        try {
+            return $this->consolidatedExportService->export($filters);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }
     }
 
