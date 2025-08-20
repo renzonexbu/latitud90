@@ -14,6 +14,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Requests\Admin\Payments\DailyReportRequest;
 use App\Http\Requests\Admin\Payments\ConsolidatedReportRequest;
+use App\Models\Country;
+use App\Models\Document;
+use App\Models\Region;
 use App\Services\Admin\Payments\ReportsService;
 use Illuminate\Support\Facades\DB;
 
@@ -108,13 +111,26 @@ class PaymentController extends Controller
     public function create()
     {
         $programs = Program::with(['course.participants'])->where('active', true)->get();
-        $paymentGateways = PaymentGateway::where('active', true)->get();
-        $paymentOptions = PaymentOption::where('active', true)->get();
+        
+        // Cargar datos para el formulario del comprador
+        $countries = Country::where('name', 'Chile')->get();
+        $regions = Region::with('comunes')->get();
+        $documentTypes = Document::all();
+        
+        // Métodos de pago presenciales
+        $presentialPaymentMethods = [
+            ['id' => 'cash', 'name' => 'Efectivo'],
+            ['id' => 'debit', 'name' => 'Tarjeta de Débito'],
+            ['id' => 'credit', 'name' => 'Tarjeta de Crédito'],
+            ['id' => 'transfer', 'name' => 'Transferencia Bancaria'],
+        ];
 
         return Inertia::render('Admin/Payments/Create', [
             'programs' => $programs,
-            'paymentGateways' => $paymentGateways,
-            'paymentOptions' => $paymentOptions
+            'countries' => $countries,
+            'regions' => $regions,
+            'documentTypes' => $documentTypes,
+            'presentialPaymentMethods' => $presentialPaymentMethods
         ]);
     }
 
@@ -371,5 +387,145 @@ class PaymentController extends Controller
         return Inertia::render('Admin/Reports/AccountStatement', [
             'statement' => $statement
         ]);
+    }
+
+    public function getParticipantPaymentStatus(Request $request)
+    {
+        $request->validate([
+            'program_id' => 'required|exists:programs,id',
+            'participant_id' => 'required|exists:participants,id',
+        ]);
+
+        $programId = $request->program_id;
+        $participantId = $request->participant_id;
+
+        try {
+            // Obtener el participante
+            $participant = \App\Models\Participant::find($participantId);
+            $program = \App\Models\Program::find($programId);
+
+            if (!$participant || !$program) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Participante o programa no encontrado'
+                ], 404);
+            }
+
+            // Calcular montos usando el helper
+            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            $totalAmount = $priceData['final_price'];
+
+            // Buscar planes de cuotas del participante para este programa
+            $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->with(['installments'])
+                ->get();
+
+            // Calcular cuotas pagadas y total de cuotas desde la tabla installments
+            $totalInstallments = 0;
+            $paidInstallments = 0;
+            $totalPaidAmount = 0;
+
+            foreach ($installmentPlans as $plan) {
+                $totalInstallments += $plan->total_installments;
+                
+                foreach ($plan->installments as $installment) {
+                    if ($installment->status === 'paid') {
+                        $paidInstallments++;
+                        $totalPaidAmount += $installment->amount;
+                    }
+                }
+            }
+
+            // Si no hay planes de cuotas, buscar en orders_detail como fallback
+            if ($totalInstallments == 0) {
+                $orders = \App\Models\Order::where('participant_id', $participantId)
+                    ->where('program_id', $programId)
+                    ->with(['orderDetails'])
+                    ->get();
+
+                foreach ($orders as $order) {
+                    $totalInstallments += $order->total_installments;
+                    
+                    foreach ($order->orderDetails as $detail) {
+                        if ($detail->is_paid) {
+                            $paidInstallments++;
+                            $totalPaidAmount += $detail->amount;
+                        }
+                    }
+                }
+            }
+
+            $totalPaidAmount = round($totalPaidAmount, 2);
+            $balance = max(round($totalAmount - $totalPaidAmount, 2), 0);
+            $paymentPercentage = $totalAmount > 0 ? round(($totalPaidAmount / $totalAmount) * 100, 2) : 0;
+
+            // Determinar estado de inscripción
+            $isEnrolled = $program->course && $program->course->participants->contains($participantId);
+            
+            // Estado de pagos
+            $paymentStatus = 'no_enrolled';
+            if ($isEnrolled) {
+                if ($totalPaidAmount == 0) {
+                    $paymentStatus = 'no_payments';
+                } elseif ($totalPaidAmount < $totalAmount) {
+                    $paymentStatus = 'partial_payments';
+                } else {
+                    $paymentStatus = 'fully_paid';
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'participant' => [
+                        'id' => $participant->id,
+                        'name' => $participant->first_name . ' ' . $participant->last_name,
+                        'document_number' => $participant->document_number,
+                        'email' => $participant->email,
+                    ],
+                    'program' => [
+                        'id' => $program->id,
+                        'name' => $program->name,
+                        'destination' => $program->destination,
+                    ],
+                    'payment_info' => [
+                        'total_amount' => $totalAmount,
+                        'paid_amount' => $totalPaidAmount,
+                        'balance' => $balance,
+                        'payment_percentage' => $paymentPercentage,
+                        'payment_status' => $paymentStatus,
+                        'is_enrolled' => $isEnrolled,
+                        'total_installments' => $totalInstallments,
+                        'paid_installments' => $paidInstallments,
+                        'installments_summary' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : "0/0",
+                    ],
+                    'installment_plans' => $installmentPlans->map(function($plan) {
+                        return [
+                            'id' => $plan->id,
+                            'total_installments' => $plan->total_installments,
+                            'total_amount' => $plan->total_amount,
+                            'status' => $plan->status,
+                            'installments' => $plan->installments->map(function($installment) {
+                                return [
+                                    'id' => $installment->id,
+                                    'installment_number' => $installment->installment_number,
+                                    'amount' => $installment->amount,
+                                    'status' => $installment->status,
+                                    'due_date' => $installment->due_date ? $installment->due_date->format('d/m/Y') : null,
+                                    'paid_at' => $installment->paid_at ? $installment->paid_at->format('d/m/Y H:i') : null,
+                                ];
+                            })
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el estado de pagos: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

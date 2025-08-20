@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('payments/export', [PaymentController::class, 'export'])->name('payments.export');
     Route::get('payments/pending-report', [PaymentController::class, 'pendingReport'])->name('payments.pending-report');
     Route::get('payments/revenue-report', [PaymentController::class, 'revenueReport'])->name('payments.revenue-report');
+    Route::post('payments/participant-status', [PaymentController::class, 'getParticipantPaymentStatus'])->name('payments.participant-status');
 
     // Gestión de reportes
     include __DIR__ . '/reports.php';

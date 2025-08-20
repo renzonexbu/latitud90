@@ -376,14 +376,17 @@ export default {
             if (Array.isArray(this.program.full_payment_options)) {
                 const codes = this.getFullOptionCodes().map(c => String(c).toLowerCase());
                 const result = [];
-                const pushUnique = (value, label, description = null) => {
+                const pushUnique = (value, label, description = null, warning = null) => {
                     if (!result.some(o => o.value === value)) {
-                        result.push({ value, label, description });
+                        const obj = { value, label };
+                        if (description) obj.description = description;
+                        if (warning) obj.warning = warning;
+                        result.push(obj);
                     }
                 };
                 codes.forEach(code => {
                     if (code.includes('khipu')) {
-                        pushUnique('khipu', 'Pagar con Transferencia Khipu');
+                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.');
                     } else if (code.includes('debit_credit')) {
                         const match = code.match(/(\d+)(?!.*\d)/);
                         if (match) {
@@ -402,7 +405,13 @@ export default {
             }
             // Legacy fallback
             if (!this.program.enable_total_payment || !this.program.total_payment_method_id) return [];
-            return this.filterPaymentOptionsByMethod(this.program.total_payment_method_id);
+            const baseOptions = this.filterPaymentOptionsByMethod(this.program.total_payment_method_id);
+            return baseOptions.map(opt => {
+                if (opt.value === 'khipu') {
+                    return { ...opt, warning: '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.' };
+                }
+                return opt;
+            });
         },
 
         // Obtener opciones de pago mensual (Latitud 90), basadas en códigos (nueva estructura)
@@ -419,14 +428,25 @@ export default {
                         result.push(obj);
                     }
                 };
-                if (codes.some(c => c.includes('khipu'))) pushUnique('khipu', 'Pagar con Transferencia Khipu');
-                if (codes.some(c => c.includes('debit_credit'))) pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
+                if (codes.some(c => c.includes('khipu'))) {
+                    pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.');
+                }
+                if (codes.some(c => c.includes('debit_credit'))) {
+                    pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
+                }
                 return result;
             }
             // Legacy fallback
             if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) return [];
             const base = this.filterPaymentOptionsByMethod(this.program.lat90_payment_method_id);
-            return base.map(opt => ({ ...opt, description: opt.value === 'credit' ? null : opt.description }));
+            return base.map(opt => {
+                if (opt.value === 'khipu') {
+                    return { ...opt, warning: '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.' };
+                } else if (opt.value === 'credit') {
+                    return { ...opt, description: null };
+                }
+                return opt;
+            });
         },
 
         // Filtrar opciones según el método de pago configurado
