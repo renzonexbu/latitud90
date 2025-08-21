@@ -26,20 +26,37 @@
         <div class="mb-6">
           <h3 class="text-[18px] font-nexa-bold text-gray-800 mb-4">Información Médica</h3>
           
-          <!-- Condiciones médicas -->
+          <!-- Alergias -->
           <div class="mb-6">
             <label class="block text-[16px] font-nexa-bold text-gray-700 mb-3">
-              Condiciones Médicas
+              Alergias
             </label>
             <textarea
-              v-model="form.medical_conditions"
-              placeholder="Ingrese las condiciones médicas del participante..."
-              rows="4"
+              v-model="form.allergies"
+              placeholder="Ingrese las alergias del participante..."
+              rows="3"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent resize-none"
-              :class="{ 'border-red-500': errors?.medical_conditions }"
+              :class="{ 'border-red-500': errors?.allergies }"
             ></textarea>
-            <div v-if="errors?.medical_conditions" class="text-red-500 text-sm mt-1">
-              {{ errors.medical_conditions }}
+            <div v-if="errors?.allergies" class="text-red-500 text-sm mt-1">
+              {{ errors.allergies }}
+            </div>
+          </div>
+
+          <!-- Intolerancias -->
+          <div class="mb-6">
+            <label class="block text-[16px] font-nexa-bold text-gray-700 mb-3">
+              Intolerancias
+            </label>
+            <textarea
+              v-model="form.intolerances"
+              placeholder="Ingrese las intolerancias del participante..."
+              rows="3"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent resize-none"
+              :class="{ 'border-red-500': errors?.intolerances }"
+            ></textarea>
+            <div v-if="errors?.intolerances" class="text-red-500 text-sm mt-1">
+              {{ errors.intolerances }}
             </div>
           </div>
 
@@ -107,7 +124,8 @@ const emit = defineEmits(['close']);
 const isSubmitting = ref(false);
 
 const form = ref({
-  medical_conditions: '',
+  allergies: '',
+  intolerances: '',
   dietary_restrictions: ''
 });
 
@@ -115,7 +133,8 @@ const form = ref({
 watch(() => props.participant, (newParticipant) => {
   if (newParticipant && Object.keys(newParticipant).length > 0) {
     form.value = {
-      medical_conditions: newParticipant.medical_conditions || '',
+      allergies: newParticipant.allergies || '',
+      intolerances: newParticipant.intolerances || '',
       dietary_restrictions: newParticipant.dietary_restrictions || ''
     };
   }
@@ -125,7 +144,8 @@ const updateMedicalInfo = () => {
   isSubmitting.value = true;
   
   const formData = new FormData();
-  formData.append('medical_conditions', form.value.medical_conditions);
+  formData.append('allergies', form.value.allergies);
+  formData.append('intolerances', form.value.intolerances);
   formData.append('dietary_restrictions', form.value.dietary_restrictions);
   formData.append('_method', 'PUT');
 

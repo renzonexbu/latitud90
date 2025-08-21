@@ -36,8 +36,10 @@ class UpdateParticipatService
                 'email' => $data['email'] ?? $participant->email,
                 'code_phone' => $data['code_phone'] ?? $participant->code_phone,
                 'phone' => $data['phone'] ?? $participant->phone,
+                'country' => $data['country'] ?? $participant->country,
                 'birth_date' => $data['birth_date'] ?? $participant->birth_date,
-                'medical_conditions' => $data['medical_conditions'] ?? $participant->medical_conditions,
+                'allergies' => $data['allergies'] ?? $participant->allergies,
+                'intolerances' => $data['intolerances'] ?? $participant->intolerances,
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
 

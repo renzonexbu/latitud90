@@ -13,6 +13,7 @@ use App\Services\Admin\Participants\CreateParticipantService;
 use App\Services\Admin\Participants\UpdateParticipatService;
 use App\Services\Admin\Participants\UpdateMedicalConditionsService;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -26,6 +27,8 @@ use Illuminate\Support\Facades\DB;
 
 class ParticipantsController extends Controller
 {
+    use AdminLogging;
+
     protected $createParticipantService;
     protected $updateParticipantService;
     protected $updateMedicalConditionsService;
@@ -267,7 +270,18 @@ class ParticipantsController extends Controller
     public function update(UpdateParticipantRequest $request, Participant $participant)
     {
         try {
+            $oldValues = $participant->getOriginal();
+            
             $this->updateParticipantService->execute($request->validated(), $participant);
+
+            $this->logUpdate(
+                'Participantes',
+                'Participant',
+                $participant->id,
+                'Participante actualizado',
+                $oldValues,
+                $request->validated()
+            );
 
             return back()->with('success', 'Participante actualizado exitosamente.');
 
@@ -287,7 +301,22 @@ class ParticipantsController extends Controller
     public function updateMedicalConditions(UpdateMedicalConditionsRequest $request, Participant $participant)
     {
         try {
+            $oldValues = [
+                'allergies' => $participant->allergies,
+                'intolerances' => $participant->intolerances,
+                'dietary_restrictions' => $participant->dietary_restrictions,
+            ];
+
             $this->updateMedicalConditionsService->execute($request->validated(), $participant);
+
+            $this->logUpdate(
+                'Condiciones Médicas',
+                'Participant',
+                $participant->id,
+                'Condiciones médicas actualizadas para participante: ' . $participant->first_name . ' ' . $participant->first_last_name,
+                $oldValues,
+                $request->validated()
+            );
 
             return back()->with('success', 'Condiciones médicas actualizadas exitosamente.');
 
@@ -315,7 +344,7 @@ class ParticipantsController extends Controller
 
             // Crear nuevos contactos de emergencia
             foreach ($emergencyContactsData as $contactData) {
-                EmergencyContact::create([
+                $contact = EmergencyContact::create([
                     'participant_id' => $participant->id,
                     'name' => $contactData['name'],
                     'email' => $contactData['email'],
@@ -324,11 +353,18 @@ class ParticipantsController extends Controller
                     'country' => $contactData['country'],
                     'birth_date' => $contactData['birth_date'] ?? null,
                     'address' => $contactData['address'] ?? null,
-                    'relationship' => $contactData['relationship'],
                 ]);
+
+                $this->logCreate(
+                    'Apoderados',
+                    'EmergencyContact',
+                    $contact->id,
+                    'Nuevo apoderado creado para participante: ' . $participant->first_name . ' ' . $participant->first_last_name,
+                    $contactData
+                );
             }
 
-            return back()->with('success', 'Contacto de emergencia agregado exitosamente.');
+            return back()->with('success', 'Apoderado agregado exitosamente.');
 
         } catch (\Exception $e) {
             Log::error('Error en controlador al actualizar contactos de emergencia', [
@@ -336,7 +372,7 @@ class ParticipantsController extends Controller
                 'error' => $e->getMessage()
             ]);
 
-            return back()->withErrors(['error' => 'Error al agregar el contacto de emergencia: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al agregar el apoderado: ' . $e->getMessage()]);
         }
     }
 
@@ -346,18 +382,32 @@ class ParticipantsController extends Controller
     public function updateEmergencyContact(UpdateEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $this->updateEmergencyContactService->update($request->validated(), $participant);
+            $validatedData = $request->validated();
+            $contactId = $validatedData['contact_id'];
+            $contact = EmergencyContact::findOrFail($contactId);
+            $oldValues = $contact->getOriginal();
+            
+            $this->updateEmergencyContactService->update($validatedData, $participant);
 
-            return back()->with('success', 'Contacto de emergencia actualizado exitosamente.');
+            $this->logUpdate(
+                'Apoderados',
+                'EmergencyContact',
+                $contact->id,
+                'Apoderado actualizado para participante: ' . $participant->first_name . ' ' . $participant->first_last_name,
+                $oldValues,
+                $validatedData
+            );
+
+            return back()->with('success', 'Apoderado actualizado exitosamente.');
 
         } catch (\Exception $e) {
             Log::error('Error en controlador al actualizar contacto de emergencia', [
                 'participant_id' => $participant->id,
-                'contact_id' => $request->contact_id ?? null,
+                'contact_id' => $request->input('contact_id') ?? null,
                 'error' => $e->getMessage()
             ]);
 
-            return back()->withErrors(['error' => 'Error al actualizar el contacto de emergencia: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al actualizar el apoderado: ' . $e->getMessage()]);
         }
     }
 
@@ -367,18 +417,29 @@ class ParticipantsController extends Controller
     public function deleteEmergencyContact(DeleteEmergencyContactRequest $request, Participant $participant)
     {
         try {
-            $this->updateEmergencyContactService->delete($request->validated(), $participant);
+            $validatedData = $request->validated();
+            $contactId = $validatedData['contact_id'];
+            $contact = EmergencyContact::findOrFail($contactId);
+            
+            $this->updateEmergencyContactService->delete($validatedData, $participant);
 
-            return back()->with('success', 'Contacto de emergencia eliminado exitosamente.');
+            $this->logDelete(
+                'Apoderados',
+                'EmergencyContact',
+                $contact->id,
+                'Apoderado eliminado para participante: ' . $participant->first_name . ' ' . $participant->first_last_name
+            );
+
+            return back()->with('success', 'Apoderado eliminado exitosamente.');
 
         } catch (\Exception $e) {
             Log::error('Error en controlador al eliminar contacto de emergencia', [
                 'participant_id' => $participant->id,
-                'contact_id' => $request->contact_id ?? null,
+                'contact_id' => $request->input('contact_id') ?? null,
                 'error' => $e->getMessage()
             ]);
 
-            return back()->withErrors(['error' => 'Error al eliminar el contacto de emergencia: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error al eliminar el apoderado: ' . $e->getMessage()]);
         }
     }
 
@@ -387,10 +448,19 @@ class ParticipantsController extends Controller
      */
     public function destroy(Participant $participant)
     {
+        $participantName = $participant->first_name . ' ' . $participant->first_last_name;
+        
+        $this->logDelete(
+            'Participantes',
+            'Participant',
+            $participant->id,
+            'Participante desactivado: ' . $participantName
+        );
+
         $participant->delete();
 
         return redirect()->route('admin.participants.index')
-            ->with('message', 'Participante eliminado exitosamente.');
+            ->with('success', 'Participante desactivado exitosamente.');
     }
 
     /**
@@ -401,7 +471,7 @@ class ParticipantsController extends Controller
         $newStatus = $participant->status === 'confirmed' ? 'pending_payment' : 'confirmed';
         $participant->update(['status' => $newStatus]);
 
-        return back()->with('message', 'Estado del participante actualizado.');
+        return back()->with('success', 'Estado del participante actualizado.');
     }
 
     /**
@@ -432,7 +502,7 @@ class ParticipantsController extends Controller
                 break;
         }
 
-        return back()->with('message', $message);
+        return back()->with('success', $message);
     }
 
     /**

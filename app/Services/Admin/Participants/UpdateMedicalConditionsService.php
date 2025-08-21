@@ -20,14 +20,13 @@ class UpdateMedicalConditionsService
 
             // Preparar solo los datos médicos para actualización
             $updateData = [
-                'medical_conditions' => $data['medical_conditions'] ?? $participant->medical_conditions,
+                'allergies' => $data['allergies'] ?? $participant->allergies,
+                'intolerances' => $data['intolerances'] ?? $participant->intolerances,
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
 
             // Actualizar el participante
             $participant->update($updateData);
-
-            
 
             return $participant;
 

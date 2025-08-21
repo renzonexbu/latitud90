@@ -181,9 +181,30 @@
                 class="fixed top-4 right-4 z-50"
             >
                 <div
-                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg"
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
                 >
-                    {{ $page.props.flash.message }}
+                    <span>{{ $page.props.flash.message }}</span>
+                    <button @click="clearFlashMessage('message')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div
+                v-if="$page.props.flash.success"
+                class="fixed top-4 right-4 z-50"
+            >
+                <div
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
+                >
+                    <span>{{ $page.props.flash.success }}</span>
+                    <button @click="clearFlashMessage('success')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -192,9 +213,14 @@
                 class="fixed top-4 right-4 z-50"
             >
                 <div
-                    class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg"
+                    class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
                 >
-                    {{ $page.props.flash.error }}
+                    <span>{{ $page.props.flash.error }}</span>
+                    <button @click="clearFlashMessage('error')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -255,6 +281,9 @@ export default {
     mounted() {
         // Cerrar dropdown cuando se hace clic fuera
         document.addEventListener('click', this.closeUserDropdown);
+        
+        // Auto-cerrar mensajes flash después de 5 segundos
+        this.autoCloseFlashMessages();
     },
     beforeUnmount() {
         document.removeEventListener('click', this.closeUserDropdown);
@@ -265,6 +294,23 @@ export default {
             if (dropdown && !dropdown.contains(event.target)) {
                 this.showingUserDropdown = false;
             }
+        },
+        clearFlashMessage(type) {
+            this.$page.props.flash[type] = null;
+        },
+        autoCloseFlashMessages() {
+            // Auto-cerrar mensajes flash después de 5 segundos
+            setTimeout(() => {
+                if (this.$page.props.flash.message) {
+                    this.$page.props.flash.message = null;
+                }
+                if (this.$page.props.flash.success) {
+                    this.$page.props.flash.success = null;
+                }
+                if (this.$page.props.flash.error) {
+                    this.$page.props.flash.error = null;
+                }
+            }, 5000);
         }
     },
 };

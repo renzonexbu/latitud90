@@ -22,7 +22,6 @@ class UpdateEmergencyContactService
             'country' => $data['country'],
             'birth_date' => $data['birth_date'] ?? null,
             'address' => $data['address'] ?? null,
-            'relationship' => $data['relationship'],
         ]);
     }
 

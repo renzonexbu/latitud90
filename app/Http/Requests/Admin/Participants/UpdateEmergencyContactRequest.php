@@ -14,6 +14,7 @@ class UpdateEmergencyContactRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'contact_id' => 'required|exists:emergency_contact,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'code_phone' => 'required|string|max:255',
@@ -21,7 +22,6 @@ class UpdateEmergencyContactRequest extends FormRequest
             'country' => 'required|string|max:255',
             'birth_date' => 'nullable|date',
             'address' => 'nullable|string|max:255',
-            'relationship' => 'required|string|max:255',
         ];
     }
 }
