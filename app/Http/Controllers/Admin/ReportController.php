@@ -18,6 +18,7 @@ use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
 use App\Services\Admin\Reports\ConsolidatedPayments\ExportService as ConsolidatedPaymentsExportService;
 use App\Services\Admin\Reports\ReportsSummaryService;
 use App\Services\Admin\Reports\ConsolidatedExportService;
+use App\Services\EcommerceAnalyticsService;
 
 class ReportController extends Controller
 {
@@ -29,7 +30,8 @@ class ReportController extends Controller
         private ConsolidatedPaymentsService $consolidatedPaymentsService,
         private ConsolidatedPaymentsExportService $consolidatedPaymentsExportService,
         private ReportsSummaryService $reportsSummaryService,
-        private ConsolidatedExportService $consolidatedExportService
+        private ConsolidatedExportService $consolidatedExportService,
+        private EcommerceAnalyticsService $analyticsService
     ) {}
 
     public function index(Request $request)
@@ -49,26 +51,131 @@ class ReportController extends Controller
         // Lista de programas para el filtro
         $programs = Program::select('id', 'name')->get();
 
+        // Obtener datos del ecommerce
+        $ecommerceData = $this->getEcommerceData($request);
+
         return Inertia::render('Admin/Reports/Index', [
             'summary' => $summary,
             'programs' => $programs,
+            'ecommerceData' => $ecommerceData,
             'filters' => [
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
                 'program' => $programId
             ],
-            'chartData' => [
-                'labels' => ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'],
-                'datasets' => [
-                    [
-                        'label' => 'Ingresos',
-                        'data' => [12000, 19000, 15000, 25000, 22000, 30000],
-                        'borderColor' => '#3B82F6',
-                        'backgroundColor' => 'rgba(59, 130, 246, 0.1)'
-                    ]
-                ]
-            ]
         ]);
+    }
+
+    private function getEcommerceData(Request $request): array
+    {
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        
+        // Obtener estadísticas del funnel
+        $funnelStats = $this->analyticsService->getFunnelStats($dateFrom, $dateTo);
+        
+        // Obtener datos de programas más vistos
+        $programViews = $this->getProgramViewsData($request);
+        
+        // Obtener datos de clientes frecuentes
+        $frequentClients = $this->getFrequentClientsData($request);
+        
+        // Obtener datos de métodos de pago
+        $paymentMethods = $this->getPaymentMethodsData($request);
+
+        return [
+            'funnelData' => $funnelStats['stats'],
+            'programViews' => $programViews,
+            'frequentClients' => $frequentClients,
+            'paymentMethods' => $paymentMethods,
+        ];
+    }
+
+    private function getProgramViewsData(Request $request): array
+    {
+        $period = $request->programChartPeriod ?? '30days';
+        $dateFrom = $this->getDateFromPeriod($period);
+        $dateTo = Carbon::now()->format('Y-m-d');
+
+        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('program_name')
+            ->selectRaw('program_name, COUNT(*) as views, COUNT(payment_completed_at) as conversions')
+            ->groupBy('program_name')
+            ->orderByDesc('views')
+            ->limit(10)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'program_name' => $item->program_name,
+                    'views' => $item->views,
+                    'conversions' => $item->conversions,
+                    'conversion_rate' => $item->views > 0 ? ($item->conversions / $item->views) * 100 : 0,
+                ];
+            })
+            ->toArray();
+    }
+
+    private function getFrequentClientsData(Request $request): array
+    {
+        $period = $request->frequentClientsPeriod ?? 'all';
+        
+        if ($period === 'all') {
+            $dateFrom = '2020-01-01'; // Desde el inicio
+        } else {
+            $dateFrom = $this->getDateFromPeriod($period);
+        }
+        
+        $dateTo = Carbon::now()->format('Y-m-d');
+
+        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('participant_rut')
+            ->whereNotNull('payment_completed_at')
+            ->selectRaw('participant_rut, COUNT(*) as purchase_count')
+            ->groupBy('participant_rut')
+            ->orderByDesc('purchase_count')
+            ->limit(8)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'client_name' => $item->participant_rut, // Por ahora usamos RUT, después se puede mejorar
+                    'purchase_count' => $item->purchase_count,
+                ];
+            })
+            ->toArray();
+    }
+
+    private function getPaymentMethodsData(Request $request): array
+    {
+        $period = $request->paymentMethodsPeriod ?? '30days';
+        $dateFrom = $this->getDateFromPeriod($period);
+        $dateTo = Carbon::now()->format('Y-m-d');
+
+        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('payment_method')
+            ->selectRaw('payment_method, COUNT(*) as total, COUNT(CASE WHEN payment_status = "completed" THEN 1 END) as successful')
+            ->groupBy('payment_method')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'payment_method' => $item->payment_method,
+                    'total' => $item->total,
+                    'successful' => $item->successful,
+                    'success_rate' => $item->total > 0 ? ($item->successful / $item->total) * 100 : 0,
+                ];
+            })
+            ->toArray();
+    }
+
+    private function getDateFromPeriod(string $period): string
+    {
+        return match($period) {
+            '7days' => Carbon::now()->subDays(7)->format('Y-m-d'),
+            '30days' => Carbon::now()->subDays(30)->format('Y-m-d'),
+            '90days' => Carbon::now()->subDays(90)->format('Y-m-d'),
+            'thisYear' => Carbon::now()->startOfYear()->format('Y-m-d'),
+            default => Carbon::now()->subDays(30)->format('Y-m-d'),
+        };
     }
 
     public function export(Request $request)

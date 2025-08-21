@@ -10,6 +10,7 @@ use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\BsaleService;
+use App\Services\EcommerceAnalyticsService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -19,17 +20,20 @@ class PaymentConfirmationService
     private $khipuService;
     private $emailService;
     private $bsaleService;
+    private $analyticsService;
 
     public function __construct(
         TransbankService $transbankService,
         KhipuService $khipuService,
         SuccessPaymentEmailService $emailService,
-        BsaleService $bsaleService
+        BsaleService $bsaleService,
+        EcommerceAnalyticsService $analyticsService
     ) {
         $this->transbankService = $transbankService;
         $this->khipuService = $khipuService;
         $this->emailService = $emailService;
         $this->bsaleService = $bsaleService;
+        $this->analyticsService = $analyticsService;
     }
 
     /**
@@ -384,6 +388,11 @@ class PaymentConfirmationService
 
         // Enviar email de confirmación
         $this->sendSuccessEmail($orderDetail, $payment);
+
+        // Registrar pago completado en analytics
+        $this->analyticsService->recordPaymentCompleted($orderDetail, [
+            'payment_method' => $orderDetail->paymentGateway->name ?? null,
+        ]);
 
         Log::info('PaymentConfirmationService: Payment processed successfully', [
             'order_detail_id' => $orderDetail->id,

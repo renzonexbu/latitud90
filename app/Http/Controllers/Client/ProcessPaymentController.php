@@ -19,6 +19,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Services\Client\CreateOrderService;
+use App\Services\Client\BsaleService;
+use App\Services\EcommerceAnalyticsService;
 
 class ProcessPaymentController extends Controller
 {
@@ -26,17 +29,26 @@ class ProcessPaymentController extends Controller
     protected $paymentOrderService;
     protected $transbankService;
     protected $khipuService;
+    protected $createOrderService;
+    protected $bsaleService;
+    protected $analyticsService;
 
     public function __construct(
         InstallmentService $installmentService,
         PaymentOrderService $paymentOrderService,
         TransbankService $transbankService,
-        KhipuService $khipuService
+        KhipuService $khipuService,
+        CreateOrderService $createOrderService,
+        BsaleService $bsaleService,
+        EcommerceAnalyticsService $analyticsService
     ) {
         $this->installmentService = $installmentService;
         $this->paymentOrderService = $paymentOrderService;
         $this->transbankService = $transbankService;
         $this->khipuService = $khipuService;
+        $this->createOrderService = $createOrderService;
+        $this->bsaleService = $bsaleService;
+        $this->analyticsService = $analyticsService;
     }
 
     public function processPayment(Request $request)
@@ -102,6 +114,9 @@ class ProcessPaymentController extends Controller
 
             // Almacenar cliente frecuente para futuras compras
             $this->storeFrequentClient($formData);
+
+            // Registrar inicio de pago en el servicio de analytics
+            $this->analyticsService->recordPaymentInitiated($request, $programId, $rut, $paymentData);
 
             // Crear transacción en el gateway de pago
             $gatewayResult = $this->createGatewayTransaction($orderDetail, $paymentData);

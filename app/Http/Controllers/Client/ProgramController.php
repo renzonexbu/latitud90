@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Services\Client\ProgramService;
 use App\Services\Client\ProgramDetailService;
+use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,11 +13,16 @@ class ProgramController extends Controller
 {
     protected $programService;
     protected $programDetailService;
+    protected $analyticsService;
 
-    public function __construct(ProgramService $programService, ProgramDetailService $programDetailService)
-    {
+    public function __construct(
+        ProgramService $programService, 
+        ProgramDetailService $programDetailService,
+        EcommerceAnalyticsService $analyticsService
+    ) {
         $this->programService = $programService;
         $this->programDetailService = $programDetailService;
+        $this->analyticsService = $analyticsService;
     }
 
     public function index(Request $request)
@@ -36,6 +42,9 @@ class ProgramController extends Controller
         if (!$participant) {
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
         }
+
+        // Registrar vista de lista de programas
+        $this->analyticsService->recordProgramListView($request);
 
         $programs = $this->programService->getAvailablePrograms($participant);
 
@@ -78,6 +87,9 @@ class ProgramController extends Controller
         if (!$participant) {
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
         }
+
+        // Registrar vista de detalle de programa
+        $this->analyticsService->recordProgramDetailView($request, $programId);
 
         $programDetails = $this->programDetailService->getProgramDetails($programId, $participant->id);
         

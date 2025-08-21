@@ -226,121 +226,349 @@
 
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <!-- Pagos Diarios -->
-                            <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
+                            <div
+                                class="bg-yellow-50 p-6 rounded-lg border border-yellow-200"
+                            >
                                 <div class="flex items-center mb-4">
-                                    <div class="p-2 bg-yellow-100 rounded-lg mr-3">
-                                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                    <div
+                                        class="p-2 bg-yellow-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-yellow-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                                            ></path>
                                         </svg>
                                     </div>
-                                    <h4 class="text-lg font-semibold text-yellow-800">Pagos Diarios</h4>
+                                    <h4
+                                        class="text-lg font-semibold text-yellow-800"
+                                    >
+                                        Pagos Diarios
+                                    </h4>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-600">Total Pagos</p>
-                                        <p class="text-xl font-bold text-yellow-600">{{ summary.dailyPayments.totalPayments || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Total Pagos
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-yellow-600"
+                                        >
+                                            {{
+                                                summary.dailyPayments
+                                                    .totalPayments || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Monto Total</p>
-                                        <p class="text-xl font-bold text-yellow-600">${{ (summary.dailyPayments.totalAmount || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Monto Total
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-yellow-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.dailyPayments
+                                                        .totalAmount || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Pagos Hoy</p>
-                                        <p class="text-lg font-semibold text-yellow-600">{{ summary.dailyPayments.paymentsToday || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Pagos Hoy
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-yellow-600"
+                                        >
+                                            {{
+                                                summary.dailyPayments
+                                                    .paymentsToday || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Promedio</p>
-                                        <p class="text-lg font-semibold text-yellow-600">${{ (summary.dailyPayments.averageAmount || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Promedio
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-yellow-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.dailyPayments
+                                                        .averageAmount || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Consolidado de Pagos -->
-                            <div class="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                            <div
+                                class="bg-purple-50 p-6 rounded-lg border border-purple-200"
+                            >
                                 <div class="flex items-center mb-4">
-                                    <div class="p-2 bg-purple-100 rounded-lg mr-3">
-                                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    <div
+                                        class="p-2 bg-purple-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-purple-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                            ></path>
                                         </svg>
                                     </div>
-                                    <h4 class="text-lg font-semibold text-purple-800">Consolidado de Pagos</h4>
+                                    <h4
+                                        class="text-lg font-semibold text-purple-800"
+                                    >
+                                        Consolidado de Pagos
+                                    </h4>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-600">Programas</p>
-                                        <p class="text-xl font-bold text-purple-600">{{ summary.consolidatedPayments.totalPrograms || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Programas
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-purple-600"
+                                        >
+                                            {{
+                                                summary.consolidatedPayments
+                                                    .totalPrograms || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Transacciones</p>
-                                        <p class="text-xl font-bold text-purple-600">{{ summary.consolidatedPayments.totalTransactions || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Transacciones
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-purple-600"
+                                        >
+                                            {{
+                                                summary.consolidatedPayments
+                                                    .totalTransactions || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Monto Total</p>
-                                        <p class="text-lg font-semibold text-purple-600">${{ (summary.consolidatedPayments.totalAmount || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Monto Total
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-purple-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.consolidatedPayments
+                                                        .totalAmount || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Promedio/Programa</p>
-                                        <p class="text-lg font-semibold text-purple-600">${{ (summary.consolidatedPayments.averagePerProgram || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Promedio/Programa
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-purple-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.consolidatedPayments
+                                                        .averagePerProgram || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Cronograma de Recuperación -->
-                            <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                            <div
+                                class="bg-green-50 p-6 rounded-lg border border-green-200"
+                            >
                                 <div class="flex items-center mb-4">
-                                    <div class="p-2 bg-green-100 rounded-lg mr-3">
-                                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    <div
+                                        class="p-2 bg-green-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-green-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            ></path>
                                         </svg>
                                     </div>
-                                    <h4 class="text-lg font-semibold text-green-800">Cronograma de Recuperación</h4>
+                                    <h4
+                                        class="text-lg font-semibold text-green-800"
+                                    >
+                                        Cronograma de Recuperación
+                                    </h4>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-600">Programados</p>
-                                        <p class="text-xl font-bold text-green-600">{{ summary.paymentSchedule.totalScheduled || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Programados
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-green-600"
+                                        >
+                                            {{
+                                                summary.paymentSchedule
+                                                    .totalScheduled || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Pagados</p>
-                                        <p class="text-xl font-bold text-green-600">{{ summary.paymentSchedule.totalPaid || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Pagados
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-green-600"
+                                        >
+                                            {{
+                                                summary.paymentSchedule
+                                                    .totalPaid || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Pendientes</p>
-                                        <p class="text-lg font-semibold text-green-600">{{ summary.paymentSchedule.totalPending || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Pendientes
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-green-600"
+                                        >
+                                            {{
+                                                summary.paymentSchedule
+                                                    .totalPending || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Tasa Completitud</p>
-                                        <p class="text-lg font-semibold text-green-600">{{ summary.paymentSchedule.completionRate || 0 }}%</p>
+                                        <p class="text-sm text-gray-600">
+                                            Tasa Completitud
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-green-600"
+                                        >
+                                            {{
+                                                summary.paymentSchedule
+                                                    .completionRate || 0
+                                            }}%
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Estado de Cuenta Parcial -->
-                            <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                            <div
+                                class="bg-blue-50 p-6 rounded-lg border border-blue-200"
+                            >
                                 <div class="flex items-center mb-4">
-                                    <div class="p-2 bg-blue-100 rounded-lg mr-3">
-                                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    <div
+                                        class="p-2 bg-blue-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-blue-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            ></path>
                                         </svg>
                                     </div>
-                                    <h4 class="text-lg font-semibold text-blue-800">Estado de Cuenta Parcial</h4>
+                                    <h4
+                                        class="text-lg font-semibold text-blue-800"
+                                    >
+                                        Estado de Cuenta Parcial
+                                    </h4>
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-600">Participantes</p>
-                                        <p class="text-xl font-bold text-blue-600">{{ summary.partialAccount.totalParticipants || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Participantes
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-blue-600"
+                                        >
+                                            {{
+                                                summary.partialAccount
+                                                    .totalParticipants || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Activos</p>
-                                        <p class="text-xl font-bold text-blue-600">{{ summary.partialAccount.activeParticipants || 0 }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Activos
+                                        </p>
+                                        <p
+                                            class="text-xl font-bold text-blue-600"
+                                        >
+                                            {{
+                                                summary.partialAccount
+                                                    .activeParticipants || 0
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Balance Total</p>
-                                        <p class="text-lg font-semibold text-blue-600">${{ (summary.partialAccount.totalBalance || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Balance Total
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-blue-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.partialAccount
+                                                        .totalBalance || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-600">Promedio Balance</p>
-                                        <p class="text-lg font-semibold text-blue-600">${{ (summary.partialAccount.averageBalance || 0).toLocaleString() }}</p>
+                                        <p class="text-sm text-gray-600">
+                                            Promedio Balance
+                                        </p>
+                                        <p
+                                            class="text-lg font-semibold text-blue-600"
+                                        >
+                                            ${{
+                                                (
+                                                    summary.partialAccount
+                                                        .averageBalance || 0
+                                                ).toLocaleString()
+                                            }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -348,52 +576,174 @@
                     </div>
                 </div>
 
-                <!-- Gráfico de Ventas -->
+                <!-- Gráficos de Ecommerce -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Gráfico de Programas Más Vistos -->
+                    <div
+                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
+                    >
+                        <div class="p-6 text-gray-900">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">
+                                    Programas Más Vistos
+                                </h3>
+                                <div class="flex space-x-2">
+                                    <button
+                                        @click="programChartPeriod = '7days'"
+                                        :class="[
+                                            'px-3 py-1 text-sm rounded',
+                                            programChartPeriod === '7days'
+                                                ? 'bg-blue-500 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ]"
+                                    >
+                                        7 días
+                                    </button>
+                                    <button
+                                        @click="programChartPeriod = '30days'"
+                                        :class="[
+                                            'px-3 py-1 text-sm rounded',
+                                            programChartPeriod === '30days'
+                                                ? 'bg-blue-500 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ]"
+                                    >
+                                        30 días
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas ref="programViewsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Clientes Frecuentes -->
+                    <div
+                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
+                    >
+                        <div class="p-6 text-gray-900">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">
+                                    Clientes Frecuentes
+                                </h3>
+                                <div class="flex space-x-2">
+                                    <button
+                                        @click="frequentClientsPeriod = 'all'"
+                                        :class="[
+                                            'px-3 py-1 text-sm rounded',
+                                            frequentClientsPeriod === 'all'
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ]"
+                                    >
+                                        Todo
+                                    </button>
+                                    <button
+                                        @click="
+                                            frequentClientsPeriod = 'thisYear'
+                                        "
+                                        :class="[
+                                            'px-3 py-1 text-sm rounded',
+                                            frequentClientsPeriod === 'thisYear'
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                        ]"
+                                    >
+                                        Este año
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas ref="frequentClientsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Funnel de Conversión -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold">
-                                Gráfico de Ventas
+                                Funnel de Conversión
                             </h3>
                             <div class="flex space-x-2">
                                 <button
-                                    @click="chartPeriod = 'daily'"
+                                    @click="funnelPeriod = '7days'"
                                     :class="[
                                         'px-3 py-1 text-sm rounded',
-                                        chartPeriod === 'daily'
-                                            ? 'bg-blue-500 text-white'
+                                        funnelPeriod === '7days'
+                                            ? 'bg-purple-500 text-white'
                                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                     ]"
                                 >
-                                    Diario
+                                    7 días
                                 </button>
                                 <button
-                                    @click="chartPeriod = 'weekly'"
+                                    @click="funnelPeriod = '30days'"
                                     :class="[
                                         'px-3 py-1 text-sm rounded',
-                                        chartPeriod === 'weekly'
-                                            ? 'bg-blue-500 text-white'
+                                        funnelPeriod === '30days'
+                                            ? 'bg-purple-500 text-white'
                                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                     ]"
                                 >
-                                    Semanal
+                                    30 días
                                 </button>
                                 <button
-                                    @click="chartPeriod = 'monthly'"
+                                    @click="funnelPeriod = '90days'"
                                     :class="[
                                         'px-3 py-1 text-sm rounded',
-                                        chartPeriod === 'monthly'
-                                            ? 'bg-blue-500 text-white'
+                                        funnelPeriod === '90days'
+                                            ? 'bg-purple-500 text-white'
                                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                     ]"
                                 >
-                                    Mensual
+                                    90 días
                                 </button>
                             </div>
                         </div>
+                        <div class="h-80">
+                            <canvas ref="funnelChart"></canvas>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- Métodos de Pago vs Conversión -->
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 text-gray-900">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold">
+                                Métodos de Pago vs Conversión
+                            </h3>
+                            <div class="flex space-x-2">
+                                <button
+                                    @click="paymentMethodsPeriod = '30days'"
+                                    :class="[
+                                        'px-3 py-1 text-sm rounded',
+                                        paymentMethodsPeriod === '30days'
+                                            ? 'bg-orange-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                    ]"
+                                >
+                                    30 días
+                                </button>
+                                <button
+                                    @click="paymentMethodsPeriod = '90days'"
+                                    :class="[
+                                        'px-3 py-1 text-sm rounded',
+                                        paymentMethodsPeriod === '90days'
+                                            ? 'bg-orange-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                                    ]"
+                                >
+                                    90 días
+                                </button>
+                            </div>
+                        </div>
                         <div class="h-64">
-                            <canvas ref="salesChart"></canvas>
+                            <canvas ref="paymentMethodsChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -410,7 +760,8 @@
 
                             <div class="space-y-3">
                                 <div
-                                    v-for="(program, index) in summary.consolidatedPayments.topPrograms"
+                                    v-for="(program, index) in summary
+                                        .consolidatedPayments.topPrograms"
                                     :key="index"
                                     class="flex items-center justify-between p-3 bg-gray-50 rounded"
                                 >
@@ -430,10 +781,7 @@
                                                 }}
                                             </p>
                                             <p class="text-sm text-gray-500">
-                                                {{
-                                                    program.count ||
-                                                    0
-                                                }}
+                                                {{ program.count || 0 }}
                                                 transacciones
                                             </p>
                                         </div>
@@ -466,7 +814,8 @@
 
                             <div class="space-y-3">
                                 <div
-                                    v-for="payment in summary.dailyPayments.topPaymentMethods"
+                                    v-for="payment in summary.dailyPayments
+                                        .topPaymentMethods"
                                     :key="payment.gateway"
                                     class="flex items-center justify-between p-3 bg-gray-50 rounded"
                                 >
@@ -501,7 +850,15 @@
                                             }}
                                         </p>
                                         <p class="text-sm text-gray-500">
-                                            {{ ((payment.amount / (summary.dailyPayments.totalAmount || 1)) * 100).toFixed(1) }}%
+                                            {{
+                                                (
+                                                    (payment.amount /
+                                                        (summary.dailyPayments
+                                                            .totalAmount ||
+                                                            1)) *
+                                                    100
+                                                ).toFixed(1)
+                                            }}%
                                         </p>
                                     </div>
                                 </div>
@@ -546,7 +903,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick } from "vue";
+import { ref, reactive, onMounted, computed, nextTick, watch } from "vue";
 import { Head, router, Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Chart, registerables } from "chart.js";
@@ -561,18 +918,20 @@ const props = defineProps({
             consolidatedPayments: {},
             paymentSchedule: {},
             partialAccount: {},
-            general: {}
+            general: {},
         }),
     },
     programs: {
         type: Array,
         default: () => [],
     },
-    chartData: {
+    ecommerceData: {
         type: Object,
         default: () => ({
-            labels: [],
-            datasets: [],
+            programViews: [],
+            frequentClients: [],
+            funnelData: {},
+            paymentMethods: [],
         }),
     },
 });
@@ -583,8 +942,23 @@ const filters = reactive({
     program: "",
 });
 
-const chartPeriod = ref("daily");
-const salesChart = ref(null);
+// Variables para los gráficos
+const programChartPeriod = ref("30days");
+const frequentClientsPeriod = ref("all");
+const funnelPeriod = ref("30days");
+const paymentMethodsPeriod = ref("30days");
+
+// Referencias a los canvas
+const programViewsChart = ref(null);
+const frequentClientsChart = ref(null);
+const funnelChart = ref(null);
+const paymentMethodsChart = ref(null);
+
+// Instancias de los gráficos
+let programViewsChartInstance = null;
+let frequentClientsChartInstance = null;
+let funnelChartInstance = null;
+let paymentMethodsChartInstance = null;
 
 // Establecer fechas por defecto (último mes)
 onMounted(() => {
@@ -598,18 +972,49 @@ onMounted(() => {
     filters.dateTo = today.toISOString().split("T")[0];
     filters.dateFrom = lastMonth.toISOString().split("T")[0];
 
-    // Crear gráfico después de que el DOM esté listo
+    // Crear gráficos después de que el DOM esté listo
     nextTick(() => {
-        createChart();
+        createAllCharts();
     });
 });
 
-const createChart = () => {
-    if (salesChart.value && props.chartData) {
-        const ctx = salesChart.value.getContext("2d");
-        new Chart(ctx, {
-            type: "line",
-            data: props.chartData,
+const createAllCharts = () => {
+    createProgramViewsChart();
+    createFrequentClientsChart();
+    createFunnelChart();
+    createPaymentMethodsChart();
+};
+
+const createProgramViewsChart = () => {
+    if (programViewsChart.value && props.ecommerceData.programViews) {
+        if (programViewsChartInstance) {
+            programViewsChartInstance.destroy();
+        }
+
+        const ctx = programViewsChart.value.getContext("2d");
+        const data = props.ecommerceData.programViews.slice(0, 10); // Top 10 programas
+
+        programViewsChartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: data.map((item) => item.program_name || "Sin nombre"),
+                datasets: [
+                    {
+                        label: "Vistas",
+                        data: data.map((item) => item.views || 0),
+                        backgroundColor: "rgba(59, 130, 246, 0.8)",
+                        borderColor: "rgba(59, 130, 246, 1)",
+                        borderWidth: 1,
+                    },
+                    {
+                        label: "Conversiones",
+                        data: data.map((item) => item.conversions || 0),
+                        backgroundColor: "rgba(34, 197, 94, 0.8)",
+                        borderColor: "rgba(34, 197, 94, 1)",
+                        borderWidth: 1,
+                    },
+                ],
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -618,7 +1023,7 @@ const createChart = () => {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: "Ingresos ($)",
+                            text: "Cantidad",
                         },
                     },
                 },
@@ -626,20 +1031,294 @@ const createChart = () => {
                     legend: {
                         position: "top",
                     },
+                    title: {
+                        display: true,
+                        text: "Programas Más Vistos",
+                    },
                 },
             },
         });
     }
 };
 
+const createFrequentClientsChart = () => {
+    if (frequentClientsChart.value && props.ecommerceData.frequentClients) {
+        if (frequentClientsChartInstance) {
+            frequentClientsChartInstance.destroy();
+        }
+
+        const ctx = frequentClientsChart.value.getContext("2d");
+        const data = props.ecommerceData.frequentClients.slice(0, 8); // Top 8 clientes
+
+        frequentClientsChartInstance = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels: data.map(
+                    (item) => item.client_name || "Cliente sin nombre"
+                ),
+                datasets: [
+                    {
+                        data: data.map((item) => item.purchase_count || 0),
+                        backgroundColor: [
+                            "rgba(34, 197, 94, 0.8)",
+                            "rgba(59, 130, 246, 0.8)",
+                            "rgba(168, 85, 247, 0.8)",
+                            "rgba(251, 146, 60, 0.8)",
+                            "rgba(239, 68, 68, 0.8)",
+                            "rgba(16, 185, 129, 0.8)",
+                            "rgba(99, 102, 241, 0.8)",
+                            "rgba(245, 101, 101, 0.8)",
+                        ],
+                        borderWidth: 2,
+                        borderColor: "#fff",
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: "right",
+                    },
+                    title: {
+                        display: true,
+                        text: "Clientes Frecuentes",
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return `${context.label}: ${context.parsed} compras`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+};
+
+const createFunnelChart = () => {
+    if (funnelChart.value && props.ecommerceData.funnelData) {
+        if (funnelChartInstance) {
+            funnelChartInstance.destroy();
+        }
+
+        const ctx = funnelChart.value.getContext("2d");
+        const funnelData = props.ecommerceData.funnelData;
+
+        funnelChartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: [
+                    "Búsquedas Hero",
+                    "Vistas Lista",
+                    "Vistas Detalle",
+                    "Vistas Pago",
+                    "Confirmaciones",
+                    "Pagos Iniciados",
+                    "Pagos Completados",
+                ],
+                datasets: [
+                    {
+                        label: "Cantidad",
+                        data: [
+                            funnelData.hero_searches || 0,
+                            funnelData.program_list_views || 0,
+                            funnelData.program_detail_views || 0,
+                            funnelData.payment_details_views || 0,
+                            funnelData.confirmation_views || 0,
+                            funnelData.payments_initiated || 0,
+                            funnelData.payments_completed || 0,
+                        ],
+                        backgroundColor: [
+                            "rgba(59, 130, 246, 0.8)",
+                            "rgba(16, 185, 129, 0.8)",
+                            "rgba(168, 85, 247, 0.8)",
+                            "rgba(251, 146, 60, 0.8)",
+                            "rgba(239, 68, 68, 0.8)",
+                            "rgba(99, 102, 241, 0.8)",
+                            "rgba(34, 197, 94, 0.8)",
+                        ],
+                        borderColor: [
+                            "rgba(59, 130, 246, 1)",
+                            "rgba(16, 185, 129, 1)",
+                            "rgba(168, 85, 247, 1)",
+                            "rgba(251, 146, 60, 1)",
+                            "rgba(239, 68, 68, 1)",
+                            "rgba(99, 102, 241, 1)",
+                            "rgba(34, 197, 94, 1)",
+                        ],
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: "y",
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Cantidad",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    title: {
+                        display: true,
+                        text: "Funnel de Conversión",
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function (context) {
+                                const index = context.dataIndex;
+                                const current = context.parsed.x;
+                                const previous =
+                                    index > 0
+                                        ? funnelChartInstance.data.datasets[0]
+                                              .data[index - 1]
+                                        : current;
+                                const rate =
+                                    previous > 0
+                                        ? ((current / previous) * 100).toFixed(
+                                              1
+                                          )
+                                        : 0;
+                                return `Tasa de conversión: ${rate}%`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+};
+
+const createPaymentMethodsChart = () => {
+    if (paymentMethodsChart.value && props.ecommerceData.paymentMethods) {
+        if (paymentMethodsChartInstance) {
+            paymentMethodsChartInstance.destroy();
+        }
+
+        const ctx = paymentMethodsChart.value.getContext("2d");
+        const data = props.ecommerceData.paymentMethods;
+
+        paymentMethodsChartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: data.map(
+                    (item) => item.payment_method || "Desconocido"
+                ),
+                datasets: [
+                    {
+                        label: "Total Intentos",
+                        data: data.map((item) => item.total || 0),
+                        backgroundColor: "rgba(251, 146, 60, 0.8)",
+                        borderColor: "rgba(251, 146, 60, 1)",
+                        borderWidth: 1,
+                        yAxisID: "y",
+                    },
+                    {
+                        label: "Pagos Exitosos",
+                        data: data.map((item) => item.successful || 0),
+                        backgroundColor: "rgba(34, 197, 94, 0.8)",
+                        borderColor: "rgba(34, 197, 94, 1)",
+                        borderWidth: 1,
+                        yAxisID: "y",
+                    },
+                    {
+                        label: "Tasa de Éxito (%)",
+                        data: data.map((item) => item.success_rate || 0),
+                        backgroundColor: "rgba(168, 85, 247, 0.8)",
+                        borderColor: "rgba(168, 85, 247, 1)",
+                        borderWidth: 1,
+                        yAxisID: "y1",
+                        type: "line",
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: "linear",
+                        display: true,
+                        position: "left",
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Cantidad",
+                        },
+                    },
+                    y1: {
+                        type: "linear",
+                        display: true,
+                        position: "right",
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: "Tasa de Éxito (%)",
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        position: "top",
+                    },
+                    title: {
+                        display: true,
+                        text: "Métodos de Pago vs Conversión",
+                    },
+                },
+            },
+        });
+    }
+};
+
+// Watchers para actualizar gráficos cuando cambien los períodos
+watch(programChartPeriod, () => {
+    createProgramViewsChart();
+});
+
+watch(frequentClientsPeriod, () => {
+    createFrequentClientsChart();
+});
+
+watch(funnelPeriod, () => {
+    createFunnelChart();
+});
+
+watch(paymentMethodsPeriod, () => {
+    createPaymentMethodsChart();
+});
+
 const generateReport = () => {
     try {
-        router.get("/admin/reports", filters, {
+        const params = {
+            ...filters,
+            programChartPeriod: programChartPeriod.value,
+            frequentClientsPeriod: frequentClientsPeriod.value,
+            funnelPeriod: funnelPeriod.value,
+            paymentMethodsPeriod: paymentMethodsPeriod.value,
+        };
+
+        router.get("/admin/reports", params, {
             preserveState: true,
             preserveScroll: true,
             onSuccess: () => {
                 nextTick(() => {
-                    createChart();
+                    createAllCharts();
                 });
             },
         });
@@ -668,7 +1347,7 @@ const exportConsolidatedReport = () => {
         const params = new URLSearchParams({
             dateFrom: filters.dateFrom,
             dateTo: filters.dateTo,
-            program: filters.program
+            program: filters.program,
         });
 
         window.open(`/admin/reports/export?${params.toString()}`, "_blank");
