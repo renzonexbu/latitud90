@@ -43,8 +43,7 @@ class ProgramController extends Controller
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
         }
 
-        // Registrar vista de lista de programas
-        $this->analyticsService->recordProgramListView($request);
+        // NO registrar analytics aquí - se hará desde el frontend con session_id
 
         $programs = $this->programService->getAvailablePrograms($participant);
 
@@ -88,8 +87,7 @@ class ProgramController extends Controller
             return redirect()->route('ecommerce.index')->with('error', 'Participante no encontrado');
         }
 
-        // Registrar vista de detalle de programa
-        $this->analyticsService->recordProgramDetailView($request, $programId);
+        // NO registrar analytics aquí - se hará desde el frontend con session_id
 
         $programDetails = $this->programDetailService->getProgramDetails($programId, $participant->id);
         

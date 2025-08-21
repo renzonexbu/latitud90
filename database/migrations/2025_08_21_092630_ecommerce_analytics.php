@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('ecommerce_analytics', function (Blueprint $table) {
             $table->id();
             $table->string('session_id')->nullable()->index(); // ID de sesión del usuario
-            $table->string('visitor_id')->nullable()->index(); // ID único del visitante
+            $table->text('visitor_id')->nullable(); // ID único del visitante (nullable para no causar problemas)
             $table->string('ip_address')->nullable();
             $table->string('user_agent')->nullable();
             $table->string('referrer')->nullable(); // De dónde viene el usuario

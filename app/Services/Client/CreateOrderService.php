@@ -83,6 +83,7 @@ class CreateOrderService
                 'payment_type' => $paymentData['paymentType'],
                 'status' => 'pending',
                 'order_number' => $this->generateOrderNumber(),
+                'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => 'Orden creada desde el flujo de pago'
             ]);
 

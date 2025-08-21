@@ -717,9 +717,55 @@ export default {
                 JSON.stringify(paymentData)
             );
 
+            // Registrar selección de método de pago en analytics
+            this.recordPaymentSelection(paymentData);
+
             // Redirigir a la vista de detalles de pago usando URL directa con RUT
             router.visit(`/programs/${this.programId}/payment`, {
                 data: { rut: this.$page.props.rut || this.$page.props.participant?.rut }
+            });
+        },
+        
+        recordPaymentSelection(paymentData) {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Obtener términos aceptados desde localStorage
+            const storedData = localStorage.getItem('selectedPaymentData');
+            let termsAccepted = false;
+            if (storedData) {
+                try {
+                    const parsed = JSON.parse(storedData);
+                    termsAccepted = parsed.termsAccepted || false;
+                } catch (e) {
+                    console.warn('Error parsing stored payment data:', e);
+                }
+            }
+            
+            // Enviar datos de selección de método de pago al backend
+            fetch('/api/analytics/payment-selection', {
+                method: 'POST',
+                credentials: 'same-origin', // Incluir cookies de sesión
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.programId,
+                    payment_type: paymentData.paymentType,
+                    payment_method: paymentData.paymentMethod,
+                    installments: paymentData.installments,
+                    amount: this.displayRemainingAmount,
+                    terms_accepted: termsAccepted,
+                })
+            }).catch(error => {
+                console.error('Error recording payment selection:', error);
             });
         },
         getPaymentButtonText() {

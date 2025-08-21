@@ -219,10 +219,39 @@ export default {
         // Auto-scroll to top
         window.scrollTo(0, 0);
         
+        // Registrar vista de confirmación en analytics
+        this.recordConfirmationView();
+        
         // Verificar si hay parámetros de error en la URL
         this.checkPaymentError();
     },
     methods: {
+        recordConfirmationView() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de vista de confirmación al backend
+            fetch('/api/analytics/confirmation-view', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.programId,
+                    participant_rut: this.document,
+                })
+            }).catch(error => {
+                console.error('Error recording confirmation view:', error);
+            });
+        },
         formatDueDate(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);

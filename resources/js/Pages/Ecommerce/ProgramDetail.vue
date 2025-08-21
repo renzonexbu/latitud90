@@ -240,7 +240,36 @@ export default {
             currentInstallments: 1,
         };
     },
+    mounted() {
+        // Registrar vista de detalle de programa en analytics
+        this.recordProgramDetailView();
+    },
     methods: {
+        recordProgramDetailView() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de vista de detalle de programa al backend
+            fetch('/api/analytics/program-detail-view', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.program.id,
+                })
+            }).catch(error => {
+                console.error('Error recording program detail view:', error);
+            });
+        },
         handlePaymentSelection(selection) {
             this.currentInstallments = selection?.installments || 1;
         },

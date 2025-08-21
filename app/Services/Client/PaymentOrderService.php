@@ -34,6 +34,7 @@ class PaymentOrderService
                 'payment_type' => 'monthly', // Pago de cuota mensual
                 'status' => 'pending',
                 'order_number' => $this->generateOrderNumber(),
+                'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => "Pago de cuota {$installment->installment_number} del plan {$installment->installmentPlan->id}"
             ]);
 
@@ -103,6 +104,7 @@ class PaymentOrderService
                 'payment_type' => 'total',
                 'status' => 'pending',
                 'order_number' => $this->generateOrderNumber(),
+                'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => 'Orden creada para pago total del programa'
             ]);
 
@@ -332,13 +334,21 @@ class PaymentOrderService
      */
     private function computeParticipantAmounts(Program $program, Participant $participant): array
     {
-        // Implementar lógica de cálculo de montos
-        // Por ahora retornar valores básicos
-        $totalAmount = 550000; // Monto del programa
-        $paidAmount = 0; // Monto ya pagado
-        $balance = $totalAmount - $paidAmount;
+        // Calcular el precio del participante usando el helper
+        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $participantTotalAmount = $priceData['final_price'];
+
+        // Calcular pagos aprobados previos
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $program->id);
+            })
+            ->where('status', 'approved')
+            ->sum('amount');
+        $paidAmount = round($paidAmount, 2);
+        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
         
-        return [$totalAmount, $paidAmount, $balance];
+        return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
 
     /**

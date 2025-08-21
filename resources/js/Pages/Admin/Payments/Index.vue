@@ -71,6 +71,53 @@
                 </div>
             </div>
 
+            <!-- Gráficas de Análisis -->
+            <div class="px-8 py-6 bg-white">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Análisis del Funnel de Conversión</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Funnel de Conversión -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Funnel de Conversión</h3>
+                        <div class="h-80">
+                            <canvas ref="funnelChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Métodos de Pago -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Métodos de Pago</h3>
+                        <div class="h-80">
+                            <canvas ref="paymentMethodsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Términos Aceptados -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Aceptación de Términos</h3>
+                        <div class="h-80">
+                            <canvas ref="termsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Clientes Frecuentes -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Tipo de Cliente</h3>
+                        <div class="h-80">
+                            <canvas ref="clientTypeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Programas Más Vistos -->
+                    <div class="bg-white p-6 rounded-lg shadow-sm border">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Programas Más Vistos</h3>
+                        <div class="h-80">
+                            <canvas ref="programViewsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Filtros -->
             <div class="px-8 py-4">
                 <PaymentsFilters 
@@ -104,14 +151,17 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { Chart, registerables } from 'chart.js';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import PaymentsHeader from '@/Components/Payments/PaymentsHeader.vue';
 import PaymentsFilters from '@/Components/Payments/PaymentsFilters.vue';
 import PaymentsTable from '@/Components/Payments/PaymentsTable.vue';
 import Pagination from '@/Components/Pagination.vue';
 import PaymentDetailModal from '@/Components/Payments/PaymentDetailModal.vue';
+
+Chart.register(...registerables);
 
 const props = defineProps({
     payments: {
@@ -131,11 +181,29 @@ const props = defineProps({
     filters: {
         type: Object,
         default: () => ({})
+    },
+    analyticsData: {
+        type: Object,
+        default: () => ({})
     }
 });
 
 const selectedPayment = ref(null);
 const showModal = ref(false);
+
+// Referencias para las gráficas
+const funnelChart = ref(null);
+const paymentMethodsChart = ref(null);
+const termsChart = ref(null);
+const clientTypeChart = ref(null);
+const programViewsChart = ref(null);
+
+// Instancias de las gráficas
+let funnelChartInstance = null;
+let paymentMethodsChartInstance = null;
+let termsChartInstance = null;
+let clientTypeChartInstance = null;
+let programViewsChartInstance = null;
 
 const formatPrice = (amount) => {
     return new Intl.NumberFormat('es-CL').format(amount || 0);
@@ -163,4 +231,343 @@ const handleFiltersChanged = (newFilters) => {
         preserveScroll: true
     });
 };
+
+// Función para procesar datos de analytics
+const processAnalyticsData = () => {
+    const data = props.analyticsData || {};
+    
+    // Procesar funnel de conversión
+    const funnelData = {
+        heroSearch: data.hero_search_count || 0,
+        programSelection: data.program_selection_count || 0,
+        programDetailView: data.program_detail_view_count || 0,
+        paymentSelection: data.payment_selection_count || 0,
+        buyerFormData: data.buyer_form_data_count || 0,
+        paymentInitiated: data.payment_initiated_count || 0,
+        paymentCompleted: data.payment_completed_count || 0,
+        paymentFailed: data.payment_failed_count || 0
+    };
+
+    // Procesar métodos de pago
+    const paymentMethods = data.payment_methods || {};
+    
+    // Procesar términos aceptados
+    const termsData = {
+        accepted: data.terms_accepted_count || 0,
+        notAccepted: data.terms_not_accepted_count || 0
+    };
+
+    // Procesar tipo de cliente
+    const clientTypeData = {
+        frequent: data.frequent_clients_count || 0,
+        new: data.new_clients_count || 0
+    };
+
+    // Procesar programas más vistos
+    const programViews = data.program_views || {};
+
+    return { funnelData, paymentMethods, termsData, clientTypeData, programViews };
+};
+
+// Crear gráfica del funnel de conversión
+const createFunnelChart = () => {
+    if (!funnelChart.value) return;
+
+    if (funnelChartInstance) {
+        funnelChartInstance.destroy();
+    }
+
+    const { funnelData } = processAnalyticsData();
+    const ctx = funnelChart.value.getContext('2d');
+
+    funnelChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [
+                'Búsqueda Hero',
+                'Selección Programa',
+                'Vista Detalle Programa',
+                'Vista Pago',
+                'Datos Comprador',
+                'Pago Iniciado',
+                'Pago Completado',
+                'Pago Fallido'
+            ],
+            datasets: [{
+                label: 'Usuarios',
+                data: [
+                    funnelData.heroSearch,
+                    funnelData.programSelection,
+                    funnelData.programDetailView,
+                    funnelData.paymentSelection,
+                    funnelData.buyerFormData,
+                    funnelData.paymentInitiated,
+                    funnelData.paymentCompleted,
+                    funnelData.paymentFailed
+                ],
+                backgroundColor: [
+                    '#3B82F6', // Azul
+                    '#10B981', // Verde
+                    '#F59E0B', // Amarillo
+                    '#8B5CF6', // Púrpura
+                    '#EF4444', // Rojo
+                    '#06B6D4', // Cyan
+                    '#6B7280', // Gris
+                    '#EC4899'  // Rosa
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Usuarios: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+};
+
+// Crear gráfica de métodos de pago
+const createPaymentMethodsChart = () => {
+    if (!paymentMethodsChart.value) return;
+
+    if (paymentMethodsChartInstance) {
+        paymentMethodsChartInstance.destroy();
+    }
+
+    const { paymentMethods } = processAnalyticsData();
+    const ctx = paymentMethodsChart.value.getContext('2d');
+
+    const labels = Object.keys(paymentMethods);
+    const data = Object.values(paymentMethods);
+
+    paymentMethodsChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#3B82F6',
+                    '#10B981',
+                    '#F59E0B',
+                    '#EF4444',
+                    '#8B5CF6',
+                    '#06B6D4'
+                ],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+};
+
+// Crear gráfica de términos aceptados
+const createTermsChart = () => {
+    if (!termsChart.value) return;
+
+    if (termsChartInstance) {
+        termsChartInstance.destroy();
+    }
+
+    const { termsData } = processAnalyticsData();
+    const ctx = termsChart.value.getContext('2d');
+
+    termsChartInstance = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Aceptados', 'No Aceptados'],
+            datasets: [{
+                data: [termsData.accepted, termsData.notAccepted],
+                backgroundColor: ['#10B981', '#EF4444'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+};
+
+// Crear gráfica de tipo de cliente
+const createClientTypeChart = () => {
+    if (!clientTypeChart.value) return;
+
+    if (clientTypeChartInstance) {
+        clientTypeChartInstance.destroy();
+    }
+
+    const { clientTypeData } = processAnalyticsData();
+    const ctx = clientTypeChart.value.getContext('2d');
+
+    clientTypeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Clientes Frecuentes', 'Clientes Nuevos'],
+            datasets: [{
+                label: 'Cantidad',
+                data: [clientTypeData.frequent, clientTypeData.new],
+                backgroundColor: ['#8B5CF6', '#06B6D4'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Clientes: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+};
+
+// Crear gráfica de programas más vistos
+const createProgramViewsChart = () => {
+    if (!programViewsChart.value) return;
+
+    if (programViewsChartInstance) {
+        programViewsChartInstance.destroy();
+    }
+
+    const { programViews } = processAnalyticsData();
+    const ctx = programViewsChart.value.getContext('2d');
+
+    const labels = Object.keys(programViews);
+    const data = Object.values(programViews);
+
+    programViewsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Vistas',
+                data: data,
+                backgroundColor: [
+                    '#3B82F6',
+                    '#10B981',
+                    '#F59E0B',
+                    '#EF4444',
+                    '#8B5CF6'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Vistas: ${context.parsed.x}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                },
+                y: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+};
+
+// Crear todas las gráficas
+const createAllCharts = () => {
+    nextTick(() => {
+        createFunnelChart();
+        createPaymentMethodsChart();
+        createTermsChart();
+        createClientTypeChart();
+        createProgramViewsChart();
+    });
+};
+
+// Inicializar gráficas al montar el componente
+onMounted(() => {
+    createAllCharts();
+});
 </script>

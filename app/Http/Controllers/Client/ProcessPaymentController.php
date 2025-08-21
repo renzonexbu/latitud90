@@ -65,6 +65,12 @@ class ProcessPaymentController extends Controller
             // Obtener datos del localStorage (enviados desde el frontend)
             $paymentData = $request->input('paymentData');
             $formData = $request->input('formData');
+            
+            // Agregar session_id a los datos de pago
+            $sessionId = $request->input('session_id');
+            if ($sessionId) {
+                $paymentData['session_id'] = $sessionId;
+            }
 
             if (!$paymentData || !$formData) {
                 return response()->json([

@@ -79,7 +79,35 @@ export default {
             required: true,
         },
     },
+    mounted() {
+        // Registrar vista de lista de programas en analytics
+        this.recordProgramListView();
+    },
     methods: {
+        recordProgramListView() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de vista de lista de programas al backend
+            fetch('/api/analytics/program-list-view', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                })
+            }).catch(error => {
+                console.error('Error recording program list view:', error);
+            });
+        },
         formatRut(rut) {
             if (!rut) return "";
             const cleanRut = rut.replace(/\./g, "").replace(/-/g, "");
@@ -120,6 +148,9 @@ export default {
                     participant_id: participant.id || null,
                 };
                 localStorage.setItem('selectedEnrollment', JSON.stringify(payload));
+                
+                // Registrar selección de programa en analytics
+                this.recordProgramSelection(program, enrollmentCode);
             } catch (e) {
                 // noop
             }
@@ -127,6 +158,34 @@ export default {
             router.get(route("ecommerce.program-detail", program.id), {
                 document: this.document,
                 document_type: this.document_type,
+            });
+        },
+        
+        recordProgramSelection(program, enrollmentCode) {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de selección de programa al backend
+            fetch('/api/analytics/program-selection', {
+                method: 'POST',
+                credentials: 'same-origin', // Incluir cookies de sesión
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: program.id,
+                    enrollment_code: enrollmentCode,
+                    program_name: program.name,
+                })
+            }).catch(error => {
+                console.error('Error recording program selection:', error);
             });
         },
     },

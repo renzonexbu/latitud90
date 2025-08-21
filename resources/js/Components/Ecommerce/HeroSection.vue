@@ -446,6 +446,13 @@ const performSearch = async () => {
                     "Participante encontrado:",
                     response.data.participant
                 );
+                
+                // Guardar session_id en localStorage para mantener la sesión en todo el flujo
+                if (response.data.session_id) {
+                    localStorage.setItem('analytics_session_id', response.data.session_id);
+                    console.log('Session ID guardado:', response.data.session_id);
+                }
+                
                 // Redirigir a la vista de programas
                 router.get(route("ecommerce.programs"), { 
                     document: cleanDocument,

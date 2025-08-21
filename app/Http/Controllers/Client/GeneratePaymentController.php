@@ -34,6 +34,8 @@ class GeneratePaymentController extends Controller
         // Obtener tipos de documento
         $documentTypes = Document::all();
         
+        // NO registrar analytics aquí - se hará desde el frontend con session_id
+        
         return Inertia::render('Ecommerce/PaymentDetails', [
             'paymentData' => $paymentData,
             'programId' => $programId,

@@ -39,7 +39,7 @@ class PaymentConfirmationService
     /**
      * Confirmar pago según el tipo de pasarela con validaciones específicas
      */
-    public function confirmPayment(int $orderDetailId, string $gatewayType, array $gatewayData = []): array
+    public function confirmPayment(int $orderDetailId, string $gatewayType, array $gatewayData = [], string $sessionId = null): array
     {
         try {
             $orderDetail = OrderDetail::findOrFail($orderDetailId);
@@ -68,11 +68,11 @@ class PaymentConfirmationService
 
                 switch ($gatewayType) {
                     case 'transbank':
-                        $lastResult = $this->confirmTransbankPayment($orderDetail, $gatewayData, $pendingPayment);
+                        $lastResult = $this->confirmTransbankPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
                         break;
 
                     case 'khipu':
-                        $lastResult = $this->confirmKhipuPayment($orderDetail, $gatewayData, $pendingPayment);
+                        $lastResult = $this->confirmKhipuPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
                         break;
 
                     default:
@@ -154,7 +154,7 @@ class PaymentConfirmationService
     /**
      * Confirmar pago de Transbank con validaciones específicas según documentación
      */
-    private function confirmTransbankPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment): array
+    private function confirmTransbankPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
     {
         $tokenWs = $gatewayData['token_ws'] ?? null;
 
@@ -184,7 +184,7 @@ class PaymentConfirmationService
             // Validar responseCode según documentación de Transbank
             if ($result['success'] && $result['response_code'] === 0) {
                 // Pago aprobado - responseCode = 0
-                $this->processSuccessfulPayment($orderDetail, $result, 'transbank');
+                $this->processSuccessfulPayment($orderDetail, $result, 'transbank', $sessionId);
                 $pendingPayment->markAsConfirmed();
 
                 return [
@@ -227,7 +227,7 @@ class PaymentConfirmationService
     /**
      * Confirmar pago de Khipu con validaciones específicas según documentación
      */
-    private function confirmKhipuPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment): array
+    private function confirmKhipuPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
     {
         $paymentId = $gatewayData['payment_id'] ?? null;
 
@@ -258,7 +258,7 @@ class PaymentConfirmationService
             switch ($result['status']) {
                 case 'done':
                     // Pago realizado y confirmado
-                    $this->processSuccessfulPayment($orderDetail, $result, 'khipu');
+                    $this->processSuccessfulPayment($orderDetail, $result, 'khipu', $sessionId);
                     $pendingPayment->markAsConfirmed();
 
                     return [
@@ -341,7 +341,7 @@ class PaymentConfirmationService
     /**
      * Procesar pago exitoso
      */
-    private function processSuccessfulPayment(OrderDetail $orderDetail, array $result, string $gatewayType): void
+    private function processSuccessfulPayment(OrderDetail $orderDetail, array $result, string $gatewayType, string $sessionId = null): void
     {
         // Buscar pago existente por order_detail_id (sin importar external_payment_id)
         $payment = Payment::where('order_detail_id', $orderDetail->id)
@@ -390,7 +390,7 @@ class PaymentConfirmationService
         $this->sendSuccessEmail($orderDetail, $payment);
 
         // Registrar pago completado en analytics
-        $this->analyticsService->recordPaymentCompleted($orderDetail, [
+        $this->analyticsService->recordPaymentCompletedFromBackend($orderDetail, [
             'payment_method' => $orderDetail->paymentGateway->name ?? null,
         ]);
 

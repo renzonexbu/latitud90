@@ -44,7 +44,8 @@ const props = defineProps({
   gatewayType: { type: String, required: true },
   gatewayData: { type: Object, default: () => ({}) },
   rut: { type: String, default: '' },
-  programId: { type: Number, default: 1 }
+  programId: { type: Number, default: 1 },
+  sessionId: { type: String, default: '' }
 })
 
 const isProcessing = ref(false)
@@ -88,6 +89,11 @@ const confirmPayment = async () => {
     const form = new FormData()
     form.append('orderDetailId', String(props.orderDetailId))
     form.append('gatewayType', props.gatewayType)
+    
+    // Agregar session_id si está disponible
+    if (props.sessionId) {
+      form.append('session_id', props.sessionId)
+    }
     
     // Agregar datos específicos de la pasarela
     Object.entries(props.gatewayData).forEach(([key, value]) => {

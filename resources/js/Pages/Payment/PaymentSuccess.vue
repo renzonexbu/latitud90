@@ -223,8 +223,56 @@ onMounted(() => {
   // Auto-scroll to top
   window.scrollTo(0, 0)
   
+  // Registrar pago completado en analytics
+  recordPaymentCompleted()
+  
   // Limpiar localStorage después del pago exitoso
   localStorage.removeItem('selectedPaymentData')
   localStorage.removeItem('paymentFormData')
 })
+
+const recordPaymentCompleted = () => {
+  // Obtener session_id desde localStorage
+  const sessionId = localStorage.getItem('analytics_session_id')
+  
+  if (!sessionId) {
+    console.warn('No se encontró session_id en localStorage')
+    return
+  }
+  
+  // Obtener datos del pago desde localStorage
+  const storedData = localStorage.getItem('selectedPaymentData')
+  let paymentData = {}
+  if (storedData) {
+    try {
+      paymentData = JSON.parse(storedData)
+    } catch (e) {
+      console.warn('Error parsing stored payment data:', e)
+    }
+  }
+  
+  // Enviar datos de pago completado al backend
+  fetch('/api/analytics/payment-completed', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      program_id: props.paymentData.program?.id || paymentData.programId,
+      participant_rut: props.paymentData.order_detail?.document_number || props.rut,
+      payment_data: {
+        payment_type: paymentData.paymentType || 'total',
+        payment_method: props.paymentData.gateway_type || paymentData.paymentMethod,
+        amount: props.paymentData.amount,
+        terms_accepted: paymentData.termsAccepted || false,
+        transaction_id: props.paymentData.transaction_id,
+      }
+    })
+  }).catch(error => {
+    console.error('Error recording payment completed:', error)
+  })
+}
 </script>

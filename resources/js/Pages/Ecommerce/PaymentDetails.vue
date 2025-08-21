@@ -364,6 +364,7 @@ export default {
                 city: "",
                 termsAccepted: false,
                 marketingAccepted: false,
+                isFrequentClient: false, // Nuevo campo para indicar si es cliente frecuente
             },
             rutValidation: {
                 isValid: null,
@@ -420,6 +421,9 @@ export default {
         },
     },
     mounted() {
+        // Registrar vista de detalles de pago en analytics
+        this.recordPaymentDetailsView();
+        
         // Establecer RUT como tipo de documento por defecto
         this.formData.documentType = this.getDocumentTypeId('RUT');
 
@@ -484,6 +488,7 @@ export default {
                         city: cityId,
                         termsAccepted: buyerData.termsAccepted || false,
                         marketingAccepted: buyerData.marketingAccepted || false,
+                        isFrequentClient: buyerData.isFrequentClient || false, // Cargar el nuevo campo
                     };
 
                     console.log(
@@ -808,6 +813,9 @@ export default {
             // NO autocompletar los checkboxes - el usuario debe seleccionarlos manualmente
             // this.formData.termsAccepted = clientData.terms_accepted;
             // this.formData.marketingAccepted = clientData.marketing_accepted;
+            
+            // Marcar que es un cliente frecuente
+            this.formData.isFrequentClient = true;
 
             // Para la comuna, esperar a que se carguen las comunas después de establecer la región
             this.$nextTick(() => {
@@ -928,6 +936,9 @@ export default {
         continueToPayment() {
             if (!this.isFormValid) return;
 
+            // Registrar datos del formulario en analytics antes de continuar
+            this.recordBuyerFormData();
+
             // Obtener el tipo de documento seleccionado
             const selectedDocType = this.documentTypes.find(
                 (doc) => doc.id == this.formData.documentType
@@ -965,6 +976,7 @@ export default {
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
                 marketingAccepted: this.formData.marketingAccepted,
+                isFrequentClient: this.formData.isFrequentClient, // Incluir el nuevo campo
 
                 // Timestamp
                 submittedAt: new Date().toISOString(),
@@ -1026,6 +1038,7 @@ export default {
                 // Acuerdos
                 termsAccepted: this.formData.termsAccepted,
                 marketingAccepted: this.formData.marketingAccepted,
+                isFrequentClient: this.formData.isFrequentClient, // Incluir el nuevo campo
 
                 // Timestamp
                 submittedAt: new Date().toISOString(),
@@ -1091,6 +1104,61 @@ export default {
                 }
             }
         },
+
+        recordPaymentDetailsView() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de vista de detalles de pago al backend
+            fetch('/api/analytics/payment-details-view', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.programId,
+                    participant_rut: this.rut,
+                })
+            }).catch(error => {
+                console.error('Error recording payment details view:', error);
+            });
+        },
+
+        recordBuyerFormData() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos del formulario del comprador al backend
+            fetch('/api/analytics/buyer-form-data', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.programId,
+                    participant_rut: this.rut,
+                    form_data: this.formData,
+                })
+            }).catch(error => {
+                console.error('Error recording buyer form data:', error);
+            });
+        }
     },
 };
 </script>

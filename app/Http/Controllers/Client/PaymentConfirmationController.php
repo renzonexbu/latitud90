@@ -36,9 +36,10 @@ class PaymentConfirmationController extends Controller
             'rut_in_session' => $rut,
         ]);
 
-        // Obtener el programId desde el orderDetail
+        // Obtener el programId y session_id desde el orderDetail
         $orderDetail = \App\Models\OrderDetail::find($orderDetailId);
         $programId = $orderDetail ? $orderDetail->order->program_id : 1;
+        $sessionId = $orderDetail ? $orderDetail->order->session_id : null;
         
         return Inertia::render('Payment/PaymentSpinner', [
             'orderDetailId' => (int) $orderDetailId,
@@ -46,6 +47,7 @@ class PaymentConfirmationController extends Controller
             'gatewayData' => $gatewayData,
             'rut' => $rut,
             'programId' => $programId,
+            'sessionId' => $sessionId,
         ]);
     }
 
@@ -100,7 +102,10 @@ class PaymentConfirmationController extends Controller
             'all_request_data' => $request->all(),
         ]);
 
-        $result = $this->paymentConfirmationService->confirmPayment($orderDetailId, $gatewayType, $gatewayData);
+        // Obtener session_id del request
+        $sessionId = $request->input('session_id');
+
+        $result = $this->paymentConfirmationService->confirmPayment($orderDetailId, $gatewayType, $gatewayData, $sessionId);
 
         return response()->json($result);
     }

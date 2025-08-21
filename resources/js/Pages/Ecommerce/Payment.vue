@@ -464,11 +464,59 @@
       },
       processPayment() {
         this.paymentForm.payment_method = this.selectedPaymentMethod;
+        
+        // Registrar inicio de pago en analytics
+        this.recordPaymentInitiated();
+        
         this.paymentForm.post(
           route("ecommerce.process-payment", {
             payment: this.passenger.id
           })
         );
+      },
+      
+      recordPaymentInitiated() {
+        // Obtener session_id desde localStorage
+        const sessionId = localStorage.getItem('analytics_session_id');
+        
+        if (!sessionId) {
+          console.warn('No se encontró session_id en localStorage');
+          return;
+        }
+        
+        // Obtener datos del pago desde localStorage
+        const storedData = localStorage.getItem('selectedPaymentData');
+        let paymentData = {};
+        if (storedData) {
+          try {
+            paymentData = JSON.parse(storedData);
+          } catch (e) {
+            console.warn('Error parsing stored payment data:', e);
+          }
+        }
+        
+        // Enviar datos de inicio de pago al backend
+        fetch('/api/analytics/payment-initiated', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            program_id: this.passenger.program_id,
+            participant_rut: this.passenger.document_number,
+            payment_data: {
+              payment_type: paymentData.paymentType || 'total',
+              payment_method: this.selectedPaymentMethod,
+              amount: this.totalAmount,
+              terms_accepted: paymentData.termsAccepted || false,
+            }
+          })
+        }).catch(error => {
+          console.error('Error recording payment initiated:', error);
+        });
       }
     },
     data() {
