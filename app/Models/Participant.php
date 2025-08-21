@@ -38,7 +38,9 @@ class Participant extends Model
     ];
 
     protected $appends = [
-        'full_name'
+        'full_name',
+        'first_name',
+        'last_name'
     ];
 
     public function emergencyContacts()
@@ -127,6 +129,36 @@ class Participant extends Model
         }
         
         return !empty($parts) ? implode(' ', $parts) : 'N/A';
+    }
+
+    /**
+     * Accessor para first_name - compatibilidad con frontend
+     */
+    public function getFirstNameAttribute()
+    {
+        $names = [];
+        if ($this->attributes['first_name']) {
+            $names[] = $this->capitalizeWords($this->attributes['first_name']);
+        }
+        if ($this->attributes['second_name']) {
+            $names[] = $this->capitalizeWords($this->attributes['second_name']);
+        }
+        return implode(' ', $names);
+    }
+
+    /**
+     * Accessor para last_name - compatibilidad con frontend
+     */
+    public function getLastNameAttribute()
+    {
+        $lastNames = [];
+        if ($this->attributes['first_last_name']) {
+            $lastNames[] = $this->capitalizeWords($this->attributes['first_last_name']);
+        }
+        if ($this->attributes['second_last_name']) {
+            $lastNames[] = $this->capitalizeWords($this->attributes['second_last_name']);
+        }
+        return implode(' ', $lastNames);
     }
 
     /**

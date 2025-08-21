@@ -4,7 +4,6 @@ use App\Http\Controllers\Client\ProgramController;
 use App\Http\Controllers\Client\GeneratePaymentController;
 use App\Http\Controllers\Client\ConfirmPaymentController;
 use App\Http\Controllers\Client\ProcessPaymentController;
-use App\Http\Controllers\Client\PaymentGatewayController;
 use App\Http\Controllers\Client\PaymentConfirmationController;
 use Illuminate\Support\Facades\Route;
 
