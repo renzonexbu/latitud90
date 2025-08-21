@@ -410,7 +410,7 @@ const validateDocument = () => {
         }
 
         rutValidation.isValid = true;
-        rutValidation.message = "Pasaporte válido";
+        rutValidation.message = ""; // No mostrar mensaje de "válido" para pasaporte
     }
 };
 
