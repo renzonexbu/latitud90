@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('ecommerce_analytics', function (Blueprint $table) {
             $table->id();
             $table->string('session_id')->nullable()->index(); // ID de sesión del usuario
-            $table->text('visitor_id')->nullable(); // ID único del visitante (nullable para no causar problemas)
             $table->string('ip_address')->nullable();
             $table->string('user_agent')->nullable();
             $table->string('referrer')->nullable(); // De dónde viene el usuario
@@ -27,7 +26,7 @@ return new class extends Migration
             $table->unsignedBigInteger('program_id')->nullable()->index();
             $table->string('program_name')->nullable();
             
-            // Puntos de conversión del flujo
+            // Puntos de conversión del flujo - Solo timestamps clave
             $table->timestamp('hero_search_at')->nullable(); // Buscador en hero
             $table->timestamp('program_list_view_at')->nullable(); // Vista de lista de programas
             $table->timestamp('program_detail_view_at')->nullable(); // Vista de detalle de programa
@@ -37,9 +36,11 @@ return new class extends Migration
             $table->timestamp('payment_completed_at')->nullable(); // Pago completado
             $table->timestamp('payment_failed_at')->nullable(); // Pago fallido
             
-            // Datos del pago
+            // Datos del pago - Solo lo esencial
             $table->decimal('payment_amount', 10, 2)->nullable();
             $table->string('payment_method')->nullable(); // transbank, khipu, etc.
+            $table->string('payment_type')->nullable(); // contado, cuotas
+            $table->integer('installments_count')->nullable(); // Número de cuotas
             $table->string('payment_status')->nullable(); // pending, completed, failed
             $table->string('order_number')->nullable();
             $table->unsignedBigInteger('order_id')->nullable()->index();
@@ -50,18 +51,16 @@ return new class extends Migration
             $table->integer('time_to_payment')->nullable(); // Segundos desde detalle hasta pago
             $table->integer('time_to_completion')->nullable(); // Segundos desde pago hasta completado
             
-            // Datos adicionales
-            $table->json('funnel_data')->nullable(); // Datos adicionales del funnel
-            $table->json('user_behavior')->nullable(); // Comportamiento del usuario
-            $table->text('notes')->nullable();
-            
             // Timestamps
             $table->timestamps();
             
-            // Índices adicionales
+            // Índices adicionales para análisis
             $table->index(['created_at', 'program_id']);
             $table->index(['session_id', 'created_at']);
             $table->index(['participant_rut', 'created_at']);
+            $table->index(['payment_method', 'created_at']);
+            $table->index(['payment_type', 'created_at']);
+            $table->index(['payment_status', 'created_at']);
         });
     }
 

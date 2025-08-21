@@ -618,21 +618,21 @@
                         </div>
                     </div>
 
-                    <!-- Gráfico de Clientes Frecuentes -->
+                    <!-- Gráfico de Participantes Más Buscados -->
                     <div
                         class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
                     >
                         <div class="p-6 text-gray-900">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-lg font-semibold">
-                                    Clientes Frecuentes
+                                    Participantes Más Buscados
                                 </h3>
                                 <div class="flex space-x-2">
                                     <button
-                                        @click="frequentClientsPeriod = 'all'"
+                                        @click="frequentParticipantsPeriod = 'all'"
                                         :class="[
                                             'px-3 py-1 text-sm rounded',
-                                            frequentClientsPeriod === 'all'
+                                            frequentParticipantsPeriod === 'all'
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                         ]"
@@ -641,11 +641,11 @@
                                     </button>
                                     <button
                                         @click="
-                                            frequentClientsPeriod = 'thisYear'
+                                            frequentParticipantsPeriod = 'thisYear'
                                         "
                                         :class="[
                                             'px-3 py-1 text-sm rounded',
-                                            frequentClientsPeriod === 'thisYear'
+                                            frequentParticipantsPeriod === 'thisYear'
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                         ]"
@@ -655,7 +655,7 @@
                                 </div>
                             </div>
                             <div class="h-64">
-                                <canvas ref="frequentClientsChart"></canvas>
+                                <canvas ref="frequentParticipantsChart"></canvas>
                             </div>
                         </div>
                     </div>
@@ -744,6 +744,33 @@
                         </div>
                         <div class="h-64">
                             <canvas ref="paymentMethodsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Análisis de Cuotas y Tipos de Pago -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Análisis de Cuotas -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6 text-gray-900">
+                            <h3 class="text-lg font-semibold mb-4">
+                                Análisis de Cuotas
+                            </h3>
+                            <div class="h-64">
+                                <canvas ref="installmentsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distribución por Tipo de Pago -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6 text-gray-900">
+                            <h3 class="text-lg font-semibold mb-4">
+                                Distribución por Tipo de Pago
+                            </h3>
+                            <div class="h-64">
+                                <canvas ref="paymentTypesChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -929,9 +956,21 @@ const props = defineProps({
         type: Object,
         default: () => ({
             programViews: [],
-            frequentClients: [],
-            funnelData: {},
+            frequentParticipants: [],
             paymentMethods: [],
+            installmentsAnalysis: [],
+            paymentTypes: [],
+        }),
+    },
+    funnelAnalysis: {
+        type: Object,
+        default: () => ({
+            total_sessions: 0,
+            funnel_stages: {},
+            conversion_rates: {},
+            payment_analysis: {},
+            top_participants: [],
+            top_programs: [],
         }),
     },
 });
@@ -944,21 +983,25 @@ const filters = reactive({
 
 // Variables para los gráficos
 const programChartPeriod = ref("30days");
-const frequentClientsPeriod = ref("all");
+const frequentParticipantsPeriod = ref("all");
 const funnelPeriod = ref("30days");
 const paymentMethodsPeriod = ref("30days");
 
 // Referencias a los canvas
 const programViewsChart = ref(null);
-const frequentClientsChart = ref(null);
+const frequentParticipantsChart = ref(null);
 const funnelChart = ref(null);
 const paymentMethodsChart = ref(null);
+const installmentsChart = ref(null);
+const paymentTypesChart = ref(null);
 
 // Instancias de los gráficos
 let programViewsChartInstance = null;
-let frequentClientsChartInstance = null;
+let frequentParticipantsChartInstance = null;
 let funnelChartInstance = null;
 let paymentMethodsChartInstance = null;
+let installmentsChartInstance = null;
+let paymentTypesChartInstance = null;
 
 // Establecer fechas por defecto (último mes)
 onMounted(() => {
@@ -972,6 +1015,10 @@ onMounted(() => {
     filters.dateTo = today.toISOString().split("T")[0];
     filters.dateFrom = lastMonth.toISOString().split("T")[0];
 
+
+
+
+
     // Crear gráficos después de que el DOM esté listo
     nextTick(() => {
         createAllCharts();
@@ -980,9 +1027,11 @@ onMounted(() => {
 
 const createAllCharts = () => {
     createProgramViewsChart();
-    createFrequentClientsChart();
+    createFrequentParticipantsChart();
     createFunnelChart();
     createPaymentMethodsChart();
+    createInstallmentsChart();
+    createPaymentTypesChart();
 };
 
 const createProgramViewsChart = () => {
@@ -997,7 +1046,7 @@ const createProgramViewsChart = () => {
         programViewsChartInstance = new Chart(ctx, {
             type: "bar",
             data: {
-                labels: data.map((item) => item.program_name || "Sin nombre"),
+                labels: data.map((item) => item.program_name || `Programa #${item.program_id}`),
                 datasets: [
                     {
                         label: "Vistas",
@@ -1018,8 +1067,9 @@ const createProgramViewsChart = () => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                indexAxis: "y", // Barras horizontales para mejor legibilidad
                 scales: {
-                    y: {
+                    x: {
                         beginAtZero: true,
                         title: {
                             display: true,
@@ -1041,56 +1091,49 @@ const createProgramViewsChart = () => {
     }
 };
 
-const createFrequentClientsChart = () => {
-    if (frequentClientsChart.value && props.ecommerceData.frequentClients) {
-        if (frequentClientsChartInstance) {
-            frequentClientsChartInstance.destroy();
+const createFrequentParticipantsChart = () => {
+    if (frequentParticipantsChart.value && props.ecommerceData.frequentParticipants) {
+        if (frequentParticipantsChartInstance) {
+            frequentParticipantsChartInstance.destroy();
         }
 
-        const ctx = frequentClientsChart.value.getContext("2d");
-        const data = props.ecommerceData.frequentClients.slice(0, 8); // Top 8 clientes
+        const ctx = frequentParticipantsChart.value.getContext("2d");
+        const data = props.ecommerceData.frequentParticipants.slice(0, 8); // Top 8 participantes
 
-        frequentClientsChartInstance = new Chart(ctx, {
-            type: "doughnut",
+        frequentParticipantsChartInstance = new Chart(ctx, {
+            type: "bar",
             data: {
-                labels: data.map(
-                    (item) => item.client_name || "Cliente sin nombre"
-                ),
+                labels: data.map((item) => item.participant_rut || "Sin RUT"),
                 datasets: [
                     {
-                        data: data.map((item) => item.purchase_count || 0),
-                        backgroundColor: [
-                            "rgba(34, 197, 94, 0.8)",
-                            "rgba(59, 130, 246, 0.8)",
-                            "rgba(168, 85, 247, 0.8)",
-                            "rgba(251, 146, 60, 0.8)",
-                            "rgba(239, 68, 68, 0.8)",
-                            "rgba(16, 185, 129, 0.8)",
-                            "rgba(99, 102, 241, 0.8)",
-                            "rgba(245, 101, 101, 0.8)",
-                        ],
-                        borderWidth: 2,
-                        borderColor: "#fff",
+                        label: "Búsquedas",
+                        data: data.map((item) => item.search_count || 0),
+                        backgroundColor: "rgba(34, 197, 94, 0.8)",
+                        borderColor: "rgba(34, 197, 94, 1)",
+                        borderWidth: 1,
                     },
                 ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                indexAxis: "y", // Barras horizontales para mejor legibilidad
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Número de Búsquedas",
+                        },
+                    },
+                },
                 plugins: {
                     legend: {
-                        position: "right",
+                        display: false,
                     },
                     title: {
                         display: true,
-                        text: "Clientes Frecuentes",
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return `${context.label}: ${context.parsed} compras`;
-                            },
-                        },
+                        text: "Participantes Más Buscados",
                     },
                 },
             },
@@ -1099,13 +1142,13 @@ const createFrequentClientsChart = () => {
 };
 
 const createFunnelChart = () => {
-    if (funnelChart.value && props.ecommerceData.funnelData) {
+    if (funnelChart.value && props.funnelAnalysis.funnel_stages) {
         if (funnelChartInstance) {
             funnelChartInstance.destroy();
         }
 
         const ctx = funnelChart.value.getContext("2d");
-        const funnelData = props.ecommerceData.funnelData;
+        const funnelStages = props.funnelAnalysis.funnel_stages;
 
         funnelChartInstance = new Chart(ctx, {
             type: "bar",
@@ -1123,13 +1166,13 @@ const createFunnelChart = () => {
                     {
                         label: "Cantidad",
                         data: [
-                            funnelData.hero_searches || 0,
-                            funnelData.program_list_views || 0,
-                            funnelData.program_detail_views || 0,
-                            funnelData.payment_details_views || 0,
-                            funnelData.confirmation_views || 0,
-                            funnelData.payments_initiated || 0,
-                            funnelData.payments_completed || 0,
+                            funnelStages.hero_search || 0,
+                            funnelStages.program_list_view || 0,
+                            funnelStages.program_detail_view || 0,
+                            funnelStages.payment_details_view || 0,
+                            funnelStages.confirmation_view || 0,
+                            funnelStages.payment_initiated || 0,
+                            funnelStages.payment_completed || 0,
                         ],
                         backgroundColor: [
                             "rgba(59, 130, 246, 0.8)",
@@ -1156,7 +1199,7 @@ const createFunnelChart = () => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: "y",
+                indexAxis: "y", // Barras horizontales para mejor visualización del funnel
                 scales: {
                     x: {
                         beginAtZero: true,
@@ -1186,9 +1229,7 @@ const createFunnelChart = () => {
                                         : current;
                                 const rate =
                                     previous > 0
-                                        ? ((current / previous) * 100).toFixed(
-                                              1
-                                          )
+                                        ? ((current / previous) * 100).toFixed(1)
                                         : 0;
                                 return `Tasa de conversión: ${rate}%`;
                             },
@@ -1286,13 +1327,116 @@ const createPaymentMethodsChart = () => {
     }
 };
 
-// Watchers para actualizar gráficos cuando cambien los períodos
+const createInstallmentsChart = () => {
+    if (installmentsChart.value && props.ecommerceData.installmentsAnalysis) {
+        if (installmentsChartInstance) {
+            installmentsChartInstance.destroy();
+        }
+
+        const ctx = installmentsChart.value.getContext("2d");
+        const data = props.ecommerceData.installmentsAnalysis;
+
+        installmentsChartInstance = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: data.map((item) => item.label || `${item.installments_count} cuotas`),
+                datasets: [
+                    {
+                        label: "Cantidad de Pagos",
+                        data: data.map((item) => item.count || 0),
+                        backgroundColor: "rgba(99, 102, 241, 0.8)",
+                        borderColor: "rgba(99, 102, 241, 1)",
+                        borderWidth: 1,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Cantidad de Pagos",
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    title: {
+                        display: true,
+                        text: "Distribución por Número de Cuotas",
+                    },
+                },
+            },
+        });
+    }
+};
+
+const createPaymentTypesChart = () => {
+    if (paymentTypesChart.value && props.ecommerceData.paymentTypes) {
+        if (paymentTypesChartInstance) {
+            paymentTypesChartInstance.destroy();
+        }
+
+        const ctx = paymentTypesChart.value.getContext("2d");
+        const data = props.ecommerceData.paymentTypes;
+
+        paymentTypesChartInstance = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels: data.map((item) => item.label || item.payment_type || "No especificado"),
+                datasets: [
+                    {
+                        data: data.map((item) => item.count || 0),
+                        backgroundColor: [
+                            "rgba(59, 102, 241, 0.8)",
+                            "rgba(34, 197, 94, 0.8)",
+                            "rgba(168, 85, 247, 0.8)",
+                            "rgba(251, 146, 60, 0.8)",
+                            "rgba(239, 68, 68, 0.8)",
+                        ],
+                        borderWidth: 2,
+                        borderColor: "#fff",
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: "right",
+                    },
+                    title: {
+                        display: true,
+                        text: "Distribución por Tipo de Pago",
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+};
+
+// Watchers para actualizar gráficas cuando cambien los períodos
 watch(programChartPeriod, () => {
     createProgramViewsChart();
 });
 
-watch(frequentClientsPeriod, () => {
-    createFrequentClientsChart();
+watch(frequentParticipantsPeriod, () => {
+    createFrequentParticipantsChart();
 });
 
 watch(funnelPeriod, () => {
@@ -1308,7 +1452,7 @@ const generateReport = () => {
         const params = {
             ...filters,
             programChartPeriod: programChartPeriod.value,
-            frequentClientsPeriod: frequentClientsPeriod.value,
+            frequentParticipantsPeriod: frequentParticipantsPeriod.value,
             funnelPeriod: funnelPeriod.value,
             paymentMethodsPeriod: paymentMethodsPeriod.value,
         };

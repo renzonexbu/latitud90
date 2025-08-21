@@ -16,21 +16,33 @@ class AnalyticsController extends Controller
     }
 
     /**
+     * Obtener análisis completo del funnel de conversión
+     */
+    public function getFunnelAnalysis(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+        ]);
+
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $analysis = $this->analyticsService->getFunnelAnalysis($dateFrom, $dateTo);
+
+        return response()->json($analysis);
+    }
+
+    /**
      * Registrar vista de lista de programas
      */
     public function recordProgramListView(Request $request)
     {
-        Log::info('AnalyticsController: recordProgramListView', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
         ]);
 
         $this->analyticsService->recordProgramListView($request);
-
-        Log::info('AnalyticsController: recordProgramListView completado');
 
         return response()->json(['success' => true]);
     }
@@ -40,10 +52,6 @@ class AnalyticsController extends Controller
      */
     public function recordProgramSelection(Request $request)
     {
-        Log::info('AnalyticsController: recordProgramSelection', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -57,8 +65,6 @@ class AnalyticsController extends Controller
             $request->input('enrollment_code')
         );
 
-        Log::info('AnalyticsController: recordProgramSelection completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -67,10 +73,6 @@ class AnalyticsController extends Controller
      */
     public function recordPaymentSelection(Request $request)
     {
-        Log::info('AnalyticsController: recordPaymentSelection', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -87,8 +89,6 @@ class AnalyticsController extends Controller
             [] // No necesitamos pasar paymentData ya que usamos $request->input()
         );
 
-        Log::info('AnalyticsController: recordPaymentSelection completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -97,10 +97,6 @@ class AnalyticsController extends Controller
      */
     public function recordProgramDetailView(Request $request)
     {
-        Log::info('AnalyticsController: recordProgramDetailView', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -111,8 +107,6 @@ class AnalyticsController extends Controller
             $request->input('program_id')
         );
 
-        Log::info('AnalyticsController: recordProgramDetailView completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -121,10 +115,6 @@ class AnalyticsController extends Controller
      */
     public function recordPaymentDetailsView(Request $request)
     {
-        Log::info('AnalyticsController: recordPaymentDetailsView', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -137,8 +127,6 @@ class AnalyticsController extends Controller
             $request->input('participant_rut')
         );
 
-        Log::info('AnalyticsController: recordPaymentDetailsView completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -147,10 +135,6 @@ class AnalyticsController extends Controller
      */
     public function recordConfirmationView(Request $request)
     {
-        Log::info('AnalyticsController: recordConfirmationView', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -163,34 +147,6 @@ class AnalyticsController extends Controller
             $request->input('participant_rut')
         );
 
-        Log::info('AnalyticsController: recordConfirmationView completado');
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Registrar datos del formulario del comprador
-     */
-    public function recordBuyerFormData(Request $request)
-    {
-        Log::info('AnalyticsController: recordBuyerFormData', [
-            'request_data' => $request->all(),
-        ]);
-
-        $request->validate([
-            'session_id' => 'required|string',
-            'program_id' => 'required|integer',
-            'form_data' => 'required|array',
-        ]);
-
-        $this->analyticsService->recordBuyerFormData(
-            $request,
-            $request->input('program_id'),
-            $request->input('form_data')
-        );
-
-        Log::info('AnalyticsController: recordBuyerFormData completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -199,10 +155,6 @@ class AnalyticsController extends Controller
      */
     public function recordPaymentInitiated(Request $request)
     {
-        Log::info('AnalyticsController: recordPaymentInitiated', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -217,8 +169,6 @@ class AnalyticsController extends Controller
             $request->input('payment_data')
         );
 
-        Log::info('AnalyticsController: recordPaymentInitiated completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -227,10 +177,6 @@ class AnalyticsController extends Controller
      */
     public function recordPaymentCompleted(Request $request)
     {
-        Log::info('AnalyticsController: recordPaymentCompleted', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -247,8 +193,6 @@ class AnalyticsController extends Controller
             $request->input('order_data')
         );
 
-        Log::info('AnalyticsController: recordPaymentCompleted completado');
-
         return response()->json(['success' => true]);
     }
 
@@ -257,10 +201,6 @@ class AnalyticsController extends Controller
      */
     public function recordPaymentFailed(Request $request)
     {
-        Log::info('AnalyticsController: recordPaymentFailed', [
-            'request_data' => $request->all(),
-        ]);
-
         $request->validate([
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
@@ -274,34 +214,6 @@ class AnalyticsController extends Controller
             $request->input('participant_rut'),
             $request->input('error_message')
         );
-
-        Log::info('AnalyticsController: recordPaymentFailed completado');
-
-        return response()->json(['success' => true]);
-    }
-
-    /**
-     * Registrar cambios en confirmación
-     */
-    public function recordConfirmationChanges(Request $request)
-    {
-        Log::info('AnalyticsController: recordConfirmationChanges', [
-            'request_data' => $request->all(),
-        ]);
-
-        $request->validate([
-            'session_id' => 'required|string',
-            'program_id' => 'required|integer',
-            'changes' => 'required|array',
-        ]);
-
-        $this->analyticsService->recordConfirmationChanges(
-            $request,
-            $request->input('program_id'),
-            $request->input('changes')
-        );
-
-        Log::info('AnalyticsController: recordConfirmationChanges completado');
 
         return response()->json(['success' => true]);
     }

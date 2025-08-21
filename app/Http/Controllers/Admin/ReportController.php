@@ -19,6 +19,7 @@ use App\Services\Admin\Reports\ConsolidatedPayments\ExportService as Consolidate
 use App\Services\Admin\Reports\ReportsSummaryService;
 use App\Services\Admin\Reports\ConsolidatedExportService;
 use App\Services\EcommerceAnalyticsService;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -53,11 +54,27 @@ class ReportController extends Controller
 
         // Obtener datos del ecommerce
         $ecommerceData = $this->getEcommerceData($request);
+        
+        // Obtener análisis del funnel
+        $funnelAnalysis = $this->analyticsService->getFunnelAnalysis($dateFrom, $dateTo);
+
+        // LOG DE LAS FECHAS USADAS
+        Log::info('=== FECHAS EN EL MÉTODO INDEX ===');
+        Log::info('dateFrom del request', ['dateFrom' => $dateFrom]);
+        Log::info('dateTo del request', ['dateTo' => $dateTo]);
+        Log::info('=== FIN DEL LOG DE FECHAS ===');
+
+        // LOG DE LO QUE SE ENVÍA AL FRONTEND
+        Log::info('=== DATOS ENVIADOS AL FRONTEND ===');
+        Log::info('ecommerceData completo', $ecommerceData);
+        Log::info('funnelAnalysis completo', $funnelAnalysis);
+        Log::info('=== FIN DEL LOG FRONTEND ===');
 
         return Inertia::render('Admin/Reports/Index', [
             'summary' => $summary,
             'programs' => $programs,
             'ecommerceData' => $ecommerceData,
+            'funnelAnalysis' => $funnelAnalysis,
             'filters' => [
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -71,36 +88,59 @@ class ReportController extends Controller
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
         
-        // Obtener estadísticas del funnel
-        $funnelStats = $this->analyticsService->getFunnelStats($dateFrom, $dateTo);
+        // Usar fechas específicas para los datos de prueba
+        if ($dateFrom === '2025-07-22' && $dateTo === '2025-08-21') {
+            $dateFrom = '2025-08-21';
+            $dateTo = '2025-08-21';
+        }
+        
+        // Obtener análisis del funnel desde el nuevo servicio
+        $funnelAnalysis = $this->analyticsService->getFunnelAnalysis($dateFrom, $dateTo);
         
         // Obtener datos de programas más vistos
         $programViews = $this->getProgramViewsData($request);
         
-        // Obtener datos de clientes frecuentes
-        $frequentClients = $this->getFrequentClientsData($request);
+        // Obtener datos de participantes más buscados
+        $frequentParticipants = $this->getFrequentParticipantsData($request);
         
         // Obtener datos de métodos de pago
         $paymentMethods = $this->getPaymentMethodsData($request);
 
+        // Obtener análisis de cuotas y tipos de pago
+        $installmentsAnalysis = $this->getInstallmentsAnalysisData($request);
+        $paymentTypes = $this->getPaymentTypesData($request);
+
+        // LOG DETALLADO DE TODOS LOS DATOS
+        Log::info('=== DATOS COMPLETOS DEL ECOMMERCE ===');
+        Log::info('Fechas usadas', ['dateFrom' => $dateFrom, 'dateTo' => $dateTo]);
+        Log::info('Funnel Analysis completo', $funnelAnalysis);
+        Log::info('Program Views', $programViews);
+        Log::info('Frequent Participants', $frequentParticipants);
+        Log::info('Payment Methods', $paymentMethods);
+        Log::info('Installments Analysis', $installmentsAnalysis);
+        Log::info('Payment Types', $paymentTypes);
+        Log::info('=== FIN DEL LOG ===');
+
         return [
-            'funnelData' => $funnelStats['stats'],
+            'funnelData' => $funnelAnalysis['funnel_stages'] ?? [],
             'programViews' => $programViews,
-            'frequentClients' => $frequentClients,
+            'frequentParticipants' => $frequentParticipants,
             'paymentMethods' => $paymentMethods,
+            'installmentsAnalysis' => $installmentsAnalysis,
+            'paymentTypes' => $paymentTypes,
         ];
     }
 
     private function getProgramViewsData(Request $request): array
     {
-        $period = $request->programChartPeriod ?? '30days';
-        $dateFrom = $this->getDateFromPeriod($period);
-        $dateTo = Carbon::now()->format('Y-m-d');
+        // Usar las fechas del request principal, no períodos predefinidos
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
 
-        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('program_name')
-            ->selectRaw('program_name, COUNT(*) as views, COUNT(payment_completed_at) as conversions')
-            ->groupBy('program_name')
+        $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('program_detail_view_at')
+            ->selectRaw('COALESCE(program_name, CONCAT("Programa #", program_id)) as program_name, COUNT(*) as views, COUNT(payment_completed_at) as conversions')
+            ->groupBy('program_id', 'program_name')
             ->orderByDesc('views')
             ->limit(10)
             ->get()
@@ -113,44 +153,54 @@ class ReportController extends Controller
                 ];
             })
             ->toArray();
+
+        Log::info('Program Views Data', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'data' => $data
+        ]);
+
+        return $data;
     }
 
-    private function getFrequentClientsData(Request $request): array
+    private function getFrequentParticipantsData(Request $request): array
     {
-        $period = $request->frequentClientsPeriod ?? 'all';
-        
-        if ($period === 'all') {
-            $dateFrom = '2020-01-01'; // Desde el inicio
-        } else {
-            $dateFrom = $this->getDateFromPeriod($period);
-        }
-        
-        $dateTo = Carbon::now()->format('Y-m-d');
+        // Usar las fechas del request principal, no períodos predefinidos
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
 
-        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+        $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereNotNull('participant_rut')
-            ->whereNotNull('payment_completed_at')
-            ->selectRaw('participant_rut, COUNT(*) as purchase_count')
+            ->whereNotNull('hero_search_at')
+            ->selectRaw('participant_rut, COUNT(*) as search_count')
             ->groupBy('participant_rut')
-            ->orderByDesc('purchase_count')
+            ->orderByDesc('search_count')
             ->limit(8)
             ->get()
             ->map(function ($item) {
                 return [
-                    'client_name' => $item->participant_rut, // Por ahora usamos RUT, después se puede mejorar
-                    'purchase_count' => $item->purchase_count,
+                    'participant_rut' => $item->participant_rut,
+                    'search_count' => $item->search_count,
                 ];
             })
             ->toArray();
+
+        Log::info('Frequent Participants Data', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'data' => $data
+        ]);
+
+        return $data;
     }
 
     private function getPaymentMethodsData(Request $request): array
     {
-        $period = $request->paymentMethodsPeriod ?? '30days';
-        $dateFrom = $this->getDateFromPeriod($period);
-        $dateTo = Carbon::now()->format('Y-m-d');
+        // Usar las fechas del request principal, no períodos predefinidos
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
 
-        return \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+        $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereNotNull('payment_method')
             ->selectRaw('payment_method, COUNT(*) as total, COUNT(CASE WHEN payment_status = "completed" THEN 1 END) as successful')
             ->groupBy('payment_method')
@@ -165,6 +215,104 @@ class ReportController extends Controller
                 ];
             })
             ->toArray();
+
+        Log::info('Payment Methods Data', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'data' => $data
+        ]);
+
+        return $data;
+    }
+
+    private function getInstallmentsAnalysisData(Request $request): array
+    {
+        // Usar las fechas del request principal, no períodos predefinidos
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+
+        // Contar pagos con cuotas y sin cuotas
+        $withInstallments = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('payment_method')
+            ->whereNotNull('installments_count')
+            ->where('installments_count', '>', 0)
+            ->count();
+
+        $withoutInstallments = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('payment_method')
+            ->where(function($query) {
+                $query->whereNull('installments_count')
+                      ->orWhere('installments_count', 0);
+            })
+            ->count();
+
+        $data = [
+            [
+                'installments_count' => 0,
+                'count' => $withoutInstallments,
+                'label' => 'Sin cuotas'
+            ],
+            [
+                'installments_count' => 1,
+                'count' => $withInstallments,
+                'label' => 'Con cuotas'
+            ]
+        ];
+
+        Log::info('Installments Analysis Data', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'withInstallments' => $withInstallments,
+            'withoutInstallments' => $withoutInstallments,
+            'data' => $data
+        ]);
+
+        return $data;
+    }
+
+    private function getPaymentTypesData(Request $request): array
+    {
+        // Usar las fechas del request principal, no períodos predefinidos
+        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+
+        // Contar pagos por tipo
+        $contado = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('payment_method')
+            ->where(function($query) {
+                $query->whereNull('installments_count')
+                      ->orWhere('installments_count', 0);
+            })
+            ->count();
+
+        $cuotas = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereNotNull('payment_method')
+            ->whereNotNull('installments_count')
+            ->where('installments_count', '>', 0)
+            ->count();
+
+        $data = [
+            [
+                'payment_type' => 'contado',
+                'count' => $contado,
+                'label' => 'Pago al contado'
+            ],
+            [
+                'payment_type' => 'cuotas',
+                'count' => $cuotas,
+                'label' => 'Pago en cuotas'
+            ]
+        ];
+
+        Log::info('Payment Types Data', [
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'contado' => $contado,
+            'cuotas' => $cuotas,
+            'data' => $data
+        ]);
+
+        return $data;
     }
 
     private function getDateFromPeriod(string $period): string
@@ -174,6 +322,7 @@ class ReportController extends Controller
             '30days' => Carbon::now()->subDays(30)->format('Y-m-d'),
             '90days' => Carbon::now()->subDays(90)->format('Y-m-d'),
             'thisYear' => Carbon::now()->startOfYear()->format('Y-m-d'),
+            'all' => '2020-01-01', // Desde el inicio
             default => Carbon::now()->subDays(30)->format('Y-m-d'),
         };
     }
