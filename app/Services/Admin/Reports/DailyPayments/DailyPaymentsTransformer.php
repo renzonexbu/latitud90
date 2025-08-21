@@ -31,19 +31,25 @@ class DailyPaymentsTransformer
         $externalContribution = 0; // $this->calculateExternalContribution($item->order_id);
         $remainingBalance = ($item->final_amount ?? 0) - ($item->payment_amount ?? 0) - $externalContribution;
 
+        // Construir nombre del participante con CapitalCase
+        $participantName = $this->buildParticipantName($item);
+
+        // Obtener información del apoderado (contacto de emergencia)
+        $apoderadoInfo = $this->getApoderadoInfo($item->order_id);
+
         return [
             'id' => $item->payment_id,
             'order_id' => $item->order_id,
             'order_number' => $item->order_number ?? 'N/A',
-            'participant_name' => $this->cleanUtf8(($item->first_last_name ?? '') . ' ' . ($item->second_last_name ?? '') . ' ' . ($item->first_name ?? '') . ' ' . ($item->second_name ?? '')),
+            'participant_name' => $participantName,
             'participant_email' => $this->cleanUtf8($item->email ?? ''),
-            'participant_document' => $this->cleanUtf8($item->document_number ?? ''),
+            'participant_document' => $this->formatDocument($item->document_number ?? ''),
             'participant_phone' => $this->cleanUtf8($item->phone ?? ''),
             'program_name' => $this->cleanUtf8($item->program_name ?? 'N/A'),
             'program_destination' => $this->cleanUtf8($item->destination ?? ''),
             'program_departure_date' => $item->departure_date,
             'program_price' => (float) ($item->total_amount ?? 0),
-            'sales_executive_name' => $this->cleanUtf8($item->sales_executive_name ?? 'N/A'),
+            'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'N/A')),
             'sales_executive_email' => $this->cleanUtf8($item->sales_executive_email ?? ''),
             'sales_executive_phone' => $this->cleanUtf8($item->sales_executive_phone ?? ''),
             'financing_type' => $item->payment_type ?? 'N/A',
@@ -51,29 +57,27 @@ class DailyPaymentsTransformer
             'payment_amount' => (float) ($item->payment_amount ?? 0),
             'payment_date' => $item->installment_paid_at ?? $item->payment_date,
             'payment_status' => $item->payment_status ?? 'N/A',
-            'payment_method_name' => $this->cleanUtf8($item->payment_gateway_name ?? 'N/A'),
+            'payment_method_name' => $this->capitalizeWords($this->cleanUtf8($item->payment_gateway_name ?? 'N/A')),
             'payment_method_code' => $item->payment_gateway_code ?? 'N/A',
             'released_amount' => (float) $releasedAmount,
             'external_contribution' => (float) $externalContribution,
             'remaining_balance' => (float) $remainingBalance,
             'order_date' => $item->order_date,
             // Datos del pagador (desde orders_detail)
-            'payer_name' => $this->cleanUtf8($item->payer_name ?? ''),
+            'payer_name' => $this->capitalizeWords($this->cleanUtf8($item->payer_name ?? '')),
             'payer_email' => $this->cleanUtf8($item->payer_email ?? ''),
             'payer_phone' => $this->cleanUtf8($item->payer_phone ?? ''),
-            'payer_document' => $this->cleanUtf8($item->payer_document ?? ''),
-            // Datos de la cuota (desde orders_detail)
-            'installment_number' => $item->installment_number ?? 1,
-            'installment_amount' => (float) ($item->installment_amount ?? $item->payment_amount ?? 0),
+            'payer_document' => $this->formatDocument($item->payer_document ?? ''),
+            // Datos de la cuota
+            'installment_number' => $item->installment_number ?? 'N/A',
+            'installment_amount' => (float) ($item->installment_amount ?? 0),
             'installment_due_date' => $item->installment_due_date,
-            'installment_status' => $item->installment_status ?? 'paid',
+            'installment_status' => $item->installment_status ?? 'N/A',
             'installment_paid_at' => $item->installment_paid_at,
-            // Datos adicionales del pago
-            'authorization_code' => $item->authorization_code ?? 'N/A',
-            'response_code' => $item->response_code ?? 'N/A',
-            'card_number' => $item->card_number ?? 'N/A',
-            'card_type' => $item->card_type ?? 'N/A',
-            'installments_number' => $item->installments_number ?? 1,
+            // Información del contacto de emergencia (apoderado)
+            'emergency_contact_name' => $this->capitalizeWords($this->cleanUtf8($apoderadoInfo['name'])),
+            'emergency_contact_phone' => $this->cleanUtf8($apoderadoInfo['phone']),
+            'emergency_contact_email' => $this->cleanUtf8($apoderadoInfo['email']),
         ];
     }
     
@@ -151,6 +155,19 @@ class DailyPaymentsTransformer
             }
             if (in_array('status', $selectedFields['payment'])) {
                 $row['Estado Pago'] = $transformed['payment_status'];
+            }
+        }
+
+        // Campos del apoderado
+        if (isset($selectedFields['apoderado'])) {
+            if (in_array('name', $selectedFields['apoderado'])) {
+                $row['Nombre Apoderado'] = $transformed['emergency_contact_name'];
+            }
+            if (in_array('email', $selectedFields['apoderado'])) {
+                $row['Email Apoderado'] = $transformed['emergency_contact_email'];
+            }
+            if (in_array('phone', $selectedFields['apoderado'])) {
+                $row['Teléfono Apoderado'] = $transformed['emergency_contact_phone'];
             }
         }
         
@@ -241,5 +258,78 @@ class DailyPaymentsTransformer
         }
         
         return $text;
+    }
+
+    private function buildParticipantName($item): string
+    {
+        $firstName = $this->cleanUtf8($item->first_name ?? '');
+        $secondName = $this->cleanUtf8($item->second_name ?? '');
+        $lastName = $this->cleanUtf8($item->first_last_name ?? '');
+        $secondLastName = $this->cleanUtf8($item->second_last_name ?? '');
+
+        $nameParts = [];
+        if ($firstName) {
+            $nameParts[] = $this->capitalizeWords($firstName);
+        }
+        if ($secondName) {
+            $nameParts[] = $this->capitalizeWords($secondName);
+        }
+        if ($lastName) {
+            $nameParts[] = $this->capitalizeWords($lastName);
+        }
+        if ($secondLastName) {
+            $nameParts[] = $this->capitalizeWords($secondLastName);
+        }
+
+        return implode(' ', $nameParts);
+    }
+
+    /**
+     * Aplicar CapitalCase a un string
+     */
+    private function capitalizeWords(string $text): string
+    {
+        return ucwords(strtolower(trim($text)));
+    }
+
+    private function getApoderadoInfo($orderId): array
+    {
+        // Obtener el participant_id desde la orden
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        if (!$order) return ['name' => 'N/A', 'phone' => 'N/A', 'email' => 'N/A'];
+        
+        // Buscar el contacto de emergencia para este participante
+        $emergencyContact = DB::table('emergency_contact')
+            ->where('participant_id', $order->participant_id)
+            ->first();
+
+        return $emergencyContact ? [
+            'name' => $this->capitalizeWords($this->cleanUtf8($emergencyContact->name)),
+            'phone' => $this->cleanUtf8($emergencyContact->phone),
+            'email' => $this->cleanUtf8($emergencyContact->email)
+        ] : ['name' => 'N/A', 'phone' => 'N/A', 'email' => 'N/A'];
+    }
+
+    /**
+     * Formatea el número de documento según su tipo
+     */
+    private function formatDocument($documentNumber): string
+    {
+        if (empty($documentNumber)) {
+            return 'N/A';
+        }
+
+        // Detectar automáticamente si es RUT por formato
+        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
+            // Es un RUT, formatear como RUT
+            $body = substr($cleanNumber, 0, -1);
+            $dv = substr($cleanNumber, -1);
+            $withDots = number_format($body, 0, '', '.');
+            return $withDots . '-' . strtoupper($dv);
+        } else {
+            // Es un pasaporte u otro documento, mostrar tal como está
+            return $this->cleanUtf8($documentNumber);
+        }
     }
 }

@@ -376,7 +376,7 @@
 
                     <div v-if="selectedSchedule" class="space-y-6">
                         <!-- Información del Participante y Programa -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div>
                                 <h4
                                     class="text-lg font-semibold text-gray-900 mb-3"
@@ -389,22 +389,31 @@
                                         {{ selectedSchedule.participant_name }}
                                     </p>
                                     <p>
-                                        <span class="font-medium">Email:</span>
-                                        {{ selectedSchedule.participant_email }}
-                                    </p>
-                                    <p>
                                         <span class="font-medium"
                                             >Documento:</span
                                         >
-                                        {{
-                                            formatRut(selectedSchedule.participant_document)
-                                        }}
+                                        {{ selectedSchedule.participant_document }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <h4
+                                    class="text-lg font-semibold text-gray-900 mb-3"
+                                >
+                                    Información del Apoderado
+                                </h4>
+                                <div class="space-y-2">
+                                    <p>
+                                        <span class="font-medium">Nombre:</span>
+                                        {{ selectedSchedule.apoderado_name || 'N/A' }}
                                     </p>
                                     <p>
-                                        <span class="font-medium"
-                                            >Teléfono:</span
-                                        >
-                                        {{ selectedSchedule.participant_phone }}
+                                        <span class="font-medium">Email:</span>
+                                        {{ selectedSchedule.apoderado_email || 'N/A' }}
+                                    </p>
+                                    <p>
+                                        <span class="font-medium">Teléfono:</span>
+                                        {{ selectedSchedule.apoderado_phone || 'N/A' }}
                                     </p>
                                 </div>
                             </div>
@@ -760,6 +769,25 @@
                             </div>
                         </div>
 
+                        <!-- Información del Apoderado -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-gray-800 mb-3">Información del Apoderado</h5>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.name" class="mr-2">
+                                    <span class="text-sm">Nombre del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.email" class="mr-2">
+                                    <span class="text-sm">Email del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.phone" class="mr-2">
+                                    <span class="text-sm">Teléfono del Apoderado</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- Opciones de Exportación -->
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
@@ -877,6 +905,11 @@ const exportFields = reactive({
         paidAmount: true,
         pendingAmount: true,
         orderNumber: true,
+    },
+    apoderado: {
+        name: true,
+        email: true,
+        phone: true,
     },
 });
 const exportOptions = reactive({

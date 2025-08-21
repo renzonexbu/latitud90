@@ -69,7 +69,7 @@ class DailyPaymentsDataProvider
                 'od.status as installment_status',
                 'od.paid_at as installment_paid_at',
             ])
-            ->orderBy('pay.transaction_date', 'desc');
+            ->orderByRaw('COALESCE(od.paid_at, pay.transaction_date) DESC');
     }
 
     public function getDailyPayments(Builder $query, int $page = 1): LengthAwarePaginator

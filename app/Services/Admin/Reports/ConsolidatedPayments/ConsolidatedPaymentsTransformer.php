@@ -28,16 +28,16 @@ class ConsolidatedPaymentsTransformer
         return [
             'id' => $item->order_id,
             'program_id' => $item->program_id ?? 'N/A',
-            'participant_rut' => $this->cleanUtf8($item->participant_rut ?? 'N/A'),
+            'participant_rut' => $this->formatDocument($item->participant_rut ?? 'N/A'),
             'authorization_code' => $item->authorization_code ?? 'N/A',
             'payment_amount' => (float) ($item->payment_amount ?? 0),
             'payment_status' => $item->payment_status ?? 'N/A',
             'invoice_number' => $item->invoice_number ?? 'N/A',
             'payment_method_code' => $item->payment_method_code ?? 'N/A',
-            'payment_method_name' => $this->cleanUtf8($item->payment_method_name ?? 'N/A'),
+            'payment_method_name' => $this->capitalizeWords($this->cleanUtf8($item->payment_method_name ?? 'N/A')),
             'installments_number' => $item->installments_number ?? 1,
             'payment_date' => $item->payment_date,
-            'payer_name' => $this->cleanUtf8($item->payer_name ?? 'N/A'),
+            'payer_name' => $this->capitalizeWords($this->cleanUtf8($item->payer_name ?? 'N/A')),
             'payer_email' => $this->cleanUtf8($item->payer_email ?? 'N/A'),
             'is_refund' => ($item->payment_amount ?? 0) < 0,
         ];
@@ -132,5 +132,30 @@ class ConsolidatedPaymentsTransformer
         }
         
         return $text;
+    }
+
+    private function capitalizeWords(string $text): string
+    {
+        return ucwords(strtolower($text));
+    }
+
+    private function formatDocument($documentNumber): string
+    {
+        if (empty($documentNumber)) {
+            return 'N/A';
+        }
+
+        // Detectar automáticamente si es RUT por formato
+        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
+            // Es un RUT, formatear como RUT
+            $body = substr($cleanNumber, 0, -1);
+            $dv = substr($cleanNumber, -1);
+            $withDots = number_format($body, 0, '', '.');
+            return $withDots . '-' . strtoupper($dv);
+        } else {
+            // Es un pasaporte u otro documento, mostrar tal como está
+            return $this->cleanUtf8($documentNumber);
+        }
     }
 }

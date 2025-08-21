@@ -231,20 +231,29 @@ const formatDate = (date) => {
 const formatRut = (rut) => {
     if (!rut) return "N/A";
     
+    // Si ya viene formateado del backend (con puntos), devolverlo tal como está
+    if (rut.includes('.')) {
+        return rut;
+    }
+    
     // Limpiar el RUT de puntos y guiones
     let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
     
-    if (rutLimpio.length < 2) return rut;
-    
-    // Separar número y dígito verificador
-    let dv = rutLimpio.slice(-1);
-    let numero = rutLimpio.slice(0, -1);
-    
-    // Formatear número con puntos
-    let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    
-    // Retornar RUT formateado
-    return `${numeroFormateado}-${dv.toUpperCase()}`;
+    // Verificar si es un RUT (7-8 dígitos + dígito verificador)
+    if (rutLimpio.length >= 7 && rutLimpio.length <= 9 && /^\d{7,8}[\dK]$/.test(rutLimpio)) {
+        // Es un RUT, formatearlo
+        let dv = rutLimpio.slice(-1);
+        let numero = rutLimpio.slice(0, -1);
+        
+        // Formatear número con puntos
+        let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        
+        // Retornar RUT formateado
+        return `${numeroFormateado}-${dv.toUpperCase()}`;
+    } else {
+        // No es un RUT, devolver tal como está
+        return rut;
+    }
 };
 
 const getStatusClass = (status) => {

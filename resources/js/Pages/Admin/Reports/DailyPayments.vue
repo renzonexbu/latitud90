@@ -412,22 +412,10 @@
                                         {{ selectedPayment.participant_name }}
                                     </p>
                                     <p>
-                                        <span class="font-medium">Email:</span>
-                                        {{ selectedPayment.participant_email }}
-                                    </p>
-                                    <p>
                                         <span class="font-medium"
                                             >Documento:</span
                                         >
-                                        {{
-                                            formatRut(selectedPayment.participant_document)
-                                        }}
-                                    </p>
-                                    <p>
-                                        <span class="font-medium"
-                                            >Teléfono:</span
-                                        >
-                                        {{ selectedPayment.participant_phone }}
+                                        {{ selectedPayment.participant_document }}
                                     </p>
                                 </div>
                             </div>
@@ -435,30 +423,22 @@
                                 <h4
                                     class="text-lg font-semibold text-gray-900 mb-3"
                                 >
-                                    Información del Pagador
+                                    Información del Apoderado
                                 </h4>
                                 <div class="space-y-2">
                                     <p>
                                         <span class="font-medium">Nombre:</span>
-                                        {{ selectedPayment.payer_name || 'No especificado' }}
+                                        {{ selectedPayment.emergency_contact_name || 'No especificado' }}
                                     </p>
                                     <p>
                                         <span class="font-medium">Email:</span>
-                                        {{ selectedPayment.payer_email || 'No especificado' }}
-                                    </p>
-                                    <p>
-                                        <span class="font-medium"
-                                            >Documento:</span
-                                        >
-                                        {{
-                                            selectedPayment.payer_document ? formatRut(selectedPayment.payer_document) : 'No especificado'
-                                        }}
+                                        {{ selectedPayment.emergency_contact_email || 'No especificado' }}
                                     </p>
                                     <p>
                                         <span class="font-medium"
                                             >Teléfono:</span
                                         >
-                                        {{ selectedPayment.payer_phone || 'No especificado' }}
+                                        {{ selectedPayment.emergency_contact_phone || 'No especificado' }}
                                     </p>
                                 </div>
                             </div>
@@ -796,6 +776,25 @@
                             </div>
                         </div>
 
+                        <!-- Información del Apoderado -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-gray-800 mb-3">Información del Apoderado</h5>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.name" class="mr-2">
+                                    <span class="text-sm">Nombre del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.email" class="mr-2">
+                                    <span class="text-sm">Email del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.phone" class="mr-2">
+                                    <span class="text-sm">Teléfono del Apoderado</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- Opciones de Exportación -->
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
@@ -929,6 +928,11 @@ const exportFields = reactive({
         paymentMethod: true,
         status: true,
     },
+    apoderado: {
+        name: true,
+        email: true,
+        phone: true,
+    },
 });
 const exportOptions = reactive({
     format: "xlsx",
@@ -1047,25 +1051,6 @@ const formatDate = (date) => {
 const formatCurrency = (value) => {
     const numericValue = Math.round(Number(value) || 0);
     return numericValue.toLocaleString("es-CL");
-};
-
-const formatRut = (rut) => {
-    if (!rut) return "N/A";
-    
-    // Limpiar el RUT de puntos y guiones
-    let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
-    
-    if (rutLimpio.length < 2) return rut;
-    
-    // Separar número y dígito verificador
-    let dv = rutLimpio.slice(-1);
-    let numero = rutLimpio.slice(0, -1);
-    
-    // Formatear número con puntos
-    let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    
-    // Retornar RUT formateado
-    return `${numeroFormateado}-${dv.toUpperCase()}`;
 };
 
 const getBalanceClass = (balance) => {

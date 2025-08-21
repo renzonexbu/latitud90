@@ -33,7 +33,8 @@ class DailyPaymentsFilters
         if (!empty($filters['dateFrom'])) {
             $query->where(function($q) use ($filters) {
                 $q->whereDate('pay.transaction_date', '>=', $filters['dateFrom'])
-                  ->orWhereDate('pay.created_at', '>=', $filters['dateFrom']);
+                  ->orWhereDate('pay.created_at', '>=', $filters['dateFrom'])
+                  ->orWhereDate('od.paid_at', '>=', $filters['dateFrom']);
             });
         }
 
@@ -41,7 +42,8 @@ class DailyPaymentsFilters
         if (!empty($filters['dateTo'])) {
             $query->where(function($q) use ($filters) {
                 $q->whereDate('pay.transaction_date', '<=', $filters['dateTo'])
-                  ->orWhereDate('pay.created_at', '<=', $filters['dateTo']);
+                  ->orWhereDate('pay.created_at', '<=', $filters['dateTo'])
+                  ->orWhereDate('od.paid_at', '<=', $filters['dateTo']);
             });
         }
 
@@ -52,10 +54,12 @@ class DailyPaymentsFilters
             
             $query->where(function($q) use ($startDate, $endDate) {
                 $q->whereDate('pay.transaction_date', '>=', $startDate->format('Y-m-d'))
-                  ->orWhereDate('pay.created_at', '>=', $startDate->format('Y-m-d'));
+                  ->orWhereDate('pay.created_at', '>=', $startDate->format('Y-m-d'))
+                  ->orWhereDate('od.paid_at', '>=', $startDate->format('Y-m-d'));
             })->where(function($q) use ($startDate, $endDate) {
                 $q->whereDate('pay.transaction_date', '<=', $endDate->format('Y-m-d'))
-                  ->orWhereDate('pay.created_at', '<=', $endDate->format('Y-m-d'));
+                  ->orWhereDate('pay.created_at', '<=', $endDate->format('Y-m-d'))
+                  ->orWhereDate('od.paid_at', '<=', $endDate->format('Y-m-d'));
             });
         }
 

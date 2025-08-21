@@ -4,6 +4,7 @@ namespace App\Services\Admin\Reports\RecoverySchedule;
 
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class RecoveryScheduleTransformer
 {
@@ -25,15 +26,18 @@ class RecoveryScheduleTransformer
     
     private function transformScheduleItem($item): array
     {
+        // Obtener información del apoderado (contacto de emergencia)
+        $apoderadoInfo = $this->getApoderadoInfo($item->participant_id);
+        
         return [
             'id' => $item->id,
-            'participant_name' => $this->cleanUtf8($item->first_last_name . ' ' . ($item->second_last_name ? $item->second_last_name . ' ' : '') . $item->first_name . ' ' . ($item->second_name ? $item->second_name : '')),
-            'participant_email' => $this->cleanUtf8($item->email),
-            'participant_document' => $this->cleanUtf8($item->document_number),
-            'participant_phone' => $this->cleanUtf8($item->phone),
+            'participant_name' => $this->buildParticipantName($item),
+            'participant_email' => $this->cleanUtf8($item->email ?? ''),
+            'participant_document' => $this->formatDocument($item->document_number),
+            'participant_phone' => $this->cleanUtf8($item->phone ?? ''),
             'program_name' => $this->cleanUtf8($item->program_name),
             'program_departure_date' => $item->program_departure_date,
-            'sales_executive_name' => $this->cleanUtf8($item->sales_executive_name ?? 'N/A'),
+            'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'N/A')),
             'sales_executive_email' => $this->cleanUtf8($item->sales_executive_email ?? ''),
             'sales_executive_phone' => $this->cleanUtf8($item->sales_executive_phone ?? ''),
             'installment_number' => $item->installment_number,
@@ -51,6 +55,9 @@ class RecoveryScheduleTransformer
             'order_number' => $item->order_number,
             'order_total_amount' => (float) $item->order_total_amount,
             'order_final_amount' => (float) $item->order_final_amount,
+            'apoderado_name' => $apoderadoInfo['name'],
+            'apoderado_email' => $apoderadoInfo['email'],
+            'apoderado_phone' => $apoderadoInfo['phone'],
         ];
     }
     
@@ -91,6 +98,19 @@ class RecoveryScheduleTransformer
             }
             if (in_array('salesExecutivePhone', $selectedFields['program'])) {
                 $row['Teléfono Ejecutivo'] = $transformed['sales_executive_phone'];
+            }
+        }
+
+        // Campos del apoderado
+        if (isset($selectedFields['apoderado'])) {
+            if (in_array('name', $selectedFields['apoderado'])) {
+                $row['Nombre Apoderado'] = $transformed['apoderado_name'];
+            }
+            if (in_array('email', $selectedFields['apoderado'])) {
+                $row['Email Apoderado'] = $transformed['apoderado_email'];
+            }
+            if (in_array('phone', $selectedFields['apoderado'])) {
+                $row['Teléfono Apoderado'] = $transformed['apoderado_phone'];
             }
         }
         
@@ -217,5 +237,73 @@ class RecoveryScheduleTransformer
         }
         
         return $text;
+    }
+
+    private function buildParticipantName($item): string
+    {
+        $nameParts = [];
+        if ($item->first_name) {
+            $nameParts[] = $this->capitalizeWords($item->first_name);
+        }
+        if ($item->second_name) {
+            $nameParts[] = $this->capitalizeWords($item->second_name);
+        }
+        if ($item->first_last_name) {
+            $nameParts[] = $this->capitalizeWords($item->first_last_name);
+        }
+        if ($item->second_last_name) {
+            $nameParts[] = $this->capitalizeWords($item->second_last_name);
+        }
+        return implode(' ', $nameParts);
+    }
+
+    private function capitalizeWords(string $text): string
+    {
+        return ucwords(strtolower($text));
+    }
+
+    private function formatDocument($documentNumber): string
+    {
+        if (empty($documentNumber)) {
+            return 'N/A';
+        }
+
+        // Detectar automáticamente si es RUT por formato
+        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
+            // Es un RUT, formatear como RUT
+            $body = substr($cleanNumber, 0, -1);
+            $dv = substr($cleanNumber, -1);
+            $withDots = number_format($body, 0, '', '.');
+            return $withDots . '-' . strtoupper($dv);
+        } else {
+            // Es un pasaporte u otro documento, mostrar tal como está
+            return $this->cleanUtf8($documentNumber);
+        }
+    }
+
+    /**
+     * Obtiene la información del apoderado (contacto de emergencia)
+     */
+    private function getApoderadoInfo($participantId): array
+    {
+        // Buscar el contacto de emergencia para este participante
+        $emergencyContact = DB::table('emergency_contact')
+            ->where('participant_id', $participantId)
+            ->first();
+        
+        if ($emergencyContact) {
+            return [
+                'name' => $this->capitalizeWords($this->cleanUtf8($emergencyContact->name ?? '')),
+                'email' => $this->cleanUtf8($emergencyContact->email ?? ''),
+                'phone' => $this->cleanUtf8($emergencyContact->phone ?? ''),
+            ];
+        }
+        
+        return [
+            'name' => 'N/A',
+            'email' => 'N/A',
+            'phone' => 'N/A',
+        ];
     }
 }

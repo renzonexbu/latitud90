@@ -158,7 +158,7 @@
 
                     <div v-if="selectedAccount" class="space-y-6">
                         <!-- Información del Participante y Programa -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <h4
                                     class="text-lg font-semibold text-gray-900 mb-3"
@@ -171,22 +171,29 @@
                                         {{ selectedAccount.participant_name }}
                                     </p>
                                     <p>
+                                        <span class="font-medium">Documento:</span>
+                                        {{ selectedAccount.participant_document }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <h4
+                                    class="text-lg font-semibold text-gray-900 mb-3"
+                                >
+                                    Información del Apoderado
+                                </h4>
+                                <div class="space-y-2">
+                                    <p>
+                                        <span class="font-medium">Nombre:</span>
+                                        {{ selectedAccount.apoderado_name || 'N/A' }}
+                                    </p>
+                                    <p>
                                         <span class="font-medium">Email:</span>
-                                        {{ selectedAccount.participant_email }}
+                                        {{ selectedAccount.apoderado_email || 'N/A' }}
                                     </p>
                                     <p>
-                                        <span class="font-medium"
-                                            >Documento:</span
-                                        >
-                                        {{
-                                            formatRut(selectedAccount.participant_document)
-                                        }}
-                                    </p>
-                                    <p>
-                                        <span class="font-medium"
-                                            >Teléfono:</span
-                                        >
-                                        {{ selectedAccount.participant_phone }}
+                                        <span class="font-medium">Teléfono:</span>
+                                        {{ selectedAccount.apoderado_phone || 'N/A' }}
                                     </p>
                                 </div>
                             </div>
@@ -198,31 +205,19 @@
                                 </h4>
                                 <div class="space-y-2">
                                     <p>
-                                        <span class="font-medium"
-                                            >Programa:</span
-                                        >
+                                        <span class="font-medium">Programa:</span>
                                         {{ selectedAccount.program_name }}
                                     </p>
                                     <p>
-                                        <span class="font-medium"
-                                            >Fecha de Salida:</span
-                                        >
-                                        {{
-                                            formatDate(
-                                                selectedAccount.program_departure_date
-                                            )
-                                        }}
+                                        <span class="font-medium">Fecha de Salida:</span>
+                                        {{ formatDate(selectedAccount.program_departure_date) }}
                                     </p>
                                     <p>
-                                        <span class="font-medium"
-                                            >Código de Inscripción:</span
-                                        >
+                                        <span class="font-medium">Código de Inscripción:</span>
                                         {{ selectedAccount.enrollment_code }}
                                     </p>
                                     <p>
-                                        <span class="font-medium"
-                                            >Ejecutivo de Ventas:</span
-                                        >
+                                        <span class="font-medium">Ejecutivo de Ventas:</span>
                                         {{ selectedAccount.sales_executive_name || 'N/A' }}
                                     </p>
                                 </div>
@@ -651,6 +646,25 @@
                             </div>
                         </div>
 
+                        <!-- Información del Apoderado -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h5 class="font-semibold text-gray-800 mb-3">Información del Apoderado</h5>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.name" class="mr-2">
+                                    <span class="text-sm">Nombre del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.email" class="mr-2">
+                                    <span class="text-sm">Email del Apoderado</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="exportFields.apoderado.phone" class="mr-2">
+                                    <span class="text-sm">Teléfono del Apoderado</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <!-- Opciones de Exportación -->
                         <div class="bg-blue-50 p-4 rounded-lg">
                             <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
@@ -763,6 +777,11 @@ const exportFields = reactive({
         totalPaid: true,
         pendingAmount: true,
         progressPercentage: true,
+    },
+    apoderado: {
+        name: true,
+        email: true,
+        phone: true,
     },
 });
 const exportOptions = reactive({
@@ -906,25 +925,6 @@ const getStatusLabel = (status) => {
 const formatDate = (date) => {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString("es-CL");
-};
-
-const formatRut = (rut) => {
-    if (!rut) return "N/A";
-    
-    // Limpiar el RUT de puntos y guiones
-    let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
-    
-    if (rutLimpio.length < 2) return rut;
-    
-    // Separar número y dígito verificador
-    let dv = rutLimpio.slice(-1);
-    let numero = rutLimpio.slice(0, -1);
-    
-    // Formatear número con puntos
-    let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    
-    // Retornar RUT formateado
-    return `${numeroFormateado}-${dv.toUpperCase()}`;
 };
 
 const hasSelectedFields = computed(() => {

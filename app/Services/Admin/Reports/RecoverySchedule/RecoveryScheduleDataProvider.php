@@ -22,12 +22,8 @@ class RecoveryScheduleDataProvider
             ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
             ->select([
                 'i.id',
-                'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
-                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
-                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
-                'c.education_level', 'c.course_number',
-                'i.name',
-                'prog.name as program_name',
+                'p.id as participant_id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
+                'prog.id as program_id', 'prog.name as program_name',
                 'prog.departure_date as program_departure_date',
                 'prog.sales_executive_id',
                 'se.name as sales_executive_name',
@@ -63,11 +59,7 @@ class RecoveryScheduleDataProvider
             ])
             ->groupBy([
                 'i.id', 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
-                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status',
-                'pr.id', 'pr.code', 'pr.name', 'pr.destination', 'pr.year',
-                'c.education_level', 'c.course_number',
-                'i.name',
-                'prog.name', 'prog.departure_date', 'prog.sales_executive_id',
+                'prog.id', 'prog.name', 'prog.departure_date', 'prog.sales_executive_id',
                 'se.name', 'se.email', 'se.phone',
                 'i.installment_number', 'i.due_date', 'i.amount', 'i.status', 'i.paid_at',
                 'o.order_number', 'o.total_amount', 'o.final_amount'
@@ -88,18 +80,25 @@ class RecoveryScheduleDataProvider
 
     public function getSummary(Builder $query): array
     {
-        $baseQuery = clone $query;
+        // Crear un query separado para el resumen sin groupBy
+        $summaryQuery = DB::table('installments as i')
+            ->leftJoin('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
+            ->leftJoin('orders as o', 'ip.order_id', '=', 'o.id')
+            ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
+            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->where('o.status', '!=', 'cancelled'); // Solo excluir órdenes canceladas
         
-        $summary = $baseQuery->select([
+        $summary = $summaryQuery->select([
             DB::raw('COUNT(*) as total'),
             DB::raw('SUM(CASE WHEN i.status = "pending" AND i.due_date >= CURDATE() THEN 1 ELSE 0 END) as pending'),
-            DB::raw('SUM(CASE WHEN i.status = "overdue" AND i.due_date < CURDATE() THEN 1 ELSE 0 END) as overdue'),
+            DB::raw('SUM(CASE WHEN i.due_date < CURDATE() AND i.status != "paid" THEN 1 ELSE 0 END) as overdue'),
             DB::raw('SUM(CASE WHEN i.status = "paid" THEN 1 ELSE 0 END) as paid'),
             DB::raw('SUM(CASE WHEN i.due_date >= CURDATE() AND i.status = "pending" THEN 1 ELSE 0 END) as upcoming'),
             DB::raw('ROUND(SUM(i.amount)) as total_amount'),
             DB::raw('ROUND(SUM(CASE WHEN i.status = "paid" THEN i.amount ELSE 0 END)) as total_paid'),
             DB::raw('ROUND(SUM(CASE WHEN i.status != "paid" THEN i.amount ELSE 0 END)) as total_pending'),
-            DB::raw('ROUND(SUM(CASE WHEN i.status = "overdue" AND i.due_date < CURDATE() THEN i.amount ELSE 0 END)) as total_overdue')
+            DB::raw('ROUND(SUM(CASE WHEN i.due_date < CURDATE() AND i.status != "paid" THEN i.amount ELSE 0 END)) as total_overdue')
         ])
         ->first();
 

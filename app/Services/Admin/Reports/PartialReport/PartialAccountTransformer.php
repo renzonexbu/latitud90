@@ -7,6 +7,7 @@ use App\Models\Participant;
 use App\Models\Program;
 use App\Models\SalesExecutive;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PartialAccountTransformer
 {
@@ -51,14 +52,20 @@ class PartialAccountTransformer
         // Calcular datos financieros
         $financialData = $this->calculateFinancialData($participant, $program, $enrollment);
         
+        // Construir nombre del participante con CapitalCase
+        $participantName = $this->buildParticipantName($enrollment);
+        
+        // Obtener información del apoderado (contacto de emergencia)
+        $apoderadoInfo = $this->getApoderadoInfo($enrollment->participant_id);
+        
         return [
             'id' => $enrollment->participant_program_id,
             'participant_id' => $enrollment->participant_id,
             'program_id' => $enrollment->program_id,
             'created_at' => $enrollment->created_at,
-            'participant_name' => $enrollment->first_last_name . ' ' . ($enrollment->second_last_name ? $enrollment->second_last_name . ' ' : '') . $enrollment->first_name . ' ' . ($enrollment->second_name ? $enrollment->second_name : ''),
+            'participant_name' => $participantName,
             'participant_email' => $enrollment->email,
-            'participant_document' => $enrollment->document_number,
+            'participant_document' => $this->formatDocument($enrollment->document_number, $participant),
             'participant_phone' => $enrollment->phone,
             'program_name' => $enrollment->program_name,
             'program_departure_date' => $enrollment->departure_date,
@@ -73,7 +80,10 @@ class PartialAccountTransformer
             'status' => $financialData['status'],
             'payment_history' => [], // TODO: Implementar si es necesario
             'upcoming_payments' => [], // TODO: Implementar si es necesario
-            'discounts_detail' => [] // TODO: Implementar si es necesario
+            'discounts_detail' => [], // TODO: Implementar si es necesario
+            'apoderado_name' => $apoderadoInfo['name'],
+            'apoderado_email' => $apoderadoInfo['email'],
+            'apoderado_phone' => $apoderadoInfo['phone'],
         ];
     }
 
@@ -97,13 +107,13 @@ class PartialAccountTransformer
         // Campos del participante
         if (isset($selectedFields['participant'])) {
             if (in_array('name', $selectedFields['participant'])) {
-                $row['Nombre del Participante'] = $this->cleanUtf8(($enrollment->first_last_name ?? '') . ' ' . ($enrollment->second_last_name ?? '') . ' ' . ($enrollment->first_name ?? '') . ' ' . ($enrollment->second_name ?? ''));
+                $row['Nombre del Participante'] = $this->buildParticipantName($enrollment);
             }
             if (in_array('email', $selectedFields['participant'])) {
                 $row['Email'] = $this->cleanUtf8($enrollment->email ?? '');
             }
             if (in_array('document', $selectedFields['participant'])) {
-                $row['Documento'] = $this->cleanUtf8($enrollment->document_number ?? '');
+                $row['Documento'] = $this->formatDocument($enrollment->document_number, $participant);
             }
             if (in_array('phone', $selectedFields['participant'])) {
                 $row['Teléfono'] = $this->cleanUtf8($enrollment->phone ?? '');
@@ -123,6 +133,20 @@ class PartialAccountTransformer
             }
             if (in_array('salesExecutive', $selectedFields['program'])) {
                 $row['Ejecutivo de Ventas'] = $this->cleanUtf8($salesExecutiveName ?? 'N/A');
+            }
+        }
+
+        // Campos del apoderado
+        if (isset($selectedFields['apoderado'])) {
+            $apoderadoInfo = $this->getApoderadoInfo($enrollment->participant_id);
+            if (in_array('name', $selectedFields['apoderado'])) {
+                $row['Nombre Apoderado'] = $apoderadoInfo['name'];
+            }
+            if (in_array('email', $selectedFields['apoderado'])) {
+                $row['Email Apoderado'] = $apoderadoInfo['email'];
+            }
+            if (in_array('phone', $selectedFields['apoderado'])) {
+                $row['Teléfono Apoderado'] = $apoderadoInfo['phone'];
             }
         }
         
@@ -202,6 +226,97 @@ class PartialAccountTransformer
             'progress_percentage' => $progressPercentage,
             'status' => $status,
         ];
+    }
+
+    /**
+     * Construye el nombre del participante con CapitalCase
+     */
+    private function buildParticipantName($enrollment): string
+    {
+        $nameParts = [];
+        
+        // Construir nombre completo usando el orden correcto: nombres primero, luego apellidos
+        if ($enrollment->first_name) {
+            $nameParts[] = $this->capitalizeWords($enrollment->first_name);
+        }
+        if ($enrollment->second_name) {
+            $nameParts[] = $this->capitalizeWords($enrollment->second_name);
+        }
+        if ($enrollment->first_last_name) {
+            $nameParts[] = $this->capitalizeWords($enrollment->first_last_name);
+        }
+        if ($enrollment->second_last_name) {
+            $nameParts[] = $this->capitalizeWords($enrollment->second_last_name);
+        }
+        
+        return !empty($nameParts) ? implode(' ', $nameParts) : 'N/A';
+    }
+
+    /**
+     * Obtiene la información del apoderado (contacto de emergencia)
+     */
+    private function getApoderadoInfo($participantId): array
+    {
+        // Buscar el contacto de emergencia para este participante
+        $emergencyContact = DB::table('emergency_contact')
+            ->where('participant_id', $participantId)
+            ->first();
+        
+        if ($emergencyContact) {
+            return [
+                'name' => $this->capitalizeWords($this->cleanUtf8($emergencyContact->name ?? '')),
+                'email' => $this->cleanUtf8($emergencyContact->email ?? ''),
+                'phone' => $this->cleanUtf8($emergencyContact->phone ?? ''),
+            ];
+        }
+        
+        return [
+            'name' => 'N/A',
+            'email' => 'N/A',
+            'phone' => 'N/A',
+        ];
+    }
+
+    /**
+     * Formatea el número de documento según su tipo
+     */
+    private function formatDocument($documentNumber, $participant): string
+    {
+        if (empty($documentNumber)) {
+            return 'N/A';
+        }
+
+        // Detectar automáticamente si es RUT por formato
+        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
+            // Es un RUT, formatear como RUT
+            $body = substr($cleanNumber, 0, -1);
+            $dv = substr($cleanNumber, -1);
+            $withDots = number_format($body, 0, '', '.');
+            return $withDots . '-' . strtoupper($dv);
+        } else {
+            // Es un pasaporte u otro documento, mostrar tal como está
+            return $this->cleanUtf8($documentNumber);
+        }
+    }
+
+    /**
+     * Aplica CapitalCase a un string
+     */
+    private function capitalizeWords(string $string): string
+    {
+        if (empty($string)) {
+            return $string;
+        }
+        
+        // Limpiar UTF-8 primero
+        $string = $this->cleanUtf8($string);
+        
+        // Convertir a minúsculas y luego capitalizar cada palabra
+        $string = mb_strtolower($string, 'UTF-8');
+        $string = mb_convert_case($string, MB_CASE_TITLE, 'UTF-8');
+        
+        return $string;
     }
 
     /**
