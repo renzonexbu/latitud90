@@ -111,7 +111,7 @@
                     <option value="">Estado del participante</option>
                     <option :value="true">Activo</option>
                     <option :value="false">Inactivo</option>
-                                </select>
+                </select>
             </div>
 
             <!-- Clear Filters Button -->
@@ -152,7 +152,7 @@ export default {
                 level: this.initialFilters.level || "",
                 course_number: this.initialFilters.course_number || "",
                 paymentStatus: this.initialFilters.paymentStatus || "",
-                active: this.initialFilters.active !== undefined ? this.initialFilters.active : null,
+                active: this.initialFilters.active !== undefined ? this.initialFilters.active : "",
             }
         };
     },
@@ -191,10 +191,17 @@ export default {
     },
     methods: {
         performSearch: _.debounce(function () {
+            console.log('🔍 ParticipantsFilters - Filtros enviados:', {
+                filters: this.filters,
+                activeFilter: this.filters.active,
+                activeFilterType: typeof this.filters.active,
+                activeFilterStrict: this.filters.active
+            });
             this.$emit('filters-changed', this.filters);
         }, 300),
         
         clearFilters() {
+            console.log('🔍 ParticipantsFilters - Limpiando filtros');
             this.filters = {
                 search: "",
                 program: "",
@@ -202,8 +209,9 @@ export default {
                 level: "",
                 course_number: "",
                 paymentStatus: "",
-                active: null,
+                active: "",
             };
+            console.log('🔍 ParticipantsFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         },
         
