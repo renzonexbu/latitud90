@@ -90,9 +90,18 @@ const confirmPayment = async () => {
     form.append('orderDetailId', String(props.orderDetailId))
     form.append('gatewayType', props.gatewayType)
     
+    // Obtener session_id desde localStorage si no está en props
+    let sessionId = props.sessionId
+    if (!sessionId) {
+      sessionId = localStorage.getItem('analytics_session_id')
+    }
+    
     // Agregar session_id si está disponible
-    if (props.sessionId) {
-      form.append('session_id', props.sessionId)
+    if (sessionId) {
+      form.append('session_id', sessionId)
+      console.log('[PaymentSpinner] Session ID enviado:', sessionId)
+    } else {
+      console.warn('[PaymentSpinner] No se encontró session_id')
     }
     
     // Agregar datos específicos de la pasarela

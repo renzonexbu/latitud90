@@ -134,23 +134,12 @@ class ContractService
      */
     private function buildParticipantFullName($participant): string
     {
-        $parts = [];
-        
-        // Primero nombres, luego apellidos
-        if ($participant->first_name) {
-            $parts[] = $this->capitalizeWords($participant->first_name);
-        }
-        if ($participant->second_name) {
-            $parts[] = $this->capitalizeWords($participant->second_name);
-        }
-        if ($participant->first_last_name) {
-            $parts[] = $this->capitalizeWords($participant->first_last_name);
-        }
-        if ($participant->second_last_name) {
-            $parts[] = $this->capitalizeWords($participant->second_last_name);
+        if (!$participant) {
+            return 'N/A';
         }
         
-        return !empty($parts) ? implode(' ', $parts) : 'N/A';
+        // Usar directamente el accessor full_name del modelo
+        return $participant->full_name;
     }
 
     /**

@@ -30,7 +30,7 @@ Route::post('/analytics/program-selection', [AnalyticsController::class, 'record
 Route::post('/analytics/payment-selection', [AnalyticsController::class, 'recordPaymentSelection']);
 Route::post('/analytics/program-detail-view', [AnalyticsController::class, 'recordProgramDetailView']);
 Route::post('/analytics/payment-details-view', [AnalyticsController::class, 'recordPaymentDetailsView']);
-Route::post('/analytics/buyer-form-data', [AnalyticsController::class, 'recordBuyerFormData']);
+
 Route::post('/analytics/confirmation-view', [AnalyticsController::class, 'recordConfirmationView']);
 Route::post('/analytics/payment-initiated', [AnalyticsController::class, 'recordPaymentInitiated']);
 Route::post('/analytics/payment-completed', [AnalyticsController::class, 'recordPaymentCompleted']);

@@ -159,6 +159,9 @@ class AnalyticsController extends Controller
             'session_id' => 'required|string',
             'program_id' => 'required|integer',
             'participant_rut' => 'nullable|string',
+            'order_id' => 'nullable|integer',
+            'order_detail_id' => 'nullable|integer',
+            'order_number' => 'nullable|string',
             'payment_data' => 'required|array',
         ]);
 
@@ -166,7 +169,12 @@ class AnalyticsController extends Controller
             $request,
             $request->input('program_id'),
             $request->input('participant_rut'),
-            $request->input('payment_data')
+            $request->input('payment_data'),
+            [
+                'order_id' => $request->input('order_id'),
+                'order_detail_id' => $request->input('order_detail_id'),
+                'order_number' => $request->input('order_number'),
+            ]
         );
 
         return response()->json(['success' => true]);

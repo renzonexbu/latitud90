@@ -465,6 +465,16 @@
       processPayment() {
         this.paymentForm.payment_method = this.selectedPaymentMethod;
         
+        // Agregar session_id al formulario
+        const sessionId = localStorage.getItem('analytics_session_id');
+        console.log('Session ID from localStorage:', sessionId);
+        if (sessionId) {
+          this.paymentForm.session_id = sessionId;
+          console.log('Session ID added to form:', this.paymentForm.session_id);
+        } else {
+          console.warn('No session_id found in localStorage');
+        }
+        
         // Registrar inicio de pago en analytics
         this.recordPaymentInitiated();
         

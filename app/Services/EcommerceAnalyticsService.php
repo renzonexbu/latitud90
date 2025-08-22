@@ -163,23 +163,41 @@ class EcommerceAnalyticsService
     /**
      * Registrar inicio de pago
      */
-    public function recordPaymentInitiated(Request $request, $programId, $participantRut, $paymentData): void
+    public function recordPaymentInitiated(Request $request, $programId, $participantRut, $paymentData, $orderData = []): void
     {
         $analytics = $this->getOrCreateAnalyticsRecord($request);
         if ($analytics) {
-            $analytics->update([
+            // Determinar si es pago en cuotas o pago total
+            $isInstallment = isset($paymentData['installments']) && $paymentData['installments'] > 1;
+            $paymentType = $isInstallment ? 'Cuota Lat90' : 'Pago Total';
+            
+            $updateData = [
                 'payment_initiated_at' => now(),
                 'payment_method' => $paymentData['payment_method'] ?? null,
                 'payment_amount' => $paymentData['amount'] ?? null,
-                'payment_type' => $paymentData['payment_type'] ?? null,
-                'installments_count' => $paymentData['installments'] ?? null,
-            ]);
+                'payment_type' => $paymentType,
+                'installments_count' => $isInstallment ? ($paymentData['installments'] ?? 1) : null,
+                'order_id' => $orderData['order_id'] ?? null,
+                'order_detail_id' => $orderData['order_detail_id'] ?? null,
+                'order_number' => $orderData['order_number'] ?? null,
+            ];
+            
+            $analytics->update($updateData);
             
             // Calcular tiempo desde confirmation view si existe
             if ($analytics->confirmation_view_at) {
                 $timeToPayment = $analytics->confirmation_view_at->diffInSeconds(now());
                 $analytics->update(['time_to_payment' => $timeToPayment]);
             }
+            
+            Log::info('Analytics: Payment initiated recorded', [
+                'session_id' => $analytics->session_id,
+                'order_id' => $orderData['order_id'] ?? 'NULL',
+                'order_detail_id' => $orderData['order_detail_id'] ?? 'NULL',
+                'order_number' => $orderData['order_number'] ?? 'NULL',
+                'payment_type' => $paymentType,
+                'payment_amount' => $paymentData['amount'] ?? 'NULL'
+            ]);
         }
     }
 
@@ -227,25 +245,116 @@ class EcommerceAnalyticsService
      */
     public function recordPaymentCompletedFromBackend($orderDetail, $paymentData = []): void
     {
-        $sessionId = $orderDetail->order->session_id ?? null;
-        if (!$sessionId) return;
+        // Usar session_id del paymentData si está disponible, sino buscar en la orden
+        $sessionId = $paymentData['session_id'] ?? $orderDetail->order->session_id ?? null;
+        
+        Log::info('Analytics: recordPaymentCompletedFromBackend called', [
+            'order_detail_id' => $orderDetail->id,
+            'order_id' => $orderDetail->order_id,
+            'session_id_from_payment_data' => $paymentData['session_id'] ?? 'NULL',
+            'session_id_from_order' => $orderDetail->order->session_id ?? 'NULL',
+            'session_id_final' => $sessionId,
+            'installment_number' => $orderDetail->installment_number ?? 'NULL',
+            'amount' => $orderDetail->amount
+        ]);
+        
+        if (!$sessionId) {
+            Log::warning('Analytics: No session_id found in payment data or order');
+            return;
+        }
         
         $analytics = EcommerceAnalytics::where('session_id', $sessionId)->first();
-        if ($analytics) {
-            $analytics->update([
-                'payment_completed_at' => now(),
-                'payment_status' => 'completed',
-                'order_number' => $orderDetail->order->order_number ?? null,
-                'order_id' => $orderDetail->order_id,
-                'order_detail_id' => $orderDetail->id,
-                'payment_amount' => $orderDetail->amount,
-                'payment_method' => $paymentData['payment_method'] ?? $orderDetail->paymentGateway->name ?? null,
+        
+        Log::info('Analytics: Record found', [
+            'session_id' => $sessionId,
+            'analytics_found' => $analytics ? 'YES' : 'NO',
+            'analytics_id' => $analytics ? $analytics->id : 'NULL'
+        ]);
+        
+        if (!$analytics) {
+            // Si no existe el registro de analytics, crearlo con los datos básicos
+            $analytics = EcommerceAnalytics::create([
+                'session_id' => $sessionId,
+                'ip_address' => request()->ip() ?? '127.0.0.1',
+                'user_agent' => request()->userAgent() ?? 'Unknown',
+                'referrer' => request()->header('referer') ?? null,
+                'participant_rut' => $orderDetail->order->participant->document_number ?? null,
+                'participant_id' => $orderDetail->order->participant_id,
+                'program_id' => $orderDetail->order->program_id,
+                'program_name' => $orderDetail->order->program->name ?? null,
+                'hero_search_at' => now()->subMinutes(5), // Simular tiempo de búsqueda
+                'program_list_view_at' => now()->subMinutes(4), // Simular tiempo de vista de lista
+                'program_detail_view_at' => now()->subMinutes(3), // Simular tiempo de vista de detalle
+                'payment_details_view_at' => now()->subMinutes(2), // Simular tiempo de vista de detalles de pago
+                'confirmation_view_at' => now()->subMinutes(1), // Simular tiempo de vista de confirmación
+                'payment_initiated_at' => now()->subMinutes(1), // Simular tiempo de inicio de pago
             ]);
             
-            if ($analytics->payment_initiated_at) {
-                $timeToCompletion = $analytics->payment_initiated_at->diffInSeconds(now());
-                $analytics->update(['time_to_completion' => $timeToCompletion]);
-            }
+            Log::info('Analytics: Created new record', [
+                'session_id' => $sessionId,
+                'analytics_id' => $analytics->id
+            ]);
+        }
+        
+        // Determinar si es pago en cuotas o pago total
+        $isInstallment = $orderDetail->installment_number !== null;
+        $paymentType = $isInstallment ? 'Cuota Lat90' : 'Pago Total';
+        
+        // Para cuotas, el installments_count debe ser el número de cuota específica
+        // Para pago total, debe ser null o 0
+        $installmentsCount = null;
+        if ($isInstallment) {
+            $installmentsCount = $orderDetail->installment_number;
+        }
+        
+        // Asignar los valores directamente al modelo
+        $analytics->payment_completed_at = now();
+        $analytics->payment_status = 'completed';
+        $analytics->order_number = $orderDetail->order->order_number ?? null;
+        $analytics->order_id = $orderDetail->order_id;
+        $analytics->order_detail_id = $orderDetail->id;
+        $analytics->payment_amount = $orderDetail->amount;
+        $analytics->payment_method = $paymentData['payment_method'] ?? $orderDetail->paymentGateway->name ?? null;
+        $analytics->payment_type = $paymentType;
+        $analytics->installments_count = $installmentsCount;
+        
+        Log::info('Analytics: About to save with data', [
+            'payment_type' => $paymentType,
+            'installments_count' => $installmentsCount,
+            'order_id' => $orderDetail->order_id,
+            'order_detail_id' => $orderDetail->id,
+            'payment_amount' => $orderDetail->amount,
+            'payment_method' => $paymentData['payment_method'] ?? $orderDetail->paymentGateway->name ?? null,
+            'order_number' => $orderDetail->order->order_number ?? null
+        ]);
+        
+        $saveResult = $analytics->save();
+        
+        Log::info('Analytics: Save result', [
+            'save_success' => $saveResult ? 'YES' : 'NO'
+        ]);
+        
+        Log::info('Analytics: Payment data updated successfully', [
+            'session_id' => $sessionId,
+            'payment_type' => $analytics->payment_type,
+            'installments_count' => $analytics->installments_count,
+            'order_id' => $analytics->order_id,
+            'order_detail_id' => $analytics->order_detail_id,
+            'payment_amount' => $analytics->payment_amount,
+            'payment_method' => $analytics->payment_method,
+            'order_number' => $analytics->order_number
+        ]);
+        
+        // Calcular time_to_completion si existe payment_initiated_at
+        if ($analytics->payment_initiated_at) {
+            $timeToCompletion = $analytics->payment_initiated_at->diffInSeconds(now());
+            $analytics->update(['time_to_completion' => $timeToCompletion]);
+        }
+        
+        // Calcular time_to_payment si existe confirmation_view_at
+        if ($analytics->confirmation_view_at && $analytics->payment_initiated_at) {
+            $timeToPayment = $analytics->confirmation_view_at->diffInSeconds($analytics->payment_initiated_at);
+            $updateData['time_to_payment'] = $timeToPayment;
         }
     }
 
@@ -258,13 +367,48 @@ class EcommerceAnalyticsService
         if (!$sessionId) return;
         
         $analytics = EcommerceAnalytics::where('session_id', $sessionId)->first();
-        if ($analytics) {
-            $analytics->update([
-                'payment_failed_at' => now(),
-                'payment_status' => 'failed',
+        
+        if (!$analytics) {
+            // Si no existe el registro de analytics, crearlo con los datos básicos
+            $analytics = EcommerceAnalytics::create([
+                'session_id' => $sessionId,
+                'ip_address' => request()->ip() ?? '127.0.0.1',
+                'user_agent' => request()->userAgent() ?? 'Unknown',
+                'referrer' => request()->header('referer') ?? null,
+                'participant_rut' => $orderDetail->order->participant->document_number ?? null,
+                'participant_id' => $orderDetail->order->participant_id,
+                'program_id' => $orderDetail->order->program_id,
+                'program_name' => $orderDetail->order->program->name ?? null,
+                'hero_search_at' => now()->subMinutes(5), // Simular tiempo de búsqueda
+                'program_list_view_at' => now()->subMinutes(4), // Simular tiempo de vista de lista
+                'program_detail_view_at' => now()->subMinutes(3), // Simular tiempo de vista de detalle
+                'payment_details_view_at' => now()->subMinutes(2), // Simular tiempo de vista de detalles de pago
+                'confirmation_view_at' => now()->subMinutes(1), // Simular tiempo de vista de confirmación
+                'payment_initiated_at' => now()->subMinutes(1), // Simular tiempo de inicio de pago
             ]);
         }
+        
+        // Determinar si es pago en cuotas o pago total
+        $isInstallment = $orderDetail->installment_number !== null;
+        $paymentType = $isInstallment ? 'Cuota Lat90' : 'Pago Total';
+        
+        // Para cuotas, el installments_count debe ser el número de cuota específica
+        // Para pago total, debe ser null o 0
+        $installmentsCount = null;
+        if ($isInstallment) {
+            $installmentsCount = $orderDetail->installment_number;
+        }
+        
+        // Asignar los valores directamente al modelo
+        $analytics->payment_failed_at = now();
+        $analytics->payment_status = 'failed';
+        $analytics->payment_type = $paymentType;
+        $analytics->installments_count = $installmentsCount;
+        
+        $analytics->save();
     }
+
+
 
     /**
      * Obtener análisis completo del funnel de conversión

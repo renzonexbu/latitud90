@@ -70,6 +70,16 @@ class ProcessPaymentController extends Controller
             $sessionId = $request->input('session_id');
             if ($sessionId) {
                 $paymentData['session_id'] = $sessionId;
+                Log::info('Session ID received from frontend', [
+                    'session_id' => $sessionId,
+                    'program_id' => $programId,
+                    'rut' => $rut
+                ]);
+            } else {
+                Log::warning('No session_id received from frontend', [
+                    'program_id' => $programId,
+                    'rut' => $rut
+                ]);
             }
 
             if (!$paymentData || !$formData) {
@@ -93,6 +103,12 @@ class ProcessPaymentController extends Controller
                 'rut' => $rut,
                 'payment_type' => $paymentData['paymentType'] ?? 'unknown',
                 'payment_method' => $paymentData['paymentMethod'] ?? 'unknown'
+            ]);
+
+            // Log para verificar que session_id se está pasando correctamente
+            Log::info('Processing payment with session_id', [
+                'session_id' => $paymentData['session_id'] ?? 'NULL',
+                'payment_type' => $paymentData['paymentType'] ?? 'unknown'
             ]);
 
             // Determinar el tipo de pago y crear la orden correspondiente
@@ -120,9 +136,8 @@ class ProcessPaymentController extends Controller
 
             // Almacenar cliente frecuente para futuras compras
             $this->storeFrequentClient($formData);
-
             // Registrar inicio de pago en el servicio de analytics
-            $this->analyticsService->recordPaymentInitiated($request, $programId, $rut, $paymentData);
+
 
             // Crear transacción en el gateway de pago
             $gatewayResult = $this->createGatewayTransaction($orderDetail, $paymentData);
@@ -164,6 +179,7 @@ class ProcessPaymentController extends Controller
             return response()->json([
                 'success' => true,
                 'order_id' => $order->id,
+                'order_detail_id' => $orderDetail->id,
                 'order_number' => $order->order_number,
                 'gateway_url' => $gatewayUrl,
                 'gateway_token' => $gatewayToken,

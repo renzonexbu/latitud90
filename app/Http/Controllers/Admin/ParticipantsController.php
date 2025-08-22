@@ -211,8 +211,11 @@ class ParticipantsController extends Controller
     /**
      * Show the form for editing the specified participant.
      */
-    public function edit(Participant $participant)
+    public function edit($id)
     {
+        // Buscar el participante incluyendo los eliminados (soft deleted)
+        $participant = Participant::withTrashed()->findOrFail($id);
+        
         $participant->load(['courses', 'courses.institution', 'courses.program', 'emergencyContacts']);
         
         // Cargar participant_programs con sus descuentos

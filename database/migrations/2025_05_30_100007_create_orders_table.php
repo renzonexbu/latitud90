@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
 			$table->id();
+            $table->string('session_id')->nullable();
 			$table->foreignId('participant_id')->constrained('participants');
 			$table->foreignId('program_id')->constrained('programs'); // FK a programs
 			$table->foreignId('participant_program_id')->nullable()->constrained('participant_program');

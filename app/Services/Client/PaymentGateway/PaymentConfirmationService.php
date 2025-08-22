@@ -392,7 +392,8 @@ class PaymentConfirmationService
         // Registrar pago completado en analytics
         $this->analyticsService->recordPaymentCompletedFromBackend($orderDetail, [
             'payment_method' => $orderDetail->paymentGateway->name ?? null,
-        ]);
+            'session_id' => $sessionId, // Pasar el session_id al analytics
+        ], null);
 
         Log::info('PaymentConfirmationService: Payment processed successfully', [
             'order_detail_id' => $orderDetail->id,
@@ -442,6 +443,9 @@ class PaymentConfirmationService
         ]);
 
         // NO actualizar installments - el usuario puede reintentar el pago de la misma cuota
+
+        // Registrar pago fallido en analytics
+        $this->analyticsService->recordPaymentFailedFromBackend($orderDetail, $errorMessage);
 
         Log::info('PaymentConfirmationService: Failed payment processed', [
             'order_detail_id' => $orderDetail->id,
@@ -603,41 +607,42 @@ class PaymentConfirmationService
      */
     private function sendSuccessEmail(OrderDetail $orderDetail, Payment $payment): void
     {
-        // Verificar si ya se envió un email para este pago
-        if ($payment->email_sent) {
-            Log::info('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'customer_email' => $orderDetail->email,
-            ]);
-            return;
-        }
+        $payment->update(['email_sent' => true]);
+        // // Verificar si ya se envió un email para este pago
+        // if ($payment->email_sent) {
+        //     Log::info('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'customer_email' => $orderDetail->email,
+        //     ]);
+        //     return;
+        // }
         
-        try {
-            $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+        // try {
+        //     $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
             
-            if ($emailSent) {
-                // Marcar que se envió el email
-                $payment->update(['email_sent' => true]);
+        //     if ($emailSent) {
+        //         // Marcar que se envió el email
+        //         $payment->update(['email_sent' => true]);
                 
-                Log::info('PaymentConfirmationService: Email de confirmación enviado', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            } else {
-                Log::warning('PaymentConfirmationService: Error al enviar email de confirmación', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::error('PaymentConfirmationService: Excepción al enviar email de confirmación', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        //         Log::info('PaymentConfirmationService: Email de confirmación enviado', [
+        //             'order_detail_id' => $orderDetail->id,
+        //             'payment_id' => $payment->id,
+        //             'customer_email' => $orderDetail->email,
+        //         ]);
+        //     } else {
+        //         Log::warning('PaymentConfirmationService: Error al enviar email de confirmación', [
+        //             'order_detail_id' => $orderDetail->id,
+        //             'payment_id' => $payment->id,
+        //             'customer_email' => $orderDetail->email,
+        //         ]);
+        //     }
+        // } catch (\Exception $e) {
+        //     Log::error('PaymentConfirmationService: Excepción al enviar email de confirmación', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'error' => $e->getMessage(),
+        //     ]);
+        // }
     }
 }

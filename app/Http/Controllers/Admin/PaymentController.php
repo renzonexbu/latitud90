@@ -481,7 +481,7 @@ class PaymentController extends Controller
                 'data' => [
                     'participant' => [
                         'id' => $participant->id,
-                        'name' => $participant->first_last_name . ' ' . ($participant->second_last_name ? $participant->second_last_name . ' ' : '') . $participant->first_name . ' ' . ($participant->second_name ? $participant->second_name : ''),
+                        'name' => $participant->full_name,
                         'document_number' => $participant->document_number,
                         'email' => $participant->email,
                     ],

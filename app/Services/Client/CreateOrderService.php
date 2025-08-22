@@ -110,7 +110,8 @@ class CreateOrderService
                 'participant_rut' => $rut,
                 'program_id' => $programId,
                 'total_amount' => $finalAmount,
-                'installments' => $totalInstallments
+                'installments' => $totalInstallments,
+                'session_id' => $order->session_id
             ]);
 
             return [

@@ -154,6 +154,7 @@ class InstallmentService
                 'payment_type' => 'monthly',
                 'status' => 'pending',
                 'order_number' => $this->generateOrderNumber(),
+                'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => 'Orden creada para plan de cuotas mensuales'
             ]);
 

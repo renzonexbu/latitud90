@@ -24,6 +24,7 @@ class Order extends Model
         'status',
         'notes',
         'order_number',
+        'session_id',
     ];
 
     protected $casts = [

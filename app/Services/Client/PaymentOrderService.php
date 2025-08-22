@@ -46,7 +46,8 @@ class PaymentOrderService
                 'order_detail_id' => $orderDetail->id,
                 'installment_id' => $installment->id,
                 'installment_number' => $installment->installment_number,
-                'amount' => $installment->amount
+                'amount' => $installment->amount,
+                'session_id' => $order->session_id
             ]);
 
             DB::commit();
@@ -114,7 +115,8 @@ class PaymentOrderService
             Log::info('Total payment order created successfully', [
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
-                'amount' => $finalAmount
+                'amount' => $finalAmount,
+                'session_id' => $order->session_id
             ]);
 
             DB::commit();

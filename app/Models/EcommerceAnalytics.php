@@ -27,6 +27,8 @@ class EcommerceAnalytics extends Model
         'payment_failed_at',
         'payment_amount',
         'payment_method',
+        'payment_type',
+        'installments_count',
         'payment_status',
         'order_number',
         'order_id',
@@ -49,6 +51,7 @@ class EcommerceAnalytics extends Model
         'payment_completed_at' => 'datetime',
         'payment_failed_at' => 'datetime',
         'payment_amount' => 'decimal:2',
+        'installments_count' => 'integer',
         'funnel_data' => 'array',
         'user_behavior' => 'array',
     ];

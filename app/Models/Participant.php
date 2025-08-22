@@ -39,8 +39,8 @@ class Participant extends Model
 
     protected $appends = [
         'full_name',
-        'first_name',
-        'last_name'
+        'formatted_first_name',
+        'formatted_last_name'
     ];
 
     public function emergencyContacts()
@@ -132,9 +132,9 @@ class Participant extends Model
     }
 
     /**
-     * Accessor para first_name - compatibilidad con frontend
+     * Accessor para formatted_first_name - compatibilidad con frontend
      */
-    public function getFirstNameAttribute()
+    public function getFormattedFirstNameAttribute()
     {
         $names = [];
         if ($this->attributes['first_name']) {
@@ -147,9 +147,9 @@ class Participant extends Model
     }
 
     /**
-     * Accessor para last_name - compatibilidad con frontend
+     * Accessor para formatted_last_name - compatibilidad con frontend
      */
-    public function getLastNameAttribute()
+    public function getFormattedLastNameAttribute()
     {
         $lastNames = [];
         if ($this->attributes['first_last_name']) {

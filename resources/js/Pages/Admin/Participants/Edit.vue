@@ -529,8 +529,8 @@ const closeEmergencyContactsModal = () => {
 };
 
 const confirmDeleteParticipant = () => {
-    if (confirm(`¿Estás seguro de que quieres desactivar al participante "${getFullName(participant)}"?\n\nEsta acción desactivará al participante pero mantendrá todos sus registros asociados.`)) {
-        router.delete(route('admin.participants.destroy', participant.id), {
+    if (confirm(`¿Estás seguro de que quieres desactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción desactivará al participante pero mantendrá todos sus registros asociados.`)) {
+        router.delete(route('admin.participants.destroy', props.participant.id), {
             onSuccess: () => {
                 // Redirigir al listado de participantes
                 router.visit(route('admin.participants.index'));

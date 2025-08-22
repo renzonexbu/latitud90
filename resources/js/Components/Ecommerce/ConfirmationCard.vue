@@ -400,12 +400,21 @@ export default {
                     }
                 }
 
+                // Obtener session_id desde localStorage
+                const sessionId = localStorage.getItem('analytics_session_id');
+                
+                // Debug: Log de session_id
+                console.log('=== SESSION ID DEBUG ===');
+                console.log('sessionId from localStorage:', sessionId);
+                console.log('========================');
+                
                 // Preparar datos para enviar al backend
                 const requestData = {
                     programId: this.program.id,
                     rut: this.formData.document_number,
                     paymentData: parsedPaymentData,
-                    formData: parsedFormData
+                    formData: parsedFormData,
+                    session_id: sessionId
                 };
 
                 console.log("Enviando datos de pago:", requestData);
@@ -478,6 +487,9 @@ export default {
                         
                         // Siempre que venga token, usar POST con token_ws (Transbank Mall exige POST a initTransaction)
                         if (result.gateway_token) {
+                            // REGISTRAR payment_initiated_at JUSTO ANTES de redirigir a la pasarela
+                            this.recordPaymentInitiated(result);
+                            
                             // Para Transbank, usar POST con token
                             const form = document.createElement('form');
                             form.method = 'POST';
@@ -495,6 +507,9 @@ export default {
                             document.body.appendChild(form);
                             form.submit();
                         } else {
+                            // REGISTRAR payment_initiated_at JUSTO ANTES de redirigir a la pasarela
+                            this.recordPaymentInitiated(result);
+                            
                             // Para otros gateways, usar redirección directa
                             window.location.href = result.gateway_url;
                         }
@@ -525,6 +540,51 @@ export default {
                 router.visit("/programs");
             }
         },
+        recordPaymentInitiated(result) {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Debug: Log de los datos que se van a enviar
+            console.log('=== ANALYTICS PAYMENT INITIATED DEBUG ===');
+            console.log('sessionId:', sessionId);
+            console.log('order_id:', result.order_id);
+            console.log('order_detail_id:', result.order_detail_id);
+            console.log('order_number:', result.order_number);
+            console.log('==========================================');
+            
+            // Enviar datos de inicio de pago al backend
+            fetch('/api/analytics/payment-initiated', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: this.program.id,
+                    participant_rut: this.formData.document_number,
+                    order_id: result.order_id,
+                    order_detail_id: result.order_detail_id,
+                    order_number: result.order_number,
+                    payment_data: {
+                        payment_type: this.currentInstallments > 1 ? 'monthly' : 'total',
+                        payment_method: this.selectedPaymentMethod,
+                        amount: this.displayPayAmount,
+                        installments: this.currentInstallments,
+                        terms_accepted: this.termsAccepted
+                    }
+                })
+            }).catch(error => {
+                console.error('Error recording payment initiated:', error);
+            });
+        },
+        
         reloadPage() {
             // Recargar la página para obtener un nuevo token CSRF
             window.location.reload();
