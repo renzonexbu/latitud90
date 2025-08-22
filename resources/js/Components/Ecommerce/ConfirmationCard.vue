@@ -492,7 +492,7 @@ export default {
                             
                             // Para Transbank, usar POST con token
                             const form = document.createElement('form');
-                            form.method = 'POST';
+                            form.method = 'GET';
                             form.action = result.gateway_url;
                             form.target = '_self';
                             
@@ -509,7 +509,6 @@ export default {
                         } else {
                             // REGISTRAR payment_initiated_at JUSTO ANTES de redirigir a la pasarela
                             this.recordPaymentInitiated(result);
-                            
                             // Para otros gateways, usar redirección directa
                             window.location.href = result.gateway_url;
                         }
@@ -548,14 +547,6 @@ export default {
                 console.warn('No se encontró session_id en localStorage');
                 return;
             }
-            
-            // Debug: Log de los datos que se van a enviar
-            console.log('=== ANALYTICS PAYMENT INITIATED DEBUG ===');
-            console.log('sessionId:', sessionId);
-            console.log('order_id:', result.order_id);
-            console.log('order_detail_id:', result.order_detail_id);
-            console.log('order_number:', result.order_number);
-            console.log('==========================================');
             
             // Enviar datos de inicio de pago al backend
             fetch('/api/analytics/payment-initiated', {

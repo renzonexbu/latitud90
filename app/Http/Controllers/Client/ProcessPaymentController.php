@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Services\Client\InstallmentService;
 use App\Services\Client\PaymentOrderService;
-use App\Services\Client\PaymentGateway\TransbankService;
+use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Client\FrequentClientService;
 use App\Models\OrderDetail;
@@ -27,7 +27,7 @@ class ProcessPaymentController extends Controller
 {
     protected $installmentService;
     protected $paymentOrderService;
-    protected $transbankService;
+    protected $virtualPosService;
     protected $khipuService;
     protected $createOrderService;
     protected $bsaleService;
@@ -36,7 +36,7 @@ class ProcessPaymentController extends Controller
     public function __construct(
         InstallmentService $installmentService,
         PaymentOrderService $paymentOrderService,
-        TransbankService $transbankService,
+        VirtualPosService $virtualPosService,
         KhipuService $khipuService,
         CreateOrderService $createOrderService,
         BsaleService $bsaleService,
@@ -44,7 +44,7 @@ class ProcessPaymentController extends Controller
     ) {
         $this->installmentService = $installmentService;
         $this->paymentOrderService = $paymentOrderService;
-        $this->transbankService = $transbankService;
+        $this->virtualPosService = $virtualPosService;
         $this->khipuService = $khipuService;
         $this->createOrderService = $createOrderService;
         $this->bsaleService = $bsaleService;
@@ -365,7 +365,13 @@ class ProcessPaymentController extends Controller
             ];
             
             // SIEMPRE actualizar el payment_gateway_id según el método de pago actual
-            $dataToUpdate['payment_gateway_id'] = $paymentData['paymentMethod'] === 'khipu' ? 2 : 1;
+            if ($paymentData['paymentMethod'] === 'khipu') {
+                $dataToUpdate['payment_gateway_id'] = 2; // Khipu
+            } else if (stripos($paymentData['paymentMethod'], 'debit_credit') !== false) {
+                $dataToUpdate['payment_gateway_id'] = 3; // VirtualPOS
+            } else {
+                $dataToUpdate['payment_gateway_id'] = 1; // Transbank (legacy)
+            }
             
             // SIEMPRE actualizar el payment_option_id según el método de pago y tipo de pago
             $dataToUpdate['payment_option_id'] = $this->resolvePaymentOptionIdForUpdate(
@@ -451,7 +457,7 @@ class ProcessPaymentController extends Controller
         ]);
 
         // URLs de retorno con parámetro gateway explícito
-        $transbankCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'transbank']);
+        $virtualPosCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'virtualpos']);
         $khipuCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'khipu']);
         $failureUrl = route('payment.failure', ['orderDetailId' => $orderDetail->id]);
 
@@ -460,7 +466,17 @@ class ProcessPaymentController extends Controller
         $installmentsOverride = null;
         
         if ($method !== '') {
-            if (stripos($method, 'credit') !== false) {
+            // VirtualPOS: debit_credit_0, debit_credit_3, debit_credit_6, debit_credit_9, debit_credit_12
+            if (stripos($method, 'debit_credit') !== false) {
+                $normalizedMethod = 'credit';
+                if (preg_match('/(\d+)/', $method, $m)) {
+                    $n = (int) $m[1];
+                    if ($n > 0) { $installmentsOverride = $n; }
+                }
+                if ($installmentsOverride === null) { $installmentsOverride = 1; }
+            }
+            // Legacy Transbank: credit_0, credit_3, etc.
+            else if (stripos($method, 'credit') !== false) {
                 $normalizedMethod = 'credit';
                 if (preg_match('/(\d+)/', $method, $m)) {
                     $n = (int) $m[1];
@@ -482,13 +498,23 @@ class ProcessPaymentController extends Controller
                 $paymentType = $paymentData['paymentType'] ?? null;
                 $installments = $installmentsOverride ?? ($paymentData['installments'] ?? null);
 
-                return $this->transbankService->createTransaction(
+                // Obtener datos del cliente desde el OrderDetail
+                $customerEmail = $orderDetail->email;
+                $customerDocument = $orderDetail->document_number;
+                $customerName = $orderDetail->name;
+                $customerPhone = $orderDetail->phone;
+
+                return $this->virtualPosService->createTransaction(
                     $orderId,
                     $amount,
-                    $transbankCallbackUrl,
+                    $virtualPosCallbackUrl,
                     null, // notification URL
                     $paymentType,
-                    $installments
+                    $installments,
+                    $customerEmail,
+                    $customerDocument,
+                    $customerName,
+                    $customerPhone
                 );
 
             case 'khipu':
@@ -557,19 +583,23 @@ class ProcessPaymentController extends Controller
                     'gateway_response' => $gatewayResult,
                 ];
 
-                if ($gatewayType === 'khipu') {
-                    $paymentId = $gatewayResult['payment_id'] ?? null;
-                    if (!$paymentId) {
-                        $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
-                        if (is_string($paymentUrl) && $paymentUrl !== '') {
-                            $parts = explode('/', rtrim($paymentUrl, '/'));
-                            $paymentId = end($parts) ?: null;
-                        }
+                            if ($gatewayType === 'khipu') {
+                $paymentId = $gatewayResult['payment_id'] ?? null;
+                if (!$paymentId) {
+                    $paymentUrl = $gatewayResult['payment_url'] ?? $gatewayResult['url'] ?? '';
+                    if (is_string($paymentUrl) && $paymentUrl !== '') {
+                        $parts = explode('/', rtrim($paymentUrl, '/'));
+                        $paymentId = end($parts) ?: null;
                     }
-                    $updateData['external_payment_id'] = $paymentId;
-                } else {
-                    $updateData['token'] = $gatewayResult['token'] ?? null;
                 }
+                $updateData['external_payment_id'] = $paymentId;
+            } else if ($gatewayType === 'virtualpos') {
+                $paymentId = $gatewayResult['payment_id'] ?? null;
+                $updateData['external_payment_id'] = $paymentId;
+                $updateData['token'] = $gatewayResult['token'] ?? null;
+            } else {
+                $updateData['token'] = $gatewayResult['token'] ?? null;
+            }
 
                 $existingPayment->update($updateData);
                 $payment = $existingPayment;
@@ -586,6 +616,12 @@ class ProcessPaymentController extends Controller
                     }
                     $data = array_merge($commonData, [
                         'external_payment_id' => $paymentId,
+                    ]);
+                } else if ($gatewayType === 'virtualpos') {
+                    $paymentId = $gatewayResult['payment_id'] ?? null;
+                    $data = array_merge($commonData, [
+                        'external_payment_id' => $paymentId,
+                        'token' => $gatewayResult['token'] ?? null,
                     ]);
                 } else {
                     $data = array_merge($commonData, [
@@ -616,8 +652,17 @@ class ProcessPaymentController extends Controller
     private function normalizeGatewayType(string $method): string
     {
         $methodRaw = (string) $method;
-        if (stripos($methodRaw, 'credit') !== false) { return 'credit'; }
-        else if (stripos($methodRaw, 'debit') !== false) { return 'debit'; }
+        // VirtualPOS: debit_credit_0, debit_credit_3, etc.
+        if (stripos($methodRaw, 'debit_credit') !== false) { 
+            return 'virtualpos'; 
+        }
+        // Legacy Transbank
+        else if (stripos($methodRaw, 'credit') !== false) { 
+            return 'credit'; 
+        }
+        else if (stripos($methodRaw, 'debit') !== false) { 
+            return 'debit'; 
+        }
         return 'other';
     }
 
@@ -633,14 +678,29 @@ class ProcessPaymentController extends Controller
         if ($mode === 'full') {
             switch ($method) {
                 case 'khipu': $code = 'full_transfer_khipu'; break;
-                case 'debit': $code = 'full_debit_webpay'; break;
+                case 'debit': $code = 'full_debit_virtualpos'; break;
+                case 'debit_credit_0': $code = 'full_debit_virtualpos'; break;
+                case 'debit_credit_3': $code = 'full_credit_virtualpos_3'; break;
+                case 'debit_credit_6': $code = 'full_credit_virtualpos_6'; break;
+                case 'debit_credit_9': $code = 'full_credit_virtualpos_6'; break; // 9 cuotas usa la misma configuración que 6
+                case 'debit_credit_12': $code = 'full_credit_virtualpos_12'; break;
+                // Legacy Transbank
                 case 'credit_0': $code = 'full_credit_webpay_0'; break;
                 case 'credit_3': $code = 'full_credit_webpay_3'; break;
                 case 'credit_6': $code = 'full_credit_webpay_6'; break;
                 case 'credit_9': $code = 'full_credit_webpay_9'; break;
                 case 'credit_12': $code = 'full_credit_webpay_12'; break;
                 default:
-                    if (strpos($method, 'credit') === 0) {
+                    if (strpos($method, 'debit_credit') === 0) {
+                        $suffix = trim(str_replace('debit_credit', '', $method), '_');
+                        $n = $suffix !== '' ? (int)$suffix : 0;
+                        // 9 cuotas usa la misma configuración que 6
+                        if ($n === 9) {
+                            $code = 'full_credit_virtualpos_6';
+                        } else {
+                            $code = $n > 0 ? 'full_credit_virtualpos_' . $n : 'full_debit_virtualpos';
+                        }
+                    } else if (strpos($method, 'credit') === 0) {
                         $suffix = trim(str_replace('credit', '', $method), '_');
                         $n = $suffix !== '' ? (int)$suffix : 0;
                         $code = 'full_credit_webpay_' . $n;
@@ -650,7 +710,8 @@ class ProcessPaymentController extends Controller
         } else {
             switch ($method) {
                 case 'khipu': $code = 'lat90_transfer_khipu'; break;
-                case 'debit': $code = 'lat90_debit_webpay'; break;
+                case 'debit': $code = 'lat90_debit_virtualpos'; break;
+                case 'debit_credit_0': $code = 'lat90_debit_virtualpos'; break;
                 case 'credit': $code = 'lat90_credit_0'; break;
             }
         }

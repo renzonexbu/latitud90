@@ -57,4 +57,32 @@ return [
         'invert_same_year_logic' => env('BSALE_INVERT_SAME_YEAR_LOGIC', false),
     ],
 
+    'virtualpos' => [
+        'no_cuotes' => [
+            'api_key' => env('VP_API_KEY_SC', 'd0f282-9c0c9d-ab74f7-965013-03232e'),
+            'secret_key' => env('VP_SECRET_SC', '13d86e16bbb4d2d05d83a82112b0d310'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_NO_COUTES', '41760243'),
+        ],
+        '3_cuotes' => [
+            'api_key' => env('VP_API_KEY_3CSI', 'cf3b17-b85239-a3a242-1aaa9d-b74cf0'),
+            'secret_key' => env('VP_SECRET_3CSI', '352cf28ba166598afef7c93e246c0b04'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_3_COUTES', '41760252'),
+        ],
+        '6_cuotes' => [
+            'api_key' => env('VP_API_KEY_6CSI', 'b70bfd-0865f4-13e6ba-ed1802-cacaad'),
+            'secret_key' => env('VP_SECRET_6CSI', '426e5436b6733f9f4c4a3d460e641725'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_6_COUTES', '41760255'),
+        ],
+        '9_cuotes' => [
+            'api_key' => env('VP_API_KEY_6CSI', 'b70bfd-0865f4-13e6ba-ed1802-cacaad'), // Usa la misma configuración que 6 cuotas
+            'secret_key' => env('VP_SECRET_6CSI', '426e5436b6733f9f4c4a3d460e641725'), // Usa la misma configuración que 6 cuotas
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_6_COUTES', '41760255'), // Usa la misma configuración que 6 cuotas
+        ],
+        '12_cuotes' => [
+            'api_key' => env('VP_API_KEY_12CSI', '2a75eb-4d3776-000183-7d449d-edd576'),
+            'secret_key' => env('VP_SECRET_12CSI', 'cff9a217d5d6f2e2caeb79fa4f3a3497'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_12_COUTES', '41760262'),
+        ]
+    ],
+
 ];
