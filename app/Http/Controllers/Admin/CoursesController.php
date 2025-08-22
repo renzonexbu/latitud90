@@ -11,6 +11,7 @@ use App\Services\Admin\Courses\CreateCourseService;
 use App\Services\Admin\Courses\EditCourseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Http\Requests\Admin\Courses\UpdateCourseRequest;
 use App\Helpers\ParticipantPriceHelper;
@@ -169,11 +170,12 @@ class CoursesController extends Controller
             $courseData = [
                 'institutionId' => $validatedData['institutionId'],
                 'educationLevel' => $validatedData['educationLevel'],
+                'grade' => $validatedData['grade'] ?? null,
                 'year' => $validatedData['year'],
                 'courseNumber' => $validatedData['courseNumber'] ?? ($request->input('course_number') ?? null),
                 'courseName' => $validatedData['courseName'] ?? ($request->input('course_name') ?? null),
-                'contactEmail' => $validatedData['contactEmail'],
-                'contactPhone' => $validatedData['contactPhone'],
+                'contactEmail' => $validatedData['contactEmail'] ?? null,
+                'contactPhone' => $validatedData['contactPhone'] ?? null,
                 'endDate' => $validatedData['endDate'] ?? null,
                 'studentsFile' => $request->file('students_file') ?? null,
             ];
@@ -224,6 +226,7 @@ class CoursesController extends Controller
             $course->update([
                 'institution_id' => $validatedData['institutionId'],
                 'education_level' => $validatedData['educationLevel'],
+                'grade' => $validatedData['grade'] ?? null,
                 'year' => $validatedData['year'],
                 'course_number' => $validatedData['courseNumber'] ?? null,
                 'course_name' => $validatedData['courseName'] ?? null,
@@ -232,6 +235,11 @@ class CoursesController extends Controller
                 'program_id' => $validatedData['associatedProgram'],
                 'end_date' => $validatedData['endDate'],
             ]);
+            
+            // Si el curso tiene un programa asociado, regenerar el nombre del programa
+            if ($course->program_id) {
+                $this->regenerateProgramName($course);
+            }
             
             return redirect()->route('admin.courses.edit', $course)
                 ->with('success', 'Curso actualizado exitosamente.');
@@ -272,5 +280,63 @@ class CoursesController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al actualizar el estado del curso: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Regenerate program name when course data changes.
+     */
+    private function regenerateProgramName(Course $course): void
+    {
+        try {
+            $program = $course->program;
+            if (!$program) {
+                return;
+            }
+
+            // Construir el nuevo nombre del programa basado en los datos del curso
+            $institutionName = $course->institution?->name;
+            $level = $this->mapEducationLevel($course->education_level);
+            $num = $course->course_number;
+            $grade = $course->grade;
+            
+            // Construir la parte del curso
+            $coursePart = '';
+            if ($num) {
+                $coursePart = $num . '° ' . $level;
+            } else {
+                $coursePart = $level;
+            }
+            if ($grade) {
+                $coursePart .= ' ' . strtoupper($grade);
+            }
+            
+            $destination = $program->destination;
+            $year = $program->departure_date ? (int) date('Y', strtotime($program->departure_date)) : $program->year;
+            
+            if ($institutionName && $coursePart && $destination && $year) {
+                $newName = sprintf('%s - %s - %s - %d', $institutionName, $coursePart, $destination, $year);
+                $program->update(['name' => $newName]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error regenerating program name', [
+                'course_id' => $course->id,
+                'program_id' => $course->program_id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Map education level to standardized format.
+     */
+    private function mapEducationLevel(string $level): string
+    {
+        return match ($level) {
+            'primaria', 'primario', 'basica' => 'basica',
+            'secundaria', 'secundario', 'media' => 'media',
+            'preescolar' => 'preescolar',
+            'universitaria', 'universitario' => 'universitaria',
+            default => $level,
+        };
     }
 }

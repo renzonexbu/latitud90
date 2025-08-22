@@ -38,7 +38,7 @@
                 </div>
 
                 <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
+                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
                 >
                     Estado de pago
                 </div>
@@ -48,7 +48,7 @@
                     Total pagado
                 </div>
                 <!-- Columna de acciones (vacía en header) -->
-                <div class="w-[80px]"></div>
+                <div class="w-[140px]"></div>
             </div>
 
             <!-- Table Body -->
@@ -125,10 +125,10 @@
                     </div>
 
                     <!-- Estado de pago -->
-                    <div class="flex justify-center items-center w-[120px]">
+                    <div class="flex justify-center items-center w-[100px]">
                         <div
                             :class="[
-                                'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[14px] leading-[13px] text-center flex items-center justify-center',
+                                'rounded-[12px] px-[8px] py-[6px] text-white font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
                                 getPaymentStatusClass(
                                     getFirstCoursePivotStatus(participant),
                                     getFirstCoursePivotPercentage(participant)
@@ -157,33 +157,15 @@
                     </div>
 
                     <!-- Acciones -->
-                    <div class="flex gap-2 items-center justify-center">
-                        <!-- WhatsApp Button with Tooltip -->
-                        <div class="relative group">
-                            <button
-                                class="hover:opacity-75 transition-opacity"
-                                style="
-                                    width: 24px;
-                                    height: 24px;
-                                    aspect-ratio: 1/1;
-                                "
-                            >
-                                <WhatsAppIcon
-                                    :width="24"
-                                    :height="24"
-                                    fill-color="#C7C7C7"
-                                    class="cursor-pointer hover:opacity-75"
-                                />
-                            </button>
-                            <!-- Tooltip -->
-                            <div
-                                class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10"
-                            >
-                                {{ formatPhoneNumber(participant) }}
-                                <div
-                                    class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"
-                                ></div>
-                            </div>
+                    <div class="flex gap-4 items-center justify-center w-[140px]">
+                        <!-- Estado Activo/Inactivo -->
+                        <div
+                            :class="[
+                                'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
+                                participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
+                            ]"
+                        >
+                            {{ participant.is_active ? 'Activo' : 'Inactivo' }}
                         </div>
 
                         <!-- Edit Button -->
@@ -201,12 +183,11 @@
 </template>
 
 <script>
-import { WhatsAppIcon, EditPencilIcon } from "@/Components/Icons";
+import { EditPencilIcon } from "@/Components/Icons";
 
 export default {
     name: "ParticipantsTable",
     components: {
-        WhatsAppIcon,
         EditPencilIcon,
     },
     props: {
@@ -217,6 +198,12 @@ export default {
     },
     mounted() {
         // Componente montado
+        console.log('🔍 ParticipantsTable - Datos recibidos:', this.participants);
+        console.log('🔍 ParticipantsTable - Primer participante:', this.participants[0]);
+        if (this.participants[0]) {
+            console.log('🔍 ParticipantsTable - Campo is_active del primer participante:', this.participants[0].is_active);
+            console.log('🔍 ParticipantsTable - Tipo de is_active:', typeof this.participants[0].is_active);
+        }
     },
     methods: {
         formatRut(rut) {

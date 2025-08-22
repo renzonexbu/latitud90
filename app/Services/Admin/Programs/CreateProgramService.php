@@ -184,10 +184,15 @@ class CreateProgramService
         }
 
         $course = null;
-        if (!empty($programData['education_level']) || !empty($programData['course_number'])) {
+        if (!empty($programData['education_level']) || !empty($programData['course_number']) || !empty($programData['grade'])) {
             $level = $this->mapEducationLevel($programData['education_level'] ?? '');
             $num = $programData['course_number'] ?? '';
+            $grade = $programData['grade'] ?? '';
             $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+            // Agregar grado si existe
+            if ($grade) {
+                $course .= ' ' . strtoupper($grade);
+            }
         }
 
         $destination = $programData['destination'] ?? null;
@@ -430,6 +435,7 @@ class CreateProgramService
             'institution_id' => $programData['institution_id'],
             // Usar nivel provisto o un valor por defecto ('media') cuando no venga, para no bloquear la creación
             'education_level' => $this->mapEducationLevel($programData['education_level'] ?? 'media'),
+            'grade' => $programData['grade'] ?? null,
             'year' => date('Y'),
             'course_number' => $programData['course_number'] ?? null,
             'course_name' => $programData['course_name'] ?? null,

@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('programs', function (Blueprint $table) {
 			$table->id();
 			$table->foreignId('institution_id')->constrained('institutions')->onDelete('cascade');
-			$table->string('code', 8); // Código del programa (4 dígitos hoy, capacidad hasta 8)
+			$table->string('code', 8)->unique(); // Código del programa (4 dígitos hoy, capacidad hasta 8)
 			$table->string('name');
             $table->string('destination');
             $table->date('departure_date');

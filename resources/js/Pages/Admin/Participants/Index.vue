@@ -151,6 +151,7 @@ export default {
                 level: "",
                 course_number: "",
                 paymentStatus: "",
+                active: null,
             }
         };
     },
@@ -160,6 +161,12 @@ export default {
         },
         // Lista plana de participantes repetidos por cada programa (inscripción)
         flattenedParticipantsData() {
+            console.log('🔍 Index.vue - Props recibidos:', {
+                participants: this.participants,
+                enrollments: this.enrollments,
+                allParticipants: this.allParticipants
+            });
+            
             // Preferir inscripciones del backend si están presentes (array o paginado con data)
             let enrollments = [];
             if (Array.isArray(this.enrollments) && this.enrollments.length > 0) {
@@ -171,8 +178,11 @@ export default {
                 // Sin dataset desde backend, mantener listado vacío para no inventar datos inconsistentes
                 enrollments = [];
             }
+            
+            console.log('🔍 Index.vue - Enrollments procesados:', enrollments);
+            
             // Mapear al formato que la tabla espera: un objeto de participante por fila
-            return enrollments.map((enr) => ({
+            const result = enrollments.map((enr) => ({
                 id: enr.participant_id,
                 first_last_name: enr.participant?.first_last_name ?? enr.first_last_name ?? '',
                 second_last_name: enr.participant?.second_last_name ?? enr.second_last_name ?? '',
@@ -182,6 +192,7 @@ export default {
                 document_type: enr.participant?.document_type ?? enr.document_type ?? 'RUT',
                 phone: enr.participant?.phone,
                 code_phone: enr.participant?.code_phone,
+                is_active: enr.is_active, // Ahora viene directamente del backend
                 courses: [
                     {
                         institution: { name: enr.institution_name || null },
@@ -198,6 +209,9 @@ export default {
                 __paid_amount: enr.paid_amount ?? 0,
                 __total_due: enr.total_due ?? 0,
             }));
+            
+            console.log('🔍 Index.vue - Resultado final mapeado:', result);
+            return result;
         },
         filteredParticipants() {
             let filtered = this.flattenedParticipantsData;
@@ -254,6 +268,13 @@ export default {
                 );
             }
 
+            // Filtro por estado activo/inactivo
+            if (this.localFilters.active !== null) {
+                filtered = filtered.filter(participant => 
+                    participant.is_active === this.localFilters.active
+                );
+            }
+
             // Paginación
             const perPage = 10;
             const startIndex = (this.currentPage - 1) * perPage;
@@ -278,6 +299,11 @@ export default {
                 this.openCreateModal();
             }
         } catch (_) {}
+        
+        // Inicializar filtros desde el backend
+        if (this.filters.active !== undefined) {
+            this.localFilters.active = this.filters.active;
+        }
     },
     methods: {
         handleFiltersChanged(newFilters) {

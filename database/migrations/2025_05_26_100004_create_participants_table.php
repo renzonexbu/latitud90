@@ -43,8 +43,8 @@ return new class extends Migration
             // Campos de sistema
             $table->enum('status', ['pending_payment', 'confirmed', 'cancelled']);
             $table->datetime('registration_date');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
-            $table->softDeletes();
 
             // Índices
             $table->index(['document_number']); // Para búsquedas por documento

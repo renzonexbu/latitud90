@@ -161,7 +161,7 @@
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                RUT/PASAPORTE *
+                                RUT / PASAPORTE *
                             </label>
                             <input
                                 :value="formattedDocument"

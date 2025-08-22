@@ -136,6 +136,7 @@ class UpdateProgramService
                 isset($programData['institution_id']) ||
                 isset($programData['institution_name']) ||
                 isset($programData['education_level']) ||
+                isset($programData['grade']) ||
                 isset($programData['course_number']) ||
                 isset($programData['destination']) ||
                 isset($programData['departure_date'])
@@ -189,14 +190,13 @@ class UpdateProgramService
             }
 
             // Lógica para crear/actualizar curso y participantes si se proporcionan los datos
-            // Solo crear curso si no existe uno ya
             $existingCourse = Course::where('program_id', $program->id)->first();
             
             if (!$existingCourse && 
                 !empty($programData['institution_id']) && 
                 !empty($programData['education_level'])) {
                 
-                // Solo crear curso si no existe uno
+                // Crear curso nuevo si no existe uno
                 $course = $this->createOrUpdateCourse($programData, $program);
                 
                 // Asignar el curso al programa
@@ -206,9 +206,14 @@ class UpdateProgramService
                 if (!empty($programData['students_file'])) {
                     $this->processParticipants($programData['students_file'], $course, $program);
                 }
-            } elseif ($existingCourse && !empty($programData['students_file'])) {
-                // Si ya existe un curso, solo procesar participantes si se sube un nuevo archivo
-                $this->processParticipants($programData['students_file'], $existingCourse, $program);
+            } elseif ($existingCourse) {
+                // Si ya existe un curso, actualizarlo con los nuevos datos que afectan al nombre
+                $this->updateExistingCourse($existingCourse, $programData);
+                
+                // Procesar participantes si se sube un nuevo archivo
+                if (!empty($programData['students_file'])) {
+                    $this->processParticipants($programData['students_file'], $existingCourse, $program);
+                }
             }
 
             // Recalcular el total del programa (trip_price = precio final por participante x #participantes)
@@ -624,10 +629,15 @@ class UpdateProgramService
 
         // Course
         $course = null;
-        if (!empty($data['education_level']) || !empty($data['course_number'])) {
+        if (!empty($data['education_level']) || !empty($data['course_number']) || !empty($data['grade'])) {
             $level = $this->mapEducationLevel($data['education_level'] ?? '');
             $num = $data['course_number'] ?? '';
+            $grade = $data['grade'] ?? '';
             $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+            // Agregar grado si existe
+            if ($grade) {
+                $course .= ' ' . strtoupper($grade);
+            }
         }
 
         $destination = $data['destination'] ?? null;
@@ -649,6 +659,7 @@ class UpdateProgramService
         $course = Course::create([
             'institution_id' => $programData['institution_id'],
             'education_level' => $this->mapEducationLevel($programData['education_level']),
+            'grade' => $programData['grade'] ?? null,
             'year' => date('Y'),
             'course_number' => $programData['course_number'] ?? null,
             'course_name' => $programData['course_name'] ?? null,
@@ -1116,5 +1127,48 @@ class UpdateProgramService
         ];
 
         return $discountMapping[$discountType] ?? null;
+    }
+
+    /**
+     * Update existing course with new data that affects the program name.
+     */
+    private function updateExistingCourse(Course $course, array $programData): void
+    {
+        $updateData = [];
+        
+        // Solo actualizar campos que afectan al nombre del programa
+        if (isset($programData['institution_id'])) {
+            $updateData['institution_id'] = $programData['institution_id'];
+        }
+        if (isset($programData['education_level'])) {
+            $updateData['education_level'] = $this->mapEducationLevel($programData['education_level']);
+        }
+        if (isset($programData['grade'])) {
+            $updateData['grade'] = $programData['grade'];
+        }
+        if (isset($programData['course_number'])) {
+            $updateData['course_number'] = $programData['course_number'];
+        }
+        if (isset($programData['course_name'])) {
+            $updateData['course_name'] = $programData['course_name'];
+        }
+        if (isset($programData['contact_email'])) {
+            $updateData['contact_email'] = $programData['contact_email'];
+        }
+        if (isset($programData['contact_phone'])) {
+            $updateData['contact_phone'] = $programData['contact_phone'];
+        }
+        if (isset($programData['final_payment_date'])) {
+            $updateData['end_date'] = $programData['final_payment_date'];
+        }
+        
+        // Solo actualizar si hay datos para cambiar
+        if (!empty($updateData)) {
+            Log::info('UpdateProgramService: Actualizando curso existente', [
+                'course_id' => $course->id,
+                'update_data' => $updateData,
+            ]);
+            $course->update($updateData);
+        }
     }
 }

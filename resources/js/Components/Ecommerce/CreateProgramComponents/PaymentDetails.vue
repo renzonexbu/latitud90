@@ -286,6 +286,28 @@
             
                                     </div>
                                 </div>
+                                
+                                <div class="field-container-small">
+                                    <div class="field-wrapper">
+                                        <div class="field-label">
+                                            Grado
+                                        </div>
+                                        <select
+                                            v-model="formData.grade"
+                                            class="admin-select-small"
+                                            :disabled="!canEnableCourseFields()"
+                                            :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
+                                        >
+                                            <option value="">---</option>
+                                            <option value="A">A</option>
+                                            <option value="B">B</option>
+                                            <option value="C">C</option>
+                                            <option value="D">D</option>
+                                            <option value="E">E</option>
+                                        </select>
+            
+                                    </div>
+                                </div>
                             </div>
 
                             
@@ -525,6 +547,7 @@ const props = defineProps({
             institution_name: "",
             institution_id: "",
             education_level: "",
+            grade: "",
             course_number: "",
             students_file: null,
             group_benefit: "",
@@ -858,6 +881,14 @@ watch(
                     formData.value[key] = newValue[key];
                 }
             });
+            // Debug para verificar que el grade se esté cargando correctamente
+            if (props.mode === 'edit') {
+                console.log('PaymentDetails - Grade cargado:', {
+                    modelValue_grade: newValue.grade,
+                    formData_grade: formData.value.grade,
+                    mode: props.mode
+                });
+            }
             // Reinicializar los valores formateados después de sincronizar
             initializeFormattedPrice();
             initializeFormattedDiscountAmount();
@@ -869,9 +900,15 @@ watch(
 
 // Watcher para limpiar campos cuando se deselecciona la institución
 watch(() => formData.value.institution_id, (newValue, oldValue) => {
+    // En modo edición con curso existente, no limpiar campos automáticamente
+    if (props.mode === 'edit' && props.hasExistingCourse) {
+        return;
+    }
+    
     if (!newValue && oldValue) {
         // Si se deselecciona la institución, limpiar todos los campos dependientes
         formData.value.education_level = '';
+        formData.value.grade = '';
         formData.value.course_number = '';
         formData.value.group_benefit = '';
         formData.value.students_file = null;
@@ -918,6 +955,19 @@ watch(() => formData.value.installments_payment_method, (newValue) => {
 }, { immediate: true });
 
 watch(() => formData.value.max_installments, (newValue) => {
+    emit('update:modelValue', formData.value);
+}, { immediate: true });
+
+// Watcher específico para el campo grade en modo edición
+watch(() => formData.value.grade, (newValue) => {
+    // Debug para verificar cambios en el campo grade
+    if (props.mode === 'edit') {
+        console.log('PaymentDetails - Grade cambiado:', {
+            newValue,
+            oldValue: formData.value.grade,
+            mode: props.mode
+        });
+    }
     emit('update:modelValue', formData.value);
 }, { immediate: true });
 

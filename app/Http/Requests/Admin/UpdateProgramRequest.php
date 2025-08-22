@@ -22,7 +22,7 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
-            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/'],
+            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/','unique:programs,code,' . $this->route('program')->id],
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
             'departure_date' => 'nullable|date',
@@ -58,6 +58,7 @@ class UpdateProgramRequest extends FormRequest
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
             'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
+            'grade' => 'nullable|string|in:A,B,C,D,E',
             'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
@@ -132,6 +133,7 @@ class UpdateProgramRequest extends FormRequest
             'code.string' => 'El código del programa debe ser texto.',
             'code.max' => 'El código del programa no puede exceder 8 caracteres.',
             'code.regex' => 'El código del programa debe ser de 4 dígitos.',
+            'code.unique' => 'El código del programa ya existe. Por favor, utiliza un código diferente.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
             

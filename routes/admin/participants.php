@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::resource('participants', ParticipantsController::class);
 
 // Additional participants routes
+Route::get('participants/inactive', [ParticipantsController::class, 'inactive'])->name('participants.inactive');
 Route::post('participants/{participant}/toggle-status', [ParticipantsController::class, 'toggleStatus'])->name('participants.toggle-status');
 Route::post('participants/bulk-action', [ParticipantsController::class, 'bulkAction'])->name('participants.bulk-action');
 Route::get('participants/{participant}/payments', [ParticipantsController::class, 'payments'])->name('participants.payments');

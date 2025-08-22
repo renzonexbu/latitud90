@@ -59,10 +59,38 @@
                                                 <div
                                                     class="flex flex-col gap-[6px] items-start justify-center flex-shrink-0 flex-1 relative"
                                                 >
-                                                    <div
-                                                        class="text-turquesa text-left font-nexa-bold text-[24px] leading-[28px] font-bold relative self-stretch"
-                                                    >
-                                                        {{ getFullName(participant) }}
+                                                    <div class="flex items-center gap-3">
+                                                        <div
+                                                            class="text-turquesa text-left font-nexa-bold text-[24px] leading-[28px] font-bold relative self-stretch"
+                                                        >
+                                                            {{ getFullName(participant) }}
+                                                        </div>
+                                                                                <!-- Status Badge -->
+                        <div class="flex items-center gap-2">
+                            <div
+                                :class="[
+                                    'px-3 py-1 rounded-full text-xs font-medium',
+                                    participant.is_active 
+                                        ? 'bg-green-100 text-green-800 border border-green-200'
+                                        : 'bg-red-100 text-red-800 border border-red-200'
+                                ]"
+                            >
+                                {{ participant.is_active ? 'Activo' : 'Inactivo' }}
+                            </div>
+                            <!-- Info Tooltip -->
+                            <div class="relative group">
+                                <svg class="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                                    {{ participant.is_active 
+                                        ? 'Participante visible en el flujo de compra' 
+                                        : 'Participante oculto del flujo de compra' 
+                                    }}
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                            </div>
+                        </div>
                                                     </div>
                                                 </div>
                                                 <div
@@ -129,10 +157,16 @@
                                                         </svg>
                                                     </button>
                                                     <button
-                                                        @click="confirmDeleteParticipant"
-                                                        class="rounded-[112.894px] border border-red-500 bg-red-50 flex h-[40px] w-[40px] items-center justify-center relative overflow-visible hover:bg-red-100 transition-colors"
+                                                        @click="confirmToggleParticipantStatus"
+                                                        :class="[
+                                                            'rounded-[112.894px] border flex h-[40px] w-[40px] items-center justify-center relative overflow-visible transition-colors',
+                                                            participant.is_active
+                                                                ? 'border-red-500 bg-red-50 hover:bg-red-100'
+                                                                : 'border-green-500 bg-green-50 hover:bg-green-100'
+                                                        ]"
+                                                        :title="participant.is_active ? 'Desactivar participante' : 'Activar participante'"
                                                     >
-                                                        <!-- Delete Icon -->
+                                                        <!-- Toggle Status Icon -->
                                                         <svg
                                                             xmlns="http://www.w3.org/2000/svg"
                                                             width="16"
@@ -142,8 +176,14 @@
                                                             class="flex-shrink-0"
                                                         >
                                                             <path
+                                                                v-if="participant.is_active"
                                                                 d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
                                                                 fill="#DC2626"
+                                                            />
+                                                            <path
+                                                                v-else
+                                                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                                fill="#10B981"
                                                             />
                                                         </svg>
                                                     </button>
@@ -244,7 +284,7 @@
                                         </svg>
                                     </div>
                                     <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
-                                        RUT/PASAPORTE: {{ formatRutDisplay(participant.document_number) || "00.000.000-0" }}
+                                        RUT / PASAPORTE: {{ formatRutDisplay(participant.document_number) || "00.000.000-0" }}
                                     </div>
                                 </div>
 
@@ -528,16 +568,21 @@ const closeEmergencyContactsModal = () => {
     showEmergencyContactsModal.value = false;
 };
 
-const confirmDeleteParticipant = () => {
-    if (confirm(`¿Estás seguro de que quieres desactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción desactivará al participante pero mantendrá todos sus registros asociados.`)) {
+const confirmToggleParticipantStatus = () => {
+    const action = props.participant.is_active ? 'desactivar' : 'activar';
+    const message = props.participant.is_active 
+        ? `¿Estás seguro de que quieres desactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción solo afectará su visibilidad en el flujo de compra, pero podrás seguir editándolo normalmente en el panel administrativo.`
+        : `¿Estás seguro de que quieres activar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
+    
+    if (confirm(message)) {
         router.delete(route('admin.participants.destroy', props.participant.id), {
             onSuccess: () => {
-                // Redirigir al listado de participantes
-                router.visit(route('admin.participants.index'));
+                // Recargar la página para mostrar el nuevo estado
+                router.reload();
             },
             onError: (errors) => {
-                console.error('Error al eliminar participante:', errors);
-                alert('Error al eliminar el participante. Por favor, inténtalo de nuevo.');
+                console.error('Error al cambiar estado del participante:', errors);
+                alert('Error al cambiar el estado del participante. Por favor, inténtalo de nuevo.');
             }
         });
     }

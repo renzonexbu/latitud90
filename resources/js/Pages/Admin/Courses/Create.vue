@@ -137,6 +137,28 @@
                                     <span v-if="errors.courseNumber" class="text-red-500 text-xs mt-1">{{ errors.courseNumber }}</span>
                                 </div>
 
+                                <!-- Grado (sección) -->
+                                <div class="flex flex-col gap-[7px] flex-shrink-0">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Grado
+                                    </label>
+                                    <select 
+                                        v-model="form.grade"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[70px]',
+                                            errors.grade ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">---</option>
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                        <option value="E">E</option>
+                                    </select>
+                                    <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
+                                </div>
+
                                 
                             </div>
 
@@ -313,6 +335,7 @@ export default {
             form: {
                 institutionId: "",
                 educationLevel: "",
+                grade: "",
                 year: "2025",
                 courseNumber: "",
                 contactEmail: "",
@@ -372,6 +395,7 @@ export default {
             this.form = {
                 institutionId: "",
                 educationLevel: "",
+                grade: "",
                 year: "2025",
                 courseNumber: "",
                 contactEmail: "",

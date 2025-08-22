@@ -95,10 +95,23 @@
                     @change="performSearch"
                 >
                     <option value="">Estado de pago</option>
-                                            <option value="pending_payment">Pendiente de Pago</option>
+                    <option value="pending_payment">Pendiente de Pago</option>
                     <option value="confirmed">Completado</option>
                     <option value="cancelled">Liberado</option>
                 </select>
+            </div>
+
+            <!-- Estado activo/inactivo -->
+            <div class="relative flex-shrink-0 w-[134px]">
+                <select
+                    v-model="filters.active"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    @change="performSearch"
+                >
+                    <option value="">Estado del participante</option>
+                    <option :value="true">Activo</option>
+                    <option :value="false">Inactivo</option>
+                                </select>
             </div>
 
             <!-- Clear Filters Button -->
@@ -139,6 +152,7 @@ export default {
                 level: this.initialFilters.level || "",
                 course_number: this.initialFilters.course_number || "",
                 paymentStatus: this.initialFilters.paymentStatus || "",
+                active: this.initialFilters.active !== undefined ? this.initialFilters.active : null,
             }
         };
     },
@@ -188,6 +202,7 @@ export default {
                 level: "",
                 course_number: "",
                 paymentStatus: "",
+                active: null,
             };
             this.performSearch();
         },

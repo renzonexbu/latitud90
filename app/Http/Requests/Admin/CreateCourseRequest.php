@@ -24,11 +24,12 @@ class CreateCourseRequest extends FormRequest
         return [
             'institutionId' => 'required|exists:institutions,id',
             'educationLevel' => 'required|in:preescolar,basica,media,universitaria',
+            'grade' => 'nullable|in:A,B,C,D,E',
             'year' => 'required|string|max:4',
             'courseNumber' => 'nullable|integer|min:1|max:12',
             'courseName' => 'nullable|string|max:50',
-            'contactEmail' => 'required|email|max:255',
-            'contactPhone' => 'required|string|max:20',
+            'contactEmail' => 'nullable|email|max:255',
+            'contactPhone' => 'nullable|string|max:20',
             'associatedProgram' => 'nullable|string|max:255',
             'endDate' => 'nullable|date|after:today',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240', // 10MB max
@@ -49,6 +50,8 @@ class CreateCourseRequest extends FormRequest
             'educationLevel.required' => 'El nivel de educación es obligatorio.',
             'educationLevel.in' => 'El nivel de educación seleccionado no es válido.',
             
+            'grade.in' => 'El grado seleccionado no es válido. Debe ser A, B, C, D o E.',
+            
             'year.required' => 'El año es obligatorio.',
             'year.string' => 'El año debe ser texto.',
             'year.max' => 'El año no puede tener más de 4 caracteres.',
@@ -59,11 +62,11 @@ class CreateCourseRequest extends FormRequest
             'courseName.string' => 'El nombre del curso debe ser texto.',
             'courseName.max' => 'El nombre del curso no puede tener más de 50 caracteres.',
             
-            'contactEmail.required' => 'El correo de contacto es obligatorio.',
+            'contactEmail.email' => 'El correo de contacto debe tener un formato válido.',
             'contactEmail.email' => 'El correo de contacto debe tener un formato válido.',
             'contactEmail.max' => 'El correo de contacto no puede tener más de 255 caracteres.',
             
-            'contactPhone.required' => 'El número de contacto es obligatorio.',
+            'contactPhone.max' => 'El número de contacto no puede tener más de 20 caracteres.',
             'contactPhone.string' => 'El número de contacto debe ser texto.',
             'contactPhone.max' => 'El número de contacto no puede tener más de 20 caracteres.',
             

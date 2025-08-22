@@ -15,11 +15,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('institution_id')->constrained('institutions')->onDelete('cascade');
             $table->enum('education_level', ['preescolar', 'basica', 'media', 'universitaria']);
+            $table->enum('grade', ['A', 'B', 'C', 'D', 'E']);
             $table->string('year', 4);
             $table->unsignedTinyInteger('course_number')->nullable();
             $table->string('course_name')->nullable();
-            $table->string('contact_email');
-            $table->string('contact_phone');
+            $table->string('contact_email')->nullable();
+            $table->string('contact_phone')->nullable();
             $table->foreignId('program_id')->nullable()->constrained('programs')->onDelete('set null');
             $table->date('end_date')->nullable();
             $table->enum('status', ['active', 'completed', 'cancelled'])->default('active');

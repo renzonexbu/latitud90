@@ -24,11 +24,12 @@ class CreateCourseService
             $course = Course::create([
                 'institution_id' => $courseData['institutionId'],
                 'education_level' => $this->normalizeLevel($courseData['educationLevel']),
+                'grade' => $courseData['grade'] ?? null,
                 'year' => $courseData['year'],
                 'course_number' => $courseData['courseNumber'] ?? null,
                 'course_name' => $courseData['courseName'] ?? null,
-                'contact_email' => $courseData['contactEmail'],
-                'contact_phone' => $courseData['contactPhone'],
+                'contact_email' => $courseData['contactEmail'] ?? null,
+                'contact_phone' => $courseData['contactPhone'] ?? null,
                 'program_id' => null, // Se asignará después si es necesario
                 'end_date' => $courseData['endDate'],
                 'status' => 'active',

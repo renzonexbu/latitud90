@@ -107,6 +107,7 @@ const form = useForm({
     institution_name: "",
     institution_id: "",
     education_level: "",
+    grade: "",
     course_number: "",
     students_file: null,
     group_benefit: "",
@@ -147,6 +148,7 @@ const paymentData = ref({
     institution_name: "",
     institution_id: "",
     education_level: "",
+    grade: "",
     course_number: "",
     students_file: null,
     group_benefit: "",
@@ -319,7 +321,7 @@ const scrollToFirstError = () => {
                 'institution_id': 'select[id*="institution"]',
                 'education_level': 'select:has(option[value="inicial"])',
                 'shift': 'select:has(option[value="mañana"])',
-                'grade': 'select:has(option[value="1"])',
+                'grade': 'select:has(option[value="A"])',
                 'students_file': 'input[type="file"]'
             };
             

@@ -21,7 +21,7 @@ class CreateProgramRequest extends FormRequest
     {
         return [
             // Campos obligatorios del programa (aceptar ambos nombres)
-            'code' => ['required','string','max:8','regex:/^\d{4}$/'],
+            'code' => ['required','string','max:8','regex:/^\d{4}$/','unique:programs,code'],
             'name' => 'nullable|string|max:255',
             'destination' => 'required|string|max:255',
             'departure_date' => 'required|date|after:today',
@@ -52,6 +52,7 @@ class CreateProgramRequest extends FormRequest
             'institution_id' => 'required|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
             'education_level' => 'nullable|string|in:preescolar,basica,media',
+            'grade' => 'nullable|in:A,B,C,D,E',
             'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string',
@@ -80,6 +81,7 @@ class CreateProgramRequest extends FormRequest
             'code.string' => 'El código del programa debe ser texto.',
             'code.max' => 'El código del programa no puede exceder 8 caracteres.',
             'code.regex' => 'El código del programa debe ser de 4 dígitos.',
+            'code.unique' => 'El código del programa ya existe. Por favor, utiliza un código diferente.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
             
@@ -155,6 +157,7 @@ class CreateProgramRequest extends FormRequest
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
+            'grade.in' => 'El grado seleccionado no es válido. Debe ser A, B, C, D o E.',
             'course_number.integer' => 'El curso debe ser un número válido.',
             'course_number.min' => 'El curso debe ser al menos 1.',
             'course_number.max' => 'El curso no puede ser mayor a 12.',

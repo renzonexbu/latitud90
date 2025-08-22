@@ -4,11 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Participant extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
         'first_last_name',
@@ -29,12 +28,18 @@ class Participant extends Model
         'intolerances',
         'allergies',
         'status',
-        'registration_date'
+        'registration_date',
+        'is_active'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'registration_date' => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    protected $attributes = [
+        'is_active' => true,
     ];
 
     protected $appends = [
