@@ -12,9 +12,7 @@
                     <div class="mb-6">
                         <ParticipantHeader
                             :participant-name="
-                                participant.first_name +
-                                ' ' +
-                                participant.last_name
+                                formatParticipantName(participant.first_name, participant.second_name, participant.first_last_name, participant.second_last_name)
                             "
                         />
                     </div>
@@ -269,6 +267,26 @@ export default {
             }).catch(error => {
                 console.error('Error recording program detail view:', error);
             });
+        },
+        formatParticipantName(firstName, secondName, firstLastName, secondLastName) {
+            // Filtrar valores undefined, null o vacíos y construir el nombre completo
+            const nameParts = [firstName, secondName, firstLastName, secondLastName]
+                .filter(part => part && part.trim() !== '');
+            
+            // Si no hay nombre válido, mostrar un valor por defecto
+            if (nameParts.length === 0) {
+                return 'Participante';
+            }
+            
+            // Unir todas las partes del nombre
+            const fullName = nameParts.join(' ').trim();
+            
+            // Convertir a Title Case (primera letra de cada palabra en mayúscula)
+            return fullName
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
         },
         handlePaymentSelection(selection) {
             this.currentInstallments = selection?.installments || 1;

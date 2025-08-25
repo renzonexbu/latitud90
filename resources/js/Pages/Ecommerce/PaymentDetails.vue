@@ -936,9 +936,6 @@ export default {
         continueToPayment() {
             if (!this.isFormValid) return;
 
-            // Registrar datos del formulario en analytics antes de continuar
-            this.recordBuyerFormData();
-
             // Obtener el tipo de documento seleccionado
             const selectedDocType = this.documentTypes.find(
                 (doc) => doc.id == this.formData.documentType
@@ -1132,33 +1129,7 @@ export default {
             });
         },
 
-        recordBuyerFormData() {
-            // Obtener session_id desde localStorage
-            const sessionId = localStorage.getItem('analytics_session_id');
-            
-            if (!sessionId) {
-                console.warn('No se encontró session_id en localStorage');
-                return;
-            }
-            
-            // Enviar datos del formulario del comprador al backend
-            fetch('/api/analytics/buyer-form-data', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    program_id: this.programId,
-                    participant_rut: this.rut,
-                    form_data: this.formData,
-                })
-            }).catch(error => {
-                console.error('Error recording buyer form data:', error);
-            });
-        }
+
     },
 };
 </script>
