@@ -201,7 +201,7 @@
                                         :key="program.id"
                                         :value="program.id"
                                     >
-                                        {{ program.name }}
+                                        {{ program.code }} - {{ program.name }}
                                     </option>
                                 </select>
                             </div>
@@ -278,7 +278,7 @@
                                                 (
                                                     summary.dailyPayments
                                                         .totalAmount || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -306,7 +306,7 @@
                                                 (
                                                     summary.dailyPayments
                                                         .averageAmount || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -379,7 +379,7 @@
                                                 (
                                                     summary.consolidatedPayments
                                                         .totalAmount || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -394,7 +394,7 @@
                                                 (
                                                     summary.consolidatedPayments
                                                         .averagePerProgram || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -551,7 +551,7 @@
                                                 (
                                                     summary.partialAccount
                                                         .totalBalance || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -566,7 +566,7 @@
                                                 (
                                                     summary.partialAccount
                                                         .averageBalance || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                     </div>
@@ -629,7 +629,9 @@
                                 </h3>
                                 <div class="flex space-x-2">
                                     <button
-                                        @click="frequentParticipantsPeriod = 'all'"
+                                        @click="
+                                            frequentParticipantsPeriod = 'all'
+                                        "
                                         :class="[
                                             'px-3 py-1 text-sm rounded',
                                             frequentParticipantsPeriod === 'all'
@@ -641,11 +643,13 @@
                                     </button>
                                     <button
                                         @click="
-                                            frequentParticipantsPeriod = 'thisYear'
+                                            frequentParticipantsPeriod =
+                                                'thisYear'
                                         "
                                         :class="[
                                             'px-3 py-1 text-sm rounded',
-                                            frequentParticipantsPeriod === 'thisYear'
+                                            frequentParticipantsPeriod ===
+                                            'thisYear'
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
                                         ]"
@@ -655,7 +659,9 @@
                                 </div>
                             </div>
                             <div class="h-64">
-                                <canvas ref="frequentParticipantsChart"></canvas>
+                                <canvas
+                                    ref="frequentParticipantsChart"
+                                ></canvas>
                             </div>
                         </div>
                     </div>
@@ -666,7 +672,7 @@
                     <div class="p-6 text-gray-900">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold">
-                                Funnel de Conversión
+                                Tasa de Conversión
                             </h3>
                             <div class="flex space-x-2">
                                 <button
@@ -748,10 +754,127 @@
                     </div>
                 </div>
 
+                <!-- Estadísticas de Reembolso -->
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 text-gray-900">
+                        <h3 class="text-lg font-semibold mb-6">
+                            Estadísticas de Reembolso
+                        </h3>
+
+                        <!-- Resumen de Reembolsos -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                            <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                                <div class="flex items-center">
+                                    <div class="p-2 bg-red-100 rounded-lg mr-3">
+                                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600">Total Reembolsos</p>
+                                        <p class="text-xl font-bold text-red-600">{{ refundStats.total_refunds || 0 }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <div class="flex items-center">
+                                    <div class="p-2 bg-orange-100 rounded-lg mr-3">
+                                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600">Monto Total</p>
+                                        <p class="text-xl font-bold text-orange-600">${{ (refundStats.total_refund_amount || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                <div class="flex items-center">
+                                    <div class="p-2 bg-yellow-100 rounded-lg mr-3">
+                                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600">Promedio</p>
+                                        <p class="text-xl font-bold text-yellow-600">${{ (refundStats.average_refund_amount || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                <div class="flex items-center">
+                                    <div class="p-2 bg-purple-100 rounded-lg mr-3">
+                                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-600">% del Total</p>
+                                        <p class="text-xl font-bold text-purple-600">
+                                            {{ summary.consolidatedPayments.totalAmount > 0 ? 
+                                                ((refundStats.total_refund_amount / summary.consolidatedPayments.totalAmount) * 100).toFixed(1) : 0 }}%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gráficos de Reembolso -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Reembolsos por Estado -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="text-md font-semibold mb-4">Reembolsos Realizados</h4>
+                                <div class="space-y-3">
+                                    <div v-for="(data, status) in refundStats.refunds_by_status" :key="status" class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <span :class="getStatusClass(status)" class="px-2 py-1 text-xs font-semibold rounded-full mr-3">
+                                                {{ getStatusLabel(status) }}
+                                            </span>
+                                            <span class="text-sm">{{ data.count }} reembolsos</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-bold">${{ data.amount.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Top Programas con Reembolsos -->
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="text-md font-semibold mb-4">Programas con Más Reembolsos</h4>
+                                <div class="space-y-3">
+                                    <div v-for="(program, index) in refundStats.top_programs_refunds" :key="index" class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3">
+                                                {{ index + 1 }}
+                                            </span>
+                                            <div>
+                                                <p class="font-medium text-sm">{{ program.code }} - {{ program.name }}</p>
+                                                <p class="text-xs text-gray-500">{{ program.count }} reembolsos</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-bold text-sm">${{ program.amount.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                </div>
+
                 <!-- Análisis de Cuotas y Tipos de Pago -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Análisis de Cuotas -->
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div
+                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
+                    >
                         <div class="p-6 text-gray-900">
                             <h3 class="text-lg font-semibold mb-4">
                                 Análisis de Cuotas
@@ -763,7 +886,9 @@
                     </div>
 
                     <!-- Distribución por Tipo de Pago -->
-                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div
+                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
+                    >
                         <div class="p-6 text-gray-900">
                             <h3 class="text-lg font-semibold mb-4">
                                 Distribución por Tipo de Pago
@@ -803,8 +928,9 @@
                                                 class="font-medium text-gray-900"
                                             >
                                                 {{
+                                                    program.code ||
                                                     program.name ||
-                                                    "Programa sin nombre"
+                                                    "Programa sin código"
                                                 }}
                                             </p>
                                             <p class="text-sm text-gray-500">
@@ -818,7 +944,7 @@
                                             ${{
                                                 (
                                                     program.amount || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                         <p class="text-sm text-gray-500">
@@ -873,7 +999,7 @@
                                             ${{
                                                 (
                                                     payment.amount || 0
-                                                ).toLocaleString()
+                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
                                         <p class="text-sm text-gray-500">
@@ -890,6 +1016,8 @@
                                     </div>
                                 </div>
                             </div>
+
+
                         </div>
                     </div>
                 </div>
@@ -973,6 +1101,18 @@ const props = defineProps({
             top_programs: [],
         }),
     },
+    refundStats: {
+        type: Object,
+        default: () => ({
+            total_refunds: 0,
+            total_refund_amount: 0,
+            average_refund_amount: 0,
+            refunds_by_status: {},
+            monthly_refunds: [],
+            top_programs_refunds: [],
+            refunds_by_payment_method: [],
+        }),
+    },
 });
 
 const filters = reactive({
@@ -1015,10 +1155,6 @@ onMounted(() => {
     filters.dateTo = today.toISOString().split("T")[0];
     filters.dateFrom = lastMonth.toISOString().split("T")[0];
 
-
-
-
-
     // Crear gráficos después de que el DOM esté listo
     nextTick(() => {
         createAllCharts();
@@ -1046,7 +1182,10 @@ const createProgramViewsChart = () => {
         programViewsChartInstance = new Chart(ctx, {
             type: "bar",
             data: {
-                labels: data.map((item) => item.program_name || `Programa #${item.program_id}`),
+                labels: data.map(
+                    (item) =>
+                        item.program_code || `Programa #${item.program_id}`
+                ),
                 datasets: [
                     {
                         label: "Vistas",
@@ -1091,8 +1230,33 @@ const createProgramViewsChart = () => {
     }
 };
 
+// Función para formatear RUT
+const formatRut = (rut) => {
+    if (!rut) return "Sin RUT";
+
+    // Limpiar el RUT de puntos y guiones
+    let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
+
+    // Verificar que tenga el formato correcto de RUT chileno
+    if (!/^\d{7,8}[\dK]$/.test(rutLimpio)) {
+        return rut.toString().toUpperCase(); // Fallback si no es RUT válido
+    }
+
+    // Separar número y dígito verificador
+    let dv = rutLimpio.slice(-1);
+    let numero = rutLimpio.slice(0, -1);
+
+    // Formatear con puntos y guión
+    let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+    return `${numeroFormateado}-${dv.toUpperCase()}`;
+};
+
 const createFrequentParticipantsChart = () => {
-    if (frequentParticipantsChart.value && props.ecommerceData.frequentParticipants) {
+    if (
+        frequentParticipantsChart.value &&
+        props.ecommerceData.frequentParticipants
+    ) {
         if (frequentParticipantsChartInstance) {
             frequentParticipantsChartInstance.destroy();
         }
@@ -1103,7 +1267,7 @@ const createFrequentParticipantsChart = () => {
         frequentParticipantsChartInstance = new Chart(ctx, {
             type: "bar",
             data: {
-                labels: data.map((item) => item.participant_rut || "Sin RUT"),
+                labels: data.map((item) => formatRut(item.participant_rut)),
                 datasets: [
                     {
                         label: "Búsquedas",
@@ -1154,11 +1318,11 @@ const createFunnelChart = () => {
             type: "bar",
             data: {
                 labels: [
-                    "Búsquedas Hero",
-                    "Vistas Lista",
-                    "Vistas Detalle",
-                    "Vistas Pago",
-                    "Confirmaciones",
+                    "Búsquedas participantes",
+                    "Listado programas",
+                    "Detalle programa",
+                    "Datos comprador",
+                    "Confirmación pago",
                     "Pagos Iniciados",
                     "Pagos Completados",
                 ],
@@ -1215,7 +1379,7 @@ const createFunnelChart = () => {
                     },
                     title: {
                         display: true,
-                        text: "Funnel de Conversión",
+                        text: "Tasa de Conversión",
                     },
                     tooltip: {
                         callbacks: {
@@ -1229,7 +1393,9 @@ const createFunnelChart = () => {
                                         : current;
                                 const rate =
                                     previous > 0
-                                        ? ((current / previous) * 100).toFixed(1)
+                                        ? ((current / previous) * 100).toFixed(
+                                              1
+                                          )
                                         : 0;
                                 return `Tasa de conversión: ${rate}%`;
                             },
@@ -1339,7 +1505,9 @@ const createInstallmentsChart = () => {
         installmentsChartInstance = new Chart(ctx, {
             type: "bar",
             data: {
-                labels: data.map((item) => item.label || `${item.installments_count} cuotas`),
+                labels: data.map(
+                    (item) => item.label || `${item.installments_count} cuotas`
+                ),
                 datasets: [
                     {
                         label: "Cantidad de Pagos",
@@ -1388,7 +1556,10 @@ const createPaymentTypesChart = () => {
         paymentTypesChartInstance = new Chart(ctx, {
             type: "doughnut",
             data: {
-                labels: data.map((item) => item.label || item.payment_type || "No especificado"),
+                labels: data.map(
+                    (item) =>
+                        item.label || item.payment_type || "No especificado"
+                ),
                 datasets: [
                     {
                         data: data.map((item) => item.count || 0),
@@ -1418,8 +1589,14 @@ const createPaymentTypesChart = () => {
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                const total = context.dataset.data.reduce(
+                                    (a, b) => a + b,
+                                    0
+                                );
+                                const percentage = (
+                                    (context.parsed / total) *
+                                    100
+                                ).toFixed(1);
                                 return `${context.label}: ${context.parsed} (${percentage}%)`;
                             },
                         },
@@ -1484,6 +1661,29 @@ const getGatewayClass = (gateway) => {
         desconocido: "bg-gray-100 text-gray-800",
     };
     return classes[gatewayLower] || "bg-gray-100 text-gray-800";
+};
+
+// Funciones helper para estados de reembolso
+const getStatusClass = (status) => {
+    const classes = {
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'completed': 'bg-green-100 text-green-800',
+        'failed': 'bg-red-100 text-red-800',
+        'authorized': 'bg-blue-100 text-blue-800',
+        'cancelled': 'bg-gray-100 text-gray-800',
+    };
+    return classes[status] || 'bg-gray-100 text-gray-800';
+};
+
+const getStatusLabel = (status) => {
+    const labels = {
+        'pending': 'Pendiente',
+        'completed': 'Completado',
+        'failed': 'Fallido',
+        'authorized': 'Autorizado',
+        'cancelled': 'Cancelado',
+    };
+    return labels[status] || status;
 };
 
 const exportConsolidatedReport = () => {

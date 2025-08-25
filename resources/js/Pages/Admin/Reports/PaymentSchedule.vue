@@ -35,7 +35,7 @@
                                         :key="program.id"
                                         :value="program.id"
                                     >
-                                        {{ program.name }} -
+                                        {{ program.code }} - {{ program.name }} -
                                         {{ program.destination }}
                                     </option>
                                 </select>

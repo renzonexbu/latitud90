@@ -13,7 +13,7 @@
                   Pasajeros del Programa
                 </h2>
                 <p class="text-gray-600">
-                  {{ program.name }} - {{ program.destination }}
+                  {{ program.code }} - {{ program.name }} - {{ program.destination }}
                 </p>
                 <div
                   class="mt-2 flex items-center space-x-4 text-sm text-gray-500">

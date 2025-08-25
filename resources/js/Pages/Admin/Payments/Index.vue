@@ -189,7 +189,10 @@ const selectedPayment = ref(null);
 const showModal = ref(false);
 
 const formatPrice = (amount) => {
-    return new Intl.NumberFormat("es-CL").format(amount || 0);
+    return new Intl.NumberFormat("es-CL", { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 0 
+    }).format(Math.round(amount || 0));
 };
 
 const showPaymentModal = (payment) => {

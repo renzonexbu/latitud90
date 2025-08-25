@@ -23,7 +23,7 @@ class AnalyticsController extends Controller
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
 
         // Obtener estadísticas del funnel
-        $funnelStats = $this->analyticsService->getFunnelStats($dateFrom, $dateTo);
+        $funnelStats = $this->analyticsService->getFunnelAnalysis($dateFrom, $dateTo);
 
         // Obtener datos para gráficos
         $dailyStats = $this->getDailyStats($dateFrom, $dateTo);
@@ -47,7 +47,7 @@ class AnalyticsController extends Controller
         $dateFrom = $request->get('date_from', now()->subDays(30)->format('Y-m-d'));
         $dateTo = $request->get('date_to', now()->format('Y-m-d'));
 
-        $funnelStats = $this->analyticsService->getFunnelStats($dateFrom, $dateTo);
+        $funnelStats = $this->analyticsService->getFunnelAnalysis($dateFrom, $dateTo);
 
         return Inertia::render('Admin/Analytics/Funnel', [
             'funnelStats' => $funnelStats,
@@ -76,11 +76,11 @@ class AnalyticsController extends Controller
                 'Session ID' => $item->session_id,
                 'Participante RUT' => $item->participant_rut,
                 'Programa' => $item->program_name,
-                'Búsqueda Hero' => $item->hero_search_at?->format('d/m/Y H:i:s'),
-                'Vista Lista' => $item->program_list_view_at?->format('d/m/Y H:i:s'),
-                'Vista Detalle' => $item->program_detail_view_at?->format('d/m/Y H:i:s'),
-                'Vista Pago' => $item->payment_details_view_at?->format('d/m/Y H:i:s'),
-                'Vista Confirmación' => $item->confirmation_view_at?->format('d/m/Y H:i:s'),
+                'Búsqueda participantes' => $item->hero_search_at?->format('d/m/Y H:i:s'),
+                'Listado programas' => $item->program_list_view_at?->format('d/m/Y H:i:s'),
+                'Detalle programa' => $item->program_detail_view_at?->format('d/m/Y H:i:s'),
+                'Datos comprador' => $item->payment_details_view_at?->format('d/m/Y H:i:s'),
+                'Confirmación pago' => $item->confirmation_view_at?->format('d/m/Y H:i:s'),
                 'Pago Iniciado' => $item->payment_initiated_at?->format('d/m/Y H:i:s'),
                 'Pago Completado' => $item->payment_completed_at?->format('d/m/Y H:i:s'),
                 'Pago Fallido' => $item->payment_failed_at?->format('d/m/Y H:i:s'),

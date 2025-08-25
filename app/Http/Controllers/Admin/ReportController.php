@@ -37,9 +37,9 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
-        // Fechas por defecto (último mes)
+        // Fechas por defecto (último mes + 7 días adicionales para capturar reembolsos)
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
         $programId = $request->program;
 
         // Obtener resumen de todos los módulos
@@ -70,11 +70,15 @@ class ReportController extends Controller
         Log::info('funnelAnalysis completo', $funnelAnalysis);
         Log::info('=== FIN DEL LOG FRONTEND ===');
 
+        // Obtener estadísticas de reembolso
+        $refundStats = $this->getRefundStats($dateFrom, $dateTo, $programId);
+
         return Inertia::render('Admin/Reports/Index', [
             'summary' => $summary,
             'programs' => $programs,
             'ecommerceData' => $ecommerceData,
             'funnelAnalysis' => $funnelAnalysis,
+            'refundStats' => $refundStats,
             'filters' => [
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
@@ -86,7 +90,7 @@ class ReportController extends Controller
     private function getEcommerceData(Request $request): array
     {
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
         
         // Usar fechas específicas para los datos de prueba
         if ($dateFrom === '2025-07-22' && $dateTo === '2025-08-21') {
@@ -135,17 +139,19 @@ class ReportController extends Controller
     {
         // Usar las fechas del request principal, no períodos predefinidos
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+        $data = \App\Models\EcommerceAnalytics::whereBetween('ecommerce_analytics.created_at', [$dateFrom, $dateTo])
             ->whereNotNull('program_detail_view_at')
-            ->selectRaw('COALESCE(program_name, CONCAT("Programa #", program_id)) as program_name, COUNT(*) as views, COUNT(payment_completed_at) as conversions')
-            ->groupBy('program_id', 'program_name')
+            ->join('programs', 'ecommerce_analytics.program_id', '=', 'programs.id')
+            ->selectRaw('programs.code as program_code, COALESCE(ecommerce_analytics.program_name, CONCAT("Programa #", ecommerce_analytics.program_id)) as program_name, COUNT(*) as views, COUNT(ecommerce_analytics.payment_completed_at) as conversions')
+            ->groupBy('ecommerce_analytics.program_id', 'ecommerce_analytics.program_name', 'programs.code')
             ->orderByDesc('views')
             ->limit(10)
             ->get()
             ->map(function ($item) {
                 return [
+                    'program_code' => $item->program_code,
                     'program_name' => $item->program_name,
                     'views' => $item->views,
                     'conversions' => $item->conversions,
@@ -167,7 +173,7 @@ class ReportController extends Controller
     {
         // Usar las fechas del request principal, no períodos predefinidos
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
         $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereNotNull('participant_rut')
@@ -198,9 +204,10 @@ class ReportController extends Controller
     {
         // Usar las fechas del request principal, no períodos predefinidos
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        $data = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
+        // Datos de ecommerce analytics
+        $ecommerceData = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
             ->whereNotNull('payment_method')
             ->selectRaw('payment_method, COUNT(*) as total, COUNT(CASE WHEN payment_status = "completed" THEN 1 END) as successful')
             ->groupBy('payment_method')
@@ -216,20 +223,45 @@ class ReportController extends Controller
             })
             ->toArray();
 
+        // Datos de reembolsos/devoluciones desde la tabla payments
+        $refundsData = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.amount', '<', 0) // Solo reembolsos (montos negativos)
+            ->join('payment_gateways', 'payments.payment_gateway_id', '=', 'payment_gateways.id')
+            ->selectRaw('payment_gateways.name as payment_method, COUNT(*) as total, COUNT(CASE WHEN payments.status = "completed" THEN 1 END) as successful, SUM(ABS(payments.amount)) as total_amount')
+            ->groupBy('payment_gateways.id', 'payment_gateways.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'payment_method' => $item->payment_method . ' (Devolución)',
+                    'total' => $item->total,
+                    'successful' => $item->successful,
+                    'success_rate' => $item->total > 0 ? ($item->successful / $item->total) * 100 : 0,
+                    'total_amount' => $item->total_amount,
+                    'is_refund' => true
+                ];
+            })
+            ->toArray();
+
+        // Combinar ambos conjuntos de datos
+        $combinedData = array_merge($ecommerceData, $refundsData);
+
         Log::info('Payment Methods Data', [
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
-            'data' => $data
+            'ecommerceData' => $ecommerceData,
+            'refundsData' => $refundsData,
+            'combinedData' => $combinedData
         ]);
 
-        return $data;
+        return $combinedData;
     }
 
     private function getInstallmentsAnalysisData(Request $request): array
     {
         // Usar las fechas del request principal, no períodos predefinidos
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
         // Contar pagos con cuotas y sin cuotas
         $withInstallments = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
@@ -274,7 +306,7 @@ class ReportController extends Controller
     {
         // Usar las fechas del request principal, no períodos predefinidos
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->format('Y-m-d');
+        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
         // Contar pagos por tipo
         $contado = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
@@ -800,6 +832,127 @@ class ReportController extends Controller
             ]);
             
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Obtener estadísticas de reembolso
+     */
+    private function getRefundStats(string $dateFrom, string $dateTo, ?string $programId = null): array
+    {
+        try {
+            // Debug: Verificar si hay pagos negativos en total
+            $totalNegativePayments = \App\Models\Payment::where('amount', '<', 0)->count();
+            $allPayments = \App\Models\Payment::count();
+            
+            \Illuminate\Support\Facades\Log::info('Debug Refund Stats', [
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'programId' => $programId,
+                'totalNegativePayments' => $totalNegativePayments,
+                'allPayments' => $allPayments,
+                'negativePaymentsPercentage' => $allPayments > 0 ? ($totalNegativePayments / $allPayments) * 100 : 0
+            ]);
+
+            $query = \App\Models\Payment::query()
+                ->where('payments.amount', '<', 0) // Solo reembolsos (montos negativos)
+                ->whereBetween('payments.created_at', [$dateFrom, $dateTo]);
+
+            // Filtrar por programa si se especifica
+            if ($programId) {
+                $query->whereHas('order', function ($q) use ($programId) {
+                    $q->where('program_id', $programId);
+                });
+            }
+
+            // Debug: Verificar la consulta SQL
+            \Illuminate\Support\Facades\Log::info('Refund Query SQL', [
+                'sql' => $query->toSql(),
+                'bindings' => $query->getBindings()
+            ]);
+
+            // Estadísticas generales
+            $totalRefunds = $query->count();
+            $totalRefundAmount = abs($query->sum('amount'));
+            $averageRefundAmount = $totalRefunds > 0 ? $totalRefundAmount / $totalRefunds : 0;
+
+            \Illuminate\Support\Facades\Log::info('Refund Stats Results', [
+                'totalRefunds' => $totalRefunds,
+                'totalRefundAmount' => $totalRefundAmount,
+                'averageRefundAmount' => $averageRefundAmount
+            ]);
+
+            // Reembolsos por estado
+            $refundsByStatus = $query->selectRaw('payments.status, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
+                ->groupBy('payments.status')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->status => [
+                        'count' => $item->count,
+                        'amount' => $item->total_amount
+                    ]];
+                })
+                ->toArray();
+
+            // Reembolsos por mes (últimos 6 meses)
+            $monthlyRefunds = \App\Models\Payment::where('payments.amount', '<', 0)
+                ->where('payments.created_at', '>=', now()->subMonths(6))
+                ->selectRaw('DATE_FORMAT(payments.created_at, "%Y-%m") as month, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'month' => $item->month,
+                        'count' => $item->count,
+                        'amount' => $item->total_amount
+                    ];
+                })
+                ->toArray();
+
+            // Top programas con más reembolsos
+            $topProgramsRefunds = $query->join('orders', 'payments.order_id', '=', 'orders.id')
+                ->join('programs', 'orders.program_id', '=', 'programs.id')
+                ->selectRaw('programs.code, programs.name, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
+                ->groupBy('programs.id', 'programs.code', 'programs.name')
+                ->orderByDesc('total_amount')
+                ->limit(5)
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'code' => $item->code,
+                        'name' => $item->name,
+                        'count' => $item->count,
+                        'amount' => $item->total_amount
+                    ];
+                })
+                ->toArray();
+
+            return [
+                'total_refunds' => $totalRefunds,
+                'total_refund_amount' => $totalRefundAmount,
+                'average_refund_amount' => $averageRefundAmount,
+                'refunds_by_status' => $refundsByStatus,
+                'monthly_refunds' => $monthlyRefunds,
+                'top_programs_refunds' => $topProgramsRefunds,
+            ];
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error obteniendo estadísticas de reembolso', [
+                'error' => $e->getMessage(),
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'programId' => $programId
+            ]);
+
+            return [
+                'total_refunds' => 0,
+                'total_refund_amount' => 0,
+                'average_refund_amount' => 0,
+                'refunds_by_status' => [],
+                'monthly_refunds' => [],
+                'top_programs_refunds' => [],
+            ];
         }
     }
 

@@ -37,7 +37,7 @@
                                             :key="program.id"
                                             :value="program.id"
                                         >
-                                            {{ program.name }} - {{ program.destination }}
+                                            {{ program.code }} - {{ program.name }} - {{ program.destination }}
                                         </option>
                                     </select>
                                     <span v-if="errors.program_id" class="text-red-500 text-sm mt-1">{{ errors.program_id }}</span>

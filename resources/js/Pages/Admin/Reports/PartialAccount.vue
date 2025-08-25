@@ -32,7 +32,7 @@
                                         :key="program.id"
                                         :value="program.id"
                                     >
-                                        {{ program.name }}
+                                        {{ program.code }} - {{ program.name }}
                                     </option>
                                 </select>
                             </div>
