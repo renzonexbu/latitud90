@@ -215,7 +215,7 @@
                                                 :key="program.id"
                                                 :value="program.id"
                                             >
-                                                {{ program.name }} - {{ program.destination }}
+                                                {{ program.code }} - {{ program.name }}
                                             </option>
                                         </select>
                                         <span v-if="errors.program_id" class="text-red-500 text-sm mt-1">{{ errors.program_id }}</span>
@@ -238,7 +238,7 @@
                                                 :key="participant.id"
                                                 :value="participant.id"
                                             >
-                                                {{ participant.first_name }} {{ participant.last_name }} - {{ participant.document_number }}
+                                                {{ formatParticipantName(participant) }} - {{ formatParticipantDocument(participant) }}
                                             </option>
                                         </select>
                                         <span v-if="errors.participant_id" class="text-red-500 text-sm mt-1">{{ errors.participant_id }}</span>
@@ -290,73 +290,73 @@
                                     </div>
                                 </div>
 
-                                <!-- Información del Pago -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Monto (CLP) *
-                                        </label>
-                                        <input
-                                            v-model="form.amount"
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            placeholder="0"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.amount }"
-                                        />
-                                        <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Método de Pago *
-                                        </label>
-                                        <select
-                                            v-model="form.payment_method"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.payment_method }"
-                                        >
-                                            <option value="">Seleccionar método</option>
-                                            <option
-                                                v-for="method in presentialPaymentMethods"
-                                                :key="method.id"
-                                                :value="method.id"
-                                            >
-                                                {{ method.name }}
-                                            </option>
-                                        </select>
-                                        <span v-if="errors.payment_method" class="text-red-500 text-sm mt-1">{{ errors.payment_method }}</span>
-                                    </div>
+                                <!-- Información del Pago Presencial -->
+                                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <h4 class="text-md font-semibold text-blue-800 mb-3">Datos del Pago Presencial</h4>
+                                    
+                                                                <!-- Monto del Pago -->
+                                <div class="mb-4">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Monto (CLP) *
+                                    </label>
+                                    <input
+                                        v-model="form.amount"
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        placeholder="0"
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                        :class="{ 'border-red-500': errors.amount }"
+                                    />
+                                    <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
                                 </div>
 
-                                <!-- Fecha de Transacción y Código de Autorización -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <div>
+                                    <!-- Código de Pago/Boleta/Factura -->
+                                    <div class="mb-4">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Fecha de Transacción *
+                                            Código de Pago/Boleta/Factura *
                                         </label>
                                         <input
-                                            v-model="form.transaction_date"
-                                            type="datetime-local"
+                                            v-model="form.payment_code"
+                                            type="text"
+                                            placeholder="Ej: B001-2024, F2024-001, P2024-001"
                                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.transaction_date }"
+                                            :class="{ 'border-red-500': errors.payment_code }"
                                         />
-                                        <span v-if="errors.transaction_date" class="text-red-500 text-sm mt-1">{{ errors.transaction_date }}</span>
+                                        <p class="text-sm text-gray-500 mt-1">
+                                            Ingrese el código de la boleta, factura o comprobante de pago presencial
+                                        </p>
+                                        <span v-if="errors.payment_code" class="text-red-500 text-sm mt-1">{{ errors.payment_code }}</span>
                                     </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Código de Autorización
-                                        </label>
-                                        <input
-                                            v-model="form.authorization_code"
-                                            type="text"
-                                            placeholder="Código de autorización"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.authorization_code }"
-                                        />
-                                        <span v-if="errors.authorization_code" class="text-red-500 text-sm mt-1">{{ errors.authorization_code }}</span>
+                                    <!-- Fecha de Transacción y Código de Autorización -->
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                Fecha de Transacción *
+                                            </label>
+                                            <input
+                                                v-model="form.transaction_date"
+                                                type="datetime-local"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                                :class="{ 'border-red-500': errors.transaction_date }"
+                                            />
+                                            <span v-if="errors.transaction_date" class="text-red-500 text-sm mt-1">{{ errors.transaction_date }}</span>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                                Código de Autorización
+                                            </label>
+                                            <input
+                                                v-model="form.authorization_code"
+                                                type="text"
+                                                placeholder="Código de autorización (opcional)"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                                :class="{ 'border-red-500': errors.authorization_code }"
+                                            />
+                                            <span v-if="errors.authorization_code" class="text-red-500 text-sm mt-1">{{ errors.authorization_code }}</span>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -368,7 +368,7 @@
                                     <textarea
                                         v-model="form.notes"
                                         rows="3"
-                                        placeholder="Notas adicionales sobre el pago..."
+                                        placeholder="Notas adicionales sobre el pago presencial..."
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
                                         :class="{ 'border-red-500': errors.notes }"
                                     ></textarea>
@@ -401,7 +401,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
@@ -423,10 +423,7 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-    presentialPaymentMethods: {
-        type: Array,
-        default: () => []
-    },
+
     errors: {
         type: Object,
         default: () => ({})
@@ -451,7 +448,7 @@ const form = useForm({
     program_id: '',
     participant_id: '',
     amount: '',
-    payment_method: '',
+    payment_code: '', // Nuevo campo
     transaction_date: new Date().toISOString().slice(0, 16),
     authorization_code: '',
     notes: ''
@@ -510,7 +507,21 @@ const isBuyerFormValid = computed(() => {
     const rutOk = isRutDocument.value
         ? rutValidation.isValid === true
         : true;
-    return basicValidation && rutOk;
+    
+    // Validar también los campos del formulario de pago
+    const paymentValidations = {
+        program_id: form.program_id !== "",
+        participant_id: form.participant_id !== "",
+        amount: form.amount !== "" && parseFloat(form.amount) > 0,
+        payment_code: form.payment_code.trim() !== "",
+        transaction_date: form.transaction_date !== "",
+    };
+
+    const paymentValidation = Object.values(paymentValidations).every(
+        (v) => v === true
+    );
+
+    return basicValidation && rutOk && paymentValidation;
 });
 
 // Methods
@@ -755,6 +766,7 @@ const loadParticipants = () => {
     const program = props.programs.find(p => p.id == form.program_id);
     if (program && program.course && program.course.participants) {
         availableParticipants.value = program.course.participants;
+        console.log('Participantes cargados:', availableParticipants.value); // Debug
     } else {
         availableParticipants.value = [];
     }
@@ -850,6 +862,49 @@ const getDetailedPaymentStatus = (paymentInfo) => {
     }
 };
 
+// Formatear nombre del participante (Primer Nombre Primer Apellido en Title Case)
+const formatParticipantName = (participant) => {
+    console.log('Participant data:', participant); // Debug
+    
+    const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1).toLowerCase() : '';
+    const lastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1).toLowerCase() : '';
+    
+    // Si no hay apellido, solo mostrar nombre
+    if (!lastName) {
+        return firstName;
+    }
+    
+    return `${firstName} ${lastName}`.trim();
+};
+
+// Formatear documento del participante (RUT formateado si es RUT)
+const formatParticipantDocument = (participant) => {
+    if (!participant.document_number) return '';
+    
+    // Verificar si es RUT (formato chileno)
+    if (/^[0-9]{7,8}[0-9kK]$/.test(participant.document_number.replace(/[.-]/g, ''))) {
+        // Formatear RUT con puntos y guión
+        const rut = participant.document_number.replace(/[.-]/g, '');
+        const body = rut.slice(0, -1);
+        const dv = rut.slice(-1).toUpperCase();
+        
+        let formattedBody = '';
+        for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+            if (j > 0 && j % 3 === 0) {
+                formattedBody = '.' + formattedBody;
+            }
+            formattedBody = body[i] + formattedBody;
+        }
+        
+        return `${formattedBody}-${dv}`;
+    }
+    
+    // Si no es RUT, devolver tal como está
+    return participant.document_number;
+};
+
+
+
 const submit = () => {
     // Combinar los datos del comprador con los datos del pago
     const combinedData = {
@@ -870,6 +925,8 @@ const submit = () => {
     const submitForm = useForm(combinedData);
     submitForm.post(route('admin.payments.store'));
 };
+
+
 
 // Lifecycle
 onMounted(() => {

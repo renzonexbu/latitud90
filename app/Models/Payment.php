@@ -30,6 +30,7 @@ class Payment extends Model
         'gateway_response',
         'raw_notification',
         'commerce_code',
+        'payment_code',
         'amount',
         'currency',
         'balance',
@@ -54,7 +55,8 @@ class Payment extends Model
     protected $appends = [
         'participant_name',
         'program_name',
-        'institution_name'
+        'institution_name',
+        'transaction_date_formatted'
     ];
 
     public function order()
@@ -137,6 +139,23 @@ class Payment extends Model
     public function getIsFailedAttribute()
     {
         return $this->status === 'failed';
+    }
+
+    /**
+     * Accessor para transaction_date que asegura formato correcto manteniendo timezone
+     */
+    public function getTransactionDateFormattedAttribute()
+    {
+        if (!$this->transaction_date) {
+            return null;
+        }
+        
+        try {
+            // Mantener el timezone America/Santiago pero formatear para JSON
+            return $this->transaction_date->setTimezone('America/Santiago')->format('Y-m-d H:i:s');
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     public function getFormattedAmountAttribute()

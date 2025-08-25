@@ -64,6 +64,11 @@ class Order extends Model
         return $this->hasOne(InstallmentPlan::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     /**
      * Recalcula y persiste el estado de la orden en base al progreso de pago.
      * Reglas:

@@ -51,7 +51,7 @@
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Gateway de pago</option>
+                    <option value="">Tipo de pago</option>
                     <option value="transbank">Transbank</option>
                     <option value="khipu">Khipu</option>
                     <option value="presencial">Presencial</option>

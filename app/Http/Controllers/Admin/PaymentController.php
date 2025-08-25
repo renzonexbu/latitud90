@@ -141,14 +141,21 @@ class PaymentController extends Controller
             'program_id' => 'required|exists:programs,id',
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
-            'payment_gateway_id' => 'required|exists:payment_gateways,id',
-            'payment_option_id' => 'required|exists:payment_options,id',
             'status' => 'required|in:pending,completed,failed,authorized',
-            'transaction_date' => 'required|date',
+            'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string',
-            'card_number' => 'nullable|string',
-            'card_type' => 'nullable|string',
             'notes' => 'nullable|string',
+            
+            // Datos del comprador
+            'buyer_full_name' => 'required|string|max:255',
+            'buyer_document_type' => 'required|exists:document,id',
+            'buyer_document_number' => 'required|string|max:255',
+            'buyer_email' => 'required|email|max:255',
+            'buyer_phone' => 'required|string|max:255',
+            'buyer_code_phone' => 'required|string|max:10',
+            'buyer_country' => 'required|exists:countries,id',
+            'buyer_region' => 'required|exists:regions,id',
+            'buyer_city' => 'required|exists:comunes,id',
         ]);
 
         try {
@@ -173,36 +180,73 @@ class PaymentController extends Controller
                 ]);
             }
 
+            // Para pagos presenciales, usar gateway y option fijos
+            $paymentGateway = \App\Models\PaymentGateway::where('code', 'presencial')->firstOrFail();
+            $paymentOption = \App\Models\PaymentOption::where('code', 'full_debit_credit_0')->firstOrFail();
+
             // Crear el detalle de la orden
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
-                'payment_option_id' => $request->payment_option_id,
-                'payment_gateway_id' => $request->payment_gateway_id,
+                'payment_option_id' => $paymentOption->id,
+                'payment_gateway_id' => $paymentGateway->id,
+                'name' => $request->buyer_full_name,
+                'email' => $request->buyer_email,
+                'country' => $request->buyer_country,
+                'region' => $request->buyer_region,
+                'city' => $request->buyer_city,
+                'code_phone' => $request->buyer_code_phone,
+                'phone' => $request->buyer_phone,
+                'document_type' => $request->buyer_document_type,
+                'document_number' => $request->buyer_document_number,
+                'billing_address' => null, // No tenemos dirección en el formulario
+                'billing_city' => $request->buyer_city, // Usar la misma ciudad
+                'billing_country' => $request->buyer_country, // Usar el mismo país
+                'billing_postal_code' => null, // No tenemos código postal en el formulario
+                'terms_accepted' => true,
+                'marketing_accepted' => false,
+                'terms_accepted_confirmation' => true,
                 'installment_number' => 1,
-                'installments_number' => 1,
+                'base_amount' => $request->amount,
+                'discount_amount' => 0,
                 'amount' => $request->amount,
                 'due_date' => now(),
                 'is_paid' => $request->status === 'completed',
-                'status' => $request->status,
+                'status' => $request->status === 'completed' ? 'paid' : $request->status,
                 'paid_at' => $request->status === 'completed' ? now() : null,
+                'gateway_response' => [
+                    'notes' => $request->notes,
+                    'created_manually' => true,
+                    'payment_type' => 'presential'
+                ]
             ]);
 
             // Crear el pago
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
-                'payment_gateway_id' => $request->payment_gateway_id,
-                'payment_option_id' => $request->payment_option_id,
+                'payment_gateway_id' => $paymentGateway->id,
+                'payment_option_id' => $paymentOption->id,
                 'buy_order' => $order->order_number,
                 'amount' => $request->amount,
                 'status' => $request->status,
-                'transaction_date' => $request->transaction_date,
+                'transaction_date' => now(), // Usar fecha actual para pagos presenciales
+                'accounting_date' => now(), // Fecha contable
                 'authorization_code' => $request->authorization_code,
-                'card_number' => $request->card_number,
-                'card_type' => $request->card_type,
+                'payment_code' => $request->payment_code,
                 'gateway_response' => [
                     'notes' => $request->notes,
-                    'created_manually' => true
+                    'created_manually' => true,
+                    'payment_type' => 'presential',
+                    'buyer_data' => [
+                        'full_name' => $request->buyer_full_name,
+                        'document_type' => $request->buyer_document_type,
+                        'document_number' => $request->buyer_document_number,
+                        'email' => $request->buyer_email,
+                        'phone' => $request->buyer_phone,
+                        'country' => $request->buyer_country,
+                        'region' => $request->buyer_region,
+                        'city' => $request->buyer_city,
+                    ]
                 ],
                 'currency' => 'CLP',
             ]);
@@ -210,10 +254,15 @@ class PaymentController extends Controller
             // Actualizar estado de la orden
             $order->refreshStatus();
 
+            // Manejar plan de cuotas y reestructuración si es necesario
+            if ($request->status === 'completed') {
+                $this->handleInstallmentPlan($order, $request->participant_id, $request->program_id, $request->amount);
+            }
+
             DB::commit();
 
             return redirect()->route('admin.payments.index')
-                ->with('success', 'Pago registrado exitosamente.');
+                ->with('success', 'Pago presencial registrado exitosamente. Se han reestructurado las cuotas pendientes.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -413,45 +462,66 @@ class PaymentController extends Controller
             }
 
             // Calcular montos usando el helper
-            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            $totalAmount = $priceData['final_price'];
+            try {
+                $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $totalAmount = $priceData['final_price'];
+            } catch (\Exception $e) {
+                // Fallback al precio del programa si el helper falla
+                $totalAmount = $program->trip_price ?? 0;
+                \Illuminate\Support\Facades\Log::warning('Error calculando precio con helper, usando precio del programa', [
+                    'error' => $e->getMessage(),
+                    'participant_id' => $participantId,
+                    'program_id' => $programId
+                ]);
+            }
 
-            // Buscar planes de cuotas del participante para este programa
+            // Inicializar variables
+            $totalInstallments = 0;
+            $paidInstallments = 0;
+            $totalPaidAmount = 0;
+            $orders = collect(); // Inicializar como colección vacía
+
+            // Buscar planes de cuotas del participante para este programa (más confiable)
             $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participantId)
                 ->where('program_id', $programId)
                 ->with(['installments'])
                 ->get();
 
-            // Calcular cuotas pagadas y total de cuotas desde la tabla installments
-            $totalInstallments = 0;
-            $paidInstallments = 0;
-            $totalPaidAmount = 0;
-
             foreach ($installmentPlans as $plan) {
-                $totalInstallments += $plan->total_installments;
+                $totalInstallments = $plan->installments->count();
                 
                 foreach ($plan->installments as $installment) {
                     if ($installment->status === 'paid') {
                         $paidInstallments++;
-                        $totalPaidAmount += $installment->amount;
+                        // NO sumar aquí el monto, solo contar cuotas
                     }
                 }
             }
 
-            // Si no hay planes de cuotas, buscar en orders_detail como fallback
+            // CALCULAR EL MONTO REAL PAGADO desde la tabla payments
+            $totalPaidAmount = \App\Models\Payment::whereHas('order', function ($q) use ($participantId, $programId) {
+                    $q->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+                })
+                ->whereIn('status', ['completed', 'approved'])
+                ->sum('amount');
+
+            // Si no hay planes de cuotas, buscar en orders como fallback
             if ($totalInstallments == 0) {
                 $orders = \App\Models\Order::where('participant_id', $participantId)
                     ->where('program_id', $programId)
-                    ->with(['orderDetails'])
+                    ->with(['orderDetails', 'payments'])
                     ->get();
 
                 foreach ($orders as $order) {
-                    $totalInstallments += $order->total_installments;
-                    
-                    foreach ($order->orderDetails as $detail) {
-                        if ($detail->is_paid) {
-                            $paidInstallments++;
-                            $totalPaidAmount += $detail->amount;
+                    if ($order->orderDetails) {
+                        $totalInstallments = $order->orderDetails->count();
+                        
+                        foreach ($order->orderDetails as $detail) {
+                            if ($detail->is_paid) {
+                                $paidInstallments++;
+                                // NO sumar aquí tampoco, ya calculamos desde payments
+                            }
                         }
                     }
                 }
@@ -460,6 +530,12 @@ class PaymentController extends Controller
             $totalPaidAmount = round($totalPaidAmount, 2);
             $balance = max(round($totalAmount - $totalPaidAmount, 2), 0);
             $paymentPercentage = $totalAmount > 0 ? round(($totalPaidAmount / $totalAmount) * 100, 2) : 0;
+
+            // Validar que los números sean lógicos
+            if ($paidInstallments > $totalInstallments) {
+                // Corregir el error lógico
+                $paidInstallments = min($paidInstallments, $totalInstallments);
+            }
 
             // Determinar estado de inscripción
             $isEnrolled = $program->course && $program->course->participants->contains($participantId);
@@ -501,20 +577,33 @@ class PaymentController extends Controller
                         'paid_installments' => $paidInstallments,
                         'installments_summary' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : "0/0",
                     ],
-                    'installment_plans' => $installmentPlans->map(function($plan) {
+                    'orders' => $orders->map(function($order) {
                         return [
-                            'id' => $plan->id,
-                            'total_installments' => $plan->total_installments,
-                            'total_amount' => $plan->total_amount,
-                            'status' => $plan->status,
-                            'installments' => $plan->installments->map(function($installment) {
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'total_amount' => $order->total_amount,
+                            'final_amount' => $order->final_amount,
+                            'total_installments' => $order->total_installments,
+                            'status' => $order->status,
+                            'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i') : null,
+                            'order_details' => $order->orderDetails->map(function($detail) {
                                 return [
-                                    'id' => $installment->id,
-                                    'installment_number' => $installment->installment_number,
-                                    'amount' => $installment->amount,
-                                    'status' => $installment->status,
-                                    'due_date' => $installment->due_date ? $installment->due_date->format('d/m/Y') : null,
-                                    'paid_at' => $installment->paid_at ? $installment->paid_at->format('d/m/Y H:i') : null,
+                                    'id' => $detail->id,
+                                    'installment_number' => $detail->installment_number,
+                                    'amount' => $detail->amount,
+                                    'status' => $detail->status,
+                                    'is_paid' => $detail->is_paid,
+                                    'due_date' => $detail->due_date ? $detail->due_date->format('d/m/Y') : null,
+                                    'paid_at' => $detail->paid_at ? $detail->paid_at->format('d/m/Y H:i') : null,
+                                ];
+                            }),
+                            'payments' => $order->payments->map(function($payment) {
+                                return [
+                                    'id' => $payment->id,
+                                    'amount' => $payment->amount,
+                                    'status' => $payment->status,
+                                    'payment_code' => $payment->payment_code,
+                                    'created_at' => $payment->created_at ? $payment->created_at->format('d/m/Y H:i') : null,
                                 ];
                             })
                         ];
@@ -527,6 +616,190 @@ class PaymentController extends Controller
                 'success' => false,
                 'message' => 'Error al obtener el estado de pagos: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Manejar plan de cuotas y reestructuración
+     */
+    private function handleInstallmentPlan(Order $order, int $participantId, int $programId, float $paymentAmount): void
+    {
+        try {
+            // Calcular monto total del programa
+            $program = \App\Models\Program::findOrFail($programId);
+            $participant = \App\Models\Participant::findOrFail($participantId);
+            
+            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            $totalAmount = $priceData['final_price'];
+            
+            // Calcular monto ya pagado
+            $paidAmount = \App\Models\Payment::whereHas('order', function ($q) use ($participantId, $programId) {
+                    $q->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+                })
+                ->whereIn('status', ['completed', 'approved'])
+                ->sum('amount');
+            
+            $newPaidAmount = $paidAmount + $paymentAmount;
+            
+            // Buscar plan de cuotas existente
+            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $participantId)
+                                                         ->where('program_id', $programId)
+                                                         ->first();
+
+            if (!$installmentPlan) {
+                // Crear nuevo plan de cuotas si no existe
+                $installmentPlan = \App\Models\InstallmentPlan::create([
+                    'order_id' => $order->id,
+                    'program_id' => $programId,
+                    'participant_id' => $participantId,
+                    'total_amount' => $totalAmount,
+                    'total_installments' => 1,
+                    'payment_type' => 'monthly',
+                    'status' => 'active',
+                    'start_date' => now(),
+                    'notes' => 'Plan de cuotas creado desde pago presencial'
+                ]);
+
+                // Crear cuota inicial
+                \App\Models\Installment::create([
+                    'installment_plan_id' => $installmentPlan->id,
+                    'installment_number' => 1,
+                    'amount' => $totalAmount,
+                    'due_date' => now(),
+                    'status' => 'pending',
+                    'notes' => 'Cuota inicial del programa'
+                ]);
+            }
+
+            // Reestructurar cuotas pendientes
+            $this->restructureInstallments($installmentPlan, $totalAmount, $newPaidAmount);
+            
+            // También actualizar OrderDetail para mantener consistencia
+            $this->updateOrderDetailsFromInstallments($order, $installmentPlan);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error manejando plan de cuotas', [
+                'error' => $e->getMessage(),
+                'participant_id' => $participantId,
+                'program_id' => $programId
+            ]);
+        }
+    }
+
+    /**
+     * Reestructurar cuotas pendientes
+     */
+    private function restructureInstallments(\App\Models\InstallmentPlan $installmentPlan, float $totalAmount, float $paidAmount): void
+    {
+        $remainingBalance = max($totalAmount - $paidAmount, 0);
+        
+        if ($remainingBalance <= 0) {
+            // Si ya está completamente pagado, marcar todas las cuotas como pagadas
+            $installmentPlan->installments()->update(['status' => 'paid', 'paid_at' => now()]);
+            $installmentPlan->update(['status' => 'completed', 'end_date' => now()]);
+            return;
+        }
+
+        // Obtener cuotas pendientes
+        $pendingInstallments = $installmentPlan->installments()
+            ->where('status', 'pending')
+            ->orderBy('installment_number')
+            ->get();
+
+        if ($pendingInstallments->isEmpty()) {
+            return;
+        }
+
+        // Calcular cuántas cuotas quedan por pagar
+        $remainingInstallments = $pendingInstallments->count();
+        
+        // Distribuir el saldo restante entre las cuotas pendientes
+        $amountPerInstallment = $remainingBalance / $remainingInstallments;
+        $remainder = $remainingBalance - ($amountPerInstallment * $remainingInstallments);
+
+        foreach ($pendingInstallments as $index => $installment) {
+            $installmentAmount = $amountPerInstallment;
+            
+            // Distribuir centavos restantes en las primeras cuotas
+            if ($remainder > 0) {
+                $installmentAmount += 0.01;
+                $remainder -= 0.01;
+            }
+
+            $installment->update([
+                'amount' => round($installmentAmount, 2),
+                'adjusted_at' => now(),
+                'adjustment_reason' => 'Reestructuración por pago presencial'
+            ]);
+        }
+
+        // Actualizar el plan
+        $installmentPlan->update([
+            'total_installments' => $pendingInstallments->count()
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Cuotas reestructuradas exitosamente', [
+            'installment_plan_id' => $installmentPlan->id,
+            'total_amount' => $totalAmount,
+            'paid_amount' => $paidAmount,
+            'remaining_balance' => $remainingBalance,
+            'remaining_installments' => $remainingInstallments
+        ]);
+    }
+
+    /**
+     * Actualizar OrderDetail basado en Installments para mantener consistencia
+     */
+    private function updateOrderDetailsFromInstallments(Order $order, \App\Models\InstallmentPlan $installmentPlan): void
+    {
+        try {
+            // Obtener todas las cuotas del plan
+            $installments = $installmentPlan->installments()->orderBy('installment_number')->get();
+            
+            // Eliminar OrderDetails existentes
+            $order->orderDetails()->delete();
+            
+            // Crear nuevos OrderDetails basados en las cuotas
+            foreach ($installments as $installment) {
+                $order->orderDetails()->create([
+                    'payment_option_id' => $order->orderDetails->first()->payment_option_id ?? null,
+                    'payment_gateway_id' => $order->orderDetails->first()->payment_gateway_id ?? null,
+                    'name' => $order->orderDetails->first()->name ?? 'Participante',
+                    'email' => $order->orderDetails->first()->email ?? '',
+                    'country' => $order->orderDetails->first()->country ?? null,
+                    'region' => $order->orderDetails->first()->region ?? null,
+                    'city' => $order->orderDetails->first()->city ?? null,
+                    'code_phone' => $order->orderDetails->first()->code_phone ?? null,
+                    'phone' => $order->orderDetails->first()->phone ?? null,
+                    'document_type' => $order->orderDetails->first()->document_type ?? null,
+                    'document_number' => $order->orderDetails->first()->document_number ?? null,
+                    'installment_number' => $installment->installment_number,
+                    'base_amount' => $installment->amount,
+                    'discount_amount' => 0,
+                    'amount' => $installment->amount,
+                    'due_date' => $installment->due_date,
+                    'is_paid' => $installment->status === 'paid',
+                    'status' => $installment->status === 'paid' ? 'paid' : 'pending',
+                    'paid_at' => $installment->status === 'paid' ? $installment->paid_at : null,
+                    'gateway_response' => [
+                        'notes' => 'Actualizado desde InstallmentPlan',
+                        'installment_id' => $installment->id
+                    ]
+                ]);
+            }
+            
+            // Actualizar el total de cuotas en la orden
+            $order->update([
+                'total_installments' => $installments->count()
+            ]);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error actualizando OrderDetails desde Installments', [
+                'error' => $e->getMessage(),
+                'order_id' => $order->id,
+                'installment_plan_id' => $installmentPlan->id
+            ]);
         }
     }
 }

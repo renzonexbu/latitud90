@@ -33,7 +33,6 @@ class OrderDetail extends Model
         'marketing_accepted',
         'terms_accepted_confirmation',
         'installment_number',
-        'installments_number',
         'base_amount',
         'discount_amount',
         'amount',

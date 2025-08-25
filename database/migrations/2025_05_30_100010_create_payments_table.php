@@ -50,6 +50,7 @@ return new class extends Migration
 
             // Campos adicionales
             $table->string('commerce_code')->nullable();        // Código de comercio
+            $table->string('payment_code')->nullable();         // Código de boleta/factura para pagos presenciales
             $table->decimal('amount', 10, 2);                   // Monto del pago
             $table->char('currency', 3)->default('CLP');        // Moneda
             $table->decimal('balance', 10, 2)->nullable();      // Saldo restante (para cuotas)
@@ -64,6 +65,7 @@ return new class extends Migration
             $table->index(['token']);
             $table->index(['external_payment_id']);
             $table->index(['authorization_code']);
+            $table->index(['payment_code']); // Para búsquedas por código de boleta/factura
             $table->index(['order_id', 'status']);
             $table->index(['status']); // Para filtros por status
             $table->index(['created_at']); // Para filtros por fecha

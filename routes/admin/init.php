@@ -32,14 +32,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     include __DIR__ . '/participants.php';
 
     // Gestión de pagos
-    Route::resource('payments', PaymentController::class);
-    Route::patch('payments/{payment}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
-    Route::patch('payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
-    Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
-    Route::get('payments/export', [PaymentController::class, 'export'])->name('payments.export');
-    Route::get('payments/pending-report', [PaymentController::class, 'pendingReport'])->name('payments.pending-report');
-    Route::get('payments/revenue-report', [PaymentController::class, 'revenueReport'])->name('payments.revenue-report');
-    Route::post('payments/participant-status', [PaymentController::class, 'getParticipantPaymentStatus'])->name('payments.participant-status');
+    include __DIR__ . '/payments.php';
 
     // Gestión de reportes
     include __DIR__ . '/reports.php';
