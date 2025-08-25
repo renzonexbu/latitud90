@@ -8,6 +8,7 @@
                 subtitle="Visualización y administración de pagos"
                 :show-create-button="true"
                 @create-payment="handleCreatePayment"
+                @create-refund="handleCreateRefund"
             />
 
             <!-- Estadísticas -->
@@ -202,7 +203,11 @@ const closeModal = () => {
 };
 
 const handleCreatePayment = () => {
-    router.visit(route("admin.payments.create"));
+    router.visit(route("admin.payments.presential.create"));
+};
+
+const handleCreateRefund = () => {
+    router.visit(route("admin.payments.refunds.create"));
 };
 
 const handleFiltersChanged = (newFilters) => {

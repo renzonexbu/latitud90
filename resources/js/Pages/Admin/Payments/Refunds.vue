@@ -1,13 +1,13 @@
 <template>
     <AdminLayout>
-        <Head title="Registrar Pago Presencial" />
+        <Head title="Procesar Reembolso" />
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-2xl font-bold text-gray-900">Registrar Pago Presencial</h2>
+                            <h2 class="text-2xl font-bold text-gray-900">Procesar Reembolso</h2>
                             <Link
                                 :href="route('admin.payments.index')"
                                 class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
@@ -19,7 +19,7 @@
                         <form @submit.prevent="submit" class="space-y-8">
                             <!-- SECCIÓN 1: DATOS DEL COMPRADOR -->
                             <div class="border-b border-gray-200 pb-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos del Comprador</h3>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos del Reembolso</h3>
                                 
                                 <!-- Tipo de Documento - Full Width -->
                                 <div class="mb-6">
@@ -36,11 +36,11 @@
                                                     v-model="buyerForm.documentType"
                                                     class="sr-only peer"
                                                 />
-                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#e74c3c] peer-checked:bg-[#e74c3c] transition-all duration-200 flex items-center justify-center">
                                                     <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
                                                 </div>
                                             </div>
-                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#e74c3c] transition-colors duration-200">
                                                 RUT
                                             </span>
                                         </label>
@@ -53,11 +53,11 @@
                                                     v-model="buyerForm.documentType"
                                                     class="sr-only peer"
                                                 />
-                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#e74c3c] peer-checked:bg-[#e74c3c] transition-all duration-200 flex items-center justify-center">
                                                     <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
                                                 </div>
                                             </div>
-                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#e74c3c] transition-colors duration-200">
                                                 Pasaporte
                                             </span>
                                         </label>
@@ -193,9 +193,9 @@
                                 </div>
                             </div>
 
-                            <!-- SECCIÓN 2: INFORMACIÓN DEL PAGO -->
+                            <!-- SECCIÓN 2: INFORMACIÓN DEL REEMBOLSO -->
                             <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Información del Pago</h3>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Información del Reembolso</h3>
                                 
                                 <!-- Selección de Programa y Participante -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -206,7 +206,7 @@
                                         <select
                                             v-model="form.program_id"
                                             @change="loadParticipants"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                             :class="{ 'border-red-500': errors.program_id }"
                                         >
                                             <option value="">Seleccionar programa</option>
@@ -228,7 +228,7 @@
                                         <select
                                             v-model="form.participant_id"
                                             @change="loadParticipantPaymentStatus"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                             :class="{ 'border-red-500': errors.participant_id }"
                                             :disabled="!form.program_id"
                                         >
@@ -290,41 +290,40 @@
                                     </div>
                                 </div>
 
-                                <!-- Información del Pago Presencial -->
-                                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                    <h4 class="text-md font-semibold text-blue-800 mb-3">Datos del Pago Presencial</h4>
-                                    
-                                                                <!-- Monto del Pago -->
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Monto (CLP) *
-                                    </label>
-                                    <input
-                                        v-model="form.amount"
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        placeholder="0"
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                        :class="{ 'border-red-500': errors.amount }"
-                                    />
-                                    <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
-                                </div>
-
-                                    <!-- Código de Pago/Boleta/Factura -->
+                                <!-- Información del Reembolso -->
+                                <div class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                                    <h4 class="text-md font-semibold text-red-800 mb-3">Datos del Reembolso</h4>
+                                    <!-- Monto del Reembolso -->
                                     <div class="mb-4">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Código de Pago/Boleta/Factura *
+                                            Monto del Reembolso (CLP) *
+                                        </label>
+                                        <input
+                                            v-model="form.amount"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            placeholder="0"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.amount }"
+                                        />
+                                        <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
+                                    </div>
+
+                                    <!-- Código de Reembolso -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Código de Reembolso/Comprobante *
                                         </label>
                                         <input
                                             v-model="form.payment_code"
                                             type="text"
-                                            placeholder="Ej: B001-2024, F2024-001, P2024-001"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                            placeholder="Ej: R001-2024, REF-2024-001, REEMB-001"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                             :class="{ 'border-red-500': errors.payment_code }"
                                         />
                                         <p class="text-sm text-gray-500 mt-1">
-                                            Ingrese el código de la boleta, factura o comprobante de pago presencial
+                                            Ingrese el código del comprobante de reembolso
                                         </p>
                                         <span v-if="errors.payment_code" class="text-red-500 text-sm mt-1">{{ errors.payment_code }}</span>
                                     </div>
@@ -333,12 +332,12 @@
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Fecha de Transacción *
+                                                Fecha de Reembolso *
                                             </label>
                                             <input
                                                 v-model="form.transaction_date"
                                                 type="datetime-local"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                                 :class="{ 'border-red-500': errors.transaction_date }"
                                             />
                                             <span v-if="errors.transaction_date" class="text-red-500 text-sm mt-1">{{ errors.transaction_date }}</span>
@@ -352,7 +351,7 @@
                                                 v-model="form.authorization_code"
                                                 type="text"
                                                 placeholder="Código de autorización (opcional)"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                                 :class="{ 'border-red-500': errors.authorization_code }"
                                             />
                                             <span v-if="errors.authorization_code" class="text-red-500 text-sm mt-1">{{ errors.authorization_code }}</span>
@@ -360,16 +359,16 @@
                                     </div>
                                 </div>
 
-                                <!-- Notas -->
+                                <!-- Motivo del Reembolso -->
                                 <div class="mb-6">
                                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Notas
+                                        Motivo del Reembolso *
                                     </label>
                                     <textarea
                                         v-model="form.notes"
                                         rows="3"
-                                        placeholder="Notas adicionales sobre el pago presencial..."
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                        placeholder="Especifique el motivo del reembolso..."
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
                                         :class="{ 'border-red-500': errors.notes }"
                                     ></textarea>
                                     <span v-if="errors.notes" class="text-red-500 text-sm mt-1">{{ errors.notes }}</span>
@@ -387,9 +386,9 @@
                                 <button
                                     type="submit"
                                     :disabled="form.processing || !isBuyerFormValid"
-                                    class="bg-[#007e93] hover:bg-[#006b7a] disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
+                                    class="bg-[#e74c3c] hover:bg-[#c0392b] disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
                                 >
-                                    {{ form.processing ? 'Registrando...' : 'Registrar Pago' }}
+                                    {{ form.processing ? 'Procesando...' : 'Procesar Reembolso' }}
                                 </button>
                             </div>
                         </form>
@@ -401,7 +400,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
@@ -423,7 +422,6 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-
     errors: {
         type: Object,
         default: () => ({})
@@ -443,12 +441,12 @@ const buyerForm = reactive({
     city: "",
 });
 
-// Formulario de información del pago
+// Formulario de información del reembolso
 const form = useForm({
     program_id: '',
     participant_id: '',
     amount: '',
-    payment_code: '', // Nuevo campo
+    payment_code: '',
     transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 16),
     authorization_code: '',
     notes: ''
@@ -508,20 +506,21 @@ const isBuyerFormValid = computed(() => {
         ? rutValidation.isValid === true
         : true;
     
-    // Validar también los campos del formulario de pago
-    const paymentValidations = {
+    // Validar también los campos del formulario de reembolso
+    const refundValidations = {
         program_id: form.program_id !== "",
         participant_id: form.participant_id !== "",
         amount: form.amount !== "" && parseFloat(form.amount) > 0,
         payment_code: form.payment_code.trim() !== "",
         transaction_date: form.transaction_date !== "",
+        notes: form.notes.trim() !== "",
     };
 
-    const paymentValidation = Object.values(paymentValidations).every(
+    const refundValidation = Object.values(refundValidations).every(
         (v) => v === true
     );
 
-    return basicValidation && rutOk && paymentValidation;
+    return basicValidation && rutOk && refundValidation;
 });
 
 // Methods
@@ -622,21 +621,16 @@ const autocompleteForm = (clientData) => {
         setTimeout(() => {
             if (filteredComunes.value.length > 0) {
                 buyerForm.city = clientData.comune_id;
-                console.log('Comuna establecida después de cargar:', clientData.comune_id);
             } else {
-                console.log('Comunas no disponibles aún, reintentando...');
                 // Reintentar si las comunas no están disponibles
                 setTimeout(() => {
                     if (filteredComunes.value.length > 0) {
                         buyerForm.city = clientData.comune_id;
-                        console.log('Comuna establecida en segundo intento:', clientData.comune_id);
                     }
                 }, 200);
             }
         }, 300);
     });
-
-    console.log('Formulario autocompletado con datos del cliente frecuente:', clientData);
 };
 
 const validateDocument = () => {
@@ -729,12 +723,10 @@ const calculateDv = (body) => {
 };
 
 const handleCountryChange = (countryId) => {
-    console.log("País seleccionado:", countryId);
     buyerForm.country = countryId;
 };
 
 const handleRegionChange = (regionId) => {
-    console.log("Región seleccionada:", regionId);
     buyerForm.region = regionId;
     buyerForm.city = ""; // Limpiar comuna
 
@@ -743,19 +735,14 @@ const handleRegionChange = (regionId) => {
         const selectedRegion = props.regions.find(
             (r) => r.id == regionId
         );
-        console.log("Región encontrada:", selectedRegion);
-        if (selectedRegion && selectedRegion.comunes) {
-            console.log("Comunas disponibles:", selectedRegion.comunes);
-        }
     }
 };
 
 const handleCityChange = (cityId) => {
-    console.log("Comuna seleccionada:", cityId);
     buyerForm.city = cityId;
 };
 
-// Métodos del formulario de pago
+// Métodos del formulario de reembolso
 const loadParticipants = () => {
     if (!form.program_id) {
         availableParticipants.value = [];
@@ -766,7 +753,6 @@ const loadParticipants = () => {
     const program = props.programs.find(p => p.id == form.program_id);
     if (program && program.course && program.course.participants) {
         availableParticipants.value = program.course.participants;
-        console.log('Participantes cargados:', availableParticipants.value); // Debug
     } else {
         availableParticipants.value = [];
     }
@@ -796,13 +782,10 @@ const loadParticipantPaymentStatus = async () => {
             const result = await response.json();
             if (result.success) {
                 participantPaymentStatus.value = result.data;
-                console.log('Estado de pago del participante cargado:', participantPaymentStatus.value);
             } else {
-                console.error('Error al cargar el estado de pago:', result.message);
                 participantPaymentStatus.value = null;
             }
         } else {
-            console.error('Error al cargar el estado de pago del participante:', response.status);
             participantPaymentStatus.value = null;
         }
     } catch (error) {
@@ -864,8 +847,6 @@ const getDetailedPaymentStatus = (paymentInfo) => {
 
 // Formatear nombre del participante (Primer Nombre Primer Apellido en Title Case)
 const formatParticipantName = (participant) => {
-    console.log('Participant data:', participant); // Debug
-    
     const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1).toLowerCase() : '';
     const lastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1).toLowerCase() : '';
     
@@ -903,13 +884,11 @@ const formatParticipantDocument = (participant) => {
     return participant.document_number;
 };
 
-
-
 const submit = () => {
-    // Combinar los datos del comprador con los datos del pago
+    // Combinar los datos del comprador con los datos del reembolso
     const combinedData = {
         ...form.data(),
-        status: 'completed', // Siempre completado para pagos presenciales
+        status: 'completed', // Siempre completado para reembolsos
         buyer_full_name: buyerForm.fullName,
         buyer_document_type: buyerForm.documentType,
         buyer_document_number: buyerForm.documentNumber,
@@ -923,10 +902,8 @@ const submit = () => {
 
     // Crear un nuevo formulario con los datos combinados
     const submitForm = useForm(combinedData);
-    submitForm.post(route('admin.payments.presential.store'));
+    submitForm.post(route('admin.payments.refunds.store'));
 };
-
-
 
 // Lifecycle
 onMounted(() => {
@@ -936,30 +913,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos para los radio buttons personalizados */
+/* Estilos para los radio buttons personalizados con colores de reembolso */
 input[type="radio"]:checked + div {
-    border-color: #FBBD51;
-    background-color: #FBBD51;
+    border-color: #e74c3c;
+    background-color: #e74c3c;
 }
 
 /* Estilos para el checkbox personalizado */
 .custom-checkbox {
-    accent-color: #fbbd51;
+    accent-color: #e74c3c;
 }
 
 .custom-checkbox:checked {
-    background-color: #fbbd51;
-    border-color: #fbbd51;
+    background-color: #e74c3c;
+    border-color: #e74c3c;
 }
 
 /* Estilos adicionales para mayor compatibilidad */
 .custom-checkbox:checked::before {
-    background-color: #fbbd51;
+    background-color: #e74c3c;
 }
 
 /* Para navegadores que no soportan accent-color */
 .custom-checkbox:checked {
-    background-color: #fbbd51 !important;
-    border-color: #fbbd51 !important;
+    background-color: #e74c3c !important;
+    border-color: #e74c3c !important;
 }
 </style>
