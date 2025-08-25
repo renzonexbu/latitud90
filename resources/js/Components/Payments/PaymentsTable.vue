@@ -133,7 +133,9 @@
                     >
                         {{
                             formatDate(
-                                payment.transaction_date_formatted || payment.transaction_date || payment.created_at
+                                payment.transaction_date_formatted ||
+                                    payment.transaction_date ||
+                                    payment.created_at
                             )
                         }}
                     </div>
@@ -226,13 +228,13 @@ export default {
 
         formatDate(date) {
             if (!date) return "N/A";
-            
+
             try {
                 const dateObj = new Date(date);
                 if (isNaN(dateObj.getTime())) {
                     return "Invalid Date";
                 }
-                
+
                 return dateObj.toLocaleDateString("es-CL", {
                     day: "2-digit",
                     month: "2-digit",

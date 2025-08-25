@@ -33,6 +33,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de reportes
     include __DIR__ . '/reports.php';
 
+    // Gestión de usuarios
+    include __DIR__ . '/users.php';
+
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
     Route::get('reports/payments', [PaymentController::class, 'reportsIndex'])->name('reports.payments');
     Route::get('reports/financial', [PaymentController::class, 'financialReport'])->name('reports.financial');

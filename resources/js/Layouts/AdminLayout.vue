@@ -153,6 +153,13 @@
                                     Ver perfil
                                 </NavLink>
                                 <NavLink
+                                    :href="route('admin.users.index')"
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    @click="showingUserDropdown = false"
+                                >
+                                    Administrar usuarios
+                                </NavLink>
+                                <NavLink
                                     :href="route('logout')"
                                     method="post"
                                     as="button"
