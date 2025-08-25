@@ -66,14 +66,40 @@ class ProgramController extends Controller
 
     public function show(Request $request, $programId)
     {
+        // Debug: Log todos los parámetros recibidos
+        \Log::info('ProgramController@show - Debug info:', [
+            'programId' => $programId,
+            'all_query_params' => $request->all(),
+            'document_from_query' => $request->query('document'),
+            'document_type_from_query' => $request->query('document_type'),
+            'full_url' => $request->fullUrl(),
+            'session_document' => session('current_document'),
+            'session_document_type' => session('current_document_type')
+        ]);
+        
         $document = $request->query('document');
         $documentType = $request->query('document_type');
         
+        \Log::info('ProgramController@show - Initial values:', [
+            'document' => $document,
+            'documentType' => $documentType,
+            'document_empty' => empty($document),
+            'documentType_empty' => empty($documentType)
+        ]);
+        
         if (!$document || !$documentType) {
+            \Log::info('ProgramController@show - Missing params, checking session');
             // Intentar recuperar de sesión
             $document = session('current_document');
             $documentType = session('current_document_type');
+            
+            \Log::info('ProgramController@show - Session values:', [
+                'session_document' => $document,
+                'session_documentType' => $documentType
+            ]);
+            
             if (!$document || !$documentType) {
+                \Log::warning('ProgramController@show - Redirecting to home, missing required params');
                 return redirect()->route('ecommerce.index');
             }
         }

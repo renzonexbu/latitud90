@@ -271,9 +271,10 @@
                 <!-- Back Button -->
                 <div class="w-full md:w-auto">
                     <BackToHomeButton
-                        :rut="rut"
+                        :document="document"
+                        :document_type="document_type"
                         variant="programs"
-                        :route="`/programs/${programId}?rut=${rut}`"
+                        :route="`/programs/${programId}?document=${document}&document_type=${document_type}`"
                     />
                 </div>
 
@@ -334,6 +335,14 @@ export default {
         rut: {
             type: String,
             default: "",
+        },
+        document: {
+            type: String,
+            default: "",
+        },
+        document_type: {
+            type: String,
+            default: "RUT",
         },
         countries: {
             type: Array,
@@ -421,6 +430,14 @@ export default {
         },
     },
     mounted() {
+        // Debug: Verificar qué props están llegando
+        console.log('PaymentDetails props:', {
+            document: this.document,
+            document_type: this.document_type,
+            rut: this.rut,
+            programId: this.programId
+        });
+        
         // Registrar vista de detalles de pago en analytics
         this.recordPaymentDetailsView();
         
@@ -930,8 +947,8 @@ export default {
         },
 
         goBackToProgram() {
-            // Usar el router directamente para ir a program detail con el RUT en la URL
-            router.visit(`/programs/${this.programId}?rut=${this.rut}`);
+            // Usar el router directamente para ir a program detail con los parámetros correctos
+            router.visit(`/programs/${this.programId}?document=${this.document}&document_type=${this.document_type}`);
         },
         continueToPayment() {
             if (!this.isFormValid) return;
@@ -984,9 +1001,9 @@ export default {
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
 
-            // Continuar a la página de confirmación con RUT
+            // Continuar a la página de confirmación con document y document_type
             router.visit(
-                `/programs/${this.programId}/confirmation?rut=${this.rut}`
+                `/programs/${this.programId}/confirmation?document=${this.document}&document_type=${this.document_type}`
             );
         },
 

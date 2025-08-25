@@ -720,10 +720,27 @@ export default {
             // Registrar selección de método de pago en analytics
             this.recordPaymentSelection(paymentData);
 
-            // Redirigir a la vista de detalles de pago usando URL directa con RUT
-            router.visit(`/programs/${this.programId}/payment`, {
-                data: { rut: this.$page.props.rut || this.$page.props.participant?.rut }
+            // Obtener los parámetros de documento desde las props de la página
+            const document = this.$page.props.document || this.$page.props.participant?.document_number || '';
+            const documentType = this.$page.props.document_type || 'RUT';
+            
+            console.log('PaymentPanel - initiatePayment params:', {
+                document,
+                documentType,
+                programId: this.programId
             });
+            
+            // Construir URL con query parameters (solo document y document_type)
+            const params = new URLSearchParams({
+                document: document,
+                document_type: documentType
+            });
+            
+            const url = `/programs/${this.programId}/payment?${params.toString()}`;
+            console.log('PaymentPanel - Generated URL:', url);
+            
+            // Usar window.location.href para navegación completa
+            window.location.href = url;
         },
         
         recordPaymentSelection(paymentData) {

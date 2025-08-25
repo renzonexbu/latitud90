@@ -95,7 +95,7 @@
 
             <!-- Botón Volver a Seleccionar Viaje -->
             <div class="mx-4 md:mx-[120px] mt-8">
-                <BackToHomeButton :rut="rut" variant="programs" />
+                <BackToHomeButton :document="document" :document_type="document_type" variant="programs" />
             </div>
         </div>
 
@@ -230,6 +230,14 @@ export default {
             type: String,
             required: true,
         },
+        document: {
+            type: String,
+            required: true,
+        },
+        document_type: {
+            type: String,
+            required: true,
+        },
     },
 
     data() {
@@ -316,9 +324,26 @@ export default {
                 return;
             }
             
-            router.visit(`/programs/${this.program.id}/payment`, {
-                data: { rut: this.rut }
+            // Debug: Verificar qué valores tienen las props
+            console.log('ProgramDetail - startPayment values:', {
+                document: this.document,
+                document_type: this.document_type,
+                rut: this.rut,
+                programId: this.program.id
             });
+            
+            // Construir la URL con query parameters
+            const params = new URLSearchParams({
+                document: this.document || '',
+                document_type: this.document_type || 'RUT',
+                rut: this.rut || ''
+            });
+            
+            const url = `/programs/${this.program.id}/payment?${params.toString()}`;
+            console.log('URL generada:', url);
+            
+            // Usar window.location para forzar la navegación
+            window.location.href = url;
         }
     },
     computed: {
