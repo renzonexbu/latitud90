@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Program;
 use App\Models\Participant;
 use App\Models\Payment;
+use App\Traits\HasPermissions;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
 class AdminController extends Controller
 {
+    use HasPermissions;
     /**
      * Mostrar el dashboard principal del administrador
      */
@@ -85,6 +87,7 @@ class AdminController extends Controller
             'recentPayments' => $recentPayments,
             'activePrograms' => $activePrograms,
             'institutionsPayments' => $institutionsPayments,
+            'permissions' => $this->getPermissionsData(),
         ]);
     }
 }

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             InstitutionSeeder::class,
             RegionsSeeder::class,
             ComunesSeeder::class,
+            RolesAndPermissionsSeeder::class,
         ]);
     }
 }
