@@ -12,69 +12,130 @@
       <!-- Formulario a la derecha -->
       <div class="contact-form">
         <div class="container">
-        <div class="form">
-          <div class="frame-1000006075">
-            <div class="heading-h-1">Contactanos</div>
-            <div class="heading-h-12">
-              Escríbenos para cotizar un programa, evento o pedir más información:
+          <div class="form">
+            <div class="form-header">
+              <div class="heading-h-1">Contactanos</div>
+              <div class="heading-h-12">
+                Escríbenos para cotizar un programa, evento o pedir más información:
+              </div>
             </div>
-          </div>
-          <div class="frame-1000006158">
-            <div class="frame-1000006074">
-              <div class="frame-1000006072">
-                <div class="frame-1154">
-                  <div class="frame-1149">
-                    <div class="nombre-completo">Nombre completo *</div>
+            <form @submit.prevent="submitForm" class="form-content">
+              <div class="form-fields">
+                <div class="form-row">
+                  <div class="form-field">
+                    <div class="field-wrapper">
+                      <div class="field-label">Nombre completo *</div>
+                      <input
+                        v-model="formData.name"
+                        type="text"
+                        placeholder="Nombre y apellido"
+                        class="form-input"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div class="form-field">
+                    <div class="field-label">Teléfono*</div>
                     <input
-                      type="text"
-                      placeholder="Nombre y apellido"
+                      v-model="formData.phone"
+                      type="tel"
+                      placeholder="+56 9-- --- ---"
                       class="form-input"
+                      required
                     />
                   </div>
                 </div>
-                <div class="frame-1155">
-                  <div class="tel-fono">Teléfono*</div>
-                  <input
-                    type="tel"
-                    placeholder="+56 9-- --- ---"
-                    class="form-input"
-                  />
-                </div>
-              </div>
-              <div class="frame-1000006073">
-                <div class="frame-1154">
-                  <div class="frame-1149">
-                    <div class="email">Email*</div>
-                    <input
-                      type="email"
-                      placeholder="Escriba aqui su email"
-                      class="form-input"
-                    />
+                <div class="form-row">
+                  <div class="form-field">
+                    <div class="field-wrapper">
+                      <div class="field-label">Email*</div>
+                      <input
+                        v-model="formData.email"
+                        type="email"
+                        placeholder="Escriba aqui su email"
+                        class="form-input"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
+                <div class="form-field full-width">
+                  <div class="field-label">Mensaje</div>
+                  <textarea
+                    v-model="formData.message"
+                    placeholder="Escriba aqui su mensaje"
+                    class="form-textarea"
+                    rows="3"
+                    required
+                  ></textarea>
+                </div>
               </div>
-              <div class="frame-1149">
-                <div class="mensaje">Mensaje</div>
-                <textarea
-                  placeholder="Escriba aqui su mensaje"
-                  class="form-textarea"
-                  rows="3"
-                ></textarea>
+              
+              <!-- Mensajes de éxito y error -->
+              <div v-if="successMessage" class="success-message">
+                {{ successMessage }}
               </div>
-            </div>
-            <button type="submit" class="boton-s">
-              <div class="placeholder">Enviar mensaje</div>
-            </button>
+              <div v-if="errorMessage" class="error-message">
+                {{ errorMessage }}
+              </div>
+              
+              <button type="submit" class="submit-button" :disabled="loading">
+                <div class="button-text">
+                  {{ loading ? 'Enviando...' : 'Enviar mensaje' }}
+                </div>
+              </button>
+            </form>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 </template>
 
 <script setup>
+  import { ref } from 'vue';
+  import { router } from '@inertiajs/vue3';
   import contactImage from "@images/image.png";
+
+  const formData = ref({
+    name: '',
+    email: '',
+    phone: '',
+    message: ''
+  });
+
+  const loading = ref(false);
+  const successMessage = ref('');
+  const errorMessage = ref('');
+
+  const submitForm = async () => {
+    loading.value = true;
+    errorMessage.value = '';
+    successMessage.value = '';
+
+    try {
+      const response = await router.post('/contact/send', formData.value, {
+        preserveState: true,
+        onSuccess: (page) => {
+          successMessage.value = 'Mensaje enviado correctamente. Te responderemos pronto.';
+          // Limpiar formulario
+          formData.value = {
+            name: '',
+            email: '',
+            phone: '',
+            message: ''
+          };
+        },
+        onError: (errors) => {
+          errorMessage.value = 'Error al enviar el mensaje. Por favor, verifica los datos e intenta nuevamente.';
+        }
+      });
+    } catch (error) {
+      errorMessage.value = 'Error al enviar el mensaje. Por favor, intenta nuevamente.';
+    } finally {
+      loading.value = false;
+    }
+  };
 </script>
 
 <style scoped>
@@ -119,11 +180,6 @@
   flex-shrink: 0;
 }
 
-.container,
-.container * {
-  box-sizing: border-box;
-}
-
 .container {
   background: #ffffff;
   border-radius: 0 20px 20px 0;
@@ -138,6 +194,11 @@
   overflow: hidden;
   width: 565px;
   height: 650px;
+  box-sizing: border-box;
+}
+
+.container * {
+  box-sizing: border-box;
 }
 
 .form {
@@ -152,7 +213,7 @@
   height: 100%;
 }
 
-.frame-1000006075 {
+.form-header {
   border-style: solid;
   border-color: #d3d3d3;
   border-width: 0px 0px 1px 0px;
@@ -191,7 +252,7 @@
   height: 31px;
 }
 
-.frame-1000006158 {
+.form-content {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -203,7 +264,7 @@
   flex: 1;
 }
 
-.frame-1000006074 {
+.form-fields {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -214,7 +275,7 @@
   position: relative;
 }
 
-.frame-1000006072 {
+.form-row {
   display: flex;
   flex-direction: row;
   gap: 24px;
@@ -225,17 +286,22 @@
   position: relative;
 }
 
-.frame-1154 {
+.form-field {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: flex-start;
   flex: 1;
   position: relative;
 }
 
-.frame-1149 {
+.form-field.full-width {
+  flex: none;
+  width: 100%;
+}
+
+.field-wrapper {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -246,7 +312,7 @@
   position: relative;
 }
 
-.nombre-completo {
+.field-label {
   color: #434343;
   text-align: left;
   font-family: "Nexa-Regular", sans-serif;
@@ -307,100 +373,7 @@
   border-color: #007e93;
 }
 
-.button-text {
-  color: #c7c7c7;
-  text-align: center;
-  font-family: "Nexa-Regular", sans-serif;
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 400;
-  position: relative;
-}
-
-.line-rounded-chevron-down,
-.line-rounded-chevron-down2,
-.line-rounded-chevron-down3,
-.line-rounded-chevron-down4 {
-  opacity: 0;
-  flex-shrink: 0;
-  width: 15px;
-  height: 15px;
-  position: relative;
-  overflow: visible;
-}
-
-.frame-1155 {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex: 1;
-  position: relative;
-}
-
-.tel-fono {
-  color: #434343;
-  text-align: left;
-  font-family: "Nexa-Regular", sans-serif;
-  font-size: 14px;
-  line-height: 18px;
-  font-weight: 400;
-  position: relative;
-  align-self: stretch;
-}
-
-.frame-1000006073 {
-  display: flex;
-  flex-direction: row;
-  gap: 24px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.email {
-  color: #434343;
-  text-align: left;
-  font-family: "Nexa-Regular", sans-serif;
-  font-size: 14px;
-  line-height: 18px;
-  font-weight: 400;
-  position: relative;
-  align-self: stretch;
-}
-
-.mensaje {
-  color: #434343;
-  text-align: left;
-  font-family: "Nexa-Regular", sans-serif;
-  font-size: 14px;
-  line-height: 18px;
-  font-weight: 400;
-  position: relative;
-  align-self: stretch;
-}
-
-.primary-button2 {
-  background: #fefeff;
-  border-radius: 4px;
-  border-style: solid;
-  border-color: #c7c7c7;
-  border-width: 1px;
-  padding: 18px 14px 18px 14px;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  justify-content: space-between;
-  align-self: stretch;
-  flex-shrink: 0;
-  height: 92px;
-  position: relative;
-}
-
-.boton-s {
+.submit-button {
   background: #ffb232;
   border-radius: 47px;
   padding: 14px 28px 14px 28px;
@@ -420,11 +393,36 @@
   margin-top: auto;
 }
 
-.boton-s:hover {
+.submit-button:hover {
   background: #e6a826;
 }
 
-.placeholder {
+.submit-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #c3e6cb;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #f5c6cb;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.button-text {
   color: #ffffff;
   text-align: center;
   font-family: "Nexa-Bold", sans-serif;
@@ -469,13 +467,9 @@
     padding: 24px 20px;
   }
   
-  .frame-1000006072 {
+  .form-row {
     flex-direction: column;
     gap: 20px;
-  }
-  
-  .frame-1000006073 {
-    flex-direction: column;
   }
   
   .heading-h-1 {
@@ -493,48 +487,42 @@
     gap: 30px;
   }
   
-  .frame-1000006158 {
+  .form-content {
     gap: 20px;
   }
   
-  .frame-1000006074 {
+  .form-fields {
     gap: 20px;
   }
   
-  .frame-1149 {
+  .field-wrapper {
     gap: 10px;
   }
   
-  .frame-1154 {
-    gap: 12px;
-  }
-  
-  .frame-1155 {
+  .form-field {
     gap: 10px;
   }
   
   .form-input,
   .form-textarea {
     padding: 12px 16px !important;
-    font-size: 16px !important; /* Mejor para mobile */
+    font-size: 16px !important;
     width: 100% !important;
     box-sizing: border-box !important;
   }
   
-  .frame-1154,
-  .frame-1149,
-  .frame-1155 {
+  .form-field {
     width: 100% !important;
     flex: none !important;
   }
   
-  .boton-s {
+  .submit-button {
     width: 100%;
     height: 56px;
     font-size: 16px;
   }
   
-  .placeholder {
+  .button-text {
     font-size: 16px;
   }
 }
@@ -567,27 +555,23 @@
     gap: 25px;
   }
   
-  .frame-1000006158 {
+  .form-content {
     gap: 18px;
   }
   
-  .frame-1000006074 {
+  .form-fields {
     gap: 18px;
   }
   
-  .frame-1000006072 {
+  .form-row {
     gap: 18px;
   }
   
-  .frame-1149 {
+  .field-wrapper {
     gap: 8px;
   }
   
-  .frame-1154 {
-    gap: 10px;
-  }
-  
-  .frame-1155 {
+  .form-field {
     gap: 8px;
   }
   
@@ -599,14 +583,12 @@
     box-sizing: border-box !important;
   }
   
-  .frame-1154,
-  .frame-1149,
-  .frame-1155 {
+  .form-field {
     width: 100% !important;
     flex: none !important;
   }
   
-  .boton-s {
+  .submit-button {
     height: 52px;
     border-radius: 26px;
   }

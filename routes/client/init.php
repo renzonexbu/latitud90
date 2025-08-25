@@ -14,6 +14,12 @@ Route::get('/participant', [FindParticipantController::class, 'findParticipant']
 Route::post('/participant/search', [FindParticipantController::class, 'searchParticipant'])->name('ecommerce.search-participant');
 Route::get('/terminos-y-condiciones', [TermsAndConditionsController::class, 'termsAndConditions'])->name('ecommerce.terms-and-conditions');
 
+//Newsletter
+Route::post('/newsletter/subscribe', [EcommerceController::class, 'subscribeToNewsletter'])->name('ecommerce.newsletter.subscribe');
+
+//Contact
+Route::post('/contact/send', [EcommerceController::class, 'sendContactMessage'])->name('ecommerce.contact.send');
+
 //Program Routes
 require __DIR__ . '/program.php';
 require __DIR__ . '/frequent_client.php';
