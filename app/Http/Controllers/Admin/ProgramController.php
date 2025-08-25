@@ -5,132 +5,51 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateProgramRequest;
 use App\Http\Requests\Admin\UpdateProgramRequest;
-use App\Models\Institution;
 use App\Models\Program;
-use App\Models\PaymentMode;
 use App\Services\Admin\Programs\CreateProgramService;
 use App\Services\Admin\Programs\UpdateProgramService;
+use App\Services\Admin\Programs\BulkProgramsActionService;
+use App\Services\Admin\Programs\GetProgramsService;
+use App\Services\Admin\Programs\GetCreateDataService;
+use App\Services\Admin\Programs\GetShowDataService;
+use App\Services\Admin\Programs\GetFilesService;
+use App\Services\Admin\Programs\GetEditDataService;
+use App\Services\Admin\Programs\DeleteProgramService;
+use App\Services\Admin\Programs\ToggleStatusService;
+use App\Services\Admin\Programs\GetPassengersService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\Admin\Programs\BulkProgramsActionRequest;
-use App\Models\SalesExecutive;
-use App\Services\Admin\Programs\BulkProgramsActionService;
-use App\Helpers\ParticipantPriceHelper;
 
 class ProgramController extends Controller
 {
     public function __construct(
         private CreateProgramService $createProgramService,
         private UpdateProgramService $updateProgramService,
-        private BulkProgramsActionService $bulkProgramsActionService
+        private BulkProgramsActionService $bulkProgramsActionService,
+        private GetProgramsService $getProgramsService,
+        private GetCreateDataService $getCreateDataService,
+        private GetShowDataService $getShowDataService,
+        private GetFilesService $getFilesService,
+        private GetEditDataService $getEditDataService,
+        private DeleteProgramService $deleteProgramService,
+        private ToggleStatusService $toggleStatusService,
+        private GetPassengersService $getPassengersService
     ) {}
 
     public function index(Request $request)
     {
-        $programs = Program::with(['paymentMode', 'course.institution', 'course.participants'])
-            ->when($request->search, function ($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('destination', 'like', "%{$search}%");
-            })
-            ->when($request->active !== null, function ($query) use ($request) {
-                $query->where('active', $request->active);
-            })
-            ->when($request->status, function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
-        // Cargar las imágenes y métricas de pagos por curso para cada programa
-        $programs->getCollection()->transform(function ($program) {
-            $program->images = $program->images;
+        $data = $this->getProgramsService->execute($request);
 
-            // Agregados de curso: total debido por todos los participantes y monto pagado
-            $participants = $program->course?->participants ?? collect();
-            $activeParticipants = $participants->filter(function ($p) {
-                return ($p->pivot->status ?? 'active') !== 'cancelled';
-            });
-
-            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-                // Usar el helper para calcular el precio final con descuentos
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
-                return $carry + $priceData['final_price'];
-            }, 0.0);
-
-            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                $q->where('program_id', $program->id);
-            })
-                ->whereIn('status', ['approved', 'completed'])
-                ->sum('amount');
-            $coursePaidAmount = round($coursePaidAmount, 2);
-
-            $coursePaymentPercentage = $courseTotalAmount > 0
-                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
-                : 0;
-
-            $program->course_total_amount = $courseTotalAmount;
-            $program->course_paid_amount = $coursePaidAmount;
-            $program->course_payment_percentage = $coursePaymentPercentage;
-
-            return $program;
-        });
-
-        // Obtener todos los programas para los filtros (sin paginación)
-        $allPrograms = Program::with(['paymentMode', 'course.institution', 'course.participants'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Cargar las imágenes y métricas de pagos por curso para todos los programas
-        $allPrograms->transform(function ($program) {
-            $program->images = $program->images;
-
-            $participants = $program->course?->participants ?? collect();
-            $activeParticipants = $participants->filter(function ($p) {
-                return ($p->pivot->status ?? 'active') !== 'cancelled';
-            });
-
-            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-                // Usar el helper para calcular el precio final con descuentos
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
-                return $carry + $priceData['final_price'];
-            }, 0.0);
-
-            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                $q->where('program_id', $program->id);
-            })
-                ->whereIn('status', ['approved', 'completed'])
-                ->sum('amount');
-            $coursePaidAmount = round($coursePaidAmount, 0);
-
-            $coursePaymentPercentage = $courseTotalAmount > 0
-                ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
-                : 0;
-
-            $program->course_total_amount = $courseTotalAmount;
-            $program->course_paid_amount = $coursePaidAmount;
-            $program->course_payment_percentage = $coursePaymentPercentage;
-
-            return $program;
-        });
-
-        return Inertia::render('Admin/Programs/Index', [
-            'programs' => $programs,
-            'allPrograms' => $allPrograms,
-            'filters' => $request->only(['search', 'status', 'active']),
-        ]);
+        return Inertia::render('Admin/Programs/Index', $data);
     }
 
     public function create()
     {
-        $institutions = Institution::orderBy('name')->get();
-        $salesExecutives = SalesExecutive::where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
-        // Cargar catálogo de opciones de pago (para futuras mejoras: enviarlo desde backend)
-        return Inertia::render('Admin/Programs/Create', [
-            'institutions' => $institutions,
-            'salesExecutives' => $salesExecutives,
-        ]);
+        $data = $this->getCreateDataService->execute();
+
+        return Inertia::render('Admin/Programs/Create', $data);
     }
 
     public function store(CreateProgramRequest $request)
@@ -147,11 +66,9 @@ class ProgramController extends Controller
 
     public function show(Program $program)
     {
-        $program->load(['course', 'course.participants']);
+        $data = $this->getShowDataService->execute($program);
 
-        return Inertia::render('Admin/Programs/Show', [
-            'program' => $program
-        ]);
+        return Inertia::render('Admin/Programs/Show', $data);
     }
 
     /**
@@ -159,74 +76,16 @@ class ProgramController extends Controller
      */
     public function files(Program $program)
     {
-        return response()->json([
-            'program' => [
-                'id' => $program->id,
-                'name' => $program->name,
-                'itinerary_file' => $program->itinerary_file_url,
-                'travel_assistance_coverage' => $program->travel_assistance_coverage_url,
-                'equipment_list' => $program->equipment_list_url,
-                'images' => $program->images,
-            ]
-        ]);
+        $data = $this->getFilesService->execute($program);
+
+        return response()->json($data);
     }
 
     public function edit(Program $program)
     {
-        // Cargar todas las relaciones necesarias
-        $program->load([
-            'course.institution',
-            'course.participants',
-            'paymentMode',
-            'totalPaymentMethod',
-            'lat90PaymentMethod'
-        ]);
+        $data = $this->getEditDataService->execute($program);
 
-        // Métricas de pagos agregadas por curso para la vista de edición
-        $participants = $program->course?->participants ?? collect();
-        $activeParticipants = $participants->filter(function ($p) {
-            return ($p->pivot->status ?? 'active') !== 'cancelled';
-        });
-
-        $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-            $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? $program->trip_price);
-            $adj = (float) ($p->pivot->price_adjustments ?? 0);
-            return $carry + round($base + $adj, 2);
-        }, 0.0);
-
-        $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-            $q->where('program_id', $program->id);
-        })
-            ->whereIn('status', ['approved', 'completed'])
-            ->sum('amount');
-        $coursePaidAmount = round($coursePaidAmount, 2);
-
-        $coursePaymentPercentage = $courseTotalAmount > 0
-            ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
-            : 0;
-
-        $program->course_total_amount = $courseTotalAmount;
-        $program->course_paid_amount = $coursePaidAmount;
-        $program->course_payment_percentage = $coursePaymentPercentage;
-
-        // Pre-cargar opciones de pago habilitadas (program_payment_option)
-        $paymentOptions = \Illuminate\Support\Facades\DB::table('program_payment_option')
-            ->join('payment_options', 'payment_options.id', '=', 'program_payment_option.payment_option_id')
-            ->where('program_payment_option.program_id', $program->id)
-            ->select('payment_options.code', 'payment_options.mode')
-            ->get();
-        $program->full_payment_options = $paymentOptions->where('mode', 'full')->pluck('code')->values();
-        $program->lat90_payment_options = $paymentOptions->where('mode', 'lat90')->pluck('code')->values();
-
-        // Obtener instituciones y ejecutivos para el dropdown
-        $institutions = Institution::active()->orderBy('name')->get();
-        $salesExecutives = \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(['id', 'name', 'code']);
-
-        return Inertia::render('Admin/Programs/Edit', [
-            'program' => $program,
-            'institutions' => $institutions,
-            'salesExecutives' => $salesExecutives,
-        ]);
+        return Inertia::render('Admin/Programs/Edit', $data);
     }
 
     public function update(UpdateProgramRequest $request, Program $program)
@@ -274,41 +133,28 @@ class ProgramController extends Controller
 
     public function destroy(Program $program)
     {
-        // Eliminar archivos asociados si existen
-        if ($program->itinerary_file) {
-            Storage::disk('public')->delete($program->itinerary_file);
-        }
-        if ($program->travel_assistance_coverage) {
-            Storage::disk('public')->delete($program->travel_assistance_coverage);
-        }
-        if ($program->equipment_list) {
-            Storage::disk('public')->delete($program->equipment_list);
-        }
+        try {
+            $this->deleteProgramService->execute($program);
 
-        $program->delete();
-
-        return redirect()->route('admin.programs.index')
-            ->with('success', 'Programa eliminado exitosamente.');
+            return redirect()->route('admin.programs.index')
+                ->with('success', 'Programa eliminado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al eliminar el programa: ' . $e->getMessage()]);
+        }
     }
 
     public function toggleStatus(Program $program)
     {
-        $program->update(['active' => !$program->active]);
+        $this->toggleStatusService->execute($program);
 
         return back()->with('success', 'Estado del programa actualizado exitosamente.');
     }
 
     public function passengers(Program $program)
     {
-        $participants = $program->participants()
-            ->with(['payments'])
-            ->where('status', '!=', 'cancelled')
-            ->paginate(10);
+        $data = $this->getPassengersService->execute($program);
 
-        return Inertia::render('Admin/Programs/Passengers', [
-            'program' => $program,
-            'participants' => $participants,
-        ]);
+        return Inertia::render('Admin/Programs/Passengers', $data);
     }
 
     public function bulkAction(BulkProgramsActionRequest $request)

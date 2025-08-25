@@ -3,6 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Country;
+use App\Models\Document;
+use App\Models\Participant;
+use App\Models\InstallmentPlan;
+use App\Models\OrderDetail;
+use App\Models\Program;
+use App\Models\Region;
 use App\Services\Admin\Payments\CreateParticularPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -20,11 +27,11 @@ class CreateParticularPaymentController extends Controller
     public function create()
     {
         // Obtener datos necesarios para el formulario
-        $programs = \App\Models\Program::with(['course.participants'])->where('active', true)->get();
-        $countries = \App\Models\Country::where('name', 'Chile')->get();
-        $regions = \App\Models\Region::with('comunes')->get();
-        $documentTypes = \App\Models\Document::all();
-        
+        $programs = Program::with(['course.participants'])->where('active', true)->get();
+        $countries = Country::where('name', 'Chile')->get();
+        $regions = Region::with('comunes')->get();
+        $documentTypes = Document::all();
+
         return Inertia::render('Admin/Payments/Create', [
             'programs' => $programs,
             'countries' => $countries,
@@ -47,7 +54,7 @@ class CreateParticularPaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            
+
             // Datos del comprador
             'buyer_full_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
@@ -74,7 +81,7 @@ class CreateParticularPaymentController extends Controller
                 'payment_code' => $request->payment_code,
                 'authorization_code' => $request->authorization_code,
                 'notes' => $request->notes,
-                
+
                 // Datos del comprador
                 'buyer_full_name' => $request->buyer_full_name,
                 'buyer_document_type' => $request->buyer_document_type,
@@ -96,7 +103,6 @@ class CreateParticularPaymentController extends Controller
             } else {
                 return back()->withErrors(['error' => $result['error']])->withInput();
             }
-
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al registrar el pago: ' . $e->getMessage()])->withInput();
         }
@@ -117,8 +123,8 @@ class CreateParticularPaymentController extends Controller
 
         try {
             // Obtener el participante
-            $participant = \App\Models\Participant::find($participantId);
-            $program = \App\Models\Program::find($programId);
+            $participant = Participant::find($participantId);
+            $program = Program::find($programId);
 
             if (!$participant || !$program) {
                 return response()->json([
@@ -132,7 +138,7 @@ class CreateParticularPaymentController extends Controller
             $totalAmount = $priceData['final_price'];
 
             // Buscar planes de cuotas del participante para este programa
-            $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participantId)
+            $installmentPlans = InstallmentPlan::where('participant_id', $participantId)
                 ->where('program_id', $programId)
                 ->with(['installments'])
                 ->get();
@@ -144,7 +150,7 @@ class CreateParticularPaymentController extends Controller
 
             foreach ($installmentPlans as $plan) {
                 $totalInstallments += $plan->total_installments;
-                
+
                 foreach ($plan->installments as $installment) {
                     if ($installment->status === 'paid') {
                         $paidInstallments++;
@@ -155,9 +161,9 @@ class CreateParticularPaymentController extends Controller
 
             // Si no hay planes de cuotas, buscar en orders_detail como fallback
             if ($totalInstallments == 0) {
-                $orderDetails = \App\Models\OrderDetail::whereHas('order', function ($q) use ($participantId, $programId) {
+                $orderDetails = OrderDetail::whereHas('order', function ($q) use ($participantId, $programId) {
                     $q->where('participant_id', $participantId)
-                      ->where('program_id', $programId);
+                        ->where('program_id', $programId);
                 })->get();
 
                 $totalInstallments = $orderDetails->count();
@@ -187,7 +193,6 @@ class CreateParticularPaymentController extends Controller
                     ]
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

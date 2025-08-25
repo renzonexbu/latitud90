@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CreateParticipantRequest;
-use App\Models\Course;
 use App\Models\Participant;
-use App\Models\Institution;
-use App\Models\Program;
 use App\Models\EmergencyContact;
 use App\Services\Admin\Participants\CreateParticipantService;
 use App\Services\Admin\Participants\UpdateParticipatService;
 use App\Services\Admin\Participants\UpdateMedicalConditionsService;
-use App\Helpers\ParticipantPriceHelper;
+use App\Services\Admin\Participants\UpdateEmergencyContactService;
+use App\Services\Admin\Participants\GetParticipantsService;
+use App\Services\Admin\Participants\GetCreateDataService;
+use App\Services\Admin\Participants\GetEditDataService;
+use App\Services\Admin\Participants\CreateEmergencyContactService;
+use App\Services\Admin\Participants\ToggleActiveStatusService;
+use App\Services\Admin\Participants\ToggleStatusService;
+use App\Services\Admin\Participants\GetInactiveParticipantsService;
+use App\Services\Admin\Participants\BulkActionService;
+use App\Services\Admin\Participants\GetParticipantPaymentsService;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -22,8 +28,6 @@ use App\Http\Requests\Admin\Participants\UpdateMedicalConditionsRequest;
 use App\Http\Requests\Admin\Participants\UpdateEmergencyContactsRequest;
 use App\Http\Requests\Admin\Participants\UpdateEmergencyContactRequest;
 use App\Http\Requests\Admin\Participants\DeleteEmergencyContactRequest;
-use App\Services\Admin\Participants\UpdateEmergencyContactService;
-use Illuminate\Support\Facades\DB;
 
 class ParticipantsController extends Controller
 {
@@ -33,17 +37,44 @@ class ParticipantsController extends Controller
     protected $updateParticipantService;
     protected $updateMedicalConditionsService;
     protected $updateEmergencyContactService;
+    protected $getParticipantsService;
+    protected $getCreateDataService;
+    protected $getEditDataService;
+    protected $createEmergencyContactService;
+    protected $toggleActiveStatusService;
+    protected $toggleStatusService;
+    protected $getInactiveParticipantsService;
+    protected $bulkActionService;
+    protected $getParticipantPaymentsService;
 
     public function __construct(
         CreateParticipantService $createParticipantService,
         UpdateParticipatService $updateParticipantService,
         UpdateMedicalConditionsService $updateMedicalConditionsService,
-        UpdateEmergencyContactService $updateEmergencyContactService
+        UpdateEmergencyContactService $updateEmergencyContactService,
+        GetParticipantsService $getParticipantsService,
+        GetCreateDataService $getCreateDataService,
+        GetEditDataService $getEditDataService,
+        CreateEmergencyContactService $createEmergencyContactService,
+        ToggleActiveStatusService $toggleActiveStatusService,
+        ToggleStatusService $toggleStatusService,
+        GetInactiveParticipantsService $getInactiveParticipantsService,
+        BulkActionService $bulkActionService,
+        GetParticipantPaymentsService $getParticipantPaymentsService
     ) {
         $this->createParticipantService = $createParticipantService;
         $this->updateParticipantService = $updateParticipantService;
         $this->updateMedicalConditionsService = $updateMedicalConditionsService;
         $this->updateEmergencyContactService = $updateEmergencyContactService;
+        $this->getParticipantsService = $getParticipantsService;
+        $this->getCreateDataService = $getCreateDataService;
+        $this->getEditDataService = $getEditDataService;
+        $this->createEmergencyContactService = $createEmergencyContactService;
+        $this->toggleActiveStatusService = $toggleActiveStatusService;
+        $this->toggleStatusService = $toggleStatusService;
+        $this->getInactiveParticipantsService = $getInactiveParticipantsService;
+        $this->bulkActionService = $bulkActionService;
+        $this->getParticipantPaymentsService = $getParticipantPaymentsService;
     }
 
     /**
@@ -51,111 +82,9 @@ class ParticipantsController extends Controller
      */
     public function index(Request $request)
     {
-        $participants = Participant::with(['courses', 'courses.institution', 'courses.program'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+        $data = $this->getParticipantsService->execute($request);
 
-        // Obtener todos los participantes para los filtros (sin paginación)
-        $allParticipants = Participant::with(['courses', 'courses.institution', 'courses.program'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Dataset de inscripciones (una fila por participante-programa) + montos pagados
-        // Obtener datos base y luego calcular precios con descuentos
-        $enrollmentsBase = DB::table('participants as p')
-            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
-            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
-            ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
-            ->leftJoin('orders as o', function ($join) {
-                $join->on('o.participant_id', '=', 'p.id')
-                    ->on('o.program_id', '=', 'pr.id');
-            })
-            ->leftJoin('orders_detail as od', function ($join) {
-                $join->on('od.order_id', '=', 'o.id')
-                    ->where('od.is_paid', true);
-            })
-            ->groupBy([
-                'p.id',
-                'p.first_last_name',
-                'p.second_last_name',
-                'p.first_name',
-                'p.second_name',
-                'p.document_number',
-                'p.document_type',
-                'p.is_active',
-                'pp.id',
-                'pp.enrollment_code',
-                'pp.individual_price',
-                'pp.status',
-                'pr.id',
-                'pr.code',
-                'pr.name',
-                'pr.destination',
-                'pr.year',
-                'c.education_level',
-                'c.course_number',
-                'i.name',
-            ])
-            ->select([
-                'p.id as participant_id',
-                'p.first_last_name',
-                'p.second_last_name',
-                'p.first_name',
-                'p.second_name',
-                'p.document_number',
-                'p.document_type',
-                'p.is_active',
-                'pp.id as participant_program_id',
-                'pp.enrollment_code',
-                'pp.individual_price',
-                'pp.status as enrollment_status',
-                'pr.id as program_id',
-                'pr.code as program_code',
-                'pr.name as program_name',
-                'pr.destination as program_destination',
-                'pr.year as program_year',
-                'c.education_level',
-                'c.course_number',
-                'i.name as institution_name',
-                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
-            ])
-            ->orderByDesc('pp.created_at')
-            ->get();
-
-        // Calcular precios finales con descuentos usando el helper
-        $enrollments = $enrollmentsBase->map(function ($enrollment) {
-            $participant = Participant::find($enrollment->participant_id);
-            $program = Program::find($enrollment->program_id);
-
-            if ($participant && $program) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-                $enrollment->total_due = $priceData['final_price'];
-            } else {
-                $enrollment->total_due = $enrollment->individual_price ?? 0;
-            }
-
-            return $enrollment;
-        });
-
-        $courses = Course::with(['program', 'institution'])
-            ->where('status', 'active')
-            ->orderBy('institution_id')
-            ->get();
-
-        $institutions = Institution::active()
-            ->orderBy('name')
-            ->get();
-
-        return Inertia::render('Admin/Participants/Index', [
-            'participants' => $participants,
-            'allParticipants' => $allParticipants,
-            'enrollments' => $enrollments,
-            'courses' => $courses,
-            'institutions' => $institutions,
-            'filters' => $request->only(['search', 'institution', 'level', 'program', 'status', 'active'])
-        ]);
+        return Inertia::render('Admin/Participants/Index', $data);
     }
 
     /**
@@ -163,19 +92,9 @@ class ParticipantsController extends Controller
      */
     public function create()
     {
-        $courses = \App\Models\Course::with(['program', 'institution'])
-            ->where('status', 'active')
-            ->orderBy('institution_id')
-            ->get();
+        $data = $this->getCreateDataService->execute();
 
-        $institutions = Institution::active()
-            ->orderBy('name')
-            ->get();
-
-        return Inertia::render('Admin/Participants/Create', [
-            'courses' => $courses,
-            'institutions' => $institutions
-        ]);
+        return Inertia::render('Admin/Participants/Create', $data);
     }
 
     /**
@@ -242,60 +161,9 @@ class ParticipantsController extends Controller
     public function edit($id)
     {
         try {
-            // Buscar el participante (ahora usando is_active en lugar de soft deletes)
-            $participant = Participant::findOrFail($id);
+            $data = $this->getEditDataService->execute($id);
 
-
-
-            $participant->load(['courses', 'courses.institution', 'courses.program', 'emergencyContacts']);
-
-            // Cargar participant_programs con sus descuentos
-            $participantPrograms = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
-                ->with(['program', 'discounts'])
-                ->get();
-
-            // Buscar todos los programas relacionados al RUT del participante
-            $participantProgramsData = \App\Models\Program::whereHas('course.participants', function ($query) use ($participant) {
-                $query->where('participants.id', $participant->id);
-            })
-                ->with(['course' => function ($q) use ($participant) {
-                    $q->with(['institution', 'participants' => function ($qp) use ($participant) {
-                        $qp->where('participants.id', $participant->id);
-                    }]);
-                }])
-                ->get()
-                ->map(function ($program) use ($participant, $participantPrograms) {
-                    // Usar el helper para calcular el precio final con descuentos
-                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-
-                    // Pagos aprobados/completados del participante para este programa
-                    $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
-                        $q->where('participant_id', $participant->id)
-                            ->where('program_id', $program->id);
-                    })
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->sum('amount');
-                    $paidAmount = round($paidAmount, 2);
-                    $balance = max(round($priceData['final_price'] - $paidAmount, 2), 0);
-                    $paymentPercentage = ($priceData['final_price'] > 0)
-                        ? round(($paidAmount / $priceData['final_price']) * 100, 0)
-                        : 0;
-
-                    $array = $program->toArray();
-                    $array['participant_amount'] = $priceData['base_price']; // precio base por participante
-                    $array['participant_adjustments'] = $priceData['adjustments']; // ajuste del pivote
-                    $array['participant_total_due'] = $priceData['final_price']; // total a pagar (base + ajuste - descuentos)
-                    $array['paidAmount'] = $paidAmount;
-                    $array['participant_balance'] = $balance;
-                    $array['paymentPercentage'] = $paymentPercentage;
-                    return $array;
-                });
-
-            return Inertia::render('Admin/Participants/Edit', [
-                'participant' => $participant,
-                'participantPrograms' => $participantProgramsData,
-                'participantProgramsWithDiscounts' => $participantPrograms,
-            ]);
+            return Inertia::render('Admin/Participants/Edit', $data);
         } catch (\Exception $e) {
             Log::error('Error al editar participante', [
                 'participant_id' => $id,
@@ -384,25 +252,16 @@ class ParticipantsController extends Controller
                 throw new \Exception('Formato de datos inválido');
             }
 
-            // Crear nuevos contactos de emergencia
-            foreach ($emergencyContactsData as $contactData) {
-                $contact = EmergencyContact::create([
-                    'participant_id' => $participant->id,
-                    'name' => $contactData['name'],
-                    'email' => $contactData['email'],
-                    'code_phone' => $contactData['code_phone'],
-                    'phone' => $contactData['phone'],
-                    'country' => $contactData['country'],
-                    'birth_date' => $contactData['birth_date'] ?? null,
-                    'address' => $contactData['address'] ?? null,
-                ]);
+            $createdContacts = $this->createEmergencyContactService->execute($emergencyContactsData, $participant);
 
+            // Log cada contacto creado
+            foreach ($createdContacts as $contact) {
                 $this->logCreate(
                     'Apoderados',
                     'EmergencyContact',
                     $contact->id,
                     'Nuevo apoderado creado para participante: ' . $participant->first_name . ' ' . $participant->first_last_name,
-                    $contactData
+                    $contact->toArray()
                 );
             }
 
@@ -487,23 +346,17 @@ class ParticipantsController extends Controller
      */
     public function destroy(Participant $participant)
     {
-        $participantName = $participant->first_name . ' ' . $participant->first_last_name;
-
-        // Cambiar el estado activo/inactivo
-        $newStatus = !$participant->is_active;
-        $participant->update(['is_active' => $newStatus]);
-
-        $action = $newStatus ? 'activado' : 'desactivado';
+        $result = $this->toggleActiveStatusService->execute($participant);
 
         $this->logDelete(
             'Participantes',
             'Participant',
             $participant->id,
-            'Participante ' . $action . ': ' . $participant->id . ' - ' . $participantName
+            'Participante ' . $result['action'] . ': ' . $participant->id . ' - ' . $result['participant_name']
         );
 
         return redirect()->back()
-            ->with('success', 'Participante ' . $action . ' exitosamente.');
+            ->with('success', 'Participante ' . $result['action'] . ' exitosamente.');
     }
 
     /**
@@ -511,8 +364,7 @@ class ParticipantsController extends Controller
      */
     public function toggleStatus(Participant $participant)
     {
-        $newStatus = $participant->status === 'confirmed' ? 'pending_payment' : 'confirmed';
-        $participant->update(['status' => $newStatus]);
+        $result = $this->toggleStatusService->execute($participant);
 
         return back()->with('success', 'Estado del participante actualizado.');
     }
@@ -522,15 +374,9 @@ class ParticipantsController extends Controller
      */
     public function inactive()
     {
-        $participants = Participant::with(['courses', 'courses.institution', 'courses.program'])
-            ->where('is_active', false)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $data = $this->getInactiveParticipantsService->execute(request());
 
-        return Inertia::render('Admin/Participants/Inactive', [
-            'participants' => $participants,
-            'filters' => request()->only(['search', 'institution', 'level', 'program', 'status'])
-        ]);
+        return Inertia::render('Admin/Participants/Inactive', $data);
     }
 
     /**
@@ -544,28 +390,9 @@ class ParticipantsController extends Controller
             'participant_ids.*' => 'exists:participants,id'
         ]);
 
-        $participants = Participant::whereIn('id', $validated['participant_ids']);
+        $result = $this->bulkActionService->execute($validated['action'], $validated['participant_ids']);
 
-        switch ($validated['action']) {
-            case 'delete':
-                $participants->update(['is_active' => false]);
-                $message = 'Participantes desactivados exitosamente.';
-                break;
-            case 'activate':
-                $participants->update(['is_active' => true]);
-                $message = 'Participantes activados exitosamente.';
-                break;
-            case 'confirm':
-                $participants->update(['status' => 'confirmed']);
-                $message = 'Participantes confirmados exitosamente.';
-                break;
-            case 'cancel':
-                $participants->update(['status' => 'cancelled']);
-                $message = 'Participantes cancelados exitosamente.';
-                break;
-        }
-
-        return back()->with('success', $message);
+        return back()->with('success', $result['message']);
     }
 
     /**
@@ -573,7 +400,7 @@ class ParticipantsController extends Controller
      */
     public function payments(Participant $participant)
     {
-        $payments = $participant->payments()->orderBy('created_at', 'desc')->get();
+        $payments = $this->getParticipantPaymentsService->execute($participant);
 
         return response()->json($payments);
     }

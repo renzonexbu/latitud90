@@ -3,7 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Country;
+use App\Models\Document;
+use App\Models\Participant;
+use App\Models\Program;
+use App\Models\Region;
 use App\Services\Admin\Payments\CreateRefundService;
+use App\Models\Payment;
+use App\Models\Installment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -20,10 +27,10 @@ class CreateRefundController extends Controller
     public function create()
     {
         // Obtener datos necesarios para el formulario
-        $programs = \App\Models\Program::with(['course.participants'])->where('active', true)->get();
-        $countries = \App\Models\Country::where('name', 'Chile')->get();
-        $regions = \App\Models\Region::with('comunes')->get();
-        $documentTypes = \App\Models\Document::all();
+        $programs = Program::with(['course.participants'])->where('active', true)->get();
+        $countries = Country::where('name', 'Chile')->get();
+        $regions = Region::with('comunes')->get();
+        $documentTypes = Document::all();
         
         return Inertia::render('Admin/Payments/Refunds', [
             'programs' => $programs,
@@ -121,8 +128,8 @@ class CreateRefundController extends Controller
         }
 
         try {
-            $participant = \App\Models\Participant::findOrFail($request->participant_id);
-            $program = \App\Models\Program::findOrFail($request->program_id);
+            $participant = Participant::findOrFail($request->participant_id);
+            $program = Program::findOrFail($request->program_id);
             
             // Calcular montos del participante
             $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
@@ -170,7 +177,7 @@ class CreateRefundController extends Controller
      */
     private function calculatePaidAmount($participantId, $programId): float
     {
-        return \App\Models\Payment::whereHas('order', function ($query) use ($participantId, $programId) {
+        return Payment::whereHas('order', function ($query) use ($participantId, $programId) {
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
@@ -197,14 +204,14 @@ class CreateRefundController extends Controller
      */
     private function getInstallmentsSummary($participantId, $programId): string
     {
-        $paidInstallments = \App\Models\Installment::whereHas('installmentPlan.order', function ($query) use ($participantId, $programId) {
+        $paidInstallments = Installment::whereHas('installmentPlan.order', function ($query) use ($participantId, $programId) {
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
         ->where('status', 'paid')
         ->count();
 
-        $totalInstallments = \App\Models\Installment::whereHas('installmentPlan.order', function ($query) use ($participantId, $programId) {
+        $totalInstallments = Installment::whereHas('installmentPlan.order', function ($query) use ($participantId, $programId) {
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })

@@ -2,11 +2,7 @@
 
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\PassengerController;
 use App\Http\Controllers\Admin\PaymentController;
-use App\Http\Controllers\Admin\ReportController;
-use App\Http\Controllers\Admin\ProfileController;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 // Dashboard principal (redirige al admin)
@@ -38,7 +34,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     include __DIR__ . '/reports.php';
 
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
-    // Route::get('reports/passengers', [PassengerController::class, 'reportsIndex'])->name('reports.passengers');
     Route::get('reports/payments', [PaymentController::class, 'reportsIndex'])->name('reports.payments');
     Route::get('reports/financial', [PaymentController::class, 'financialReport'])->name('reports.financial');
 
