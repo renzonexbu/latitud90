@@ -70,50 +70,84 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::create(['name' => 'super_admin']);
         $adminContabilidad = Role::create(['name' => 'admin_contabilidad']);
         $adminMarketing = Role::create(['name' => 'admin_marketing']);
-        $contabilidad = Role::create(['name' => 'contabilidad']);
-        $marketing = Role::create(['name' => 'marketing']);
+        $editorContabilidad = Role::create(['name' => 'editor_contabilidad']);
+        $editorMarketing = Role::create(['name' => 'editor_marketing']);
+        $visualizadorContabilidad = Role::create(['name' => 'visualizador_contabilidad']);
+        $visualizadorMarketing = Role::create(['name' => 'visualizador_marketing']);
 
         // Asignar permisos al Super Admin (acceso total)
         $superAdmin->givePermissionTo(Permission::all());
 
-        // Permisos para Admin de Contabilidad
+        // Permisos para Admin de Contabilidad (control total sobre su grupo)
         $adminContabilidad->givePermissionTo([
             'ver', 'editar', 'eliminar', 'crear',
-            'crear_usuarios', 'editar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'ver_participantes', 'editar_participantes',
+            'crear_usuarios', 'editar_usuarios', 'eliminar_usuarios', 'ver_usuarios',
+            'ver_programas', 'editar_programas', 'eliminar_programas', 'crear_programas',
+            'ver_participantes', 'editar_participantes', 'eliminar_participantes', 'crear_participantes',
             'ver_pagos', 'editar_pagos', 'crear_pagos', 'eliminar_pagos',
             'ver_reportes', 'exportar_reportes',
-            'ver_cursos', 'editar_cursos', 'ver_instituciones', 'editar_instituciones'
+            'ver_cursos', 'editar_cursos', 'eliminar_cursos', 'crear_cursos',
+            'ver_instituciones', 'editar_instituciones', 'eliminar_instituciones', 'crear_instituciones'
         ]);
 
-        // Permisos para Admin de Marketing
+        // Permisos para Admin de Marketing (control total sobre su grupo)
         $adminMarketing->givePermissionTo([
             'ver', 'editar', 'eliminar', 'crear',
-            'crear_usuarios', 'editar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'crear_programas', 'eliminar_programas',
+            'crear_usuarios', 'editar_usuarios', 'eliminar_usuarios', 'ver_usuarios',
+            'ver_programas', 'editar_programas', 'eliminar_programas', 'crear_programas',
+            'ver_participantes', 'editar_participantes', 'eliminar_participantes', 'crear_participantes',
+            'ver_pagos', 'editar_pagos', 'crear_pagos', 'eliminar_pagos',
+            'ver_reportes', 'exportar_reportes',
+            'ver_cursos', 'editar_cursos', 'eliminar_cursos', 'crear_cursos',
+            'ver_instituciones', 'editar_instituciones', 'eliminar_instituciones', 'crear_instituciones'
+        ]);
+
+        // Permisos para Editor de Contabilidad (casi todo excepto crear usuarios y eliminar)
+        $editorContabilidad->givePermissionTo([
+            'ver', 'editar', 'crear',
+            'editar_usuarios', 'ver_usuarios',
+            'ver_programas', 'editar_programas', 'crear_programas',
             'ver_participantes', 'editar_participantes', 'crear_participantes',
-            'ver_pagos', 'editar_pagos', 'ver_reportes', 'exportar_reportes',
-            'ver_cursos', 'editar_cursos', 'crear_cursos', 'eliminar_cursos',
+            'ver_pagos', 'editar_pagos', 'crear_pagos',
+            'ver_reportes', 'exportar_reportes',
+            'ver_cursos', 'editar_cursos', 'crear_cursos',
             'ver_instituciones', 'editar_instituciones', 'crear_instituciones'
         ]);
 
-        // Permisos para usuarios de Contabilidad
-        $contabilidad->givePermissionTo([
-            'ver_programas', 'ver_participantes', 'ver_pagos', 'editar_pagos',
-            'ver_reportes', 'exportar_reportes', 'ver_cursos', 'ver_instituciones'
+        // Permisos para Editor de Marketing (casi todo excepto crear usuarios y eliminar)
+        $editorMarketing->givePermissionTo([
+            'ver', 'editar', 'crear',
+            'editar_usuarios', 'ver_usuarios',
+            'ver_programas', 'editar_programas', 'crear_programas',
+            'ver_participantes', 'editar_participantes', 'crear_participantes',
+            'ver_pagos', 'editar_pagos', 'crear_pagos',
+            'ver_reportes', 'exportar_reportes',
+            'ver_cursos', 'editar_cursos', 'crear_cursos',
+            'ver_instituciones', 'editar_instituciones', 'crear_instituciones'
         ]);
 
-        // Permisos para usuarios de Marketing
-        $marketing->givePermissionTo([
-            'ver_programas', 'editar_programas', 'ver_participantes', 'editar_participantes',
-            'ver_pagos', 'ver_reportes', 'ver_cursos', 'editar_cursos',
-            'ver_instituciones', 'editar_instituciones'
+        // Permisos para Visualizador de Contabilidad (solo ver)
+        $visualizadorContabilidad->givePermissionTo([
+            'ver',
+            'ver_usuarios',
+            'ver_programas',
+            'ver_participantes',
+            'ver_pagos',
+            'ver_reportes', 'exportar_reportes',
+            'ver_cursos',
+            'ver_instituciones'
         ]);
 
-        // Asignar rol Super Admin al primer usuario (tú)
-        $firstUser = User::first();
-        if ($firstUser) {
-            $firstUser->assignRole('super_admin');
-        }
+        // Permisos para Visualizador de Marketing (solo ver)
+        $visualizadorMarketing->givePermissionTo([
+            'ver',
+            'ver_usuarios',
+            'ver_programas',
+            'ver_participantes',
+            'ver_pagos',
+            'ver_reportes', 'exportar_reportes',
+            'ver_cursos',
+            'ver_instituciones'
+        ]);
     }
 }

@@ -135,28 +135,23 @@ class CreateParticularPaymentService
     }
 
     /**
-     * Buscar o crear la orden
+     * Buscar o crear orden
      */
     private function findOrCreateOrder(Participant $participant, Program $program, float $totalAmount, float $paymentAmount): Order
     {
-        $order = Order::where('participant_id', $participant->id)
-                     ->where('program_id', $program->id)
-                     ->first();
-
-        if (!$order) {
-            $order = Order::create([
-                'participant_id' => $participant->id,
-                'program_id' => $program->id,
-                'total_amount' => $totalAmount,
-                'discount' => 0,
-                'final_amount' => $totalAmount,
-                'total_installments' => 1, // Se ajustará según el plan de cuotas
-                'payment_type' => 'total',
-                'status' => 'pending',
-                'order_number' => $this->generateOrderNumber(),
-                'notes' => 'Orden creada desde pago presencial'
-            ]);
-        }
+        // Siempre crear una nueva orden para pagos presenciales
+        $order = Order::create([
+            'participant_id' => $participant->id,
+            'program_id' => $program->id,
+            'total_amount' => $totalAmount,
+            'discount' => 0,
+            'final_amount' => $totalAmount,
+            'total_installments' => 1, // Se ajustará según el plan de cuotas
+            'payment_type' => 'total',
+            'status' => 'pending',
+            'order_number' => $this->generateOrderNumber(),
+            'notes' => 'Orden creada desde pago presencial'
+        ]);
 
         return $order;
     }
@@ -350,18 +345,15 @@ class CreateParticularPaymentService
         $year = date('Y');
         $month = date('m');
         
-        $lastOrder = Order::where('order_number', 'like', "{$prefix}-{$year}{$month}-%")
-                         ->orderBy('order_number', 'desc')
-                         ->first();
+        do {
+            // Generar un número aleatorio de 6 dígitos
+            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
+            
+            // Verificar que no exista ya en la base de datos
+            $exists = Order::where('order_number', $orderNumber)->exists();
+        } while ($exists);
         
-        if ($lastOrder) {
-            $parts = explode('-', $lastOrder->order_number);
-            $lastSequence = (int) end($parts);
-            $sequence = $lastSequence + 1;
-        } else {
-            $sequence = 1;
-        }
-        
-        return sprintf('%s-%s%s-%06d', $prefix, $year, $month, $sequence);
+        return $orderNumber;
     }
 }

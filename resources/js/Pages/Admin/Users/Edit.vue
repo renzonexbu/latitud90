@@ -2,10 +2,12 @@
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Head, useForm, Link } from "@inertiajs/vue3";
 import { ref } from "vue";
-import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/vue/24/outline";
+import { EyeIcon, EyeSlashIcon, ArrowLeftIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import RolesModal from "@/Components/Users/RolesModal.vue";
 
 const props = defineProps({
     user: Object,
+    roles: Object,
 });
 
 const form = useForm({
@@ -18,9 +20,18 @@ const form = useForm({
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
+const showRolesModal = ref(false);
 
 const submit = () => {
     form.put(route("admin.users.update", props.user.id));
+};
+
+const openRolesModal = () => {
+    showRolesModal.value = true;
+};
+
+const closeRolesModal = () => {
+    showRolesModal.value = false;
 };
 </script>
 
@@ -43,6 +54,15 @@ const submit = () => {
                         <p class="text-gray-600">Modificar información del usuario</p>
                     </div>
                 </div>
+                
+                <!-- Botón para gestionar roles -->
+                <button
+                    @click="openRolesModal"
+                    class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <UserGroupIcon class="w-5 h-5" />
+                    <span>Gestionar Roles</span>
+                </button>
             </div>
 
             <!-- Form -->
@@ -173,6 +193,13 @@ const submit = () => {
                 </div>
             </div>
         </div>
-        </div>
+
+        <!-- Modal de Roles -->
+        <RolesModal
+            :show="showRolesModal"
+            :user="user"
+            :roles="roles"
+            @close="closeRolesModal"
+        />
     </AdminLayout>
 </template>

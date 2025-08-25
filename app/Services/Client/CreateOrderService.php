@@ -460,11 +460,17 @@ class CreateOrderService
         $prefix = 'ORD';
         $year = date('Y');
         $month = date('m');
-        $sequence = Order::whereYear('created_at', $year)
-                        ->whereMonth('created_at', $month)
-                        ->count() + 1;
         
-        return sprintf('%s-%s%s-%06d', $prefix, $year, $month, $sequence);
+        do {
+            // Generar un número aleatorio de 6 dígitos
+            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
+            
+            // Verificar que no exista ya en la base de datos
+            $exists = Order::where('order_number', $orderNumber)->exists();
+        } while ($exists);
+        
+        return $orderNumber;
     }
 
     private function resolveCountryId($value): ?int

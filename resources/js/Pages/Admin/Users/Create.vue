@@ -4,12 +4,17 @@ import { Head, useForm, Link } from "@inertiajs/vue3";
 import { ref } from "vue";
 import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/vue/24/outline";
 
+const props = defineProps({
+    roles: Object,
+});
+
 const form = useForm({
     name: "",
     email: "",
     password: "",
     password_confirmation: "",
     is_active: true,
+    roles: [],
 });
 
 const showPassword = ref(false);
@@ -17,6 +22,45 @@ const showConfirmPassword = ref(false);
 
 const submit = () => {
     form.post(route("admin.users.store"));
+};
+
+const toggleRole = (roleName) => {
+    const index = form.roles.indexOf(roleName);
+    if (index > -1) {
+        form.roles.splice(index, 1);
+    } else {
+        form.roles.push(roleName);
+    }
+};
+
+const isRoleSelected = (roleName) => {
+    return form.roles.includes(roleName);
+};
+
+const getRoleDisplayName = (roleName) => {
+    const roleNames = {
+        'super_admin': 'Super Administrador',
+        'admin_contabilidad': 'Administrador de Contabilidad',
+        'editor_contabilidad': 'Editor de Contabilidad',
+        'visualizador_contabilidad': 'Visualizador de Contabilidad',
+        'admin_marketing': 'Administrador de Marketing',
+        'editor_marketing': 'Editor de Marketing',
+        'visualizador_marketing': 'Visualizador de Marketing'
+    };
+    return roleNames[roleName] || roleName;
+};
+
+const getRoleDescription = (roleName) => {
+    const roleDescriptions = {
+        'super_admin': 'Acceso total al sistema',
+        'admin_contabilidad': 'Control total sobre el grupo de contabilidad',
+        'editor_contabilidad': 'Puede editar pero no crear usuarios ni eliminar',
+        'visualizador_contabilidad': 'Solo puede visualizar información',
+        'admin_marketing': 'Control total sobre el grupo de marketing',
+        'editor_marketing': 'Puede editar pero no crear usuarios ni eliminar',
+        'visualizador_marketing': 'Solo puede visualizar información'
+    };
+    return roleDescriptions[roleName] || '';
 };
 </script>
 
@@ -148,6 +192,45 @@ const submit = () => {
                                 />
                                 <span class="ml-2 text-sm text-gray-700">Usuario activo</span>
                             </label>
+                        </div>
+
+                        <!-- Roles -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-4">
+                                Roles *
+                            </label>
+                            
+                            <!-- Roles por grupos -->
+                            <div class="space-y-6">
+                                <div v-for="(group, groupKey) in roles" :key="groupKey" class="border border-gray-200 rounded-lg p-4">
+                                    <!-- Grupo header -->
+                                    <div class="mb-4">
+                                        <h4 class="text-lg font-semibold text-gray-900">{{ group.name }}</h4>
+                                        <p class="text-sm text-gray-600">{{ group.description }}</p>
+                                    </div>
+
+                                    <!-- Roles del grupo -->
+                                    <div class="space-y-3">
+                                        <div v-for="role in group.roles" :key="role.id" class="flex items-center">
+                                            <input
+                                                :id="`role-${role.id}`"
+                                                :checked="isRoleSelected(role.name)"
+                                                @change="toggleRole(role.name)"
+                                                type="checkbox"
+                                                class="h-4 w-4 text-turquesa focus:ring-turquesa border-gray-300 rounded"
+                                            />
+                                            <label :for="`role-${role.id}`" class="ml-3 flex flex-col">
+                                                <span class="text-sm font-medium text-gray-900">{{ getRoleDisplayName(role.name) }}</span>
+                                                <span class="text-xs text-gray-500">{{ getRoleDescription(role.name) }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <p v-if="form.errors.roles" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.roles }}
+                            </p>
                         </div>
 
                         <!-- Actions -->

@@ -73,17 +73,137 @@ trait HasPermissions
             'is_super_admin' => $this->userHasRole('super_admin'),
             'is_admin_contabilidad' => $this->userHasRole('admin_contabilidad'),
             'is_admin_marketing' => $this->userHasRole('admin_marketing'),
-            'is_contabilidad' => $this->userHasRole('contabilidad'),
-            'is_marketing' => $this->userHasRole('marketing'),
+            'is_editor_contabilidad' => $this->userHasRole('editor_contabilidad'),
+            'is_editor_marketing' => $this->userHasRole('editor_marketing'),
+            'is_visualizador_contabilidad' => $this->userHasRole('visualizador_contabilidad'),
+            'is_visualizador_marketing' => $this->userHasRole('visualizador_marketing'),
         ];
+    }
+
+    /**
+     * Verificar si el usuario es super admin
+     */
+    public function isSuperAdmin()
+    {
+        return $this->userHasRole('super_admin');
+    }
+
+    /**
+     * Verificar si el usuario es admin de contabilidad
+     */
+    public function isAdminContabilidad()
+    {
+        return $this->userHasRole('admin_contabilidad');
+    }
+
+    /**
+     * Verificar si el usuario es admin de marketing
+     */
+    public function isAdminMarketing()
+    {
+        return $this->userHasRole('admin_marketing');
+    }
+
+    /**
+     * Verificar si el usuario es editor de contabilidad
+     */
+    public function isEditorContabilidad()
+    {
+        return $this->userHasRole('editor_contabilidad');
+    }
+
+    /**
+     * Verificar si el usuario es editor de marketing
+     */
+    public function isEditorMarketing()
+    {
+        return $this->userHasRole('editor_marketing');
+    }
+
+    /**
+     * Verificar si el usuario es visualizador de contabilidad
+     */
+    public function isVisualizadorContabilidad()
+    {
+        return $this->userHasRole('visualizador_contabilidad');
+    }
+
+    /**
+     * Verificar si el usuario es visualizador de marketing
+     */
+    public function isVisualizadorMarketing()
+    {
+        return $this->userHasRole('visualizador_marketing');
+    }
+
+    /**
+     * Verificar si el usuario pertenece al grupo de contabilidad
+     */
+    public function belongsToContabilidadGroup()
+    {
+        return $this->isAdminContabilidad() || 
+               $this->isEditorContabilidad() || 
+               $this->isVisualizadorContabilidad();
+    }
+
+    /**
+     * Verificar si el usuario pertenece al grupo de marketing
+     */
+    public function belongsToMarketingGroup()
+    {
+        return $this->isAdminMarketing() || 
+               $this->isEditorMarketing() || 
+               $this->isVisualizadorMarketing();
+    }
+
+    /**
+     * Verificar si el usuario puede crear usuarios
+     */
+    public function canCreateUsers()
+    {
+        return $this->isSuperAdmin() || 
+               $this->isAdminContabilidad() || 
+               $this->isAdminMarketing();
+    }
+
+    /**
+     * Verificar si el usuario puede eliminar
+     */
+    public function canDelete()
+    {
+        return $this->isSuperAdmin() || 
+               $this->isAdminContabilidad() || 
+               $this->isAdminMarketing();
     }
 
     /**
      * Verificar permisos para acciones específicas
      */
-    public function canPerformAction($action, $module = null)
+    public function canPerformAction($action)
     {
-        $permission = $module ? "{$action}_{$module}" : $action;
-        return $this->userHasPermission($permission);
+        $user = Auth::user();
+        
+        if (!$user) {
+            return false;
+        }
+
+        // Super admin puede hacer todo
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        // Verificar permisos específicos según la acción
+        switch ($action) {
+            case 'create_users':
+                return $this->canCreateUsers();
+            case 'delete':
+                return $this->canDelete();
+            case 'edit':
+                return $this->userHasPermission('editar');
+            case 'view':
+                return $this->userHasPermission('ver');
+            default:
+                return $user->hasPermissionTo($action);
+        }
     }
 }

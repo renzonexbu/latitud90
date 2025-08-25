@@ -22,6 +22,11 @@
                     Email
                 </div>
                 <div
+                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]"
+                >
+                    Roles
+                </div>
+                <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
                     Estado
@@ -65,6 +70,22 @@
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[200px]"
                     >
                         {{ user.email }}
+                    </div>
+
+                    <!-- Roles -->
+                    <div class="flex justify-center items-center w-[150px]">
+                        <div class="flex flex-wrap gap-1 justify-center">
+                            <span
+                                v-for="role in user.roles"
+                                :key="role.id"
+                                :class="[
+                                    'rounded-[8px] px-[8px] py-[4px] text-white font-nexa-xbold text-[12px] leading-[12px] text-center',
+                                    getRoleClass(role.name)
+                                ]"
+                            >
+                                {{ getRoleLabel(role.name) }}
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Estado -->
@@ -188,6 +209,32 @@ export default {
 
         getStatusLabel(isActive) {
             return isActive ? "Activo" : "Inactivo";
+        },
+
+        getRoleClass(roleName) {
+            const roleClasses = {
+                'super_admin': 'bg-purple-600',
+                'admin_contabilidad': 'bg-blue-600',
+                'editor_contabilidad': 'bg-blue-500',
+                'visualizador_contabilidad': 'bg-blue-400',
+                'admin_marketing': 'bg-green-600',
+                'editor_marketing': 'bg-green-500',
+                'visualizador_marketing': 'bg-green-400',
+            };
+            return roleClasses[roleName] || 'bg-gray-500';
+        },
+
+        getRoleLabel(roleName) {
+            const roleLabels = {
+                'super_admin': 'Super Admin',
+                'admin_contabilidad': 'Admin Cont.',
+                'editor_contabilidad': 'Editor Cont.',
+                'visualizador_contabilidad': 'Visual. Cont.',
+                'admin_marketing': 'Admin Mkt.',
+                'editor_marketing': 'Editor Mkt.',
+                'visualizador_marketing': 'Visual. Mkt.',
+            };
+            return roleLabels[roleName] || roleName;
         },
 
         formatDate(date) {

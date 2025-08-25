@@ -292,41 +292,89 @@ class PaymentOrderService
         $method = $paymentData['paymentMethod'] ?? 'debit';
         $code = null;
         
+        // Log para debugging
+        Log::info('PaymentOrderService: Resolving payment option', [
+            'program_id' => $programId,
+            'payment_type' => $paymentData['paymentType'] ?? 'unknown',
+            'payment_method' => $method,
+            'mode' => $mode
+        ]);
+        
         if ($mode === 'full') {
             switch ($method) {
                 case 'khipu': $code = 'full_transfer_khipu'; break;
-                case 'debit': $code = 'full_debit_webpay'; break;
-                case 'credit_0': $code = 'full_credit_webpay_0'; break;
-                case 'credit_3': $code = 'full_credit_webpay_3'; break;
-                case 'credit_6': $code = 'full_credit_webpay_6'; break;
-                case 'credit_9': $code = 'full_credit_webpay_9'; break;
-                case 'credit_12': $code = 'full_credit_webpay_12'; break;
+                case 'debit_credit_0': $code = 'full_debit_credit_0'; break;
+                case 'debit_credit_3': $code = 'full_debit_credit_3'; break;
+                case 'debit_credit_6': $code = 'full_debit_credit_6'; break;
+                case 'debit_credit_9': $code = 'full_debit_credit_9'; break;
+                case 'debit_credit_12': $code = 'full_debit_credit_12'; break;
                 default:
-                    if (strpos($method, 'credit') === 0) {
+                    // Fallback para códigos legacy
+                    if ($method === 'debit') {
+                        $code = 'full_debit_credit_0';
+                    } elseif (strpos($method, 'credit') === 0) {
                         $suffix = trim(str_replace('credit', '', $method), '_');
                         $n = $suffix !== '' ? (int)$suffix : 0;
-                        $code = 'full_credit_webpay_' . $n;
+                        $code = 'full_debit_credit_' . $n;
                     }
                     break;
             }
         } else {
             switch ($method) {
                 case 'khipu': $code = 'lat90_transfer_khipu'; break;
-                case 'debit': $code = 'lat90_debit_webpay'; break;
-                case 'credit': $code = 'lat90_credit_0'; break;
+                case 'debit_credit_0': $code = 'lat90_debit_credit_0'; break;
+                default:
+                    // Fallback para códigos legacy
+                    if ($method === 'debit') {
+                        $code = 'lat90_debit_credit_0';
+                    } elseif ($method === 'credit') {
+                        $code = 'lat90_debit_credit_0';
+                    }
+                    break;
             }
         }
 
-        if (!$code) { return null; }
+        // Log para debugging
+        Log::info('PaymentOrderService: Payment option code resolved', [
+            'method' => $method,
+            'code' => $code
+        ]);
+
+        if (!$code) { 
+            Log::warning('PaymentOrderService: No payment option code found', [
+                'method' => $method,
+                'mode' => $mode
+            ]);
+            return null; 
+        }
 
         $optionId = DB::table('payment_options')->where('code', $code)->value('id');
-        if (!$optionId) { return null; }
+        
+        // Log para debugging
+        Log::info('PaymentOrderService: Payment option lookup', [
+            'code' => $code,
+            'option_id' => $optionId
+        ]);
+        
+        if (!$optionId) { 
+            Log::warning('PaymentOrderService: Payment option not found in database', [
+                'code' => $code
+            ]);
+            return null; 
+        }
         
         $enabled = DB::table('program_payment_option')
             ->where('program_id', $programId)
             ->where('payment_option_id', $optionId)
             ->where('enabled', true)
             ->exists();
+            
+        // Log para debugging
+        Log::info('PaymentOrderService: Payment option enabled check', [
+            'program_id' => $programId,
+            'option_id' => $optionId,
+            'enabled' => $enabled
+        ]);
             
         return $enabled ? (int)$optionId : null;
     }
@@ -362,20 +410,15 @@ class PaymentOrderService
         $year = date('Y');
         $month = date('m');
         
-        // Obtener el último número de secuencia usado en este mes
-        $lastOrder = Order::where('order_number', 'like', "{$prefix}-{$year}{$month}-%")
-                         ->orderBy('order_number', 'desc')
-                         ->first();
+        do {
+            // Generar un número aleatorio de 6 dígitos
+            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
+            
+            // Verificar que no exista ya en la base de datos
+            $exists = Order::where('order_number', $orderNumber)->exists();
+        } while ($exists);
         
-        if ($lastOrder) {
-            // Extraer el número de secuencia del último order_number
-            $parts = explode('-', $lastOrder->order_number);
-            $lastSequence = (int) end($parts);
-            $sequence = $lastSequence + 1;
-        } else {
-            $sequence = 1;
-        }
-        
-        return sprintf('%s-%s%s-%06d', $prefix, $year, $month, $sequence);
+        return $orderNumber;
     }
 }

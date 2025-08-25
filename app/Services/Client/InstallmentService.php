@@ -369,20 +369,15 @@ class InstallmentService
         $year = date('Y');
         $month = date('m');
         
-        // Obtener el último número de secuencia usado en este mes
-        $lastOrder = Order::where('order_number', 'like', "{$prefix}-{$year}{$month}-%")
-                         ->orderBy('order_number', 'desc')
-                         ->first();
+        do {
+            // Generar un número aleatorio de 6 dígitos
+            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
+            
+            // Verificar que no exista ya en la base de datos
+            $exists = Order::where('order_number', $orderNumber)->exists();
+        } while ($exists);
         
-        if ($lastOrder) {
-            // Extraer el número de secuencia del último order_number
-            $parts = explode('-', $lastOrder->order_number);
-            $lastSequence = (int) end($parts);
-            $sequence = $lastSequence + 1;
-        } else {
-            $sequence = 1;
-        }
-        
-        return sprintf('%s-%s%s-%06d', $prefix, $year, $month, $sequence);
+        return $orderNumber;
     }
 }

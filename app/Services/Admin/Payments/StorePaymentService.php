@@ -79,25 +79,41 @@ class StorePaymentService
      */
     private function findOrCreateOrder(Request $request): Order
     {
-        $order = Order::where('participant_id', $request->participant_id)
-                     ->where('program_id', $request->program_id)
-                     ->first();
-
-        if (!$order) {
-            $order = Order::create([
-                'participant_id' => $request->participant_id,
-                'program_id' => $request->program_id,
-                'total_amount' => $request->amount,
-                'final_amount' => $request->amount,
-                'total_installments' => 1,
-                'payment_type' => 'total',
-                'status' => 'pending',
-                'order_number' => 'ORD-' . date('Ymd') . '-' . rand(1000, 9999),
-                'notes' => 'Orden creada desde pago presencial'
-            ]);
-        }
+        // Siempre crear una nueva orden para pagos presenciales
+        $order = Order::create([
+            'participant_id' => $request->participant_id,
+            'program_id' => $request->program_id,
+            'total_amount' => $request->amount,
+            'final_amount' => $request->amount,
+            'total_installments' => 1,
+            'payment_type' => 'total',
+            'status' => 'pending',
+            'order_number' => $this->generateOrderNumber(),
+            'notes' => 'Orden creada desde pago presencial'
+        ]);
 
         return $order;
+    }
+
+    /**
+     * Generar número de orden único
+     */
+    private function generateOrderNumber(): string
+    {
+        $prefix = 'ORD';
+        $year = date('Y');
+        $month = date('m');
+        
+        do {
+            // Generar un número aleatorio de 6 dígitos
+            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
+            
+            // Verificar que no exista ya en la base de datos
+            $exists = Order::where('order_number', $orderNumber)->exists();
+        } while ($exists);
+        
+        return $orderNumber;
     }
 
     /**
