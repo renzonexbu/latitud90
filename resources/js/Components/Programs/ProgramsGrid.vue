@@ -93,6 +93,9 @@ export default {
                             paymentPercentage,
                             paidAmount,
                             totalAmount,
+                            total_installments: program.total_installments ?? 0,
+                            paid_installments: program.paid_installments ?? 0,
+                            installments_summary: program.installments_summary ?? null,
                         };
                     }
                     // Por defecto (Index de Programas): métricas agregadas del curso/programa completo

@@ -1,10 +1,10 @@
 <template>
-    <div class="min-h-screen bg-gray-50 w-full p-3">
+    <div class="min-h-screen bg-gray-50 w-full p-3 sm:p-4">
         <!-- Header -->
         <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
         <!-- Contenido de Programas -->
-        <div class="max-w-6xl mx-auto py-8 px-4">
+        <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6">
             <!-- Información del Participante -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
                 <!-- Header del Participante -->

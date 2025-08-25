@@ -109,6 +109,52 @@ class ProgramService
                 $participantTotalAmount = $totalAmount;
                 $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0;
 
+                // Calcular información de cuotas
+                $totalInstallments = 0;
+                $paidInstallments = 0;
+                $installmentsSummary = null;
+
+                // Buscar planes de cuotas del participante para este programa
+                $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->with(['installments'])
+                    ->get();
+
+                foreach ($installmentPlans as $plan) {
+                    $totalInstallments = $plan->installments->count();
+                    
+                    foreach ($plan->installments as $installment) {
+                        if ($installment->status === 'paid') {
+                            $paidInstallments++;
+                        }
+                    }
+                }
+
+                // Si no hay planes de cuotas, buscar en orders como fallback
+                if ($totalInstallments == 0) {
+                    $orders = \App\Models\Order::where('participant_id', $participant->id)
+                        ->where('program_id', $program->id)
+                        ->with(['orderDetails'])
+                        ->get();
+
+                    foreach ($orders as $order) {
+                        if ($order->orderDetails) {
+                            $totalInstallments = $order->orderDetails->count();
+                            
+                            foreach ($order->orderDetails as $detail) {
+                                if ($detail->is_paid) {
+                                    $paidInstallments++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Crear resumen de cuotas si hay cuotas
+                if ($totalInstallments > 0) {
+                    $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
+                }
+
                 $availablePrograms[] = [
                     'id' => $program->id,
                     'name' => $program->name,
@@ -125,9 +171,11 @@ class ProgramService
                     'participant_balance' => $participantBalance,
                     'participant_amount' => $priceData['base_price'],
                     'participant_adjustments' => $priceData['adjustments'],
+                    'total_installments' => $totalInstallments,
+                    'paid_installments' => $paidInstallments,
+                    'installments_summary' => $installmentsSummary,
                     'status' => $this->translateStatus($enrollment->pivot->status ?? 'enrolled'),
-                    'enrollment_date' => $enrollment->pivot->created_at ?? null
-                    ,
+                    'enrollment_date' => $enrollment->pivot->created_at ?? null,
                     'enrollment_code' => $enrollmentCode
                 ];
             }
