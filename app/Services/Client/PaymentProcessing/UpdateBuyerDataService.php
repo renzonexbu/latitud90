@@ -72,10 +72,11 @@ class UpdateBuyerDataService
             }
 
             // SIEMPRE actualizar el payment_option_id según el método de pago y tipo de pago
-            $dataToUpdate['payment_option_id'] = $this->resolvePaymentOptionIdForUpdate(
+            $resolvedPaymentOptionId = $this->resolvePaymentOptionIdForUpdate(
                 $orderDetail->order->program_id,
                 $paymentData
             );
+            $dataToUpdate['payment_option_id'] = $resolvedPaymentOptionId;
 
             $orderDetail->update($dataToUpdate);
 
@@ -107,73 +108,53 @@ class UpdateBuyerDataService
 
         if ($mode === 'full') {
             switch ($method) {
-                case 'khipu':
-                    $code = 'full_transfer_khipu';
+                case 'khipu': 
+                    $code = 'full_transfer_khipu'; 
                     break;
-                case 'debit':
-                    $code = 'full_debit_virtualpos';
+                case 'debit_credit_0': 
+                    $code = 'full_debit_credit_0'; 
                     break;
-                case 'debit_credit_0':
-                    $code = 'full_debit_virtualpos';
+                case 'debit_credit_3': 
+                    $code = 'full_debit_credit_3'; 
                     break;
-                case 'debit_credit_3':
-                    $code = 'full_credit_virtualpos_3';
+                case 'debit_credit_6': 
+                    $code = 'full_debit_credit_6'; 
                     break;
-                case 'debit_credit_6':
-                    $code = 'full_credit_virtualpos_6';
+                case 'debit_credit_9': 
+                    $code = 'full_debit_credit_9'; 
                     break;
-                case 'debit_credit_9':
-                    $code = 'full_credit_virtualpos_6';
-                    break; // 9 cuotas usa la misma configuración que 6
-                case 'debit_credit_12':
-                    $code = 'full_credit_virtualpos_12';
+                case 'debit_credit_12': 
+                    $code = 'full_debit_credit_12'; 
                     break;
-                // Legacy Transbank
-                case 'credit_0':
-                    $code = 'full_credit_webpay_0';
-                    break;
-                case 'credit_3':
-                    $code = 'full_credit_webpay_3';
-                    break;
-                case 'credit_6':
-                    $code = 'full_credit_webpay_6';
-                    break;
-                case 'credit_9':
-                    $code = 'full_credit_webpay_9';
-                    break;
-                case 'credit_12':
-                    $code = 'full_credit_webpay_12';
+                case 'international': 
+                    $code = 'full_international'; 
                     break;
                 default:
-                    if (strpos($method, 'debit_credit') === 0) {
-                        $suffix = trim(str_replace('debit_credit', '', $method), '_');
-                        $n = $suffix !== '' ? (int)$suffix : 0;
-                        // 9 cuotas usa la misma configuración que 6
-                        if ($n === 9) {
-                            $code = 'full_credit_virtualpos_6';
-                        } else {
-                            $code = $n > 0 ? 'full_credit_virtualpos_' . $n : 'full_debit_virtualpos';
-                        }
-                    } else if (strpos($method, 'credit') === 0) {
+                    // Fallback para códigos legacy
+                    if ($method === 'debit') {
+                        $code = 'full_debit_credit_0';
+                    } elseif (strpos($method, 'credit') === 0) {
                         $suffix = trim(str_replace('credit', '', $method), '_');
                         $n = $suffix !== '' ? (int)$suffix : 0;
-                        $code = 'full_credit_webpay_' . $n;
+                        $code = 'full_debit_credit_' . $n;
                     }
                     break;
             }
         } else {
             switch ($method) {
-                case 'khipu':
-                    $code = 'lat90_transfer_khipu';
+                case 'khipu': 
+                    $code = 'lat90_transfer_khipu'; 
                     break;
-                case 'debit':
-                    $code = 'lat90_debit_virtualpos';
+                case 'debit_credit_0': 
+                    $code = 'lat90_debit_credit_0'; 
                     break;
-                case 'debit_credit_0':
-                    $code = 'lat90_debit_virtualpos';
-                    break;
-                case 'credit':
-                    $code = 'lat90_credit_0';
+                default:
+                    // Fallback para códigos legacy
+                    if ($method === 'debit') {
+                        $code = 'lat90_debit_credit_0';
+                    } elseif ($method === 'credit') {
+                        $code = 'lat90_debit_credit_0';
+                    }
                     break;
             }
         }

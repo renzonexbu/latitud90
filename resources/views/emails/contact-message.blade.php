@@ -63,28 +63,28 @@
     <div class="content">
         <div class="field">
             <div class="field-label">Nombre completo:</div>
-            <div class="field-value">{{ $name }}</div>
+            <div class="field-value">{{ $name ?? '' }}</div>
         </div>
         
         <div class="field">
             <div class="field-label">Email:</div>
-            <div class="field-value">{{ $email }}</div>
+            <div class="field-value">{{ $email ?? '' }}</div>
         </div>
         
         <div class="field">
             <div class="field-label">Teléfono:</div>
-            <div class="field-value">{{ $phone }}</div>
+            <div class="field-value">{{ $phone ?? '' }}</div>
         </div>
         
         <div class="field">
             <div class="field-label">Mensaje:</div>
-            <div class="message-content">{{ $message }}</div>
+            <div class="message-content">{{ $contactMessage ?? '' }}</div>
         </div>
     </div>
     
     <div class="footer">
         <p>Este mensaje fue enviado desde el formulario de contacto de Latitud 90</p>
-        <p>Para responder, simplemente responde a este email y llegará directamente a {{ $email }}</p>
+        <p>Para responder, simplemente responde a este email y llegará directamente a {{ $email ?? '' }}</p>
     </div>
 </body>
 </html>

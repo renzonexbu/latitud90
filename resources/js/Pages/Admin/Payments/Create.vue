@@ -311,6 +311,25 @@
                                     <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
                                 </div>
 
+                                    <!-- Tipo de Pago Presencial -->
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Tipo de Pago Presencial *
+                                        </label>
+                                        <select
+                                            v-model="form.presential_payment_type"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.presential_payment_type }"
+                                        >
+                                            <option value="">Seleccione el tipo de pago</option>
+                                            <option value="BX">Pago con tarjeta en oficina</option>
+                                            <option value="TE">Transferencia bancaria</option>
+                                            <option value="CH">Cheque</option>
+                                            <option value="DP">Depósito</option>
+                                        </select>
+                                        <span v-if="errors.presential_payment_type" class="text-red-500 text-sm mt-1">{{ errors.presential_payment_type }}</span>
+                                    </div>
+
                                     <!-- Código de Pago/Boleta/Factura -->
                                     <div class="mb-4">
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -448,7 +467,8 @@ const form = useForm({
     program_id: '',
     participant_id: '',
     amount: '',
-    payment_code: '', // Nuevo campo
+    presential_payment_type: '', // Nuevo campo para tipo de pago presencial
+    payment_code: '', // Código de boleta/factura
     transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 16),
     authorization_code: '',
     notes: ''
@@ -513,6 +533,7 @@ const isBuyerFormValid = computed(() => {
         program_id: form.program_id !== "",
         participant_id: form.participant_id !== "",
         amount: form.amount !== "" && parseFloat(form.amount) > 0,
+        presential_payment_type: form.presential_payment_type !== "",
         payment_code: form.payment_code.trim() !== "",
         transaction_date: form.transaction_date !== "",
     };
@@ -902,6 +923,8 @@ const formatParticipantDocument = (participant) => {
     // Si no es RUT, devolver tal como está
     return participant.document_number;
 };
+
+
 
 
 

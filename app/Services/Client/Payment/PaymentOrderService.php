@@ -9,6 +9,7 @@ use App\Models\Program;
 use App\Models\Installment;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentOrderService
 {
@@ -160,11 +161,13 @@ class PaymentOrderService
         // Determinar payment_option_id
         $paymentOptionId = $this->resolvePaymentOptionId($order->program_id, $paymentData);
 
+
+
         // Para pagos de cuotas, NO establecer payment_gateway_id inicialmente
         // Solo se establecerá cuando se procese el pago
         $paymentGatewayId = null;
 
-        return OrderDetail::create([
+        $orderDetailData = [
             'order_id' => $order->id,
             'payment_option_id' => $paymentOptionId,
             
@@ -201,7 +204,11 @@ class PaymentOrderService
             
             // NO establecer payment_gateway_id inicialmente
             'payment_gateway_id' => $paymentGatewayId,
-        ]);
+        ];
+
+        $orderDetail = OrderDetail::create($orderDetailData);
+
+        return $orderDetail;
     }
 
     /**
@@ -293,22 +300,31 @@ class PaymentOrderService
         $method = $paymentData['paymentMethod'] ?? 'debit';
         $code = null;
         
-        // Log para debugging
-        $this->logInfo('PaymentOrderService: Resolving payment option', [
-            'program_id' => $programId,
-            'payment_type' => $paymentData['paymentType'] ?? 'unknown',
-            'payment_method' => $method,
-            'mode' => $mode
-        ]);
+
         
         if ($mode === 'full') {
             switch ($method) {
-                case 'khipu': $code = 'full_transfer_khipu'; break;
-                case 'debit_credit_0': $code = 'full_debit_credit_0'; break;
-                case 'debit_credit_3': $code = 'full_debit_credit_3'; break;
-                case 'debit_credit_6': $code = 'full_debit_credit_6'; break;
-                case 'debit_credit_9': $code = 'full_debit_credit_9'; break;
-                case 'debit_credit_12': $code = 'full_debit_credit_12'; break;
+                case 'khipu': 
+                    $code = 'full_transfer_khipu'; 
+                    break;
+                case 'debit_credit_0': 
+                    $code = 'full_debit_credit_0'; 
+                    break;
+                case 'debit_credit_3': 
+                    $code = 'full_debit_credit_3'; 
+                    break;
+                case 'debit_credit_6': 
+                    $code = 'full_debit_credit_6'; 
+                    break;
+                case 'debit_credit_9': 
+                    $code = 'full_debit_credit_9'; 
+                    break;
+                case 'debit_credit_12': 
+                    $code = 'full_debit_credit_12'; 
+                    break;
+                case 'international': 
+                    $code = 'full_international'; 
+                    break;
                 default:
                     // Fallback para códigos legacy
                     if ($method === 'debit') {
@@ -322,8 +338,12 @@ class PaymentOrderService
             }
         } else {
             switch ($method) {
-                case 'khipu': $code = 'lat90_transfer_khipu'; break;
-                case 'debit_credit_0': $code = 'lat90_debit_credit_0'; break;
+                case 'khipu': 
+                    $code = 'lat90_transfer_khipu'; 
+                    break;
+                case 'debit_credit_0': 
+                    $code = 'lat90_debit_credit_0'; 
+                    break;
                 default:
                     // Fallback para códigos legacy
                     if ($method === 'debit') {
@@ -335,32 +355,13 @@ class PaymentOrderService
             }
         }
 
-        // Log para debugging
-        $this->logInfo('PaymentOrderService: Payment option code resolved', [
-            'method' => $method,
-            'code' => $code
-        ]);
-
         if (!$code) { 
-            $this->logWarning('PaymentOrderService: No payment option code found', [
-                'method' => $method,
-                'mode' => $mode
-            ]);
             return null; 
         }
 
         $optionId = DB::table('payment_options')->where('code', $code)->value('id');
         
-        // Log para debugging
-        $this->logInfo('PaymentOrderService: Payment option lookup', [
-            'code' => $code,
-            'option_id' => $optionId
-        ]);
-        
         if (!$optionId) { 
-            $this->logWarning('PaymentOrderService: Payment option not found in database', [
-                'code' => $code
-            ]);
             return null; 
         }
         
@@ -369,13 +370,6 @@ class PaymentOrderService
             ->where('payment_option_id', $optionId)
             ->where('enabled', true)
             ->exists();
-            
-        // Log para debugging
-        $this->logInfo('PaymentOrderService: Payment option enabled check', [
-            'program_id' => $programId,
-            'option_id' => $optionId,
-            'enabled' => $enabled
-        ]);
             
         return $enabled ? (int)$optionId : null;
     }

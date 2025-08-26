@@ -12,7 +12,7 @@ class PaymentOption extends Model
 	protected $table = 'payment_options';
 
 	protected $fillable = [
-		'code', 'label', 'mode', 'gateway_code', 'installments', 'active', 'commerce_code'
+		'code', 'label', 'mode', 'gateway_code', 'installments', 'active', 'report_code'
 	];
 
 	protected $casts = [

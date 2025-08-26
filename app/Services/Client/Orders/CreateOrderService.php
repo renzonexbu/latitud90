@@ -426,6 +426,7 @@ class CreateOrderService
                 case 'credit_6': $code = 'full_credit_webpay_6'; break;
                 case 'credit_9': $code = 'full_credit_webpay_9'; break;
                 case 'credit_12': $code = 'full_credit_webpay_12'; break;
+                case 'international': $code = 'full_international'; break;
                 default:
                     // si enviaron 'credit' sin cuotas, tratar como 0
                     if (strpos($method, 'credit') === 0) {

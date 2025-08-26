@@ -25,6 +25,15 @@ class CreateProgramService
             throw new \InvalidArgumentException('El ejecutivo de ventas es obligatorio.');
         }
         
+        // Guardar los arrays de opciones de pago antes de filtrar
+        $fullPaymentOptions = $programData['full_payment_options'] ?? [];
+        $lat90PaymentOptions = $programData['lat90_payment_options'] ?? [];
+        
+        // Filtrar campos que no deben guardarse directamente en el modelo Program
+        $programData = array_filter($programData, function($key) {
+            return !in_array($key, ['full_payment_options', 'lat90_payment_options']);
+        }, ARRAY_FILTER_USE_KEY);
+        
         try {
             DB::beginTransaction();
 
@@ -106,7 +115,13 @@ class CreateProgramService
             }
 
             // Guardar opciones de pago seleccionadas (program_payment_option)
-            $this->syncProgramPaymentOptions($program, $programData);
+            // Sincronizar opciones de pago (pivote program_payment_option) si vienen nuevas
+            // Usar los arrays guardados anteriormente
+            $paymentOptionsData = [
+                'full_payment_options' => $fullPaymentOptions,
+                'lat90_payment_options' => $lat90PaymentOptions
+            ];
+            $this->syncProgramPaymentOptions($program, $paymentOptionsData);
 
             // Recalcular y actualizar el total del programa (trip_price) según #participantes y precio por participante final
             $this->recalculateProgramTotal($program, $programData);

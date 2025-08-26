@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -30,7 +29,7 @@ class ContactMessageMail extends Mailable
     {
         return new Envelope(
             subject: 'Nuevo mensaje de contacto - Latitud 90',
-            replyTo: $this->contactData['email'], // Esto hace que cuando respondas, llegue al email del usuario
+            replyTo: (string) ($this->contactData['email'] ?? ''),
         );
     }
 
@@ -39,14 +38,16 @@ class ContactMessageMail extends Mailable
      */
     public function content(): Content
     {
+        $processedData = [
+            'name' => (string) ($this->contactData['name'] ?? ''),
+            'email' => (string) ($this->contactData['email'] ?? ''),
+            'phone' => (string) ($this->contactData['phone'] ?? ''),
+            'contactMessage' => (string) ($this->contactData['message'] ?? ''),
+        ];
+
         return new Content(
             view: 'emails.contact-message',
-            with: [
-                'name' => $this->contactData['name'],
-                'email' => $this->contactData['email'],
-                'phone' => $this->contactData['phone'],
-                'message' => $this->contactData['message'],
-            ],
+            with: $processedData,
         );
     }
 

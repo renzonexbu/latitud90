@@ -23,12 +23,40 @@ class UpdateProgramService
         // Capturar datos originales antes de la actualización para el logging
         $originalData = $program->toArray();
         
+        // LOG: Verificar qué datos llegan al método
+        Log::info('UpdateProgramService: Datos recibidos al inicio', [
+            'program_id' => $program->id,
+            'programData_keys' => array_keys($programData),
+            'arrays_received' => array_filter($programData, 'is_array'),
+            'full_payment_options' => $programData['full_payment_options'] ?? 'NO PRESENTE',
+            'lat90_payment_options' => $programData['lat90_payment_options'] ?? 'NO PRESENTE'
+        ]);
+        
+        // Guardar los arrays de opciones de pago antes de filtrar
+        $fullPaymentOptions = $programData['full_payment_options'] ?? [];
+        $lat90PaymentOptions = $programData['lat90_payment_options'] ?? [];
+        
+        // Filtrar campos que no deben guardarse directamente en el modelo Program
+        $programData = array_filter($programData, function($key) {
+            return !in_array($key, ['full_payment_options', 'lat90_payment_options']);
+        }, ARRAY_FILTER_USE_KEY);
+        
+        Log::info('UpdateProgramService: Datos después del filtrado inicial', [
+            'program_id' => $program->id,
+            'programData_keys' => array_keys($programData),
+            'arrays_after_filter' => array_filter($programData, 'is_array')
+        ]);
+        
         try {
             DB::beginTransaction();
 
             Log::info('UpdateProgramService: Payload recibido', [
                 'program_id' => $program->id,
                 'keys' => array_keys($programData),
+                'filtered_arrays' => [
+                    'full_payment_options' => $fullPaymentOptions,
+                    'lat90_payment_options' => $lat90PaymentOptions
+                ],
                 'payment_option' => $programData['payment_option'] ?? null,
                 'payment_options' => $programData['payment_options'] ?? null,
                 'full_payment_method' => $programData['full_payment_method'] ?? null,
@@ -147,8 +175,48 @@ class UpdateProgramService
                 isset($programData['departure_date'])
             );
             if ($shouldRebuildName) {
-                $merged = array_merge($program->toArray(), $programData);
-                $autoName = $this->buildProgramNameForUpdate($merged);
+                // Filtrar también los arrays del programa para evitar conflictos
+                $programArray = $program->toArray();
+                Log::info('UpdateProgramService: programArray antes de filtrar', [
+                    'program_id' => $program->id,
+                    'programArray_keys' => array_keys($programArray),
+                    'arrays_in_programArray' => array_filter($programArray, 'is_array')
+                ]);
+                
+                $filteredProgramArray = array_filter($programArray, function($value, $key) {
+                    // Filtrar todos los arrays para evitar problemas con "Array to string conversion"
+                    return !is_array($value);
+                }, ARRAY_FILTER_USE_BOTH);
+                
+                Log::info('UpdateProgramService: programData antes del merge', [
+                    'program_id' => $program->id,
+                    'programData_keys' => array_keys($programData),
+                    'arrays_in_programData' => array_filter($programData, 'is_array')
+                ]);
+                
+                $merged = array_merge($filteredProgramArray, $programData);
+                
+                Log::info('UpdateProgramService: Datos para buildProgramNameForUpdate', [
+                    'program_id' => $program->id,
+                    'merged_keys' => array_keys($merged),
+                    'arrays_in_merged' => array_filter($merged, 'is_array')
+                ]);
+                
+                try {
+                    $autoName = $this->buildProgramNameForUpdate($merged);
+                    Log::info('UpdateProgramService: buildProgramNameForUpdate exitoso', [
+                        'program_id' => $program->id,
+                        'autoName' => $autoName
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('UpdateProgramService: Error en buildProgramNameForUpdate', [
+                        'program_id' => $program->id,
+                        'error' => $e->getMessage(),
+                        'merged_data' => $merged,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
                 if ($autoName) {
                     $updateData['name'] = $autoName;
                 }
@@ -164,7 +232,36 @@ class UpdateProgramService
                     'update_keys' => array_keys($updateData),
                     'update_preview' => $updateData,
                 ]);
-                $program->update($updateData);
+                
+                // Verificar si hay arrays en updateData antes de update
+                $arrayFields = [];
+                foreach ($updateData as $key => $value) {
+                    if (is_array($value)) {
+                        $arrayFields[$key] = $value;
+                    }
+                }
+                
+                if (!empty($arrayFields)) {
+                    Log::error('UpdateProgramService: ARRAYS DETECTADOS en updateData - ESTO CAUSARÁ ERROR', [
+                        'program_id' => $program->id,
+                        'array_fields' => $arrayFields
+                    ]);
+                }
+                
+                try {
+                    $program->update($updateData);
+                    Log::info('UpdateProgramService: Primera actualización exitosa', [
+                        'program_id' => $program->id
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('UpdateProgramService: Error en primera actualización', [
+                        'program_id' => $program->id,
+                        'error' => $e->getMessage(),
+                        'updateData' => $updateData,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
             }
 
             // Actualizar rutas de archivos si se procesaron nuevos
@@ -190,7 +287,36 @@ class UpdateProgramService
                         'update_keys' => array_keys($updateData),
                         'update_preview' => $updateData,
                     ]);
-                    $program->update($updateData);
+                    
+                    // Verificar si hay arrays en updateData de archivos
+                    $arrayFields = [];
+                    foreach ($updateData as $key => $value) {
+                        if (is_array($value)) {
+                            $arrayFields[$key] = $value;
+                        }
+                    }
+                    
+                    if (!empty($arrayFields)) {
+                        Log::error('UpdateProgramService: ARRAYS DETECTADOS en updateData de archivos - ESTO CAUSARÁ ERROR', [
+                            'program_id' => $program->id,
+                            'array_fields' => $arrayFields
+                        ]);
+                    }
+                    
+                    try {
+                        $program->update($updateData);
+                        Log::info('UpdateProgramService: Actualización de archivos exitosa', [
+                            'program_id' => $program->id
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('UpdateProgramService: Error en actualización de archivos', [
+                            'program_id' => $program->id,
+                            'error' => $e->getMessage(),
+                            'updateData' => $updateData,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        throw $e;
+                    }
                 }
             }
 
@@ -233,25 +359,40 @@ class UpdateProgramService
             }
 
             // Sincronizar opciones de pago (pivote program_payment_option) si vienen nuevas
-            $this->syncProgramPaymentOptions($program, $programData);
+            // Usar los arrays guardados anteriormente
+            $paymentOptionsData = [
+                'full_payment_options' => $fullPaymentOptions,
+                'lat90_payment_options' => $lat90PaymentOptions
+            ];
+            $this->syncProgramPaymentOptions($program, $paymentOptionsData);
 
             DB::commit();
             
             // Log the program update
+            $freshData = $program->fresh()->toArray();
+            
+            // Filtrar arrays para evitar problemas con array_diff_assoc
+            $filteredOriginalData = array_filter($originalData, function($value) {
+                return !is_array($value);
+            });
+            $filteredFreshData = array_filter($freshData, function($value) {
+                return !is_array($value);
+            });
+            
             $this->logUpdate(
                 'programs',
                 'Program',
                 $program->id,
                 "Programa actualizado: {$program->name} ({$program->code})",
                 $originalData,
-                $program->fresh()->toArray(),
+                $freshData,
                 [
                     'program_name' => $program->name,
                     'program_code' => $program->code,
                     'destination' => $program->destination,
                     'departure_date' => $program->departure_date,
                     'trip_price' => $program->trip_price,
-                    'updated_fields' => array_keys(array_diff_assoc($program->fresh()->toArray(), $originalData)),
+                    'updated_fields' => array_keys(array_diff_assoc($filteredFreshData, $filteredOriginalData)),
                 ]
             );
             

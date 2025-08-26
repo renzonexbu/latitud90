@@ -30,9 +30,12 @@ class StorePaymentService
             // Buscar o crear la orden
             $order = $this->findOrCreateOrder($request);
 
-            // Para pagos presenciales, usar gateway y option fijos
+            // Para pagos presenciales, usar gateway presencial y option según el tipo seleccionado
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
-            $paymentOption = PaymentOption::where('code', 'full_debit_credit_0')->firstOrFail();
+            
+            // Mapear el tipo de pago presencial a la opción correspondiente
+            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($request->presential_payment_type);
+            $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
 
             // Crear el detalle de la orden
             $orderDetail = $this->createOrderDetail($request, $order, $paymentGateway, $paymentOption);
@@ -222,6 +225,24 @@ class StorePaymentService
             ],
             'currency' => 'CLP',
         ]);
+    }
+
+    /**
+     * Mapear el tipo de pago presencial a la opción de pago correspondiente
+     *
+     * @param string $presentialPaymentType
+     * @return string
+     */
+    private function mapPresentialPaymentTypeToOption(string $presentialPaymentType): string
+    {
+        $mapping = [
+            'BX' => 'full_office_card',      // Pago con tarjeta en oficina
+            'TE' => 'full_bank_transfer',    // Transferencia bancaria
+            'CH' => 'full_check',            // Cheque
+            'DP' => 'full_deposit',          // Depósito
+        ];
+
+        return $mapping[$presentialPaymentType] ?? 'full_office_card'; // Default fallback
     }
 
     /**

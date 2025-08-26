@@ -21,17 +21,11 @@ class RecordPendingPaymentService
     public function execute(OrderDetail $orderDetail, string $gatewayType, array $gatewayResult): void
     {
         try {
-            $buyOrder = $orderDetail->order_id . '-' . $orderDetail->installment_number;
+            // Obtener el número de orden correcto desde la orden
+            $order = $orderDetail->order;
+            $buyOrder = $order->order_number;
 
-            // Log para verificar que los datos del orderDetail estén correctos
-            $this->logInfo('Recording pending payment', [
-                'order_detail_id' => $orderDetail->id,
-                'installment_number' => $orderDetail->installment_number,
-                'payment_gateway_id' => $orderDetail->payment_gateway_id,
-                'payment_option_id' => $orderDetail->payment_option_id,
-                'gateway_type' => $gatewayType,
-                'amount' => $orderDetail->amount
-            ]);
+
 
             $commonData = [
                 'order_id' => $orderDetail->order_id,

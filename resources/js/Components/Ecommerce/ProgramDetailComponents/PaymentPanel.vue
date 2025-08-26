@@ -339,6 +339,7 @@ export default {
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
                 { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                { value: 'international',  label: 'Pago Internacional (Webpay)',    description: null },
             ],
         };
     },
@@ -376,32 +377,44 @@ export default {
             if (Array.isArray(this.program.full_payment_options)) {
                 const codes = this.getFullOptionCodes().map(c => String(c).toLowerCase());
                 const result = [];
-                const pushUnique = (value, label, description = null, warning = null) => {
+                const pushUnique = (value, label, description = null, warning = null, order = 999) => {
                     if (!result.some(o => o.value === value)) {
-                        const obj = { value, label };
+                        const obj = { value, label, order };
                         if (description) obj.description = description;
                         if (warning) obj.warning = warning;
                         result.push(obj);
                     }
                 };
+                
                 codes.forEach(code => {
                     if (code.includes('khipu')) {
-                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.');
+                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.', 1);
+                    } else if (code.includes('international')) {
+                        pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales', 999);
                     } else if (code.includes('debit_credit')) {
                         const match = code.match(/(\d+)(?!.*\d)/);
                         if (match) {
                             const n = parseInt(match[1], 10);
                             if (!isNaN(n) && n > 0) {
-                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés (Webpay)`);
+                                // Orden específico: 3=3, 6=4, 9=5, 12=6
+                                let order = 2;
+                                if (n === 3) order = 3;
+                                else if (n === 6) order = 4;
+                                else if (n === 9) order = 5;
+                                else if (n === 12) order = 6;
+                                else order = 7 + n; // Otros números después
+                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés (Webpay)`, null, null, order);
                             } else {
-                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)');
+                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, null, 2);
                             }
                         } else {
-                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)');
+                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, null, 2);
                         }
                     }
                 });
-                return result;
+                
+                // Ordenar por el campo order y luego remover el campo order
+                return result.sort((a, b) => a.order - b.order).map(({ order, ...rest }) => rest);
             }
             // Legacy fallback
             if (!this.program.enable_total_payment || !this.program.total_payment_method_id) return [];
@@ -434,6 +447,9 @@ export default {
                 if (codes.some(c => c.includes('debit_credit'))) {
                     pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
                 }
+                if (codes.some(c => c.includes('international'))) {
+                    pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales');
+                }
                 return result;
             }
             // Legacy fallback
@@ -452,15 +468,17 @@ export default {
         // Filtrar opciones según el método de pago configurado
         filterPaymentOptionsByMethod(methodId) {
             switch (methodId) {
-                case 1: // Todos los medios (Débito/Crédito/Transferencia)
+                case 1: // Todos los medios (Débito/Crédito/Transferencia/Internacional)
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
                         { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
                     ];
                 
-                case 2: // Solo pago con Tarjeta (Débito/Crédito)
+                case 2: // Solo pago con Tarjeta (Débito/Crédito/Internacional)
                     return [
                         { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
                     ];
                 
                 case 3: // Solo pago transferencia
@@ -478,6 +496,7 @@ export default {
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
                         { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
                     ];
             }
         },

@@ -1,6 +1,6 @@
-<template>
+¿<template>
     <div
-        class="bg-white rounded-xl border border-[#D3D3D3] p-3 md:p-6 flex flex-col justify-between w-full md:h-[450px] md:w-[504px]"
+        class="bg-white rounded-xl border border-[#D3D3D3] p-3 md:p-6 flex flex-col justify-between w-full md:h-[520px] md:w-[504px]"
     >
         <!-- Top Section -->
         <div class="flex flex-col gap-[18px]">
@@ -111,6 +111,69 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Payment Button -->
+            <div class="mt-6">
+                <button
+                    class="flex w-full px-5 py-[11px] justify-center items-center gap-3 rounded-[49px] transition-colors duration-300"
+                    :class="{
+                        'bg-[#FBBD51] hover:bg-[#e6a93d] cursor-pointer': isPaymentButtonEnabled,
+                        'bg-[#C7C7C7] cursor-not-allowed': !isPaymentButtonEnabled
+                    }"
+                    :disabled="!isPaymentButtonEnabled"
+                    @click="handlePayment"
+                >
+                    <!-- Spinner cuando está procesando -->
+                    <div v-if="isProcessing" class="flex items-center gap-2">
+                        <svg
+                            class="animate-spin h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span
+                            class="text-white font-urbanist text-base font-semibold leading-[18px]"
+                            style="font-feature-settings: 'liga' off, 'clig' off"
+                        >
+                            Procesando pago...
+                        </span>
+                    </div>
+                    
+                    <!-- Contenido normal cuando no está procesando -->
+                    <div v-else class="flex items-center gap-3">
+                        <span class="text-white font-urbanist text-base font-semibold leading-[18px]" style="font-feature-settings: 'liga' off, 'clig' off">
+                            Ir a pagar ${{ formatCurrency(displayPayAmount) }}
+                        </span>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 25 24"
+                            fill="none"
+                            class="flex-shrink-0"
+                        >
+                            <path
+                                d="M2.75 12C2.75 17.385 7.115 21.75 12.5 21.75C17.885 21.75 22.25 17.385 22.25 12C22.25 6.615 17.885 2.25 12.5 2.25C7.115 2.25 2.75 6.615 2.75 12ZM12.97 7.97C13.1106 7.82955 13.3012 7.75066 13.5 7.75066C13.6988 7.75066 13.8894 7.82955 14.03 7.97L17.53 11.47C17.6705 11.6106 17.7493 11.8012 17.7493 12C17.7493 12.1988 17.6705 12.3894 17.53 12.53L14.03 16.03C13.9613 16.1037 13.8785 16.1628 13.7865 16.2038C13.6945 16.2448 13.5952 16.2668 13.4945 16.2686C13.3938 16.2704 13.2938 16.2518 13.2004 16.2141C13.107 16.1764 13.0222 16.1203 12.951 16.049C12.8797 15.9778 12.8236 15.893 12.7859 15.7996C12.7482 15.7062 12.7296 15.6062 12.7314 15.5055C12.7332 15.4048 12.7552 15.3055 12.7962 15.2135C12.8372 15.1215 12.8963 15.0387 12.97 14.97L15.19 12.75H8C7.80109 12.75 7.61032 12.671 7.46967 12.5303C7.32902 12.3897 7.25 12.1989 7.25 12C7.25 11.8011 7.32902 11.6103 7.46967 11.4697C7.61032 11.329 7.80109 11.25 8 11.25H15.19L12.97 9.03C12.8295 8.88937 12.7507 8.69875 12.7507 8.5C12.7507 8.30125 12.8295 8.11063 12.97 7.97Z"
+                                fill="white"
+                            />
+                        </svg>
+                    </div>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -149,68 +212,7 @@
         </div>
     </div>
 
-    <!-- Payment Button -->
-    <div class="flex justify-center mt-6">
-        <button
-            class="flex w-[404px] px-5 py-[11px] justify-center items-center gap-3 rounded-[49px] transition-colors duration-300"
-            :class="{
-                'bg-[#FBBD51] hover:bg-[#e6a93d] cursor-pointer': isPaymentButtonEnabled,
-                'bg-[#C7C7C7] cursor-not-allowed': !isPaymentButtonEnabled
-            }"
-            :disabled="!isPaymentButtonEnabled"
-            @click="handlePayment"
-        >
-            <!-- Spinner cuando está procesando -->
-            <div v-if="isProcessing" class="flex items-center gap-2">
-                <svg
-                    class="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                >
-                    <circle
-                        class="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        stroke-width="4"
-                    ></circle>
-                    <path
-                        class="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                </svg>
-                <span
-                    class="text-white font-urbanist text-base font-semibold leading-[18px]"
-                    style="font-feature-settings: 'liga' off, 'clig' off"
-                >
-                    Procesando pago...
-                </span>
-            </div>
-            
-            <!-- Contenido normal cuando no está procesando -->
-            <div v-else class="flex items-center gap-3">
-                <span class="text-white font-urbanist text-base font-semibold leading-[18px]" style="font-feature-settings: 'liga' off, 'clig' off">
-                    Ir a pagar ${{ formatCurrency(displayPayAmount) }}
-                </span>
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 25 24"
-                    fill="none"
-                    class="flex-shrink-0"
-                >
-                    <path
-                        d="M2.75 12C2.75 17.385 7.115 21.75 12.5 21.75C17.885 21.75 22.25 17.385 22.25 12C22.25 6.615 17.885 2.25 12.5 2.25C7.115 2.25 2.75 6.615 2.75 12ZM12.97 7.97C13.1106 7.82955 13.3012 7.75066 13.5 7.75066C13.6988 7.75066 13.8894 7.82955 14.03 7.97L17.53 11.47C17.6705 11.6106 17.7493 11.8012 17.7493 12C17.7493 12.1988 17.6705 12.3894 17.53 12.53L14.03 16.03C13.9613 16.1037 13.8785 16.1628 13.7865 16.2038C13.6945 16.2448 13.5952 16.2668 13.4945 16.2686C13.3938 16.2704 13.2938 16.2518 13.2004 16.2141C13.107 16.1764 13.0222 16.1203 12.951 16.049C12.8797 15.9778 12.8236 15.893 12.7859 15.7996C12.7482 15.7062 12.7296 15.6062 12.7314 15.5055C12.7332 15.4048 12.7552 15.3055 12.7962 15.2135C12.8372 15.1215 12.8963 15.0387 12.97 14.97L15.19 12.75H8C7.80109 12.75 7.61032 12.671 7.46967 12.5303C7.32902 12.3897 7.25 12.1989 7.25 12C7.25 11.8011 7.32902 11.6103 7.46967 11.4697C7.61032 11.329 7.80109 11.25 8 11.25H15.19L12.97 9.03C12.8295 8.88937 12.7507 8.69875 12.7507 8.5C12.7507 8.30125 12.8295 8.11063 12.97 7.97Z"
-                        fill="white"
-                    />
-                </svg>
-            </div>
-        </button>
-    </div>
+
 </template>
 
 <script>
@@ -548,6 +550,18 @@ export default {
                 return;
             }
             
+            // Obtener el método de pago desde localStorage
+            const paymentData = localStorage.getItem('selectedPaymentData');
+            let paymentMethod = 'unknown';
+            if (paymentData) {
+                try {
+                    const parsedData = JSON.parse(paymentData);
+                    paymentMethod = parsedData.paymentMethod || 'unknown';
+                } catch (error) {
+                    console.error('Error parsing payment data:', error);
+                }
+            }
+            
             // Enviar datos de inicio de pago al backend
             fetch('/api/analytics/payment-initiated', {
                 method: 'POST',
@@ -565,7 +579,7 @@ export default {
                     order_number: result.order_number,
                     payment_data: {
                         payment_type: this.currentInstallments > 1 ? 'monthly' : 'total',
-                        payment_method: this.selectedPaymentMethod,
+                        payment_method: paymentMethod,
                         amount: this.displayPayAmount,
                         installments: this.currentInstallments,
                         terms_accepted: this.termsAccepted

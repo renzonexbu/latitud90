@@ -15,10 +15,14 @@ Route::post('/participant/search', [FindParticipantController::class, 'searchPar
 Route::get('/terminos-y-condiciones', [TermsAndConditionsController::class, 'termsAndConditions'])->name('ecommerce.terms-and-conditions');
 
 //Newsletter
-Route::post('/newsletter/subscribe', [EcommerceController::class, 'subscribeToNewsletter'])->name('ecommerce.newsletter.subscribe');
+Route::post('/newsletter/subscribe', [EcommerceController::class, 'subscribeToNewsletter'])
+    ->name('ecommerce.newsletter.subscribe')
+    ->middleware('web.ajax');
 
 //Contact
-Route::post('/contact/send', [EcommerceController::class, 'sendContactMessage'])->name('ecommerce.contact.send');
+Route::post('/contact/send', [EcommerceController::class, 'sendContactMessage'])
+    ->name('ecommerce.contact.send')
+    ->middleware('web.ajax');
 
 //Program Routes
 require __DIR__ . '/program.php';

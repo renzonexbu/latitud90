@@ -304,6 +304,11 @@ class VirtualPosService
             return 'no_cuotes';
         }
 
+        // Si es pago internacional
+        if ($paymentType === 'international') {
+            return 'international';
+        }
+
         // Si es crédito con cuotas específicas
         switch ($installments) {
             case 3:
@@ -311,7 +316,7 @@ class VirtualPosService
             case 6:
                 return '6_cuotes';
             case 9:
-                return '9_cuotes'; // Configuración específica para 9 cuotas (usa las mismas credenciales que 6)
+                return '9_cuotes';
             case 12:
                 return '12_cuotes';
             default:

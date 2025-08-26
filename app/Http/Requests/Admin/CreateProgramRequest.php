@@ -62,7 +62,7 @@ class CreateProgramRequest extends FormRequest
             'payment_options.*' => 'string|in:full_payment,installments',
             // Nuevas selecciones por checkbox
             'full_payment_options' => 'nullable|array',
-            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12',
+            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12,full_international',
             'lat90_payment_options' => 'nullable|array',
             'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0,lat90_installments_3,lat90_installments_6,lat90_installments_9,lat90_installments_12',
             'created_by' => 'nullable|exists:users,id',

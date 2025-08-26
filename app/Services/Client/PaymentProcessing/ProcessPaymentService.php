@@ -138,6 +138,9 @@ class ProcessPaymentService
                 ];
             }
 
+            // Cargar la relación order para asegurar que esté disponible
+            $orderDetail->load('order');
+            
             // Registrar pago pendiente en la tabla payments
             $this->recordPendingPaymentService->execute($orderDetail, $paymentData['paymentMethod'], $gatewayResult);
 

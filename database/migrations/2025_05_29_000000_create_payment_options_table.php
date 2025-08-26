@@ -17,7 +17,7 @@ return new class extends Migration
 			$table->string('label'); // Texto a mostrar en el admin/frontend
 			$table->enum('mode', ['full', 'lat90']);
 			$table->string('gateway_code')->nullable(); // transbank | khipu | null
-			$table->string('commerce_code')->nullable();
+			$table->string('report_code')->nullable();
 			$table->unsignedTinyInteger('installments')->nullable(); // 3,6,9,12 para crédito/lat90
 			$table->boolean('active')->default(true);
 			$table->timestamps();

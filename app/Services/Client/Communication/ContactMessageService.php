@@ -15,12 +15,20 @@ class ContactMessageService
     public function sendContactMessage(array $data)
     {
         try {
+            // Validar y convertir datos a cadenas de texto
+            $validatedData = [
+                'name' => (string) ($data['name'] ?? ''),
+                'email' => (string) ($data['email'] ?? ''),
+                'phone' => (string) ($data['phone'] ?? ''),
+                'message' => (string) ($data['message'] ?? ''),
+            ];
+
             // Email de destino (tu email)
-            $adminEmail = config('mail.contact.admin_email', 'admin@latitud90.com');
+            $adminEmail = 'admin@test.com'; // Email temporal para pruebas
 
             // Enviar email con Reply-To configurado
             Mail::to($adminEmail)
-                ->send(new ContactMessageMail($data));
+                ->send(new ContactMessageMail($validatedData));
 
             return [
                 'success' => true,

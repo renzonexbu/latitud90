@@ -129,7 +129,7 @@
             <!-- User Info Section -->
             <div class="border-t border-gray-200">
                 <div class="flex flex-col items-center space-y-4 py-4">
-                    <NavLink
+                    <!-- <NavLink
                         :href="route('admin.profile.edit')"
                         class="flex justify-center w-full p-1 group transition-colors"
                     >
@@ -141,7 +141,7 @@
                                     : 'text-gray-400 group-hover:text-turquesa'
                             "
                         />
-                    </NavLink>
+                    </NavLink> -->
                     <div class="relative user-dropdown-container">
                         <button
                             @click="showingUserDropdown = !showingUserDropdown"

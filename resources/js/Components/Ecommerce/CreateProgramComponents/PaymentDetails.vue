@@ -621,6 +621,7 @@ const fullPaymentChoices = [
     { code: 'full_debit_credit_6', label: 'Débito y crédito hasta 6 cuotas sin interés (Webpay)' },
     { code: 'full_debit_credit_9', label: 'Débito y crédito hasta 9 cuotas sin interés (Webpay)' },
     { code: 'full_debit_credit_12', label: 'Débito y crédito hasta 12 cuotas sin interés (Webpay)' },
+    { code: 'full_international', label: 'Pago Internacional (Webpay)' },
 ];
 const lat90Choices = [
     { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },

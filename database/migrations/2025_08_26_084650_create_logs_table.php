@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('context')->nullable(); // JSON con información adicional
             $table->string('file')->nullable(); // Archivo donde ocurrió el error
             $table->integer('line')->nullable(); // Línea donde ocurrió el error
-            $table->string('trace')->nullable(); // Stack trace
+            $table->text('trace')->nullable(); // Stack trace
             $table->string('user_id')->nullable(); // ID del usuario si está autenticado
             $table->string('user_email')->nullable(); // Email del usuario
             $table->string('ip_address')->nullable(); // IP del usuario

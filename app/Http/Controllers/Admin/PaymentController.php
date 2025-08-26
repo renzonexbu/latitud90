@@ -96,6 +96,7 @@ class PaymentController extends Controller
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'status' => 'required|in:pending,completed,failed,authorized',
+            'presential_payment_type' => 'required|in:BX,TE,CH,DP',
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string',
             'notes' => 'nullable|string',

@@ -63,6 +63,10 @@ class CreateGatewayTransactionService
                     $installmentsOverride = 1;
                 }
             }
+            // Pago internacional
+            else if (stripos($method, 'international') !== false) {
+                $normalizedMethod = 'international';
+            }
             // Legacy Transbank: credit_0, credit_3, etc.
             else if (stripos($method, 'credit') !== false) {
                 $normalizedMethod = 'credit';
@@ -87,6 +91,7 @@ class CreateGatewayTransactionService
         switch ($normalizedMethod) {
             case 'debit':
             case 'credit':
+            case 'international':
                 $paymentType = $paymentData['paymentType'] ?? null;
                 $installments = $installmentsOverride ?? ($paymentData['installments'] ?? null);
 

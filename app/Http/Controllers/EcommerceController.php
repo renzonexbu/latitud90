@@ -64,12 +64,13 @@ class EcommerceController extends Controller
         try {
             $result = $this->contactMessageService->sendContactMessage($request->all());
             
-            return response()->json($result);
+            if ($result['success']) {
+                return back()->with('contact_success', $result['message']);
+            } else {
+                return back()->withErrors(['contact_error' => $result['message']]);
+            }
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar el mensaje. Por favor, intenta nuevamente.'
-            ], 422);
+            return back()->withErrors(['contact_error' => 'Error al enviar el mensaje. Por favor, intenta nuevamente.']);
         }
     }
 }
