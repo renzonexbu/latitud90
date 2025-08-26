@@ -3,11 +3,13 @@
 namespace App\Services\Client;
 
 use App\Models\Newsletter;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class NewsletterService
 {
+    use SystemLogging;
     /**
      * Suscribir un email al newsletter
      */

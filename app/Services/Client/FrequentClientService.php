@@ -6,10 +6,11 @@ namespace App\Services\Client;
 use App\Models\FrequentClient;
 use Illuminate\Support\Facades\DB;
 use App\Models\Document;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class FrequentClientService
 {
+    use SystemLogging;
     public static function findByDocument(array $data)
     {
         // Obtener el tipo de documento para determinar el formato

@@ -3,10 +3,11 @@
 namespace App\Services\Client\PaymentGateway;
 
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class KhipuService
 {
+    use SystemLogging;
     private $client;
     private $baseUrl;
     private $apiKey;
@@ -46,7 +47,7 @@ class KhipuService
             ]);
             $result = json_decode($response->getBody()->getContents(), true);
             // Log de creación de pago (siempre)
-            Log::info('Khipu createTransaction response', [
+            $this->logInfo('Khipu createTransaction response', [
                 'order_id' => $orderId,
                 'amount' => $amount,
                 'return_url' => $returnUrl,
@@ -63,22 +64,22 @@ class KhipuService
             ];
         } catch (\GuzzleHttp\Exception\ClientException $e) {
             $body = (string) ($e->getResponse() ? $e->getResponse()->getBody() : '');
-            Log::error('Error creating Khipu payment (ClientException)', [
+            $this->logError('Error creating Khipu payment (ClientException)', [
                 'error' => $e->getMessage(),
                 'amount' => $amount,
                 'order_id' => $orderId,
                 'response' => $body,
-            ]);
+            ], $e);
             return [
                 'success' => false,
                 'error' => $body ?: $e->getMessage(),
             ];
         } catch (\Exception $e) {
-            Log::error('Error creating Khipu payment', [
+            $this->logError('Error creating Khipu payment', [
                 'error' => $e->getMessage(),
                 'amount' => $amount,
                 'order_id' => $orderId
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -105,7 +106,7 @@ class KhipuService
             $approved = isset($result['status']) && in_array($result['status'], ['done', 'paid', 'approved', 'completed']);
 
             // Log de confirmación/consulta de estado (siempre)
-            Log::info('Khipu getPaymentStatus response', [
+            $this->logInfo('Khipu getPaymentStatus response', [
                 'payment_id' => $paymentId,
                 'approved' => $approved,
                 'status' => $result['status'] ?? 'unknown',
@@ -119,10 +120,10 @@ class KhipuService
                 'data' => $result,
             ];
         } catch (\Exception $e) {
-            Log::error('Error getting Khipu payment status', [
+            $this->logError('Error getting Khipu payment status', [
                 'error' => $e->getMessage(),
                 'payment_id' => $paymentId
-            ]);
+            ], $e);
 
             return [
                 'success' => false,

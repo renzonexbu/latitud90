@@ -5,12 +5,13 @@ namespace App\Services;
 use App\Models\EcommerceAnalytics;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class EcommerceAnalyticsService
 {
+    use SystemLogging;
     /**
      * Obtener o crear un registro de analytics para una sesión
      */
@@ -19,7 +20,7 @@ class EcommerceAnalyticsService
         $sessionId = $request->input('session_id');
         
         if (!$sessionId) {
-            Log::warning('EcommerceAnalyticsService: No se proporcionó session_id');
+            $this->logWarning('EcommerceAnalyticsService: No se proporcionó session_id');
             return null;
         }
         
@@ -190,7 +191,7 @@ class EcommerceAnalyticsService
                 $analytics->update(['time_to_payment' => $timeToPayment]);
             }
             
-            Log::info('Analytics: Payment initiated recorded', [
+            $this->logInfo('Analytics: Payment initiated recorded', [
                 'session_id' => $analytics->session_id,
                 'order_id' => $orderData['order_id'] ?? 'NULL',
                 'order_detail_id' => $orderData['order_detail_id'] ?? 'NULL',
@@ -248,7 +249,7 @@ class EcommerceAnalyticsService
         // Usar session_id del paymentData si está disponible, sino buscar en la orden
         $sessionId = $paymentData['session_id'] ?? $orderDetail->order->session_id ?? null;
         
-        Log::info('Analytics: recordPaymentCompletedFromBackend called', [
+        $this->logInfo('Analytics: recordPaymentCompletedFromBackend called', [
             'order_detail_id' => $orderDetail->id,
             'order_id' => $orderDetail->order_id,
             'session_id_from_payment_data' => $paymentData['session_id'] ?? 'NULL',
@@ -259,13 +260,13 @@ class EcommerceAnalyticsService
         ]);
         
         if (!$sessionId) {
-            Log::warning('Analytics: No session_id found in payment data or order');
+            $this->logWarning('Analytics: No session_id found in payment data or order');
             return;
         }
         
         $analytics = EcommerceAnalytics::where('session_id', $sessionId)->first();
         
-        Log::info('Analytics: Record found', [
+        $this->logInfo('Analytics: Record found', [
             'session_id' => $sessionId,
             'analytics_found' => $analytics ? 'YES' : 'NO',
             'analytics_id' => $analytics ? $analytics->id : 'NULL'
@@ -290,7 +291,7 @@ class EcommerceAnalyticsService
                 'payment_initiated_at' => now()->subMinutes(1), // Simular tiempo de inicio de pago
             ]);
             
-            Log::info('Analytics: Created new record', [
+            $this->logInfo('Analytics: Created new record', [
                 'session_id' => $sessionId,
                 'analytics_id' => $analytics->id
             ]);
@@ -318,7 +319,7 @@ class EcommerceAnalyticsService
         $analytics->payment_type = $paymentType;
         $analytics->installments_count = $installmentsCount;
         
-        Log::info('Analytics: About to save with data', [
+        $this->logInfo('Analytics: About to save with data', [
             'payment_type' => $paymentType,
             'installments_count' => $installmentsCount,
             'order_id' => $orderDetail->order_id,
@@ -330,11 +331,11 @@ class EcommerceAnalyticsService
         
         $saveResult = $analytics->save();
         
-        Log::info('Analytics: Save result', [
+        $this->logInfo('Analytics: Save result', [
             'save_success' => $saveResult ? 'YES' : 'NO'
         ]);
         
-        Log::info('Analytics: Payment data updated successfully', [
+        $this->logInfo('Analytics: Payment data updated successfully', [
             'session_id' => $sessionId,
             'payment_type' => $analytics->payment_type,
             'installments_count' => $analytics->installments_count,

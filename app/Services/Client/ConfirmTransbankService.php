@@ -5,11 +5,12 @@ namespace App\Services\Client;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\TransbankService;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ConfirmTransbankService
 {
+    use SystemLogging;
     public function __construct(
         private TransbankService $transbankService
     ) {}
@@ -73,7 +74,7 @@ class ConfirmTransbankService
                 ? route('payment.success', $orderDetailId)
                 : route('payment.failure', $orderDetailId);
 
-            Log::info('ConfirmTransbankService: confirmTransbank redirect being built', [
+            $this->logInfo('ConfirmTransbankService: confirmTransbank redirect being built', [
                 'approved' => $approved,
                 'order_detail_id' => $orderDetailId,
                 'redirect' => $redirectUrl,
@@ -85,10 +86,10 @@ class ConfirmTransbankService
                 'redirect' => $redirectUrl,
             ];
         } catch (\Throwable $e) {
-            Log::error('ConfirmTransbankService: Error confirming Transbank transaction', [
+            $this->logError('ConfirmTransbankService: Error confirming Transbank transaction', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
-            ]);
+            ], $e);
             
             return [
                 'success' => false,
@@ -122,7 +123,7 @@ class ConfirmTransbankService
                     $orderDetail->payments()->latest()->first()->id
                 );
 
-                Log::info('ConfirmTransbankService: Installment marked as paid after payment confirmation', [
+                $this->logInfo('ConfirmTransbankService: Installment marked as paid after payment confirmation', [
                     'installment_id' => $installment->id,
                     'installment_number' => $installment->installment_number,
                     'order_id' => $orderDetail->order_id,
@@ -130,18 +131,18 @@ class ConfirmTransbankService
                     'payment_id' => $orderDetail->payments()->latest()->first()->id
                 ]);
             } else {
-                Log::warning('ConfirmTransbankService: Installment not found for marking as paid', [
+                $this->logWarning('ConfirmTransbankService: Installment not found for marking as paid', [
                     'installment_number' => $orderDetail->installment_number,
                     'participant_id' => $orderDetail->order->participant_id,
                     'program_id' => $orderDetail->order->program_id
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('ConfirmTransbankService: Error marking installment as paid', [
+            $this->logError('ConfirmTransbankService: Error marking installment as paid', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
                 'installment_number' => $orderDetail->installment_number
-            ]);
+            ], $e);
         }
     }
 }

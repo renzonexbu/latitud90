@@ -4,10 +4,12 @@ namespace App\Services\Client;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 
 class GetKhipuCallbackDataService
 {
+    use SystemLogging;
     /**
      * Obtener datos para la vista de callback de Khipu
      *

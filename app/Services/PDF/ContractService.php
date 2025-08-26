@@ -4,11 +4,12 @@ namespace App\Services\PDF;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Traits\SystemLogging;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Log;
 
 class ContractService
 {
+    use SystemLogging;
     /**
      * Generar PDF del contrato
      */
@@ -32,7 +33,7 @@ class ContractService
 
             $pdf->save($tempPath);
 
-            Log::info('ContractService: PDF del contrato generado exitosamente', [
+            $this->logInfo('ContractService: PDF del contrato generado exitosamente', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'filename' => $filename,
@@ -40,11 +41,11 @@ class ContractService
 
             return $tempPath;
         } catch (\Exception $e) {
-            Log::error('ContractService: Error generando PDF del contrato', [
+            $this->logError('ContractService: Error generando PDF del contrato', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
 
             throw $e;
         }

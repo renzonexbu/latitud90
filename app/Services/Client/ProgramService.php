@@ -8,10 +8,12 @@ use App\Models\Program;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
 
 class ProgramService
 {
+    use SystemLogging;
     public function getParticipantByDocument(string $document, string $documentType): ?Participant
     {
         // Limpiar el documento de puntos y guiones

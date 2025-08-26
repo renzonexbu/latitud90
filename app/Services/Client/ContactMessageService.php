@@ -4,10 +4,11 @@ namespace App\Services\Client;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ContactMessageMail;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class ContactMessageService
 {
+    use SystemLogging;
     /**
      * Enviar mensaje de contacto
      */
@@ -26,7 +27,7 @@ class ContactMessageService
                 'message' => 'Mensaje enviado correctamente. Te responderemos pronto.'
             ];
         } catch (\Exception $e) {
-            Log::error('Error enviando mensaje de contacto: ' . $e->getMessage());
+            $this->logError('Error enviando mensaje de contacto: ' . $e->getMessage(), [], $e);
 
             return [
                 'success' => false,

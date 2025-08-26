@@ -9,12 +9,13 @@ use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InstallmentService
 {
+    use SystemLogging;
     /**
      * Crear o recuperar un plan de cuotas para un programa/participante
      */
@@ -41,7 +42,7 @@ class InstallmentService
             if ($totalInstallments < 1) { $totalInstallments = 1; }
 
             // Log para verificar los montos antes de crear el plan
-            Log::info('InstallmentService: createOrGetInstallmentPlan - Montos calculados', [
+            $this->logInfo('InstallmentService: createOrGetInstallmentPlan - Montos calculados', [
                 'program_id' => $programId,
                 'participant_rut' => $rut,
                 'participant_total_amount' => $participantTotalAmount,
@@ -67,12 +68,12 @@ class InstallmentService
                     $nextPendingInstallment = $existingPlan->getNextPendingInstallmentAttribute();
                     
                     if ($nextPendingInstallment) {
-                        Log::info('Existing installment plan found with paid installments, continuing with next pending', [
-                            'plan_id' => $existingPlan->id,
-                            'paid_installments' => $paidInstallments,
-                            'next_installment' => $nextPendingInstallment->installment_number,
-                            'amount' => $nextPendingInstallment->amount
-                        ]);
+                                            $this->logInfo('Existing installment plan found with paid installments, continuing with next pending', [
+                        'plan_id' => $existingPlan->id,
+                        'paid_installments' => $paidInstallments,
+                        'next_installment' => $nextPendingInstallment->installment_number,
+                        'amount' => $nextPendingInstallment->amount
+                    ]);
 
                         DB::commit();
                         return [
@@ -89,7 +90,7 @@ class InstallmentService
                     
                     if ($currentTotalInstallments !== $requestedInstallments) {
                         // Si el número de cuotas es diferente, eliminar el plan anterior y crear uno nuevo
-                        Log::info('Different number of installments requested, deleting old plan and creating new one', [
+                        $this->logInfo('Different number of installments requested, deleting old plan and creating new one', [
                             'old_installments' => $currentTotalInstallments,
                             'new_installments' => $requestedInstallments,
                             'plan_id' => $existingPlan->id
@@ -109,7 +110,7 @@ class InstallmentService
                         
                         $existingPlan->delete();
                         
-                        Log::info('Old installment plan deleted due to different number of installments', [
+                        $this->logInfo('Old installment plan deleted due to different number of installments', [
                             'old_plan_id' => $oldPlanId,
                             'old_order_id' => $oldOrderId,
                             'old_installments' => $currentTotalInstallments,
@@ -125,11 +126,11 @@ class InstallmentService
                             ->first();
                         
                         if ($firstPendingInstallment) {
-                            Log::info('Using existing plan with same number of installments, first installment still pending', [
-                                'plan_id' => $existingPlan->id,
-                                'installment_number' => $firstPendingInstallment->installment_number,
-                                'amount' => $firstPendingInstallment->amount
-                            ]);
+                                                    $this->logInfo('Using existing plan with same number of installments, first installment still pending', [
+                            'plan_id' => $existingPlan->id,
+                            'installment_number' => $firstPendingInstallment->installment_number,
+                            'amount' => $firstPendingInstallment->amount
+                        ]);
 
                             DB::commit();
                             return [
@@ -175,7 +176,7 @@ class InstallmentService
             $amounts = $this->splitAmountInInstallments($finalAmount, $totalInstallments);
             $dueDates = $this->generateMonthlyDueDates($program, $totalInstallments);
             
-            Log::info('InstallmentService: Creando cuotas individuales', [
+            $this->logInfo('InstallmentService: Creando cuotas individuales', [
                 'plan_id' => $installmentPlan->id,
                 'final_amount' => $finalAmount,
                 'total_installments' => $totalInstallments,
@@ -193,7 +194,7 @@ class InstallmentService
                     'notes' => "Cuota {$i} de {$totalInstallments}"
                 ]);
 
-                Log::info('InstallmentService: Cuota creada', [
+                $this->logInfo('InstallmentService: Cuota creada', [
                     'installment_id' => $installment->id,
                     'installment_number' => $i,
                     'amount' => $amounts[$i - 1],
@@ -204,7 +205,7 @@ class InstallmentService
             // Obtener la primera cuota para el pago inicial
             $firstInstallment = $installmentPlan->installments()->where('installment_number', 1)->first();
 
-            Log::info('New installment plan created successfully', [
+            $this->logInfo('New installment plan created successfully', [
                 'plan_id' => $installmentPlan->id,
                 'order_id' => $order->id,
                 'total_installments' => $totalInstallments,
@@ -224,11 +225,11 @@ class InstallmentService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating installment plan', [
+            $this->logError('Error creating installment plan', [
                 'error' => $e->getMessage(),
                 'program_id' => $programId,
                 'rut' => $rut
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -253,7 +254,7 @@ class InstallmentService
                     'end_date' => now()
                 ]);
                 
-                Log::info('Installment plan completed', [
+                $this->logInfo('Installment plan completed', [
                     'plan_id' => $installmentPlan->id,
                     'total_installments' => $installmentPlan->total_installments
                 ]);
@@ -261,10 +262,10 @@ class InstallmentService
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Error marking installment as paid', [
+            $this->logError('Error marking installment as paid', [
                 'error' => $e->getMessage(),
                 'installment_id' => $installment->id
-            ]);
+            ], $e);
             return false;
         }
     }
@@ -320,7 +321,7 @@ class InstallmentService
         }
 
         // Log detallado para debugging
-        Log::info('InstallmentService: splitAmountInInstallments', [
+        $this->logInfo('InstallmentService: splitAmountInInstallments', [
             'total_amount' => $total,
             'installments' => $installments,
             'base_amount' => $base,

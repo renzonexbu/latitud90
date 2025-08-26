@@ -4,11 +4,12 @@ namespace App\Services\Client;
 
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\PaymentConfirmationService;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ProcessPaymentConfirmationService
 {
+    use SystemLogging;
     public function __construct(
         private PaymentConfirmationService $paymentConfirmationService
     ) {}
@@ -35,7 +36,7 @@ class ProcessPaymentConfirmationService
         // Obtener session_id del request
         $sessionId = $request->input('session_id');
 
-        Log::info('ProcessPaymentConfirmationService: confirmPayment', [
+        $this->logInfo('ProcessPaymentConfirmationService: confirmPayment', [
             'order_detail_id' => $orderDetailId,
             'gateway_type' => $gatewayType,
             'gateway_data' => $gatewayData,
@@ -78,7 +79,7 @@ class ProcessPaymentConfirmationService
             
             if ($lastPayment && $lastPayment->external_payment_id) {
                 $gatewayData['payment_id'] = $lastPayment->external_payment_id;
-                Log::info('ProcessPaymentConfirmationService: Retrieved payment_id from database', [
+                $this->logInfo('ProcessPaymentConfirmationService: Retrieved payment_id from database', [
                     'order_detail_id' => $orderDetailId,
                     'payment_id' => $gatewayData['payment_id'],
                 ]);

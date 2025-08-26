@@ -7,11 +7,12 @@ use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
 use App\Models\Installment;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class PaymentOrderService
 {
+    use SystemLogging;
     /**
      * Crear una nueva orden de pago para una cuota específica
      */
@@ -41,7 +42,7 @@ class PaymentOrderService
             // Crear nuevo order_detail para este pago específico
             $orderDetail = $this->createOrderDetail($order, $paymentData, $formData, $installment);
 
-            Log::info('Payment order created successfully', [
+            $this->logInfo('Payment order created successfully', [
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
                 'installment_id' => $installment->id,
@@ -61,10 +62,10 @@ class PaymentOrderService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating payment order', [
+            $this->logError('Error creating payment order', [
                 'error' => $e->getMessage(),
                 'installment_id' => $installment->id
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -112,7 +113,7 @@ class PaymentOrderService
             // Crear nuevo order_detail para pago total
             $orderDetail = $this->createOrderDetail($order, $paymentData, $formData);
 
-            Log::info('Total payment order created successfully', [
+            $this->logInfo('Total payment order created successfully', [
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
                 'amount' => $finalAmount,
@@ -129,11 +130,11 @@ class PaymentOrderService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating total payment order', [
+            $this->logError('Error creating total payment order', [
                 'error' => $e->getMessage(),
                 'program_id' => $programId,
                 'rut' => $rut
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -293,7 +294,7 @@ class PaymentOrderService
         $code = null;
         
         // Log para debugging
-        Log::info('PaymentOrderService: Resolving payment option', [
+        $this->logInfo('PaymentOrderService: Resolving payment option', [
             'program_id' => $programId,
             'payment_type' => $paymentData['paymentType'] ?? 'unknown',
             'payment_method' => $method,
@@ -335,13 +336,13 @@ class PaymentOrderService
         }
 
         // Log para debugging
-        Log::info('PaymentOrderService: Payment option code resolved', [
+        $this->logInfo('PaymentOrderService: Payment option code resolved', [
             'method' => $method,
             'code' => $code
         ]);
 
         if (!$code) { 
-            Log::warning('PaymentOrderService: No payment option code found', [
+            $this->logWarning('PaymentOrderService: No payment option code found', [
                 'method' => $method,
                 'mode' => $mode
             ]);
@@ -351,13 +352,13 @@ class PaymentOrderService
         $optionId = DB::table('payment_options')->where('code', $code)->value('id');
         
         // Log para debugging
-        Log::info('PaymentOrderService: Payment option lookup', [
+        $this->logInfo('PaymentOrderService: Payment option lookup', [
             'code' => $code,
             'option_id' => $optionId
         ]);
         
         if (!$optionId) { 
-            Log::warning('PaymentOrderService: Payment option not found in database', [
+            $this->logWarning('PaymentOrderService: Payment option not found in database', [
                 'code' => $code
             ]);
             return null; 
@@ -370,7 +371,7 @@ class PaymentOrderService
             ->exists();
             
         // Log para debugging
-        Log::info('PaymentOrderService: Payment option enabled check', [
+        $this->logInfo('PaymentOrderService: Payment option enabled check', [
             'program_id' => $programId,
             'option_id' => $optionId,
             'enabled' => $enabled

@@ -3,12 +3,13 @@
 namespace App\Services\Client\PaymentGateway;
 
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class VirtualPosService
 {
+    use SystemLogging;
     private $client;
     private $baseUrl;
     private $config;
@@ -84,7 +85,7 @@ class VirtualPosService
                 'Authorization' => $config['api_key'],
                 'Signature' => $signature
             ];
-            Log::info('VirtualPOS createTransaction request', [
+            $this->logInfo('VirtualPOS createTransaction request', [
                 'order_id' => $orderId,
                 'amount' => $amount,
                 'config_key' => $configKey,
@@ -100,7 +101,7 @@ class VirtualPosService
 
             $result = json_decode($response->getBody()->getContents(), true);
 
-            Log::info('VirtualPOS createTransaction response', [
+            $this->logInfo('VirtualPOS createTransaction response', [
                 'order_id' => $orderId,
                 'http_status' => $response->getStatusCode(),
                 'response' => $result,
@@ -150,11 +151,11 @@ class VirtualPosService
                 ];
             }
         } catch (\Exception $e) {
-            Log::error('VirtualPOS createTransaction error', [
+            $this->logError('VirtualPOS createTransaction error', [
                 'order_id' => $orderId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -181,7 +182,7 @@ class VirtualPosService
                 'Signature' => $signature
             ];
 
-            Log::info('VirtualPOS confirmTransaction request', [
+            $this->logInfo('VirtualPOS confirmTransaction request', [
                 'payment_id' => $paymentId,
                 'commerce_code' => $config['commerce_code']
             ]);
@@ -192,7 +193,7 @@ class VirtualPosService
 
             $result = json_decode($response->getBody()->getContents(), true);
 
-            Log::info('VirtualPOS confirmTransaction response', [
+            $this->logInfo('VirtualPOS confirmTransaction response', [
                 'payment_id' => $paymentId,
                 'http_status' => $response->getStatusCode(),
                 'response' => $result,
@@ -222,11 +223,11 @@ class VirtualPosService
                 ];
             }
         } catch (\Exception $e) {
-            Log::error('VirtualPOS confirmTransaction error', [
+            $this->logError('VirtualPOS confirmTransaction error', [
                 'payment_id' => $paymentId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -241,7 +242,7 @@ class VirtualPosService
     public function processNotification($notificationData)
     {
         try {
-            Log::info('VirtualPOS notification received', $notificationData);
+            $this->logInfo('VirtualPOS notification received', $notificationData);
 
             $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? null;
             $status = $notificationData['status'] ?? null;
@@ -249,7 +250,7 @@ class VirtualPosService
             $currency = $notificationData['currency'] ?? 'CLP';
 
             if (!$paymentId) {
-                Log::error('VirtualPOS notification: No payment_id provided', $notificationData);
+                $this->logError('VirtualPOS notification: No payment_id provided', $notificationData);
                 return [
                     'success' => false,
                     'error' => 'No payment_id provided'
@@ -258,7 +259,7 @@ class VirtualPosService
 
             // Verificar que la notificación sea válida
             if (!$this->validateNotification($notificationData)) {
-                Log::error('VirtualPOS notification: Invalid signature or data', $notificationData);
+                $this->logError('VirtualPOS notification: Invalid signature or data', $notificationData);
                 return [
                     'success' => false,
                     'error' => 'Invalid notification signature'
@@ -281,10 +282,10 @@ class VirtualPosService
                 'error' => $isApproved ? null : ($notificationData['message'] ?? 'Pago no aprobado')
             ];
         } catch (\Exception $e) {
-            Log::error('VirtualPOS processNotification error', [
+            $this->logError('VirtualPOS processNotification error', [
                 'error' => $e->getMessage(),
                 'notification_data' => $notificationData
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -332,16 +333,16 @@ class VirtualPosService
 
             $jwtSignature = JWT::encode($jwtPayload, $config['secret_key'], 'HS256');
 
-            Log::info('VirtualPOS JWT signature generated', [
+            $this->logInfo('VirtualPOS JWT signature generated', [
                 'api_key' => $config['api_key'],
                 'uuid' => $jwtPayload['uuid']
             ]);
 
             return $jwtSignature;
         } catch (\Exception $e) {
-            Log::error('Error generating JWT signature for VirtualPOS', [
+            $this->logError('Error generating JWT signature for VirtualPOS', [
                 'error' => $e->getMessage()
-            ]);
+            ], $e);
             throw $e;
         }
     }
@@ -383,10 +384,10 @@ class VirtualPosService
                 throw new \Exception($errorMessage);
             }
         } catch (\Exception $e) {
-            Log::error('Error getting checkout URL for VirtualPOS', [
+            $this->logError('Error getting checkout URL for VirtualPOS', [
                 'payment_uuid' => $paymentUuid,
                 'error' => $e->getMessage()
-            ]);
+            ], $e);
             throw $e;
         }
     }
@@ -446,7 +447,7 @@ class VirtualPosService
     {
         // TODO: Implementar validación de firma según documentación de VirtualPOS
         // Por ahora retornamos true, pero deberías implementar la validación real
-        Log::info('VirtualPOS notification validation: Implementar validación de firma');
+        $this->logInfo('VirtualPOS notification validation: Implementar validación de firma');
         return true;
     }
 }

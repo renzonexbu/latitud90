@@ -6,11 +6,12 @@ use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Services\PDF\PaymentReceiptService;
 use App\Services\PDF\ContractService;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 
 class SuccessPaymentEmailService
 {
+    use SystemLogging;
     /**
      * Enviar email de confirmación de pago exitoso
      */
@@ -65,7 +66,7 @@ class SuccessPaymentEmailService
                 }
             });
 
-            Log::info('SuccessPaymentEmailService: Email con PDF adjunto enviado exitosamente', [
+            $this->logInfo('SuccessPaymentEmailService: Email con PDF adjunto enviado exitosamente', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'customer_email' => $emailData['customer_email'],
@@ -76,11 +77,11 @@ class SuccessPaymentEmailService
 
             return true;
         } catch (\Exception $e) {
-            Log::error('SuccessPaymentEmailService: Error enviando email', [
+            $this->logError('SuccessPaymentEmailService: Error enviando email', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
 
             return false;
         } finally {
@@ -123,7 +124,7 @@ class SuccessPaymentEmailService
         $currentInstallment = $orderDetail->installment_number;
         
         // Log para debugging
-        Log::info('SuccessPaymentEmailService: Verificando envío de contrato', [
+        $this->logInfo('SuccessPaymentEmailService: Verificando envío de contrato', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'total_installments' => $totalInstallments,
@@ -136,7 +137,7 @@ class SuccessPaymentEmailService
         
         // Si es pago total (una sola cuota)
         if ($totalInstallments == 1) {
-            Log::info('SuccessPaymentEmailService: Enviando contrato - Pago total', [
+            $this->logInfo('SuccessPaymentEmailService: Enviando contrato - Pago total', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
             ]);
@@ -145,14 +146,14 @@ class SuccessPaymentEmailService
         
         // Si es pago mensual y es la primera cuota
         if ($currentInstallment == 1) {
-            Log::info('SuccessPaymentEmailService: Enviando contrato - Primera cuota', [
+            $this->logInfo('SuccessPaymentEmailService: Enviando contrato - Primera cuota', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
             ]);
             return true;
         }
         
-        Log::info('SuccessPaymentEmailService: NO enviando contrato - No cumple condiciones', [
+        $this->logInfo('SuccessPaymentEmailService: NO enviando contrato - No cumple condiciones', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'total_installments' => $totalInstallments,
@@ -198,7 +199,7 @@ class SuccessPaymentEmailService
         try {
             // Verificar que tenemos el token de Bsale
             if (!$payment->bsale_token) {
-                Log::warning('SuccessPaymentEmailService: No hay token de Bsale para descargar PDF', [
+                $this->logWarning('SuccessPaymentEmailService: No hay token de Bsale para descargar PDF', [
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $payment->bsale_document_id,
                     'bsale_number' => $payment->bsale_number,
@@ -225,7 +226,7 @@ class SuccessPaymentEmailService
             if ($response->successful()) {
                 file_put_contents($filePath, $response->body());
                 
-                Log::info('SuccessPaymentEmailService: PDF de Bsale descargado exitosamente', [
+                $this->logInfo('SuccessPaymentEmailService: PDF de Bsale descargado exitosamente', [
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $payment->bsale_document_id,
                     'bsale_number' => $payment->bsale_number,
@@ -236,7 +237,7 @@ class SuccessPaymentEmailService
                 
                 return $filePath;
             } else {
-                Log::error('SuccessPaymentEmailService: Error descargando PDF de Bsale', [
+                $this->logError('SuccessPaymentEmailService: Error descargando PDF de Bsale', [
                     'payment_id' => $payment->id,
                     'bsale_url' => $bsaleUrl,
                     'response_status' => $response->status(),
@@ -247,10 +248,10 @@ class SuccessPaymentEmailService
             }
             
         } catch (\Exception $e) {
-            Log::error('SuccessPaymentEmailService: Error descargando PDF de Bsale', [
+            $this->logError('SuccessPaymentEmailService: Error descargando PDF de Bsale', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             
             return null;
         }

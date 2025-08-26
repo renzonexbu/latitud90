@@ -4,10 +4,12 @@ namespace App\Services\Client\PaymentProcessing;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class RecordPendingPaymentService
 {
+    use SystemLogging;
+
     /**
      * Registrar pago pendiente en payments
      *
@@ -20,9 +22,9 @@ class RecordPendingPaymentService
     {
         try {
             $buyOrder = $orderDetail->order_id . '-' . $orderDetail->installment_number;
-            
+
             // Log para verificar que los datos del orderDetail estén correctos
-            Log::info('Recording pending payment', [
+            $this->logInfo('Recording pending payment', [
                 'order_detail_id' => $orderDetail->id,
                 'installment_number' => $orderDetail->installment_number,
                 'payment_gateway_id' => $orderDetail->payment_gateway_id,
@@ -30,7 +32,7 @@ class RecordPendingPaymentService
                 'gateway_type' => $gatewayType,
                 'amount' => $orderDetail->amount
             ]);
-            
+
             $commonData = [
                 'order_id' => $orderDetail->order_id,
                 'order_detail_id' => $orderDetail->id,
@@ -103,15 +105,15 @@ class RecordPendingPaymentService
 
                 $payment = Payment::create($data);
             }
-            
-            Log::info('Payment record created successfully', [
+
+            $this->logInfo('Payment record created successfully', [
                 'payment_id' => $payment->id,
                 'payment_gateway_id' => $payment->payment_gateway_id,
                 'payment_option_id' => $payment->payment_option_id,
                 'gateway_type' => $gatewayType
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error recording pending payment', [
+            $this->logError('Error recording pending payment', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
             ]);

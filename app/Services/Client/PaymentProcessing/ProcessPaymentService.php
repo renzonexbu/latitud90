@@ -14,11 +14,13 @@ use App\Services\Client\PaymentProcessing\UpdateBuyerDataService;
 use App\Services\Client\PaymentProcessing\StoreFrequentClientService;
 use App\Services\Client\PaymentProcessing\CreateGatewayTransactionService;
 use App\Services\Client\PaymentProcessing\RecordPendingPaymentService;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ProcessPaymentService
 {
+    use SystemLogging;
+
     public function __construct(
         private InstallmentService $installmentService,
         private PaymentOrderService $paymentOrderService,
@@ -54,18 +56,18 @@ class ProcessPaymentService
             // Obtener datos del localStorage (enviados desde el frontend)
             $paymentData = $request->input('paymentData');
             $formData = $request->input('formData');
-            
+
             // Agregar session_id a los datos de pago
             $sessionId = $request->input('session_id');
             if ($sessionId) {
                 $paymentData['session_id'] = $sessionId;
-                Log::info('Session ID received from frontend', [
+                $this->logInfo('Session ID received from frontend', [
                     'session_id' => $sessionId,
                     'program_id' => $programId,
                     'rut' => $rut
                 ]);
             } else {
-                Log::warning('No session_id received from frontend', [
+                $this->logWarning('No session_id received from frontend', [
                     'program_id' => $programId,
                     'rut' => $rut
                 ]);
@@ -87,7 +89,7 @@ class ProcessPaymentService
                 ];
             }
 
-            Log::info('Processing payment', [
+            $this->logInfo('Processing payment', [
                 'program_id' => $programId,
                 'rut' => $rut,
                 'payment_type' => $paymentData['paymentType'] ?? 'unknown',
@@ -95,7 +97,7 @@ class ProcessPaymentService
             ]);
 
             // Log para verificar que session_id se está pasando correctamente
-            Log::info('Processing payment with session_id', [
+            $this->logInfo('Processing payment with session_id', [
                 'session_id' => $paymentData['session_id'] ?? 'NULL',
                 'payment_type' => $paymentData['paymentType'] ?? 'unknown'
             ]);
@@ -142,7 +144,7 @@ class ProcessPaymentService
             // NO marcar la cuota como pagada aquí
             // Solo se marcará como pagada cuando se confirme el pago con la pasarela
             if ($installment) {
-                Log::info('Installment payment initiated, will be marked as paid when confirmed', [
+                $this->logInfo('Installment payment initiated, will be marked as paid when confirmed', [
                     'installment_id' => $installment->id,
                     'installment_number' => $installment->installment_number,
                     'order_id' => $order->id,
@@ -172,9 +174,8 @@ class ProcessPaymentService
                 'gateway_token' => $gatewayToken,
                 'gateway_type' => $frontendGatewayType
             ];
-
         } catch (\Exception $e) {
-            Log::error('Error processing payment', [
+            $this->logError('Error processing payment', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -193,7 +194,10 @@ class ProcessPaymentService
     {
         // Crear o recuperar plan de cuotas
         $installmentResult = $this->installmentService->createOrGetInstallmentPlan(
-            $programId, $rut, $paymentData, $formData
+            $programId,
+            $rut,
+            $paymentData,
+            $formData
         );
 
         if (!$installmentResult['success']) {
@@ -205,7 +209,9 @@ class ProcessPaymentService
 
         // Crear nueva orden de pago para esta cuota específica
         $paymentResult = $this->paymentOrderService->createPaymentOrder(
-            $nextInstallment, $paymentData, $formData
+            $nextInstallment,
+            $paymentData,
+            $formData
         );
 
         if (!$paymentResult['success']) {
@@ -227,7 +233,10 @@ class ProcessPaymentService
     {
         // Crear nueva orden de pago total
         return $this->paymentOrderService->createTotalPaymentOrder(
-            $programId, $rut, $paymentData, $formData
+            $programId,
+            $rut,
+            $paymentData,
+            $formData
         );
     }
 
@@ -238,15 +247,14 @@ class ProcessPaymentService
     {
         $methodRaw = (string) $method;
         // VirtualPOS: debit_credit_0, debit_credit_3, etc.
-        if (stripos($methodRaw, 'debit_credit') !== false) { 
-            return 'virtualpos'; 
+        if (stripos($methodRaw, 'debit_credit') !== false) {
+            return 'virtualpos';
         }
         // Legacy Transbank
-        else if (stripos($methodRaw, 'credit') !== false) { 
-            return 'credit'; 
-        }
-        else if (stripos($methodRaw, 'debit') !== false) { 
-            return 'debit'; 
+        else if (stripos($methodRaw, 'credit') !== false) {
+            return 'credit';
+        } else if (stripos($methodRaw, 'debit') !== false) {
+            return 'debit';
         }
         return 'other';
     }

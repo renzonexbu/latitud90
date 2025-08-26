@@ -13,10 +13,12 @@ use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\InstallmentPlan;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
 
 class ProgramDetailService
 {
+    use SystemLogging;
     public function getProgramDetails($programId, $participantId)
     {
         $program = Program::with([

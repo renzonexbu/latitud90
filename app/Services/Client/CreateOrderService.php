@@ -12,11 +12,12 @@ use App\Models\Comune;
 use App\Models\Document;
 use Carbon\Carbon;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class CreateOrderService
 {
+    use SystemLogging;
     public function createOrder($programId, $rut, $paymentData, $formData)
     {
         try {
@@ -104,7 +105,7 @@ class CreateOrderService
 
             DB::commit();
 
-            Log::info('Order created successfully', [
+            $this->logInfo('Order created successfully', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'participant_rut' => $rut,
@@ -122,11 +123,11 @@ class CreateOrderService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating order', [
+            $this->logError('Error creating order', [
                 'error' => $e->getMessage(),
                 'program_id' => $programId,
                 'rut' => $rut
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -400,7 +401,7 @@ class CreateOrderService
             'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
         ]);
         
-        Log::info('Existing OrderDetail updated with new buyer data and payment method', [
+        $this->logInfo('Existing OrderDetail updated with new buyer data and payment method', [
             'order_detail_id' => $orderDetail->id,
             'installment_number' => $orderDetail->installment_number,
             'payment_option_id' => $paymentOptionId,

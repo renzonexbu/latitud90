@@ -3,15 +3,16 @@
 namespace App\Services\Client\PaymentGateway;
 
 use App\Models\Payment;
-use App\Models\Passenger;
-use Illuminate\Support\Facades\Log;
 use Transbank\Webpay\WebpayPlus\MallTransaction;
 use Transbank\Webpay\Options;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCreateException;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCommitException;
+use App\Traits\SystemLogging;
 
 class TransbankService
 {
+    use SystemLogging;
+
     private string $apiKey;
     private string $parentCommerceCode;
     private string $childCommerceCode;
@@ -123,7 +124,7 @@ class TransbankService
                     'vci' => $commit->getVci(),
                 ],
             ];
-            Log::info('TransbankService: confirmTransaction response', [
+            $this->logInfo('TransbankService: confirmTransaction response', [
                 'response' => $response
             ]);
             return $response;

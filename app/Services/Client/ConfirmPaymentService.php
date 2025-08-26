@@ -8,11 +8,12 @@ use App\Models\Payment;
 use App\Models\Participant;
 use App\Models\InstallmentPlan;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ConfirmPaymentService
 {
+    use SystemLogging;
     public function getConfirmationDetails($programId, $participantId = null, $rut = null)
     {
         $program = Program::with(['course.participants'])->find($programId);
@@ -69,7 +70,7 @@ class ConfirmPaymentService
                 $participantTotalAmount = $priceData['final_price'];
                 
                 // Log para debug
-                Log::info('ConfirmPaymentService: Cálculo de precios del participante', [
+                $this->logInfo('ConfirmPaymentService: Cálculo de precios del participante', [
                     'participant_id' => $participant->id,
                     'program_id' => $program->id,
                     'program_trip_price' => $program->trip_price,
@@ -92,7 +93,7 @@ class ConfirmPaymentService
                     : 0.0;
                     
                 // Log para debug de pagos
-                Log::info('ConfirmPaymentService: Información de pagos del participante', [
+                $this->logInfo('ConfirmPaymentService: Información de pagos del participante', [
                     'participant_id' => $participant->id,
                     'program_id' => $program->id,
                     'paidAmount' => $paidAmount,
@@ -193,7 +194,7 @@ class ConfirmPaymentService
         ];
         
         // Log para debug del resultado final
-        Log::info('ConfirmPaymentService: Resultado final', [
+        $this->logInfo('ConfirmPaymentService: Resultado final', [
             'program_id' => $program->id,
             'participant_id' => $participantId,
             'rut' => $rut,

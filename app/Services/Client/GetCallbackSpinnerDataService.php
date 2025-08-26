@@ -3,10 +3,11 @@
 namespace App\Services\Client;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class GetCallbackSpinnerDataService
 {
+    use SystemLogging;
     /**
      * Obtener datos para la vista de callback spinner
      *
@@ -19,7 +20,7 @@ class GetCallbackSpinnerDataService
         // Pasar RUT desde sesión para preservarlo en redirecciones
         $rut = session('current_rut');
         
-        Log::info('GetCallbackSpinnerDataService: callbackSpinner', [
+        $this->logInfo('GetCallbackSpinnerDataService: callbackSpinner', [
             'order_detail_id' => $orderDetailId,
             'token_ws' => $request->query('token_ws'),
             'rut_in_session' => $rut,

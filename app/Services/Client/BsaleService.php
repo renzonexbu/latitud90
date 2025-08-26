@@ -4,11 +4,12 @@ namespace App\Services\Client;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class BsaleService
 {
+    use SystemLogging;
     private $baseUrl = 'https://api.bsale.io/v1';
     private $token;
     private $documentTypeId;
@@ -36,7 +37,7 @@ class BsaleService
 
             if ($response->successful()) {
                 $documentTypes = $response->json();
-                Log::info('BsaleService: Tipos de documento obtenidos', [
+                $this->logInfo('BsaleService: Tipos de documento obtenidos', [
                     'document_types' => $documentTypes,
                     'document_types_type' => gettype($documentTypes),
                     'document_types_json' => json_encode($documentTypes, JSON_PRETTY_PRINT),
@@ -44,7 +45,7 @@ class BsaleService
                 return $documentTypes;
             }
 
-            Log::error('BsaleService: Error obteniendo tipos de documento', [
+            $this->logError('BsaleService: Error obteniendo tipos de documento', [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
@@ -52,9 +53,9 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error obteniendo tipos de documento', [
+            $this->logError('BsaleService: Error obteniendo tipos de documento', [
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             return null;
         }
     }
@@ -91,13 +92,13 @@ class BsaleService
 
             if ($response->successful()) {
                 $priceLists = $response->json();
-                Log::info('BsaleService: Listas de precios obtenidas', [
+                $this->logInfo('BsaleService: Listas de precios obtenidas', [
                     'price_lists' => $priceLists,
                 ]);
                 return $priceLists;
             }
 
-            Log::error('BsaleService: Error obteniendo listas de precios', [
+            $this->logError('BsaleService: Error obteniendo listas de precios', [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
@@ -105,9 +106,9 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error obteniendo listas de precios', [
+            $this->logError('BsaleService: Error obteniendo listas de precios', [
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             return null;
         }
     }
@@ -125,11 +126,11 @@ class BsaleService
             ]);
 
             if ($response->successful()) {
-                Log::info('BsaleService: Conexión exitosa con Bsale API');
+                $this->logInfo('BsaleService: Conexión exitosa con Bsale API');
                 return true;
             }
 
-            Log::error('BsaleService: Error de conexión con Bsale API', [
+            $this->logError('BsaleService: Error de conexión con Bsale API', [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
@@ -137,9 +138,9 @@ class BsaleService
             return false;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error de conectividad con Bsale API', [
+            $this->logError('BsaleService: Error de conectividad con Bsale API', [
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             return false;
         }
     }
@@ -156,7 +157,7 @@ class BsaleService
             // Permitir invertir la lógica vía config para pruebas
             $shouldSkip = $this->invertSameYearLogic ? $isSameYear : !$isSameYear;
             if ($shouldSkip) {
-                Log::info('BsaleService: Condición de "mismo año" no cumple generación (configurable)', [
+                $this->logInfo('BsaleService: Condición de "mismo año" no cumple generación (configurable)', [
                     'program_id' => $program->id,
                     'departure_date' => $program->departure_date,
                     'is_same_year' => $isSameYear,
@@ -175,7 +176,7 @@ class BsaleService
             $documentData = $this->createDocument($orderDetail, $payment, $customerId);
             
             // Log completo de la respuesta de Bsale
-            Log::info('BsaleService: Respuesta completa de Bsale', [
+            $this->logInfo('BsaleService: Respuesta completa de Bsale', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'bsale_response' => $documentData,
@@ -187,11 +188,11 @@ class BsaleService
             return $documentData;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error generando boleta', [
+            $this->logError('BsaleService: Error generando boleta', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
 
             // No lanzar excepción para no interrumpir el flujo de pago
             return null;
@@ -230,7 +231,7 @@ class BsaleService
             ];
 
             // Log de datos del cliente
-            Log::info('BsaleService: Datos del cliente para Bsale', [
+            $this->logInfo('BsaleService: Datos del cliente para Bsale', [
                 'order_detail_id' => $orderDetail->id,
                 'customer_data' => $customerData,
                 'customer_data_json' => json_encode($customerData, JSON_PRETTY_PRINT),
@@ -239,14 +240,14 @@ class BsaleService
             // Buscar cliente existente por email
             $existingCustomer = $this->findCustomerByEmail($orderDetail->email);
             if ($existingCustomer) {
-                Log::info('BsaleService: Cliente existente encontrado', [
+                $this->logInfo('BsaleService: Cliente existente encontrado', [
                     'order_detail_id' => $orderDetail->id,
                     'existing_customer' => $existingCustomer,
                 ]);
                 
                 // Si el cliente existente no tiene company, crear uno nuevo
                 if (empty($existingCustomer['company'])) {
-                    Log::info('BsaleService: Cliente existente sin company, creando nuevo cliente', [
+                    $this->logInfo('BsaleService: Cliente existente sin company, creando nuevo cliente', [
                         'order_detail_id' => $orderDetail->id,
                         'existing_customer_id' => $existingCustomer['id'],
                     ]);
@@ -259,14 +260,14 @@ class BsaleService
 
                     if ($response->successful()) {
                         $customer = $response->json();
-                        Log::info('BsaleService: Nuevo cliente creado exitosamente', [
+                        $this->logInfo('BsaleService: Nuevo cliente creado exitosamente', [
                             'order_detail_id' => $orderDetail->id,
                             'new_customer' => $customer,
                             'new_customer_json' => json_encode($customer, JSON_PRETTY_PRINT),
                         ]);
                         return $customer['id'];
                     } else {
-                        Log::error('BsaleService: Error creando nuevo cliente', [
+                        $this->logError('BsaleService: Error creando nuevo cliente', [
                             'response' => $response->json(),
                             'status' => $response->status(),
                             'body' => $response->body(),
@@ -286,7 +287,7 @@ class BsaleService
 
             if ($response->successful()) {
                 $customer = $response->json();
-                Log::info('BsaleService: Cliente creado exitosamente', [
+                $this->logInfo('BsaleService: Cliente creado exitosamente', [
                     'order_detail_id' => $orderDetail->id,
                     'new_customer' => $customer,
                     'new_customer_json' => json_encode($customer, JSON_PRETTY_PRINT),
@@ -294,7 +295,7 @@ class BsaleService
                 return $customer['id'];
             }
 
-            Log::error('BsaleService: Error creando cliente', [
+            $this->logError('BsaleService: Error creando cliente', [
                 'response' => $response->json(),
                 'status' => $response->status(),
                 'body' => $response->body(),
@@ -304,9 +305,9 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error en createOrGetCustomer', [
+            $this->logError('BsaleService: Error en createOrGetCustomer', [
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             return null;
         }
     }
@@ -326,7 +327,7 @@ class BsaleService
             if ($response->successful()) {
                 $data = $response->json();
                 $items = is_array($data) && isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
-                Log::info('BsaleService: Respuesta búsqueda cliente por email', [
+                $this->logInfo('BsaleService: Respuesta búsqueda cliente por email', [
                     'email' => $email,
                     'items_count' => count($items),
                     'raw' => $data,
@@ -337,10 +338,10 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService: Error buscando cliente por email', [
+            $this->logError('BsaleService: Error buscando cliente por email', [
                 'email' => $email,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             return null;
         }
     }
@@ -371,7 +372,7 @@ class BsaleService
         ];
 
         // Log de los datos que se envían a Bsale
-        Log::info('BsaleService: Datos enviados a Bsale para crear documento', [
+        $this->logInfo('BsaleService: Datos enviados a Bsale para crear documento', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'customer_id' => $customerId,
@@ -385,7 +386,7 @@ class BsaleService
         ])->post($this->baseUrl . '/documents.json', $documentData);
 
         if (!$response->successful()) {
-            Log::error('BsaleService: Error en respuesta de Bsale', [
+            $this->logError('BsaleService: Error en respuesta de Bsale', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'response_status' => $response->status(),
@@ -398,7 +399,7 @@ class BsaleService
         $responseData = $response->json();
         
         // Log de la respuesta completa de Bsale
-        Log::info('BsaleService: Respuesta completa de Bsale al crear documento', [
+        $this->logInfo('BsaleService: Respuesta completa de Bsale al crear documento', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'response_status' => $response->status(),

@@ -5,11 +5,12 @@ namespace App\Services\PDF;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\SystemLogging;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Log;
 
 class PaymentReceiptService
 {
+    use SystemLogging;
     /**
      * Generar PDF de comprobante de pago
      */
@@ -33,7 +34,7 @@ class PaymentReceiptService
             
             $pdf->save($tempPath);
             
-            Log::info('PaymentReceiptService: PDF generado exitosamente', [
+            $this->logInfo('PaymentReceiptService: PDF generado exitosamente', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'filename' => $filename,
@@ -41,11 +42,11 @@ class PaymentReceiptService
             
             return $tempPath;
         } catch (\Exception $e) {
-            Log::error('PaymentReceiptService: Error generando PDF', [
+            $this->logError('PaymentReceiptService: Error generando PDF', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             
             throw $e;
         }

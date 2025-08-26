@@ -3,10 +3,11 @@
 namespace App\Services\Client;
 
 use App\Models\OrderDetail;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class CheckPaymentStatusService
 {
+    use SystemLogging;
     /**
      * Verificar estado del pago
      *
@@ -26,10 +27,10 @@ class CheckPaymentStatusService
                 'order_id' => $orderDetail->order_id
             ];
         } catch (\Exception $e) {
-            Log::error('CheckPaymentStatusService: Error checking payment status', [
+            $this->logError('CheckPaymentStatusService: Error checking payment status', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId
-            ]);
+            ], $e);
 
             return [
                 'success' => false,

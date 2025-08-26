@@ -5,11 +5,12 @@ namespace App\Services\Client;
 use App\Models\Program;
 use App\Models\Payment;
 use App\Models\Order;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class GeneratePaymentService
 {
+    use SystemLogging;
     public function getPaymentDetails($programId, $participantId = null, $rut = null)
     {
         $program = Program::find($programId);
@@ -138,7 +139,7 @@ class GeneratePaymentService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error generando pago: ' . $e->getMessage());
+            $this->logError('Error generando pago: ' . $e->getMessage(), [], $e);
             
             return [
                 'success' => false,

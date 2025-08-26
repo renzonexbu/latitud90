@@ -3,10 +3,11 @@
 namespace App\Services\Client;
 
 use App\Services\Client\PaymentGateway\PaymentConfirmationService;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class GetSuccessDataService
 {
+    use SystemLogging;
     public function __construct(
         private PaymentConfirmationService $paymentConfirmationService
     ) {}
@@ -33,10 +34,10 @@ class GetSuccessDataService
                 'rut' => session('current_rut'),
             ];
         } catch (\Exception $e) {
-            Log::error('GetSuccessDataService: Error showing success', [
+            $this->logError('GetSuccessDataService: Error showing success', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
-            ]);
+            ], $e);
             
             throw $e;
         }

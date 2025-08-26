@@ -3,11 +3,12 @@
 namespace App\Services\Client;
 
 use App\Models\OrderDetail;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ProcessPaymentResultService
 {
+    use SystemLogging;
     /**
      * Procesar resultado del pago y determinar redirección
      *
@@ -40,10 +41,10 @@ class ProcessPaymentResultService
                     ]);
             }
         } catch (\Exception $e) {
-            Log::error('ProcessPaymentResultService: Error processing payment result', [
+            $this->logError('ProcessPaymentResultService: Error processing payment result', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId
-            ]);
+            ], $e);
 
             // Persistir RUT si es posible
             if (isset($orderDetail) && $orderDetail && $orderDetail->document_number) {

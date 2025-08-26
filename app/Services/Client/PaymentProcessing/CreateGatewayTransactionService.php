@@ -5,10 +5,12 @@ namespace App\Services\Client\PaymentProcessing;
 use App\Models\OrderDetail;
 use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Client\PaymentGateway\KhipuService;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class CreateGatewayTransactionService
 {
+    use SystemLogging;
+
     public function __construct(
         private VirtualPosService $virtualPosService,
         private KhipuService $khipuService
@@ -27,7 +29,7 @@ class CreateGatewayTransactionService
         $orderId = $orderDetail->order_id . '-' . $orderDetail->installment_number;
 
         // Log para verificar el estado del OrderDetail antes de crear la transacción
-        Log::info('Creating gateway transaction', [
+        $this->logInfo('Creating gateway transaction', [
             'order_detail_id' => $orderDetail->id,
             'installment_number' => $orderDetail->installment_number,
             'current_payment_gateway_id' => $orderDetail->payment_gateway_id,
@@ -44,29 +46,37 @@ class CreateGatewayTransactionService
         $method = (string) ($paymentData['paymentMethod'] ?? '');
         $normalizedMethod = $method;
         $installmentsOverride = null;
-        
+
         if ($method !== '') {
             // VirtualPOS: debit_credit_0, debit_credit_3, debit_credit_6, debit_credit_9, debit_credit_12
             if (stripos($method, 'debit_credit') !== false) {
                 $normalizedMethod = 'credit';
                 if (preg_match('/(\d+)/', $method, $m)) {
                     $n = (int) $m[1];
-                    if ($n > 0) { $installmentsOverride = $n; }
+                    if ($n > 0) {
+                        $installmentsOverride = $n;
+                    }
                 }
-                if ($installmentsOverride === null) { $installmentsOverride = 1; }
+                if ($installmentsOverride === null) {
+                    $installmentsOverride = 1;
+                }
             }
             // Legacy Transbank: credit_0, credit_3, etc.
             else if (stripos($method, 'credit') !== false) {
                 $normalizedMethod = 'credit';
                 if (preg_match('/(\d+)/', $method, $m)) {
                     $n = (int) $m[1];
-                    if ($n > 0) { $installmentsOverride = $n; }
+                    if ($n > 0) {
+                        $installmentsOverride = $n;
+                    }
                 }
-                if ($installmentsOverride === null) { $installmentsOverride = 1; }
+                if ($installmentsOverride === null) {
+                    $installmentsOverride = 1;
+                }
             }
         }
 
-        Log::info('createGatewayTransaction normalized method', [
+        $this->logInfo('createGatewayTransaction normalized method', [
             'original' => $method,
             'normalized' => $normalizedMethod,
             'installmentsOverride' => $installmentsOverride,
@@ -100,7 +110,7 @@ class CreateGatewayTransactionService
             case 'khipu':
                 // Para Khipu, necesitamos crear la transacción primero para obtener el payment_id
                 $khipuResult = $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, null);
-                
+
                 if ($khipuResult['success']) {
                     // Agregar el payment_id a la URL de retorno
                     $paymentId = $khipuResult['payment_id'] ?? null;
@@ -110,7 +120,7 @@ class CreateGatewayTransactionService
                         $khipuResult['return_url'] = $khipuCallbackUrlWithPaymentId;
                     }
                 }
-                
+
                 return $khipuResult;
 
             default:

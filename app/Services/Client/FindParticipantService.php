@@ -4,9 +4,11 @@ namespace App\Services\Client;
 
 use App\Models\Participant;
 use App\Models\Document;
+use App\Traits\SystemLogging;
 
 class FindParticipantService
 {
+    use SystemLogging;
     public function findByDocument(string $documentNumber, ?string $documentType = null): ?Participant
     {
         // Si no se especifica el tipo de documento, detectarlo automáticamente

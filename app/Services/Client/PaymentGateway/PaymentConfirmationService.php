@@ -11,11 +11,12 @@ use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\BsaleService;
 use App\Services\EcommerceAnalyticsService;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
 
 class PaymentConfirmationService
 {
+    use SystemLogging;
     private $transbankService;
     private $khipuService;
     private $emailService;
@@ -44,7 +45,7 @@ class PaymentConfirmationService
         try {
             $orderDetail = OrderDetail::findOrFail($orderDetailId);
 
-            Log::info('PaymentConfirmationService: confirmPayment', [
+            $this->logInfo('PaymentConfirmationService: confirmPayment', [
                 'order_detail_id' => $orderDetailId,
                 'gateway_type' => $gatewayType,
                 'gateway_data' => $gatewayData,
@@ -59,7 +60,7 @@ class PaymentConfirmationService
             $lastResult = null;
 
             while ($attempt <= $maxAttempts) {
-                Log::info('PaymentConfirmationService: Intento de confirmación', [
+                $this->logInfo('PaymentConfirmationService: Intento de confirmación', [
                     'order_detail_id' => $orderDetailId,
                     'gateway_type' => $gatewayType,
                     'attempt' => $attempt,
@@ -81,7 +82,7 @@ class PaymentConfirmationService
 
                 // Si el pago fue aprobado, rechazado, cancelado o error, no continuar
                 if (in_array($lastResult['status'], ['approved', 'rejected', 'canceled', 'error'])) {
-                    Log::info('PaymentConfirmationService: Confirmación finalizada', [
+                    $this->logInfo('PaymentConfirmationService: Confirmación finalizada', [
                         'order_detail_id' => $orderDetailId,
                         'status' => $lastResult['status'],
                         'attempt' => $attempt,
@@ -91,7 +92,7 @@ class PaymentConfirmationService
 
                 // Si es pending y no es el último intento, esperar 2 segundos y continuar
                 if ($lastResult['status'] === 'pending' && $attempt < $maxAttempts) {
-                    Log::info('PaymentConfirmationService: Pago pendiente, esperando 2 segundos antes del siguiente intento', [
+                    $this->logInfo('PaymentConfirmationService: Pago pendiente, esperando 2 segundos antes del siguiente intento', [
                         'order_detail_id' => $orderDetailId,
                         'attempt' => $attempt,
                     ]);
@@ -102,7 +103,7 @@ class PaymentConfirmationService
             }
 
             // Si llegamos aquí, se agotaron los intentos
-            Log::info('PaymentConfirmationService: Se agotaron los intentos de confirmación', [
+            $this->logInfo('PaymentConfirmationService: Se agotaron los intentos de confirmación', [
                 'order_detail_id' => $orderDetailId,
                 'gateway_type' => $gatewayType,
                 'final_status' => $lastResult['status'] ?? 'unknown',
@@ -118,11 +119,11 @@ class PaymentConfirmationService
                 'data' => $lastResult['data'] ?? null,
             ];
         } catch (\Exception $e) {
-            Log::error('PaymentConfirmationService: Error confirming payment', [
+            $this->logError('PaymentConfirmationService: Error confirming payment', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
                 'gateway_type' => $gatewayType,
-            ]);
+            ], $e);
 
             return [
                 'success' => false,
@@ -158,14 +159,14 @@ class PaymentConfirmationService
     {
         $tokenWs = $gatewayData['token_ws'] ?? null;
 
-        Log::info('PaymentConfirmationService: confirmTransbankPayment', [
+        $this->logInfo('PaymentConfirmationService: confirmTransbankPayment', [
             'order_detail_id' => $orderDetail->id,
             'gateway_data' => $gatewayData,
             'token_ws' => $tokenWs,
         ]);
 
         if (!$tokenWs) {
-            Log::error('PaymentConfirmationService: Token de Transbank no proporcionado', [
+            $this->logError('PaymentConfirmationService: Token de Transbank no proporcionado', [
                 'order_detail_id' => $orderDetail->id,
                 'gateway_data' => $gatewayData,
             ]);
@@ -207,11 +208,11 @@ class PaymentConfirmationService
                 ];
             }
         } catch (\Exception $e) {
-            Log::error('PaymentConfirmationService: Error confirming Transbank payment', [
+            $this->logError('PaymentConfirmationService: Error confirming Transbank payment', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
                 'token_ws' => $tokenWs,
-            ]);
+            ], $e);
 
             // No crear registro de pago fallido para errores técnicos
             $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
@@ -231,14 +232,14 @@ class PaymentConfirmationService
     {
         $paymentId = $gatewayData['payment_id'] ?? null;
 
-        Log::info('PaymentConfirmationService: confirmKhipuPayment', [
-            'order_detail_id' => $orderDetail->id,
-            'gateway_data' => $gatewayData,
-            'payment_id' => $paymentId,
-        ]);
+                    $this->logInfo('PaymentConfirmationService: confirmKhipuPayment', [
+                'order_detail_id' => $orderDetail->id,
+                'gateway_data' => $gatewayData,
+                'payment_id' => $paymentId,
+            ]);
 
         if (!$paymentId) {
-            Log::error('PaymentConfirmationService: ID de pago de Khipu no proporcionado', [
+            $this->logError('PaymentConfirmationService: ID de pago de Khipu no proporcionado', [
                 'order_detail_id' => $orderDetail->id,
                 'gateway_data' => $gatewayData,
             ]);
@@ -321,11 +322,11 @@ class PaymentConfirmationService
                     ];
             }
         } catch (\Exception $e) {
-            Log::error('PaymentConfirmationService: Error confirming Khipu payment', [
+            $this->logError('PaymentConfirmationService: Error confirming Khipu payment', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $paymentId,
-            ]);
+            ], $e);
 
             // No crear registro de pago fallido para errores técnicos
             $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
@@ -395,7 +396,7 @@ class PaymentConfirmationService
             'session_id' => $sessionId, // Pasar el session_id al analytics
         ], null);
 
-        Log::info('PaymentConfirmationService: Payment processed successfully', [
+        $this->logInfo('PaymentConfirmationService: Payment processed successfully', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'gateway_type' => $gatewayType,
@@ -447,7 +448,7 @@ class PaymentConfirmationService
         // Registrar pago fallido en analytics
         $this->analyticsService->recordPaymentFailedFromBackend($orderDetail, $errorMessage);
 
-        Log::info('PaymentConfirmationService: Failed payment processed', [
+        $this->logInfo('PaymentConfirmationService: Failed payment processed', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'gateway_type' => $gatewayType,
@@ -478,7 +479,7 @@ class PaymentConfirmationService
             })
             ->get();
         
-        Log::info('PaymentConfirmationService: Processing installments - Debug', [
+        $this->logInfo('PaymentConfirmationService: Processing installments - Debug', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'installment_number' => $orderDetail->installment_number,
@@ -506,7 +507,7 @@ class PaymentConfirmationService
             );
         }
 
-        Log::info('PaymentConfirmationService: Processing installments', [
+        $this->logInfo('PaymentConfirmationService: Processing installments', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'installments_processed' => $installments->count(),
@@ -562,10 +563,10 @@ class PaymentConfirmationService
                     $pendingPayment->gateway_data
                 );
             } catch (\Exception $e) {
-                Log::error('PaymentConfirmationService: Error processing pending payment', [
+                $this->logError('PaymentConfirmationService: Error processing pending payment', [
                     'pending_payment_id' => $pendingPayment->id,
                     'error' => $e->getMessage(),
-                ]);
+                ], $e);
             }
         }
     }
@@ -585,7 +586,7 @@ class PaymentConfirmationService
                     'bsale_number' => $bsaleResult['number'] ?? null,
                 ]);
                 
-                Log::info('PaymentConfirmationService: Boleta Bsale generada exitosamente', [
+                $this->logInfo('PaymentConfirmationService: Boleta Bsale generada exitosamente', [
                     'order_detail_id' => $orderDetail->id,
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $bsaleResult['id'] ?? null,
@@ -593,11 +594,11 @@ class PaymentConfirmationService
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('PaymentConfirmationService: Error generando boleta Bsale', [
+            $this->logError('PaymentConfirmationService: Error generando boleta Bsale', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-            ]);
+            ], $e);
             // No lanzar excepción para no interrumpir el flujo de pago
         }
     }

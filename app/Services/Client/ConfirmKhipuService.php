@@ -5,11 +5,12 @@ namespace App\Services\Client;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\KhipuService;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ConfirmKhipuService
 {
+    use SystemLogging;
     public function __construct(
         private KhipuService $khipuService
     ) {}
@@ -40,7 +41,7 @@ class ConfirmKhipuService
             }
 
             if (empty($paymentId)) {
-                Log::warning('ConfirmKhipuService: confirmKhipu missing payment_id', [
+                $this->logWarning('ConfirmKhipuService: confirmKhipu missing payment_id', [
                     'order_detail_id' => $orderDetailId,
                 ]);
                 return [
@@ -49,7 +50,7 @@ class ConfirmKhipuService
                 ];
             }
 
-            Log::info('ConfirmKhipuService: confirmKhipu start', [
+            $this->logInfo('ConfirmKhipuService: confirmKhipu start', [
                 'order_detail_id' => $orderDetailId,
                 'payment_id' => $paymentId,
             ]);
@@ -62,7 +63,7 @@ class ConfirmKhipuService
 
             while ($attempts < $maxAttempts) {
                 $attempts++;
-                Log::info('ConfirmKhipuService: confirmKhipu attempt', [
+                $this->logInfo('ConfirmKhipuService: confirmKhipu attempt', [
                     'attempt' => $attempts,
                     'order_detail_id' => $orderDetailId,
                     'payment_id' => $paymentId,
@@ -96,7 +97,7 @@ class ConfirmKhipuService
                 }
 
                 $approved = $status['success'] === true && in_array(($status['status'] ?? ''), ['done', 'paid', 'approved', 'completed']);
-                Log::info('ConfirmKhipuService: confirmKhipu attempt result', [
+                $this->logInfo('ConfirmKhipuService: confirmKhipu attempt result', [
                     'attempt' => $attempts,
                     'approved' => $approved,
                     'status' => $status['status'] ?? null,
@@ -130,7 +131,7 @@ class ConfirmKhipuService
                 }
 
                 if ($approved) {
-                    Log::info('ConfirmKhipuService: confirmKhipu approved', [
+                    $this->logInfo('ConfirmKhipuService: confirmKhipu approved', [
                         'order_detail_id' => $orderDetailId,
                         'payment_id' => $paymentId,
                         'attempt' => $attempts,
@@ -147,7 +148,7 @@ class ConfirmKhipuService
             }
 
             // No aprobado tras reintentos: redirigir a vista informativa (verificación)
-            Log::warning('ConfirmKhipuService: confirmKhipu exhausted attempts without approval', [
+            $this->logWarning('ConfirmKhipuService: confirmKhipu exhausted attempts without approval', [
                 'order_detail_id' => $orderDetailId,
                 'payment_id' => $paymentId,
                 'attempts' => $attempts,
@@ -160,11 +161,11 @@ class ConfirmKhipuService
                 'status' => $status['status'] ?? 'pending',
             ];
         } catch (\Throwable $e) {
-            Log::error('ConfirmKhipuService: Error confirming Khipu transaction', [
+            $this->logError('ConfirmKhipuService: Error confirming Khipu transaction', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
                 'payment_id' => $paymentId,
-            ]);
+            ], $e);
             
             return [
                 'success' => false,
@@ -198,7 +199,7 @@ class ConfirmKhipuService
                     $orderDetail->payments()->latest()->first()->id
                 );
 
-                Log::info('ConfirmKhipuService: Installment marked as paid after payment confirmation', [
+                $this->logInfo('ConfirmKhipuService: Installment marked as paid after payment confirmation', [
                     'installment_id' => $installment->id,
                     'installment_number' => $installment->installment_number,
                     'order_id' => $orderDetail->order_id,
@@ -206,18 +207,18 @@ class ConfirmKhipuService
                     'payment_id' => $orderDetail->payments()->latest()->first()->id
                 ]);
             } else {
-                Log::warning('ConfirmKhipuService: Installment not found for marking as paid', [
+                $this->logWarning('ConfirmKhipuService: Installment not found for marking as paid', [
                     'installment_number' => $orderDetail->installment_number,
                     'participant_id' => $orderDetail->order->participant_id,
                     'program_id' => $orderDetail->order->program_id
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('ConfirmKhipuService: Error marking installment as paid', [
+            $this->logError('ConfirmKhipuService: Error marking installment as paid', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
                 'installment_number' => $orderDetail->installment_number
-            ]);
+            ], $e);
         }
     }
 }

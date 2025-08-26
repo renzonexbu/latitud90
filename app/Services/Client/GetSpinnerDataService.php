@@ -3,11 +3,12 @@
 namespace App\Services\Client;
 
 use App\Models\OrderDetail;
+use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class GetSpinnerDataService
 {
+    use SystemLogging;
     /**
      * Obtener datos para la vista de spinner de pago
      *
@@ -23,7 +24,7 @@ class GetSpinnerDataService
         $gatewayType = $this->determineGatewayType($request);
         $gatewayData = $this->extractGatewayData($request, $gatewayType);
         
-        Log::info('GetSpinnerDataService: showSpinner', [
+        $this->logInfo('GetSpinnerDataService: showSpinner', [
             'order_detail_id' => $orderDetailId,
             'query_params' => $request->query(),
             'gateway_detected' => $gatewayType,

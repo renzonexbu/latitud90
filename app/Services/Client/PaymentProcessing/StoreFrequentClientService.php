@@ -3,10 +3,12 @@
 namespace App\Services\Client\PaymentProcessing;
 
 use App\Services\Client\FrequentClientService;
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class StoreFrequentClientService
 {
+    use SystemLogging;
+
     /**
      * Almacenar cliente frecuente
      *
@@ -36,14 +38,14 @@ class StoreFrequentClientService
                 
                 $storedClient = FrequentClientService::store($frequentClientData);
                 
-                Log::info('Frequent client stored successfully', [
+                $this->logInfo('Frequent client stored successfully', [
                     'client_id' => $storedClient->id,
                     'document' => $storedClient->document,
                     'full_name' => $storedClient->full_name
                 ]);
             }
         } catch (\Exception $e) {
-            Log::error('Error storing frequent client, continuing with payment', [
+            $this->logError('Error storing frequent client, continuing with payment', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

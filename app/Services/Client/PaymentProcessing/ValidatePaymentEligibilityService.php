@@ -2,10 +2,12 @@
 
 namespace App\Services\Client\PaymentProcessing;
 
-use Illuminate\Support\Facades\Log;
+use App\Traits\SystemLogging;
 
 class ValidatePaymentEligibilityService
 {
+    use SystemLogging;
+
     /**
      * Validar el saldo pendiente del participante para el pago
      *
@@ -40,9 +42,9 @@ class ValidatePaymentEligibilityService
 
         // Pagos aprobados previos
         $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
-                $q->where('participant_id', $participant->id)
-                  ->where('program_id', $program->id);
-            })
+            $q->where('participant_id', $participant->id)
+                ->where('program_id', $program->id);
+        })
             ->where('status', 'approved')
             ->sum('amount');
         $paidAmount = round($paidAmount, 2);
@@ -70,7 +72,7 @@ class ValidatePaymentEligibilityService
             }
         }
 
-        Log::info('Payment eligibility validated', [
+        $this->logInfo('Payment eligibility validated', [
             'participant_id' => $participant->id,
             'program_id' => $programId,
             'participant_total_amount' => $participantTotalAmount,
