@@ -57,7 +57,11 @@
                     </div>
                 </div>
                 <div class="boton-m">
-                    <div class="placeholder">Descubre más en nuestra web</div>
+                    <div class="placeholder">
+                        <a href="https://www.latitud90.com" target="_blank">
+                            Descubre más en nuestra web
+                        </a>
+                    </div>
                 </div>
             </div>
 

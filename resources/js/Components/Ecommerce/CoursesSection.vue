@@ -141,16 +141,20 @@
         </div>
 
         <!-- Botón con estilos personalizados - posicionado absolutamente -->
-        <div
-            class="absolute z-10 mobile-button"
-        >
+        <div class="absolute z-10 mobile-button">
             <div class="boton-m">
-                <div class="placeholder">Descubre más en nuestra web</div>
+                <div class="placeholder">
+                    <a href="https://www.latitud90.com" target="_blank">
+                        Descubre más en nuestra web
+                    </a>
+                </div>
             </div>
         </div>
 
         <!-- Indicadores circulares - posicionados en la parte inferior -->
-        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 mobile-indicators">
+        <div
+            class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 mobile-indicators"
+        >
             <div class="flex space-x-2">
                 <button
                     v-for="(banner, index) in banners"
@@ -252,12 +256,12 @@ export default {
         top: 7rem !important;
         left: 1rem !important;
     }
-    
+
     .mobile-svg svg {
         width: 230px !important;
         height: auto !important;
     }
-    
+
     .mobile-button {
         bottom: 1rem !important;
         left: 1rem !important;
@@ -268,14 +272,14 @@ export default {
         justify-content: center !important;
         align-items: center !important;
     }
-    
+
     .mobile-button .boton-m {
         justify-content: center !important;
         width: 100% !important;
         max-width: 300px !important;
         margin: 0 auto !important;
     }
-    
+
     .mobile-indicators {
         display: none !important;
     }
@@ -292,7 +296,7 @@ export default {
         display: block !important;
         justify-content: flex-start !important;
     }
-    
+
     .mobile-button .boton-m {
         justify-content: flex-start;
         width: auto;
