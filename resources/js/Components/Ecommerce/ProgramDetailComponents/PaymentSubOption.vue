@@ -25,7 +25,6 @@
                 <div
                     class="text-[#1C4F4A] font-nexa text-sm leading-[18px] whitespace-normal break-words"
                 >
-                    <span class="font-nexa font-normal">Pago con </span>
                     <span class="font-nexa font-bold">{{ option.label }}</span>
                 </div>
 

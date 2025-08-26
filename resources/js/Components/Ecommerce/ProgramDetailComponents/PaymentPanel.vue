@@ -454,30 +454,30 @@ export default {
             switch (methodId) {
                 case 1: // Todos los medios (Débito/Crédito/Transferencia)
                     return [
-                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
                     ];
                 
                 case 2: // Solo pago con Tarjeta (Débito/Crédito)
                     return [
-                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
                     ];
                 
                 case 3: // Solo pago transferencia
                     return [
-                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
+                        { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
                     ];
                 
                 case 4: // Solo pago contado (Débito/Transferencia)
                     return [
-                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
                     ];
                 
                 default:
                     return [
-                        { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
                     ];
             }
         },

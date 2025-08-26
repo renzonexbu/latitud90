@@ -26,7 +26,8 @@ class CreateGatewayTransactionService
     public function execute(OrderDetail $orderDetail, array $paymentData): array
     {
         $amount = $orderDetail->amount;
-        $orderId = $orderDetail->order_id . '-' . $orderDetail->installment_number;
+        // Usar el número de orden completo de la relación Order
+        $orderId = $orderDetail->order->order_number ?? ($orderDetail->order_id . '-' . $orderDetail->installment_number);
 
         // Log para verificar el estado del OrderDetail antes de crear la transacción
         $this->logInfo('Creating gateway transaction', [
@@ -40,6 +41,7 @@ class CreateGatewayTransactionService
 
         // URLs de retorno con parámetro gateway explícito
         $virtualPosCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'virtualpos']);
+        $virtualPosNotificationUrl = route('api.payment.notification.virtualpos');
         $khipuCallbackUrl = route('payment.callback', ['orderDetailId' => $orderDetail->id, 'gateway' => 'khipu']);
         $failureUrl = route('payment.failure', ['orderDetailId' => $orderDetail->id]);
 
@@ -98,7 +100,7 @@ class CreateGatewayTransactionService
                     $orderId,
                     $amount,
                     $virtualPosCallbackUrl,
-                    null, // notification URL
+                    $virtualPosNotificationUrl, // notification URL
                     $paymentType,
                     $installments,
                     $customerEmail,

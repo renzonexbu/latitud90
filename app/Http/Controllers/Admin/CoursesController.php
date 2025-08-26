@@ -199,20 +199,28 @@ class CoursesController extends Controller
         ]);
     }
 
-    public function edit(Course $course)
+    public function edit(Course $course, Request $request)
     {
         $courseData = $this->editCourseService->execute($course->id);
         $headerInfo = $this->editCourseService->getCourseHeaderInfo($course);
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
 
-        // Obtener pagos relacionados al curso
-        $payments = Payment::with(['order.program.course.institution', 'orderDetail', 'paymentGateway'])
+        // Obtener pagos relacionados al curso con todas las relaciones necesarias para el modal
+        $payments = Payment::with([
+            'order.program.course.institution', 
+            'order.participant.documentType',
+            'orderDetail.country',
+            'orderDetail.region', 
+            'orderDetail.city',
+            'paymentGateway',
+            'paymentOption'
+        ])
             ->whereHas('order.program.course', function ($query) use ($course) {
                 $query->where('id', $course->id);
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(10, ['*'], 'page', $request->get('page', 1));
 
         return Inertia::render('Admin/Courses/Edit', [
             'course' => $courseData['course'],

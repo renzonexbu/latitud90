@@ -21,8 +21,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Payment Gateway Notification Routes (sin CORS)
-Route::post('/payment/notification/transbank', [ProcessPaymentController::class, 'transbankNotification']);
-Route::post('/payment/notification/khipu', [ProcessPaymentController::class, 'khipuNotification']);
+Route::post('/payment/notification/transbank', [ProcessPaymentController::class, 'transbankNotification'])->name('api.payment.notification.transbank');
+Route::post('/payment/notification/virtualpos', [ProcessPaymentController::class, 'virtualposNotification'])->name('api.payment.notification.virtualpos');
+Route::post('/payment/notification/khipu', [ProcessPaymentController::class, 'khipuNotification'])->name('api.payment.notification.khipu');
 
 // Analytics Routes
 Route::post('/analytics/program-list-view', [AnalyticsController::class, 'recordProgramListView']);

@@ -24,7 +24,7 @@ class ProcessPaymentConfirmationService
     {
         $request->validate([
             'orderDetailId' => 'required|integer',
-            'gatewayType' => 'required|string|in:transbank,khipu',
+            'gatewayType' => 'required|string|in:transbank,virtualpos,khipu',
         ]);
 
         $orderDetailId = (int) $request->input('orderDetailId');
@@ -58,10 +58,10 @@ class ProcessPaymentConfirmationService
     {
         $gatewayData = [];
         
-        if ($gatewayType === 'transbank') {
-            $tokenWs = $request->input('token_ws');
-            if ($tokenWs) {
-                $gatewayData['token_ws'] = $tokenWs;
+        if ($gatewayType === 'transbank' || $gatewayType === 'virtualpos') {
+            $paymentId = $request->input('payment_id');
+            if ($paymentId) {
+                $gatewayData['payment_id'] = $paymentId;
             }
         } elseif ($gatewayType === 'khipu') {
             $paymentId = $request->input('payment_id');
@@ -70,8 +70,8 @@ class ProcessPaymentConfirmationService
             }
         }
 
-        // Para Khipu, si no hay payment_id en los datos, intentar obtenerlo de la base de datos
-        if ($gatewayType === 'khipu' && empty($gatewayData['payment_id'])) {
+        // Para Khipu y VirtualPOS, si no hay payment_id en los datos, intentar obtenerlo de la base de datos
+        if (($gatewayType === 'khipu' || $gatewayType === 'virtualpos') && empty($gatewayData['payment_id'])) {
             $lastPayment = Payment::where('order_detail_id', $orderDetailId)
                 ->whereNotNull('external_payment_id')
                 ->latest()

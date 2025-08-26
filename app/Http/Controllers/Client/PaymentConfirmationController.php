@@ -72,5 +72,58 @@ class PaymentConfirmationController extends Controller
         return Inertia::render('Payment/PaymentFailure', $data);
     }
 
+    /**
+     * Manejar notificaciones webhook de VirtualPOS
+     */
+    public function handleVirtualPosWebhook(Request $request, $orderDetailId)
+    {
+        try {
+            Log::info('VirtualPOS webhook received', [
+                'order_detail_id' => $orderDetailId,
+                'data' => $request->all()
+            ]);
+
+            $notificationData = $request->all();
+            $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? null;
+
+            if (!$paymentId) {
+                Log::error('VirtualPOS webhook: No payment_id provided', [
+                    'order_detail_id' => $orderDetailId,
+                    'data' => $notificationData
+                ]);
+                return response()->json(['error' => 'No payment_id provided'], 400);
+            }
+
+            // Procesar la notificación usando el servicio VirtualPOS
+            $virtualPosService = app(\App\Services\Client\PaymentGateway\VirtualPosService::class);
+            $result = $virtualPosService->processNotification($notificationData);
+
+            if ($result['success']) {
+                Log::info('VirtualPOS webhook processed successfully', [
+                    'order_detail_id' => $orderDetailId,
+                    'payment_id' => $paymentId,
+                    'result' => $result
+                ]);
+
+                return response()->json(['success' => true]);
+            } else {
+                Log::error('VirtualPOS webhook processing failed', [
+                    'order_detail_id' => $orderDetailId,
+                    'payment_id' => $paymentId,
+                    'result' => $result
+                ]);
+
+                return response()->json(['error' => $result['error']], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('VirtualPOS webhook error', [
+                'order_detail_id' => $orderDetailId,
+                'error' => $e->getMessage(),
+                'data' => $request->all()
+            ], $e);
+
+            return response()->json(['error' => 'Internal server error'], 500);
+        }
+    }
 
 }

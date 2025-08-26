@@ -4,10 +4,14 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Pdf\ContractPreviewController;
+use App\Http\Controllers\PaymentReceiptController;
 
 // Preview de contrato en PDF (solo desarrollo)
 Route::get('/contract/preview', [ContractPreviewController::class, 'show'])->name('contract.preview');
 Route::get('/payment/preview', [ContractPreviewController::class, 'paymentShow'])->name('payment.preview');
+
+// Ruta para descargar comprobante de pago
+Route::get('/payment/receipt/download', [PaymentReceiptController::class, 'download'])->name('payment.receipt.download');
 
 // Rutas del Dashboard
 Route::prefix('dashboard')->name('dashboard.')->middleware(['auth'])->group(function () {

@@ -8,6 +8,7 @@ use App\Models\Installment;
 use App\Models\PendingPayment;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
+use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
@@ -19,6 +20,7 @@ class PaymentConfirmationService
     use SystemLogging;
     private $transbankService;
     private $khipuService;
+    private $virtualPosService;
     private $emailService;
     private $bsaleService;
     private $analyticsService;
@@ -26,12 +28,14 @@ class PaymentConfirmationService
     public function __construct(
         TransbankService $transbankService,
         KhipuService $khipuService,
+        VirtualPosService $virtualPosService,
         SuccessPaymentEmailService $emailService,
         BsaleService $bsaleService,
         EcommerceAnalyticsService $analyticsService
     ) {
         $this->transbankService = $transbankService;
         $this->khipuService = $khipuService;
+        $this->virtualPosService = $virtualPosService;
         $this->emailService = $emailService;
         $this->bsaleService = $bsaleService;
         $this->analyticsService = $analyticsService;
@@ -69,7 +73,8 @@ class PaymentConfirmationService
 
                 switch ($gatewayType) {
                     case 'transbank':
-                        $lastResult = $this->confirmTransbankPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
+                    case 'virtualpos':
+                        $lastResult = $this->confirmVirtualPosPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
                         break;
 
                     case 'khipu':
@@ -212,6 +217,79 @@ class PaymentConfirmationService
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetail->id,
                 'token_ws' => $tokenWs,
+            ], $e);
+
+            // No crear registro de pago fallido para errores técnicos
+            $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
+                'status' => 'error',
+            ];
+        }
+    }
+
+    /**
+     * Confirmar pago de VirtualPOS (reemplaza a Transbank)
+     */
+    private function confirmVirtualPosPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
+    {
+        $paymentId = $gatewayData['payment_id'] ?? null;
+
+        $this->logInfo('PaymentConfirmationService: confirmVirtualPosPayment', [
+            'order_detail_id' => $orderDetail->id,
+            'gateway_data' => $gatewayData,
+            'payment_id' => $paymentId,
+        ]);
+
+        if (!$paymentId) {
+            $this->logError('PaymentConfirmationService: ID de pago de VirtualPOS no proporcionado', [
+                'order_detail_id' => $orderDetail->id,
+                'gateway_data' => $gatewayData,
+            ]);
+            // No crear registro de pago fallido para errores técnicos de retroceso
+            $pendingPayment->markAsFailed('Error al procesar el pago');
+            return [
+                'success' => false,
+                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
+                'status' => 'error',
+            ];
+        }
+
+        try {
+            $result = $this->virtualPosService->confirmTransaction($paymentId);
+
+            // Validar status según documentación de VirtualPOS
+            if ($result['success'] && in_array($result['status'], ['approved', 'paid', 'success'])) {
+                // Pago aprobado
+                $this->processSuccessfulPayment($orderDetail, $result, 'virtualpos', $sessionId);
+                $pendingPayment->markAsConfirmed();
+
+                return [
+                    'success' => true,
+                    'message' => 'Pago confirmado exitosamente',
+                    'status' => 'approved',
+                    'data' => $result,
+                ];
+            } else {
+                // Pago rechazado por VirtualPOS
+                $errorMessage = $result['error'] ?? 'Pago rechazado por VirtualPOS';
+                $this->processFailedPayment($orderDetail, $result, 'virtualpos', $errorMessage);
+                $pendingPayment->markAsFailed($errorMessage);
+
+                return [
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'status' => 'rejected',
+                    'data' => $result,
+                ];
+            }
+        } catch (\Exception $e) {
+            $this->logError('PaymentConfirmationService: Error confirming VirtualPOS payment', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $paymentId,
             ], $e);
 
             // No crear registro de pago fallido para errores técnicos

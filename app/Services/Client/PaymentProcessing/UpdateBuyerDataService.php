@@ -66,7 +66,7 @@ class UpdateBuyerDataService
             if ($paymentData['paymentMethod'] === 'khipu') {
                 $dataToUpdate['payment_gateway_id'] = 2; // Khipu
             } else if (stripos($paymentData['paymentMethod'], 'debit_credit') !== false) {
-                $dataToUpdate['payment_gateway_id'] = 3; // VirtualPOS
+                $dataToUpdate['payment_gateway_id'] = 1; // VirtualPOS se relaciona con Transbank
             } else {
                 $dataToUpdate['payment_gateway_id'] = 1; // Transbank (legacy)
             }

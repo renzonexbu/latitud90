@@ -102,11 +102,18 @@
             :institutions="institutions"
             @close="closeEditModal"
         />
+
+        <!-- Payment Detail Modal -->
+        <PaymentDetailModal
+            :payment="selectedPayment"
+            :show="showPaymentDetailModal"
+            @close="closePaymentModal"
+        />
     </AdminLayout>
 </template>
 
 <script>
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, router } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import CoursesHeader from "@/Components/Courses/CoursesHeader.vue";
 import CourseInfoCard from "@/Components/Courses/CourseInfoCard.vue";
@@ -114,6 +121,7 @@ import ProgramCardIndividual from "@/Components/Programs/ProgramCardIndividual.v
 import EditCourseModal from "@/Components/Courses/EditCourseModal.vue";
 import PaymentsTable from "@/Components/Payments/PaymentsTable.vue";
 import PaymentsPagination from "@/Components/Payments/PaymentsPagination.vue";
+import PaymentDetailModal from "@/Components/Payments/PaymentDetailModal.vue";
 import { ChevronLeftIcon } from "@/Components/Icons";
 
 export default {
@@ -121,6 +129,8 @@ export default {
     data() {
         return {
             showEditModal: false,
+            showPaymentDetailModal: false,
+            selectedPayment: null,
         };
     },
     mounted() {
@@ -143,6 +153,7 @@ export default {
         EditCourseModal,
         PaymentsTable,
         PaymentsPagination,
+        PaymentDetailModal,
         ChevronLeftIcon,
     },
     props: {
@@ -264,14 +275,22 @@ export default {
         },
 
         showPaymentModal(payment) {
-            // Aquí puedes implementar la lógica para mostrar los detalles del pago
-            console.log('Mostrar detalles del pago:', payment);
+            this.selectedPayment = payment;
+            this.showPaymentDetailModal = true;
+        },
+
+        closePaymentModal() {
+            this.showPaymentDetailModal = false;
+            this.selectedPayment = null;
         },
 
         handlePageChange(page) {
-            // Aquí puedes implementar la lógica para cambiar de página
-            console.log('Cambiar a página:', page);
-            // Ejemplo: router.visit(route('admin.courses.edit', this.course.id, { page }));
+            // Navegar a la página específica de pagos
+            router.visit(route('admin.courses.edit', this.course.id), {
+                data: { page: page },
+                preserveState: true,
+                preserveScroll: true,
+            });
         },
     },
 };
