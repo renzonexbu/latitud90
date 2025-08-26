@@ -5,19 +5,26 @@
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8">
                 <!-- Success Message -->
-                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
+                <div
+                    v-if="$page.props.flash.success"
+                    class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative"
+                >
+                    <span class="block sm:inline">{{
+                        $page.props.flash.success
+                    }}</span>
                 </div>
 
                 <!-- Header -->
-                <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
+                <div
+                    class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6"
+                >
                     <div class="flex items-center justify-between">
                         <CoursesHeader
                             subtitle="Visualización de cursos"
                             :course-info="courseInfoString"
                             :show-create-button="false"
                         />
-                        
+
                         <div class="flex items-center space-x-4">
                             <Link
                                 :href="route('admin.courses.index')"
@@ -34,26 +41,58 @@
                 <div class="flex gap-6 justify-between">
                     <!-- Course Info Card -->
                     <div>
-                        <CourseInfoCard 
+                        <CourseInfoCard
                             :course="course"
                             @edit-course="handleEditCourse"
                         />
                     </div>
-                    
+
                     <!-- Program Card -->
                     <div>
-                        <ProgramCardIndividual 
+                        <ProgramCardIndividual
                             v-if="course.program"
                             :program="course.program"
                         />
-                        <div v-else class="bg-gray-100 rounded-[20px] h-[255px] w-[550px] flex-shrink-0 flex items-center justify-center">
-                            <p class="text-gray-500">No hay programa asignado</p>
+                        <div
+                            v-else
+                            class="bg-gray-100 rounded-[20px] h-[255px] w-[550px] flex-shrink-0 flex items-center justify-center"
+                        >
+                            <p class="text-gray-500">
+                                No hay programa asignado
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Table Section -->
+                <div class="mt-8">
+                    <div class="bg-white rounded-[20px] p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-[#1c4f4a] font-nexa-bold text-[20px] leading-[28px]">
+                                Pagos del Curso
+                            </h3>
+                        </div>
+                        
+                        <!-- Payments Table -->
+                        <PaymentsTable
+                            :payments="payments.data || []"
+                            @show-payment-details="showPaymentModal"
+                        />
+                        
+                        <!-- Pagination -->
+                        <div class="mt-6">
+                            <PaymentsPagination
+                                :current-page="payments.current_page || 1"
+                                :total-payments="payments.total || 0"
+                                :payments-per-page="payments.per_page || 6"
+                                @page-changed="handlePageChange"
+                            />
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Edit Course Modal -->
         <EditCourseModal
             :show="showEditModal"
@@ -73,6 +112,8 @@ import CoursesHeader from "@/Components/Courses/CoursesHeader.vue";
 import CourseInfoCard from "@/Components/Courses/CourseInfoCard.vue";
 import ProgramCardIndividual from "@/Components/Programs/ProgramCardIndividual.vue";
 import EditCourseModal from "@/Components/Courses/EditCourseModal.vue";
+import PaymentsTable from "@/Components/Payments/PaymentsTable.vue";
+import PaymentsPagination from "@/Components/Payments/PaymentsPagination.vue";
 import { ChevronLeftIcon } from "@/Components/Icons";
 
 export default {
@@ -85,7 +126,7 @@ export default {
     mounted() {
         // Verificar si debe abrir el modal automáticamente
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('openModal') === 'true') {
+        if (urlParams.get("openModal") === "true") {
             this.showEditModal = true;
             // Limpiar el parámetro de la URL
             const newUrl = window.location.pathname;
@@ -100,6 +141,8 @@ export default {
         CourseInfoCard,
         ProgramCardIndividual,
         EditCourseModal,
+        PaymentsTable,
+        PaymentsPagination,
         ChevronLeftIcon,
     },
     props: {
@@ -131,6 +174,10 @@ export default {
             type: Array,
             default: () => [],
         },
+        payments: {
+            type: Object,
+            default: () => ({ data: [], current_page: 1, total: 0, per_page: 6 }),
+        },
         errors: {
             type: Object,
             default: () => ({}),
@@ -138,73 +185,93 @@ export default {
     },
     computed: {
         courseInfoString() {
-            return `${this.capitalizeWords(this.headerInfo.institution_name)} / ${this.headerInfo.year} / ${this.headerInfo.grade} / ${this.capitalizeWords(this.headerInfo.education_level)}`;
+            return `${this.capitalizeWords(
+                this.headerInfo.institution_name
+            )} / ${this.headerInfo.year} / ${
+                this.headerInfo.grade
+            } / ${this.capitalizeWords(this.headerInfo.education_level)}`;
         },
     },
     methods: {
         capitalizeWords(string) {
-            if (!string) return '';
-            return string.split(' ').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            ).join(' ');
+            if (!string) return "";
+            return string
+                .split(" ")
+                .map(
+                    (word) =>
+                        word.charAt(0).toUpperCase() +
+                        word.slice(1).toLowerCase()
+                )
+                .join(" ");
         },
-        
+
         formatCurrency(amount) {
-            if (!amount) return '$0';
-            return new Intl.NumberFormat('es-CL', {
-                style: 'currency',
-                currency: 'CLP',
+            if (!amount) return "$0";
+            return new Intl.NumberFormat("es-CL", {
+                style: "currency",
+                currency: "CLP",
                 minimumFractionDigits: 0,
-                maximumFractionDigits: 0
+                maximumFractionDigits: 0,
             }).format(amount);
         },
-        
+
         formatDate(date) {
-            if (!date) return 'N/A';
-            return new Date(date).toLocaleDateString('es-CL', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+            if (!date) return "N/A";
+            return new Date(date).toLocaleDateString("es-CL", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
             });
         },
-        
+
         getStatusChipClass(course) {
             const percentage = course.payment_percentage;
-            
+
             if (percentage === null) {
-                return 'bg-gray-300'; // Gris para ---
+                return "bg-gray-300"; // Gris para ---
             } else if (percentage >= 100) {
-                return 'bg-[#1a4b75]'; // Azul oscuro para 100%
+                return "bg-[#1a4b75]"; // Azul oscuro para 100%
             } else if (percentage >= 75) {
-                return 'bg-[#4b8d7f]'; // Verde para 75%+
+                return "bg-[#4b8d7f]"; // Verde para 75%+
             } else if (percentage >= 50) {
-                return 'bg-yellow-500'; // Amarillo para 50%+
+                return "bg-yellow-500"; // Amarillo para 50%+
             } else if (percentage >= 25) {
-                return 'bg-orange-500'; // Naranja para 25%+
+                return "bg-orange-500"; // Naranja para 25%+
             } else {
-                return 'bg-[#d54a42]'; // Rojo para menos de 25%
+                return "bg-[#d54a42]"; // Rojo para menos de 25%
             }
         },
-        
+
         getStatusTextClass(course) {
-            return 'text-white';
+            return "text-white";
         },
-        
+
         getPaymentPercentage(course) {
-            return course.payment_percentage_text || '---';
+            return course.payment_percentage_text || "---";
         },
-        
+
         handleEditCourse() {
-            console.log('Opening edit modal');
-            console.log('Course:', this.course);
-            console.log('Institutions:', this.institutions);
-            console.log('Programs:', this.programs);
+            console.log("Opening edit modal");
+            console.log("Course:", this.course);
+            console.log("Institutions:", this.institutions);
+            console.log("Programs:", this.programs);
             // Abrir el modal de edición
             this.showEditModal = true;
         },
-        
+
         closeEditModal() {
             this.showEditModal = false;
+        },
+
+        showPaymentModal(payment) {
+            // Aquí puedes implementar la lógica para mostrar los detalles del pago
+            console.log('Mostrar detalles del pago:', payment);
+        },
+
+        handlePageChange(page) {
+            // Aquí puedes implementar la lógica para cambiar de página
+            console.log('Cambiar a página:', page);
+            // Ejemplo: router.visit(route('admin.courses.edit', this.course.id, { page }));
         },
     },
 };
@@ -213,17 +280,17 @@ export default {
 <style scoped>
 /* Custom font classes */
 .font-nexa-bold {
-    font-family: 'Nexa-Bold', sans-serif;
+    font-family: "Nexa-Bold", sans-serif;
     font-weight: 700;
 }
 
 .font-nexa-medium {
-    font-family: 'Nexa-Medium', sans-serif;
+    font-family: "Nexa-Medium", sans-serif;
     font-weight: 500;
 }
 
 .font-nexa-xbold {
-    font-family: 'Nexa-XBold', sans-serif;
+    font-family: "Nexa-XBold", sans-serif;
     font-weight: 400;
 }
 

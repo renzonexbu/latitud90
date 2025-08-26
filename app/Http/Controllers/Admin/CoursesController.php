@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Http\Requests\Admin\Courses\UpdateCourseRequest;
 use App\Helpers\ParticipantPriceHelper;
+use App\Models\Payment;
 
 class CoursesController extends Controller
 {
@@ -34,8 +35,8 @@ class CoursesController extends Controller
                 $query->whereHas('institution', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%");
                 })
-                ->orWhere('education_level', 'like', "%{$search}%")
-                ->orWhere('course_name', 'like', "%{$search}%");
+                    ->orWhere('education_level', 'like', "%{$search}%")
+                    ->orWhere('course_name', 'like', "%{$search}%");
             })
             ->when($request->status, function ($query, $status) {
                 $query->where('status', $status);
@@ -71,8 +72,8 @@ class CoursesController extends Controller
             $coursePaidAmount = 0.0;
             if ($course->program) {
                 $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
-                        $q->where('program_id', $course->program->id);
-                    })
+                    $q->where('program_id', $course->program->id);
+                })
                     ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
             }
@@ -122,8 +123,8 @@ class CoursesController extends Controller
             $coursePaidAmount = 0.0;
             if ($course->program) {
                 $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
-                        $q->where('program_id', $course->program->id);
-                    })
+                    $q->where('program_id', $course->program->id);
+                })
                     ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
             }
@@ -155,7 +156,7 @@ class CoursesController extends Controller
     public function create()
     {
         $programs = Program::where('active', true)->get();
-        
+
         return Inertia::render('Admin/Courses/Create', [
             'programs' => $programs,
         ]);
@@ -165,7 +166,7 @@ class CoursesController extends Controller
     {
         try {
             $validatedData = $request->validated();
-            
+
             // Preparar los datos para el servicio
             $courseData = [
                 'institutionId' => $validatedData['institutionId'],
@@ -179,12 +180,11 @@ class CoursesController extends Controller
                 'endDate' => $validatedData['endDate'] ?? null,
                 'studentsFile' => $request->file('students_file') ?? null,
             ];
-            
+
             $course = $this->createCourseService->execute($courseData);
-            
+
             return redirect()->route('admin.courses.index')
                 ->with('success', 'Curso creado exitosamente.');
-                
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al crear el curso: ' . $e->getMessage()]);
         }
@@ -193,18 +193,26 @@ class CoursesController extends Controller
     public function show(Course $course)
     {
         $course->load(['program', 'createdBy', 'participants']);
-        
+
         return Inertia::render('Admin/Courses/Show', [
             'course' => $course
         ]);
     }
 
-        public function edit(Course $course)
+    public function edit(Course $course)
     {
         $courseData = $this->editCourseService->execute($course->id);
         $headerInfo = $this->editCourseService->getCourseHeaderInfo($course);
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
+
+        // Obtener pagos relacionados al curso
+        $payments = Payment::with(['order.program.course.institution', 'orderDetail', 'paymentGateway'])
+            ->whereHas('order.program.course', function ($query) use ($course) {
+                $query->where('id', $course->id);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
         return Inertia::render('Admin/Courses/Edit', [
             'course' => $courseData['course'],
@@ -214,6 +222,7 @@ class CoursesController extends Controller
             'headerInfo' => $headerInfo,
             'programs' => $programs,
             'institutions' => $institutions,
+            'payments' => $payments,
         ]);
     }
 
@@ -221,7 +230,7 @@ class CoursesController extends Controller
     {
         try {
             $validatedData = $request->validated();
-            
+
             // Actualizar el curso
             $course->update([
                 'institution_id' => $validatedData['institutionId'],
@@ -235,15 +244,14 @@ class CoursesController extends Controller
                 'program_id' => $validatedData['associatedProgram'],
                 'end_date' => $validatedData['endDate'],
             ]);
-            
+
             // Si el curso tiene un programa asociado, regenerar el nombre del programa
             if ($course->program_id) {
                 $this->regenerateProgramName($course);
             }
-            
+
             return redirect()->route('admin.courses.edit', $course)
                 ->with('success', 'Curso actualizado exitosamente.');
-                
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al actualizar el curso: ' . $e->getMessage()]);
         }
@@ -256,12 +264,11 @@ class CoursesController extends Controller
             if ($course->students_file_path) {
                 Storage::disk('public')->delete($course->students_file_path);
             }
-            
+
             $course->delete();
-            
+
             return redirect()->route('admin.courses.index')
                 ->with('success', 'Curso eliminado exitosamente.');
-                
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al eliminar el curso: ' . $e->getMessage()]);
         }
@@ -273,10 +280,9 @@ class CoursesController extends Controller
             $course->update([
                 'status' => $course->status === 'active' ? 'inactive' : 'active'
             ]);
-            
+
             return redirect()->route('admin.courses.index')
                 ->with('success', 'Estado del curso actualizado exitosamente.');
-                
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al actualizar el estado del curso: ' . $e->getMessage()]);
         }
@@ -298,7 +304,7 @@ class CoursesController extends Controller
             $level = $this->mapEducationLevel($course->education_level);
             $num = $course->course_number;
             $grade = $course->grade;
-            
+
             // Construir la parte del curso
             $coursePart = '';
             if ($num) {
@@ -309,10 +315,10 @@ class CoursesController extends Controller
             if ($grade) {
                 $coursePart .= ' ' . strtoupper($grade);
             }
-            
+
             $destination = $program->destination;
             $year = $program->departure_date ? (int) date('Y', strtotime($program->departure_date)) : $program->year;
-            
+
             if ($institutionName && $coursePart && $destination && $year) {
                 $newName = sprintf('%s - %s - %s - %d', $institutionName, $coursePart, $destination, $year);
                 $program->update(['name' => $newName]);

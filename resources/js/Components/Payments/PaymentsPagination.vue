@@ -1,36 +1,26 @@
 <template>
-    <div class="flex flex-row items-center justify-end gap-4 relative">
-        <!-- Pagination Controls -->
-        <div
-            class="flex flex-row gap-[6.996px] items-center justify-start flex-shrink-0 relative"
-        >
-            <!-- Total Payments -->
-            <div
-                class="w-[143px] h-[14px] flex-shrink-0 text-verde-oscuro font-nexa text-[14.582px] font-normal leading-[18.749px]"
-            >
-                Total {{ totalPayments }} Pagos
-            </div>
-            <!-- Page Numbers -->
-
+    <div class="flex flex-row items-center justify-end gap-6 relative">
+        <!-- Total Payments -->
+        <div class="text-[#9ca3af] font-normal text-sm">
+            Total {{ totalPayments }} Pagos
+        </div>
+        
+        <!-- Page Numbers -->
+        <div class="flex flex-row gap-2 items-center justify-center">
             <div
                 v-for="page in validPages"
                 :key="page"
                 @click="goToPage(page)"
                 :class="[
-                    'flex w-[26.647px] h-[26.028px] px-[11.155px] py-[6.197px] items-center gap-[6.996px] rounded-[69.961px] relative overflow-hidden cursor-pointer',
+                    'flex w-8 h-8 items-center justify-center rounded-full cursor-pointer transition-colors',
                     currentPage === page
-                        ? 'bg-verde-oscuro'
-                        : 'border border-[0.62px] border-gris-3',
+                        ? 'bg-[#1c4f4a] text-white'
+                        : 'bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]',
                 ]"
             >
-                <div
-                    :class="[
-                        'text-center font-nexa w-[4.338px] h-[9.915px] flex-shrink-0 text-[9.915px] leading-[13.634px] font-normal',
-                        currentPage === page ? 'text-blanco' : 'text-gris-3',
-                    ]"
-                >
+                <span class="text-sm font-medium">
                     {{ page }}
-                </div>
+                </span>
             </div>
         </div>
     </div>
@@ -55,14 +45,34 @@ export default {
     },
     computed: {
         totalPages() {
-            const total = Math.ceil(this.totalPayments / this.paymentsPerPage);
-            return total > 0 ? total : 1;
+            // Validar que tengamos valores numéricos válidos
+            const total = Number(this.totalPayments) || 0;
+            const perPage = Number(this.paymentsPerPage) || 6;
+            
+            if (total <= 0 || perPage <= 0) {
+                return 1; // Al menos una página
+            }
+            
+            return Math.ceil(total / perPage);
         },
+        
         validPages() {
+            // Crear un array seguro de páginas
             const pages = [];
-            for (let i = 1; i <= this.totalPages; i++) {
+            const total = this.totalPages;
+            
+            // Validar que totalPages sea un número válido
+            if (!Number.isFinite(total) || total <= 0) {
+                return [1]; // Retornar al menos la página 1
+            }
+            
+            // Limitar a un máximo razonable para evitar arrays muy grandes
+            const maxPages = Math.min(total, 100);
+            
+            for (let i = 1; i <= maxPages; i++) {
                 pages.push(i);
             }
+            
             return pages;
         },
     },
