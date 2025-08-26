@@ -9,7 +9,7 @@
 
         <!-- Esferas decorativas -->
         <div
-            class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col hidden md:flex"
+            class="absolute right-0 top-1/2 transform -translate-y-1/2 hidden md:flex md:flex-col"
         >
             <div class="w-[69px] h-[99px] relative">
                 <svg
@@ -95,7 +95,7 @@
             class="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center text-left"
         >
             <svg
-                class="w-full max-w-[582px] h-auto md:w-[582px] md:h-[199px] sm:max-w-[400px] xs:max-w-[300px]"
+                class="w-full max-w-[582px] h-auto md:w-[582px] md:h-[199px] sm:max-w-[320px] xs:max-w-[280px] mt-8 md:mt-0"
                 viewBox="0 0 582 199"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
