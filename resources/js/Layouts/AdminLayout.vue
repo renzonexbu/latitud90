@@ -20,10 +20,10 @@
                 <NavLink
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <HouseIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.dashboard')
                                 ? 'text-turquesa'
@@ -34,10 +34,10 @@
                 <NavLink
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <BackpackIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.programs.*')
                                 ? 'text-turquesa'
@@ -49,10 +49,10 @@
                 <NavLink
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <LuggageIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.courses.*')
                                 ? 'text-turquesa'
@@ -64,10 +64,10 @@
                 <NavLink
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <PersonsIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.participants.*')
                                 ? 'text-turquesa'
@@ -79,10 +79,10 @@
                  <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <PaymentsIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.payments.*')
                                 ? 'text-turquesa'
@@ -94,16 +94,34 @@
                 <NavLink
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
-                    class="flex justify-center w-full p-2 group transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <ReportIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.reports.*')
                                 ? 'text-turquesa'
                                 : 'text-gray-400 group-hover:text-turquesa'
                         "
                         fill-color="currentColor"
+                    />
+                </NavLink>
+                
+                <!-- Mantenedor - Solo para Super Admin -->
+                <NavLink
+                    v-if="$page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')"
+                    :href="route('admin.maintainer.index')"
+                    :active="route().current('admin.maintainer.*')"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                >
+                    <SettingsIcon
+                        class="w-8 h-8 transition-colors"
+                        :class="
+                            route().current('admin.maintainer.*')
+                                ? 'text-turquesa'
+                                : 'text-gray-400 group-hover:text-turquesa'
+                        "
+                        stroke-color="currentColor"
                     />
                 </NavLink>
             </nav>
@@ -113,10 +131,10 @@
                 <div class="flex flex-col items-center space-y-4 py-4">
                     <NavLink
                         :href="route('admin.profile.edit')"
-                        class="flex justify-center w-full p-2 group transition-colors"
+                        class="flex justify-center w-full p-1 group transition-colors"
                     >
                         <AyudaIcon 
-                            class="w-10 h-10 transition-colors"
+                            class="w-8 h-8 transition-colors"
                             :class="
                                 route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
                                     ? 'text-turquesa'
@@ -127,10 +145,10 @@
                     <div class="relative user-dropdown-container">
                         <button
                             @click="showingUserDropdown = !showingUserDropdown"
-                            class="flex justify-center w-full p-2 group transition-colors"
+                            class="flex justify-center w-full p-1 group transition-colors"
                         >
                             <UserIcon
-                                class="w-10 h-10 transition-colors"
+                                class="w-8 h-8 transition-colors"
                                 :class="
                                     route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
                                         ? 'text-turquesa'
@@ -165,7 +183,7 @@
                                     as="button"
                                     class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
-                                    :data="{ redirect: '/login' }"
+                                    :data="{ redirect: 'http://latitud90.test/login' }"
                                 >
                                     Cerrar sesión
                                 </NavLink>
@@ -253,6 +271,7 @@ import {
     AyudaIcon,
     UserIcon,
     ReportIcon,
+    SettingsIcon,
 } from "@/Components/Icons";
 
 import images from "../../images/index.js";
@@ -276,6 +295,7 @@ export default {
         AyudaIcon,
         UserIcon,
         ReportIcon,
+        SettingsIcon,
     },
     data() {
         return {

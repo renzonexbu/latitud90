@@ -4,12 +4,14 @@ namespace App\Services\Admin\Reports;
 
 use App\Models\Program;
 use App\Services\EcommerceAnalyticsService;
+use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class GetIndexDataService
 {
+    use AdminLogging;
     public function __construct(
         private ReportsSummaryService $reportsSummaryService,
         private EcommerceAnalyticsService $analyticsService
@@ -46,6 +48,23 @@ class GetIndexDataService
 
         // Obtener estadísticas de reembolso
         $refundStats = $this->getRefundStats($dateFrom, $dateTo, $programId);
+
+        // Log the reports index view
+        $this->logView(
+            'reports',
+            'ReportsIndex',
+            0, // No specific resource ID for index views
+            "Página principal de reportes consultada",
+            [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'program_id' => $programId,
+                'summary_modules' => array_keys($summary),
+                'ecommerce_data_included' => !empty($ecommerceData),
+                'funnel_analysis_included' => !empty($funnelAnalysis),
+                'refund_stats_included' => !empty($refundStats),
+            ]
+        );
 
         return [
             'summary' => $summary,

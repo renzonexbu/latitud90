@@ -4,11 +4,12 @@ namespace App\Services\Admin\Users;
 
 use App\Models\User;
 use App\Traits\HasPermissions;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
 class GetUsersService
 {
-    use HasPermissions;
+    use HasPermissions, AdminLogging;
 
     public function execute(Request $request)
     {
@@ -64,6 +65,23 @@ class GetUsersService
         $sortDirection = $request->get('direction', 'desc');
         $query->orderBy($sortField, $sortDirection);
 
-        return $query->paginate(10)->withQueryString();
+        $users = $query->paginate(10);
+
+        // Log the users list view
+        $this->logView(
+            'users',
+            'UserList',
+            0, // No specific resource ID for list views
+            "Lista de usuarios consultada - Total: {$users->total()} registros",
+            [
+                'total_users' => $users->total(),
+                'current_page' => $users->currentPage(),
+                'per_page' => $users->perPage(),
+                'filters_applied' => $request->only(['search', 'status', 'sort', 'direction']),
+                'user_role' => $currentUser->roles->first()?->name ?? 'unknown',
+            ]
+        );
+
+        return $users;
     }
 }

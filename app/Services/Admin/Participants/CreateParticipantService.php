@@ -5,11 +5,13 @@ namespace App\Services\Admin\Participants;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
 use App\Models\Course;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CreateParticipantService
 {
+    use AdminLogging;
     /**
      * Crear un nuevo participante con sus contactos de emergencia y cursos
      *
@@ -49,6 +51,20 @@ class CreateParticipantService
             }
 
             DB::commit();
+
+            // Log the participant creation
+            $this->logCreate(
+                'participants',
+                'Participant',
+                $participant->id,
+                "Participante creado: {$participant->first_name} {$participant->first_last_name}",
+                $participant->toArray(),
+                [
+                    'courses_count' => $participant->courses->count(),
+                    'emergency_contacts_count' => $participant->emergencyContacts->count(),
+                    'has_course_association' => !empty($participantData['course_id']) || !empty($coursesData),
+                ]
+            );
 
             Log::info('Participante creado exitosamente', [
                 'participant_id' => $participant->id,

@@ -22,12 +22,22 @@ class Newsletter extends Model
         'subscribed_at' => 'datetime',
     ];
 
-    protected static function boot()
+    // Campos calculados para la interfaz
+    public function getStatusTextAttribute()
     {
-        parent::boot();
+        if ($this->is_active) {
+            return 'Activo';
+        } else {
+            return 'Inactivo';
+        }
+    }
 
-        static::creating(function ($newsletter) {
-            $newsletter->subscribed_at = now();
-        });
+    public function getStatusChipClassAttribute()
+    {
+        if ($this->is_active) {
+            return 'bg-[#4b8d7f]'; // Verde para activo
+        } else {
+            return 'bg-gray-300'; // Gris para inactivo
+        }
     }
 }

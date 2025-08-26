@@ -5,10 +5,12 @@ namespace App\Services\Admin\Programs;
 use App\Models\Program;
 use App\Models\Payment;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
 class GetProgramsService
 {
+    use AdminLogging;
     /**
      * Obtener programas con filtros y métricas de pagos
      *
@@ -22,6 +24,20 @@ class GetProgramsService
         
         // Obtener todos los programas para filtros
         $allPrograms = $this->getAllPrograms();
+
+        // Log the programs list view
+        $this->logView(
+            'programs',
+            'ProgramList',
+            0, // No specific resource ID for list views
+            "Lista de programas consultada - Total: {$programs->total()} registros",
+            [
+                'total_programs' => $programs->total(),
+                'current_page' => $programs->currentPage(),
+                'per_page' => $programs->perPage(),
+                'filters_applied' => $request->only(['search', 'status', 'active']),
+            ]
+        );
 
         return [
             'programs' => $programs,

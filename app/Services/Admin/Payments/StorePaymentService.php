@@ -7,12 +7,14 @@ use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StorePaymentService
 {
+    use AdminLogging;
     /**
      * Crear un nuevo pago presencial
      *
@@ -47,6 +49,22 @@ class StorePaymentService
             }
 
             DB::commit();
+
+            // Log the payment creation
+            $this->logCreate(
+                'payments',
+                'Payment',
+                $payment->id,
+                "Pago presencial creado: \${$request->amount} - Participante ID: {$request->participant_id}",
+                $payment->toArray(),
+                [
+                    'order_id' => $order->id,
+                    'payment_type' => 'presencial',
+                    'payment_status' => $request->status,
+                    'participant_id' => $request->participant_id,
+                    'program_id' => $request->program_id,
+                ]
+            );
 
             Log::info('Pago presencial creado exitosamente', [
                 'payment_id' => $payment->id,

@@ -3,10 +3,12 @@
 namespace App\Services\Admin\Payments;
 
 use App\Models\Payment;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
 class GetPaymentsService
 {
+    use AdminLogging;
     /**
      * Obtener pagos con filtros y estadísticas
      *
@@ -33,6 +35,21 @@ class GetPaymentsService
 
         // Obtener estadísticas
         $stats = $this->getStats();
+
+        // Log the payments list view
+        $this->logView(
+            'payments',
+            'PaymentList',
+            0, // No specific resource ID for list views
+            "Lista de pagos consultada - Total: {$payments->total()} registros",
+            [
+                'total_payments' => $payments->total(),
+                'current_page' => $payments->currentPage(),
+                'per_page' => $payments->perPage(),
+                'filters_applied' => $request->only(['search', 'status', 'gateway', 'date_from', 'date_to']),
+                'stats' => $stats,
+            ]
+        );
 
         return [
             'payments' => $payments,

@@ -26,6 +26,7 @@ export { default as EyeIcon } from "./EyeIcon.vue";
 export { default as EyeOpenIcon } from "./EyeOpenIcon.vue";
 export { default as PaymentPortalIcon } from "./PaymentPortalIcon.vue";
 export { default as ReportIcon } from "./ReportIcon.vue";
+export { default as SettingsIcon } from "./SettingsIcon.vue";
 
 // Componente wrapper genérico
 export { default as SvgIcon } from "./SvgIcon.vue";

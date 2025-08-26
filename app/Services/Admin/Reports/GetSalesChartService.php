@@ -3,11 +3,13 @@
 namespace App\Services\Admin\Reports;
 
 use App\Models\Payment;
+use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class GetSalesChartService
 {
+    use AdminLogging;
     /**
      * Obtener datos para el gráfico de ventas
      *
@@ -23,7 +25,24 @@ class GetSalesChartService
         $query = Payment::whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('status', 'completed');
 
-        return $this->getDataByPeriod($query, $period);
+        $data = $this->getDataByPeriod($query, $period);
+
+        // Log the sales chart generation
+        $this->logExport(
+            'reports',
+            "Gráfico de ventas generado: {$period} - {$dateFrom} a {$dateTo}",
+            [
+                'period' => $period,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'data_points' => $data->count(),
+                'total_amount' => $data->sum('total'),
+                'total_transactions' => $data->sum('count'),
+                'report_type' => 'sales_chart',
+            ]
+        );
+
+        return $data;
     }
 
     /**

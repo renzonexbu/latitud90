@@ -3,10 +3,12 @@
 namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 
 class ToggleStatusService
 {
+    use AdminLogging;
     /**
      * Cambiar el estado de un participante entre confirmed y pending_payment
      *
@@ -20,6 +22,20 @@ class ToggleStatusService
             $newStatus = $participant->status === 'confirmed' ? 'pending_payment' : 'confirmed';
             
             $participant->update(['status' => $newStatus]);
+
+            // Log the status change
+            $this->logStatusChange(
+                'participants',
+                'Participant',
+                $participant->id,
+                $oldStatus,
+                $newStatus,
+                "Cambio de estado de participante: {$participant->first_name} {$participant->first_last_name}",
+                [
+                    'participant_name' => $participant->first_name . ' ' . $participant->first_last_name,
+                    'participant_email' => $participant->email,
+                ]
+            );
 
             Log::info('Estado de participante cambiado', [
                 'participant_id' => $participant->id,

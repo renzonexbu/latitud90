@@ -6,24 +6,41 @@ use App\Models\Payment;
 use App\Models\Participant;
 use App\Models\Program;
 use App\Models\Order;
+use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ReportsSummaryService
 {
+    use AdminLogging;
     public function getSummary(array $filters = [])
     {
         $dateFrom = $filters['dateFrom'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $filters['dateTo'] ?? Carbon::now()->format('Y-m-d');
         $programId = $filters['programId'] ?? null;
 
-        return [
+        $summary = [
             'dailyPayments' => $this->getDailyPaymentsSummary($dateFrom, $dateTo, $programId),
             'consolidatedPayments' => $this->getConsolidatedPaymentsSummary($dateFrom, $dateTo, $programId),
             'paymentSchedule' => $this->getPaymentScheduleSummary($dateFrom, $dateTo, $programId),
             'partialAccount' => $this->getPartialAccountSummary($dateFrom, $dateTo, $programId),
             'general' => $this->getGeneralSummary($dateFrom, $dateTo, $programId)
         ];
+
+        // Log the summary generation
+        $this->logExport(
+            'reports',
+            "Resumen de reportes generado: {$dateFrom} - {$dateTo}",
+            [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'program_id' => $programId,
+                'summary_modules' => array_keys($summary),
+                'report_type' => 'summary',
+            ]
+        );
+
+        return $summary;
     }
 
     private function getDailyPaymentsSummary($dateFrom, $dateTo, $programId)

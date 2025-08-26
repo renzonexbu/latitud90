@@ -13,9 +13,11 @@ use App\Services\Admin\Reports\DailyPayments\DailyPaymentsService;
 use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
 use App\Services\Admin\Reports\RecoverySchedule\RecoveryScheduleService;
 use App\Services\Admin\Reports\PartialReport\PartialAccountService;
+use App\Traits\AdminLogging;
 
 class ConsolidatedExportService
 {
+    use AdminLogging;
     public function __construct(
         private DailyPaymentsService $dailyPaymentsService,
         private ConsolidatedPaymentsService $consolidatedPaymentsService,
@@ -59,6 +61,18 @@ class ConsolidatedExportService
             $response->headers->set('Cache-Control', 'no-cache, must-revalidate');
             $response->headers->set('Expires', '0');
             $response->headers->set('Pragma', 'public');
+
+            // Log the export action
+            $this->logExport(
+                'reports',
+                "Exportación de reporte consolidado: {$filename}",
+                [
+                    'filename' => $filename,
+                    'filters' => $filters,
+                    'sheets_count' => 5, // Daily payments, consolidated payments, payment schedule, partial account, summary
+                    'export_type' => 'consolidated_excel',
+                ]
+            );
 
             return $response;
 

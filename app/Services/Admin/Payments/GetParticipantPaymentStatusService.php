@@ -7,11 +7,13 @@ use App\Models\Program;
 use App\Models\Payment;
 use App\Models\Order;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class GetParticipantPaymentStatusService
 {
+    use AdminLogging;
     /**
      * Obtener estado de pagos de un participante para un programa específico
      *
@@ -121,6 +123,24 @@ class GetParticipantPaymentStatusService
                     $paymentStatus = 'fully_paid';
                 }
             }
+
+            // Log the payment status view
+            $this->logView(
+                'payments',
+                'ParticipantPaymentStatus',
+                $participant->id,
+                "Consulta de estado de pagos: {$participant->first_name} {$participant->first_last_name} - Programa: {$program->name}",
+                [
+                    'participant_id' => $participant->id,
+                    'program_id' => $program->id,
+                    'total_amount' => $totalAmount,
+                    'paid_amount' => $totalPaidAmount,
+                    'balance' => $balance,
+                    'payment_percentage' => $paymentPercentage,
+                    'payment_status' => $paymentStatus,
+                    'is_enrolled' => $isEnrolled,
+                ]
+            );
 
             return [
                 'success' => true,

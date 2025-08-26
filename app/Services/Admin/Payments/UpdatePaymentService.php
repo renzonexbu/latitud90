@@ -3,12 +3,14 @@
 namespace App\Services\Admin\Payments;
 
 use App\Models\Payment;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UpdatePaymentService
 {
+    use AdminLogging;
     /**
      * Actualizar un pago existente
      *
@@ -20,6 +22,9 @@ class UpdatePaymentService
     public function execute(Request $request, Payment $payment): Payment
     {
         try {
+            // Guardar valores anteriores para el log
+            $oldValues = $payment->toArray();
+
             DB::beginTransaction();
 
             $payment->update([
@@ -51,6 +56,22 @@ class UpdatePaymentService
             }
 
             DB::commit();
+
+            // Log the payment update
+            $this->logUpdate(
+                'payments',
+                'Payment',
+                $payment->id,
+                "Pago actualizado: \${$request->amount} - Estado: {$request->status}",
+                $oldValues,
+                $payment->toArray(),
+                [
+                    'order_id' => $payment->order_id ?? null,
+                    'order_detail_id' => $payment->order_detail_id ?? null,
+                    'payment_gateway_id' => $payment->payment_gateway_id ?? null,
+                    'updated_manually' => true,
+                ]
+            );
 
             Log::info('Pago actualizado exitosamente', [
                 'payment_id' => $payment->id,

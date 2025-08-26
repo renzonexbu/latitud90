@@ -5,6 +5,7 @@ namespace App\Services\Admin\Courses;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +13,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CreateCourseService
 {
+    use AdminLogging;
     /**
      * Execute the course creation.
      */
@@ -36,15 +38,23 @@ class CreateCourseService
                 'created_by' => auth()->id(),
             ]);
 
-            
+            // Log the course creation
+            $this->logCreate(
+                'courses',
+                'Course',
+                $course->id,
+                "Curso creado: {$course->course_name} - {$course->education_level} {$course->grade}",
+                $course->toArray(),
+                [
+                    'institution_id' => $courseData['institutionId'],
+                    'has_students_file' => !empty($courseData['studentsFile']),
+                    'students_file_name' => $courseData['studentsFile']?->getClientOriginalName() ?? null,
+                ]
+            );
 
             // Procesar participantes si se proporciona el archivo
             if (!empty($courseData['studentsFile'])) {
-                
-                
                 $this->processParticipants($courseData['studentsFile'], $course);
-            } else {
-                
             }
 
             DB::commit();
@@ -387,6 +397,28 @@ class CreateCourseService
             
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
+            
+            // Log the participants processing
+            $this->logAction(
+                'update',
+                'courses',
+                "Procesamiento de participantes para curso {$course->course_name}",
+                'Course',
+                $course->id,
+                null,
+                [
+                    'total_students' => $participantCount,
+                    'participants_created' => $createdCount,
+                    'participants_updated' => $updatedCount,
+                    'file_name' => $file->getClientOriginalName(),
+                ],
+                [
+                    'file_processed' => true,
+                    'participants_processed' => $participantCount,
+                    'new_participants' => $createdCount,
+                    'existing_participants_updated' => $updatedCount,
+                ]
+            );
             
         } catch (\Exception $e) {
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());

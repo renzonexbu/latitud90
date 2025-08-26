@@ -3,11 +3,13 @@
 namespace App\Services\Admin\Reports;
 
 use App\Models\Payment;
+use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class GetRevenueChartService
 {
+    use AdminLogging;
     /**
      * Obtener datos para el gráfico de ingresos
      *
@@ -32,6 +34,21 @@ class GetRevenueChartService
             ->selectRaw('payment_gateways.name as method, SUM(payments.amount) as amount')
             ->groupBy('payment_gateway_id', 'payment_gateways.name')
             ->get();
+
+        // Log the revenue chart generation
+        $this->logExport(
+            'reports',
+            "Gráfico de ingresos generado: {$period} - {$dateFrom} a {$dateTo}",
+            [
+                'period' => $period,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'filters' => $filters,
+                'data_points' => count($revenueData),
+                'payment_methods_count' => $paymentMethodsData->count(),
+                'report_type' => 'revenue_chart',
+            ]
+        );
 
         return [
             'revenueData' => $revenueData,

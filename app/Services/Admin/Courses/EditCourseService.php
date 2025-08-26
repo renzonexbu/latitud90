@@ -6,13 +6,28 @@ use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 
 class EditCourseService
 {
+    use AdminLogging;
     public function execute(int $courseId): array
     {
         $course = Course::with(['institution', 'program', 'participants'])
             ->findOrFail($courseId);
+
+        // Log the course view
+        $this->logView(
+            'courses',
+            'Course',
+            $course->id,
+            "Visualización de curso: {$course->course_name}",
+            [
+                'institution_name' => $course->institution?->name,
+                'participants_count' => $course->participants->count(),
+                'has_program' => $course->program !== null,
+            ]
+        );
 
         // Asegurar que los programas se carguen con todos los campos necesarios
         if ($course->program) {

@@ -3,10 +3,12 @@
 namespace App\Services\Admin\Reports;
 
 use App\Models\Program;
+use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
 class GetInstallmentScheduleService
 {
+    use AdminLogging;
     /**
      * Obtener datos para el cronograma de cuotas
      *
@@ -20,6 +22,18 @@ class GetInstallmentScheduleService
         // TODO: Implementar lógica de cuotas
         // Por ahora retornamos datos de ejemplo
         $installments = collect();
+
+        // Log the installment schedule generation
+        $this->logExport(
+            'reports',
+            "Cronograma de cuotas generado",
+            [
+                'filters' => $filters,
+                'installments_count' => $installments->count(),
+                'programs_count' => Program::count(),
+                'report_type' => 'installment_schedule',
+            ]
+        );
 
         return [
             'installmentSchedule' => $installments,

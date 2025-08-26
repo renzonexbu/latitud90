@@ -6,6 +6,7 @@ use App\Models\Program;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CreateProgramService
 {
+    use AdminLogging;
     /**
      * Execute the program creation.
      */
@@ -119,6 +121,23 @@ class CreateProgramService
             }
 
             DB::commit();
+
+            // Log the program creation
+            $this->logCreate(
+                'programs',
+                'Program',
+                $program->id,
+                "Programa creado: {$program->name} - {$program->destination}",
+                $program->toArray(),
+                [
+                    'institution_id' => $programData['institution_id'] ?? null,
+                    'has_course' => $program->course_id !== null,
+                    'has_participants' => $program->course && $program->course->participants->count() > 0,
+                    'participants_count' => $program->course ? $program->course->participants->count() : 0,
+                    'has_files' => !empty($processedData['images_folder']) || !empty($processedData['itinerary_file_path']),
+                ]
+            );
+
             return $program;
         } catch (\Exception $e) {
             DB::rollBack();

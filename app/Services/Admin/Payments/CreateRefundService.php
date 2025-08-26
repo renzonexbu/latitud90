@@ -12,12 +12,14 @@ use App\Models\Program;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class CreateRefundService
 {
+    use AdminLogging;
     /**
      * Crear un reembolso completo con reestructuración de cuotas
      * La diferencia principal con los pagos es que SUMA el monto a la deuda en lugar de restarlo
@@ -75,6 +77,26 @@ class CreateRefundService
             $order->refreshStatus();
 
             DB::commit();
+
+            // Log the refund creation
+            $this->logCreate(
+                'payments',
+                'Refund',
+                $refund->id,
+                "Reembolso creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
+                $refund->toArray(),
+                [
+                    'order_id' => $order->id,
+                    'participant_id' => $participant->id,
+                    'program_id' => $program->id,
+                    'total_amount' => $totalAmount,
+                    'previous_paid_amount' => $paidAmount,
+                    'new_paid_amount' => $newPaidAmount,
+                    'refund_amount' => $data['amount'],
+                    'new_balance' => $totalAmount - $newPaidAmount,
+                    'payment_code' => $data['payment_code'] ?? null,
+                ]
+            );
 
             Log::info('Reembolso procesado exitosamente', [
                 'refund_id' => $refund->id,

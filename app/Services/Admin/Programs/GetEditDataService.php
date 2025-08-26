@@ -6,10 +6,12 @@ use App\Models\Program;
 use App\Models\Institution;
 use App\Models\SalesExecutive;
 use App\Models\Payment;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 
 class GetEditDataService
 {
+    use AdminLogging;
     /**
      * Obtener datos necesarios para editar un programa
      *
@@ -38,6 +40,23 @@ class GetEditDataService
         $salesExecutives = SalesExecutive::where('active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
+
+        // Log the program edit view
+        $this->logView(
+            'programs',
+            'Program',
+            $program->id,
+            "Programa abierto para edición: {$program->name} ({$program->code})",
+            [
+                'program_name' => $program->name,
+                'program_code' => $program->code,
+                'destination' => $program->destination,
+                'has_course' => $program->course ? true : false,
+                'participants_count' => $program->course?->participants?->count() ?? 0,
+                'institutions_count' => $institutions->count(),
+                'sales_executives_count' => $salesExecutives->count(),
+            ]
+        );
 
         return [
             'program' => $program,

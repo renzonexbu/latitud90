@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdminLog extends Model
 {
+    use HasFactory;
+
+    protected $table = 'admin_logs';
+
     protected $fillable = [
         'user_id',
         'user_name',
@@ -24,7 +28,7 @@ class AdminLog extends Model
         'session_id',
         'request_method',
         'request_url',
-        'request_data',
+        'request_data'
     ];
 
     protected $casts = [
@@ -34,47 +38,21 @@ class AdminLog extends Model
         'request_data' => 'array',
     ];
 
-    // Relaciones
-    public function user(): BelongsTo
+    // Relación con el usuario
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Métodos de utilidad
-    public static function logAction($action, $module, $description = null, $resourceType = null, $resourceId = null, $oldValues = null, $newValues = null, $additionalData = null): void
-    {
-        $user = auth()->user();
-        
-        static::create([
-            'user_id' => $user?->id,
-            'user_name' => $user?->name,
-            'user_email' => $user?->email,
-            'action' => $action,
-            'module' => $module,
-            'resource_type' => $resourceType,
-            'resource_id' => $resourceId,
-            'description' => $description,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'additional_data' => $additionalData,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'session_id' => session()->getId(),
-            'request_method' => request()->method(),
-            'request_url' => request()->fullUrl(),
-            'request_data' => request()->all(),
-        ]);
-    }
-
-    // Scopes para filtros comunes
-    public function scopeByModule($query, $module)
-    {
-        return $query->where('module', $module);
-    }
-
+    // Scopes para filtros
     public function scopeByAction($query, $action)
     {
         return $query->where('action', $action);
+    }
+
+    public function scopeByModule($query, $module)
+    {
+        return $query->where('module', $module);
     }
 
     public function scopeByUser($query, $userId)
@@ -85,5 +63,34 @@ class AdminLog extends Model
     public function scopeByDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('created_at', [$startDate, $endDate]);
+    }
+
+    // Métodos helper
+    public function getActionColorAttribute()
+    {
+        return match($this->action) {
+            'create' => 'bg-green-500',
+            'update' => 'bg-blue-500',
+            'delete' => 'bg-red-500',
+            'view' => 'bg-gray-500',
+            'export' => 'bg-purple-500',
+            'login' => 'bg-indigo-500',
+            'logout' => 'bg-yellow-500',
+            default => 'bg-gray-400'
+        };
+    }
+
+    public function getActionTextAttribute()
+    {
+        return match($this->action) {
+            'create' => 'Crear',
+            'update' => 'Actualizar',
+            'delete' => 'Eliminar',
+            'view' => 'Ver',
+            'export' => 'Exportar',
+            'login' => 'Iniciar Sesión',
+            'logout' => 'Cerrar Sesión',
+            default => ucfirst($this->action)
+        };
     }
 }

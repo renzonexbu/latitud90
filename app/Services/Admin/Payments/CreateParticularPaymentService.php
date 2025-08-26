@@ -12,12 +12,14 @@ use App\Models\Program;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class CreateParticularPaymentService
 {
+    use AdminLogging;
     /**
      * Crear un pago presencial completo con reestructuración de cuotas
      */
@@ -67,6 +69,24 @@ class CreateParticularPaymentService
 
             DB::commit();
 
+            // Log the payment creation
+            $this->logCreate(
+                'payments',
+                'Payment',
+                $payment->id,
+                "Pago particular creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
+                $payment->toArray(),
+                [
+                    'order_id' => $order->id,
+                    'participant_id' => $participant->id,
+                    'program_id' => $program->id,
+                    'total_amount' => $totalAmount,
+                    'paid_amount' => $paidAmount + $data['amount'],
+                    'remaining_balance' => $previousBalance - $data['amount'],
+                    'payment_code' => $data['payment_code'] ?? null,
+                ]
+            );
+
             Log::info('Pago presencial creado exitosamente', [
                 'payment_id' => $payment->id,
                 'order_id' => $order->id,
@@ -106,8 +126,7 @@ class CreateParticularPaymentService
     private function validateData(array $data): void
     {
         $required = [
-            'participant_id', 'program_id', 'amount', 'payment_gateway_id', 
-            'payment_option_id', 'transaction_date', 'payment_code'
+            'participant_id', 'program_id', 'amount', 'transaction_date', 'payment_code'
         ];
 
         foreach ($required as $field) {

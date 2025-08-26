@@ -6,6 +6,7 @@ use App\Models\Program;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -13,11 +14,15 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class UpdateProgramService
 {
+    use AdminLogging;
     /**
      * Execute the program update.
      */
     public function execute(array $programData, Program $program): Program
     {
+        // Capturar datos originales antes de la actualización para el logging
+        $originalData = $program->toArray();
+        
         try {
             DB::beginTransaction();
 
@@ -231,6 +236,25 @@ class UpdateProgramService
             $this->syncProgramPaymentOptions($program, $programData);
 
             DB::commit();
+            
+            // Log the program update
+            $this->logUpdate(
+                'programs',
+                'Program',
+                $program->id,
+                "Programa actualizado: {$program->name} ({$program->code})",
+                $originalData,
+                $program->fresh()->toArray(),
+                [
+                    'program_name' => $program->name,
+                    'program_code' => $program->code,
+                    'destination' => $program->destination,
+                    'departure_date' => $program->departure_date,
+                    'trip_price' => $program->trip_price,
+                    'updated_fields' => array_keys(array_diff_assoc($program->fresh()->toArray(), $originalData)),
+                ]
+            );
+            
             Log::info('UpdateProgramService: Actualización finalizada', [
                 'program_id' => $program->id
             ]);

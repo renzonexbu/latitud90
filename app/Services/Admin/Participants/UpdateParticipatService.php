@@ -5,11 +5,13 @@ namespace App\Services\Admin\Participants;
 use App\Models\Participant;
 use App\Models\ParticipantProgramDiscount;
 use App\Models\Course;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
 class UpdateParticipatService
 {
+    use AdminLogging;
     /**
      * Actualiza los datos personales de un participante
      *
@@ -42,6 +44,9 @@ class UpdateParticipatService
                 'intolerances' => $data['intolerances'] ?? $participant->intolerances,
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
+
+            // Guardar valores anteriores para el log
+            $oldValues = $participant->toArray();
 
             // Actualizar el participante
             $participant->update($updateData);
@@ -96,6 +101,22 @@ class UpdateParticipatService
             }
 
             DB::commit();
+
+            // Log the participant update
+            $this->logUpdate(
+                'participants',
+                'Participant',
+                $participant->id,
+                "Participante actualizado: {$participant->first_name} {$participant->first_last_name}",
+                $oldValues,
+                $participant->toArray(),
+                [
+                    'has_course_update' => !empty($data['pivot_course_id']),
+                    'has_price_update' => array_key_exists('individual_price', $data),
+                    'has_discounts' => isset($data['discounts']),
+                ]
+            );
+
             return $participant;
 
         } catch (\Exception $e) {
