@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Communication;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ContactMessageMail;

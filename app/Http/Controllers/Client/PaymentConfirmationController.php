@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\PaymentGateway\PaymentConfirmationService;
-use App\Services\Client\GetSpinnerDataService;
-use App\Services\Client\ProcessPaymentConfirmationService;
-use App\Services\Client\GetSuccessDataService;
-use App\Services\Client\GetFailureDataService;
+use App\Services\Client\Data\GetSpinnerDataService;
+use App\Services\Client\Payment\ProcessPaymentConfirmationService;
+use App\Services\Client\Data\GetSuccessDataService;
+use App\Services\Client\Data\GetFailureDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;

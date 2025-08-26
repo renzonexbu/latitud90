@@ -1,7 +1,7 @@
 <?php
 
 
-namespace App\Services\Client;
+namespace App\Services\Client\Programs;
 
 use App\Models\FrequentClient;
 use Illuminate\Support\Facades\DB;

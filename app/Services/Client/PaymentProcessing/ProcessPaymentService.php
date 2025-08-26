@@ -2,12 +2,12 @@
 
 namespace App\Services\Client\PaymentProcessing;
 
-use App\Services\Client\InstallmentService;
-use App\Services\Client\PaymentOrderService;
+use App\Services\Client\Payment\InstallmentService;
+use App\Services\Client\Payment\PaymentOrderService;
 use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Client\PaymentGateway\KhipuService;
-use App\Services\Client\CreateOrderService;
-use App\Services\Client\BsaleService;
+use App\Services\Client\Orders\CreateOrderService;
+use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
 use App\Services\Client\PaymentProcessing\ValidatePaymentEligibilityService;
 use App\Services\Client\PaymentProcessing\UpdateBuyerDataService;

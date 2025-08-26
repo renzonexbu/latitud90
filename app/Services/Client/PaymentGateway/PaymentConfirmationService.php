@@ -9,7 +9,7 @@ use App\Models\PendingPayment;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Mail\SuccessPaymentEmailService;
-use App\Services\Client\BsaleService;
+use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;

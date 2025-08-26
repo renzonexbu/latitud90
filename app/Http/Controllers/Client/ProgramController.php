@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use App\Services\Client\ProgramService;
-use App\Services\Client\ProgramDetailService;
+use App\Services\Client\Programs\ProgramService;
+use App\Services\Client\Programs\ProgramDetailService;
 use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

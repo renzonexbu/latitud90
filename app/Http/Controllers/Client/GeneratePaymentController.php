@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use App\Services\Client\GeneratePaymentService;
+use App\Services\Client\Payment\GeneratePaymentService;
 use App\Models\Region;
 use App\Models\Comune;
 use App\Models\Document;

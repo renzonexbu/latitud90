@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Payment;
 
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\PaymentConfirmationService;

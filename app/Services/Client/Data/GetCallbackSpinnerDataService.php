@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Data;
 
 use Illuminate\Http\Request;
 use App\Traits\SystemLogging;

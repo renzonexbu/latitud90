@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FrequentClient;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use App\Services\Client\FrequentClientService;
+use App\Services\Client\Programs\FrequentClientService;
 use Illuminate\Support\Facades\Log;
 
 class FrequentClientController extends Controller

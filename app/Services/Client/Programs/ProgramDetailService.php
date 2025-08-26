@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Programs;
 
 use App\Models\Program;
 use App\Models\Participant;

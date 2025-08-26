@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Data;
 
 use App\Services\Client\PaymentGateway\PaymentConfirmationService;
 use App\Traits\SystemLogging;
+use Illuminate\Http\Request;
 
-class GetSuccessDataService
+class GetFailureDataService
 {
     use SystemLogging;
     public function __construct(
@@ -13,16 +14,17 @@ class GetSuccessDataService
     ) {}
 
     /**
-     * Obtener datos para la vista de éxito de pago
+     * Obtener datos para la vista de fallo de pago
      *
+     * @param Request $request
      * @param int $orderDetailId
      * @return array
-     * @throws \Exception
      */
-    public function execute(int $orderDetailId): array
+    public function execute(Request $request, int $orderDetailId): array
     {
         try {
             $paymentData = $this->paymentConfirmationService->getPaymentData($orderDetailId);
+            $errorMessage = $request->session()->get('error', 'El pago no pudo ser procesado correctamente.');
             
             // Preservar RUT en sesión
             if ($paymentData['order_detail']->document_number) {
@@ -31,15 +33,20 @@ class GetSuccessDataService
 
             return [
                 'paymentData' => $paymentData,
+                'errorMessage' => $errorMessage,
                 'rut' => session('current_rut'),
             ];
         } catch (\Exception $e) {
-            $this->logError('GetSuccessDataService: Error showing success', [
+            $this->logError('GetFailureDataService: Error showing failure', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
             ], $e);
             
-            throw $e;
+            return [
+                'paymentData' => null,
+                'errorMessage' => 'Error al procesar el resultado del pago.',
+                'rut' => session('current_rut'),
+            ];
         }
     }
 }

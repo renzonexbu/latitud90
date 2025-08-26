@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use App\Services\Client\FindParticipantService;
+use App\Services\Client\Programs\FindParticipantService;
 use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

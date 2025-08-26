@@ -6,12 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Services\Client\PaymentGateway\HandleNotificationService;
 use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
-use App\Services\Client\GetCallbackSpinnerDataService;
-use App\Services\Client\ConfirmTransbankService;
-use App\Services\Client\GetKhipuCallbackDataService;
-use App\Services\Client\ConfirmKhipuService;
-use App\Services\Client\ProcessPaymentResultService;
-use App\Services\Client\CheckPaymentStatusService;
+use App\Services\Client\Data\GetCallbackSpinnerDataService;
+use App\Services\Client\Payment\ConfirmTransbankService;
+use App\Services\Client\Data\GetKhipuCallbackDataService;
+use App\Services\Client\Payment\ConfirmKhipuService;
+use App\Services\Client\Payment\ProcessPaymentResultService;
+use App\Services\Client\Payment\CheckPaymentStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 

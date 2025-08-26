@@ -2,7 +2,7 @@
 
 namespace App\Services\Client\PaymentProcessing;
 
-use App\Services\Client\FrequentClientService;
+use App\Services\Client\Programs\FrequentClientService;
 use App\Traits\SystemLogging;
 
 class StoreFrequentClientService

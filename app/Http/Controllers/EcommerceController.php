@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Client\NewsletterService;
-use App\Services\Client\ContactMessageService;
+use App\Services\Client\Communication\NewsletterService;
+use App\Services\Client\Communication\ContactMessageService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 

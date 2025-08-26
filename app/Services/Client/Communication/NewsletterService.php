@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Client;
+namespace App\Services\Client\Communication;
 
 use App\Models\Newsletter;
 use App\Traits\SystemLogging;
