@@ -222,26 +222,6 @@
                     </svg>
                     Volver al Inicio
                 </button>
-
-                <button
-                    @click="searchMoreTrips"
-                    class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-300"
-                >
-                    <svg
-                        class="w-5 h-5 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        ></path>
-                    </svg>
-                    Buscar Otros Viajes
-                </button>
             </div>
         </div>
 
@@ -372,15 +352,8 @@ const getStatusText = (status) => {
 
 // Funciones de navegación
 const goToHome = () => {
-    const homeUrl = props.rut ? `/?rut=${encodeURIComponent(props.rut)}` : "/";
+    const homeUrl = props.rut ? `/` : "/";
     router.visit(homeUrl);
-};
-
-const searchMoreTrips = () => {
-    const programsUrl = props.rut
-        ? `/programs?rut=${encodeURIComponent(props.rut)}`
-        : "/programs";
-    router.visit(programsUrl);
 };
 
 // Auto-scroll to top al montar
