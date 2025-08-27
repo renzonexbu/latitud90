@@ -26,10 +26,12 @@ class DailyPaymentsTransformer
     
     private function transformPaymentItem($item): array
     {
+        // Calcular estadísticas globales del participante para este programa
+        $participantStats = $this->calculateParticipantStats($item->participant_id, $item->program_id);
+        
         // Calcular montos adicionales (por ahora 0 ya que no existen las tablas order_movements ni external_contributions)
         $releasedAmount = 0; // $this->calculateReleasedAmount($item->order_id);
         $externalContribution = 0; // $this->calculateExternalContribution($item->order_id);
-        $remainingBalance = ($item->final_amount ?? 0) - ($item->payment_amount ?? 0) - $externalContribution;
 
         // Construir nombre del participante con CapitalCase
         $participantName = $this->buildParticipantName($item);
@@ -41,15 +43,28 @@ class DailyPaymentsTransformer
             'id' => $item->payment_id,
             'order_id' => $item->order_id,
             'order_number' => $item->order_number ?? 'N/A',
-            'participant_name' => $participantName,
-            'participant_email' => $this->cleanUtf8($item->email ?? ''),
-            'participant_document' => $this->formatDocument($item->document_number ?? ''),
-            'participant_phone' => $this->cleanUtf8($item->phone ?? ''),
+            // Información para el reporte
+            'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'Sin Asignar')),
+            'program_code' => $item->program_code ?? 'N/A',
             'program_name' => $this->cleanUtf8($item->program_name ?? 'N/A'),
-            'program_destination' => $this->cleanUtf8($item->destination ?? ''),
+            'participant_name' => $participantName,
+            'payment_form_code' => $item->payment_form_code ?? 'N/A',
+            'document_type' => $this->getDocumentTypeLabel($item->document_type),
+            'document_type_code' => $item->document_type ?? 'N/A',
+            'participant_document' => $this->formatDocument($item->document_number ?? ''),
             'program_departure_date' => $item->departure_date,
-            'program_price' => (float) ($item->total_amount ?? 0),
-            'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'N/A')),
+            'program_price' => (float) ($item->program_price ?? 0),
+            'scholarships_amount' => (float) $externalContribution, // Becas se mapea a aportes externos
+            'released_amount' => (float) $releasedAmount,
+            'paid_installments_display' => $participantStats['paid_installments_display'],
+            'total_paid_amount' => (float) ($item->payment_amount ?? 0), // Monto del pago específico
+            'overdue_installments_display' => $participantStats['overdue_installments_display'],
+            'total_pending_amount' => (float) $participantStats['remaining_balance'],
+            // Información adicional para detalles
+            'participant_email' => $this->cleanUtf8($item->email ?? ''),
+            'participant_document_type' => $item->participant_document_type ?? 'N/A',
+            'participant_phone' => $this->cleanUtf8($item->phone ?? ''),
+            'program_destination' => $this->cleanUtf8($item->destination ?? ''),
             'sales_executive_email' => $this->cleanUtf8($item->sales_executive_email ?? ''),
             'sales_executive_phone' => $this->cleanUtf8($item->sales_executive_phone ?? ''),
             'financing_type' => $item->payment_type ?? 'N/A',
@@ -59,9 +74,8 @@ class DailyPaymentsTransformer
             'payment_status' => $item->payment_status ?? 'N/A',
             'payment_method_name' => $this->capitalizeWords($this->cleanUtf8($item->payment_gateway_name ?? 'N/A')),
             'payment_method_code' => $item->payment_gateway_code ?? 'N/A',
-            'released_amount' => (float) $releasedAmount,
             'external_contribution' => (float) $externalContribution,
-            'remaining_balance' => (float) $remainingBalance,
+            'remaining_balance' => (float) $participantStats['remaining_balance'],
             'order_date' => $item->order_date,
             // Datos del pagador (desde orders_detail)
             'payer_name' => $this->capitalizeWords($this->cleanUtf8($item->payer_name ?? '')),
@@ -86,114 +100,66 @@ class DailyPaymentsTransformer
         $transformed = $this->transformPaymentItem($item);
         $row = [];
         
-        // Campos del participante
-        if (isset($selectedFields['participant'])) {
-            if (in_array('name', $selectedFields['participant'])) {
-                $row['Participante'] = $transformed['participant_name'];
-            }
-            if (in_array('email', $selectedFields['participant'])) {
-                $row['Email'] = $transformed['participant_email'];
-            }
-            if (in_array('document', $selectedFields['participant'])) {
-                $row['Documento'] = $transformed['participant_document'];
-            }
-            if (in_array('phone', $selectedFields['participant'])) {
-                $row['Teléfono'] = $transformed['participant_phone'];
+        // Construir las columnas en el orden específico solicitado
+        $orderedColumns = [
+            // 1. Ejecutivo Comercial
+            ['section' => 'executive', 'field' => 'name', 'header' => 'Ejecutivo Comercial', 'value' => $transformed['sales_executive_name']],
+            // 2. Código (Programa)
+            ['section' => 'program', 'field' => 'code', 'header' => 'Código (Programa)', 'value' => $transformed['program_code']],
+            // 3. Programa (Nombre Programa)
+            ['section' => 'program', 'field' => 'name', 'header' => 'Programa (Nombre Programa)', 'value' => $transformed['program_name']],
+            // 4. Nombre del Alumno
+            ['section' => 'participant', 'field' => 'name', 'header' => 'Nombre del Alumno', 'value' => $transformed['participant_name']],
+            // 5. Forma de Pago
+            ['section' => 'payment', 'field' => 'paymentForm', 'header' => 'Forma de Pago', 'value' => $transformed['payment_form_code']],
+            // 6. Tipo de Dcto
+            ['section' => 'participant', 'field' => 'documentType', 'header' => 'Tipo de Dcto', 'value' => $transformed['document_type_code']],
+            // 7. N° Documento
+            ['section' => 'participant', 'field' => 'document', 'header' => 'N° Documento', 'value' => $transformed['participant_document']],
+            // 8. Fecha de Inicio de Programa
+            ['section' => 'program', 'field' => 'startDate', 'header' => 'Fecha de Inicio de Programa', 'value' => $this->formatDate($transformed['program_departure_date'])],
+            // 9. $ Programa
+            ['section' => 'program', 'field' => 'price', 'header' => '$ Programa', 'value' => round($transformed['program_price'])],
+            // 10. Abonos + becas
+            ['section' => 'payment', 'field' => 'scholarships', 'header' => 'Abonos + becas', 'value' => round($transformed['scholarships_amount'])],
+            // 11. Valor alumno liberado
+            ['section' => 'payment', 'field' => 'releasedAmount', 'header' => 'Valor alumno liberado', 'value' => round($transformed['released_amount'])],
+            // 12. N° Cuotas Pagadas
+            ['section' => 'payment', 'field' => 'paidInstallments', 'header' => 'N° Cuotas Pagadas', 'value' => $transformed['paid_installments_display']],
+            // 13. Monto Total Pagado
+            ['section' => 'payment', 'field' => 'totalPaid', 'header' => 'Monto Total Pagado', 'value' => round($transformed['total_paid_amount'])],
+            // 14. N° Cuotas No Pagadas
+            ['section' => 'payment', 'field' => 'unpaidInstallments', 'header' => 'N° Cuotas No Pagadas', 'value' => $transformed['overdue_installments_display']],
+            // 15. Monto Total por Cobrar
+            ['section' => 'payment', 'field' => 'pendingAmount', 'header' => 'Monto Total por Cobrar', 'value' => round($transformed['total_pending_amount'])],
+        ];
+        
+        // Agregar solo las columnas seleccionadas en el orden correcto
+        foreach ($orderedColumns as $column) {
+            if (isset($selectedFields[$column['section']]) && 
+                in_array($column['field'], $selectedFields[$column['section']])) {
+                $row[$column['header']] = $column['value'];
             }
         }
         
-        // Campos del programa
-        if (isset($selectedFields['program'])) {
-            if (in_array('name', $selectedFields['program'])) {
-                $row['Programa'] = $transformed['program_name'];
-            }
-            if (in_array('destination', $selectedFields['program'])) {
-                $row['Destino'] = $transformed['program_destination'];
-            }
-            if (in_array('departureDate', $selectedFields['program'])) {
-                $row['Fecha Salida'] = $this->formatDate($transformed['program_departure_date']);
-            }
-            if (in_array('price', $selectedFields['program'])) {
-                $row['Precio Programa'] = $transformed['program_price'];
-            }
-            if (in_array('salesExecutive', $selectedFields['program'])) {
-                $row['Ejecutivo de Ventas'] = $transformed['sales_executive_name'];
-            }
-            if (in_array('salesExecutiveEmail', $selectedFields['program'])) {
-                $row['Email Ejecutivo'] = $transformed['sales_executive_email'];
-            }
-            if (in_array('salesExecutivePhone', $selectedFields['program'])) {
-                $row['Teléfono Ejecutivo'] = $transformed['sales_executive_phone'];
-            }
-        }
-        
-        // Campos del pago
-        if (isset($selectedFields['payment'])) {
-            if (in_array('orderNumber', $selectedFields['payment'])) {
-                $row['N° Orden'] = $transformed['order_number'];
-            }
-            if (in_array('financingType', $selectedFields['payment'])) {
-                $row['Forma Financiamiento'] = $transformed['financing_type_label'];
-            }
-            if (in_array('amount', $selectedFields['payment'])) {
-                $row['Monto Abonado'] = $transformed['payment_amount'];
-            }
-            if (in_array('releasedAmount', $selectedFields['payment'])) {
-                $row['Monto Liberado'] = $transformed['released_amount'];
-            }
-            if (in_array('externalContribution', $selectedFields['payment'])) {
-                $row['Aporte Externo'] = $transformed['external_contribution'];
-            }
-            if (in_array('remainingBalance', $selectedFields['payment'])) {
-                $row['Saldo por Pagar'] = $transformed['remaining_balance'];
-            }
-            if (in_array('paymentDate', $selectedFields['payment'])) {
-                $row['Fecha Pago'] = $this->formatDate($transformed['payment_date']);
-            }
-            if (in_array('paymentMethod', $selectedFields['payment'])) {
-                $row['Método Pago'] = $transformed['payment_method_name'];
-            }
-            if (in_array('status', $selectedFields['payment'])) {
-                $row['Estado Pago'] = $transformed['payment_status'];
-            }
-        }
-
-        // Campos del apoderado
-        if (isset($selectedFields['apoderado'])) {
-            if (in_array('name', $selectedFields['apoderado'])) {
-                $row['Nombre Apoderado'] = $transformed['emergency_contact_name'];
-            }
-            if (in_array('email', $selectedFields['apoderado'])) {
-                $row['Email Apoderado'] = $transformed['emergency_contact_email'];
-            }
-            if (in_array('phone', $selectedFields['apoderado'])) {
-                $row['Teléfono Apoderado'] = $transformed['emergency_contact_phone'];
-            }
-        }
-        
-        // Si no hay campos seleccionados, incluir todos por defecto
+        // Si no hay campos seleccionados, incluir las columnas del reporte solicitado
         if (empty($selectedFields)) {
             $row = [
-                'Participante' => $transformed['participant_name'],
-                'Email' => $transformed['participant_email'],
-                'Documento' => $transformed['participant_document'],
-                'Teléfono' => $transformed['participant_phone'],
-                'Programa' => $transformed['program_name'],
-                'Destino' => $transformed['program_destination'],
-                'Fecha Salida' => $this->formatDate($transformed['program_departure_date']),
-                'Precio Programa' => $transformed['program_price'],
-                'Ejecutivo de Ventas' => $transformed['sales_executive_name'],
-                'Email Ejecutivo' => $transformed['sales_executive_email'],
-                'Teléfono Ejecutivo' => $transformed['sales_executive_phone'],
-                'N° Orden' => $transformed['order_number'],
-                'Forma Financiamiento' => $transformed['financing_type_label'],
-                'Monto Abonado' => $transformed['payment_amount'],
-                'Monto Liberado' => $transformed['released_amount'],
-                'Aporte Externo' => $transformed['external_contribution'],
-                'Saldo por Pagar' => $transformed['remaining_balance'],
-                'Fecha Pago' => $this->formatDate($transformed['payment_date']),
-                'Método Pago' => $transformed['payment_method_name'],
-                'Estado Pago' => $transformed['payment_status'],
+                'Ejecutivo Comercial' => $transformed['sales_executive_name'],
+                'Codigo (Programa)' => $transformed['program_code'],
+                'Programa (Nombre Programa)' => $transformed['program_name'],
+                'Nombre del Alumno' => $transformed['participant_name'],
+                'Forma de Pago' => $transformed['payment_form_code'],
+                'Tipo de Dcto' => $transformed['document_type_code'],
+                'N° Documento' => $transformed['participant_document'],
+                                'Fecha de Inicio de Programa' => $this->formatDate($transformed['program_departure_date']),
+                '$ Programa' => round($transformed['program_price']),
+                'Abonos + becas' => round($transformed['scholarships_amount']),
+                'Valor alumno liberado' => round($transformed['released_amount']),
+                'N° Cuotas Pagadas' => $transformed['paid_installments_display'],
+                'Monto Total Pagado' => round($transformed['total_paid_amount']),
+                'N° Cuotas No Pagadas' => $transformed['overdue_installments_display'],
+                'Monto Total por Cobrar' => round($transformed['total_pending_amount']),
             ];
         }
         
@@ -330,6 +296,124 @@ class DailyPaymentsTransformer
         } else {
             // Es un pasaporte u otro documento, mostrar tal como está
             return $this->cleanUtf8($documentNumber);
+        }
+    }
+
+    /**
+     * Obtener el label del tipo de documento
+     */
+    private function getDocumentTypeLabel($documentType): string
+    {
+        $labels = [
+            'B2' => 'Boleta',
+            'BC' => 'Nota de Crédito',
+            'FF' => 'Factura',
+            'AC' => 'Reserva',
+        ];
+
+        return $labels[$documentType] ?? ($documentType ?: 'N/A');
+    }
+
+    /**
+     * Obtener cantidad de cuotas pagadas para una orden
+     */
+    private function getPaidInstallmentsCount($orderId): int
+    {
+        return DB::table('orders_detail')
+            ->where('order_id', $orderId)
+            ->where('is_paid', true)
+            ->count();
+    }
+
+    /**
+     * Obtener cantidad de cuotas pendientes para una orden
+     */
+    private function getPendingInstallmentsCount($orderId): int
+    {
+        return DB::table('orders_detail')
+            ->where('order_id', $orderId)
+            ->where('is_paid', false)
+            ->count();
+    }
+
+    /**
+     * Calcular estadísticas completas de la orden
+     */
+    private function calculateParticipantStats($participantId, $programId): array
+    {
+        // Buscar TODOS los planes de cuotas del participante para este programa
+        $installmentPlans = DB::table('installment_plans')
+            ->where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->get();
+
+        if ($installmentPlans->count() > 0) {
+            // Usar el sistema de cuotas (installments) - SUMAR TODOS LOS PLANES
+            $planIds = $installmentPlans->pluck('id')->toArray();
+            
+            $installmentStats = DB::table('installments')
+                ->whereIn('installment_plan_id', $planIds)
+                ->selectRaw('
+                    COUNT(*) as total_installments,
+                    COUNT(CASE WHEN status = "paid" THEN 1 END) as paid_installments,
+                    COUNT(CASE WHEN status = "overdue" THEN 1 END) as overdue_installments,
+                    SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as total_paid,
+                    SUM(CASE WHEN status IN ("pending", "overdue") THEN amount ELSE 0 END) as total_pending
+                ')
+                ->first();
+
+            $totalInstallments = $installmentStats->total_installments ?? 0;
+            $paidInstallments = $installmentStats->paid_installments ?? 0;
+            $overdueInstallments = $installmentStats->overdue_installments ?? 0;
+            $totalPaid = (float) ($installmentStats->total_paid ?? 0);
+            $totalPending = (float) ($installmentStats->total_pending ?? 0);
+
+            return [
+                'total_paid' => $totalPaid,
+                'remaining_balance' => $totalPending,
+                'paid_installments_display' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : '0',
+                'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
+            ];
+        } else {
+            // Usar el sistema de orders_detail (pagos presenciales/totales)
+            // SUMAR TODAS LAS ÓRDENES del participante para este programa
+            $allOrders = DB::table('orders')
+                ->where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->pluck('id')
+                ->toArray();
+
+            $orderDetailStats = DB::table('orders_detail')
+                ->whereIn('order_id', $allOrders)
+                ->selectRaw('
+                    COUNT(*) as total_installments,
+                    COUNT(CASE WHEN is_paid = 1 THEN 1 END) as paid_installments,
+                    COUNT(CASE WHEN is_paid = 0 AND due_date < CURDATE() THEN 1 END) as overdue_installments,
+                    SUM(CASE WHEN is_paid = 1 THEN amount ELSE 0 END) as total_paid,
+                    SUM(CASE WHEN is_paid = 0 THEN amount ELSE 0 END) as total_pending
+                ')
+                ->first();
+
+            $totalInstallments = $orderDetailStats->total_installments ?? 0;
+            $paidInstallments = $orderDetailStats->paid_installments ?? 0;
+            $overdueInstallments = $orderDetailStats->overdue_installments ?? 0;
+            $totalPaid = (float) ($orderDetailStats->total_paid ?? 0);
+            $totalPending = (float) ($orderDetailStats->total_pending ?? 0);
+
+            // Para pagos presenciales, calcular el saldo real del programa
+            $programTotal = DB::table('orders')
+                ->where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->sum('final_amount');
+
+            $remainingBalance = max($programTotal - $totalPaid, 0);
+
+            return [
+                'total_paid' => $totalPaid,
+                'remaining_balance' => $remainingBalance,
+                'paid_installments_display' => $totalPaid > 0 ? '1' : '0',
+                'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
+            ];
         }
     }
 }

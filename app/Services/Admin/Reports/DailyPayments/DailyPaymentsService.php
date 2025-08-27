@@ -47,8 +47,8 @@ class DailyPaymentsService
         $data = $this->dataProvider->getAllDailyPayments($query);
         $transformed = $this->transformer->transformForExport($data, $selectedFields);
 
-        // Log the daily payments export
-        $this->logExport(
+        // Log the daily payments export - sin URL para evitar problemas con URLs largas
+        $this->logExportWithoutUrl(
             'reports',
             "Exportación de pagos diarios generada",
             [
@@ -94,5 +94,61 @@ class DailyPaymentsService
     public function getDefaultDateRange(): array
     {
         return $this->dataProvider->getDefaultDateRange();
+    }
+
+    /**
+     * Log an export action without URL to avoid truncation issues
+     */
+    protected function logExportWithoutUrl(
+        string $module,
+        ?string $description = null,
+        ?array $additionalData = null
+    ): void {
+        $user = auth()->user();
+        
+        \App\Models\AdminLog::create([
+            'user_id' => $user?->id,
+            'user_name' => $user?->name,
+            'user_email' => $user?->email,
+            'action' => 'export',
+            'module' => $module,
+            'resource_type' => null,
+            'resource_id' => null,
+            'description' => $description ?? "Exportación de datos",
+            'old_values' => null,
+            'new_values' => null,
+            'additional_data' => $additionalData,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'session_id' => session()->getId(),
+            'request_method' => request()->method(),
+            'request_url' => null, // Explícitamente null para evitar URLs largas
+            'request_data' => $this->sanitizeRequestData(request()->all()),
+        ]);
+    }
+
+    /**
+     * Sanitize request data to remove sensitive information
+     */
+    private function sanitizeRequestData(array $data): array
+    {
+        $sensitiveFields = [
+            'password',
+            'password_confirmation',
+            'current_password',
+            'new_password',
+            'token',
+            '_token',
+            'api_token',
+            'remember_token',
+        ];
+
+        foreach ($sensitiveFields as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = '***HIDDEN***';
+            }
+        }
+
+        return $data;
     }
 }

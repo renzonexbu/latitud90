@@ -1,48 +1,60 @@
 <template>
     <div class="bg-white rounded-[20px] overflow-hidden">
-        <!-- Table Container -->
-        <div class="flex flex-col gap-0">
+        <!-- Table Container with horizontal scroll -->
+        <div class="overflow-x-auto">
+            <div class="flex flex-col gap-0 min-w-[1600px]">
             <!-- Table Header -->
             <div
-                class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
+                class="bg-turquesa rounded-t-[20px] px-3 py-[11px]"
             >
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[140px]"
-                >
-                    Participante
+                <div class="flex items-center gap-4 min-w-[1600px]">
+                    <div class="text-white font-bold text-[12px] text-center w-[120px]">
+                        Ejecutivo Comercial
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        Código
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[150px]">
+                        Programa
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[140px]">
+                        Nombre del Alumno
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        Forma de Pago
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        Tipo de Dcto
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        N° Documento
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        Fecha Inicio
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        $ Programa
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        Abonos + Becas
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        Valor Liberado
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        N° Cuotas Pagadas
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        Monto Total Pagado
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[80px]">
+                        N° Cuotas No Pagadas
+                    </div>
+                    <div class="text-white font-bold text-[12px] text-center w-[100px]">
+                        Monto Total por Cobrar
+                    </div>
+                    <div class="w-[60px]"></div>
                 </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[180px]"
-                >
-                    Programa
-                </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    N° Orden
-                </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Fecha Pago
-                </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Monto Pagado
-                </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Método Pago
-                </div>
-                <div
-                    class="text-white font-bold text-[14px] leading-[18px] text-center w-[100px]"
-                >
-                    Estado
-                </div>
-                <!-- Columna de acciones -->
-                <div class="w-[80px]"></div>
             </div>
 
             <!-- Table Body -->
@@ -51,131 +63,122 @@
                     v-for="(payment, index) in payments"
                     :key="payment.id"
                     :class="[
-                        'px-5 py-[14px] flex items-center justify-between',
+                        'px-3 py-[10px] hover:bg-gray-50 cursor-pointer',
                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                     ]"
+                    @click="$emit('view-details', payment)"
                 >
-                    <!-- Participante -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[140px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold">
-                                {{ payment.participant_name }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                {{ payment.participant_email }}
-                            </div>
-                            <div class="text-xs text-gray-400">
-                                {{ formatRut(payment.participant_document) }}
-                            </div>
+                    <div class="flex items-center gap-4 min-w-[1600px]">
+                        <!-- Ejecutivo Comercial -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[120px] truncate">
+                            {{ payment.sales_executive_name }}
                         </div>
-                    </div>
 
-                    <!-- Programa -->
-                    <div
-                        class="text-[#1c4f4a] font-bold text-[14px] leading-[18px] text-center w-[180px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold">
-                                {{ payment.program_name }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                {{ payment.program_destination }}
-                            </div>
-                            <div class="text-xs text-gray-400">
-                                {{ formatDate(payment.program_departure_date) }}
-                            </div>
+                        <!-- Código -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[80px]">
+                            {{ payment.program_code }}
                         </div>
-                    </div>
 
-                    <!-- N° Orden -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ payment.order_number }}
-                    </div>
-
-                    <!-- Fecha Pago -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ formatDate(payment.payment_date) }}
-                    </div>
-
-                    <!-- Monto Pagado -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold text-green-600">
-                                ${{ formatPrice(payment.payment_amount) }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                Cuota {{ payment.installment_number }}
-                            </div>
+                        <!-- Programa -->
+                        <div class="text-[#1c4f4a] font-medium text-[12px] w-[150px] truncate">
+                            {{ payment.program_name }}
                         </div>
-                    </div>
 
-                    <!-- Método Pago -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold">
-                                {{ payment.payment_method_name }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                {{ payment.financing_type_label }}
-                            </div>
+                        <!-- Nombre del Alumno -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] w-[140px] truncate">
+                            {{ payment.participant_name }}
                         </div>
-                    </div>
 
-                    <!-- Estado -->
-                    <div
-                        class="text-[#5b5b5b] font-bold text-[14px] leading-[18px] text-center w-[100px]"
-                    >
-                        <span
-                            :class="getStatusClass(payment.payment_status)"
-                            class="px-3 py-1 text-xs font-semibold rounded-full inline-block"
-                        >
-                            {{ getStatusLabel(payment.payment_status) }}
-                        </span>
-                    </div>
+                        <!-- Forma de Pago -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[80px]">
+                            {{ payment.payment_form_code }}
+                        </div>
 
-                    <!-- Acciones -->
-                    <div class="w-[80px] flex justify-center">
-                        <button
-                            @click="$emit('view-details', payment)"
-                            class="w-[30px] h-[30px] hover:opacity-75 transition-opacity flex items-center justify-center"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="16"
-                                viewBox="0 0 24 16"
-                                fill="none"
-                                class="w-[30px] h-[20px]"
+                        <!-- Tipo de Dcto -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[80px]">
+                            {{ payment.document_type }}
+                        </div>
+
+                        <!-- N° Documento -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[100px]">
+                            {{ formatRut(payment.participant_document) }}
+                        </div>
+
+                        <!-- Fecha Inicio -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[100px]">
+                            {{ formatDate(payment.program_departure_date) }}
+                        </div>
+
+                        <!-- $ Programa -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[100px]">
+                            ${{ formatPrice(payment.program_price) }}
+                        </div>
+
+                        <!-- Abonos + Becas -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[80px]">
+                            ${{ formatPrice(payment.scholarships_amount) }}
+                        </div>
+
+                        <!-- Valor Liberado -->
+                        <div class="text-[#5b5b5b] font-medium text-[12px] text-center w-[100px]">
+                            ${{ formatPrice(payment.released_amount) }}
+                        </div>
+
+                        <!-- N° Cuotas Pagadas -->
+                        <div class="text-green-600 font-semibold text-[12px] text-center w-[80px]">
+                            {{ payment.paid_installments_display }}
+                        </div>
+
+                        <!-- Monto Total Pagado -->
+                        <div class="text-green-600 font-semibold text-[12px] text-center w-[100px]">
+                            ${{ formatPrice(payment.total_paid_amount) }}
+                        </div>
+
+                        <!-- N° Cuotas No Pagadas -->
+                        <div class="text-red-600 font-semibold text-[12px] text-center w-[80px]">
+                            {{ payment.overdue_installments_display }}
+                        </div>
+
+                        <!-- Monto Total por Cobrar -->
+                        <div class="text-red-600 font-semibold text-[12px] text-center w-[100px]">
+                            ${{ formatPrice(payment.total_pending_amount) }}
+                        </div>
+
+                        <!-- Acciones -->
+                        <div class="w-[60px] flex justify-center">
+                            <button
+                                @click.stop="$emit('view-details', payment)"
+                                class="w-[24px] h-[24px] hover:opacity-75 transition-opacity flex items-center justify-center"
                             >
-                                <path
-                                    d="M12 2C6 2 2 8 2 8C2 8 6 14 12 14C18 14 22 8 22 8C22 8 18 2 12 2Z"
-                                    stroke="#C7C7C7"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                                <path
-                                    d="M12 10.5C13.3807 10.5 14.5 9.38071 14.5 8C14.5 6.61929 13.3807 5.5 12 5.5C10.6193 5.5 9.5 6.61929 9.5 8C9.5 9.38071 10.6193 10.5 12 10.5Z"
-                                    stroke="#C7C7C7"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </button>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="14"
+                                    viewBox="0 0 24 16"
+                                    fill="none"
+                                    class="w-[20px] h-[14px]"
+                                >
+                                    <path
+                                        d="M12 2C6 2 2 8 2 8C2 8 6 14 12 14C18 14 22 8 22 8C22 8 18 2 12 2Z"
+                                        stroke="#C7C7C7"
+                                        stroke-width="1.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                    <path
+                                        d="M12 10.5C13.3807 10.5 14.5 9.38071 14.5 8C14.5 6.61929 13.3807 5.5 12 5.5C10.6193 5.5 9.5 6.61929 9.5 8C9.5 9.38071 10.6193 10.5 12 10.5Z"
+                                        stroke="#C7C7C7"
+                                        stroke-width="1.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- Mensaje cuando no hay datos -->

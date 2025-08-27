@@ -20,6 +20,7 @@ class DailyPaymentsDataProvider
             ->leftJoin('sales_executives as se', 'pr.sales_executive_id', '=', 'se.id')
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
+            ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
             ->select([
                 'pay.id as payment_id',
                 'pay.amount as payment_amount',
@@ -32,6 +33,7 @@ class DailyPaymentsDataProvider
                 'pay.installments_number',
                 'pay.order_id',
                 'pay.order_detail_id',
+                'pay.document_type',
                 // Datos de la orden
                 'o.order_number',
                 'o.total_amount',
@@ -39,13 +41,18 @@ class DailyPaymentsDataProvider
                 'o.total_installments',
                 'o.payment_type',
                 'o.created_at as order_date',
+                'o.participant_id',
+                'o.program_id',
                 // Datos del participante
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
+                'doc.name as participant_document_type',
                 // Datos del programa
                 'pr.id as program_id',
+                'pr.code as program_code',
                 'pr.name as program_name',
                 'pr.destination',
                 'pr.departure_date',
+                'pr.trip_price as program_price',
                 // Datos del ejecutivo comercial
                 'se.id as sales_executive_id',
                 'se.name as sales_executive_name',
@@ -57,6 +64,7 @@ class DailyPaymentsDataProvider
                 'pg.code as payment_gateway_code',
                 'po.label as payment_option_name',
                 'po.code as payment_option_code',
+                'po.report_code as payment_form_code',
                 // Datos del pagador (desde orders_detail)
                 'od.name as payer_name',
                 'od.email as payer_email',
@@ -93,6 +101,33 @@ class DailyPaymentsDataProvider
             DB::raw('MAX(pay.transaction_date) as last_payment_date'),
         ])->first();
 
+        // Calcular pagos de hoy
+        $paymentsToday = DB::table('payments as pay')
+            ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
+            ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
+            ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
+            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('sales_executives as se', 'pr.sales_executive_id', '=', 'se.id')
+            ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
+            ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
+            ->whereDate('pay.transaction_date', now()->toDateString())
+            ->orWhereDate('pay.created_at', now()->toDateString())
+            ->orWhereDate('od.paid_at', now()->toDateString())
+            ->count();
+
+        // Calcular total de registros (sin filtros de fecha)
+        $totalRecords = DB::table('payments as pay')
+            ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
+            ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
+            ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
+            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('sales_executives as se', 'pr.sales_executive_id', '=', 'se.id')
+            ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
+            ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
+            ->count();
+
         return [
             'total_orders' => $summary->total_orders ?? 0,
             'total_payments' => $summary->total_payments ?? 0,
@@ -100,6 +135,8 @@ class DailyPaymentsDataProvider
             'average_payment' => $summary->average_payment ?? 0,
             'first_payment_date' => $summary->first_payment_date,
             'last_payment_date' => $summary->last_payment_date,
+            'payments_today' => $paymentsToday,
+            'total_records' => $totalRecords,
         ];
     }
 

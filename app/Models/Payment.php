@@ -38,7 +38,8 @@ class Payment extends Model
         'email_sent',
         'bsale_document_id',
         'bsale_number',
-        'bsale_token'
+        'bsale_token',
+        'document_type'
     ];
 
     protected $casts = [
@@ -197,7 +198,66 @@ class Payment extends Model
     }
 
     /**
-     * Boot method para configurar timezone automáticamente
+     * Determinar el tipo de documento automáticamente
+     * B2 = Boleta, BC = Nota de crédito, FF = Factura, AC = Reserva
+     */
+    public function determineDocumentType(): string
+    {
+        try {
+            // Si es una devolución (refund), siempre es BC (Nota de crédito)
+            if ($this->paymentOption && $this->paymentOption->gateway_code === 'refund') {
+                return 'BC';
+            }
+            
+            // Si no hay paymentOption cargado, intentar cargarlo
+            if (!$this->relationLoaded('paymentOption') && $this->payment_option_id) {
+                $this->load('paymentOption');
+                if ($this->paymentOption && $this->paymentOption->gateway_code === 'refund') {
+                    return 'BC';
+                }
+            }
+
+            // Cargar la relación program si no está cargada
+            if (!$this->relationLoaded('program')) {
+                $this->load('program');
+            }
+
+            // Si no hay programa directamente, intentar obtenerlo a través de order
+            if (!$this->program && !$this->relationLoaded('order')) {
+                $this->load('order.program');
+            }
+
+            $program = $this->program ?? $this->order?->program;
+
+            // Si no hay programa, por defecto B2 (Boleta)
+            if (!$program) {
+                return 'B2';
+            }
+
+            $currentYear = now()->year;
+            $programYear = $program->departure_date ? $program->departure_date->year : $currentYear;
+
+            // Si la fecha de salida del programa es en el año posterior (reserva)
+            if ($programYear > $currentYear) {
+                return 'AC'; // Reserva
+            }
+
+            // Si es el mismo año, decidir entre Boleta (B2) o Factura (FF)
+            // Por defecto usamos Boleta, pero se puede extender la lógica según necesidades
+            return 'B2'; // Boleta
+            
+        } catch (\Exception $e) {
+            // En caso de error, retornar Boleta por defecto
+            \Log::warning('Error determining document type for payment', [
+                'payment_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+            return 'B2';
+        }
+    }
+
+    /**
+     * Boot method para configurar timezone automáticamente y tipo de documento
      */
     protected static function boot()
     {
@@ -207,11 +267,29 @@ class Payment extends Model
             // Asegurar que las fechas se guarden en timezone de Santiago
             $payment->created_at = now()->setTimezone('America/Santiago');
             $payment->updated_at = now()->setTimezone('America/Santiago');
+            
+            // Determinar tipo de documento automáticamente si no está establecido
+            if (!$payment->document_type) {
+                $payment->document_type = $payment->determineDocumentType();
+            }
         });
 
         static::updating(function ($payment) {
             // Asegurar que updated_at se guarde en timezone de Santiago
             $payment->updated_at = now()->setTimezone('America/Santiago');
+            
+            // Determinar tipo de documento automáticamente cuando:
+            // 1. El estado cambia a approved/completed/paid
+            // 2. Cambia el payment_option_id
+            // 3. No tiene document_type asignado
+            $shouldDetermineDocumentType = 
+                (!$payment->document_type) || // No tiene tipo asignado
+                ($payment->isDirty(['status']) && in_array($payment->status, ['approved', 'completed', 'paid'])) || // Estado cambia a aprobado
+                ($payment->isDirty(['payment_option_id'])); // Cambia la opción de pago
+                
+            if ($shouldDetermineDocumentType) {
+                $payment->document_type = $payment->determineDocumentType();
+            }
         });
     }
 }
