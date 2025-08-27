@@ -3,6 +3,7 @@
 namespace App\Services\Admin\Payments;
 
 use App\Models\Payment;
+use App\Models\Program;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
@@ -36,6 +37,11 @@ class GetPaymentsService
         // Obtener estadísticas
         $stats = $this->getStats();
 
+        // Obtener programas para los filtros
+        $programs = Program::where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
         // Log the payments list view
         $this->logView(
             'payments',
@@ -46,7 +52,7 @@ class GetPaymentsService
                 'total_payments' => $payments->total(),
                 'current_page' => $payments->currentPage(),
                 'per_page' => $payments->perPage(),
-                'filters_applied' => $request->only(['search', 'status', 'gateway', 'date_from', 'date_to']),
+                'filters_applied' => $request->only(['participant_name', 'payment_status', 'program_id', 'payment_method', 'date_from', 'date_to']),
                 'stats' => $stats,
             ]
         );
@@ -54,7 +60,8 @@ class GetPaymentsService
         return [
             'payments' => $payments,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'status', 'gateway', 'date_from', 'date_to'])
+            'filters' => $request->only(['participant_name', 'payment_status', 'program_id', 'payment_method', 'date_from', 'date_to']),
+            'programs' => $programs
         ];
     }
 
@@ -67,7 +74,46 @@ class GetPaymentsService
      */
     private function applyFilters($query, Request $request): void
     {
-        // Filtro de búsqueda
+        // Filtro de búsqueda por nombre del participante
+        if ($request->participant_name) {
+            $query->whereHas('order.participant', function ($q) use ($request) {
+                $q->where('first_last_name', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('first_name', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('second_name', 'like', '%' . $request->participant_name . '%');
+            });
+        }
+
+        // Filtro de estado del pago
+        if ($request->payment_status && $request->payment_status !== 'all') {
+            $query->where('status', $request->payment_status);
+        }
+
+        // Filtro de programa
+        if ($request->program_id) {
+            $query->whereHas('order.program', function ($q) use ($request) {
+                $q->where('id', $request->program_id);
+            });
+        }
+
+        // Filtro de método de pago (gateway)
+        if ($request->payment_method && $request->payment_method !== 'all') {
+            $query->whereHas('paymentGateway', function ($q) use ($request) {
+                $q->where('code', $request->payment_method);
+            });
+        }
+
+        // Filtro de fecha desde
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        // Filtro de fecha hasta
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Filtros legacy para compatibilidad
         if ($request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('id', 'like', '%' . $request->search . '%')
@@ -85,26 +131,14 @@ class GetPaymentsService
             });
         }
 
-        // Filtro de estado
         if ($request->status) {
             $query->where('status', $request->status);
         }
 
-        // Filtro de gateway
         if ($request->gateway) {
             $query->whereHas('paymentGateway', function ($q) use ($request) {
                 $q->where('code', $request->gateway);
             });
-        }
-
-        // Filtro de fecha desde
-        if ($request->date_from) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        // Filtro de fecha hasta
-        if ($request->date_to) {
-            $query->whereDate('created_at', '<=', $request->date_to);
         }
     }
 

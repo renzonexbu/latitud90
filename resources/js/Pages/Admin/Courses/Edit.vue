@@ -73,6 +73,16 @@
                             </h3>
                         </div>
                         
+                        <!-- Filters -->
+                        <PaymentsFilters
+                            :initial-filters="paymentFilters"
+                            :programs="programs"
+                            @filters-changed="handleFiltersChanged"
+                            class="mb-6"
+                        />
+                        
+
+                        
                         <!-- Payments Table -->
                         <PaymentsTable
                             :payments="payments.data || []"
@@ -122,6 +132,7 @@ import EditCourseModal from "@/Components/Courses/EditCourseModal.vue";
 import PaymentsTable from "@/Components/Payments/PaymentsTable.vue";
 import PaymentsPagination from "@/Components/Payments/PaymentsPagination.vue";
 import PaymentDetailModal from "@/Components/Payments/PaymentDetailModal.vue";
+import PaymentsFilters from "@/Components/Payments/PaymentsFilters.vue";
 import { ChevronLeftIcon } from "@/Components/Icons";
 
 export default {
@@ -131,6 +142,14 @@ export default {
             showEditModal: false,
             showPaymentDetailModal: false,
             selectedPayment: null,
+            paymentFilters: {
+                participant_name: "",
+                payment_status: "all",
+                program_id: "",
+                payment_method: "all",
+                date_from: "",
+                date_to: "",
+            },
         };
     },
     mounted() {
@@ -142,6 +161,21 @@ export default {
             const newUrl = window.location.pathname;
             window.history.replaceState({}, document.title, newUrl);
         }
+
+        // Sincronizar filtros con parámetros de URL
+        this.syncFiltersFromURL();
+    },
+
+    watch: {
+        // Observar cambios en los filtros para sincronizar con la URL
+        paymentFilters: {
+            handler(newFilters) {
+                this.updateURLWithFilters(newFilters);
+            },
+            deep: true
+        },
+        
+
     },
     components: {
         Head,
@@ -154,6 +188,7 @@ export default {
         PaymentsTable,
         PaymentsPagination,
         PaymentDetailModal,
+        PaymentsFilters,
         ChevronLeftIcon,
     },
     props: {
@@ -285,12 +320,75 @@ export default {
         },
 
         handlePageChange(page) {
-            // Navegar a la página específica de pagos
+            // Navegar a la página específica de pagos manteniendo los filtros
             router.visit(route('admin.courses.edit', this.course.id), {
-                data: { page: page },
+                data: { 
+                    ...this.paymentFilters,
+                    page: page 
+                },
                 preserveState: true,
                 preserveScroll: true,
             });
+        },
+
+        handleFiltersChanged(filters) {
+            this.paymentFilters = filters;
+            this.fetchPayments();
+        },
+
+        async fetchPayments() {
+            // Recargar la página con los filtros aplicados
+            await router.visit(route('admin.courses.edit', this.course.id), {
+                data: { 
+                    ...this.paymentFilters,
+                    page: 1 // Resetear a la primera página cuando se aplican filtros
+                },
+                preserveState: true,
+                preserveScroll: true,
+            });
+        },
+
+        syncFiltersFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const filters = {};
+            
+            // Mapear parámetros de URL a filtros
+            if (urlParams.get('participant_name')) filters.participant_name = urlParams.get('participant_name');
+            if (urlParams.get('payment_status')) filters.payment_status = urlParams.get('payment_status');
+            if (urlParams.get('program_id')) filters.program_id = urlParams.get('program_id');
+            if (urlParams.get('payment_method')) filters.payment_method = urlParams.get('payment_method');
+            if (urlParams.get('date_from')) filters.date_from = urlParams.get('date_from');
+            if (urlParams.get('date_to')) filters.date_to = urlParams.get('date_to');
+
+            // Establecer valores por defecto si no están en la URL
+            if (!filters.payment_status) filters.payment_status = "all";
+            if (!filters.payment_method) filters.payment_method = "all";
+
+            // Actualizar filtros solo si hay cambios
+            if (Object.keys(filters).length > 0) {
+                this.paymentFilters = { ...this.paymentFilters, ...filters };
+            }
+        },
+
+        updateURLWithFilters(filters) {
+            const url = new URL(window.location);
+            const params = new URLSearchParams(url.search);
+
+            // Limpiar parámetros existentes de filtros
+            ['participant_name', 'payment_status', 'program_id', 'payment_method', 'date_from', 'date_to'].forEach(param => {
+                params.delete(param);
+            });
+
+            // Agregar nuevos parámetros de filtros
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value && value !== '') {
+                    params.set(key, value);
+                }
+            });
+
+            // Actualizar URL sin recargar la página
+            url.search = params.toString();
+            window.history.replaceState({}, document.title, url.toString());
         },
     },
 };

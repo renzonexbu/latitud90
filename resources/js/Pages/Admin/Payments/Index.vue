@@ -127,6 +127,7 @@
                 <PaymentsFilters
                     :initial-filters="filters"
                     @filters-changed="handleFiltersChanged"
+                    :programs="programs"
                 />
             </div>
 
@@ -182,6 +183,10 @@ const props = defineProps({
     filters: {
         type: Object,
         default: () => ({}),
+    },
+    programs: {
+        type: Array,
+        default: () => [],
     },
 });
 

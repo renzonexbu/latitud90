@@ -124,7 +124,7 @@
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
-                        {{ payment.payment_gateway?.name || "N/A" }}
+                        {{ getPaymentMethodDisplay(payment) }}
                     </div>
 
                     <!-- Fecha -->
@@ -179,6 +179,8 @@ export default {
             default: () => [],
         },
     },
+    
+
 
     methods: {
         getParticipantName(payment) {
@@ -200,6 +202,21 @@ export default {
 
         getInstitutionName(payment) {
             return payment.order?.program?.course?.institution?.name || "N/A";
+        },
+
+        getPaymentMethodDisplay(payment) {
+            // Si tiene payment_option_id, mostrar información del paymentOption
+            if (payment.payment_option_id && payment.payment_option) {
+                return payment.payment_option.gateway_code || payment.payment_option.label || "N/A";
+            }
+            
+            // Si no tiene payment_option_id, es un pago presencial
+            if (!payment.payment_option_id) {
+                return "Presencial";
+            }
+            
+            // Fallback al gateway del pago
+            return payment.payment_gateway?.name || "N/A";
         },
 
         getStatusClass(status) {

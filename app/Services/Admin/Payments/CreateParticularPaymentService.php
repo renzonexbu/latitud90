@@ -35,9 +35,21 @@ class CreateParticularPaymentService
             $participant = Participant::findOrFail($data['participant_id']);
             $program = Program::findOrFail($data['program_id']);
             
-            // Para pagos presenciales, usar gateway y option fijos
+            // Para pagos presenciales, usar gateway presencial y mapear la opción según el tipo
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
-            $paymentOption = PaymentOption::where('code', 'full_debit_credit_0')->firstOrFail();
+            
+            // Mapear el tipo de pago presencial a la opción correspondiente
+            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($data['presential_payment_type'] ?? 'BX');
+            $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
+            
+            // Log temporal para diagnosticar
+            Log::info('Pago presencial - Mapeo:', [
+                'presential_payment_type' => $data['presential_payment_type'] ?? 'BX',
+                'payment_option_code' => $paymentOptionCode,
+                'payment_option_id' => $paymentOption->id,
+                'payment_option_gateway' => $paymentOption->gateway_code,
+                'payment_option_label' => $paymentOption->label
+            ]);
 
             // Calcular montos del participante
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
@@ -374,5 +386,20 @@ class CreateParticularPaymentService
         } while ($exists);
         
         return $orderNumber;
+    }
+
+    /**
+     * Mapear el tipo de pago presencial a la opción de pago correspondiente
+     */
+    private function mapPresentialPaymentTypeToOption(string $presentialType): string
+    {
+        $mapping = [
+            'BX' => 'full_office_card',      // Pago con tarjeta en oficina
+            'TE' => 'full_bank_transfer',    // Transferencia bancaria
+            'CH' => 'full_check',            // Cheque
+            'DP' => 'full_deposit',          // Depósito
+        ];
+
+        return $mapping[$presentialType] ?? 'full_office_card'; // Default a tarjeta en oficina
     }
 }

@@ -36,12 +36,30 @@ class StorePaymentService
             // Mapear el tipo de pago presencial a la opción correspondiente
             $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($request->presential_payment_type);
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
+            
+            // Log temporal para diagnosticar
+            Log::info('Pago presencial - Mapeo:', [
+                'presential_payment_type' => $request->presential_payment_type,
+                'payment_option_code' => $paymentOptionCode,
+                'payment_option_id' => $paymentOption->id,
+                'payment_option_gateway' => $paymentOption->gateway_code,
+                'payment_option_label' => $paymentOption->label
+            ]);
 
             // Crear el detalle de la orden
             $orderDetail = $this->createOrderDetail($request, $order, $paymentGateway, $paymentOption);
 
             // Crear el pago
             $payment = $this->createPayment($request, $order, $orderDetail, $paymentGateway, $paymentOption);
+            
+            // Log temporal para verificar el pago creado
+            Log::info('Pago presencial creado:', [
+                'payment_id' => $payment->id,
+                'payment_option_id' => $payment->payment_option_id,
+                'payment_gateway_id' => $payment->payment_gateway_id,
+                'transaction_date' => $payment->transaction_date,
+                'status' => $payment->status
+            ]);
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -204,7 +222,7 @@ class StorePaymentService
             'buy_order' => $order->order_number,
             'amount' => $request->amount,
             'status' => $request->status,
-            'transaction_date' => now(),
+            'transaction_date' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(),
             'accounting_date' => now(),
             'authorization_code' => $request->authorization_code,
             'payment_code' => $request->payment_code,
@@ -242,7 +260,16 @@ class StorePaymentService
             'DP' => 'full_deposit',          // Depósito
         ];
 
-        return $mapping[$presentialPaymentType] ?? 'full_office_card'; // Default fallback
+        $result = $mapping[$presentialPaymentType] ?? 'full_office_card'; // Default fallback
+        
+        // Log temporal para diagnosticar
+        Log::info('Mapeo presential_payment_type:', [
+            'input' => $presentialPaymentType,
+            'output' => $result,
+            'mapping_exists' => isset($mapping[$presentialPaymentType])
+        ]);
+        
+        return $result;
     }
 
     /**

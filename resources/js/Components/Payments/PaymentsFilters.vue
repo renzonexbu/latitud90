@@ -1,23 +1,25 @@
 <template>
-    <div class="flex flex-col gap-[18px] items-start justify-start relative">
-        <!-- Header Row con título y búsqueda -->
-        <div class="flex flex-row items-center justify-between w-full relative gap-[510px]">
-            <!-- Título -->
+    <div class="flex flex-col gap-[27px] items-start justify-start relative">
+        <!-- Header Row -->
+        <div class="flex flex-row items-start justify-between flex-shrink-0 w-full relative">
             <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
-                Filtros de busqueda
+                Filtros de Pagos
             </div>
-            
-            <!-- Campo de búsqueda -->
-            <div class="relative w-[445px]">
+        </div>
+
+        <!-- Filters Row -->
+        <div class="flex flex-wrap gap-5 items-center justify-start w-full relative">
+            <!-- Search Input - Nombre del Participante -->
+            <div class="relative w-[297.28px]">
                 <input
-                    v-model="filters.search"
+                    v-model="filters.participant_name"
                     type="text"
-                    placeholder="Buscar pago por ID, orden, participante, programa..."
-                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
+                    placeholder="Buscar participante"
+                    class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
                 <button 
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-[#007e93] rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
+                    class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-turquesa rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                     @click="performSearch"
                 >
                     <svg class="w-[14.79px] h-[14.79px]" viewBox="0 0 24 24" fill="none">
@@ -25,57 +27,70 @@
                     </svg>
                 </button>
             </div>
-        </div>
 
-        <!-- Filtros Row -->
-        <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-            <!-- Estado del pago -->
-            <div class="relative flex-shrink-0 w-[134px]">
+            <!-- Estado del Pago Dropdown -->
+            <div class="relative w-[180px]">
                 <select
-                    v-model="filters.status"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    v-model="filters.payment_status"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
-                    <option value="">Estado del pago</option>
+                    <option value="all">Todos los Estados</option>
                     <option value="pending">Pendiente</option>
                     <option value="completed">Completado</option>
                     <option value="failed">Fallido</option>
-                    <option value="authorized">Autorizado</option>
+                    <option value="cancelled">Cancelado</option>
+                    <option value="refunded">Reembolsado</option>
                 </select>
             </div>
 
-            <!-- Gateway de pago -->
-            <div class="relative flex-shrink-0 w-[134px]">
+            <!-- Programa Dropdown -->
+            <div class="relative w-[200px]">
                 <select
-                    v-model="filters.gateway"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    v-model="filters.program_id"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
-                    <option value="">Tipo de pago</option>
-                    <option value="transbank">Transbank</option>
-                    <option value="khipu">Khipu</option>
-                    <option value="presencial">Presencial</option>
+                    <option value="">Todos los Programas</option>
+                    <option v-for="program in programs" :key="program.id" :value="program.id">
+                        {{ capitalizeWords(program.name) }}
+                    </option>
                 </select>
             </div>
 
-            <!-- Fecha desde -->
-            <div class="relative flex-shrink-0 w-[134px]">
-                <input
-                    v-model="filters.date_from"
-                    type="date"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+            <!-- Método de Pago Dropdown -->
+            <div class="relative w-[180px]">
+                <select
+                    v-model="filters.payment_method"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
-                />
+                >
+                    <option value="all">Todos los Métodos</option>
+                    <option value="transbank">Webpay (Tarjeta)</option>
+                    <option value="khipu">Transferencia Khipu</option>
+                    <option value="presencial">Pago Presencial</option>
+                    <option value="refund">Devoluciones</option>
+                </select>
             </div>
 
-            <!-- Fecha hasta -->
-            <div class="relative flex-shrink-0 w-[134px]">
-                <input
-                    v-model="filters.date_to"
-                    type="date"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
-                    @change="performSearch"
-                />
+            <!-- Rango de Fechas -->
+            <div class="flex gap-2">
+                <div class="relative w-[140px]">
+                    <input
+                        v-model="filters.date_from"
+                        type="date"
+                        class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+                        @change="performSearch"
+                    />
+                </div>
+                <div class="relative w-[140px]">
+                    <input
+                        v-model="filters.date_to"
+                        type="date"
+                        class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+                        @change="performSearch"
+                    />
+                </div>
             </div>
 
             <!-- Clear Filters Button -->
@@ -86,7 +101,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
-                Limpiar filtros
+                Limpiar Filtros
             </button>
         </div>
     </div>
@@ -101,18 +116,40 @@ export default {
         initialFilters: {
             type: Object,
             default: () => ({})
+        },
+        programs: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
         return {
             filters: {
-                search: this.initialFilters.search || "",
-                status: this.initialFilters.status || "",
-                gateway: this.initialFilters.gateway || "",
+                participant_name: this.initialFilters.participant_name || "",
+                payment_status: this.initialFilters.payment_status || "all",
+                program_id: this.initialFilters.program_id || "",
+                payment_method: this.initialFilters.payment_method || "all",
                 date_from: this.initialFilters.date_from || "",
                 date_to: this.initialFilters.date_to || "",
             }
         };
+    },
+
+    watch: {
+        initialFilters: {
+            handler(newFilters) {
+                this.filters = {
+                    participant_name: newFilters.participant_name || "",
+                    payment_status: newFilters.payment_status || "all",
+                    program_id: newFilters.program_id || "",
+                    payment_method: newFilters.payment_method || "all",
+                    date_from: newFilters.date_from || "",
+                    date_to: newFilters.date_to || "",
+                };
+            },
+            deep: true,
+            immediate: true
+        }
     },
     methods: {
         performSearch: _.debounce(function () {
@@ -121,14 +158,38 @@ export default {
         
         clearFilters() {
             this.filters = {
-                search: "",
-                status: "",
-                gateway: "",
+                participant_name: "",
+                payment_status: "all",
+                program_id: "",
+                payment_method: "all",
                 date_from: "",
                 date_to: "",
             };
             this.performSearch();
+        },
+        
+        capitalizeWords(string) {
+            if (!string) return '';
+            return string.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
         }
     }
 };
 </script>
+
+<style scoped>
+.bg-turquesa {
+    background-color: #007e93;
+}
+
+.font-nexa-regular {
+    font-family: "Nexa-Regular", sans-serif;
+    font-weight: 400;
+}
+
+.font-nexa-bold {
+    font-family: "Nexa-Bold", sans-serif;
+    font-weight: 700;
+}
+</style>

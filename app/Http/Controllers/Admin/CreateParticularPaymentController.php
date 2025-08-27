@@ -54,6 +54,7 @@ class CreateParticularPaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'presential_payment_type' => 'required|in:BX,TE,CH,DP',
 
             // Datos del comprador
             'buyer_full_name' => 'required|string|max:255',
@@ -81,6 +82,7 @@ class CreateParticularPaymentController extends Controller
                 'payment_code' => $request->payment_code,
                 'authorization_code' => $request->authorization_code,
                 'notes' => $request->notes,
+                'presential_payment_type' => $request->presential_payment_type,
 
                 // Datos del comprador
                 'buyer_full_name' => $request->buyer_full_name,

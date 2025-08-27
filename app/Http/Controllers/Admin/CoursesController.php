@@ -206,8 +206,8 @@ class CoursesController extends Controller
         $programs = Program::where('active', true)->get();
         $institutions = Institution::active()->orderBy('name')->get();
 
-        // Obtener pagos relacionados al curso con todas las relaciones necesarias para el modal
-        $payments = Payment::with([
+        // Obtener pagos relacionados al curso con filtros aplicados
+        $paymentsQuery = Payment::with([
             'order.program.course.institution', 
             'order.participant.documentType',
             'orderDetail.country',
@@ -218,8 +218,53 @@ class CoursesController extends Controller
         ])
             ->whereHas('order.program.course', function ($query) use ($course) {
                 $query->where('id', $course->id);
-            })
-            ->orderBy('created_at', 'desc')
+            });
+
+
+
+        // Aplicar filtros de pagos
+        if ($request->filled('participant_name')) {
+            $paymentsQuery->whereHas('order.participant', function ($query) use ($request) {
+                $query->where('first_name', 'like', '%' . $request->participant_name . '%')
+                      ->orWhere('last_name', 'like', '%' . $request->participant_name . '%');
+            });
+        }
+
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $paymentsQuery->where('status', $request->payment_status);
+        }
+
+        if ($request->filled('program_id')) {
+            $paymentsQuery->whereHas('order.program', function ($query) use ($request) {
+                $query->where('id', $request->program_id);
+            });
+        }
+
+        if ($request->filled('payment_method') && $request->payment_method !== 'all') {
+            // Lógica especial para pagos presenciales (incluye pagos sin payment_option_id)
+            if ($request->payment_method === 'presencial') {
+                $paymentsQuery->where(function ($query) {
+                    $query->whereHas('paymentOption', function ($subQuery) {
+                        $subQuery->where('gateway_code', 'presencial');
+                    })->orWhereNull('payment_option_id');
+                });
+            } else {
+                // Para otros métodos de pago, usar la lógica normal
+                $paymentsQuery->whereHas('paymentOption', function ($query) use ($request) {
+                    $query->where('gateway_code', $request->payment_method);
+                });
+            }
+        }
+
+        if ($request->filled('date_from')) {
+            $paymentsQuery->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $paymentsQuery->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $payments = $paymentsQuery->orderBy('created_at', 'desc')
             ->paginate(10, ['*'], 'page', $request->get('page', 1));
 
         return Inertia::render('Admin/Courses/Edit', [
