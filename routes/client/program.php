@@ -22,7 +22,7 @@ Route::get('/programs/{programId}/confirmation', [ConfirmPaymentController::clas
 Route::post('/process-payment', [ProcessPaymentController::class, 'processPayment'])->name('payment.process');
 
 // Rutas unificadas de confirmación de pagos
-Route::get('/payment/callback/{orderDetailId}', [PaymentConfirmationController::class, 'showSpinner'])->name('payment.callback');
+Route::match(['get', 'post'], '/payment/callback/{orderDetailId}', [PaymentConfirmationController::class, 'showSpinner'])->name('payment.callback');
 Route::post('/payment/callback/{orderDetailId}', [PaymentConfirmationController::class, 'handleVirtualPosWebhook'])->name('payment.callback.post');
 Route::post('/payment/confirm', [PaymentConfirmationController::class, 'confirmPayment'])->name('payment.confirm');
 

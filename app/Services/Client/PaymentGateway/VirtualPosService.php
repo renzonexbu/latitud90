@@ -184,7 +184,9 @@ class VirtualPosService
 
             $this->logInfo('VirtualPOS confirmTransaction request', [
                 'payment_id' => $paymentId,
-                'commerce_code' => $config['commerce_code']
+                'commerce_code' => $config['commerce_code'],
+                'url' => $this->baseUrl . "/payment/{$paymentId}",
+                'headers' => $headers
             ]);
 
             $response = $this->client->get($this->baseUrl . "/payment/{$paymentId}", [
@@ -242,9 +244,15 @@ class VirtualPosService
     public function processNotification($notificationData)
     {
         try {
-            $this->logInfo('VirtualPOS notification received', $notificationData);
+            $this->logInfo('VirtualPOS processNotification - Full details', [
+                'notification_data' => $notificationData,
+                'payment_id' => $notificationData['payment_id'] ?? $notificationData['id'] ?? $notificationData['uuid'] ?? null,
+                'status' => $notificationData['status'] ?? null,
+                'amount' => $notificationData['amount'] ?? null,
+                'currency' => $notificationData['currency'] ?? 'CLP'
+            ]);
 
-            $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? null;
+            $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? $notificationData['uuid'] ?? null;
             $status = $notificationData['status'] ?? null;
             $amount = $notificationData['amount'] ?? null;
             $currency = $notificationData['currency'] ?? 'CLP';

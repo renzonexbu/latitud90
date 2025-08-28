@@ -514,9 +514,9 @@ class PaymentConfirmationService
             ]);
         }
 
-        // Actualizar estado del order detail como cancelado (fallido)
+        // Actualizar estado del order detail como fallido
         $orderDetail->update([
-            'status' => 'cancelled',
+            'status' => 'failed',
             'is_paid' => false,
             'paid_at' => null,
         ]);
@@ -612,6 +612,7 @@ class PaymentConfirmationService
             'transaction_id' => $payment->external_payment_id ?? $orderDetail->transaction_id,
             'total_installments' => $orderDetail->installments_number ?? 1,
             'installment_number' => $orderDetail->installment_number ?? 1,
+            'status' => $payment->status ?? $orderDetail->status ?? 'unknown',
         ];
     }
 

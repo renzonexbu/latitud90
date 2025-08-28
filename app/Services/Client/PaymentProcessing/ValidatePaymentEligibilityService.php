@@ -40,12 +40,12 @@ class ValidatePaymentEligibilityService
         $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
         $participantTotalAmount = $priceData['final_price'];
 
-        // Pagos aprobados previos
+        // Pagos aprobados y completados previos
         $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
             $q->where('participant_id', $participant->id)
                 ->where('program_id', $program->id);
         })
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
         $paidAmount = round($paidAmount, 2);
         $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);

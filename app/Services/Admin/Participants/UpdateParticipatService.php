@@ -155,18 +155,23 @@ class UpdateParticipatService
                     // Mapear el tipo y valor a percent/amount según corresponda
                     $percent = null;
                     $amount = null;
+                    $discountType = 'scholarship'; // Por defecto
                     
                     if ($discountData['type'] === 'percent') {
                         $percent = $discountData['value'] ?? null;
+                        $discountType = 'scholarship';
                     } elseif ($discountData['type'] === 'amount') {
                         $amount = $discountData['value'] ?? null;
+                        $discountType = 'scholarship';
                     } elseif ($discountData['type'] === 'liberado') {
                         $percent = 100; // Liberado = 100%
+                        $discountType = 'released';
                     }
                     
                     $discount->update([
                         'percent' => $percent,
                         'amount' => $amount,
+                        'discount_type' => $discountType,
                         'comment' => $discountData['comment'] ?? null,
                     ]);
                     $processedDiscountIds[] = $discount->id;
@@ -176,19 +181,24 @@ class UpdateParticipatService
                 // Mapear el tipo y valor a percent/amount según corresponda
                 $percent = null;
                 $amount = null;
+                $discountType = 'scholarship'; // Por defecto
                 
                 if ($discountData['type'] === 'percent') {
                     $percent = $discountData['value'] ?? null;
+                    $discountType = 'scholarship';
                 } elseif ($discountData['type'] === 'amount') {
                     $amount = $discountData['value'] ?? null;
+                    $discountType = 'scholarship';
                 } elseif ($discountData['type'] === 'liberado') {
                     $percent = 100; // Liberado = 100%
+                    $discountType = 'released';
                 }
                 
                 $newDiscount = ParticipantProgramDiscount::create([
                     'participant_program_id' => $participantProgramId,
                     'percent' => $percent,
                     'amount' => $amount,
+                    'discount_type' => $discountType,
                     'comment' => $discountData['comment'] ?? null,
                     'approved_by' => auth()->id(),
                 ]);

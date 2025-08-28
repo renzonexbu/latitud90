@@ -88,7 +88,8 @@ return new class extends Migration
                 'processing',   // Procesando pago
                 'paid',         // Pagado
                 'overdue',      // Vencida
-                'cancelled'     // Cancelada
+                'cancelled',
+                'failed'      // Falló
             ])->default('pending');
 			$table->datetime('adjusted_at')->nullable();
 			$table->text('adjustment_reason')->nullable();

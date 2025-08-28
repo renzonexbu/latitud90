@@ -12,22 +12,85 @@ class ConsolidatedPaymentsDataProvider
 {
     public function buildBaseQuery(): Builder
     {
+        // Subconsultas para agregados
+        $scholarshipSub = DB::table('participant_program_discounts')
+            ->selectRaw('participant_program_id, SUM(amount) as scholarship_amount')
+            ->where('discount_type', 'scholarship')
+            ->groupBy('participant_program_id');
+
+        $releasedSub = DB::table('participant_program_discounts')
+            ->selectRaw('participant_program_id, COUNT(*) as released_count')
+            ->where('discount_type', 'released')
+            ->groupBy('participant_program_id');
+
+        // Subconsulta: total de cuotas e info de plan por orden
+        $installmentPlanSub = DB::table('installment_plans as ip')
+            ->selectRaw('ip.order_id, MAX(ip.total_installments) as plan_total_installments')
+            ->groupBy('ip.order_id');
+
+        // Subconsulta: estadísticas de cuotas por participante y programa (desde installments)
+        $installmentsStatsSub = DB::table('installments as i')
+            ->join('installment_plans as ip2', 'i.installment_plan_id', '=', 'ip2.id')
+            ->selectRaw('
+                ip2.participant_id,
+                ip2.program_id,
+                COUNT(*) as total_installments_ins,
+                COUNT(CASE WHEN i.status = "paid" THEN 1 END) as paid_installments_ins
+            ')
+            ->groupBy('ip2.participant_id', 'ip2.program_id');
+
+        // Subconsulta: estadísticas de cuotas por participante y programa (fallback orders_detail)
+        $orderDetailsStatsSub = DB::table('orders_detail as od2')
+            ->join('orders as o2', 'od2.order_id', '=', 'o2.id')
+            ->selectRaw('
+                o2.participant_id,
+                o2.program_id,
+                COUNT(*) as total_installments_od,
+                COUNT(CASE WHEN od2.is_paid = 1 THEN 1 END) as paid_installments_od
+            ')
+            ->groupBy('o2.participant_id', 'o2.program_id');
+
         return DB::table('payments as pay')
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
             ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('participant_program as pp', 'o.participant_program_id', '=', 'pp.id')
+            ->leftJoinSub($scholarshipSub, 'sch', function ($join) {
+                $join->on('sch.participant_program_id', '=', 'o.participant_program_id');
+            })
+            ->leftJoinSub($releasedSub, 'rel', function ($join) {
+                $join->on('rel.participant_program_id', '=', 'o.participant_program_id');
+            })
+            ->leftJoinSub($installmentPlanSub, 'iplan', function ($join) {
+                $join->on('iplan.order_id', '=', 'o.id');
+            })
+            ->leftJoinSub($installmentsStatsSub, 'ins_stats', function ($join) {
+                $join->on('ins_stats.participant_id', '=', 'o.participant_id')
+                     ->on('ins_stats.program_id', '=', 'o.program_id');
+            })
+            ->leftJoinSub($orderDetailsStatsSub, 'od_stats', function ($join) {
+                $join->on('od_stats.participant_id', '=', 'o.participant_id')
+                     ->on('od_stats.program_id', '=', 'o.program_id');
+            })
             ->select([
                 // Identificación
                 'pr.id as program_id',
+                'pr.code as program_code',
                 'p.document_number as participant_rut',
+                'p.first_name',
+                'p.second_name',
+                'p.first_last_name',
+                'p.second_last_name',
                 'pay.authorization_code',
                 
                 // Información del pago
                 'pay.amount as payment_amount',
                 'pay.status as payment_status',
-                'pay.buy_order as invoice_number',
+                'pay.buy_order',
+                'pay.bsale_number',
+                'pay.document_type',
                 'pg.code as payment_method_code',
                 'pg.name as payment_method_name',
                 'pay.installments_number',
@@ -37,6 +100,17 @@ class ConsolidatedPaymentsDataProvider
                 'od.name as payer_name',
                 'od.email as payer_email',
                 
+                // Orden / Reserva
+                'o.order_number',
+                'o.total_installments',
+
+                // Agregados
+                DB::raw('COALESCE(ins_stats.paid_installments_ins, od_stats.paid_installments_od, 0) as paid_installments'),
+                DB::raw('COALESCE(ins_stats.total_installments_ins, od_stats.total_installments_od, iplan.plan_total_installments, o.total_installments, 0) as total_installments'),
+                DB::raw('COALESCE(sch.scholarship_amount, 0) as scholarship_amount'),
+                DB::raw('CASE WHEN COALESCE(rel.released_count, 0) > 0 THEN 1 ELSE 0 END as released'),
+                DB::raw('CASE WHEN pp.individual_price IS NULL OR pp.individual_price = 0 THEN pr.trip_price ELSE pp.individual_price END as program_total_value'),
+
                 // Campos adicionales para filtros
                 'pay.created_at',
                 'pay.transaction_date',

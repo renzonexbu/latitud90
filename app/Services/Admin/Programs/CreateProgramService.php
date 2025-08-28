@@ -230,7 +230,16 @@ class CreateProgramService
         }
 
         $destination = $programData['destination'] ?? null;
-        $year = (int) ($programData['year'] ?? date('Y'));
+        $year = null;
+        
+        // Obtener el año de la fecha de salida si está disponible
+        if (!empty($programData['departure_date'])) {
+            $year = (int) date('Y', strtotime($programData['departure_date']));
+        } elseif (!empty($programData['year'])) {
+            $year = (int) $programData['year'];
+        } else {
+            $year = (int) date('Y');
+        }
 
         if ($institutionName && $course && $destination && $year) {
             return sprintf('%s - %s - %s - %d', $institutionName, $course, $destination, $year);

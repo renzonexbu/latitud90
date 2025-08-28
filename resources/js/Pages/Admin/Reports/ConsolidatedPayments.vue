@@ -7,6 +7,7 @@
         <ConsolidatedPaymentsReport 
           :consolidated-payments="consolidatedPayments"
           :payment-methods="paymentMethods"
+          :programs="programs"
           :filters="filters"
           :summary="summary"
         />
@@ -29,6 +30,10 @@ defineProps({
     })
   },
   paymentMethods: {
+    type: Array,
+    default: () => []
+  },
+  programs: {
     type: Array,
     default: () => []
   },

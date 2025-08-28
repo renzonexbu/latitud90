@@ -544,7 +544,7 @@ const loadExistingDiscounts = () => {
             if (discount.amount && discount.amount > 0) {
                 type = "amount";
                 value = discount.amount;
-            } else if (discount.percent && discount.percent >= 100) {
+            } else if (discount.discount_type === 'released' || (discount.percent && discount.percent >= 100)) {
                 type = "liberado";
                 value = 100;
             }

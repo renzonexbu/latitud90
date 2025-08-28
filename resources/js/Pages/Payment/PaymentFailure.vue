@@ -127,7 +127,7 @@
                                     <span
                                         class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
                                     >
-                                        {{ getStatusText(paymentData.status) }}
+                                        {{ getStatusText(paymentData.status || paymentData.payment?.status || paymentData.order_detail?.status) }}
                                     </span>
                                 </p>
                             </div>
@@ -345,9 +345,14 @@ const getStatusText = (status) => {
         failed: "Fallido",
         rejected: "Rechazado",
         cancelled: "Cancelado",
+        canceled: "Cancelado",
         error: "Error",
+        rechazado: "Rechazado",
+        cancelado: "Cancelado",
+        processing: "Procesando",
+        overdue: "Vencido"
     };
-    return statuses[status] || status || "Desconocido";
+    return statuses[status] || status || "Fallido";
 };
 
 // Funciones de navegación
@@ -361,6 +366,9 @@ import { onMounted } from "vue";
 
 onMounted(() => {
     window.scrollTo(0, 0);
+    
+    // Debug: mostrar los datos recibidos
+    console.log('PaymentFailure - paymentData:', props.paymentData);
     
     // Registrar pago fallido en analytics
     recordPaymentFailed();

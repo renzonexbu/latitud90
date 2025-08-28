@@ -13,6 +13,7 @@ class ParticipantProgramDiscount extends Model
         'participant_program_id',
         'percent',
         'amount',
+        'discount_type',
         'comment',
         'approved_by'
     ];

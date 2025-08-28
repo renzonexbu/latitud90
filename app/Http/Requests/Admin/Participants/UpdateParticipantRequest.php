@@ -27,6 +27,9 @@ class UpdateParticipantRequest extends FormRequest
             'allergies' => 'nullable|string',
             'intolerances' => 'nullable|string',
             'dietary_restrictions' => 'nullable|string|max:255',
+            'pivot_course_id' => 'nullable|integer|exists:courses,id',
+            'individual_price' => 'nullable|numeric|min:0',
+            'discounts' => 'nullable|string', // JSON string con los descuentos
         ];
     }
 }

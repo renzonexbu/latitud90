@@ -28,18 +28,32 @@ class ConsolidatedPaymentsTransformer
         return [
             'id' => $item->order_id,
             'program_id' => $item->program_id ?? 'N/A',
+            'program_code' => $item->program_code ?? 'N/A',
             'participant_rut' => $this->formatDocument($item->participant_rut ?? 'N/A'),
+            'participant_name' => $this->buildParticipantName($item),
             'authorization_code' => $item->authorization_code ?? 'N/A',
             'payment_amount' => (float) ($item->payment_amount ?? 0),
             'payment_status' => $item->payment_status ?? 'N/A',
-            'invoice_number' => $item->invoice_number ?? 'N/A',
+            // Documentos: prioridad Bsale, luego buy_order
+            'invoice_number' => $item->bsale_number ?? $item->buy_order ?? 'N/A',
+            'document_type_code' => $item->document_type ?? 'N/A',
             'payment_method_code' => $item->payment_method_code ?? 'N/A',
             'payment_method_name' => $this->capitalizeWords($this->cleanUtf8($item->payment_method_name ?? 'N/A')),
             'installments_number' => $item->installments_number ?? 1,
+            'paid_installments' => (int)($item->paid_installments ?? 0),
+            'total_installments' => (int)($item->total_installments ?? 0),
+            'paid_installments_display' => $this->formatInstallments(
+                (int)($item->paid_installments ?? 0),
+                (int)($item->total_installments ?? 0)
+            ),
             'payment_date' => $item->payment_date,
             'payer_name' => $this->capitalizeWords($this->cleanUtf8($item->payer_name ?? 'N/A')),
             'payer_email' => $this->cleanUtf8($item->payer_email ?? 'N/A'),
             'is_refund' => ($item->payment_amount ?? 0) < 0,
+            'reservation_number' => $item->order_number ?? $item->buy_order ?? 'N/A',
+            'external_contribution' => (float) ($item->scholarship_amount ?? 0),
+            'released' => (bool) ($item->released ?? false),
+            'total_program_value' => (float) ($item->program_total_value ?? 0),
         ];
     }
     
@@ -137,6 +151,22 @@ class ConsolidatedPaymentsTransformer
     private function capitalizeWords(string $text): string
     {
         return ucwords(strtolower($text));
+    }
+
+    private function buildParticipantName($item): string
+    {
+        $parts = [];
+        if (!empty($item->first_name)) $parts[] = $this->capitalizeWords($this->cleanUtf8($item->first_name));
+        if (!empty($item->second_name)) $parts[] = $this->capitalizeWords($this->cleanUtf8($item->second_name));
+        if (!empty($item->first_last_name)) $parts[] = $this->capitalizeWords($this->cleanUtf8($item->first_last_name));
+        if (!empty($item->second_last_name)) $parts[] = $this->capitalizeWords($this->cleanUtf8($item->second_last_name));
+        return !empty($parts) ? implode(' ', $parts) : 'N/A';
+    }
+
+    private function formatInstallments(int $paid, int $total): string
+    {
+        if ($total <= 0) return (string)$paid;
+        return sprintf('%d/%d', $paid, $total);
     }
 
     private function formatDocument($documentNumber): string

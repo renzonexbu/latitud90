@@ -14,6 +14,10 @@ class RecoveryScheduleFilters
         if (!empty($filters['programId'])) {
             $query->where('prog.id', $filters['programId']);
         }
+
+        if (!empty($filters['salesExecutiveId'])) {
+            $query->where('se.id', $filters['salesExecutiveId']);
+        }
         
         // Solo aplicar filtro de estado si se especifica explícitamente
         if (!empty($filters['status'])) {
@@ -46,8 +50,8 @@ class RecoveryScheduleFilters
             $query->where('i.due_date', '<=', $filters['dateTo']);
         }
         
-        // Mantener el ordenamiento por fecha de vencimiento
-        $query->orderBy('i.due_date', 'asc');
+        // Ordenar por fecha de vencimiento más reciente primero
+        $query->orderBy('i.due_date', 'desc');
         
         return $query;
     }

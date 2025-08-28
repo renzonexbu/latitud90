@@ -181,7 +181,7 @@ class CreateRefundController extends Controller
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
-        ->where('status', 'completed')
+        ->whereIn('status', ['approved', 'completed'])
         ->sum('amount');
     }
 

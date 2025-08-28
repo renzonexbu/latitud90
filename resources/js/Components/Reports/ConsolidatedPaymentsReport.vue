@@ -10,55 +10,13 @@
       <!-- Filtros -->
       <div class="bg-white rounded-[20px] overflow-hidden">
         <div class="p-6 text-gray-900">
-          <h3 class="text-lg font-semibold mb-4">Filtros</h3>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Fecha Desde
-              </label>
-              <input
-                v-model="filters.dateFrom"
-                @change="applyFilters"
-                type="date"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Fecha Hasta
-              </label>
-              <input
-                v-model="filters.dateTo"
-                @change="applyFilters"
-                type="date"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Modalidad de Pago
-              </label>
-              <select
-                v-model="filters.paymentMethodId"
-                @change="applyFilters"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todas las modalidades</option>
-                <option
-                  v-for="method in paymentMethods"
-                  :key="method.id"
-                  :value="method.id"
-                >
-                  {{ method.name }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <div class="flex space-x-4">
+          <ConsolidatedPaymentsFilters
+            :initial-filters="filters"
+            :payment-methods="paymentMethods"
+            :programs="programs"
+            @filters-changed="onFiltersChanged"
+          />
+          <div class="flex space-x-4 mt-4">
             <button
               @click="openExportModal"
               class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
@@ -170,14 +128,11 @@
 
       <!-- Lista de Pagos Consolidados -->
       <div>
-        <ConsolidatedPaymentsTable
-          :payments="consolidatedPayments.data"
-          @view-details="viewDetails"
-        />
+        <ConsolidatedPaymentsTable :rows="consolidatedPayments.data" @view-details="viewDetails" />
 
         <!-- Paginación -->
         <div class="mt-6">
-          <ReportsPagination
+          <ConsolidatedPaymentsPagination
             :current-page="consolidatedPayments?.current_page || 1"
             :total-items="consolidatedPayments?.total || 0"
             :items-per-page="consolidatedPayments?.per_page || 10"
@@ -337,9 +292,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import ReportsHeader from './ReportsHeader.vue'
-import ConsolidatedPaymentsTable from './ConsolidatedPaymentsTable.vue'
-import ConsolidatedPaymentDetailsModal from './ConsolidatedPaymentDetailsModal.vue'
-import ReportsPagination from './ReportsPagination.vue'
+import ConsolidatedPaymentsFilters from './ConsolidatedPayments/ConsolidatedPaymentsFilters.vue'
+import ConsolidatedPaymentsTable from './ConsolidatedPayments/ConsolidatedPaymentsTable.vue'
+import ConsolidatedPaymentDetailsModal from './ConsolidatedPayments/ConsolidatedPaymentDetailsModal.vue'
+import ConsolidatedPaymentsPagination from './ConsolidatedPayments/ConsolidatedPaymentsPagination.vue'
 
 const props = defineProps({
   consolidatedPayments: {
@@ -350,6 +306,10 @@ const props = defineProps({
     })
   },
   paymentMethods: {
+    type: Array,
+    default: () => []
+  },
+  programs: {
     type: Array,
     default: () => []
   },
@@ -367,7 +327,9 @@ const props = defineProps({
 const filters = reactive({
   dateFrom: props.filters.dateFrom || '',
   dateTo: props.filters.dateTo || '',
-  paymentMethodId: props.filters.paymentMethodId || ''
+  paymentMethodId: props.filters.paymentMethodId || '',
+  programId: props.filters.programId || '',
+  participantQuery: props.filters.participantQuery || ''
 })
 
 // Modal states
@@ -409,10 +371,19 @@ const hasSelectedFields = computed(() => {
 
 // Methods
 const applyFilters = () => {
-  router.get(route('reports.consolidated-payments'), filters, {
+  router.get('/admin/reports/consolidated-payments', filters, {
     preserveState: true,
     preserveScroll: true
   })
+}
+
+const onFiltersChanged = (newFilters) => {
+  filters.dateFrom = newFilters.dateFrom || ''
+  filters.dateTo = newFilters.dateTo || ''
+  filters.paymentMethodId = newFilters.paymentMethodId || ''
+  filters.programId = newFilters.programId || ''
+  filters.participantQuery = newFilters.participantQuery || ''
+  applyFilters()
 }
 
 const openExportModal = () => {

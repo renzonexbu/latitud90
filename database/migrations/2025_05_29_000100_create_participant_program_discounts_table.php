@@ -16,6 +16,7 @@ return new class extends Migration
 			$table->foreignId('participant_program_id')->constrained('participant_program')->onDelete('cascade');
 			$table->decimal('percent', 5, 2)->nullable();
 			$table->decimal('amount', 10, 2)->nullable();
+			$table->enum('discount_type', ['scholarship', 'released'])->default('scholarship');
 			$table->text('comment')->nullable();
 			$table->foreignId('approved_by')->nullable()->constrained('users');
 			$table->timestamps();

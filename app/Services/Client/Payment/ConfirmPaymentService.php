@@ -79,12 +79,12 @@ class ConfirmPaymentService
                     'isEnrolled' => $isEnrolled
                 ]);
                 
-                // Sumar por cuotas efectivamente pagadas en OrderDetail (más fiable)
-                $paidAmount = (float) \App\Models\OrderDetail::whereHas('order', function ($q) use ($participant, $program) {
+                // Sumar pagos aprobados y completados del participante para este programa
+                $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
                     })
-                    ->where('is_paid', true)
+                    ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
                 $paidAmount = round($paidAmount, 2);
                 $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);

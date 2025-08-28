@@ -53,10 +53,36 @@ class HandleNotificationService
 
                 return ['success' => true, 'order_detail_id' => $orderDetail->id];
             } else {
-                $this->logInfo('Transbank notification: Payment not approved', [
-                    'order_id' => $orderId,
-                    'status' => $status
-                ]);
+                // Actualizar el estado del OrderDetail a failed si no está aprobado
+                if (in_array($status, ['rejected', 'failed', 'cancelled', 'nullified'])) {
+                    $orderDetail->update([
+                        'status' => 'failed', 
+                        'is_paid' => false
+                    ]);
+                    
+                    // También actualizar el Payment si existe
+                    $payment = \App\Models\Payment::where('order_detail_id', $orderDetail->id)
+                        ->where('payment_gateway_id', 1) // Transbank gateway ID
+                        ->first();
+                    
+                    if ($payment) {
+                        $payment->update([
+                            'status' => 'failed',
+                            'gateway_response' => $notification
+                        ]);
+                    }
+                    
+                    $this->logInfo('Transbank payment marked as failed', [
+                        'order_detail_id' => $orderDetail->id,
+                        'order_id' => $orderId,
+                        'status' => $status
+                    ]);
+                } else {
+                    $this->logInfo('Transbank notification: Payment not approved', [
+                        'order_id' => $orderId,
+                        'status' => $status
+                    ]);
+                }
 
                 return ['success' => false, 'error' => 'Payment not approved'];
             }
@@ -103,10 +129,36 @@ class HandleNotificationService
 
                 return ['success' => true, 'order_detail_id' => $orderDetail->id];
             } else {
-                $this->logInfo('Khipu notification: Payment not approved', [
-                    'order_id' => $orderId,
-                    'status' => $status
-                ]);
+                // Actualizar el estado del OrderDetail a failed si no está aprobado
+                if (in_array($status, ['rejected', 'failed', 'cancelled', 'expired'])) {
+                    $orderDetail->update([
+                        'status' => 'failed', 
+                        'is_paid' => false
+                    ]);
+                    
+                    // También actualizar el Payment si existe
+                    $payment = \App\Models\Payment::where('order_detail_id', $orderDetail->id)
+                        ->where('payment_gateway_id', 2) // Khipu gateway ID
+                        ->first();
+                    
+                    if ($payment) {
+                        $payment->update([
+                            'status' => 'failed',
+                            'gateway_response' => $notification
+                        ]);
+                    }
+                    
+                    $this->logInfo('Khipu payment marked as failed', [
+                        'order_detail_id' => $orderDetail->id,
+                        'order_id' => $orderId,
+                        'status' => $status
+                    ]);
+                } else {
+                    $this->logInfo('Khipu notification: Payment not approved', [
+                        'order_id' => $orderId,
+                        'status' => $status
+                    ]);
+                }
 
                 return ['success' => false, 'error' => 'Payment not approved'];
             }

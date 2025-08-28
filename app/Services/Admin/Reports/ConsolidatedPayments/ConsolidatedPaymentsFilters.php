@@ -11,7 +11,25 @@ class ConsolidatedPaymentsFilters
     {
         // Filtro por modalidad de pago (payment_method)
         if (!empty($filters['paymentMethodId'])) {
-            $query->where('pg.id', $filters['paymentMethodId']);
+            $paymentMethodId = $filters['paymentMethodId'];
+            $query->where(function($q) use ($paymentMethodId) {
+                $q->where('pg.id', $paymentMethodId)
+                  ->orWhere('pay.payment_gateway_id', $paymentMethodId);
+            });
+        }
+
+        // Filtro por programa
+        if (!empty($filters['programId'])) {
+            $query->where('o.program_id', $filters['programId']);
+        }
+
+        // Filtro por alumno (nombre completo o documento)
+        if (!empty($filters['participantQuery'])) {
+            $search = trim($filters['participantQuery']);
+            $query->where(function($q) use ($search) {
+                $q->where('p.document_number', 'like', "%{$search}%")
+                  ->orWhereRaw("CONCAT_WS(' ', p.first_name, p.second_name, p.first_last_name, p.second_last_name) LIKE ?", ["%{$search}%"]);
+            });
         }
 
         // Filtro por fecha desde

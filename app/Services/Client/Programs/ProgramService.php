@@ -98,12 +98,12 @@ class ProgramService
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
                 $totalAmount = $priceData['final_price'];
 
-                // Sumar pagos confirmados usando OrderDetails pagados (más fiable que estado del payment)
-                $paidAmount = (float) OrderDetail::whereHas('order', function($q) use ($participant, $program) {
+                // Sumar pagos aprobados y completados del participante para este programa
+                $paidAmount = (float) \App\Models\Payment::whereHas('order', function($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
                     })
-                    ->where('is_paid', true)
+                    ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
 
                 $paidAmount = round($paidAmount, 2);

@@ -7,6 +7,7 @@ use App\Services\Client\Programs\ProgramService;
 use App\Services\Client\Programs\ProgramDetailService;
 use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
@@ -67,7 +68,7 @@ class ProgramController extends Controller
     public function show(Request $request, $programId)
     {
         // Debug: Log todos los parámetros recibidos
-        \Log::info('ProgramController@show - Debug info:', [
+        Log::info('ProgramController@show - Debug info:', [
             'programId' => $programId,
             'all_query_params' => $request->all(),
             'document_from_query' => $request->query('document'),
@@ -80,7 +81,7 @@ class ProgramController extends Controller
         $document = $request->query('document');
         $documentType = $request->query('document_type');
         
-        \Log::info('ProgramController@show - Initial values:', [
+        Log::info('ProgramController@show - Initial values:', [
             'document' => $document,
             'documentType' => $documentType,
             'document_empty' => empty($document),
@@ -88,18 +89,18 @@ class ProgramController extends Controller
         ]);
         
         if (!$document || !$documentType) {
-            \Log::info('ProgramController@show - Missing params, checking session');
+            Log::info('ProgramController@show - Missing params, checking session');
             // Intentar recuperar de sesión
             $document = session('current_document');
             $documentType = session('current_document_type');
             
-            \Log::info('ProgramController@show - Session values:', [
+            Log::info('ProgramController@show - Session values:', [
                 'session_document' => $document,
                 'session_documentType' => $documentType
             ]);
             
             if (!$document || !$documentType) {
-                \Log::warning('ProgramController@show - Redirecting to home, missing required params');
+                Log::warning('ProgramController@show - Redirecting to home, missing required params');
                 return redirect()->route('ecommerce.index');
             }
         }

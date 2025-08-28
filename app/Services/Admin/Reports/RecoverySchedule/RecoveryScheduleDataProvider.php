@@ -118,7 +118,7 @@ class RecoveryScheduleDataProvider
     public function getPrograms(): Collection
     {
         return DB::table('programs')
-            ->select(['id', 'name', 'destination', 'departure_date'])
+            ->select(['id', 'code', 'name', 'destination', 'departure_date', 'sales_executive_id'])
             ->where('active', true)
             ->orderBy('name')
             ->get();

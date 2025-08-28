@@ -15,6 +15,7 @@ Route::get('/reports/partial-account', [ReportController::class, 'partialAccount
 
 // Cronograma de Recuperación de Cuotas
 Route::get('/reports/payment-schedule', [ReportController::class, 'paymentSchedule'])->name('reports.payment-schedule');
+Route::get('/reports/payment-schedule/details', [ReportController::class, 'paymentScheduleDetails'])->name('reports.payment-schedule.details');
 
 // Reporte de pagos diarios
 Route::get('/reports/daily-payments', [ReportController::class, 'dailyPayments'])->name('reports.daily-payments');

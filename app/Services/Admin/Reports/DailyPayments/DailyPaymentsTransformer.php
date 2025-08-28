@@ -29,9 +29,11 @@ class DailyPaymentsTransformer
         // Calcular estadísticas globales del participante para este programa
         $participantStats = $this->calculateParticipantStats($item->participant_id, $item->program_id);
         
-        // Calcular montos adicionales (por ahora 0 ya que no existen las tablas order_movements ni external_contributions)
-        $releasedAmount = 0; // $this->calculateReleasedAmount($item->order_id);
-        $externalContribution = 0; // $this->calculateExternalContribution($item->order_id);
+        // Calcular el precio real del participante con descuentos aplicados
+        $participantPrice = $this->calculateParticipantPrice($item->participant_id, $item->program_id);
+
+        // Separar descuentos normales de liberados
+        $discountBreakdown = $this->calculateDiscountBreakdown($item->participant_id, $item->program_id);
 
         // Construir nombre del participante con CapitalCase
         $participantName = $this->buildParticipantName($item);
@@ -53,9 +55,9 @@ class DailyPaymentsTransformer
             'document_type_code' => $item->document_type ?? 'N/A',
             'participant_document' => $this->formatDocument($item->document_number ?? ''),
             'program_departure_date' => $item->departure_date,
-            'program_price' => (float) ($item->program_price ?? 0),
-            'scholarships_amount' => (float) $externalContribution, // Becas se mapea a aportes externos
-            'released_amount' => (float) $releasedAmount,
+            'program_price' => $participantPrice['final_price'], // Precio real con descuentos
+            'scholarships_amount' => (float) $discountBreakdown['normal_discounts'], // Descuentos normales (no liberados)
+            'released_amount' => (float) $discountBreakdown['released_amount'], // Monto liberado (100%)
             'paid_installments_display' => $participantStats['paid_installments_display'],
             'total_paid_amount' => (float) ($item->payment_amount ?? 0), // Monto del pago específico
             'overdue_installments_display' => $participantStats['overdue_installments_display'],
@@ -74,7 +76,7 @@ class DailyPaymentsTransformer
             'payment_status' => $item->payment_status ?? 'N/A',
             'payment_method_name' => $this->capitalizeWords($this->cleanUtf8($item->payment_gateway_name ?? 'N/A')),
             'payment_method_code' => $item->payment_gateway_code ?? 'N/A',
-            'external_contribution' => (float) $externalContribution,
+            'external_contribution' => (float) $discountBreakdown['normal_discounts'],
             'remaining_balance' => (float) $participantStats['remaining_balance'],
             'order_date' => $item->order_date,
             // Datos del pagador (desde orders_detail)
@@ -341,6 +343,18 @@ class DailyPaymentsTransformer
      */
     private function calculateParticipantStats($participantId, $programId): array
     {
+        // Calcular el precio real con descuentos aplicados
+        $participantPrice = $this->calculateParticipantPrice($participantId, $programId);
+        $finalPriceWithDiscounts = $participantPrice['final_price'];
+
+        // CALCULAR EL MONTO REAL PAGADO desde la tabla payments (incluye reembolsos)
+        $totalPaidAmount = DB::table('payments')
+            ->join('orders', 'payments.order_id', '=', 'orders.id')
+            ->where('orders.participant_id', $participantId)
+            ->where('orders.program_id', $programId)
+            ->whereIn('payments.status', ['completed', 'approved'])
+            ->sum('payments.amount');
+
         // Buscar TODOS los planes de cuotas del participante para este programa
         $installmentPlans = DB::table('installment_plans')
             ->where('participant_id', $participantId)
@@ -356,27 +370,25 @@ class DailyPaymentsTransformer
                 ->selectRaw('
                     COUNT(*) as total_installments,
                     COUNT(CASE WHEN status = "paid" THEN 1 END) as paid_installments,
-                    COUNT(CASE WHEN status = "overdue" THEN 1 END) as overdue_installments,
-                    SUM(CASE WHEN status = "paid" THEN amount ELSE 0 END) as total_paid,
-                    SUM(CASE WHEN status IN ("pending", "overdue") THEN amount ELSE 0 END) as total_pending
+                    COUNT(CASE WHEN status = "overdue" THEN 1 END) as overdue_installments
                 ')
                 ->first();
 
             $totalInstallments = $installmentStats->total_installments ?? 0;
             $paidInstallments = $installmentStats->paid_installments ?? 0;
             $overdueInstallments = $installmentStats->overdue_installments ?? 0;
-            $totalPaid = (float) ($installmentStats->total_paid ?? 0);
-            $totalPending = (float) ($installmentStats->total_pending ?? 0);
+
+            // Calcular el saldo pendiente real
+            $remainingBalance = max($finalPriceWithDiscounts - $totalPaidAmount, 0);
 
             return [
-                'total_paid' => $totalPaid,
-                'remaining_balance' => $totalPending,
+                'total_paid' => $totalPaidAmount,
+                'remaining_balance' => $remainingBalance,
                 'paid_installments_display' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : '0',
                 'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
             ];
         } else {
             // Usar el sistema de orders_detail (pagos presenciales/totales)
-            // SUMAR TODAS LAS ÓRDENES del participante para este programa
             $allOrders = DB::table('orders')
                 ->where('participant_id', $participantId)
                 ->where('program_id', $programId)
@@ -388,32 +400,137 @@ class DailyPaymentsTransformer
                 ->selectRaw('
                     COUNT(*) as total_installments,
                     COUNT(CASE WHEN is_paid = 1 THEN 1 END) as paid_installments,
-                    COUNT(CASE WHEN is_paid = 0 AND due_date < CURDATE() THEN 1 END) as overdue_installments,
-                    SUM(CASE WHEN is_paid = 1 THEN amount ELSE 0 END) as total_paid,
-                    SUM(CASE WHEN is_paid = 0 THEN amount ELSE 0 END) as total_pending
+                    COUNT(CASE WHEN is_paid = 0 AND due_date < CURDATE() THEN 1 END) as overdue_installments
                 ')
                 ->first();
 
             $totalInstallments = $orderDetailStats->total_installments ?? 0;
             $paidInstallments = $orderDetailStats->paid_installments ?? 0;
             $overdueInstallments = $orderDetailStats->overdue_installments ?? 0;
-            $totalPaid = (float) ($orderDetailStats->total_paid ?? 0);
-            $totalPending = (float) ($orderDetailStats->total_pending ?? 0);
 
-            // Para pagos presenciales, calcular el saldo real del programa
-            $programTotal = DB::table('orders')
-                ->where('participant_id', $participantId)
-                ->where('program_id', $programId)
-                ->sum('final_amount');
-
-            $remainingBalance = max($programTotal - $totalPaid, 0);
+            // Calcular el saldo pendiente real
+            $remainingBalance = max($finalPriceWithDiscounts - $totalPaidAmount, 0);
 
             return [
-                'total_paid' => $totalPaid,
+                'total_paid' => $totalPaidAmount,
                 'remaining_balance' => $remainingBalance,
-                'paid_installments_display' => $totalPaid > 0 ? '1' : '0',
+                'paid_installments_display' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : '0',
                 'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
             ];
         }
+    }
+
+    /**
+     * Calcula el precio real del participante para un programa específico usando ParticipantPriceHelper
+     */
+    private function calculateParticipantPrice(int $participantId, int $programId): array
+    {
+        try {
+            $participant = \App\Models\Participant::find($participantId);
+            $program = \App\Models\Program::find($programId);
+            
+            if (!$participant || !$program) {
+                return [
+                    'base_price' => 0,
+                    'adjustments' => 0,
+                    'discounts' => 0,
+                    'final_price' => 0
+                ];
+            }
+            
+            return \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        } catch (\Exception $e) {
+            return [
+                'base_price' => 0,
+                'adjustments' => 0,
+                'discounts' => 0,
+                'final_price' => 0
+            ];
+        }
+    }
+
+    /**
+     * Calcula el desglose de descuentos separando normales de liberados
+     */
+    private function calculateDiscountBreakdown(int $participantId, int $programId): array
+    {
+        try {
+            // Buscar el participant_program_id
+            $pp = DB::table('participant_program')
+                ->where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->first();
+                
+            if (!$pp) {
+                return [
+                    'normal_discounts' => 0,
+                    'released_amount' => 0
+                ];
+            }
+            
+            // Obtener todos los descuentos activos
+            $discounts = DB::table('participant_program_discounts')
+                ->where('participant_program_id', $pp->id)
+                ->get();
+                
+            $normalDiscounts = 0;
+            $releasedAmount = 0;
+            
+            foreach ($discounts as $discount) {
+                if ($discount->discount_type === 'released') {
+                    // Es un descuento liberado
+                    if ($discount->percent == 100) {
+                        // Calcular el monto liberado basado en el precio base
+                        $basePrice = $this->getBasePrice($participantId, $programId);
+                        $releasedAmount += $basePrice;
+                    } else {
+                        $releasedAmount += $discount->amount ?? 0;
+                    }
+                } else {
+                    // Es un descuento normal (scholarship)
+                    if ($discount->percent && $discount->percent > 0) {
+                        // Calcular el monto del descuento porcentual
+                        $basePrice = $this->getBasePrice($participantId, $programId);
+                        $normalDiscounts += ($basePrice * $discount->percent) / 100;
+                    }
+                    if ($discount->amount && $discount->amount > 0) {
+                        $normalDiscounts += $discount->amount;
+                    }
+                }
+            }
+            
+            return [
+                'normal_discounts' => $normalDiscounts,
+                'released_amount' => $releasedAmount
+            ];
+        } catch (\Exception $e) {
+            return [
+                'normal_discounts' => 0,
+                'released_amount' => 0
+            ];
+        }
+    }
+
+    /**
+     * Obtiene el precio base para calcular descuentos porcentuales
+     */
+    private function getBasePrice(int $participantId, int $programId): float
+    {
+        // Buscar el precio individual del participante para este programa
+        $pp = DB::table('participant_program')
+            ->where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->first();
+            
+        if ($pp && $pp->individual_price) {
+            return (float) $pp->individual_price;
+        }
+        
+        // Fallback al precio del programa
+        $programPrice = DB::table('programs')
+            ->where('id', $programId)
+            ->value('trip_price');
+            
+        return (float) ($programPrice ?? 0);
     }
 }

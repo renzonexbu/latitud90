@@ -19,6 +19,8 @@ use App\Services\Admin\Reports\GetIndexDataService;
 use App\Services\Admin\Reports\GetSalesChartService;
 use App\Services\Admin\Reports\GetInstallmentScheduleService;
 use App\Services\Admin\Reports\GetRevenueChartService;
+use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryService;
+use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleDetailService;
 use App\Services\EcommerceAnalyticsService;
 
 class ReportController extends Controller
@@ -36,6 +38,8 @@ class ReportController extends Controller
         private GetSalesChartService $getSalesChartService,
         private GetInstallmentScheduleService $getInstallmentScheduleService,
         private GetRevenueChartService $getRevenueChartService,
+        private PaymentScheduleSummaryService $paymentScheduleSummaryService,
+        private PaymentScheduleDetailService $paymentScheduleDetailService,
         private EcommerceAnalyticsService $analyticsService
     ) {}
 
@@ -80,6 +84,8 @@ class ReportController extends Controller
     {
         $filters = $request->only([
             'paymentMethodId',
+            'programId',
+            'participantQuery',
             'dateFrom',
             'dateTo',
             'page'
@@ -94,10 +100,12 @@ class ReportController extends Controller
 
         // Obtener datos para filtros
         $paymentMethods = $this->consolidatedPaymentsService->getPaymentMethods();
+        $programs = \App\Models\Program::select('id', 'code', 'name', 'destination')->orderBy('code')->get();
 
         return Inertia::render('Admin/Reports/ConsolidatedPayments', [
             'consolidatedPayments' => $consolidatedPayments,
             'paymentMethods' => $paymentMethods,
+            'programs' => $programs,
             'filters' => $filters,
             'summary' => $summary
         ]);
@@ -178,7 +186,7 @@ class ReportController extends Controller
 
     public function paymentSchedule(Request $request)
     {
-        $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status', 'page']);
+        $filters = $request->only(['programId', 'salesExecutiveId', 'dateFrom', 'dateTo', 'status', 'page']);
 
         // Solo aplicar filtros de fecha si el usuario los especifica explícitamente
         // Si no hay filtros, mostrar TODOS los datos
@@ -203,12 +211,50 @@ class ReportController extends Controller
         // Obtener programas para filtros
         $programs = $this->recoveryScheduleService->getPrograms();
 
+        // Obtener resumen ejecutivo
+        $executiveSummary = $this->paymentScheduleSummaryService->getExecutiveSummary($filters);
+
+        // Obtener ejecutivos para filtros
+        $salesExecutives = $this->paymentScheduleSummaryService->getSalesExecutives();
+
         return Inertia::render('Admin/Reports/PaymentSchedule', [
             'paymentSchedules' => $paymentSchedules,
             'programs' => $programs,
+            'salesExecutives' => $salesExecutives,
             'filters' => $filters,
-            'summary' => $summary
+            'summary' => $summary,
+            'executiveSummary' => $executiveSummary
         ]);
+    }
+
+    public function paymentScheduleDetails(Request $request)
+    {
+        $filters = $request->only(['programId', 'salesExecutiveId', 'yearMonth', 'dateFrom', 'dateTo']);
+
+        try {
+            // Obtener detalles del cronograma de cuotas
+            $scheduleDetails = $this->paymentScheduleDetailService->getScheduleDetails($filters);
+
+            return response()->json([
+                'success' => true,
+                'data' => $scheduleDetails,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Payment Schedule Details Error:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'filters' => $filters,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener los detalles: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
     }
 
     public function exportPartialAccount(Request $request)
@@ -258,30 +304,24 @@ class ReportController extends Controller
 
     public function exportPaymentSchedule(Request $request)
     {
-        $filters = $request->only(['programId', 'dateFrom', 'dateTo', 'status']);
-        $fields = json_decode($request->get('fields', '{}'), true);
+        $filters = $request->only(['programId', 'salesExecutiveId', 'dateFrom', 'dateTo', 'status']);
         $format = $request->get('format', 'xlsx');
-        $includeAll = $request->get('include_all', 'current');
 
         try {
-            // Obtener datos para exportación
-            if ($includeAll === 'all') {
-                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters, $fields);
-            } else {
-                // Solo página actual (implementar lógica si es necesario)
-                $exportData = $this->recoveryScheduleService->getAllPaymentSchedules($filters, $fields);
-            }
+            // Resumen por ejecutivo/programa/mes
+            $executiveSummary = $this->paymentScheduleSummaryService->getExecutiveSummary($filters);
 
-            // Validar que tenemos datos para exportar
-            if ($exportData->isEmpty()) {
+            // Detalle por participante (incluye suscritos sin pagos) para el rango/mes
+            $details = $this->paymentScheduleDetailService->getScheduleDetails($filters);
+
+            if ($executiveSummary->isEmpty() || $details->isEmpty()) {
                 return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
             }
 
-            // Generar nombre de archivo
-            $filename = 'cronograma_cuotas_' . now()->format('Y-m-d_H-i-s');
-
-            // Exportar según el formato
-            return $this->exportService->export($exportData, $filename, $format, $fields);
+            // Exportar en 2 hojas
+            $filename = 'payment_schedule_' . now()->format('Y-m-d_H-i-s');
+            $exporter = app(\App\Services\Admin\Reports\PaymentSchedule\ExportService::class);
+            return $exporter->export($executiveSummary, $details, $filename, $format);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Export Payment Schedule Error', [
                 'message' => $e->getMessage(),
