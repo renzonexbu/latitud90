@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class ConfirmKhipuService
 {
@@ -88,11 +89,19 @@ class ConfirmKhipuService
                         'status' => 'pending',
                         'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
                         'external_payment_id' => $paymentId,
+                        'transaction_date' => now('America/Santiago'), // Establecer fecha de transacción
                     ]);
                 } else {
-                    // Actualizar el external_payment_id si no lo tiene
+                    // Actualizar el external_payment_id y transaction_date si no los tienen
+                    $updateFields = [];
                     if (!$payment->external_payment_id) {
-                        $payment->update(['external_payment_id' => $paymentId]);
+                        $updateFields['external_payment_id'] = $paymentId;
+                    }
+                    if (!$payment->transaction_date) {
+                        $updateFields['transaction_date'] = now('America/Santiago');
+                    }
+                    if (!empty($updateFields)) {
+                        $payment->update($updateFields);
                     }
                 }
 
@@ -103,11 +112,21 @@ class ConfirmKhipuService
                     'status' => $status['status'] ?? null,
                 ]);
 
-                $payment->update([
+                $updateData = [
                     'status' => $approved ? 'approved' : ($status['status'] ?? 'pending'),
                     'gateway_response' => $status['data'] ?? $status,
                     'raw_notification' => $status['data'] ?? $status,
-                ]);
+                ];
+                
+                // Agregar transaction_date si el pago es aprobado y viene en la respuesta
+                if ($approved && isset($status['transaction_date'])) {
+                    $updateData['transaction_date'] = $status['transaction_date'];
+                } elseif ($approved && !$payment->transaction_date) {
+                    // Si no hay transaction_date pero el pago es aprobado, usar la fecha actual
+                    $updateData['transaction_date'] = now('America/Santiago');
+                }
+                
+                $payment->update($updateData);
 
                 $orderDetail = $payment->orderDetail;
                 if ($orderDetail) {

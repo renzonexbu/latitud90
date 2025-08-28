@@ -34,3 +34,5 @@ Route::get('/reports/export/daily-payments', [ReportController::class, 'exportDa
 Route::get('/reports/export/consolidated-payments', [ReportController::class, 'exportConsolidatedPayments'])->name('reports.export.consolidated-payments');
 Route::get('/reports/export/partial-account', [ReportController::class, 'exportPartialAccount'])->name('reports.export.partial-account');
 Route::get('/reports/export/payment-schedule', [ReportController::class, 'exportPaymentSchedule'])->name('reports.export.payment-schedule');
+Route::get('/reports/softland', [ReportController::class, 'softland'])->name('reports.softland');
+Route::get('/reports/export/softland-template', [ReportController::class, 'exportSoftlandTemplate'])->name('reports.export.softland-template');

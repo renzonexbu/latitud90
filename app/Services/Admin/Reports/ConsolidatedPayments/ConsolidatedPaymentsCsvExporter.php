@@ -13,16 +13,30 @@ class ConsolidatedPaymentsCsvExporter
     public function export(Collection $data, string $filename, array $selectedFields = []): BinaryFileResponse
     {
         try {
-            $spreadsheet = new Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-            
-            // Obtener headers del primer registro
-            $firstRow = $data->first();
-            if (!$firstRow) {
+            // Validar que tenemos datos
+            if ($data->isEmpty()) {
                 throw new \InvalidArgumentException('No hay datos para exportar');
             }
             
-            $headers = array_keys($firstRow);
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Headers fijos en español según requerimientos
+            $headers = [
+                'Código (Programa)',
+                'Rut Alumno',
+                'Nombre del Alumno',
+                'Pago o Devolución $',
+                'Documentos N° Boleta o NC',
+                'Tipo de Documento',
+                'N° Reserva',
+                'Forma de Pago',
+                'N° Cuotas Pagadas',
+                'Fecha de Pago',
+                'Aporte o becas',
+                'Liberado',
+                'Valor total prog.'
+            ];
             
             // Escribir headers
             $colIndex = 0;
@@ -36,8 +50,9 @@ class ConsolidatedPaymentsCsvExporter
             $rowIndex = 2;
             foreach ($data as $rowData) {
                 $colIndex = 0;
-                foreach ($rowData as $value) {
+                foreach ($headers as $header) {
                     $col = chr(65 + $colIndex);
+                    $value = $rowData[$header] ?? '';
                     
                     // Limpiar y validar valores
                     if (is_null($value)) {
@@ -65,10 +80,11 @@ class ConsolidatedPaymentsCsvExporter
             $writer->setDelimiter(';');
             
             // Crear archivo temporal
-            $tempFile = storage_path('app/temp/' . $filename . '.csv');
-            if (!is_dir(dirname($tempFile))) {
-                mkdir(dirname($tempFile), 0755, true);
+            $tempDir = storage_path('app/temp');
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
             }
+            $tempFile = $tempDir . '/' . $filename . '.csv';
             
             $writer->save($tempFile);
             

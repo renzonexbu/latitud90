@@ -9,6 +9,9 @@ class ConsolidatedPaymentsFilters
 {
     public function applyFilters(Builder $query, array $filters): Builder
     {
+        // Mostrar solo pagos/devoluciones efectivos (completados)
+        $query->where('pay.status', 'completed');
+
         // Filtro por modalidad de pago (payment_method)
         if (!empty($filters['paymentMethodId'])) {
             $paymentMethodId = $filters['paymentMethodId'];

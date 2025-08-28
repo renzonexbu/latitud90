@@ -15,6 +15,11 @@ class ConsolidatedPaymentsExcelExporter
     public function export(Collection $data, string $filename, array $selectedFields = []): StreamedResponse
     {
         try {
+            // Validar que tenemos datos
+            if ($data->isEmpty()) {
+                throw new \InvalidArgumentException('No hay datos para exportar');
+            }
+            
             // Limpiar cualquier output buffer
             while (ob_get_level()) {
                 ob_end_clean();
@@ -23,13 +28,22 @@ class ConsolidatedPaymentsExcelExporter
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Obtener headers del primer registro
-            $firstRow = $data->first();
-            if (!$firstRow) {
-                throw new \InvalidArgumentException('No hay datos para exportar');
-            }
-            
-            $headers = array_keys($firstRow);
+            // Headers fijos en español según requerimientos
+            $headers = [
+                'Código (Programa)',
+                'Rut Alumno',
+                'Nombre del Alumno',
+                'Pago o Devolución $',
+                'Documentos N° Boleta o NC',
+                'Tipo de Documento',
+                'N° Reserva',
+                'Forma de Pago',
+                'N° Cuotas Pagadas',
+                'Fecha de Pago',
+                'Aporte o becas',
+                'Liberado',
+                'Valor total prog.'
+            ];
             
             // Escribir headers
             $colIndex = 0;
@@ -43,8 +57,9 @@ class ConsolidatedPaymentsExcelExporter
             $rowIndex = 2;
             foreach ($data as $rowData) {
                 $colIndex = 0;
-                foreach ($rowData as $value) {
+                foreach ($headers as $header) {
                     $col = chr(65 + $colIndex);
+                    $value = $rowData[$header] ?? '';
                     
                     // Limpiar y validar valores
                     if (is_null($value)) {

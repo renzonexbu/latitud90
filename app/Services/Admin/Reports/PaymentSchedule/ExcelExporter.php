@@ -69,9 +69,36 @@ class ExcelExporter
                     'year' => $yearParsed ?? (int)($m['year'] ?? 0),
                     'month' => $monthParsed ?? (int)($m['month'] ?? 0),
                 ];
-            })->sortBy(function ($x) {
-                return ($x['year'] * 100) + $x['month'];
             })->values();
+            // Construir una línea de tiempo continua desde el primer al último mes y usarla para headers
+            if ($months->isNotEmpty()) {
+                $monthsArr = $months->all();
+                usort($monthsArr, function ($a, $b) {
+                    $va = ($a['year'] * 100) + $a['month'];
+                    $vb = ($b['year'] * 100) + $b['month'];
+                    return $va <=> $vb;
+                });
+
+                $startYear = $monthsArr[0]['year'];
+                $startMonth = $monthsArr[0]['month'];
+                $endYear = $monthsArr[count($monthsArr) - 1]['year'];
+                $endMonth = $monthsArr[count($monthsArr) - 1]['month'];
+
+                $cursor = \Carbon\Carbon::createFromDate($startYear, $startMonth, 1)->startOfMonth();
+                $end = \Carbon\Carbon::createFromDate($endYear, $endMonth, 1)->startOfMonth();
+
+                $timeline = [];
+                while ($cursor->lte($end)) {
+                    $timeline[] = [
+                        'key' => $cursor->format('Y-m'),
+                        'label' => mb_strtolower($cursor->locale('es')->translatedFormat('F Y')),
+                        'year' => (int)$cursor->format('Y'),
+                        'month' => (int)$cursor->format('n'),
+                    ];
+                    $cursor->addMonth();
+                }
+                $months = collect($timeline);
+            }
 
             $blockTotalCols = max(1, $months->count() * 2);
             $blockLastColForHeader = $this->col($blockTotalCols);
@@ -94,6 +121,18 @@ class ExcelExporter
                 $sheet->setCellValue("{$startCol}" . ($rowIndex + 1), mb_strtoupper($m['label']));
                 $sheet->setCellValue("{$startCol}" . ($rowIndex + 2), 'N°');
                 $sheet->setCellValue("{$endCol}" . ($rowIndex + 2), '$');
+                // Estilos por par de columnas del mes
+                $sheet->getStyle("{$startCol}" . ($rowIndex + 1) . ":{$endCol}" . ($rowIndex + 2))->applyFromArray([
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => '000000']
+                        ]
+                    ],
+                    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                ]);
                 $colIndex += 2;
             }
 
@@ -103,7 +142,7 @@ class ExcelExporter
             // Estilo de encabezados de meses
             $sheet->getStyle('A' . ($rowIndex + 1) . ':' . $blockLastCol . ($rowIndex + 2))->applyFromArray([
                 'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1c4f4a']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ]);
             $sheet->getRowDimension($rowIndex + 2)->setRowHeight(18);
@@ -121,22 +160,35 @@ class ExcelExporter
                 $patN = (int) ($monthData['cuotas_pagadas_pat_count'] ?? 0);
                 $patAmount = (int) round($monthData['cuotas_pagadas_pat_amount'] ?? 0);
 
-                // Fila 1 (No Pagadas)
-                $sheet->setCellValue($this->col($colIndex) . $firstDataRow, 'Cuotas No Pagadas N°: ' . $noPagadasN);
-                $sheet->setCellValue($this->col($colIndex + 1) . $firstDataRow, 'Cuotas No Pagadas $: ' . $noPagadasAmount);
+                // Fila 1 (No Pagadas) -> valores numéricos
+                $sheet->setCellValue($this->col($colIndex) . $firstDataRow, $noPagadasN);
+                $sheet->setCellValue($this->col($colIndex + 1) . $firstDataRow, $noPagadasAmount);
                 // Fila 2 (Pagadas TC)
-                $sheet->setCellValue($this->col($colIndex) . ($firstDataRow + 1), 'Cuotas Pagadas TC N°: ' . $tcN);
-                $sheet->setCellValue($this->col($colIndex + 1) . ($firstDataRow + 1), 'Cuotas Pagadas TC $: ' . $tcAmount);
+                $sheet->setCellValue($this->col($colIndex) . ($firstDataRow + 1), $tcN);
+                $sheet->setCellValue($this->col($colIndex + 1) . ($firstDataRow + 1), $tcAmount);
                 // Fila 3 (Pagadas PAT)
-                $sheet->setCellValue($this->col($colIndex) . ($firstDataRow + 2), 'Cuotas Pagadas PAT N°: ' . $patN);
-                $sheet->setCellValue($this->col($colIndex + 1) . ($firstDataRow + 2), 'Cuotas Pagadas PAT $: ' . $patAmount);
+                $sheet->setCellValue($this->col($colIndex) . ($firstDataRow + 2), $patN);
+                $sheet->setCellValue($this->col($colIndex + 1) . ($firstDataRow + 2), $patAmount);
+
+                // Formatos numéricos
+                // Columnas de montos ($) son las pares del par (colIndex+1)
+                $sheet->getStyle($this->col($colIndex + 1) . $firstDataRow)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle($this->col($colIndex + 1) . ($firstDataRow + 1))->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle($this->col($colIndex + 1) . ($firstDataRow + 2))->getNumberFormat()->setFormatCode('#,##0');
+
+                // Alinear cantidades al centro y montos a la derecha
+                $sheet->getStyle($this->col($colIndex) . $firstDataRow . ':' . $this->col($colIndex) . ($firstDataRow + 2))
+                      ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                $sheet->getStyle($this->col($colIndex + 1) . $firstDataRow . ':' . $this->col($colIndex + 1) . ($firstDataRow + 2))
+                      ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                 $colIndex += 2;
             }
 
-            // Anchos fijos para las columnas utilizadas en el bloque
+            // Anchos fijos: pares ($) más anchos
             for ($i = 1; $i <= ($colIndex - 1); $i++) {
-                $sheet->getColumnDimension($this->col($i))->setWidth(18);
+                $isAmountCol = ($i % 2) === 0;
+                $sheet->getColumnDimension($this->col($i))->setWidth($isAmountCol ? 16 : 10);
             }
 
             // Bordes del bloque (desde fila de encabezados de meses hasta la última fila de datos)

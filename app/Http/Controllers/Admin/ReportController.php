@@ -22,6 +22,7 @@ use App\Services\Admin\Reports\GetRevenueChartService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleDetailService;
 use App\Services\EcommerceAnalyticsService;
+use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
 
 class ReportController extends Controller
 {
@@ -40,7 +41,8 @@ class ReportController extends Controller
         private GetRevenueChartService $getRevenueChartService,
         private PaymentScheduleSummaryService $paymentScheduleSummaryService,
         private PaymentScheduleDetailService $paymentScheduleDetailService,
-        private EcommerceAnalyticsService $analyticsService
+        private EcommerceAnalyticsService $analyticsService,
+        private SoftlandExcelExporter $softlandExcelExporter
     ) {}
 
     public function index(Request $request)
@@ -158,7 +160,7 @@ class ReportController extends Controller
             $filename = 'consolidado_pagos_' . now()->format('Y-m-d_H-i-s');
 
             // Exportar según el formato
-            return $this->consolidatedPaymentsExportService->export($exportData, $filename, $format, $fields);
+            return $this->consolidatedPaymentsExportService->export($exportData, $filename, $format);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }
@@ -416,6 +418,29 @@ class ReportController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function softland()
+    {
+        $programs = \App\Models\Program::select('id', 'code', 'name')
+            ->where('active', true)
+            ->orderBy('code')
+            ->get();
+
+        return Inertia::render('Admin/Reports/SoftlandReport', [
+            'programs' => $programs
+        ]);
+    }
+
+    public function exportSoftlandTemplate(Request $request)
+    {
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId']);
+            $filename = 'softland_movimientos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+            return $this->softlandExcelExporter->export($filename, $filters);
+        } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }
     }

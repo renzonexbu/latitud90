@@ -105,11 +105,25 @@ class KhipuService
             $result = json_decode($response->getBody()->getContents(), true);
             $approved = isset($result['status']) && in_array($result['status'], ['done', 'paid', 'approved', 'completed']);
 
+            // Obtener la fecha de transacción de la respuesta de Khipu
+            $transactionDate = null;
+            if (isset($result['paid_at'])) {
+                $transactionDate = $result['paid_at'];
+            } elseif (isset($result['updated_at'])) {
+                $transactionDate = $result['updated_at'];
+            } elseif (isset($result['created_at'])) {
+                $transactionDate = $result['created_at'];
+            } elseif ($approved) {
+                // Si está aprobado pero no hay fecha específica, usar ahora
+                $transactionDate = now('America/Santiago')->toISOString();
+            }
+
             // Log de confirmación/consulta de estado (siempre)
             $this->logInfo('Khipu getPaymentStatus response', [
                 'payment_id' => $paymentId,
                 'approved' => $approved,
                 'status' => $result['status'] ?? 'unknown',
+                'transaction_date' => $transactionDate,
                 'http_status' => method_exists($response, 'getStatusCode') ? $response->getStatusCode() : null,
                 'response' => $result,
             ]);
@@ -117,6 +131,7 @@ class KhipuService
             return [
                 'success' => $approved,
                 'status' => $result['status'] ?? 'unknown',
+                'transaction_date' => $transactionDate,
                 'data' => $result,
             ];
         } catch (\Exception $e) {

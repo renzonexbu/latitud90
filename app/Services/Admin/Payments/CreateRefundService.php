@@ -36,13 +36,9 @@ class CreateRefundService
             $participant = Participant::findOrFail($data['participant_id']);
             $program = Program::findOrFail($data['program_id']);
             
-            // Para reembolsos, usar gateway de reembolso o presencial (crear gateway específico si es necesario)
-            $paymentGateway = PaymentGateway::where('code', 'refund')->first();
-            if (!$paymentGateway) {
-                // Si no existe un gateway específico para reembolsos, usar el presencial
-                $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
-            }
-            $paymentOption = PaymentOption::where('code', 'full_debit_credit_0')->firstOrFail();
+            // Para reembolsos, usar gateway ID 4 (refund) y opción de pago ID 19 (refund_credit_note)
+            $paymentGateway = PaymentGateway::findOrFail(4);
+            $paymentOption = PaymentOption::findOrFail(19);
 
             // Calcular montos del participante
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
@@ -178,8 +174,12 @@ class CreateRefundService
             'program_id' => $program->id,
             'order_number' => $this->generateOrderNumber(),
             'total_amount' => $totalAmount,
+            'final_amount' => $totalAmount,
+            'discount' => 0,
+            'total_installments' => 1, // Se ajustará si corresponde al reestructurar
+            'payment_type' => 'total',
             'status' => 'pending',
-            'currency' => 'CLP',
+            'notes' => 'Orden creada desde reembolso',
             'created_at' => now(),
             'updated_at' => now()
         ]);
@@ -226,6 +226,7 @@ class CreateRefundService
             'city' => $data['buyer_city'] ?? null,
             'code_phone' => $data['buyer_code_phone'] ?? '+56',
             'phone' => $data['buyer_phone'] ?? null,
+            // Tipo de documento del comprador (FK numérica a tabla document)
             'document_type' => $data['buyer_document_type'] ?? null,
             'document_number' => $data['buyer_document_number'] ?? null,
             
@@ -294,6 +295,7 @@ class CreateRefundService
                 ]
             ],
             'currency' => 'CLP',
+            'document_type' => 'BC',
         ]);
     }
 
@@ -303,18 +305,33 @@ class CreateRefundService
      */
     private function handleInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount, float $newPaidAmount): void
     {
-        // Buscar plan de cuotas existente
-        $installmentPlan = InstallmentPlan::where('order_id', $order->id)->first();
-        
+        // Buscar plan de cuotas existente del participante/programa
+        $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+            ->where('program_id', $program->id)
+            ->first();
+
         if (!$installmentPlan) {
             // Crear nuevo plan de cuotas si no existe
             $installmentPlan = InstallmentPlan::create([
                 'order_id' => $order->id,
+                'program_id' => $program->id,
+                'participant_id' => $participant->id,
                 'total_amount' => $totalAmount,
-                'installments_count' => 12, // Default, puede ajustarse
+                'total_installments' => 1, // Se ajustará en la redistribución
+                'payment_type' => 'monthly',
                 'status' => 'active',
-                'created_at' => now(),
-                'updated_at' => now()
+                'start_date' => now(),
+                'notes' => 'Plan de cuotas creado desde reembolso'
+            ]);
+
+            // Crear cuota inicial
+            Installment::create([
+                'installment_plan_id' => $installmentPlan->id,
+                'installment_number' => 1,
+                'amount' => $totalAmount,
+                'due_date' => now(),
+                'status' => 'pending',
+                'notes' => 'Cuota inicial creada por reembolso'
             ]);
         }
 

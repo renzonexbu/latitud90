@@ -60,67 +60,23 @@ class ConsolidatedPaymentsTransformer
     private function transformForExportRow($item, array $selectedFields = []): array
     {
         $transformed = $this->transformPaymentItem($item);
-        $row = [];
         
-        // Campos de identificación
-        if (isset($selectedFields['identification'])) {
-            if (in_array('programId', $selectedFields['identification'])) {
-                $row['ID Programa'] = $transformed['program_id'];
-            }
-            if (in_array('authorizationCode', $selectedFields['identification'])) {
-                $row['N° Autorización'] = $transformed['authorization_code'];
-            }
-            if (in_array('participantRut', $selectedFields['identification'])) {
-                $row['RUT Participante'] = $transformed['participant_rut'];
-            }
-        }
-        
-        // Campos del pago
-        if (isset($selectedFields['payment'])) {
-            if (in_array('amount', $selectedFields['payment'])) {
-                $row['Pago o Devolución'] = $transformed['payment_amount'];
-            }
-            if (in_array('invoiceNumber', $selectedFields['payment'])) {
-                $row['N° de Boleta'] = $transformed['invoice_number'];
-            }
-            if (in_array('paymentMethod', $selectedFields['payment'])) {
-                $row['Forma de Pago'] = $transformed['payment_method_code'];
-            }
-            if (in_array('installmentsNumber', $selectedFields['payment'])) {
-                $row['N° de Cuotas'] = $transformed['installments_number'];
-            }
-            if (in_array('paymentDate', $selectedFields['payment'])) {
-                $row['Fecha de Pago'] = $this->formatDate($transformed['payment_date']);
-            }
-        }
-        
-        // Campos del pagador
-        if (isset($selectedFields['payer'])) {
-            if (in_array('name', $selectedFields['payer'])) {
-                $row['Nombre Contacto Pagador'] = $transformed['payer_name'];
-            }
-            if (in_array('email', $selectedFields['payer'])) {
-                $row['E-mail Contacto Pagador'] = $transformed['payer_email'];
-            }
-        }
-        
-        // Si no hay campos seleccionados, incluir todos por defecto
-        if (empty($selectedFields)) {
-            $row = [
-                'ID Programa' => $transformed['program_id'],
-                'N° Autorización' => $transformed['authorization_code'],
-                'RUT Participante' => $transformed['participant_rut'],
-                'Pago o Devolución' => $transformed['payment_amount'],
-                'N° de Boleta' => $transformed['invoice_number'],
-                'Forma de Pago' => $transformed['payment_method_code'],
-                'N° de Cuotas' => $transformed['installments_number'],
-                'Fecha de Pago' => $this->formatDate($transformed['payment_date']),
-                'Nombre Contacto Pagador' => $transformed['payer_name'],
-                'E-mail Contacto Pagador' => $transformed['payer_email'],
-            ];
-        }
-        
-        return $row;
+        // Siempre incluir todos los campos necesarios para la exportación
+        return [
+            'Código (Programa)' => $transformed['program_code'],
+            'Rut Alumno' => $transformed['participant_rut'],
+            'Nombre del Alumno' => $transformed['participant_name'],
+            'Pago o Devolución $' => $transformed['payment_amount'],
+            'Documentos N° Boleta o NC' => $transformed['invoice_number'],
+            'Tipo de Documento' => $transformed['document_type_code'],
+            'N° Reserva' => $transformed['reservation_number'],
+            'Forma de Pago' => $transformed['payment_method_name'],
+            'N° Cuotas Pagadas' => $transformed['paid_installments_display'],
+            'Fecha de Pago' => $this->formatDate($transformed['payment_date']),
+            'Aporte o becas' => $transformed['external_contribution'],
+            'Liberado' => $transformed['released'] ? 'Sí' : 'No',
+            'Valor total prog.' => $transformed['total_program_value'],
+        ];
     }
     
     private function formatDate($date): string
