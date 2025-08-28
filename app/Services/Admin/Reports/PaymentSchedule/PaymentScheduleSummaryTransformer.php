@@ -10,34 +10,19 @@ class PaymentScheduleSummaryTransformer
 {
     public function transformExecutiveSummary(Collection $data): Collection
     {
-        // Log de datos de entrada
-        Log::info('TRANSFORMER INPUT DATA:', [
-            'total_records' => $data->count(),
-            'sample_records' => $data->take(3)->map(function($item) {
-                return [
-                    'sales_executive_id' => $item->sales_executive_id ?? 'N/A',
-                    'sales_executive_name' => $item->sales_executive_name ?? 'N/A',
-                    'program_id' => $item->program_id ?? 'N/A',
-                    'program_name' => $item->program_name ?? 'N/A',
-                    'year_month' => $item->year_month ?? 'N/A',
-                    'due_date' => $item->due_date ?? 'N/A'
-                ];
-            })->toArray()
-        ]);
-
         if ($data->isEmpty()) {
             return collect();
         }
 
         // Agrupar por ejecutivo -> programa -> mes
         $grouped = $data->groupBy([
-            function($item) {
+            function ($item) {
                 return $item->sales_executive_id ?? 'sin_ejecutivo';
             },
-            function($item) {
+            function ($item) {
                 return $item->program_id ?? 'sin_programa';
             },
-            function($item) {
+            function ($item) {
                 return $item->year_month ?? 'sin_fecha';
             }
         ]);
@@ -63,9 +48,9 @@ class PaymentScheduleSummaryTransformer
                 // Procesar cada mes
                 foreach ($programData as $yearMonth => $monthData) {
                     if ($yearMonth === 'sin_fecha') continue;
-                    
+
                     $monthStats = $this->calculateMonthStats($monthData);
-                    
+
                     // Formatear el mes para mostrar
                     try {
                         $date = Carbon::createFromFormat('Y-m', $yearMonth);
@@ -85,40 +70,62 @@ class PaymentScheduleSummaryTransformer
                     $executiveProgramData['months']->push($monthStats);
                 }
 
-                // Log ANTES del ordenamiento
-                Log::info('BEFORE SORTING - ' . $executiveProgramData['sales_executive_name'] . ' - ' . $executiveProgramData['program_name'], [
-                    'months_before_sort' => $executiveProgramData['months']->map(function($m) {
-                        return [
-                            'month_name' => $m['month_name'],
-                            'year' => $m['year'],
-                            'month' => $m['month'],
-                            'year_month' => $m['year_month'],
-                            'sort_value' => ($m['year'] * 1000) + $m['month']
-                        ];
-                    })->toArray()
-                ]);
+                // Asegurar continuidad mensual: rellenar meses faltantes entre el primero y el último
+                if ($executiveProgramData['months']->isNotEmpty()) {
+                    // Orden preliminar para identificar rangos
+                    $sortedForRange = $executiveProgramData['months']->sortBy(function ($m) {
+                        return ((int)$m['year'] * 100) + (int)$m['month'];
+                    })->values();
 
+                    $first = $sortedForRange->first();
+                    $last = $sortedForRange->last();
+
+                    // Si no hay fechas válidas, omitir
+                    if (!empty($first['year']) && !empty($first['month']) && !empty($last['year']) && !empty($last['month'])) {
+                        $start = Carbon::createFromDate((int)$first['year'], (int)$first['month'], 1)->startOfMonth();
+                        $end = Carbon::createFromDate((int)$last['year'], (int)$last['month'], 1)->startOfMonth();
+
+                        // Índice de meses existentes para no duplicar
+                        $existing = $executiveProgramData['months']->keyBy(function ($m) {
+                            return sprintf('%04d-%02d', (int)$m['year'], (int)$m['month']);
+                        });
+
+                        $cursor = $start->copy();
+                        while ($cursor->lte($end)) {
+                            $ym = $cursor->format('Y-m');
+                            if (!$existing->has($ym)) {
+                                $executiveProgramData['months']->push([
+                                    // Contadores en cero
+                                    'cuotas_no_pagadas_count' => 0,
+                                    'cuotas_pagadas_tc_count' => 0,
+                                    'cuotas_pagadas_pat_count' => 0,
+                                    // Montos en cero
+                                    'cuotas_no_pagadas_amount' => 0,
+                                    'cuotas_pagadas_tc_amount' => 0,
+                                    'cuotas_pagadas_pat_amount' => 0,
+                                    // Totales
+                                    'total_cuotas_count' => 0,
+                                    'total_amount' => 0,
+                                    // Metadatos del mes
+                                    'year_month' => $ym,
+                                    'month_name' => $cursor->locale('es')->translatedFormat('F Y'),
+                                    'month_short' => $cursor->locale('es')->translatedFormat('M'),
+                                    'year' => (int)$cursor->format('Y'),
+                                    'month' => (int)$cursor->format('n'),
+                                ]);
+                            }
+                            $cursor->addMonth();
+                        }
+                    }
+                }
                 // Ordenar meses cronológicamente (más antiguo primero)
                 $executiveProgramData['months'] = $executiveProgramData['months']->sortBy(function ($month) {
-                    $sortValue = ($month['year'] * 1000) + $month['month'];
-                    Log::info('Sorting month: ' . $month['month_name'] . ' with value: ' . $sortValue);
+                    // Usar año * 100 + mes para evitar problemas
+                    $year = (int) $month['year'];
+                    $monthNum = (int) $month['month'];
+                    $sortValue = ($year * 100) + $monthNum;
                     return $sortValue;
-                });
-                
-                // Log DESPUÉS del ordenamiento
-                Log::info('AFTER SORTING - ' . $executiveProgramData['sales_executive_name'] . ' - ' . $executiveProgramData['program_name'], [
-                    'months_after_sort' => $executiveProgramData['months']->map(function($m) {
-                        return [
-                            'month_name' => $m['month_name'],
-                            'year' => $m['year'],
-                            'month' => $m['month'],
-                            'year_month' => $m['year_month'],
-                            'sort_value' => ($m['year'] * 1000) + $m['month']
-                        ];
-                    })->toArray(),
-                    'first_month' => $executiveProgramData['months']->first()['month_name'] ?? 'N/A',
-                    'last_month' => $executiveProgramData['months']->last()['month_name'] ?? 'N/A'
-                ]);
+                })->values(); // Reindexar después del ordenamiento
 
                 if ($executiveProgramData['months']->isNotEmpty()) {
                     // Convertir Collection a array para el frontend
@@ -128,33 +135,19 @@ class PaymentScheduleSummaryTransformer
             }
         }
 
-        // Ordenar grupos por su mes más antiguo (YYYY-MM asc). Desempatar por nombre.
+        // Ordenar grupos por su mes más antiguo (YYYYMM asc) usando clave numérica para evitar orden lexicográfico incorrecto
         $sorted = $result->sortBy(function ($group) {
             $firstMonth = $group['months'][0] ?? null;
             $year = (int)($firstMonth['year'] ?? 0);
             $month = (int)($firstMonth['month'] ?? 0);
-            $yearMonthKey = sprintf('%04d-%02d', $year, $month);
-            return $yearMonthKey . '|' . ($group['sales_executive_name'] ?? '') . '|' . ($group['program_name'] ?? '');
-        });
+            return ($year * 100) + $month;
+        })->values(); // Reindexar
 
         return $sorted->values();
     }
 
     private function calculateMonthStats(Collection $monthData): array
     {
-        // Log de datos del mes
-        Log::info('CALCULATING MONTH STATS:', [
-            'month_data_count' => $monthData->count(),
-            'sample_month_data' => $monthData->take(2)->map(function($item) {
-                return [
-                    'payment_status' => $item->payment_status ?? 'N/A',
-                    'payment_method_type' => $item->payment_method_type ?? 'N/A',
-                    'installment_amount' => $item->installment_amount ?? 'N/A',
-                    'due_date' => $item->due_date ?? 'N/A'
-                ];
-            })->toArray()
-        ]);
-
         // Contadores
         $unpaidCount = 0;
         $paidTcCount = 0;
@@ -193,12 +186,12 @@ class PaymentScheduleSummaryTransformer
             'cuotas_no_pagadas_count' => $unpaidCount,
             'cuotas_pagadas_tc_count' => $paidTcCount,
             'cuotas_pagadas_pat_count' => $paidPatCount,
-            
+
             // Montos
             'cuotas_no_pagadas_amount' => $unpaidAmount,
             'cuotas_pagadas_tc_amount' => $paidTcAmount,
             'cuotas_pagadas_pat_amount' => $paidPatAmount,
-            
+
             // Totales
             'total_cuotas_count' => $unpaidCount + $paidTcCount + $paidPatCount,
             'total_amount' => $unpaidAmount + $paidTcAmount + $paidPatAmount,

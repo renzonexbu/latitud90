@@ -40,8 +40,8 @@ class PaymentScheduleDetailTransformer
             // Abonos + becas (pagos efectuados + descuentos normales)
             $abonosBecas = $totalPaidAmount + $scholarshipsAmount;
 
-            // Tipo de Dcto (heurística basada en fecha de salida)
-            $documentTypeCode = $this->determineDocumentTypeByProgramYear($item->program_departure_date);
+            // Tipo de documento real del participante (RUT/PASAPORTE)
+            $documentTypeCode = $this->normalizeDocumentType($item->participant_document_type ?? null);
 
             return (object) [
                 // Ejecutivo y programa
@@ -74,6 +74,7 @@ class PaymentScheduleDetailTransformer
 
                 // Estado de cuotas
                 'paid_installments_display' => $installmentsDisplay,
+                'participant_status' => $item->participant_status ?? null,
             ];
         });
 
@@ -216,18 +217,19 @@ class PaymentScheduleDetailTransformer
         return (float) ($programPrice ?? 0);
     }
 
-    private function determineDocumentTypeByProgramYear($departureDate): string
+    private function normalizeDocumentType(?string $docName): string
     {
-        try {
-            if (!$departureDate) {
-                return 'B2';
-            }
-            $date = Carbon::parse($departureDate, 'America/Santiago');
-            $currentYear = now('America/Santiago')->year;
-            return $date->year > $currentYear ? 'AC' : 'B2';
-        } catch (\Exception $e) {
-            return 'B2';
+        if (!$docName) {
+            return 'N/A';
         }
+        $upper = mb_strtoupper(trim($docName), 'UTF-8');
+        if ($upper === 'RUT' || $upper === 'RUN') {
+            return 'RUT';
+        }
+        if ($upper === 'PASAPORTE' || $upper === 'PASSPORT') {
+            return 'PASAPORTE';
+        }
+        return $upper; // devolver tal cual para otros tipos
     }
 
     private function toTitleCase(string $text): string

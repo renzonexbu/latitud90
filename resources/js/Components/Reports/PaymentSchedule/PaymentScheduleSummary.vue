@@ -88,7 +88,7 @@
             </div>
 
             <!-- Contenido del resumen por ejecutivo -->
-            <div v-if="paginatedExecutiveSummary.length > 0" class="space-y-6">
+            <div v-if="paginatedRows.length > 0" class="space-y-6">
                 <!-- Tabla principal con el mismo estilo que DailyPaymentsTable -->
                 <div class="overflow-x-auto">
                     <table class="w-full">
@@ -133,92 +133,90 @@
 
                         <!-- Table Body -->
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <template v-for="(executiveData, execIndex) in paginatedExecutiveSummary" :key="executiveData.sales_executive_id">
+                            <template v-for="(row, rowIndex) in paginatedRows" :key="`${row.sales_executive_id}-${row.program_id}-${row.year_month}`">
                                 <tr
-                                    v-for="(month, monthIndex) in executiveData.months"
-                                    :key="`${executiveData.sales_executive_id}-${month.year_month}`"
                                     :class="[
                                         'hover:bg-gray-50 transition-colors',
-                                        (execIndex * 100 + monthIndex) % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                                        rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                                     ]"
                                 >
                                     <!-- Ejecutivo Comercial -->
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900">
-                                            {{ executiveData.sales_executive_name || 'N/A' }}
+                                            {{ row.sales_executive_name || 'N/A' }}
                                         </div>
                                     </td>
 
                                     <!-- Código -->
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">
-                                            {{ executiveData.program_code || 'N/A' }}
+                                            {{ row.program_code || 'N/A' }}
                                         </div>
                                     </td>
 
                                     <!-- Programa -->
                                     <td class="px-4 py-4">
                                         <div class="text-sm text-[#1c4f4a] font-medium max-w-xs">
-                                            {{ executiveData.program_name || 'N/A' }}
+                                            {{ row.program_name || 'N/A' }}
                                         </div>
                                         <div class="text-xs text-gray-500">
-                                            {{ executiveData.program_destination || '' }}
+                                            {{ row.program_destination || '' }}
                                         </div>
                                     </td>
 
                                     <!-- Mes -->
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         <div class="text-sm font-medium text-gray-900">
-                                            {{ month.month_name }}
+                                            {{ row.month_name }}
                                         </div>
                                     </td>
 
                                     <!-- Cuotas No Pagadas N° -->
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         <div class="text-sm font-bold text-red-600">
-                                            {{ month.cuotas_no_pagadas_count }}
+                                            {{ row.cuotas_no_pagadas_count }}
                                         </div>
                                     </td>
 
                                     <!-- Cuotas Pagadas TC N° -->
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         <div class="text-sm font-bold text-blue-600">
-                                            {{ month.cuotas_pagadas_tc_count }}
+                                            {{ row.cuotas_pagadas_tc_count }}
                                         </div>
                                     </td>
 
                                     <!-- Cuotas Pagadas PAT N° -->
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         <div class="text-sm font-bold text-green-600">
-                                            {{ month.cuotas_pagadas_pat_count }}
+                                            {{ row.cuotas_pagadas_pat_count }}
                                         </div>
                                     </td>
 
                                     <!-- No Pagadas $ -->
                                     <td class="px-4 py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-red-600">
-                                            ${{ formatCurrency(month.cuotas_no_pagadas_amount) }}
+                                            ${{ formatCurrency(row.cuotas_no_pagadas_amount) }}
                                         </div>
                                     </td>
 
                                     <!-- Pagadas TC $ -->
                                     <td class="px-4 py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-blue-600">
-                                            ${{ formatCurrency(month.cuotas_pagadas_tc_amount) }}
+                                            ${{ formatCurrency(row.cuotas_pagadas_tc_amount) }}
                                         </div>
                                     </td>
 
                                     <!-- Pagadas PAT $ -->
                                     <td class="px-4 py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-green-600">
-                                            ${{ formatCurrency(month.cuotas_pagadas_pat_amount) }}
+                                            ${{ formatCurrency(row.cuotas_pagadas_pat_amount) }}
                                         </div>
                                     </td>
 
                                     <!-- Acciones -->
                                     <td class="px-4 py-4 whitespace-nowrap text-center">
                                         <button
-                                            @click="viewDetails(executiveData, month)"
+                                            @click="viewDetails(row)"
                                             class="text-[#1c4f4a] hover:text-[#0f2e29] transition-colors"
                                             title="Ver detalles"
                                         >
@@ -237,7 +235,7 @@
                 <!-- Paginación -->
                 <div class="flex flex-row items-center justify-between mt-4">
                     <div class="text-[#9ca3af] font-normal text-sm">
-                        Mostrando {{ startIndex + 1 }} - {{ Math.min(endIndex, totalRows) }} de {{ totalRows }} registros
+                        Mostrando {{ startRowIndex + 1 }} - {{ Math.min(endRowIndex, totalRows) }} de {{ totalRows }} registros
                     </div>
                     
                     <div class="flex flex-row gap-2 items-center justify-center">
@@ -359,111 +357,59 @@ const props = defineProps({
 
 const emit = defineEmits(['update-filter', 'view-details']);
 
-// Paginación
+// Paginación por grupo (Ejecutivo-Programa)
 const currentPage = ref(1);
-const itemsPerPage = ref(10); // Número de filas (no ejecutivos) por página
+const itemsPerPage = ref(10); // Número de filas (mes por programa) por página
 
-// Aplana los datos para paginación por filas individuales
-const flattenedData = computed(() => {
-    console.log('🔄 FLATTENING DATA - ExecutiveSummary received:', props.executiveSummary);
-    
-    const flattened = [];
-    
-    if (!props.executiveSummary || !Array.isArray(props.executiveSummary)) {
-        console.warn('ExecutiveSummary is not an array:', props.executiveSummary);
-        return flattened;
+// Construir una lista plana: por cada grupo (ejecutivo-programa), crear filas por mes,
+// y ordenarlas globalmente por (year, month), luego por (program_name, sales_executive_name)
+const flatRows = computed(() => {
+    if (!Array.isArray(props.executiveSummary)) return [];
+    const rows = [];
+    for (const group of props.executiveSummary) {
+        const months = Array.isArray(group.months) ? group.months : (group.months ? Object.values(group.months) : []);
+        for (const m of months) {
+            rows.push({
+                sales_executive_id: group.sales_executive_id,
+                sales_executive_name: group.sales_executive_name,
+                program_id: group.program_id,
+                program_code: group.program_code,
+                program_name: group.program_name,
+                program_destination: group.program_destination,
+                year: Number(m.year) || 0,
+                month: Number(m.month) || 0,
+                year_month: m.year_month,
+                month_name: m.month_name,
+                cuotas_no_pagadas_count: m.cuotas_no_pagadas_count,
+                cuotas_pagadas_tc_count: m.cuotas_pagadas_tc_count,
+                cuotas_pagadas_pat_count: m.cuotas_pagadas_pat_count,
+                cuotas_no_pagadas_amount: m.cuotas_no_pagadas_amount,
+                cuotas_pagadas_tc_amount: m.cuotas_pagadas_tc_amount,
+                cuotas_pagadas_pat_amount: m.cuotas_pagadas_pat_amount,
+            });
+        }
     }
-    
-    props.executiveSummary.forEach(executive => {
-        if (!executive) return;
-        
-        // Verificar si months es un array o un objeto/Collection
-        let months = [];
-        if (Array.isArray(executive.months)) {
-            months = executive.months;
-                 } else if (executive.months && typeof executive.months === 'object') {
-             // Convertir a array SIN reordenar - mantener el orden del backend
-             months = Object.values(executive.months);
-            
-            // Log para debug del ordenamiento en frontend
-            console.log('Frontend sorting for:', executive.sales_executive_name, '-', executive.program_name, {
-                'months_after_frontend_sort': months.map(m => ({
-                    month_name: m.month_name,
-                    year: m.year,
-                    month: m.month,
-                    sort_value: (m.year * 1000) + m.month
-                }))
-            });
-        }
-        
-        if (months.length === 0) {
-            console.warn('No months found for executive:', executive);
-            return;
-        }
-        
-        months.forEach(month => {
-            flattened.push({
-                ...executive,
-                currentMonth: month
-            });
-        });
+    return rows.sort((a, b) => {
+        const aKey = a.year * 100 + a.month;
+        const bKey = b.year * 100 + b.month;
+        if (aKey !== bKey) return aKey - bKey;
+        // Dentro del mismo mes, ordenar por programa y luego por ejecutivo
+        const progCmp = String(a.program_name || '').localeCompare(String(b.program_name || ''), 'es');
+        if (progCmp !== 0) return progCmp;
+        return String(a.sales_executive_name || '').localeCompare(String(b.sales_executive_name || ''), 'es');
     });
-    
-    return flattened;
 });
 
-// Total de filas
-const totalRows = computed(() => flattenedData.value.length);
+const totalRows = computed(() => flatRows.value.length);
 
-// Total de páginas
 const totalPages = computed(() => {
     return Math.max(1, Math.ceil(totalRows.value / itemsPerPage.value));
 });
 
-// Índices para paginación
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
-const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage.value, totalRows.value));
+const startRowIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
+const endRowIndex = computed(() => Math.min(startRowIndex.value + itemsPerPage.value, totalRows.value));
 
-// Datos paginados
-const paginatedData = computed(() => {
-    return flattenedData.value.slice(startIndex.value, endIndex.value);
-});
-
-// Reagrupar datos paginados por ejecutivo para mantener estructura
-const paginatedExecutiveSummary = computed(() => {
-    const grouped = {};
-    
-    paginatedData.value.forEach(item => {
-        const key = `${item.sales_executive_id}-${item.program_id}`;
-        if (!grouped[key]) {
-            grouped[key] = {
-                sales_executive_id: item.sales_executive_id,
-                sales_executive_name: item.sales_executive_name,
-                program_id: item.program_id,
-                program_code: item.program_code,
-                program_name: item.program_name,
-                program_destination: item.program_destination,
-                months: []
-            };
-        }
-        grouped[key].months.push(item.currentMonth);
-    });
-    
-              // NO reordenar - mantener el orden del backend
-     Object.values(grouped).forEach(executiveData => {
-         // Log para debug del orden final (sin reordenar)
-         console.log('Final order (backend order) for:', executiveData.sales_executive_name, '-', executiveData.program_name, {
-             'months_final_order': executiveData.months.map(m => ({
-                 month_name: m.month_name,
-                 year: m.year,
-                 month: m.month,
-                 sort_value: (m.year * 1000) + m.month
-             }))
-         });
-     });
-    
-    return Object.values(grouped);
-});
+const paginatedRows = computed(() => flatRows.value.slice(startRowIndex.value, endRowIndex.value));
 
 // Páginas válidas para mostrar
 const validPages = computed(() => {
@@ -491,24 +437,27 @@ const goToPage = (page) => {
 };
 
 // Método para ver detalles
-const viewDetails = (executiveData, month) => {
-    console.log('👁️ VIEW DETAILS clicked for:', {
-        executive: executiveData.sales_executive_name,
-        program: executiveData.program_name,
-        month: month.month_name,
-        year_month: month.year_month
-    });
-    
+const viewDetails = (rowOrExecutiveData, maybeMonth) => {
+    // Soportar llamada con (row) o con (executiveData, month)
+    const isFlatRow = maybeMonth === undefined;
+    const row = isFlatRow
+        ? rowOrExecutiveData
+        : {
+            sales_executive_id: rowOrExecutiveData.sales_executive_id,
+            program_id: rowOrExecutiveData.program_id,
+            year_month: maybeMonth.year_month,
+            sales_executive_name: rowOrExecutiveData.sales_executive_name,
+            program_name: rowOrExecutiveData.program_name,
+            month_name: maybeMonth.month_name,
+        };
     const detailFilters = {
-        salesExecutiveId: executiveData.sales_executive_id,
-        programId: executiveData.program_id,
-        yearMonth: month.year_month,
-        executiveName: executiveData.sales_executive_name,
-        programName: executiveData.program_name,
-        monthName: month.month_name
+        salesExecutiveId: row.sales_executive_id,
+        programId: row.program_id,
+        yearMonth: row.year_month,
+        executiveName: row.sales_executive_name,
+        programName: row.program_name,
+        monthName: row.month_name
     };
-    
-    console.log('📤 Emitting view-details with filters:', detailFilters);
     emit('view-details', detailFilters);
 };
 

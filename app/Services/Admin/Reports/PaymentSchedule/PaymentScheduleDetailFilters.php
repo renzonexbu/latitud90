@@ -19,7 +19,7 @@ class PaymentScheduleDetailFilters
             $query->where('se.id', $filters['salesExecutiveId']);
         }
 
-        // Filtro por año-mes específico (aplicado tanto a due_date como a next_due_date agregada)
+        // Filtro por año-mes específico - solo cuotas que vencen en ese mes
         if (!empty($filters['yearMonth'])) {
             // Parsear año-mes (formato: 2026-11)
             $yearMonth = explode('-', $filters['yearMonth']);
@@ -27,12 +27,8 @@ class PaymentScheduleDetailFilters
                 $year = (int) $yearMonth[0];
                 $month = (int) $yearMonth[1];
                 
-                $query->where(function ($q) use ($year, $month) {
-                    $q->whereYear('i.due_date', $year)
-                      ->whereMonth('i.due_date', $month)
-                      // o bien por próxima cuota
-                      ->orWhereRaw('DATE_FORMAT(MIN(CASE WHEN i.status != "paid" AND i.due_date >= CURDATE() THEN i.due_date END), "%Y-%m") = ?', [sprintf('%04d-%02d', $year, $month)]);
-                });
+                $query->whereYear('i.due_date', $year)
+                      ->whereMonth('i.due_date', $month);
             }
         }
 

@@ -76,8 +76,27 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Detalle (estilo Daily Reports) -->
-                <div v-else class="bg-white rounded-[12px] overflow-hidden">
+                <!-- Content Area -->
+                <div v-else>
+                    <!-- Sección de Participantes Liberados -->
+                    <div v-if="liberatedParticipants.length > 0" class="mb-6">
+                        <h4 class="text-lg font-semibold text-green-700 mb-3 bg-green-50 p-3 rounded-lg">
+                            🎯 Participantes Liberados ({{ liberatedParticipants.length }})
+                        </h4>
+                        <div class="bg-green-50 rounded-lg p-4 mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div v-for="participant in liberatedParticipants" :key="participant.participant_id" 
+                                     class="bg-white p-3 rounded border border-green-200">
+                                    <p class="font-medium text-gray-900">{{ participant.participant_name }}</p>
+                                    <p class="text-sm text-gray-600">{{ formatDocument(participant.participant_document, participant.document_type_code) }}</p>
+                                    <p class="text-xs text-green-600 font-medium">✅ Completamente Pagado</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Detalle de Cuotas -->
+                    <div v-if="filteredSchedules.length > 0" class="bg-white rounded-[12px] overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full">
                             <thead class="bg-[#1c4f4a]">
@@ -89,6 +108,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tipo de Dcto</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">N° Documento</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Fecha de Inicio de Programa</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Fecha Vencimiento</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Valor Total Prog.</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Abonos + Becas</th>
                                     <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Valor Alumno Liberado</th>
@@ -121,10 +141,13 @@
                                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{{ row.document_type_code || 'N/A' }}</span>
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-900">{{ formatRut(row.participant_document) }}</div>
+                                        <div class="text-sm text-gray-900">{{ formatDocument(row.participant_document, row.document_type_code) }}</div>
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-900">{{ formatDate(row.program_departure_date) }}</div>
+                                    </td>
+                                    <td class="px-4 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">{{ formatDate(row.next_due_date) }}</div>
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-gray-900">${{ formatPrice(row.program_price) }}</div>
@@ -144,6 +167,12 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                    </div>
+
+                    <!-- Estado vacío cuando no hay cuotas ni liberados -->
+                    <div v-if="filteredSchedules.length === 0 && liberatedParticipants.length === 0" class="text-center py-8">
+                        <p class="text-gray-500">No se encontraron registros para los filtros seleccionados.</p>
                     </div>
                 </div>
 
@@ -235,10 +264,10 @@
                     </div>
                     <div>
                         <h4 class="font-semibold mb-2">Información de la Cuota</h4>
-                        <p><strong>N° Cuota:</strong> {{ selectedSchedule.installment_number }}</p>
-                        <p><strong>Monto:</strong> ${{ formatPrice(selectedSchedule.amount) }}</p>
+                        <p><strong>N° Cuota:</strong> {{ selectedSchedule.installment_number || 'N/A (Liberado)' }}</p>
+                        <p><strong>Monto:</strong> ${{ formatPrice(selectedSchedule.installment_amount) }}</p>
                         <p><strong>Fecha Vencimiento:</strong> {{ formatDate(selectedSchedule.due_date) }}</p>
-                        <p><strong>Estado:</strong> {{ selectedSchedule.status }}</p>
+                        <p><strong>Estado:</strong> {{ getParticipantStatusLabel(selectedSchedule.participant_status) }}</p>
                     </div>
                 </div>
 
@@ -278,6 +307,7 @@ const loading = ref(false);
 const showDetailModal = ref(false);
 const selectedSchedule = ref(null);
 const schedules = ref([]);
+const liberatedParticipants = ref([]);
 const error = ref('');
 const statusFilter = ref('');
 
@@ -288,7 +318,7 @@ const itemsPerPage = ref(10);
 // Obtener datos cuando se abra el modal
 const fetchScheduleDetails = async () => {
     if (!props.detailFilters.yearMonth) {
-        console.log('No yearMonth filter provided');
+        // Falta yearMonth para filtrar cuotas del mes
         return;
     }
 
@@ -296,8 +326,7 @@ const fetchScheduleDetails = async () => {
     error.value = '';
     
     try {
-        console.log('Fetching schedule details with filters:', props.detailFilters);
-        
+        // Cargar detalles del mes
         const response = await axios.get('/admin/reports/payment-schedule/details', {
             params: {
                 salesExecutiveId: props.detailFilters.salesExecutiveId,
@@ -306,10 +335,9 @@ const fetchScheduleDetails = async () => {
             }
         });
 
-        console.log('Schedule details response:', response.data);
-
         if (response.data.success) {
             schedules.value = response.data.data;
+            liberatedParticipants.value = response.data.liberated || [];
         } else {
             error.value = response.data.message || 'Error al obtener los datos';
         }
@@ -395,6 +423,17 @@ const formatDate = (date) => {
     return new Date(date).toLocaleDateString("es-CL");
 };
 
+const getParticipantStatusLabel = (status) => {
+    const labels = {
+        'liberado': 'Liberado (Pagos Completos)',
+        'pagado': 'Cuota Pagada',
+        'vencido': 'Cuota Vencida',
+        'pendiente': 'Cuota Pendiente',
+        'sin_cuotas': 'Sin Cuotas'
+    };
+    return labels[status] || status || 'N/A';
+};
+
 const formatRut = (rut) => {
     if (!rut) return 'N/A';
     let clean = rut.toString().replace(/\./g, '').replace(/-/g, '');
@@ -402,6 +441,20 @@ const formatRut = (rut) => {
     const dv = clean.slice(-1).toUpperCase();
     const num = clean.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     return `${num}-${dv}`;
+};
+
+// Formatear documento respetando el tipo: RUT se formatea, PASAPORTE se muestra en uppercase
+const formatDocument = (documentNumber, documentTypeCode) => {
+    if (!documentNumber) return 'N/A';
+    const type = String(documentTypeCode || '').toUpperCase();
+    if (type === 'RUT' || type === 'RUN') {
+        return formatRut(documentNumber);
+    }
+    if (type === 'PASAPORTE' || type === 'PASSPORT') {
+        return String(documentNumber).toUpperCase();
+    }
+    // Fallback: no formatear si no es claramente RUT
+    return String(documentNumber);
 };
 
 const getBalanceClass = (amount) => {

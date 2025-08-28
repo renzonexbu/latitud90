@@ -232,12 +232,16 @@ class ReportController extends Controller
         $filters = $request->only(['programId', 'salesExecutiveId', 'yearMonth', 'dateFrom', 'dateTo']);
 
         try {
-            // Obtener detalles del cronograma de cuotas
+            // Obtener detalles del cronograma de cuotas (solo cuotas que vencen en el mes)
             $scheduleDetails = $this->paymentScheduleDetailService->getScheduleDetails($filters);
+            
+            // Obtener participantes liberados (siempre se muestran)
+            $liberatedParticipants = $this->paymentScheduleDetailService->getLiberatedParticipants($filters);
 
             return response()->json([
                 'success' => true,
                 'data' => $scheduleDetails,
+                'liberated' => $liberatedParticipants,
                 'filters' => $filters
             ]);
         } catch (\Exception $e) {
@@ -252,7 +256,8 @@ class ReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener los detalles: ' . $e->getMessage(),
-                'data' => []
+                'data' => [],
+                'liberated' => []
             ], 500);
         }
     }
