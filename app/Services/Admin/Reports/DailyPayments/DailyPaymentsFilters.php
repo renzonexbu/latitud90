@@ -9,6 +9,13 @@ class DailyPaymentsFilters
 {
     public function applyFilters(Builder $query, array $filters): Builder
     {
+        // FILTRO PRINCIPAL: Solo pagos completados/aprobados
+        $query->where(function($q) {
+            $q->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
+              ->where('od.is_paid', true)
+              ->where('od.status', 'paid');
+        });
+
         // Filtro por número de programa
         if (!empty($filters['programId'])) {
             $query->where('pr.id', $filters['programId']);
@@ -29,21 +36,25 @@ class DailyPaymentsFilters
             $query->where('po.id', $filters['paymentMethodId']);
         }
 
-        // Filtro por fecha desde
+        // Filtro por fecha desde (priorizando fecha de pago exitoso)
         if (!empty($filters['dateFrom'])) {
             $query->where(function($q) use ($filters) {
-                $q->whereDate('pay.transaction_date', '>=', $filters['dateFrom'])
-                  ->orWhereDate('pay.created_at', '>=', $filters['dateFrom'])
-                  ->orWhereDate('od.paid_at', '>=', $filters['dateFrom']);
+                $q->whereDate('od.paid_at', '>=', $filters['dateFrom'])
+                  ->orWhere(function($subQ) use ($filters) {
+                      $subQ->whereNull('od.paid_at')
+                           ->whereDate('pay.transaction_date', '>=', $filters['dateFrom']);
+                  });
             });
         }
 
-        // Filtro por fecha hasta
+        // Filtro por fecha hasta (priorizando fecha de pago exitoso)
         if (!empty($filters['dateTo'])) {
             $query->where(function($q) use ($filters) {
-                $q->whereDate('pay.transaction_date', '<=', $filters['dateTo'])
-                  ->orWhereDate('pay.created_at', '<=', $filters['dateTo'])
-                  ->orWhereDate('od.paid_at', '<=', $filters['dateTo']);
+                $q->whereDate('od.paid_at', '<=', $filters['dateTo'])
+                  ->orWhere(function($subQ) use ($filters) {
+                      $subQ->whereNull('od.paid_at')
+                           ->whereDate('pay.transaction_date', '<=', $filters['dateTo']);
+                  });
             });
         }
 
@@ -53,13 +64,19 @@ class DailyPaymentsFilters
             $startDate = Carbon::now()->subDays(4);
             
             $query->where(function($q) use ($startDate, $endDate) {
-                $q->whereDate('pay.transaction_date', '>=', $startDate->format('Y-m-d'))
-                  ->orWhereDate('pay.created_at', '>=', $startDate->format('Y-m-d'))
-                  ->orWhereDate('od.paid_at', '>=', $startDate->format('Y-m-d'));
-            })->where(function($q) use ($startDate, $endDate) {
-                $q->whereDate('pay.transaction_date', '<=', $endDate->format('Y-m-d'))
-                  ->orWhereDate('pay.created_at', '<=', $endDate->format('Y-m-d'))
-                  ->orWhereDate('od.paid_at', '<=', $endDate->format('Y-m-d'));
+                $q->where(function($subQ) use ($startDate) {
+                    $subQ->whereDate('od.paid_at', '>=', $startDate->format('Y-m-d'))
+                         ->orWhere(function($innerQ) use ($startDate) {
+                             $innerQ->whereNull('od.paid_at')
+                                    ->whereDate('pay.transaction_date', '>=', $startDate->format('Y-m-d'));
+                         });
+                })->where(function($subQ) use ($endDate) {
+                    $subQ->whereDate('od.paid_at', '<=', $endDate->format('Y-m-d'))
+                         ->orWhere(function($innerQ) use ($endDate) {
+                             $innerQ->whereNull('od.paid_at')
+                                    ->whereDate('pay.transaction_date', '<=', $endDate->format('Y-m-d'));
+                         });
+                });
             });
         }
 

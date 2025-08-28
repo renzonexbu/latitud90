@@ -101,7 +101,7 @@ class DailyPaymentsDataProvider
             DB::raw('MAX(pay.transaction_date) as last_payment_date'),
         ])->first();
 
-        // Calcular pagos de hoy
+        // Calcular pagos de hoy (solo pagos completados)
         $paymentsToday = DB::table('payments as pay')
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
@@ -111,12 +111,17 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
-            ->whereDate('pay.transaction_date', now()->toDateString())
-            ->orWhereDate('pay.created_at', now()->toDateString())
-            ->orWhereDate('od.paid_at', now()->toDateString())
+            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
+            ->where('od.is_paid', true)
+            ->where('od.status', 'paid')
+            ->where(function($q) {
+                $q->whereDate('pay.transaction_date', now()->toDateString())
+                  ->orWhereDate('pay.created_at', now()->toDateString())
+                  ->orWhereDate('od.paid_at', now()->toDateString());
+            })
             ->count();
 
-        // Calcular total de registros (sin filtros de fecha)
+        // Calcular total de registros (solo pagos completados, sin filtros de fecha)
         $totalRecords = DB::table('payments as pay')
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
@@ -126,6 +131,9 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
+            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
+            ->where('od.is_paid', true)
+            ->where('od.status', 'paid')
             ->count();
 
         return [
@@ -143,8 +151,8 @@ class DailyPaymentsDataProvider
     public function getPrograms(): Collection
     {
         return DB::table('programs')
-            ->select(['id', 'name', 'destination'])
-            ->orderBy('name')
+            ->select(['id', 'code', 'name', 'destination'])
+            ->orderBy('code')
             ->get();
     }
 

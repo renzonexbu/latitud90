@@ -12,7 +12,7 @@ class ReportsService
     {
         $query = Payment::with(['passenger.program.commercialExecutive'])
             ->whereDate('created_at', $filters['date'])
-            ->where('status', 'approved');
+            ->whereIn('status', ['approved', 'completed', 'paid', 'success']);
 
         if (!empty($filters['program_id'])) {
             $query->whereHas('passenger', function($q) use ($filters) {
@@ -62,7 +62,7 @@ class ReportsService
     {
         $query = Payment::with(['passenger.program'])
             ->whereBetween('created_at', [$filters['start_date'], $filters['end_date']])
-            ->where('status', 'approved');
+            ->whereIn('status', ['approved', 'completed', 'paid', 'success']);
 
         if (!empty($filters['payment_method'])) {
             $query->where('payment_method', $filters['payment_method']);

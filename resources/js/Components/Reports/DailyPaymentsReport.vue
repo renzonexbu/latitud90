@@ -1,7 +1,8 @@
 <template>
   <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
     <div class="p-6 text-gray-900">
-      <h3 class="text-lg font-semibold mb-4">Reporte de Pagos Diarios</h3>
+      <h3 class="text-lg font-semibold mb-4">Reporte de Pagos Diarios - Solo Pagos Completados</h3>
+      <p class="text-sm text-gray-600 mb-4">Este reporte muestra únicamente los pagos que han sido aprobados y completados exitosamente.</p>
 
       <!-- Filtros -->
       <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -17,7 +18,7 @@
               :key="program.id"
               :value="program.id"
             >
-              {{ program.name }}
+              {{ program.code }} - {{ program.name }}
             </option>
           </select>
         </div>
@@ -147,13 +148,14 @@
 
       <!-- Estado vacío -->
       <div v-else-if="hasSearched" class="text-center py-8">
-        <p class="text-gray-500">No se encontraron pagos para los filtros seleccionados</p>
+        <p class="text-gray-500">No se encontraron pagos completados para los filtros seleccionados</p>
+        <p class="text-sm text-gray-400 mt-2">Recuerda que solo se muestran pagos aprobados y exitosos</p>
       </div>
 
       <!-- Resumen -->
       <div v-if="reportData.length > 0" class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div class="bg-blue-50 p-4 rounded-lg">
-          <p class="text-sm text-gray-600">Total Abonado</p>
+          <p class="text-sm text-gray-600">Total Pagado (Completado)</p>
           <p class="text-xl font-bold text-blue-600">
             ${{ totalAmount.toLocaleString() }}
           </p>
