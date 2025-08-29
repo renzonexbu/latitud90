@@ -36,3 +36,14 @@ Route::get('/reports/export/partial-account', [ReportController::class, 'exportP
 Route::get('/reports/export/payment-schedule', [ReportController::class, 'exportPaymentSchedule'])->name('reports.export.payment-schedule');
 Route::get('/reports/softland', [ReportController::class, 'softland'])->name('reports.softland');
 Route::get('/reports/export/softland-template', [ReportController::class, 'exportSoftlandTemplate'])->name('reports.export.softland-template');
+
+// Ejecutivos: Consolidado de Área Ingresos y Estado de Cuenta Parcial
+use App\Http\Controllers\Admin\ExecutivesReportsController;
+Route::prefix('/reports/executives')->name('reports.executives.')->group(function () {
+    Route::get('/consolidated', [ExecutivesReportsController::class, 'consolidated'])->name('consolidated');
+    Route::get('/partial-account', [ExecutivesReportsController::class, 'partialAccount'])->name('partial-account');
+
+    // Exportaciones
+    Route::get('/export/consolidated', [ExecutivesReportsController::class, 'exportConsolidated'])->name('export.consolidated');
+    Route::get('/export/partial-account', [ExecutivesReportsController::class, 'exportPartialAccount'])->name('export.partial-account');
+});

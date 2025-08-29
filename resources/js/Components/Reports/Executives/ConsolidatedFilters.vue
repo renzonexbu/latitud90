@@ -6,7 +6,7 @@
             <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
                 Filtros de búsqueda
             </div>
-
+            
             <!-- Rango de fechas -->
             <div class="flex gap-4 items-center">
                 <div class="relative">
@@ -31,40 +31,30 @@
 
         <!-- Filtros Row -->
         <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-            <!-- Programa -->
-            <div class="relative w-[280px]">
+            <!-- Programas -->
+            <div class="relative flex-1">
                 <select
                     v-model="filters.programId"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
+                    @change="onProgramChange"
                 >
-                    <option value="">Programa</option>
-                    <option v-for="p in programs" :key="p.id" :value="p.id">
-                        {{ p.code }} - {{ p.name }} - {{ p.destination }}
+                    <option value="">Todos los programas</option>
+                    <option v-for="program in programs" :key="program.id" :value="program.id">
+                        {{ program.code }} - {{ program.name }} - {{ program.destination }}
                     </option>
                 </select>
             </div>
 
-            <!-- Alumno -->
-            <div class="relative w-[260px]">
-                <input
-                    v-model="filters.participantQuery"
-                    type="text"
-                    placeholder="Alumno o Documento"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
-                    @input="performSearch"
-                />
-            </div>
-            <!-- Método de Pago -->
+            <!-- Ejecutivo Comercial -->
             <div class="relative flex-shrink-0 w-[200px]">
                 <select
-                    v-model="filters.paymentMethodId"
+                    v-model="filters.salesExecutiveId"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Método de pago</option>
-                    <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
-                        {{ method.name }} ({{ method.code }})
+                    <option value="">Ejecutivo comercial</option>
+                    <option v-for="executive in salesExecutives" :key="executive.id" :value="executive.id">
+                        {{ executive.name }}
                     </option>
                 </select>
             </div>
@@ -87,7 +77,7 @@
 import _ from "lodash";
 
 export default {
-    name: "ConsolidatedPaymentsFilters",
+    name: "ExecutivesConsolidatedFilters",
     props: {
         initialFilters: {
             type: Object,
@@ -97,7 +87,7 @@ export default {
             type: Array,
             default: () => []
         },
-        paymentMethods: {
+        salesExecutives: {
             type: Array,
             default: () => []
         }
@@ -105,41 +95,50 @@ export default {
     data() {
         return {
             filters: {
-                programId: this.initialFilters.programId || (this.programs && this.programs.length > 0 ? this.programs[0].id : ""),
-                participantQuery: this.initialFilters.participantQuery || "",
-                paymentMethodId: this.initialFilters.paymentMethodId || "",
+                programId: this.initialFilters.programId || "",
+                salesExecutiveId: this.initialFilters.salesExecutiveId || "",
                 dateFrom: this.initialFilters.dateFrom || "",
                 dateTo: this.initialFilters.dateTo || "",
             }
         };
     },
     mounted() {
+        // Establecer fecha por defecto (último mes) si no hay fechas
         if (!this.filters.dateFrom && !this.filters.dateTo) {
             const today = new Date();
-            const todayString = today.toISOString().split('T')[0];
-            this.filters.dateFrom = todayString;
-            this.filters.dateTo = todayString;
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            this.filters.dateFrom = lastMonth.toISOString().split('T')[0];
+            this.filters.dateTo = today.toISOString().split('T')[0];
             this.performSearch();
         }
     },
     methods: {
         performSearch: _.debounce(function () {
+            console.log('🔍 ExecutivesConsolidatedFilters - Filtros enviados:', {
+                filters: this.filters
+            });
             this.$emit('filters-changed', this.filters);
         }, 300),
+        
+        onProgramChange() {
+            console.log('🔍 ExecutivesConsolidatedFilters - Programa seleccionado:', this.filters.programId);
+            this.performSearch();
+        },
+        
         clearFilters() {
+            console.log('🔍 ExecutivesConsolidatedFilters - Limpiando filtros');
             const today = new Date();
-            const todayString = today.toISOString().split('T')[0];
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+            
             this.filters = {
-                programId: (this.programs && this.programs.length > 0 ? this.programs[0].id : ""),
-                participantQuery: "",
-                paymentMethodId: "",
-                dateFrom: todayString,
-                dateTo: todayString,
+                programId: "",
+                salesExecutiveId: "",
+                dateFrom: lastMonth.toISOString().split('T')[0],
+                dateTo: today.toISOString().split('T')[0],
             };
+            console.log('🔍 ExecutivesConsolidatedFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         }
     }
 };
 </script>
-
-

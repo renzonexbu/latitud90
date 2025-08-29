@@ -18,9 +18,12 @@
           />
           <div class="flex space-x-4 mt-4">
             <button
-              @click="openExportModal"
-              class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+              @click="exportReport"
+              class="mt-2 lg:mt-0 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1c4f4a] hover:bg-[#164136] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1c4f4a]"
             >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
               Exportar
             </button>
           </div>
@@ -142,142 +145,7 @@
       </div>
     </div>
 
-    <!-- Modal de Exportación -->
-    <div
-      v-if="showExportModal"
-      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-    >
-      <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <!-- Header del Modal -->
-          <div class="flex justify-between items-center mb-6">
-            <h3 class="text-xl font-bold text-gray-900">
-              Exportar Consolidado de Pagos
-            </h3>
-            <button
-              @click="closeExportModal"
-              class="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-            >
-              &times;
-            </button>
-          </div>
-
-          <div class="space-y-6">
-            <!-- Selección de Campos -->
-            <div>
-              <h4 class="text-lg font-semibold text-gray-900 mb-4">
-                Seleccionar Campos para Exportar
-              </h4>
-              
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- Información de Identificación -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <h5 class="font-semibold text-gray-800 mb-3">Identificación</h5>
-                  <div class="space-y-2">
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.identification.programId" class="mr-2">
-                      <span class="text-sm">ID Programa</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.identification.authorizationCode" class="mr-2">
-                      <span class="text-sm">N° Autorización</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.identification.participantRut" class="mr-2">
-                      <span class="text-sm">RUT Participante</span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Información del Pago -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <h5 class="font-semibold text-gray-800 mb-3">Información del Pago</h5>
-                  <div class="space-y-2">
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payment.amount" class="mr-2">
-                      <span class="text-sm">Pago/Devolución</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payment.invoiceNumber" class="mr-2">
-                      <span class="text-sm">N° de Boleta</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payment.paymentMethod" class="mr-2">
-                      <span class="text-sm">Forma de Pago</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payment.installmentsNumber" class="mr-2">
-                      <span class="text-sm">N° de Cuotas</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payment.paymentDate" class="mr-2">
-                      <span class="text-sm">Fecha de Pago</span>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Información del Pagador -->
-                <div class="bg-gray-50 p-4 rounded-lg">
-                  <h5 class="font-semibold text-gray-800 mb-3">Información del Pagador</h5>
-                  <div class="space-y-2">
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payer.name" class="mr-2">
-                      <span class="text-sm">Nombre Contacto Pagador</span>
-                    </label>
-                    <label class="flex items-center">
-                      <input type="checkbox" v-model="exportFields.payer.email" class="mr-2">
-                      <span class="text-sm">E-mail Contacto Pagador</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Opciones de Exportación -->
-            <div class="bg-blue-50 p-4 rounded-lg">
-              <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Formato de Archivo
-                  </label>
-                  <select v-model="exportOptions.format" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    <option value="xlsx">Excel (.xlsx)</option>
-                    <option value="csv">CSV (.csv)</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Incluir Todos los Registros
-                  </label>
-                  <select v-model="exportOptions.includeAll" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    <option value="current">Solo página actual</option>
-                    <option value="all">Todos los registros</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Botones -->
-            <div class="flex justify-end space-x-3">
-              <button
-                @click="closeExportModal"
-                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
-              >
-                Cancelar
-              </button>
-              <button
-                @click="exportReport"
-                :disabled="!hasSelectedFields"
-                class="bg-green-500 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg"
-              >
-                Exportar
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    
 
     <!-- Modal de Detalles -->
     <ConsolidatedPaymentDetailsModal
@@ -332,42 +200,9 @@ const filters = reactive({
   participantQuery: props.filters.participantQuery || ''
 })
 
-// Modal states
-const showExportModal = ref(false)
+// Estados de detalle (sin modal de exportación)
 const showDetailsModal = ref(false)
 const selectedPayment = ref(null)
-
-// Export fields
-const exportFields = reactive({
-  identification: {
-    programId: true,
-    authorizationCode: true,
-    participantRut: true
-  },
-  payment: {
-    amount: true,
-    invoiceNumber: true,
-    paymentMethod: true,
-    installmentsNumber: true,
-    paymentDate: true
-  },
-  payer: {
-    name: true,
-    email: true
-  }
-})
-
-const exportOptions = reactive({
-  format: "xlsx",
-  includeAll: "current",
-})
-
-// Computed
-const hasSelectedFields = computed(() => {
-  return Object.values(exportFields).some(section => 
-    Object.values(section).some(field => field)
-  )
-})
 
 // Methods
 const applyFilters = () => {
@@ -386,37 +221,12 @@ const onFiltersChanged = (newFilters) => {
   applyFilters()
 }
 
-const openExportModal = () => {
-  showExportModal.value = true
-  // Resetear campos de exportación al abrir
-  Object.keys(exportFields).forEach(key => {
-    Object.keys(exportFields[key]).forEach(field => {
-      exportFields[key][field] = true // Por defecto todos seleccionados
-    });
-  });
-  exportOptions.format = "xlsx";
-  exportOptions.includeAll = "current";
-}
-
-const closeExportModal = () => {
-  showExportModal.value = false
-}
-
 const exportReport = () => {
   const params = new URLSearchParams(filters)
-  const selectedFields = Object.keys(exportFields).reduce((acc, key) => {
-    acc[key] = Object.keys(exportFields[key]).filter(field => exportFields[key][field]);
-    return acc;
-  }, {});
-  params.append('fields', JSON.stringify(selectedFields));
-  params.append('format', exportOptions.format);
-  params.append('include_all', exportOptions.includeAll);
-
   window.open(
     `/admin/reports/export/consolidated-payments?${params.toString()}`,
     "_blank"
   );
-  closeExportModal();
 }
 
 const viewDetails = (payment) => {
@@ -452,3 +262,6 @@ onMounted(() => {
   }
 })
 </script>
+
+
+

@@ -134,6 +134,8 @@ class ReportController extends Controller
     public function exportConsolidatedPayments(Request $request)
     {
         $filters = $request->only([
+            'programId',
+            'participantQuery',
             'paymentMethodId',
             'dateFrom',
             'dateTo'
@@ -157,7 +159,7 @@ class ReportController extends Controller
             }
 
             // Generar nombre de archivo
-            $filename = 'consolidado_pagos_' . now()->format('Y-m-d_H-i-s');
+            $filename = 'consolidado_pagos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
 
             // Exportar según el formato
             return $this->consolidatedPaymentsExportService->export($exportData, $filename, $format);

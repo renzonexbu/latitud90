@@ -5,6 +5,7 @@ namespace App\Services\Admin\Reports\ConsolidatedPayments;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -84,6 +85,14 @@ class ConsolidatedPaymentsExcelExporter
             
             // Aplicar estilos profesionales
             $this->applyProfessionalStyles($sheet, $data->count() + 1);
+            
+            // Autoajustar el ancho de columnas según contenido
+            $highestColumnLetter = $sheet->getHighestColumn();
+            $highestColumnIndex = Coordinate::columnIndexFromString($highestColumnLetter);
+            for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                $columnLetter = Coordinate::stringFromColumnIndex($col);
+                $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
+            }
             
             // Configurar writer XLSX
             $writer = new Xlsx($spreadsheet);
