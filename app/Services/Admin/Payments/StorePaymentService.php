@@ -37,37 +37,22 @@ class StorePaymentService
             $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($request->presential_payment_type);
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
             
-            // Log temporal para diagnosticar
-            Log::info('Pago presencial - Mapeo:', [
-                'presential_payment_type' => $request->presential_payment_type,
-                'payment_option_code' => $paymentOptionCode,
-                'payment_option_id' => $paymentOption->id,
-                'payment_option_gateway' => $paymentOption->gateway_code,
-                'payment_option_label' => $paymentOption->label
-            ]);
 
             // Crear el detalle de la orden
             $orderDetail = $this->createOrderDetail($request, $order, $paymentGateway, $paymentOption);
 
             // Crear el pago
             $payment = $this->createPayment($request, $order, $orderDetail, $paymentGateway, $paymentOption);
-            
-            // Log temporal para verificar el pago creado
-            Log::info('Pago presencial creado:', [
-                'payment_id' => $payment->id,
-                'payment_option_id' => $payment->payment_option_id,
-                'payment_gateway_id' => $payment->payment_gateway_id,
-                'transaction_date' => $payment->transaction_date,
-                'status' => $payment->status
-            ]);
 
             // Actualizar estado de la orden
             $order->refreshStatus();
 
-            // Manejar plan de cuotas y reestructuración si es necesario
-            if ($request->status === 'completed') {
-                $this->handleInstallmentPlan($order, $request->participant_id, $request->program_id, $request->amount);
-            }
+            // NOTA: Los pagos presenciales NO crean planes de cuotas automáticamente
+            // Solo se crea la orden y el pago. Si se necesita un plan de cuotas,
+            // debe crearse manualmente desde la interfaz de administración.
+            // if ($request->status === 'completed') {
+            //     $this->handleInstallmentPlan($order, $request->participant_id, $request->program_id, $request->amount);
+            // }
 
             DB::commit();
 
@@ -124,10 +109,10 @@ class StorePaymentService
             'program_id' => $request->program_id,
             'total_amount' => $request->amount,
             'final_amount' => $request->amount,
-            'total_installments' => 1,
+            'total_installments' => 0, // Pago presencial no tiene cuotas por defecto
             'payment_type' => 'total',
             'status' => 'pending',
-            'order_number' => $this->generateOrderNumber(),
+            'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
             'notes' => 'Orden creada desde pago presencial'
         ]);
 
@@ -137,23 +122,7 @@ class StorePaymentService
     /**
      * Generar número de orden único
      */
-    private function generateOrderNumber(): string
-    {
-        $prefix = 'ORD';
-        $year = date('Y');
-        $month = date('m');
-        
-        do {
-            // Generar un número aleatorio de 6 dígitos
-            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
-            
-            // Verificar que no exista ya en la base de datos
-            $exists = Order::where('order_number', $orderNumber)->exists();
-        } while ($exists);
-        
-        return $orderNumber;
-    }
+    // Eliminado: generación local de número de orden. Usar OrderNumberGenerator central.
 
     /**
      * Crear el detalle de la orden
@@ -186,7 +155,7 @@ class StorePaymentService
             'terms_accepted' => true,
             'marketing_accepted' => false,
             'terms_accepted_confirmation' => true,
-            'installment_number' => 1,
+            'installment_number' => null, // Pago presencial no es una cuota
             'base_amount' => $request->amount,
             'discount_amount' => 0,
             'amount' => $request->amount,

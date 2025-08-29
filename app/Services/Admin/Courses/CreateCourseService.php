@@ -134,7 +134,7 @@ class CreateCourseService
                 };
 
                 $cleanRut = $this->cleanRut($getFieldValue([
-                    'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento', 'Documento del participante', 'documento del participante'
+                    'N° de documento', 'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento', 'Documento del participante', 'documento del participante'
                 ]));
                 
                 if (empty($cleanRut)) {
@@ -183,9 +183,9 @@ class CreateCourseService
                             'phone' => $getFieldValue([
                                 'Teléfono', 'telefono', 'fono', 'celular'
                             ]) ?? $existingParticipant->phone,
-                            'birth_date' => $getFieldValue([
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
                                 'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
-                            ]) ?? $existingParticipant->birth_date,
+                            ])) ?? $existingParticipant->birth_date,
                             'nationality' => $this->toLowercase($getFieldValue([
                                 'nacionalidad', 'pais', 'origen'
                             ])) ?? $existingParticipant->nationality,
@@ -270,9 +270,9 @@ class CreateCourseService
                         'document_type' => $documentTypeId,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $getFieldValue([
+                        'birth_date' => $this->parseBirthDate($getFieldValue([
                             'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
-                        ]) ?? null,
+                        ])) ?? null,
                         'nationality' => $this->toLowercase($getFieldValue([
                             'nacionalidad', 'pais', 'origen'
                         ])) ?? 'chilena',
@@ -346,9 +346,9 @@ class CreateCourseService
                             'phone' => $getFieldValue([
                                 'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
                             ]) ?? $existingEmergencyContact->phone,
-                            'birth_date' => $getFieldValue([
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
                                 'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
-                            ]) ?? $existingEmergencyContact->birth_date,
+                            ])) ?? $existingEmergencyContact->birth_date,
                             'relationship' => $getFieldValue([
                                 'Relación contacto emergencia', 'relacion contacto emergencia'
                             ]) ?? $existingEmergencyContact->relationship,
@@ -374,9 +374,9 @@ class CreateCourseService
                                 'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
                             ]) ?? '',
                             'country' => 'CL', // Chile por defecto
-                            'birth_date' => $getFieldValue([
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
                                 'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
-                            ]) ?? null,
+                            ])) ?? null,
                             'address' => null,
                             'relationship' => $getFieldValue([
                                 'Relación contacto emergencia', 'relacion contacto emergencia'
@@ -511,5 +511,58 @@ class CreateCourseService
     {
         $document = \App\Models\Document::where('name', 'LIKE', "%{$documentType}%")->first();
         return $document ? $document->id : 1; // Por defecto ID 1 (RUT)
+    }
+
+    /**
+     * Parsear fecha de nacimiento en diferentes formatos
+     * Soporta: YYYY/MM/DD, DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+     */
+    private function parseBirthDate(?string $dateString): ?string
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        $dateString = trim($dateString);
+        
+        // Si ya es un formato válido de fecha, retornarlo
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+            return $dateString;
+        }
+
+        // Formato YYYY/MM/DD
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD/MM/YYYY
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato YYYY-MM-DD (con espacios)
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Si no coincide con ningún formato, retornar null
+        return null;
     }
 }

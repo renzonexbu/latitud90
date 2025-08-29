@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Payment extends Model
 {
@@ -26,6 +27,7 @@ class Payment extends Model
         'card_number',
         'card_type',
         'installments_number',
+        'installment_amount',
         'status',
         'gateway_response',
         'raw_notification',
@@ -50,6 +52,7 @@ class Payment extends Model
         'transaction_date' => 'datetime:America/Santiago',
         'accounting_date' => 'datetime:America/Santiago',
         'installments_number' => 'integer',
+        'installment_amount' => 'decimal:2',
         'email_sent' => 'boolean'
     ];
 
@@ -248,7 +251,7 @@ class Payment extends Model
             
         } catch (\Exception $e) {
             // En caso de error, retornar Boleta por defecto
-            \Log::warning('Error determining document type for payment', [
+            Log::warning('Error determining document type for payment', [
                 'payment_id' => $this->id,
                 'error' => $e->getMessage()
             ]);

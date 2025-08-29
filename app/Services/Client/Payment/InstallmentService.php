@@ -154,7 +154,7 @@ class InstallmentService
                 'total_installments' => $totalInstallments,
                 'payment_type' => 'monthly',
                 'status' => 'pending',
-                'order_number' => $this->generateOrderNumber(),
+                'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
                 'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => 'Orden creada para plan de cuotas mensuales'
             ]);
@@ -364,21 +364,5 @@ class InstallmentService
     /**
      * Generar número de orden único
      */
-    private function generateOrderNumber(): string
-    {
-        $prefix = 'ORD';
-        $year = date('Y');
-        $month = date('m');
-        
-        do {
-            // Generar un número aleatorio de 6 dígitos
-            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
-            
-            // Verificar que no exista ya en la base de datos
-            $exists = Order::where('order_number', $orderNumber)->exists();
-        } while ($exists);
-        
-        return $orderNumber;
-    }
+    // Eliminado: generación local de número de orden. Usar OrderNumberGenerator central.
 }

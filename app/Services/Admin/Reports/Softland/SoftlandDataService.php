@@ -14,8 +14,9 @@ class SoftlandDataService
      */
     public function generateMovements(array $filters = []): Collection
     {
-        // Obtener TODOS los pagos completed primero
+        // Obtener SOLO pagos completados que generaron boleta (B2)
         $payments = Payment::where('status', 'completed')
+        ->where('document_type', 'B2')
         ->when(isset($filters['dateFrom']), function ($query) use ($filters) {
             $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
         })

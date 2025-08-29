@@ -39,6 +39,7 @@ return new class extends Migration
             $table->string('card_number')->nullable();          // Últimos 4 dígitos
             $table->string('card_type')->nullable();            // Tipo de tarjeta
             $table->integer('installments_number')->nullable(); // Número de cuotas
+            $table->decimal('installment_amount', 10, 2)->nullable(); // Monto por cuota si aplica
 
             // Estado del pago
             // Usamos string para flexibilizar (e.g. approved, rejected, refunded, etc.)

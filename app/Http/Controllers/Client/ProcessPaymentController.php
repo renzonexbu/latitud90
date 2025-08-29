@@ -118,9 +118,12 @@ class ProcessPaymentController extends Controller
             $result = $virtualPosService->processNotification($notificationData);
 
             if ($result['success']) {
-                // Actualizar el estado del pago
+                // Actualizar el estado del pago y campos de autorización/cuotas
                 $payment->update([
                     'status' => 'completed',
+                    'authorization_code' => $result['authorization_code'] ?? $payment->authorization_code,
+                    'installments_number' => isset($result['installments']) ? (int) $result['installments'] : $payment->installments_number,
+                    'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
                     'gateway_response' => $result,
                 ]);
 

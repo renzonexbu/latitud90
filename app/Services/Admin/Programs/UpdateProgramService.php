@@ -920,7 +920,7 @@ class UpdateProgramService
                                 ? $this->normalizeEmail($participantData['Email'])
                                 : $existingParticipant->email,
                             'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
-                            'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha de nacimiento']) ?? $existingParticipant->birth_date,
                             'address' => $participantData['Dirección'] ?? $existingParticipant->address,
                             'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
                             'intolerances' => $participantData['Intolerancia'] ?? $existingParticipant->intolerances,
@@ -977,7 +977,7 @@ class UpdateProgramService
                         'document_type' => $documentType,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
+                        'birth_date' => $this->parseBirthDate($participantData['Fecha de nacimiento']) ?? null,
                         'address' => $participantData['Dirección'] ?? null,
                         'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
                         'intolerances' => $participantData['Intolerancia'] ?? null,
@@ -1022,7 +1022,7 @@ class UpdateProgramService
                                 ? $this->normalizeEmail($participantData['Email contacto emergencia'])
                                 : $existingEmergencyContact->email,
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha nacimiento contacto emergencia']) ?? $existingEmergencyContact->birth_date,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
                         ]);
                         
@@ -1035,7 +1035,7 @@ class UpdateProgramService
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
                             'country' => 'CL', // Chile por defecto
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha nacimiento contacto emergencia']) ?? null,
                             'address' => null,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
                             'participant_id' => $participant->id,
@@ -1335,5 +1335,58 @@ class UpdateProgramService
             ]);
             $course->update($updateData);
         }
+    }
+
+    /**
+     * Parsear fecha de nacimiento en diferentes formatos
+     * Soporta: YYYY/MM/DD, DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+     */
+    private function parseBirthDate(?string $dateString): ?string
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        $dateString = trim($dateString);
+        
+        // Si ya es un formato válido de fecha, retornarlo
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+            return $dateString;
+        }
+
+        // Formato YYYY/MM/DD
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD/MM/YYYY
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato YYYY-MM-DD (con espacios)
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Si no coincide con ningún formato, retornar null
+        return null;
     }
 }

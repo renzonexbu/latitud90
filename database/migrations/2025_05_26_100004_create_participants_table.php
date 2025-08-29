@@ -25,14 +25,14 @@ return new class extends Migration
             
             // Información personal
             $table->date('birth_date'); // Fecha de nacimiento
-            $table->string('nationality'); // Nacionalidad
+            $table->string('nationality')->nullable(); // Nacionalidad
             $table->enum('gender', ['Masculino', 'Femenino']); // Sexo
             
             // Información de contacto
-            $table->string('email');
-            $table->string('code_phone');
-            $table->string('phone');
-            $table->string('country');
+            $table->string('email')->nullable();
+            $table->string('code_phone')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('country')->nullable();
             $table->text('address')->nullable();
             
             // Información médica y alimentaria

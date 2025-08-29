@@ -309,19 +309,19 @@
               v-if="selectedPaymentMethod === 'installments'"
               class="ml-6 mt-2">
               <!-- Alerta informativa -->
-              <div class="bg-red-50 p-4 rounded-lg mb-4">
+              <div class="bg-red-50 p-3 md:p-4 rounded-lg mb-4">
                 <div class="flex items-start">
                   <div class="flex-shrink-0 mt-0.5">
-                    <i class="fas fa-exclamation-triangle text-red-500"></i>
+                    <i class="fas fa-exclamation-triangle text-red-500 text-sm md:text-base"></i>
                   </div>
-                  <div class="ml-3">
-                    <p class="text-sm text-red-600 font-medium">
+                  <div class="ml-2 md:ml-3 flex-1 min-w-0">
+                    <p class="text-xs md:text-sm text-red-600 font-medium leading-tight md:leading-normal">
                       Al elegir el Pago Mensual de Cuota LAT90, se
                       <span class="font-bold">desactiva la opción de pago</span>
                       con tarjeta en 3, 6, 9 o 12 cuotas.
                     </p>
-                    <p class="text-sm text-red-600 mt-2">
-                      Si luego querés abonar el total, deberás seleccionar todas
+                    <p class="text-xs md:text-sm text-red-600 mt-2 leading-tight md:leading-normal">
+                      Si luego quieres abonar el total, deberás seleccionar todas
                       las cuotas de LAT90 y
                       <span class="font-bold"
                         >podrás pagar con tarjeta (1 cuota), débito o

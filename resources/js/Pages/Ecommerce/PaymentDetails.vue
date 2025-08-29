@@ -168,7 +168,7 @@
                             <!-- Location Information -->
                             <div class="flex flex-col gap-[21px]">
                                 <!-- País -->
-                                <div class="flex flex-col gap-[12px]">
+                                <div class="flex flex-col gap-[12px] mt-0 md:mt-[66px]">
                                     <label
                                         class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                     >

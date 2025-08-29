@@ -4,6 +4,7 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Course;
 use App\Models\Institution;
+use App\Models\Program;
 
 class GetCreateDataService
 {
@@ -25,9 +26,20 @@ class GetCreateDataService
             ->orderBy('name')
             ->get();
 
+        // Obtener programas activos o con status 'reserva' (programas futuros)
+        $programs = Program::with(['course.institution'])
+            ->where(function($query) {
+                $query->where('active', true)
+                      ->orWhere('status', 'reserva');
+            })
+            ->orderBy('name')
+            ->get();
+
+
         return [
             'courses' => $courses,
-            'institutions' => $institutions
+            'institutions' => $institutions,
+            'programs' => $programs
         ];
     }
 }

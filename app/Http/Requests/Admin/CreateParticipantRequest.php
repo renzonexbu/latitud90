@@ -22,30 +22,29 @@ class CreateParticipantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'course_id' => 'required|exists:courses,id',
+            'program_id' => 'required|exists:programs,id',
             'first_last_name' => 'required|string|max:255',
             'second_last_name' => 'nullable|string|max:255',
             'first_name' => 'required|string|max:255',
             'second_name' => 'nullable|string|max:255',
             'document_number' => 'required|string|max:255',
-            'document_type' => 'required|string|max:255',
+            // document_type es un ID a la tabla document
+            'document_type' => 'required|integer|exists:document,id',
             'birth_date' => 'required|date',
-            'email' => 'required|email|max:255',
-            'phone' => 'required|string|max:255',
-            'code_phone' => 'required|string|max:255',
+            'nationality' => 'required|string|max:255',
+            'gender' => 'required|string|max:255',
+            'dietary_restrictions' => 'nullable|string|max:255',
+            'intolerances' => 'nullable|string|max:255',
+            'allergies' => 'nullable|string|max:255',
             'country' => 'required|string|max:255',
             'address' => 'nullable|string|max:255',
-            'dietary_restrictions' => 'nullable|string|max:255',
             'medical_conditions' => 'nullable|string|max:255',
-            'emergency_contacts' => 'required|array|min:1',
+            // Solo se permite un contacto de emergencia
+            'emergency_contacts' => 'required|array|size:1',
             'emergency_contacts.*.name' => 'required|string|max:255',
             'emergency_contacts.*.email' => 'required|email|max:255',
-            'emergency_contacts.*.code_phone' => 'required|string|max:255',
-            'emergency_contacts.*.phone' => 'required|string|max:255',
-            'emergency_contacts.*.country' => 'required|string|max:255',
-            'emergency_contacts.*.birth_date' => 'nullable|date',
-            'emergency_contacts.*.address' => 'nullable|string|max:255',
-            'emergency_contacts.*.relationship' => 'required|string|max:255',
+            'emergency_contacts.*.document_number' => 'required|string|max:255',
+            'emergency_contacts.*.document_type' => 'nullable|integer|exists:document,id',
         ];
     }
 
@@ -57,8 +56,8 @@ class CreateParticipantRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'course_id.required' => 'Debe seleccionar un curso.',
-            'course_id.exists' => 'El curso seleccionado no existe.',
+            'program_id.required' => 'Debe seleccionar un programa.',
+            'program_id.exists' => 'El programa seleccionado no existe.',
             'first_last_name.required' => 'El primer apellido es obligatorio.',
             'second_last_name.string' => 'El segundo apellido debe ser texto.',
             'second_last_name.max' => 'El segundo apellido no puede exceder 255 caracteres.',
@@ -67,13 +66,12 @@ class CreateParticipantRequest extends FormRequest
             'second_name.max' => 'El segundo nombre no puede exceder 255 caracteres.',
             'document_number.required' => 'El RUT es obligatorio.',
             'document_type.required' => 'El tipo de documento es obligatorio.',
+            'document_type.integer' => 'El tipo de documento seleccionado es inválido.',
+            'document_type.exists' => 'El tipo de documento seleccionado no existe.',
             'birth_date.required' => 'La fecha de nacimiento es obligatoria.',
             'birth_date.date' => 'La fecha de nacimiento debe tener un formato válido.',
-            'email.required' => 'El email es obligatorio.',
-            'email.email' => 'El email debe tener un formato válido.',
-            'email.unique' => 'Este email ya está registrado.',
-            'phone.required' => 'El teléfono es obligatorio.',
-            'code_phone.required' => 'El código de país es obligatorio.',
+            'nationality.required' => 'La nacionalidad es obligatoria.',
+            'gender.required' => 'El sexo es obligatorio.',
             'country.required' => 'El país es obligatorio.',
             'address.string' => 'La dirección debe ser texto.',
             'address.max' => 'La dirección no puede exceder 255 caracteres.',
@@ -83,19 +81,13 @@ class CreateParticipantRequest extends FormRequest
             'medical_conditions.max' => 'Las condiciones médicas no pueden exceder 255 caracteres.',
 
             // Mensajes para contactos de emergencia
-            'emergency_contacts.required' => 'Debe agregar al menos un contacto de emergencia.',
-            'emergency_contacts.min' => 'Debe agregar al menos un contacto de emergencia.',
-            'emergency_contacts.max' => 'Puede agregar máximo 3 contactos de emergencia.',
+            'emergency_contacts.required' => 'Debe agregar un contacto de emergencia.',
+            'emergency_contacts.size' => 'Solo se permite un contacto de emergencia.',
             'emergency_contacts.*.name.required' => 'El nombre del contacto de emergencia es obligatorio.',
             'emergency_contacts.*.email.required' => 'El email del contacto de emergencia es obligatorio.',
             'emergency_contacts.*.email.email' => 'El email del contacto de emergencia debe tener un formato válido.',
-            'emergency_contacts.*.code_phone.required' => 'El código de país del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.phone.required' => 'El teléfono del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.country.required' => 'El país del contacto de emergencia es obligatorio.',
-            'emergency_contacts.*.birth_date.date' => 'La fecha de nacimiento del contacto de emergencia debe tener un formato válido.',
-            'emergency_contacts.*.birth_date.before' => 'La fecha de nacimiento del contacto de emergencia debe ser anterior a hoy.',
-            'emergency_contacts.*.address.string' => 'La dirección del contacto de emergencia debe ser texto.',
-            'emergency_contacts.*.relationship.required' => 'La relación con el alumno es obligatoria.',
+            'emergency_contacts.*.document_number.required' => 'El RUT del contacto de emergencia es obligatorio.',
+
         ];
     }
 } 

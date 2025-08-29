@@ -144,10 +144,11 @@ const confirmPayment = async () => {
       }
       
       if (data.status === 'rejected' || data.status === 'canceled' || data.status === 'error') {
-        // Pago rechazado - redirigir a la confirmación con mensaje de error
-        const confirmationUrl = `/programs/${props.programId}/confirmation?status=${data.status}&message=${encodeURIComponent(data.message)}`
-        const separator = confirmationUrl.includes('?') ? '&' : '?'
-        const finalUrl = props.rut ? `${confirmationUrl}${separator}rut=${encodeURIComponent(props.rut)}` : confirmationUrl
+        // Pago rechazado - redirigir a la página de fallo
+        console.log('[PaymentSpinner] Pago rechazado/cancelado/error, redirigiendo a fallo')
+        const failureUrl = `/payment/failure/${props.orderDetailId}?status=${data.status}&message=${encodeURIComponent(data.message || 'Pago no pudo ser procesado')}`
+        const separator = failureUrl.includes('?') ? '&' : '?'
+        const finalUrl = props.rut ? `${failureUrl}${separator}rut=${encodeURIComponent(props.rut)}` : failureUrl
         window.location.href = finalUrl
         return
       }
@@ -155,16 +156,26 @@ const confirmPayment = async () => {
       if (data.status === 'pending_validation') {
         // Pago pendiente de validación - redirigir a fallo con mensaje especial
         console.log('[PaymentSpinner] Pago pendiente de validación')
-        const failureUrl = `/payment/failure/${props.orderDetailId}?status=pending_validation`
+        const failureUrl = `/payment/failure/${props.orderDetailId}?status=pending_validation&message=${encodeURIComponent(data.message || 'Pago pendiente de validación')}`
         const separator = failureUrl.includes('?') ? '&' : '?'
         const finalUrl = props.rut ? `${failureUrl}${separator}rut=${encodeURIComponent(props.rut)}` : failureUrl
         window.location.href = finalUrl
         return
       }
       
-      // Si es pending o cualquier otro estado, redirigir a fallo
-      console.log('[PaymentSpinner] Estado no reconocido, redirigiendo a fallo')
-      const failureUrl = `/payment/failure/${props.orderDetailId}?status=unknown`
+      if (data.status === 'pending') {
+        // Pago pendiente - redirigir a fallo
+        console.log('[PaymentSpinner] Pago pendiente, redirigiendo a fallo')
+        const failureUrl = `/payment/failure/${props.orderDetailId}?status=pending&message=${encodeURIComponent(data.message || 'Pago pendiente')}`
+        const separator = failureUrl.includes('?') ? '&' : '?'
+        const finalUrl = props.rut ? `${failureUrl}${separator}rut=${encodeURIComponent(props.rut)}` : failureUrl
+        window.location.href = finalUrl
+        return
+      }
+      
+      // Si es cualquier otro estado no reconocido, redirigir a fallo
+      console.log('[PaymentSpinner] Estado no reconocido:', data.status, 'redirigiendo a fallo')
+      const failureUrl = `/payment/failure/${props.orderDetailId}?status=unknown&message=${encodeURIComponent(data.message || 'Estado de pago no reconocido')}`
       const separator = failureUrl.includes('?') ? '&' : '?'
       const finalUrl = props.rut ? `${failureUrl}${separator}rut=${encodeURIComponent(props.rut)}` : failureUrl
       window.location.href = finalUrl

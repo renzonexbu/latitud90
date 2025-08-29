@@ -205,15 +205,40 @@ class VirtualPosService
                 $status = $result['status'] ?? 'unknown';
                 $isApproved = in_array($status, ['approved', 'paid', 'success']);
 
+                // Extraer datos anidados según la respuesta de ejemplo provista por el usuario
+                $paymentData = $result['payment'] ?? [];
+                $orderData = $paymentData['order'] ?? [];
+
+                // VirtualPOS: auth_code va en payment.authorization_code
+                $authorizationCode = $paymentData['auth_code']
+                    ?? $paymentData['authorization_code']
+                    ?? $orderData['auth_code']
+                    ?? $orderData['authorization_code']
+                    ?? $result['authorization_code']
+                    ?? null;
+
+                // Número de cuotas y monto de cuota (si vienen)
+                $installmentsNumber = $paymentData['installment_number']
+                    ?? $paymentData['installments']
+                    ?? $orderData['installment_number']
+                    ?? $orderData['installments']
+                    ?? $result['installments']
+                    ?? null;
+
+                $installmentAmount = $paymentData['installment_amount']
+                    ?? $orderData['installment_amount']
+                    ?? null;
+
                 return [
                     'success' => $isApproved,
                     'status' => $status,
-                    'authorization_code' => $result['authorization_code'] ?? null,
+                    'authorization_code' => $authorizationCode,
                     'transaction_id' => $result['transaction_id'] ?? $paymentId,
-                    'amount' => $result['amount'] ?? null,
+                    'amount' => $result['amount'] ?? ($orderData['amount'] ?? null),
                     'currency' => $result['currency'] ?? 'CLP',
                     'payment_method' => $result['payment_method'] ?? null,
-                    'installments' => $result['installments'] ?? null,
+                    'installments' => $installmentsNumber,
+                    'installment_amount' => $installmentAmount,
                     'full_response' => $result,
                     'error' => $isApproved ? null : ($result['message'] ?? 'Pago no aprobado')
                 ];
@@ -276,16 +301,30 @@ class VirtualPosService
 
             $isApproved = in_array($status, ['approved', 'paid', 'success']);
 
+            // Extraer campos según respuesta ejemplo
+            $paymentData = $notificationData['payment']['order'] ?? [];
+            $authorizationCode = $paymentData['auth_code']
+                ?? ($notificationData['payment']['auth_code'] ?? null)
+                ?? ($notificationData['authorization_code'] ?? null);
+
+            $installmentsNumber = $paymentData['installment_number']
+                ?? ($notificationData['payment']['installment_number'] ?? null)
+                ?? ($notificationData['installments'] ?? null);
+
+            $installmentAmount = $paymentData['installment_amount']
+                ?? ($notificationData['payment']['installment_amount'] ?? null);
+
             return [
                 'success' => $isApproved,
                 'payment_id' => $paymentId,
                 'status' => $status,
                 'amount' => $amount,
                 'currency' => $currency,
-                'authorization_code' => $notificationData['authorization_code'] ?? null,
+                'authorization_code' => $authorizationCode,
                 'transaction_id' => $notificationData['transaction_id'] ?? $paymentId,
                 'payment_method' => $notificationData['payment_method'] ?? null,
-                'installments' => $notificationData['installments'] ?? null,
+                'installments' => $installmentsNumber,
+                'installment_amount' => $installmentAmount,
                 'full_response' => $notificationData,
                 'error' => $isApproved ? null : ($notificationData['message'] ?? 'Pago no aprobado')
             ];

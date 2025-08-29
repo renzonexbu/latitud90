@@ -6,6 +6,7 @@ use App\Models\Participant;
 use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
+use App\Models\Document;
 use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -45,12 +46,26 @@ class GetParticipantsService
             ->orderBy('name')
             ->get();
 
+        // Obtener programas activos o con status 'reserva' (programas futuros)
+        $programs = Program::with(['course.institution'])
+            ->where(function($query) {
+                $query->where('active', true)
+                      ->orWhere('status', 'reserva');
+            })
+            ->orderBy('name')
+            ->get();
+
+        // Obtener tipos de documento
+        $documentTypes = Document::orderBy('name')->get();
+
         return [
             'participants' => $participants,
             'allParticipants' => $allParticipants,
             'enrollments' => $enrollments,
             'courses' => $courses,
             'institutions' => $institutions,
+            'programs' => $programs,
+            'documentTypes' => $documentTypes,
             'filters' => $request->only(['search', 'institution', 'level', 'program', 'status', 'active'])
         ];
     }

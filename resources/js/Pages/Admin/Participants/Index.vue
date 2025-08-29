@@ -76,6 +76,8 @@
             :show="showCreateModal" 
             :courses="courses"
             :institutions="institutions"
+            :programs="programs"
+            :document-types="documentTypes"
             :errors="errors"
             @close="closeCreateModal" 
         />
@@ -132,6 +134,14 @@ export default {
             default: () => [],
         },
         institutions: {
+            type: Array,
+            default: () => [],
+        },
+        programs: {
+            type: Array,
+            default: () => [],
+        },
+        documentTypes: {
             type: Array,
             default: () => [],
         },

@@ -71,6 +71,9 @@ class PaymentConfirmationController extends Controller
                     elseif (in_array($status, ['aprobado', 'approved', 'paid', 'success'])) {
                         $payment->update([
                             'status' => 'completed',
+                            'authorization_code' => $confirmResult['authorization_code'] ?? $payment->authorization_code,
+                            'installments_number' => isset($confirmResult['installments']) ? (int) $confirmResult['installments'] : $payment->installments_number,
+                            'installment_amount' => $confirmResult['installment_amount'] ?? $payment->installment_amount,
                             'gateway_response' => $confirmResult,
                         ]);
 
@@ -205,6 +208,8 @@ class PaymentConfirmationController extends Controller
                     $notificationData['status'] = $status;
                     $notificationData['amount'] = $confirmResult['amount'];
                     $notificationData['authorization_code'] = $confirmResult['authorization_code'];
+                    $notificationData['installments'] = $confirmResult['installments'] ?? null;
+                    $notificationData['installment_amount'] = $confirmResult['installment_amount'] ?? null;
                 } else {
                     // Verificar si el resultado contiene información de estado rechazado
                     $responseStatus = $confirmResult['full_response']['payment']['order']['status'] ?? null;
@@ -250,6 +255,9 @@ class PaymentConfirmationController extends Controller
                 // Actualizar el estado del pago
                 $payment->update([
                     'status' => 'completed',
+                    'authorization_code' => $result['authorization_code'] ?? $payment->authorization_code,
+                    'installments_number' => isset($result['installments']) ? (int) $result['installments'] : $payment->installments_number,
+                    'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
                     'gateway_response' => $result,
                 ]);
 

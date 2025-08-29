@@ -1,14 +1,14 @@
 <template>
     <div :class="containerClass">
-        <div class="flex flex-col gap-[24px] w-full md:max-w-none mx-auto">
+        <div class="flex flex-col gap-[16px] md:gap-[24px] w-full md:max-w-none mx-auto">
             <!-- Header Section -->
-            <div v-if="showHeader" class="flex flex-col gap-[14px]">
+            <div v-if="showHeader" class="flex flex-col gap-[10px] md:gap-[14px]">
                 <h2
-                    class="text-[#007E93] font-outfit-semibold text-[20px] leading-[61.43px] font-semibold"
+                    class="text-[#007E93] font-outfit-semibold text-[18px] md:text-[20px] leading-[24px] md:leading-[61.43px] font-semibold"
                 >
                     Selecione la formas de pago
                 </h2>
-                <p class="text-[#5B5B5B] font-nexa text-sm leading-[18px]">
+                <p class="text-[#5B5B5B] font-nexa text-xs md:text-sm leading-[16px] md:leading-[18px]">
                     ¡Selecciona la forma de pago que mejor se adapte a ti, total
                     o en cuotas! Para cualquier consulta, no dudes en
                     escribirnos por
@@ -17,7 +17,7 @@
             </div>
 
             <!-- Payment Options Section -->
-            <div class="flex flex-col gap-[18px]">
+            <div class="flex flex-col gap-[12px] md:gap-[18px]">
                 <!-- Si hay cuota activa (orden mensual existente), no permitir cambiar tipo; mostrar solo subopciones -->
                 <template v-if="program.active_installment && program.payment_plan_locked">
                     <div class="flex items-center justify-between mb-2">
@@ -355,7 +355,7 @@ export default {
             return `${this.containerBaseClasses()} bg-transparent border-0 p-0 shadow-none mx-0`;
         },
         defaultContainerClasses() {
-            return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[20px_15px] md:p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)]`;
+            return `${this.containerBaseClasses()} bg-white rounded-[20px] border border-[#D3D3D3] p-[16px_12px] md:p-[20px_15px] lg:p-[40px_30px] shadow-[0px_4px_59.3px_0px_rgba(229,229,229,0.25)]`;
         },
         
         // Helpers para nuevas estructuras de opciones

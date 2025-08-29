@@ -116,7 +116,7 @@ class GeneratePaymentService
                 'total' => $program->trip_price,
                 'status' => 'pending',
                 'notes' => "Programa: {$program->name} - {$program->destination}",
-                'order_number' => 'ORD-' . time() . '-' . rand(1000, 9999)
+                'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate()
             ]);
 
             // Crear el pago

@@ -172,7 +172,7 @@ class CreateRefundService
         $order = Order::create([
             'participant_id' => $participant->id,
             'program_id' => $program->id,
-            'order_number' => $this->generateOrderNumber(),
+            'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
             'total_amount' => $totalAmount,
             'final_amount' => $totalAmount,
             'discount' => 0,
@@ -190,23 +190,7 @@ class CreateRefundService
     /**
      * Generar número de orden único para reembolsos
      */
-    private function generateOrderNumber(): string
-    {
-        $prefix = 'REF';
-        $year = date('Y');
-        $month = date('m');
-        
-        do {
-            // Generar un número aleatorio de 6 dígitos
-            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
-            
-            // Verificar que no exista ya en la base de datos
-            $exists = Order::where('order_number', $orderNumber)->exists();
-        } while ($exists);
-        
-        return $orderNumber;
-    }
+    // Eliminado: generación local de número de orden. Usar OrderNumberGenerator central.
 
     /**
      * Crear detalle de la orden

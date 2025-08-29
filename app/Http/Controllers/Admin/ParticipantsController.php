@@ -93,7 +93,6 @@ class ParticipantsController extends Controller
     public function create()
     {
         $data = $this->getCreateDataService->execute();
-
         return Inertia::render('Admin/Participants/Create', $data);
     }
 
@@ -105,27 +104,27 @@ class ParticipantsController extends Controller
         try {
             // Separar los datos del participante
             $participantData = array_intersect_key($request->validated(), array_flip([
-                'course_id',
+                'program_id',
                 'first_last_name',
                 'second_last_name',
                 'first_name',
                 'second_name',
-                'email',
-                'code_phone',
-                'phone',
                 'document_type',
                 'document_number',
-                'country',
                 'birth_date',
-                'address',
+                'nationality',
+                'gender',
                 'dietary_restrictions',
-                'medical_conditions'
+                'intolerances',
+                'allergies',
+                'country',
+                'address',
+                'individual_price',
+                'price_adjustments',
+                'adjustment_reason'
             ]));
 
-            // Asegurar que medical_conditions sea un string, no un array
-            if (isset($participantData['medical_conditions']) && is_array($participantData['medical_conditions'])) {
-                $participantData['medical_conditions'] = implode(', ', array_column($participantData['medical_conditions'], 'description'));
-            }
+
 
             $emergencyContactsData = $request->validated()['emergency_contacts'] ?? [];
 
