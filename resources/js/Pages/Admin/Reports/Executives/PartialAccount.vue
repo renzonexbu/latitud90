@@ -6,38 +6,37 @@
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <h2 class="text-2xl font-bold mb-6">Estado De Cuenta Parcial</h2>
-
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
-                                <input v-model="localFilters.dateFrom" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"/>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
-                                <input v-model="localFilters.dateTo" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"/>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Programa</label>
-                                <select v-model="localFilters.programId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Todos</option>
-                                    <option v-for="p in programs" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Apoderado</label>
-                                <input v-model="localFilters.guardianQuery" type="text" placeholder="RUT o Nombre" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"/>
-                            </div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold">Estado De Cuenta Parcial</h2>
+                            <button 
+                                @click="goBack" 
+                                class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                </svg>
+                                Ir atrás
+                            </button>
                         </div>
 
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="space-x-2">
-                                <button @click="applyFilters" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Aplicar Filtros</button>
-                                <button @click="exportData" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
-                            </div>
+                        <ConsolidatedFilters
+                            :initial-filters="localFilters"
+                            :programs="programs"
+                            :sales-executives="[]"
+                            @filters-changed="onFiltersChanged"
+                        />
+
+                        <div class="flex justify-end mt-8 mb-6">
+                            <button @click="exportData" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
                         </div>
 
                         <ExecutivesPartialAccountTable :items="partialAccounts" />
+                        <ConsolidatedPagination
+                            :current-page="partialAccounts.current_page || 1"
+                            :total-participants="partialAccounts.total || 0"
+                            :participants-per-page="partialAccounts.per_page || 25"
+                            @page-changed="onPageChanged"
+                        />
                     </div>
                 </div>
             </div>
@@ -50,6 +49,8 @@ import { reactive } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import ExecutivesPartialAccountTable from '@/Components/Reports/Executives/PartialAccountTable.vue';
+import ConsolidatedFilters from '@/Components/Reports/Executives/ConsolidatedFilters.vue';
+import ConsolidatedPagination from '@/Components/Reports/Executives/ConsolidatedPagination.vue';
 
 const props = defineProps({
     partialAccounts: { type: Object, required: true },
@@ -61,16 +62,28 @@ const localFilters = reactive({
     dateFrom: props.filters.dateFrom || '',
     dateTo: props.filters.dateTo || '',
     programId: props.filters.programId || '',
-    guardianQuery: props.filters.guardianQuery || '',
 });
 
-const applyFilters = () => {
+const exportData = () => {
+    if (!localFilters.dateFrom || !localFilters.dateTo) {
+        alert('Debe seleccionar rango de fechas (inicio y fin) antes de exportar.');
+        return;
+    }
+    const params = new URLSearchParams(localFilters);
+    window.open(`/admin/reports/executives/export/partial-account?${params.toString()}`, '_blank');
+};
+
+const onFiltersChanged = (filters) => {
+    Object.assign(localFilters, filters);
     router.get('/admin/reports/executives/partial-account', localFilters, { preserveState: true, preserveScroll: true });
 };
 
-const exportData = () => {
-    const params = new URLSearchParams(localFilters);
-    window.open(`/admin/reports/executives/export/partial-account?${params.toString()}`, '_blank');
+const onPageChanged = (page) => {
+    router.get('/admin/reports/executives/partial-account', { ...localFilters, page }, { preserveState: true, preserveScroll: true });
+};
+
+const goBack = () => {
+    router.get('/admin/reports');
 };
 </script>
 

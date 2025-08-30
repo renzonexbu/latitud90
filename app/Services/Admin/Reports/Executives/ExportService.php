@@ -11,6 +11,9 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Font;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
+use PhpOffice\PhpSpreadsheet\RichText\Run;
 
 class ExportService
 {
@@ -27,7 +30,7 @@ class ExportService
                 'filters' => $filters
             ]);
             // Asegurar que no haya interrupciones del flujo
-            $filename = 'consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
+            $filename = 'apoderados_consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
             
             // Crear nuevo spreadsheet
             $spreadsheet = new Spreadsheet();
@@ -164,10 +167,369 @@ class ExportService
 
     public function exportPartialAccount(array $filters, string $format = 'xlsx')
     {
-        $filename = 'executives_partial_account_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
-        return $this->streamCsv($filename, [
-            ['Rut Apoderado', 'Nombre Apoderado', 'Participante', 'Programa', 'Saldo', 'Último Pago']
+        try {
+            // Validar: solo rango de fechas requerido
+            $programCode = $filters['programCode'] ?? null;
+            $dateFrom = $filters['dateFrom'] ?? null;
+            $dateTo = $filters['dateTo'] ?? null;
+
+            if (!$dateFrom || !$dateTo) {
+                return response()->json([
+                    'error' => 'Debe seleccionar rango de fechas (inicio y fin) para exportar.'
+                ], 400);
+            }
+
+            // Si no hay programa => crear un ZIP con un Excel por cada programa
+            if (!$programCode) {
+                $programs = \App\Models\Program::with(['institution', 'salesExecutive'])
+                    ->orderBy('code')
+                    ->get();
+
+                if ($programs->isEmpty()) {
+                    return response()->json(['error' => 'No hay programas disponibles para exportar'], 400);
+                }
+
+                $tempFiles = [];
+                foreach ($programs as $prog) {
+                    $tempFiles[] = [
+                        'path' => $this->generatePartialAccountXlsx($prog, $filters),
+                        'name' => 'apoderados_estado_cuenta_parcial_' . ($prog->code ?: 'programa_' . $prog->id) . '.xlsx',
+                    ];
+                }
+
+                $zipPath = tempnam(sys_get_temp_dir(), 'zip_');
+                $zipName = 'apoderados_estado_cuenta_parcial_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.zip';
+                $zip = new \ZipArchive();
+                $zip->open($zipPath, \ZipArchive::OVERWRITE);
+                foreach ($tempFiles as $file) {
+                    $zip->addFile($file['path'], $file['name']);
+                }
+                $zip->close();
+
+                while (ob_get_level() > 0) { ob_end_clean(); }
+                foreach ($tempFiles as $file) { @unlink($file['path']); }
+
+                return response()->download(
+                    $zipPath,
+                    $zipName,
+                    [
+                        'Content-Type' => 'application/zip',
+                        'Cache-Control' => 'no-cache, must-revalidate',
+                        'Pragma' => 'public',
+                    ]
+                )->deleteFileAfterSend(true);
+            }
+
+            // Exportar solo el programa seleccionado
+            /** @var \App\Models\Program|null $program */
+            $program = \App\Models\Program::with(['institution', 'salesExecutive'])->where('code', $programCode)->first();
+            if (!$program) {
+                return response()->json(['error' => 'Programa no encontrado'], 404);
+            }
+
+            $tmpPath = $this->generatePartialAccountXlsx($program, $filters);
+            $filename = 'apoderados_estado_cuenta_parcial_' . ($program->code ?: 'programa_' . $program->id) . '_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            return response()->download(
+                $tmpPath,
+                $filename,
+                [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Cache-Control' => 'no-cache, must-revalidate',
+                    'Pragma' => 'public',
+                ]
+            )->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Export partial account error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            $filename = 'apoderados_executives_partial_account_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
+            return $this->streamCsv($filename, [[
+                'Error', 'No se pudo generar el archivo Excel'
+            ]]);
+        }
+    }
+
+    private function generatePartialAccountXlsx(\App\Models\Program $program, array $filters): string
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Estado de Cuenta Parcial');
+
+        // Configurar página: Tamaño Carta y ajustar a 1 página de ancho
+        $pageSetup = $sheet->getPageSetup();
+        $pageSetup->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_LETTER);
+        $pageSetup->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+        $pageSetup->setFitToWidth(1);
+        $pageSetup->setFitToHeight(0);
+        $pageSetup->setFitToPage(true);
+        $sheet->getPageMargins()->setTop(0.5)->setRight(0.3)->setLeft(0.3)->setBottom(0.5);
+
+        // Fondo blanco y bloque del logo
+        $sheet->getStyle('A1:C6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
+        $sheet->mergeCells('A1:C6');
+        foreach (['A','B','C'] as $col) { $sheet->getColumnDimension($col)->setWidth(12); }
+        for ($r = 1; $r <= 6; $r++) { $sheet->getRowDimension($r)->setRowHeight(20); }
+
+        // Logo
+        $logoPath = base_path('resources/images/logo-color.png');
+        if (file_exists($logoPath)) {
+            $drawing = new Drawing();
+            $drawing->setPath($logoPath);
+            $drawing->setWorksheet($sheet);
+            $drawing->setCoordinates('A1');
+            $drawing->setHeight(90);
+            $drawing->setOffsetX(300);
+            $drawing->setOffsetY(5);
+        }
+
+        // Título
+        $sheet->setCellValue('D1', 'Estado de Cuenta Parcial');
+        $sheet->getStyle('D1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 24],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
         ]);
+
+        // Encabezado info
+        $collegeName = optional($program->institution)->name ?: 'N/A';
+        $programLine = trim(($program->destination ? $program->destination : 'Programa') . (isset($program->year) ? ', ' . $program->year : ''));
+        $departureDateStr = '';
+        if ($program->departure_date) {
+            $departureDateStr = Carbon::parse($program->departure_date, 'America/Santiago')
+                ->locale('es')
+                ->translatedFormat('d \d\e F, Y');
+        }
+        $executive = optional($program->salesExecutive)->name ?: 'N/A';
+
+        // Etiqueta en negrita y valor normal (14px)
+        $rt2 = new RichText();
+        $rt2->createTextRun('Colegio:')->getFont()->setBold(true)->setSize(14);
+        $rt2->createTextRun(' ' . $collegeName)->getFont()->setBold(false)->setSize(14);
+        $sheet->setCellValue('D2', $rt2);
+
+        $rt3 = new RichText();
+        $rt3->createTextRun('Programa:')->getFont()->setBold(true)->setSize(14);
+        $rt3->createTextRun(' ' . $programLine)->getFont()->setBold(false)->setSize(14);
+        $sheet->setCellValue('D3', $rt3);
+
+        $rt4 = new RichText();
+        $rt4->createTextRun('Fecha Programada:')->getFont()->setBold(true)->setSize(14);
+        $rt4->createTextRun(' ' . ($departureDateStr ?: 'N/A'))
+            ->getFont()->setBold(false)->setSize(14);
+        $sheet->setCellValue('D4', $rt4);
+
+        $rt5 = new RichText();
+        $rt5->createTextRun('Ejecutivo Encargado:')->getFont()->setBold(true)->setSize(14);
+        $rt5->createTextRun(' ' . $executive)->getFont()->setBold(false)->setSize(14);
+        $sheet->setCellValue('D5', $rt5);
+        $sheet->getStyle('D2:D5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
+
+        // Nota y fecha
+        $note = "Los montos reflejados a continuación son saldos parciales previos al cierre administrativo del programa.\nEste reporte se genera con fines logísticos.";
+        $sheet->setCellValue('A7', $note);
+        $sheet->mergeCells('A7:I7');
+        $sheet->getStyle('A7')->applyFromArray([
+            'font' => ['italic' => true, 'bold' => false, 'size' => 14],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
+        ]);
+        $sheet->getStyle('A7')->getAlignment()->setWrapText(true);
+        // Excel no autoajusta altura en celdas fusionadas; forzamos altura adecuada para dos líneas
+        $sheet->getRowDimension(7)->setRowHeight(40);
+        // Fecha en la misma columna que "Por pagar" (I) y 14px
+        $sheet->setCellValue('I8', Carbon::now('America/Santiago')->format('d/m/Y'));
+        $sheet->getStyle('I8')->getFont()->setSize(14)->setBold(false);
+
+        // Cabecera de tabla en A10
+            $headers = [
+            'A10' => 'Alumno',
+            'B10' => 'Precio',
+            'C10' => 'Abono',
+            'D10' => 'Cuotas Pagadas',
+            'E10' => 'Cuotas Vencidas',
+            'F10' => 'Forma de Pago',
+            'G10' => 'Aporte/Beca',
+            'H10' => 'Monto Liberado',
+            'I10' => 'Por pagar',
+        ];
+        foreach ($headers as $cell => $label) {
+            $sheet->setCellValue($cell, $label);
+        }
+        $this->styleHeader($sheet, 'A10:I10');
+        $sheet->setAutoFilter('A10:I10');
+        // Anchos fijos para que la tabla quepa en una página Carta
+        $sheet->getColumnDimension('A')->setWidth(35); // Alumno
+        $sheet->getColumnDimension('B')->setWidth(12); // Precio
+        $sheet->getColumnDimension('C')->setWidth(12); // Abono
+        $sheet->getColumnDimension('D')->setWidth(16); // Cuotas Pagadas
+        $sheet->getColumnDimension('E')->setWidth(16); // Cuotas Vencidas
+        $sheet->getColumnDimension('F')->setWidth(18); // Forma de Pago
+        $sheet->getColumnDimension('G')->setWidth(14); // Aporte/Beca
+        $sheet->getColumnDimension('H')->setWidth(16); // Monto Liberado
+        $sheet->getColumnDimension('I')->setWidth(14); // Por pagar
+
+        // ========================
+        // Datos dinámicos por participante (A11 en adelante)
+        // ========================
+        $row = 11; // primera fila de datos
+
+        $totals = [
+            'price' => 0.0,
+            'abono' => 0.0,
+            'scholarship' => 0.0,
+            'released' => 0.0,
+            'por_pagar' => 0.0,
+        ];
+
+        $dateFrom = $filters['dateFrom'] ?? null;
+        $dateTo = $filters['dateTo'] ?? null;
+        $dateFromC = $dateFrom ? Carbon::parse($dateFrom, 'America/Santiago')->startOfDay() : Carbon::now('America/Santiago')->startOfMonth();
+        $dateToC = $dateTo ? Carbon::parse($dateTo, 'America/Santiago')->endOfDay() : Carbon::now('America/Santiago')->endOfDay();
+
+        // Cargar participantes del programa con órdenes, plan de cuotas y descuentos
+        $participantPrograms = \App\Models\ParticipantProgram::with([
+                'participant',
+                'orders.installmentPlan.installments',
+                'orders.payments',
+                'discounts'
+            ])
+            ->where('program_id', $program->id)
+            ->get();
+
+        foreach ($participantPrograms as $pp) {
+            $participantName = $pp->participant ? $pp->participant->full_name : 'N/A';
+            // Capital Case
+            $participantName = ucwords(strtolower($participantName));
+            $price = (float) ($pp->individual_price ?: ($program->trip_price ?? 0));
+
+            // Obtener órdenes del participante para este programa
+            $orders = \App\Models\Order::with(['installmentPlan.installments'])
+                ->where('participant_id', $pp->participant_id)
+                ->where('program_id', $program->id)
+                ->get();
+            $orderIds = $orders->pluck('id')->all();
+
+            // Sumatoria de pagos (abono) ACUMULADOS - SOLO pagos completed (sin filtro de fecha)
+            $abono = 0.0;
+            if (!empty($orderIds)) {
+                $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->where('amount', '>', 0)
+                    ->where('status', 'completed')
+                    ->sum('amount');
+            }
+
+            // Cuotas: totales y pagadas desde plan; vencidas por due_date < hoy y no pagadas
+            // SOLO considerar si existen pagos completed
+            $totalInstallments = 0;
+            $paidInstallments = 0;
+            $overdueInstallments = 0;
+            
+            if (!empty($orderIds)) {
+                $hasCompleted = \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->where('status', 'completed')
+                    ->exists();
+                
+                foreach ($orders as $order) {
+                    $plan = $order->installmentPlan;
+                    if ($plan) {
+                        $totalInstallments += (int) ($plan->total_installments ?? 0);
+                        if ($hasCompleted) {
+                            foreach ($plan->installments as $inst) {
+                                if ($inst->status === 'paid') {
+                                    $paidInstallments++;
+                                } elseif ($inst->status !== 'paid' && $inst->due_date && $inst->due_date->lt(now('America/Santiago'))) {
+                                    $overdueInstallments++;
+                                }
+                            }
+                        }
+                    } elseif ($order->total_installments) {
+                        $totalInstallments += (int) $order->total_installments;
+                    }
+                }
+            }
+
+            // Forma de pago: último pago COMPLETED (sin filtro de fecha) y su payment_options.report_code
+            $paymentMethod = '';
+            if (!empty($orderIds)) {
+                $lastPayment = \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->where('status', 'completed')
+                    ->where('amount', '>', 0)
+                    ->orderByRaw('COALESCE(transaction_date, created_at) DESC')
+                    ->first();
+                if ($lastPayment) {
+                    $orderDetail = \App\Models\OrderDetail::find($lastPayment->order_detail_id);
+                    if ($orderDetail) {
+                        $paymentOption = \App\Models\PaymentOption::find($orderDetail->payment_option_id);
+                        $paymentMethod = $paymentOption->report_code ?? '';
+                    }
+                }
+            }
+
+            // Descuentos: scholarship vs released
+            $scholarship = 0.0;
+            $released = 0.0;
+            foreach ($pp->discounts as $disc) {
+                $discAmount = 0.0;
+                if (!is_null($disc->amount)) {
+                    $discAmount = (float) $disc->amount;
+                } elseif (!is_null($disc->percent)) {
+                    $discAmount = round($price * ((float) $disc->percent) / 100.0, 2);
+                }
+                if ($disc->discount_type === 'released') {
+                    $released += $discAmount;
+                } else {
+                    $scholarship += $discAmount;
+                }
+            }
+
+            $porPagar = max($price - $abono - $scholarship - $released, 0);
+
+            // Escribir fila
+            $sheet->setCellValue('A' . $row, $participantName);
+            $sheet->setCellValue('B' . $row, $price);
+            $sheet->setCellValue('C' . $row, $abono);
+            $sheet->setCellValue('D' . $row, $paidInstallments . '/' . ($totalInstallments ?: 0));
+            $sheet->setCellValue('E' . $row, $overdueInstallments);
+            $sheet->setCellValue('F' . $row, $paymentMethod);
+            $sheet->setCellValue('G' . $row, $scholarship);
+            $sheet->setCellValue('H' . $row, $released);
+            $sheet->setCellValue('I' . $row, $porPagar);
+
+            foreach (['B','C','G','H','I'] as $col) {
+                $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
+            }
+
+            $totals['price'] += $price;
+            $totals['abono'] += $abono;
+            $totals['scholarship'] += $scholarship;
+            $totals['released'] += $released;
+            $totals['por_pagar'] += $porPagar;
+
+            $row++;
+        }
+
+        // Fila total general
+        $sheet->setCellValue('A' . $row, 'Total General');
+        $sheet->setCellValue('B' . $row, $totals['price']);
+        $sheet->setCellValue('C' . $row, $totals['abono']);
+        $sheet->setCellValue('G' . $row, $totals['scholarship']);
+        $sheet->setCellValue('H' . $row, $totals['released']);
+        $sheet->setCellValue('I' . $row, '(' . number_format($totals['por_pagar'], 0, ',', '.') . ')');
+        foreach (['B','C','G','H'] as $col) {
+            $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
+        }
+        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
+        ]);
+
+        // Guardar
+        $writer = new Xlsx($spreadsheet);
+        $tmpPath = tempnam(sys_get_temp_dir(), 'xlsx_');
+        $writer->save($tmpPath);
+        return $tmpPath;
     }
 
     private function exportConsolidatedCsv(array $filters)
@@ -176,7 +538,7 @@ class ExportService
         $consolidatedService = app(ExecutivesConsolidatedService::class);
         $data = $consolidatedService->getConsolidatedForExport($filters);
         
-        $filename = 'consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
+        $filename = 'apoderados_consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
         
         $rows = [
             ['Consolidado de Pagos'],

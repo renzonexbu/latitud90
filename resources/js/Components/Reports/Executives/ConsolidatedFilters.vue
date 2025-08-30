@@ -34,27 +34,13 @@
             <!-- Programas -->
             <div class="relative flex-1">
                 <select
-                    v-model="filters.programId"
+                    v-model="filters.programCode"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="onProgramChange"
                 >
                     <option value="">Todos los programas</option>
-                    <option v-for="program in programs" :key="program.id" :value="program.id">
+                    <option v-for="program in programs" :key="program.id" :value="program.code">
                         {{ program.code }} - {{ program.name }} - {{ program.destination }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- Ejecutivo Comercial -->
-            <div class="relative flex-shrink-0 w-[200px]">
-                <select
-                    v-model="filters.salesExecutiveId"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Ejecutivo comercial</option>
-                    <option v-for="executive in salesExecutives" :key="executive.id" :value="executive.id">
-                        {{ executive.name }}
                     </option>
                 </select>
             </div>
@@ -95,8 +81,7 @@ export default {
     data() {
         return {
             filters: {
-                programId: this.initialFilters.programId || "",
-                salesExecutiveId: this.initialFilters.salesExecutiveId || "",
+                programCode: this.initialFilters.programCode || "",
                 dateFrom: this.initialFilters.dateFrom || "",
                 dateTo: this.initialFilters.dateTo || "",
             }
@@ -121,7 +106,7 @@ export default {
         }, 300),
         
         onProgramChange() {
-            console.log('🔍 ExecutivesConsolidatedFilters - Programa seleccionado:', this.filters.programId);
+            console.log('🔍 ExecutivesConsolidatedFilters - Programa seleccionado:', this.filters.programCode);
             this.performSearch();
         },
         
@@ -131,8 +116,7 @@ export default {
             const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
             
             this.filters = {
-                programId: "",
-                salesExecutiveId: "",
+                programCode: "",
                 dateFrom: lastMonth.toISOString().split('T')[0],
                 dateTo: today.toISOString().split('T')[0],
             };

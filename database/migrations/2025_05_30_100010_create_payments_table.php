@@ -20,12 +20,13 @@ return new class extends Migration
             $table->foreignId('payment_option_id')->nullable()->constrained('payment_options');
             // Tipo de documento para reportes
             $table->enum('document_type', ['B2', 'BC', 'FF', 'AC'])
-                  ->nullable()
-                  ->comment('Tipo de documento: B2=Boleta, BC=Nota de crédito, FF=Factura, AC=Reserva');
+                ->nullable()
+                ->comment('Tipo de documento: B2=Boleta, BC=Nota de crédito, FF=Factura, AC=Reserva');
             // Identificadores de la transacción
             $table->string('buy_order')->nullable();            // Para Transbank
             $table->string('session_id')->nullable();           // Para Transbank
             $table->string('token')->nullable();                // Para Transbank
+            $table->string('payment_method')->nullable()->comment('Para Transbank VD=DEBITO, VN=CREDITO SIN CUOTAS, VC=Venta crédito cuotas bancarias, SI=Crédito 3 cuotas sin intereses, NC=Venta cuotas sin intereses, S2=Crédito 2 cuotas sin intereses, VP=PREPAGO, TE= 	Transferencia electrónica de fondos');      // Para Transbank VD
             $table->string('external_payment_id')->nullable();  // Para Khipu u otros (payment_id, etc.)
 
             // Respuesta de la pasarela
@@ -60,8 +61,8 @@ return new class extends Migration
             $table->decimal('balance', 10, 2)->nullable();      // Saldo restante (para cuotas)
             $table->text('error_message')->nullable();          // Mensaje de error si falla
             $table->boolean('email_sent')->default(false);
-            
-           
+
+
             $table->timestamps();
 
             // Índices para optimizar consultas
