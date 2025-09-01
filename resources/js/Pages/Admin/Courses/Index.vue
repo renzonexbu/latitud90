@@ -5,8 +5,8 @@
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8">
                 <!-- Success Message -->
-                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
+                <div v-if="page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ page.props.flash.success }}</span>
                 </div>
 
                 <!-- Header -->
@@ -86,12 +86,12 @@
         />
 
         <!-- Success Message -->
-        <div v-if="$page.props.flash.success" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div v-if="page.props.flash.success" class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
             <div class="flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                {{ $page.props.flash.success }}
+                {{ page.props.flash.success }}
                 <button @click="closeSuccessMessage" class="ml-2 hover:bg-green-600 rounded p-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -117,8 +117,8 @@ import _ from "lodash";
 export default {
     name: "CoursesIndex",
     setup() {
-        const $page = usePage();
-        return { $page };
+        const page = usePage();
+        return { page };
     },
     components: {
         Head,
@@ -135,11 +135,11 @@ export default {
     },
     props: {
         courses: {
-            type: Array,
+            type: [Array, Object],
             default: () => [],
         },
         allCourses: {
-            type: Array,
+            type: [Array, Object],
             default: () => [],
         },
         filters: {
@@ -262,7 +262,7 @@ export default {
         },
         closeSuccessMessage() {
             // Clear the flash message
-            this.$page.props.flash.success = null;
+            this.page.props.flash.success = null;
         },
         openCreateInstitutionModal() {
             this.showCreateInstitutionModal = true;
@@ -276,7 +276,7 @@ export default {
             // Close the modal
             this.closeCreateInstitutionModal();
             // Show success message
-            this.$page.props.flash.success = 'Institución creada exitosamente.';
+            this.page.props.flash.success = 'Institución creada exitosamente.';
         },
     },
 };

@@ -6,7 +6,7 @@
         @click.self="closeModal"
     >
         <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[580px] w-full modal-content">
+        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[800px] w-full modal-content">
             <!-- Header -->
             <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
                 <div class="flex flex-row gap-[20px] items-start justify-end w-full">
@@ -496,6 +496,17 @@ input::placeholder {
 }
 
 /* Responsive adjustments */
+@media (max-width: 768px) {
+    .modal-content {
+        max-width: calc(100vw - 2rem);
+        margin: 1rem;
+    }
+    
+    .modal-content .p-6 {
+        padding: 1rem;
+    }
+}
+
 @media (max-height: 700px) {
     .modal-content {
         max-height: calc(100vh - 1rem);

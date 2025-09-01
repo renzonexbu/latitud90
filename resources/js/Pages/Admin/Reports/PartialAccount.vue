@@ -113,8 +113,8 @@
                     <div class="mt-6">
                         <ReportsPagination
                             :current-page="props.partialAccounts?.current_page || currentPage"
-                            :total-accounts="props.partialAccounts?.total || 0"
-                            :accounts-per-page="props.partialAccounts?.per_page || accountsPerPage"
+                            :total-items="props.partialAccounts?.total || 0"
+                            :items-per-page="props.partialAccounts?.per_page || accountsPerPage"
                             @page-changed="handlePageChange"
                         />
                     </div>

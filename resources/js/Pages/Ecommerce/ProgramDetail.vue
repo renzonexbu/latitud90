@@ -228,7 +228,8 @@ export default {
         },
         rut: {
             type: String,
-            required: true,
+            required: false,
+            default: null,
         },
         document: {
             type: String,
@@ -328,7 +329,7 @@ export default {
             console.log('ProgramDetail - startPayment values:', {
                 document: this.document,
                 document_type: this.document_type,
-                rut: this.rut,
+                rut: this.rut || this.document,
                 programId: this.program.id
             });
             
@@ -336,7 +337,7 @@ export default {
             const params = new URLSearchParams({
                 document: this.document || '',
                 document_type: this.document_type || 'RUT',
-                rut: this.rut || ''
+                rut: this.rut || this.document || '' // Usar document como fallback si rut no está disponible
             });
             
             const url = `/programs/${this.program.id}/payment?${params.toString()}`;

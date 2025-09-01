@@ -26,13 +26,13 @@
             <ProgramsGrid
                 :programs="programs"
                 :document="document"
-                :document-type="document_type"
+                :document_type="document_type"
                 @program-click="handleProgramClick"
             />
 
             <!-- Botón Volver al Home -->
             <div class="mt-8">
-                <BackToHomeButton :document="document" :document-type="document_type" variant="home" />
+                <BackToHomeButton :document="document" :document_type="document_type" variant="home" />
             </div>
         </div>
 
@@ -67,7 +67,7 @@ export default {
             required: true,
         },
         programs: {
-            type: Array,
+            type: [Array, Object],
             required: true,
         },
         document: {
@@ -178,6 +178,7 @@ export default {
             router.get(route("ecommerce.program-detail", program.id), {
                 document: this.document,
                 document_type: this.document_type,
+                rut: this.document, // Usar document como rut para compatibilidad
             });
         },
         

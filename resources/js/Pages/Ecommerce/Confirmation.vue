@@ -106,7 +106,7 @@
             <div class="mx-4 md:mx-[120px] mt-8">
                 <BackToHomeButton
                     :document="document"
-                    :document-type="document_type"
+                    :document_type="document_type"
                     variant="programs"
                     text="Volver a completar datos"
                     :route="`/programs/${programId}/payment?from=confirmation&document=${document}&document_type=${document_type}`"
@@ -210,8 +210,7 @@ export default {
 
     data() {
         return {
-            paymentErrorStatus: null,
-            paymentErrorMessage: null
+            paymentErrorStatus: null
         };
     },
 
@@ -280,13 +279,9 @@ export default {
             // Obtener parámetros de la URL
             const urlParams = new URLSearchParams(window.location.search);
             const status = urlParams.get('status');
-            const message = urlParams.get('message');
             
             if (status) {
                 this.paymentErrorStatus = status;
-                if (message) {
-                    this.paymentErrorMessage = decodeURIComponent(message);
-                }
                 
                 // Limpiar la URL para evitar mostrar el error en recargas
                 const newUrl = new URL(window.location);
