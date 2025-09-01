@@ -127,11 +127,20 @@
                                             type="date"
                                             v-model="formData.final_payment_date"
                                             class="admin-input-text"
-                                            :class="{ 'border-red-500': errors.final_payment_date }"
+                                            :class="{ 
+                                                'border-red-500': errors.final_payment_date || !paymentDateValidation.isValid,
+                                                'border-yellow-500': paymentDateValidation.isValid && paymentDateValidation.message
+                                            }"
                                         />
                                         <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                             {{ errors.final_payment_date }}
                                         </span>
+                                                                <span v-if="!paymentDateValidation.isValid" class="text-red-500 text-sm mt-1">
+                            {{ paymentDateValidation.message }}
+                        </span>
+                        <span v-if="paymentDateValidation.isValid && paymentDateValidation.daysDiff >= 60" class="text-green-600 text-sm mt-1">
+                            ✅ Fecha válida ({{ paymentDateValidation.daysDiff }} días antes de la salida)
+                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -522,6 +531,36 @@
                                             </div>
                                         </div>
                                     </div>
+                                    
+                                    <!-- Campo para seleccionar número de cuotas -->
+                                    <div class="field-wrapper mt-4">
+                                        <div class="field-label">Número máximo de cuotas</div>
+                                        <div class="field-input-container">
+                                            <select 
+                                                v-model="formData.max_installments"
+                                                class="field-input"
+                                                :class="{ 
+                                                    'border-red-500': errors.max_installments || !installmentsValidation.isValid,
+                                                    'border-yellow-500': installmentsValidation.isValid && installmentsValidation.message
+                                                }"
+
+                                            >
+                                                <option value="">Selecciona el número de cuotas</option>
+                                                <option v-for="choice in maxInstallmentChoices" :key="choice.value" :value="choice.value">
+                                                    {{ choice.label }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div v-if="errors.max_installments" class="error-message">
+                                            {{ errors.max_installments }}
+                                        </div>
+                                        <div v-if="!installmentsValidation.isValid" class="text-red-500 text-sm mt-1">
+                                            {{ installmentsValidation.message }}
+                                        </div>
+                                        <div v-if="maxInstallmentChoices.length < 12 && formData.max_installments" class="text-blue-600 text-sm mt-1">
+                                            ℹ️ Máximo {{ maxInstallmentChoices.length }} cuotas disponibles hasta la fecha de pago final
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -538,7 +577,7 @@ import { AccordionSeparator } from "@/Components/Icons";
 
 // Props
 const props = defineProps({
-    modelValue: {
+            modelValue: {
         type: Object,
         default: () => ({
             total_price: "",
@@ -558,6 +597,7 @@ const props = defineProps({
             discount_type: "", // Por defecto vacío para mostrar "Selecciona el beneficio grupal"
             discount_amount: "",
             sales_executive_id: "",
+            max_installments: "", // Número máximo de cuotas para pago mensual
         }),
     },
     mode: {
@@ -626,10 +666,6 @@ const fullPaymentChoices = [
 const lat90Choices = [
     { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
     { code: 'lat90_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
-    { code: 'lat90_installments_3', label: 'Lat90 3 cuotas' },
-    { code: 'lat90_installments_6', label: 'Lat90 6 cuotas' },
-    { code: 'lat90_installments_9', label: 'Lat90 9 cuotas' },
-    { code: 'lat90_installments_12', label: 'Lat90 12 cuotas' },
 ];
 
 // Estado para el monto de descuento formateado
@@ -649,6 +685,53 @@ const allowedInstallments = computed(() => {
     if (months < 0) months = 0;
 
     return options.filter(m => m <= months);
+});
+
+// Opciones de cuotas para el select (1-12 limitado por fecha final)
+const maxInstallmentChoices = computed(() => {
+    const choices = [];
+    // Determinar máximo por fecha final
+    let maxByDate = 12;
+    if (formData.value.final_payment_date) {
+        const now = new Date();
+        const end = new Date(formData.value.final_payment_date + 'T00:00:00');
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+        if (now.getDate() > end.getDate()) months -= 1;
+        maxByDate = Math.max(0, months);
+    }
+    const hardMax = 12;
+    const max = Math.min(hardMax, maxByDate);
+    for (let i = 1; i <= max; i++) {
+        choices.push({ value: i.toString(), label: `${i}` });
+    }
+    if (choices.length === 0) {
+        choices.push({ value: '1', label: '1' });
+    }
+    return choices;
+});
+
+// Validación de fecha de pago (mínimo 60 días antes de la fecha de salida)
+const paymentDateValidation = computed(() => {
+    if (!formData.value.final_payment_date || !formData.value.departure_date) {
+        return { isValid: true, message: '', daysDiff: 0 };
+    }
+    
+    const paymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
+    const departureDate = new Date(formData.value.departure_date + 'T00:00:00');
+    
+    // Calcular diferencia en días
+    const timeDiff = departureDate.getTime() - paymentDate.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    
+    if (daysDiff < 60) {
+        return {
+            isValid: false,
+            message: `La fecha final de pago debe ser al menos 60 días antes de la fecha de salida. (${daysDiff} días de diferencia)`,
+            daysDiff
+        };
+    }
+    
+    return { isValid: true, message: '', daysDiff };
 });
 
 
@@ -842,6 +925,8 @@ onMounted(() => {
     if (!Array.isArray(formData.value.lat90_payment_options)) {
         formData.value.lat90_payment_options = [];
     }
+    
+
 });
 
 // Handlers para checkboxes manuales (evitar efectos de referencia)
@@ -1081,6 +1166,29 @@ const handlePaymentOptionChange = (option, event) => {
     // Emitir inmediatamente para asegurar que los datos se envíen
     emit('update:modelValue', formData.value);
 };
+
+// Validación de campos requeridos para pago mensual
+const installmentsValidation = computed(() => {
+    if (!formData.value.payment_options?.includes('installments')) {
+        return { isValid: true, message: '' };
+    }
+    
+    if (!formData.value.max_installments) {
+        return {
+            isValid: false,
+            message: 'Debe seleccionar el número máximo de cuotas para pago mensual'
+        };
+    }
+    
+    if (!formData.value.lat90_payment_options?.length) {
+        return {
+            isValid: false,
+            message: 'Debe seleccionar al menos un método de pago para cuotas'
+        };
+    }
+    
+    return { isValid: true, message: '' };
+});
 
 // Función para crear una nueva institución
 const createNewInstitution = () => {
@@ -1685,5 +1793,115 @@ const viewPaymentStates = () => {
 .edit-group-button svg {
     width: 17.455px;
     height: 18px;
+}
+
+/* Estilos para el select de cuotas */
+.field-input {
+    background: #ffffff;
+    border-radius: 20px;
+    border: 2px solid #E5E5E5;
+    padding: 12px 16px;
+    height: 48px;
+    color: #434343;
+    font-family: 'Nexa', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none;
+    width: 100%;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 16px center;
+    background-repeat: no-repeat;
+    background-size: 16px;
+    padding-right: 48px;
+}
+
+.field-input:hover {
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 178, 50, 0.15);
+}
+
+.field-input:focus {
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
+    box-shadow: 0 0 0 3px rgba(255, 178, 50, 0.1);
+    transform: translateY(-1px);
+}
+
+.field-input:disabled {
+    background-color: #f9f9f9;
+    color: #9ca3af;
+    cursor: not-allowed;
+    border-color: #e5e7eb;
+}
+
+/* Estilos para el contenedor del select */
+.field-input-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Estilos para los checkboxes de opciones de pago (subopciones) */
+.payment-method-select .flex.flex-col.gap-2 label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.payment-method-select .flex.flex-col.gap-2 label:hover {
+    background-color: rgba(255, 178, 50, 0.05);
+    border-color: rgba(255, 178, 50, 0.2);
+    transform: translateX(4px);
+}
+
+.payment-method-select .flex.flex-col.gap-2 label input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    border-radius: 12px;
+    border: 2px solid #E5E5E5;
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.payment-method-select .flex.flex-col.gap-2 label input[type="checkbox"]:hover {
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
+    transform: scale(1.05);
+}
+
+.payment-method-select .flex.flex-col.gap-2 label input[type="checkbox"]:checked {
+    background-color: var(--Colores-OP2-Amarillo, #FFB232);
+    border-color: var(--Colores-OP2-Amarillo, #FFB232);
+    box-shadow: 0 2px 8px rgba(255, 178, 50, 0.3);
+}
+
+.payment-method-select .flex.flex-col.gap-2 label input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.payment-method-select .flex.flex-col.gap-2 label span {
+    color: #434343;
+    font-family: 'Nexa', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    user-select: none;
 }
 </style>

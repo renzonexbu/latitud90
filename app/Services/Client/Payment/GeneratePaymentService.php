@@ -52,7 +52,7 @@ class GeneratePaymentService
                 'trip_price' => $program->trip_price,
                 'departure_date' => $program->departure_date,
                 'final_payment_date' => $program->final_payment_date,
-                'max_installments' => $program->max_installments,
+                'lat90_max_installments' => $program->lat90_max_installments,
                 'active_installment' => $activeInstallment,
             ],
             'participant' => $participantId ? [

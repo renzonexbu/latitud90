@@ -419,28 +419,34 @@ class CreateOrderService
         $code = null;
         if ($mode === 'full') {
             switch ($method) {
-                case 'khipu': $code = 'full_transfer_khipu'; break;
-                case 'debit': $code = 'full_debit_webpay'; break;
-                case 'credit_0': $code = 'full_credit_webpay_0'; break;
-                case 'credit_3': $code = 'full_credit_webpay_3'; break;
-                case 'credit_6': $code = 'full_credit_webpay_6'; break;
-                case 'credit_9': $code = 'full_credit_webpay_9'; break;
-                case 'credit_12': $code = 'full_credit_webpay_12'; break;
-                case 'international': $code = 'full_international'; break;
+                case 'khipu':            $code = 'full_transfer_khipu'; break;
+                case 'debit_credit_0':   $code = 'full_debit_credit_0'; break;
+                case 'debit_credit_3':   $code = 'full_debit_credit_3'; break;
+                case 'debit_credit_6':   $code = 'full_debit_credit_6'; break;
+                case 'debit_credit_9':   $code = 'full_debit_credit_9'; break;
+                case 'debit_credit_12':  $code = 'full_debit_credit_12'; break;
+                case 'international':    $code = 'full_international'; break;
                 default:
-                    // si enviaron 'credit' sin cuotas, tratar como 0
-                    if (strpos($method, 'credit') === 0) {
+                    // Fallback legacy
+                    if ($method === 'debit') {
+                        $code = 'full_debit_credit_0';
+                    } elseif (strpos($method, 'credit') === 0) {
                         $suffix = trim(str_replace('credit', '', $method), '_');
                         $n = $suffix !== '' ? (int)$suffix : 0;
-                        $code = 'full_credit_webpay_' . $n;
+                        $code = 'full_debit_credit_' . $n;
                     }
                     break;
             }
         } else {
             switch ($method) {
-                case 'khipu': $code = 'lat90_transfer_khipu'; break;
-                case 'debit': $code = 'lat90_debit_webpay'; break;
-                case 'credit': $code = 'lat90_credit_0'; break; // crédito mensual se procesa 1 cuota por transacción
+                case 'khipu':            $code = 'lat90_transfer_khipu'; break;
+                case 'debit_credit_0':   $code = 'lat90_debit_credit_0'; break;
+                default:
+                    // Fallback legacy
+                    if ($method === 'debit' || $method === 'credit') {
+                        $code = 'lat90_debit_credit_0';
+                    }
+                    break;
             }
         }
 

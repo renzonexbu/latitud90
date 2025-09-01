@@ -518,8 +518,15 @@ class CreateProgramService
             // La primera fila contiene los headers
             $headers = array_shift($rows);
 
-            // Log para debug: ver qué columnas detecta
-            Log::info('Columnas detectadas en Excel:', ['headers' => $headers]);
+            // Log detallado para debug: ver qué archivo y columnas se están procesando
+            Log::info('=== INICIO PROCESAMIENTO ARCHIVO EXCEL ===', [
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $filePath,
+                'total_rows' => count($rows),
+                'headers_detected' => $headers,
+                'headers_count' => count($headers),
+                'sample_row' => !empty($rows) ? $rows[0] : 'No hay filas de datos'
+            ]);
 
             // Mapear headers a campos de participantes
             $participantCount = 0;
@@ -540,27 +547,119 @@ class CreateProgramService
 
                 $participantData = array_combine($headers, $row);
                 
-                // Log para debug: ver qué datos se están procesando
-                Log::info('Datos del participante:', [
+                // Log detallado para debug: ver exactamente qué datos se están procesando
+                Log::info('=== INICIO PROCESAMIENTO FILA EXCEL ===', [
                     'row' => $rowIndex + 2,
-                    'participant_data' => $participantData
+                    'headers_count' => count($headers),
+                    'row_count' => count($row),
+                    'headers' => $headers,
+                    'raw_row' => $row,
+                    'participant_data_mapped' => $participantData
                 ]);
                 
                 // Función helper para obtener valor de múltiples nombres de columna
                 $getFieldValue = function($possibleNames) use ($participantData) {
                     foreach ($possibleNames as $name) {
+                        // Buscar la columna exacta (case-insensitive)
                         if (isset($participantData[$name]) && !empty($participantData[$name])) {
                             return $participantData[$name];
+                        }
+                        
+                        // Buscar la columna con comparación case-insensitive y espacios
+                        foreach (array_keys($participantData) as $columnName) {
+                            if (strtolower(trim($columnName)) === strtolower(trim($name)) && !empty($participantData[$columnName])) {
+                                return $participantData[$columnName];
+                            }
                         }
                     }
                     return null;
                 };
+                
+                // Log específico para las columnas que necesitamos
+                Log::info('Columnas clave del participante:', [
+                    'row' => $rowIndex + 2,
+                    'documento' => $getFieldValue([
+                        'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
+                    ]),
+                    'primer_apellido' => $getFieldValue([
+                        'primer apellido', 'apellido paterno'
+                    ]),
+                    'segundo_apellido' => $getFieldValue([
+                        'segundo apellido', 'apellido materno'
+                    ]),
+                    'primer_nombre' => $getFieldValue([
+                        'primer nombre', 'nombre'
+                    ]),
+                    'segundo_nombre' => $getFieldValue([
+                        'segundo nombre', 'nombre segundo'
+                    ]),
+                    'fecha_nacimiento' => $getFieldValue([
+                        'fecha de nacimiento', 'fecha nacimiento', 'nacimiento'
+                    ]),
+                    'nacionalidad' => $getFieldValue([
+                        'nacionalidad', 'pais', 'origen'
+                    ]),
+                    'sexo' => $getFieldValue([
+                        'sexo', 'genero', 'género'
+                    ]),
+                    'restriccion_alimenticia' => $getFieldValue([
+                        'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria'
+                    ]),
+                    'intolerancia' => $getFieldValue([
+                        'intolerancia', 'intolerancias'
+                    ]),
+                    'alergias' => $getFieldValue([
+                        'alergias', 'alergia'
+                    ]),
+                    'nombre_apoderado' => $getFieldValue([
+                        'nombre del apoderado', 'nombre apoderado', 'apoderado'
+                    ]),
+                    'email_apoderado' => $getFieldValue([
+                        'correo electronico del apoderado', 'correo apoderado', 'email apoderado', 'email del apoderado'
+                    ]),
+                    'rut_apoderado' => $getFieldValue([
+                        'rut apoderado', 'documento apoderado', 'rut del apoderado'
+                    ])
+                ]);
+                
+                // Log adicional para debug de mapeo de columnas
+                Log::info('Debug mapeo de columnas:', [
+                    'row' => $rowIndex + 2,
+                    'columnas_disponibles' => array_keys($participantData),
+                    'busqueda_documento' => [
+                        'buscando' => ['n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'],
+                        'encontrado' => $getFieldValue([
+                            'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
+                        ])
+                    ]
+                ]);
 
                 // Obtener valores usando múltiples nombres posibles de columna
                 $rutRaw = $getFieldValue([
-                    'N° de documento', 'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento', 'Documento del participante', 'documento del participante'
+                    'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
                 ]);
-                $cleanRut = $this->cleanRut($rutRaw);
+                
+                // Validar que el RUT exista y no esté vacío
+                if (!$rutRaw || empty(trim($rutRaw))) {
+                    Log::warning('Fila sin RUT del participante', [
+                        'row' => $rowIndex + 2,
+                        'participant_data' => $participantData
+                    ]);
+                    continue; // Saltar filas sin RUT
+                }
+                
+                // Limpiar RUT del participante con manejo de errores
+                $cleanRut = null;
+                try {
+                    $cleanRut = $this->cleanRut($rutRaw);
+                } catch (\Exception $e) {
+                    Log::warning('Error limpiando RUT del participante', [
+                        'row' => $rowIndex + 2,
+                        'rut_raw' => $rutRaw,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue; // Saltar filas con RUT inválido
+                }
 
                 // Log para debug: ver qué RUT se está procesando
                 Log::info('RUT procesado:', [
@@ -575,8 +674,18 @@ class CreateProgramService
 
                 // Obtener tipo de documento del participante
                 $documentType = $getFieldValue([
-                    'rut/pasaporte', 'tipo documento', 'tipo de documento', 'documento tipo'
+                    'tipo de documento', 'tipo documento', 'documento tipo', 'rut/pasaporte'
                 ]);
+                
+                // Validar que el tipo de documento exista
+                if (!$documentType || empty(trim($documentType))) {
+                    Log::warning('Fila sin tipo de documento', [
+                        'row' => $rowIndex + 2,
+                        'participant_data' => $participantData
+                    ]);
+                    continue; // Saltar filas sin tipo de documento
+                }
+                
                 $documentTypeId = $this->getDocumentTypeId($documentType);
 
                 // Log para debug: ver qué tipo de documento se está procesando
@@ -813,8 +922,20 @@ class CreateProgramService
                         // Obtener tipo de documento del apoderado (por defecto RUT)
                         $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
                         
-                        // Limpiar RUT del apoderado
-                        $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
+                        // Limpiar RUT del apoderado solo si existe
+                        $cleanGuardianRut = null;
+                        if ($guardianRut && !empty(trim($guardianRut))) {
+                            try {
+                                $cleanGuardianRut = $this->cleanRut($guardianRut);
+                            } catch (\Exception $e) {
+                                Log::warning('Error limpiando RUT del apoderado', [
+                                    'row' => $rowIndex + 2,
+                                    'guardian_rut' => $guardianRut,
+                                    'error' => $e->getMessage()
+                                ]);
+                                $cleanGuardianRut = null;
+                            }
+                        }
                         
                         $existingEmergencyContact->update([
                             'name' => $this->toLowercase($guardianName) ?? $existingEmergencyContact->name,
@@ -837,8 +958,20 @@ class CreateProgramService
                         // Obtener tipo de documento del apoderado (por defecto RUT)
                         $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
                         
-                        // Limpiar RUT del apoderado
-                        $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
+                        // Limpiar RUT del apoderado solo si existe
+                        $cleanGuardianRut = null;
+                        if ($guardianRut && !empty(trim($guardianRut))) {
+                            try {
+                                $cleanGuardianRut = $this->cleanRut($guardianRut);
+                            } catch (\Exception $e) {
+                                Log::warning('Error limpiando RUT del apoderado', [
+                                    'row' => $rowIndex + 2,
+                                    'guardian_rut' => $guardianRut,
+                                    'error' => $e->getMessage()
+                                ]);
+                                $cleanGuardianRut = null;
+                            }
+                        }
                         
                         $emergencyContact = EmergencyContact::create([
                             'name' => $this->toLowercase($guardianName),
@@ -864,6 +997,14 @@ class CreateProgramService
                 }
 
                 $participantCount++;
+                
+                // Log de resumen de la fila procesada
+                Log::info('=== FIN PROCESAMIENTO FILA EXCEL ===', [
+                    'row' => $rowIndex + 2,
+                    'participant_processed' => true,
+                    'participant_id' => $participant->id ?? null,
+                    'participant_count' => $participantCount
+                ]);
             }
 
             // Calcular el precio individual (por participante) aplicando descuento del programa
@@ -898,7 +1039,22 @@ class CreateProgramService
 
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
+            
+            // Log de resumen del archivo completo
+            Log::info('=== FIN PROCESAMIENTO ARCHIVO EXCEL ===', [
+                'file_name' => $file->getClientOriginalName(),
+                'total_participants_processed' => $participantCount,
+                'participants_created' => $createdCount,
+                'participants_updated' => $updatedCount,
+                'course_id' => $course->id,
+                'program_id' => $program->id
+            ]);
         } catch (\Exception $e) {
+            Log::error('Error al procesar archivo de estudiantes', [
+                'file_name' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
     }

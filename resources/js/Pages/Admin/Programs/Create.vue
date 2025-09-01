@@ -60,7 +60,7 @@
 
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
@@ -483,6 +483,24 @@ const submit = () => {
 
     form.post(route("admin.programs.store"));
 };
+
+const maxInstallmentChoices = computed(() => {
+    const choices = [];
+    // Determinar máximo por fecha final
+    let maxByDate = 12;
+    if (form.final_payment_date) {
+        const now = new Date();
+        const end = new Date(form.final_payment_date + 'T00:00:00');
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+        if (now.getDate() > end.getDate()) months -= 1;
+        maxByDate = Math.max(0, months);
+    }
+    const hardMax = 12;
+    const max = Math.min(hardMax, maxByDate);
+    for (let i = 1; i <= max; i++) choices.push({ value: i.toString(), label: `${i}` });
+    if (choices.length === 0) choices.push({ value: '1', label: '1' });
+    return choices;
+});
 </script>
 
 <style scoped>

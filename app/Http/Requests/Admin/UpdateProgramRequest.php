@@ -49,7 +49,23 @@ class UpdateProgramRequest extends FormRequest
             'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
             'trip_price' => 'nullable|numeric|min:0',
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
-            'final_payment_date' => 'nullable|date|before_or_equal:departure_date',
+            'final_payment_date' => [
+                'nullable',
+                'date',
+                'before_or_equal:departure_date',
+                function ($attribute, $value, $fail) {
+                    $departureDate = $this->input('departure_date');
+                    if ($value && $departureDate) {
+                        $departure = \Carbon\Carbon::parse($departureDate);
+                        $paymentDate = \Carbon\Carbon::parse($value);
+                        $daysDifference = $departure->diffInDays($paymentDate);
+                        
+                        if ($daysDifference < 60) {
+                            $fail('La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.');
+                        }
+                    }
+                }
+            ],
             'seller_name' => 'nullable|string|max:255',
             'sales_executive_id' => 'nullable|integer|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
@@ -71,11 +87,33 @@ class UpdateProgramRequest extends FormRequest
             'full_payment_options' => 'nullable|array',
             'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12,full_international',
             'lat90_payment_options' => 'nullable|array',
-            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0,lat90_installments_3,lat90_installments_6,lat90_installments_9,lat90_installments_12',
+            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             // Aceptar claves antiguas y nuevas para mantener compatibilidad
             'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
-            'max_installments' => 'nullable|string|in:3,6,9,12',
+            'max_installments' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:12',
+                function ($attribute, $value, $fail) {
+                    if ($value && $this->input('final_payment_date')) {
+                        $finalPaymentDate = \Carbon\Carbon::parse($this->input('final_payment_date'));
+                        $now = \Carbon\Carbon::now();
+                        
+                        // Calcular meses disponibles hasta la fecha de pago
+                        $monthsAvailable = $now->diffInMonths($finalPaymentDate);
+                        if ($now->day > $finalPaymentDate->day) {
+                            $monthsAvailable -= 1;
+                        }
+                        $monthsAvailable = max(0, $monthsAvailable);
+                        
+                        if ($value > $monthsAvailable) {
+                            $fail("El número máximo de cuotas ({$value}) no puede exceder los meses disponibles hasta la fecha de pago ({$monthsAvailable} meses).");
+                        }
+                    }
+                }
+            ],
             'payment_mode_id' => 'nullable|exists:payment_modes,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'active' => 'boolean',
@@ -214,10 +252,16 @@ class UpdateProgramRequest extends FormRequest
             'payment_option.in' => 'La opción de pago seleccionada no es válida.',
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
             'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
-            'max_installments.in' => 'El número máximo de cuotas seleccionado no es válido.',
+            'max_installments.integer' => 'El número máximo de cuotas debe ser un número entero.',
+            'max_installments.min' => 'El número máximo de cuotas debe ser al menos 1.',
+            'max_installments.max' => 'El número máximo de cuotas no puede ser mayor a 12.',
             
             // Mensajes para validaciones básicas
             'institution_id.exists' => 'La institución seleccionada no existe.',
+            
+            // Mensajes para validaciones personalizadas
+            'final_payment_date.60_days_before_departure' => 'La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.',
+            'max_installments.months_available' => 'El número máximo de cuotas no puede exceder los meses disponibles hasta la fecha de pago.',
         ];
     }
 } 

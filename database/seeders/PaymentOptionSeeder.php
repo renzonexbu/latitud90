@@ -9,6 +9,16 @@ class PaymentOptionSeeder extends Seeder
 {
 	public function run(): void
 	{
+		// Limpieza previa: eliminar opciones obsoletas lat90_installments_* y sus pivotes
+		$obsoleteIds = DB::table('payment_options')
+			->where('code', 'like', 'lat90_installments_%')
+			->pluck('id')
+			->all();
+		if (!empty($obsoleteIds)) {
+			DB::table('program_payment_option')->whereIn('payment_option_id', $obsoleteIds)->delete();
+			DB::table('payment_options')->whereIn('id', $obsoleteIds)->delete();
+		}
+
 		$options = [
 			// Pago total - Transferencia Khipu
 			['code' => 'full_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'full', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
@@ -37,14 +47,8 @@ class PaymentOptionSeeder extends Seeder
 			// Pago mensual (Lat90) - Transferencia Khipu
 			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
 			
-			// Pago mensual (Lat90) - Débito y crédito sin cuotas
+			// Pago mensual (Lat90) - Débito y crédito sin cuotas (método; las cuotas N se manejan aparte)
 			['code' => 'lat90_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
-			
-			// Pago mensual (Lat90) - Cuotas Lat90
-			['code' => 'lat90_installments_3', 'label' => 'Lat90 3 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'report_code' => 'TD', 'installments' => 3, 'active' => true],
-			['code' => 'lat90_installments_6', 'label' => 'Lat90 6 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'report_code' => 'TD', 'installments' => 6, 'active' => true],
-			['code' => 'lat90_installments_9', 'label' => 'Lat90 9 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'report_code' => 'TD', 'installments' => 9, 'active' => true],
-			['code' => 'lat90_installments_12', 'label' => 'Lat90 12 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'report_code' => 'TD', 'installments' => 12, 'active' => true],
 			
 			// Devoluciones
 			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'full', 'gateway_code' => 'refund', 'report_code' => 'BC', 'installments' => null, 'active' => true],

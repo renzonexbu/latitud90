@@ -105,11 +105,14 @@
                                 <div
                                     class="flex flex-col sm:flex-row sm:items-center gap-[16px]"
                                 >
+
+                                    
                                     <!-- Installment Selector -->
                                     <div class="relative">
                                         <select
                                             v-model="selectedInstallments"
                                             class="appearance-none bg-white border border-[#D3D3D3] rounded-lg px-[12px] py-[8px] text-[#434343] font-nexa text-[14px] leading-[18px] pr-[32px] shadow-sm"
+                                            :disabled="getAvailableInstallments().length === 0"
                                         >
                                             <option 
                                                 v-for="installment in getAvailableInstallments()" 
@@ -119,6 +122,11 @@
                                                 {{ installment }}
                                             </option>
                                         </select>
+                                        
+                                        <!-- Mensaje si no hay cuotas disponibles -->
+                                        <div v-if="getAvailableInstallments().length === 0" class="text-red-500 text-xs mt-1">
+                                            No hay cuotas disponibles. Verifica la configuración del programa.
+                                        </div>
                                     </div>
 
                                     <!-- End Date -->
@@ -284,17 +292,55 @@ export default {
         },
     },
     watch: {
-        selectedInstallments(newValue) {
-            // Guardar en localStorage cuando cambie el número de cuotas
-            if (this.paymentType === 'monthly') {
+        selectedInstallments(newValue, oldValue) {
+            if (newValue !== oldValue && this.paymentType === 'monthly') {
+                // Validar que las cuotas seleccionadas estén disponibles
+                const allowed = this.getAvailableInstallments();
+                if (!allowed.includes(newValue)) {
+                    this.selectedInstallments = allowed[0] || 1;
+                }
+                
+                // Si es Khipu, forzar 1 cuota SOLO si NO estamos en modo confirmación
+                if (this.monthlyPaymentOption === 'khipu' && newValue !== 1 && !this.isConfirmation) {
+                    this.selectedInstallments = 1;
+                }
+                
+                // Guardar y emitir cambios
                 this.savePaymentDataToLocalStorage();
                 this.emitSelection();
             }
         }
     },
+    
+    // Watcher para guardar automáticamente en localStorage cuando cambien las cuotas
+    watch: {
+        selectedInstallments: {
+            handler(newValue, oldValue) {
+                // Debug log temporal
+                console.log('🔍 selectedInstallments watcher:', {
+                    oldValue,
+                    newValue,
+                    paymentType: this.paymentType,
+                    isConfirmation: this.isConfirmation
+                });
+                
+                // Solo guardar si ya hay un tipo de pago seleccionado
+                if (this.paymentType && oldValue !== undefined) {
+                    this.savePaymentDataToLocalStorage();
+                    this.emitSelection();
+                }
+            },
+            immediate: false
+        }
+    },
+    
     mounted() {
+        // Debug log temporal
+        console.log('🔍 PaymentPanel mounted - isConfirmation:', this.isConfirmation);
+        
         // Si está en modo confirmación, cargar datos desde localStorage
         if (this.isConfirmation) {
+            console.log('🔍 Cargando datos desde localStorage en modo confirmación');
             this.loadPaymentDataFromLocalStorage();
             this.$nextTick(() => this.reconcileSelection());
         } else {
@@ -501,30 +547,50 @@ export default {
             }
         },
 
-        // Obtener cuotas disponibles según la configuración del programa
+        // Obtener cuotas disponibles según fecha final y/o máximo permitido del programa
         getAvailableInstallments() {
-            // Nueva estructura: derivar SOLO desde lat90_installments_X de program.lat90_payment_options
-            if (Array.isArray(this.program.lat90_payment_options)) {
-                const codes = this.getLat90OptionCodes().map(c => String(c).toLowerCase());
-                const installments = new Set();
-                codes.forEach(code => {
-                    // Aceptar formatos: lat90_installments_3, lat90-installments-6
-                    const m = code.match(/lat90[_-]?installments[_-]?(\d+)/);
-                    if (m) {
-                        const n = parseInt(m[1], 10);
-                        if (!isNaN(n) && n > 0) {
-                            installments.add(n);
-                        }
-                    }
-                });
-                // Si no hay lat90_installments configurados, dejar vacío para no confundir con 1 cuota
-                return Array.from(installments).sort((a,b)=>a-b);
+            const options = [];
+            
+            // Obtener máximo configurado en el programa (nuevo campo)
+            const programMax = this.program.lat90_max_installments || 12;
+            
+            // Calcular máximo por fecha final de pago
+            let maxByDate = null;
+            if (this.program.final_payment_date) {
+                const now = new Date();
+                const end = new Date(this.program.final_payment_date);
+                
+                // Calcular diferencia en meses de forma más precisa
+                const yearDiff = end.getFullYear() - now.getFullYear();
+                const monthDiff = end.getMonth() - now.getMonth();
+                let months = yearDiff * 12 + monthDiff;
+                
+                // Ajustar si el día del mes actual es mayor al día de la fecha final
+                if (now.getDate() > end.getDate()) {
+                    months -= 1;
+                }
+                
+                maxByDate = Math.max(0, months);
             }
-            // Legacy fallback: 1..max
-            const maxInstallments = this.program.lat90_max_installments || 12;
-            const list = [];
-            for (let i = 1; i <= Math.min(maxInstallments, 12); i++) list.push(i);
-            return list;
+            
+            // Usar el máximo del programa si no hay restricción de fecha, o el menor entre ambos
+            const max = maxByDate !== null ? Math.min(programMax, maxByDate) : programMax;
+            
+            // Generar opciones de 1 hasta el máximo
+            for (let i = 1; i <= max; i++) {
+                options.push(i);
+            }
+            
+            // Debug log temporal
+            console.log('🔍 getAvailableInstallments:', {
+                programMax,
+                maxByDate,
+                max,
+                options,
+                final_payment_date: this.program.final_payment_date
+            });
+            
+            return options;
         },
 
         selectPaymentType(type) {
@@ -539,12 +605,23 @@ export default {
 
                 if (type === "monthly") {
                     this.totalPaymentOption = null;
-                    this.selectedInstallments = 1;
+                    
+                    // Obtener cuotas disponibles
+                    const availableInstallments = this.getAvailableInstallments();
+                    this.selectedInstallments = availableInstallments[0] || 1;
+                    
                     // Seleccionar la primera opción disponible por defecto
                     const availableOptions = this.getMonthlyPaymentOptions();
                     if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
                         this.monthlyPaymentOption = availableOptions[0].value;
+                        
+                        // Si la primera opción es Khipu, forzar 1 cuota SOLO si NO estamos en modo confirmación
+                        if (this.monthlyPaymentOption === 'khipu' && !this.isConfirmation) {
+                            this.selectedInstallments = 1;
+                        }
                     }
+                    
+
                 } else if (type === "total") {
                     this.monthlyPaymentOption = null;
                     // Seleccionar la primera opción disponible por defecto
@@ -572,17 +649,27 @@ export default {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
+            
             // Ajustar cuotas disponibles al cambiar el método
             const allowed = this.getAvailableInstallments();
+            
             if (option === 'debit_credit_0') {
-                // Si no contiene la cuota actual, seleccionar la mínima disponible
+                // Webpay: permitir múltiples cuotas según configuración del programa
                 if (!allowed.includes(this.selectedInstallments)) {
                     this.selectedInstallments = allowed[0] || 1;
                 }
+            } else if (option === 'khipu') {
+                // Khipu: solo forzar a 1 cuota si no hay cuotas activas o si el usuario no ha seleccionado cuotas específicas
+                if (!this.program.active_installment || !this.program.payment_plan_locked) {
+                    this.selectedInstallments = 1;
+                }
             } else {
-                // Khipu: 1 cuota
-                this.selectedInstallments = 1;
+                // Otros métodos: usar la primera opción disponible
+                this.selectedInstallments = allowed[0] || 1;
             }
+            
+            
+            
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
             this.emitSelection();
@@ -629,6 +716,13 @@ export default {
                 termsAccepted: existingTermsAccepted, // Preservar términos aceptados
             };
 
+            // Debug log temporal
+            console.log('🔍 savePaymentDataToLocalStorage:', {
+                paymentType: this.paymentType,
+                selectedInstallments: this.selectedInstallments,
+                paymentData: paymentData
+            });
+
             // Guardar en localStorage
             localStorage.setItem(
                 "selectedPaymentData",
@@ -646,13 +740,29 @@ export default {
         
         loadPaymentDataFromLocalStorage() {
             const savedPaymentData = localStorage.getItem("selectedPaymentData");
+            
+            // Debug log temporal
+            console.log('🔍 loadPaymentDataFromLocalStorage - inicio:', {
+                savedPaymentData,
+                currentSelectedInstallments: this.selectedInstallments
+            });
+            
             if (savedPaymentData) {
                 try {
                     const paymentData = JSON.parse(savedPaymentData);
                     
+                    // Debug log temporal
+                    console.log('🔍 loadPaymentDataFromLocalStorage - parsed data:', paymentData);
+                    
                     // Cargar los datos de pago
                     this.paymentType = paymentData.paymentType;
                     this.selectedInstallments = paymentData.installments || 1;
+                    
+                    // Debug log temporal
+                    console.log('🔍 loadPaymentDataFromLocalStorage - después de cargar:', {
+                        paymentType: this.paymentType,
+                        selectedInstallments: this.selectedInstallments
+                    });
                     
                     // Configurar las opciones según el tipo de pago
                     if (paymentData.paymentType === 'total') {
@@ -662,6 +772,13 @@ export default {
                         this.monthlyPaymentOption = paymentData.paymentMethod;
                         this.accordionOpen = 'monthly';
                     }
+                    
+                    // Debug log temporal
+                    console.log('🔍 loadPaymentDataFromLocalStorage - después de configurar opciones:', {
+                        totalPaymentOption: this.totalPaymentOption,
+                        monthlyPaymentOption: this.monthlyPaymentOption,
+                        accordionOpen: this.accordionOpen
+                    });
                     
                     // Emitir evento para actualizar términos aceptados en el componente padre
                     if (paymentData.termsAccepted !== undefined) {
@@ -674,14 +791,21 @@ export default {
                         installments: this.selectedInstallments,
                     });
                 } catch (error) {
-                    // noop
+                    console.error('🔍 Error parsing payment data:', error);
                 }
             } else {
-                // noop
+                console.log('🔍 No hay datos de pago guardados en localStorage');
             }
         },
         // Asegurar que la opción guardada exista entre las opciones disponibles; si no, tomar la primera
         reconcileSelection() {
+            // Debug log temporal
+            console.log('🔍 reconcileSelection - inicio:', {
+                paymentType: this.paymentType,
+                selectedInstallments: this.selectedInstallments,
+                isConfirmation: this.isConfirmation
+            });
+            
             if (this.paymentType === 'total') {
                 const options = this.getTotalPaymentOptions();
                 const values = options.map(o => o.value);
@@ -694,13 +818,32 @@ export default {
                 if (!values.includes(this.monthlyPaymentOption) && values.length > 0) {
                     this.monthlyPaymentOption = values[0];
                 }
-                // Validar cuotas
+                
+                // Validar cuotas disponibles
                 const allowed = this.getAvailableInstallments();
                 if (!allowed.includes(this.selectedInstallments)) {
                     this.selectedInstallments = allowed[0] || 1;
                 }
+                
+                // Ajustar cuotas según el método de pago seleccionado
+                // IMPORTANTE: En modo confirmación, respetar la selección del usuario
+                if (this.monthlyPaymentOption === 'khipu' && !this.isConfirmation) {
+                    // Solo forzar a 1 cuota si no hay cuotas activas o si el usuario no ha seleccionado cuotas específicas
+                    // Y NO estamos en modo confirmación
+                    if (!this.program.active_installment || !this.program.payment_plan_locked) {
+                        this.selectedInstallments = 1; // Khipu siempre 1 cuota
+                    }
+                }
             }
+            
+            // Debug log temporal
+            console.log('🔍 reconcileSelection - final:', {
+                paymentType: this.paymentType,
+                selectedInstallments: this.selectedInstallments,
+                monthlyPaymentOption: this.monthlyPaymentOption
+            });
         },
+
         initiatePayment() {
             if (this.paymentType === null) {
                 return;
@@ -837,17 +980,7 @@ export default {
             // Usar el método estandarizado de redondeo
             const result = getFirstInstallmentAmount(Number(base) || 0, installments);
             
-            // Debug log
-            console.log('=== DEBUG displayRemainingAmount ===');
-            console.log('base:', base);
-            console.log('participant_balance:', this.program.participant_balance);
-            console.log('participant_total_due:', this.program.participant_total_due);
-            console.log('trip_price:', this.program.trip_price);
-            console.log('paymentType:', this.paymentType);
-            console.log('selectedInstallments:', this.selectedInstallments);
-            console.log('installments:', installments);
-            console.log('result:', result);
-            console.log('====================================');
+
             
             return result;
         },
@@ -876,16 +1009,7 @@ export default {
                 const tolerance = 1;
                 const isExceeded = (totalToPay - balance) > tolerance;
                 
-                // Debug log
-                console.log('=== DEBUG isAmountExceeded ===');
-                console.log('balance:', balance);
-                console.log('totalInstallments:', totalInstallments);
-                console.log('amounts:', amounts);
-                console.log('totalToPay:', totalToPay);
-                console.log('difference:', totalToPay - balance);
-                console.log('tolerance:', tolerance);
-                console.log('isExceeded:', isExceeded);
-                console.log('==============================');
+
                 
                 return isExceeded;
             }

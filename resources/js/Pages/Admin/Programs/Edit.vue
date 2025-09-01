@@ -256,6 +256,23 @@ const paymentData = ref({
     })(),
     max_installments: (props.program && props.program.lat90_max_installments) ? props.program.lat90_max_installments.toString() : "",
 });
+const maxInstallmentChoices = computed(() => {
+    const choices = [];
+    // Determinar máximo por fecha final
+    let maxByDate = 12;
+    if (paymentData.value.final_payment_date) {
+        const now = new Date();
+        const end = new Date(paymentData.value.final_payment_date + 'T00:00:00');
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+        if (now.getDate() > end.getDate()) months -= 1;
+        maxByDate = Math.max(0, months);
+    }
+    const hardMax = 12;
+    const max = Math.min(hardMax, maxByDate);
+    for (let i = 1; i <= max; i++) choices.push({ value: i.toString(), label: `${i}` });
+    if (choices.length === 0) choices.push({ value: '1', label: '1' });
+    return choices;
+});
 
 // Imágenes existentes (desde la base de datos)
 const existingImages = ref([]);
