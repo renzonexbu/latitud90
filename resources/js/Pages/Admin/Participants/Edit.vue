@@ -363,10 +363,34 @@
                         Programas del Participante
                     </h3>
 
-                    <ProgramsGrid
-                        :programs="formattedPrograms"
-                        :prefer-participant-metrics="true"
-                    />
+                    <!-- Programs Grid específico para esta vista -->
+                    <div>
+                        <!-- No Programs Message -->
+                        <div
+                            v-if="!formattedPrograms || !formattedPrograms.data || formattedPrograms.data.length === 0"
+                            class="text-center py-12"
+                        >
+                            <div class="text-gray-500 text-lg mb-4">
+                                No hay programas disponibles
+                            </div>
+                            <div class="text-gray-400 text-sm">
+                                Este participante no tiene programas asignados
+                            </div>
+                        </div>
+
+                        <!-- Programs Grid - 3x2 layout -->
+                        <div
+                            v-else
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+                        >
+                            <ProgramCard
+                                v-for="program in formattedPrograms.data"
+                                :key="program.id"
+                                :program="program"
+                                @click="handleProgramCardClick(program)"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Back Button -->
@@ -389,6 +413,7 @@
                 participantProgramsWithDiscounts
             "
             :errors="errors"
+            :pre-selected-course-id="preSelectedCourseId"
             @close="closeEditModal"
         />
 
@@ -417,7 +442,7 @@ import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue
 import EditParticipantModal from "@/Components/Participants/EditParticipantModal.vue";
 import MedicalConditionsModal from "@/Components/Participants/MedicalConditionsModal.vue";
 import EmergencyContactsModal from "@/Components/Participants/EmergencyContactsModal.vue";
-import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
+import ProgramCard from "@/Components/Programs/ProgramCard.vue";
 import { ref, computed, watch } from "vue";
 import { router } from "@inertiajs/vue3";
 
@@ -542,14 +567,17 @@ const getFullName = (participant) => {
 const showEditModal = ref(false);
 const showMedicalModal = ref(false);
 const showEmergencyContactsModal = ref(false);
+const preSelectedCourseId = ref(null);
 
 // Modal functions
 const openEditModal = () => {
+    preSelectedCourseId.value = null;
     showEditModal.value = true;
 };
 
 const closeEditModal = () => {
     showEditModal.value = false;
+    preSelectedCourseId.value = null;
 };
 
 const openMedicalModal = () => {
@@ -586,6 +614,18 @@ const confirmToggleParticipantStatus = () => {
             }
         });
     }
+};
+
+const handleProgramCardClick = (program) => {
+    // Buscar el course_id correspondiente al programa
+    if (program.course && program.course.id) {
+        preSelectedCourseId.value = program.course.id;
+    } else if (program.course_id) {
+        preSelectedCourseId.value = program.course_id;
+    }
+    
+    // Abrir el modal de edición
+    showEditModal.value = true;
 };
 
 // Auto-cerrar mensajes flash después de 5 segundos

@@ -489,6 +489,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    preSelectedCourseId: {
+        type: [String, Number],
+        default: null,
+    },
 });
 
 const emit = defineEmits(["close"]);
@@ -577,9 +581,7 @@ watch(
                 email: newParticipant.email || "",
                 code_phone: newParticipant.code_phone || "+56",
                 phone: newParticipant.phone || "",
-                pivot_course_id:
-                    (newParticipant.courses && newParticipant.courses[0]?.id) ||
-                    "",
+                pivot_course_id: props.preSelectedCourseId || (newParticipant.courses && newParticipant.courses[0]?.id) || "",
                 individual_price: newParticipant.individual_price ?? "",
             };
 
@@ -588,6 +590,23 @@ watch(
         }
     },
     { immediate: true, deep: true }
+);
+
+// Sincronizar cuando cambie el preSelectedCourseId
+watch(
+    () => props.preSelectedCourseId,
+    (newCourseId) => {
+        if (newCourseId && props.participant && props.participant.courses) {
+            // Verificar que el curso existe en la lista del participante
+            const courseExists = props.participant.courses.some(c => c.id == newCourseId);
+            if (courseExists) {
+                form.value.pivot_course_id = newCourseId;
+                // Recargar descuentos para el nuevo curso seleccionado
+                loadExistingDiscounts();
+            }
+        }
+    },
+    { immediate: true }
 );
 
 // Sincronizar precio individual mostrado según el curso/programa seleccionado
