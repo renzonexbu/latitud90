@@ -444,6 +444,178 @@
                     </div>
                 </div>
 
+                <!-- Reestructuración de Cuotas -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[18px] font-nexa-bold text-turquesa">
+                            Reestructuración de Cuotas
+                        </h3>
+                        <button
+                            type="button"
+                            @click="showRestructureForm = !showRestructureForm"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                                showRestructureForm 
+                                    ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                                    : 'bg-turquesa text-white hover:bg-turquesa-dark'
+                            ]"
+                        >
+                            {{ showRestructureForm ? 'Ocultar' : 'Reestructurar Cuotas' }}
+                        </button>
+                    </div>
+
+                    <!-- Formulario de reestructuración -->
+                    <div v-if="showRestructureForm" class="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                        <!-- Información del plan actual -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Plan de Cuotas Actual
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Total de cuotas:</span>
+                                    <div class="text-lg font-bold text-turquesa">{{ currentInstallmentPlan?.total_installments || 'N/A' }}</div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Cuotas pagadas:</span>
+                                    <div class="text-lg font-bold text-green-600">{{ paidInstallmentsCount || 0 }}</div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Cuotas pendientes:</span>
+                                    <div class="text-lg font-bold text-orange-600">{{ pendingInstallmentsCount || 0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formulario de nueva estructura -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Nueva Estructura de Cuotas
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                        Nuevo número de cuotas *
+                                    </label>
+                                    <input
+                                        v-model.number="restructureForm.newTotalInstallments"
+                                        type="number"
+                                        min="1"
+                                        :max="maxPossibleInstallments"
+                                        placeholder="Ej: 8"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                        :class="{ 'border-red-500': restructureErrors?.newTotalInstallments }"
+                                    />
+                                    <div v-if="restructureErrors?.newTotalInstallments" class="text-red-500 text-sm mt-1">
+                                        {{ restructureErrors.newTotalInstallments }}
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Mínimo: {{ paidInstallmentsCount || 1 }} | Máximo: {{ maxPossibleInstallments }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                        Razón del cambio *
+                                    </label>
+                                    <select
+                                        v-model="restructureForm.reason"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                        :class="{ 'border-red-500': restructureErrors?.reason }"
+                                    >
+                                        <option value="">-- Selecciona una razón --</option>
+                                        <option value="Solicitud del cliente">Solicitud del cliente</option>
+                                        <option value="Cambio de situación financiera">Cambio de situación financiera</option>
+                                        <option value="Ajuste por descuento aplicado">Ajuste por descuento aplicado</option>
+                                        <option value="Reestructuración administrativa">Reestructuración administrativa</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                    <div v-if="restructureErrors?.reason" class="text-red-500 text-sm mt-1">
+                                        {{ restructureErrors.reason }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Razón personalizada -->
+                            <div v-if="restructureForm.reason === 'Otro'" class="mt-4">
+                                <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                    Especificar razón personalizada *
+                                </label>
+                                <textarea
+                                    v-model="restructureForm.customReason"
+                                    rows="3"
+                                    placeholder="Describe la razón específica para reestructurar las cuotas..."
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                    :class="{ 'border-red-500': restructureErrors?.customReason }"
+                                ></textarea>
+                                <div v-if="restructureErrors?.customReason" class="text-red-500 text-sm mt-1">
+                                    {{ restructureErrors.customReason }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen de la reestructuración -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Resumen de la Reestructuración
+                            </h4>
+                            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Estado actual:</span>
+                                        <div class="text-gray-600">
+                                            {{ currentInstallmentPlan?.total_installments || 0 }} cuotas totales
+                                            <span class="text-green-600">({{ paidInstallmentsCount || 0 }} pagadas)</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Nuevo estado:</span>
+                                        <div class="text-turquesa font-semibold">
+                                            {{ restructureForm.newTotalInstallments || 'N/A' }} cuotas totales
+                                            <span class="text-green-600">({{ paidInstallmentsCount || 0 }} pagadas)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <span class="font-semibold text-gray-700">Acción:</span>
+                                    <div class="text-orange-600">
+                                        Se cancelarán {{ (currentInstallmentPlan?.total_installments || 0) - (paidInstallmentsCount || 0) }} cuotas pendientes y se crearán {{ (restructureForm.newTotalInstallments || 0) - (paidInstallmentsCount || 0) }} nuevas cuotas
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón de reestructuración -->
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                @click="restructureInstallments"
+                                :disabled="!canRestructure || isRestructuring"
+                                class="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                            >
+                                <span v-if="isRestructuring" class="flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Reestructurando...
+                                </span>
+                                <span v-else>
+                                    Confirmar Reestructuración
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mensaje cuando no hay plan de cuotas -->
+                    <div v-else-if="!currentInstallmentPlan" class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="text-sm">No hay plan de cuotas disponible</p>
+                        <p class="text-xs mt-1">Este participante no tiene un plan de cuotas activo para reestructurar</p>
+                    </div>
+                </div>
+
                 <!-- Botones -->
                 <div
                     class="flex justify-end gap-4 pt-6 border-t border-gray-200"
@@ -512,6 +684,83 @@ const form = ref({
     phone: "",
     pivot_course_id: "",
     individual_price: "",
+});
+
+// Variables para reestructuración de cuotas
+const showRestructureForm = ref(false);
+const isRestructuring = ref(false);
+const restructureErrors = ref({});
+const restructureForm = ref({
+    newTotalInstallments: null,
+    reason: "",
+    customReason: ""
+});
+
+// Computed properties para reestructuración
+const currentInstallmentPlan = computed(() => {
+    if (!form.value.pivot_course_id || !props.participantProgramsWithDiscounts) {
+        return null;
+    }
+    
+    // Buscar el plan de cuotas para el curso seleccionado
+    // Primero encontrar el curso en participant.courses para obtener el program_id
+    const course = props.participant?.courses?.find(c => c.id == form.value.pivot_course_id);
+    if (!course || !course.program) {
+        console.log('❌ Curso no encontrado o sin programa');
+        return null;
+    }
+    
+    // Ahora buscar en participantProgramsWithDiscounts usando el program_id
+    const participantProgram = props.participantProgramsWithDiscounts.find(
+        pp => pp.program_id === course.program.id
+    );
+    
+    console.log('🔍 Curso seleccionado:', form.value.pivot_course_id);
+    console.log('🔍 Curso encontrado:', course);
+    console.log('🔍 Program ID del curso:', course.program?.id);
+    console.log('🔍 Programa encontrado:', participantProgram);
+    console.log('🔍 Plan de cuotas:', participantProgram?.installment_plan);
+    
+    return participantProgram?.installment_plan || null;
+});
+
+const paidInstallmentsCount = computed(() => {
+    if (!currentInstallmentPlan.value) return 0;
+    
+    // Contar cuotas pagadas (que tienen payment_id O status 'paid')
+    return currentInstallmentPlan.value.installments?.filter(
+        installment => installment.payment_id || installment.status === 'paid'
+    ).length || 0;
+});
+
+const pendingInstallmentsCount = computed(() => {
+    if (!currentInstallmentPlan.value) return 0;
+    
+    // Contar cuotas pendientes (que NO tienen payment_id Y NO tienen status 'paid')
+    return currentInstallmentPlan.value.installments?.filter(
+        installment => !installment.payment_id && installment.status !== 'paid'
+    ).length || 0;
+});
+
+const maxPossibleInstallments = computed(() => {
+    // El máximo posible es el precio total dividido por un monto mínimo razonable por cuota
+    // Por ejemplo, si el precio es 1,000,000, el mínimo por cuota podría ser 50,000
+    const basePrice = Number(form.value.individual_price || 0);
+    const minAmountPerInstallment = 50000; // 50,000 CLP mínimo por cuota
+    
+    if (basePrice <= 0) return 12; // Default máximo
+    
+    return Math.min(24, Math.floor(basePrice / minAmountPerInstallment)); // Máximo 24 cuotas
+});
+
+const canRestructure = computed(() => {
+    return restructureForm.value.newTotalInstallments &&
+           restructureForm.value.newTotalInstallments >= paidInstallmentsCount.value &&
+           restructureForm.value.newTotalInstallments <= maxPossibleInstallments.value &&
+           restructureForm.value.reason &&
+           (restructureForm.value.reason !== 'Otro' || restructureForm.value.customReason) &&
+           currentInstallmentPlan.value &&
+           pendingInstallmentsCount.value > 0;
 });
 
 const formatDateForInput = (dateString) => {
@@ -587,6 +836,10 @@ watch(
 
             // Cargar descuentos existentes si los hay
             loadExistingDiscounts();
+            
+            // Debug: Mostrar datos disponibles
+            console.log('👤 Participante cargado:', newParticipant);
+            console.log('📚 Programas con descuentos:', props.participantProgramsWithDiscounts);
         }
     },
     { immediate: true, deep: true }
@@ -607,6 +860,33 @@ watch(
         }
     },
     { immediate: true }
+);
+
+// Debug: Watcher para ver los datos de cuotas
+watch(
+    () => currentInstallmentPlan.value,
+    (newPlan) => {
+        if (newPlan) {
+            console.log('🔍 Plan de cuotas detectado:', newPlan);
+            console.log('📊 Cuotas totales:', newPlan.installments?.length || 0);
+            console.log('💰 Cuotas pagadas:', paidInstallmentsCount.value);
+            console.log('⏳ Cuotas pendientes:', pendingInstallmentsCount.value);
+            console.log('📋 Detalle de cuotas:', newPlan.installments);
+        } else {
+            console.log('❌ No se detectó plan de cuotas');
+            console.log('🔍 Datos disponibles:', props.participantProgramsWithDiscounts);
+        }
+    },
+    { immediate: true }
+);
+
+// Debug: Watcher para ver cuando cambia el curso seleccionado
+watch(
+    () => form.value.pivot_course_id,
+    (newCourseId) => {
+        console.log('🔄 Curso seleccionado cambió a:', newCourseId);
+        console.log('🔄 Form completo:', form.value);
+    }
 );
 
 // Sincronizar precio individual mostrado según el curso/programa seleccionado
@@ -764,6 +1044,117 @@ const formatNumber = (n) => new Intl.NumberFormat('es-CL').format(Number(n || 0)
 
 const formatPercentage = (n) => {
     return `${Number(n || 0).toFixed(1)}%`;
+};
+
+// Método para reestructurar cuotas
+const restructureInstallments = async () => {
+    if (!canRestructure.value) {
+        return;
+    }
+
+    // Validar formulario
+    restructureErrors.value = {};
+    
+    if (!restructureForm.value.newTotalInstallments) {
+        restructureErrors.value.newTotalInstallments = 'El número de cuotas es requerido';
+        return;
+    }
+    
+    if (restructureForm.value.newTotalInstallments < paidInstallmentsCount.value) {
+        restructureErrors.value.newTotalInstallments = `No se puede reducir a menos de ${paidInstallmentsCount.value} cuotas (ya pagadas)`;
+        return;
+    }
+    
+    if (restructureForm.value.newTotalInstallments > maxPossibleInstallments.value) {
+        restructureErrors.value.newTotalInstallments = `El máximo permitido es ${maxPossibleInstallments.value} cuotas`;
+        return;
+    }
+    
+    if (!restructureForm.value.reason) {
+        restructureErrors.value.reason = 'La razón del cambio es requerida';
+        return;
+    }
+    
+    if (restructureForm.value.reason === 'Otro' && !restructureForm.value.customReason) {
+        restructureErrors.value.customReason = 'Debe especificar la razón personalizada';
+        return;
+    }
+
+    // Confirmar acción
+    const finalReason = restructureForm.value.reason === 'Otro' 
+        ? restructureForm.value.customReason 
+        : restructureForm.value.reason;
+    
+    const confirmMessage = `¿Estás seguro de que quieres reestructurar las cuotas?\n\n` +
+        `Cambio: ${currentInstallmentPlan.value.total_installments} → ${restructureForm.value.newTotalInstallments} cuotas\n` +
+        `Razón: ${finalReason}\n\n` +
+        `Esta acción:\n` +
+        `• Mantendrá las ${paidInstallmentsCount.value} cuotas ya pagadas\n` +
+        `• Cancelará ${pendingInstallmentsCount.value} cuotas pendientes\n` +
+        `• Creará ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas\n\n` +
+        `¿Deseas continuar?`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    isRestructuring.value = true;
+    restructureErrors.value = {};
+
+    try {
+        const formData = new FormData();
+        formData.append("installment_plan_id", currentInstallmentPlan.value.id);
+        formData.append("new_total_installments", restructureForm.value.newTotalInstallments);
+        formData.append("reason", finalReason);
+        formData.append("_method", "POST");
+
+        // Llamar al endpoint de reestructuración
+        const response = await fetch(route('admin.installments.restructure'), {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Éxito
+            alert(`✅ Cuotas reestructuradas exitosamente!\n\n` +
+                `El plan ahora tiene ${restructureForm.value.newTotalInstallments} cuotas.\n` +
+                `Se han eliminado ${pendingInstallmentsCount.value} cuotas pendientes y creado ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas.`);
+            
+            // Limpiar formulario
+            restructureForm.value = {
+                newTotalInstallments: null,
+                reason: "",
+                customReason: ""
+            };
+            showRestructureForm.value = false;
+            
+            // Cerrar el modal completo
+            emit('close');
+            
+            // Recargar la página para mostrar los cambios
+            window.location.reload();
+        } else {
+            // Error del servidor
+            throw new Error(result.error || 'Error desconocido del servidor');
+        }
+    } catch (error) {
+        console.error('Error al reestructurar cuotas:', error);
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            restructureErrors.value.general = 'Error de conexión. Verifica tu conexión a internet.';
+        } else {
+            restructureErrors.value.general = error.message || 'Error inesperado al reestructurar las cuotas.';
+        }
+        
+        alert(`❌ Error al reestructurar cuotas:\n\n${restructureErrors.value.general}`);
+    } finally {
+        isRestructuring.value = false;
+    }
 };
 </script>
 

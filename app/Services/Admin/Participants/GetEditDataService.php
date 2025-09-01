@@ -33,10 +33,71 @@ class GetEditDataService
             // Obtener datos de programas del participante con precios calculados
             $participantProgramsData = $this->getParticipantProgramsData($participant, $participantPrograms);
 
+            // Enriquecer participantPrograms con datos de cuotas
+            $participantProgramsWithDiscounts = $participantPrograms->map(function ($participantProgram) use ($participant) {
+                // Buscar planes de cuotas del participante para este programa
+                $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
+                    ->where('program_id', $participantProgram->program_id)
+                    ->with(['installments' => function ($query) {
+                        $query->orderBy('installment_number', 'asc');
+                    }])
+                    ->get();
+
+                $installmentPlan = null;
+                $totalInstallments = 0;
+                $paidInstallments = 0;
+
+                foreach ($installmentPlans as $plan) {
+                    if ($plan->status === 'active') {
+                        $installmentPlan = $plan;
+                        $totalInstallments = $plan->installments->count();
+                        
+                        // Contar cuotas pagadas
+                        foreach ($plan->installments as $installment) {
+                            if ($installment->status === 'paid' || !is_null($installment->payment_id)) {
+                                $paidInstallments++;
+                            }
+                        }
+                        break; // Solo tomar el primer plan activo
+                    }
+                }
+
+                // Agregar datos de cuotas al participantProgram
+                $participantProgram->installment_plan = $installmentPlan ? [
+                    'id' => $installmentPlan->id,
+                    'total_amount' => $installmentPlan->total_amount,
+                    'total_installments' => $installmentPlan->total_installments,
+                    'status' => $installmentPlan->status,
+                    'start_date' => $installmentPlan->start_date,
+                    'end_date' => $installmentPlan->end_date,
+                    'installments' => $installmentPlan->installments->map(function ($installment) {
+                        return [
+                            'id' => $installment->id,
+                            'installment_number' => $installment->installment_number,
+                            'amount' => $installment->amount,
+                            'due_date' => $installment->due_date,
+                            'status' => $installment->status,
+                            'paid_at' => $installment->paid_at,
+                            'payment_id' => $installment->payment_id,
+                            'payment_order_id' => $installment->payment_order_id,
+                            'payment_order_detail_id' => $installment->payment_order_detail_id,
+                            'adjusted_at' => $installment->adjusted_at,
+                            'adjustment_reason' => $installment->adjustment_reason,
+                            'notes' => $installment->notes,
+                        ];
+                    })
+                ] : null;
+
+                $participantProgram->total_installments = $totalInstallments;
+                $participantProgram->paid_installments = $paidInstallments;
+
+                return $participantProgram;
+            });
+
             return [
                 'participant' => $participant,
                 'participantPrograms' => $participantProgramsData,
-                'participantProgramsWithDiscounts' => $participantPrograms,
+                'participantProgramsWithDiscounts' => $participantProgramsWithDiscounts,
             ];
         } catch (\Exception $e) {
             Log::error('Error al obtener datos para editar participante', [
@@ -88,11 +149,14 @@ class GetEditDataService
                 $totalInstallments = 0;
                 $paidInstallments = 0;
                 $installmentsSummary = null;
+                $installmentPlan = null;
 
                 // Buscar planes de cuotas del participante para este programa
                 $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
                     ->where('program_id', $program->id)
-                    ->with(['installments'])
+                    ->with(['installments' => function ($query) {
+                        $query->orderBy('installment_number', 'asc');
+                    }])
                     ->get();
 
                 foreach ($installmentPlans as $plan) {
@@ -102,6 +166,11 @@ class GetEditDataService
                         if ($installment->status === 'paid') {
                             $paidInstallments++;
                         }
+                    }
+
+                    // Guardar el primer plan activo para mostrar en el frontend
+                    if (!$installmentPlan && $plan->status === 'active') {
+                        $installmentPlan = $plan;
                     }
                 }
 
@@ -140,6 +209,35 @@ class GetEditDataService
                 $array['total_installments'] = $totalInstallments;
                 $array['paid_installments'] = $paidInstallments;
                 $array['installments_summary'] = $installmentsSummary;
+                
+                // Agregar el plan de cuotas completo si existe
+                if ($installmentPlan) {
+                    $array['installment_plan'] = [
+                        'id' => $installmentPlan->id,
+                        'total_amount' => $installmentPlan->total_amount,
+                        'total_installments' => $installmentPlan->total_installments,
+                        'status' => $installmentPlan->status,
+                        'start_date' => $installmentPlan->start_date,
+                        'end_date' => $installmentPlan->end_date,
+                        'installments' => $installmentPlan->installments->map(function ($installment) {
+                            return [
+                                'id' => $installment->id,
+                                'installment_number' => $installment->installment_number,
+                                'amount' => $installment->amount,
+                                'due_date' => $installment->due_date,
+                                'status' => $installment->status,
+                                'paid_at' => $installment->paid_at,
+                                'payment_id' => $installment->payment_id,
+                                'payment_order_id' => $installment->payment_order_id,
+                                'payment_order_detail_id' => $installment->payment_order_detail_id,
+                                'adjusted_at' => $installment->adjusted_at,
+                                'adjustment_reason' => $installment->adjustment_reason,
+                                'notes' => $installment->notes,
+                            ];
+                        })
+                    ];
+                }
+                
                 return $array;
             });
     }

@@ -27,6 +27,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de participantes
     include __DIR__ . '/participants.php';
 
+    // Gestión de cuotas
+    include __DIR__ . '/installments.php';
+
     // Gestión de pagos
     include __DIR__ . '/payments.php';
 
