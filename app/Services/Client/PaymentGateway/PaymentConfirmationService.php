@@ -427,6 +427,19 @@ class PaymentConfirmationService
             ->latest()
             ->first();
 
+        // Determinar la fecha de transacción
+        $transactionDate = null;
+        if (isset($result['transaction_date'])) {
+            $transactionDate = $this->parseTransactionDate($result['transaction_date']);
+        } elseif (isset($result['paid_at'])) {
+            $transactionDate = $this->parseTransactionDate($result['paid_at']);
+        } elseif (isset($result['updated_at'])) {
+            $transactionDate = $this->parseTransactionDate($result['updated_at']);
+        } else {
+            // Si no hay fecha específica en la respuesta, usar la fecha actual
+            $transactionDate = now()->setTimezone('America/Santiago');
+        }
+
         if (!$payment) {
             // Crear registro de pago solo si no existe
             $payment = Payment::create([
@@ -439,17 +452,25 @@ class PaymentConfirmationService
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
                 'amount' => $orderDetail->amount,
                 'status' => 'completed',
+                'transaction_date' => $transactionDate,
                 'gateway_response' => $result,
                 'email_sent' => false, // Marcar que aún no se ha enviado el email
             ]);
         } else {
             // Actualizar el pago existente
-            $payment->update([
+            $updateData = [
                 'status' => 'completed',
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
                 'gateway_response' => $result,
                 'email_sent' => false,
-            ]);
+            ];
+            
+            // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
+            if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['paid_at'])) {
+                $updateData['transaction_date'] = $transactionDate;
+            }
+            
+            $payment->update($updateData);
         }
 
         // Actualizar estado del order detail
@@ -491,6 +512,17 @@ class PaymentConfirmationService
             ->latest()
             ->first();
 
+        // Determinar la fecha de transacción para pagos fallidos
+        $transactionDate = null;
+        if (isset($result['transaction_date'])) {
+            $transactionDate = $this->parseTransactionDate($result['transaction_date']);
+        } elseif (isset($result['updated_at'])) {
+            $transactionDate = $this->parseTransactionDate($result['updated_at']);
+        } else {
+            // Si no hay fecha específica en la respuesta, usar la fecha actual
+            $transactionDate = now()->setTimezone('America/Santiago');
+        }
+
         if (!$payment) {
             // Crear registro de pago fallido solo si no existe
             $payment = Payment::create([
@@ -503,15 +535,23 @@ class PaymentConfirmationService
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
                 'amount' => $orderDetail->amount,
                 'status' => 'failed',
+                'transaction_date' => $transactionDate,
                 'gateway_response' => $result,
             ]);
         } else {
             // Actualizar el pago existente
-            $payment->update([
+            $updateData = [
                 'status' => 'failed',
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
                 'gateway_response' => $result,
-            ]);
+            ];
+            
+            // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
+            if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['updated_at'])) {
+                $updateData['transaction_date'] = $transactionDate;
+            }
+            
+            $payment->update($updateData);
         }
 
         // Actualizar estado del order detail como fallido
@@ -724,5 +764,17 @@ class PaymentConfirmationService
         //         'error' => $e->getMessage(),
         //     ]);
         // }
+    }
+
+    /**
+     * Parsear la fecha de transacción de Khipu para que sea compatible con MySQL
+     */
+    private function parseTransactionDate(string $dateString): string
+    {
+        // Khipu devuelve fechas en formato ISO 8601, por ejemplo: "2023-10-27T10:00:00Z"
+        // MySQL espera un formato como "YYYY-MM-DD HH:MM:SS"
+        // Para simplificar, podemos extraer la fecha y hora, y formatearla
+        $date = \Carbon\Carbon::parse($dateString);
+        return $date->format('Y-m-d H:i:s');
     }
 }

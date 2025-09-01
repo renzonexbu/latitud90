@@ -120,7 +120,7 @@ class ConfirmKhipuService
                 
                 // Agregar transaction_date si el pago es aprobado y viene en la respuesta
                 if ($approved && isset($status['transaction_date'])) {
-                    $updateData['transaction_date'] = $status['transaction_date'];
+                    $updateData['transaction_date'] = $this->parseTransactionDate($status['transaction_date']);
                 } elseif ($approved && !$payment->transaction_date) {
                     // Si no hay transaction_date pero el pago es aprobado, usar la fecha actual
                     $updateData['transaction_date'] = now('America/Santiago');
@@ -239,5 +239,17 @@ class ConfirmKhipuService
                 'installment_number' => $orderDetail->installment_number
             ], $e);
         }
+    }
+
+    /**
+     * Parsear la fecha de transacción de Khipu para que sea compatible con MySQL
+     */
+    private function parseTransactionDate(string $dateString): string
+    {
+        // Khipu devuelve fechas en formato ISO 8601, por ejemplo: "2023-10-27T10:00:00Z"
+        // MySQL espera un formato como "YYYY-MM-DD HH:MM:SS"
+        // Para simplificar, podemos extraer la fecha y hora, y formatearla
+        $date = \Carbon\Carbon::parse($dateString);
+        return $date->format('Y-m-d H:i:s');
     }
 }

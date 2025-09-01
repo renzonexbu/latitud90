@@ -75,6 +75,7 @@ class PaymentConfirmationController extends Controller
                             'installments_number' => isset($confirmResult['installments']) ? (int) $confirmResult['installments'] : $payment->installments_number,
                             'installment_amount' => $confirmResult['installment_amount'] ?? $payment->installment_amount,
                             'gateway_response' => $confirmResult,
+                            'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago'),
                         ]);
 
                         $orderDetail = $payment->orderDetail;
@@ -259,6 +260,7 @@ class PaymentConfirmationController extends Controller
                     'installments_number' => isset($result['installments']) ? (int) $result['installments'] : $payment->installments_number,
                     'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
                     'gateway_response' => $result,
+                    'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago'),
                 ]);
 
                 // Actualizar el order detail

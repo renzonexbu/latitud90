@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InstallmentPlan;
 use App\Models\Installment;
 use App\Services\Admin\Installments\InstallmentRepaymentService;
+use App\Services\Admin\Installments\InstallmentRecalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +16,14 @@ use Exception;
 class InstallmentController extends Controller
 {
     protected $installmentRepaymentService;
+    protected $installmentRecalculationService;
 
-    public function __construct(InstallmentRepaymentService $installmentRepaymentService)
-    {
+    public function __construct(
+        InstallmentRepaymentService $installmentRepaymentService,
+        InstallmentRecalculationService $installmentRecalculationService
+    ) {
         $this->installmentRepaymentService = $installmentRepaymentService;
+        $this->installmentRecalculationService = $installmentRecalculationService;
     }
 
     /**
@@ -59,6 +64,41 @@ class InstallmentController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al reestructurar las cuotas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Recalcular cuotas después de aplicar un descuento
+     */
+    public function recalculateAfterDiscount(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'installment_plan_id' => 'required|exists:installment_plans,id',
+            ]);
+
+            $installmentPlanId = $request->input('installment_plan_id');
+
+            $result = $this->installmentRecalculationService->recalculateInstallmentsAfterDiscount(
+                $installmentPlanId
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cuotas recalculadas exitosamente después de aplicar descuento',
+                'data' => $result
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error al recalcular cuotas después del descuento: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al recalcular las cuotas: ' . $e->getMessage()
             ], 500);
         }
     }

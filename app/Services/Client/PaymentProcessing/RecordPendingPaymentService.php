@@ -37,6 +37,7 @@ class RecordPendingPaymentService
                 'status' => 'pending',
                 'buy_order' => $buyOrder,
                 'gateway_response' => $gatewayResult,
+                'transaction_date' => now()->setTimezone('America/Santiago'),
             ];
 
             // Buscar pago existente por order_detail_id

@@ -450,18 +450,20 @@
                         <h3 class="text-[18px] font-nexa-bold text-turquesa">
                             Reestructuración de Cuotas
                         </h3>
-                        <button
-                            type="button"
-                            @click="showRestructureForm = !showRestructureForm"
-                            :class="[
-                                'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
-                                showRestructureForm 
-                                    ? 'bg-gray-500 text-white hover:bg-gray-600' 
-                                    : 'bg-turquesa text-white hover:bg-turquesa-dark'
-                            ]"
-                        >
-                            {{ showRestructureForm ? 'Ocultar' : 'Reestructurar Cuotas' }}
-                        </button>
+                        <div class="flex gap-2">
+                            <button
+                                type="button"
+                                @click="showRestructureForm = !showRestructureForm"
+                                :class="[
+                                    'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                                    showRestructureForm 
+                                        ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                                        : 'bg-turquesa text-white hover:bg-turquesa-dark'
+                                ]"
+                            >
+                                {{ showRestructureForm ? 'Ocultar' : 'Reestructurar Cuotas' }}
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Formulario de reestructuración -->
@@ -689,6 +691,7 @@ const form = ref({
 // Variables para reestructuración de cuotas
 const showRestructureForm = ref(false);
 const isRestructuring = ref(false);
+const isRecalculating = ref(false);
 const restructureErrors = ref({});
 const restructureForm = ref({
     newTotalInstallments: null,
@@ -761,6 +764,11 @@ const canRestructure = computed(() => {
            (restructureForm.value.reason !== 'Otro' || restructureForm.value.customReason) &&
            currentInstallmentPlan.value &&
            pendingInstallmentsCount.value > 0;
+});
+
+// Detectar si hay descuentos aplicados
+const hasDiscountApplied = computed(() => {
+    return discounts.value.length > 0;
 });
 
 const formatDateForInput = (dateString) => {
@@ -1006,7 +1014,16 @@ const updateParticipant = () => {
         route("admin.participants.update", props.participant.id),
         formData,
         {
-            onSuccess: () => {
+            onSuccess: async () => {
+                // AUTO-RECÁLCULO: Recalcular cuotas después de aplicar/cancelar descuentos
+                if (currentInstallmentPlan.value && hasDiscountApplied.value) {
+                    try {
+                        await recalculateInstallmentsAfterDiscountChange();
+                    } catch (error) {
+                        console.warn('No se pudieron recalcular las cuotas automáticamente:', error);
+                    }
+                }
+                
                 // Cerrar el modal primero
                 emit("close");
                 // Luego recargar la página
@@ -1152,10 +1169,102 @@ const restructureInstallments = async () => {
         }
         
         alert(`❌ Error al reestructurar cuotas:\n\n${restructureErrors.value.general}`);
-    } finally {
-        isRestructuring.value = false;
-    }
-};
+            } finally {
+            isRestructuring.value = false;
+        }
+    };
+
+    // Método para recalcular cuotas después de aplicar descuento
+    const recalculateInstallmentsAfterDiscount = async () => {
+        if (!currentInstallmentPlan.value) {
+            alert('❌ No se encontró un plan de cuotas activo');
+            return;
+        }
+
+        // Confirmar acción
+        const confirmMessage = `¿Estás seguro de que quieres recalcular las cuotas?\n\n` +
+            `Esta acción recalculará las cuotas pendientes basándose en el precio final con descuentos aplicados.\n\n` +
+            `• Se mantendrán las cuotas ya pagadas\n` +
+            `• Se recalcularán las cuotas pendientes\n` +
+            `• Los montos se ajustarán al nuevo precio final`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        isRecalculating.value = true;
+
+        try {
+            const response = await fetch('/admin/installments/recalculate-after-discount', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    installment_plan_id: currentInstallmentPlan.value.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Éxito
+                alert(`✅ Cuotas recalculadas exitosamente!\n\n` +
+                    `• Precio anterior: $${formatNumber(result.data.old_total_amount)}\n` +
+                    `• Precio nuevo: $${formatNumber(result.data.new_total_amount)}\n` +
+                    `• Descuento aplicado: $${formatNumber(result.data.discount_applied)}\n` +
+                    `• Monto pagado: $${formatNumber(result.data.paid_amount)}\n` +
+                    `• Nuevo saldo pendiente: $${formatNumber(result.data.new_remaining_balance)}\n` +
+                    `• Cuotas recalculadas: ${result.data.cuotas_nuevas}`);
+                
+                // Cerrar el modal completo
+                emit('close');
+                
+                // Recargar la página para mostrar los cambios
+                window.location.reload();
+            } else {
+                // Error
+                const errorMessage = result.error || 'Error desconocido al recalcular las cuotas';
+                alert(`❌ Error: ${errorMessage}`);
+            }
+        } catch (error) {
+            console.error('Error al recalcular cuotas:', error);
+            alert('❌ Error de conexión al recalcular las cuotas');
+        } finally {
+            isRecalculating.value = false;
+        }
+    };
+
+    // Método para recalcular cuotas automáticamente después de cambios en descuentos
+    const recalculateInstallmentsAfterDiscountChange = async () => {
+        if (!currentInstallmentPlan.value) {
+            return; // No hay plan de cuotas, no hacer nada
+        }
+
+        try {
+            const response = await fetch('/admin/installments/recalculate-after-discount', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    installment_plan_id: currentInstallmentPlan.value.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                console.log('✅ Cuotas recalculadas automáticamente después de cambio en descuentos:', result.data);
+            } else {
+                console.warn('⚠️ No se pudieron recalcular las cuotas automáticamente:', result.error);
+            }
+        } catch (error) {
+            console.warn('⚠️ Error al recalcular cuotas automáticamente:', error);
+        }
+    };
 </script>
 
 <style scoped>

@@ -108,14 +108,14 @@ class KhipuService
             // Obtener la fecha de transacción de la respuesta de Khipu
             $transactionDate = null;
             if (isset($result['paid_at'])) {
-                $transactionDate = $result['paid_at'];
+                $transactionDate = $this->parseTransactionDate($result['paid_at']);
             } elseif (isset($result['updated_at'])) {
-                $transactionDate = $result['updated_at'];
+                $transactionDate = $this->parseTransactionDate($result['updated_at']);
             } elseif (isset($result['created_at'])) {
-                $transactionDate = $result['created_at'];
+                $transactionDate = $this->parseTransactionDate($result['created_at']);
             } elseif ($approved) {
                 // Si está aprobado pero no hay fecha específica, usar ahora
-                $transactionDate = now('America/Santiago')->toISOString();
+                $transactionDate = now('America/Santiago')->format('Y-m-d H:i:s');
             }
 
             // Log de confirmación/consulta de estado (siempre)
@@ -146,5 +146,17 @@ class KhipuService
                 'error' => $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Parsear la fecha de transacción de Khipu para que sea compatible con MySQL
+     */
+    private function parseTransactionDate(string $dateString): string
+    {
+        // Khipu devuelve fechas en formato ISO 8601, por ejemplo: "2023-10-27T10:00:00Z"
+        // MySQL espera un formato como "YYYY-MM-DD HH:MM:SS"
+        // Para simplificar, podemos extraer la fecha y hora, y formatearla
+        $date = \Carbon\Carbon::parse($dateString);
+        return $date->format('Y-m-d H:i:s');
     }
 }

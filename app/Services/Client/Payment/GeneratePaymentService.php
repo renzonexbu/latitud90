@@ -125,7 +125,8 @@ class GeneratePaymentService
                 'buy_order' => $order->order_number,
                 'amount' => $program->trip_price,
                 'status' => 'pending',
-                'installments_number' => $paymentData['installments'] ?? 1
+                'installments_number' => $paymentData['installments'] ?? 1,
+                'transaction_date' => now()->setTimezone('America/Santiago')
             ]);
 
             DB::commit();

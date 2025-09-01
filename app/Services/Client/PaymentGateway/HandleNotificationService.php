@@ -68,7 +68,8 @@ class HandleNotificationService
                     if ($payment) {
                         $payment->update([
                             'status' => 'failed',
-                            'gateway_response' => $notification
+                            'gateway_response' => $notification,
+                            'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago')
                         ]);
                     }
                     

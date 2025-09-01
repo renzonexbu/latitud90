@@ -48,6 +48,7 @@ class ConfirmTransbankService
                     'authorization_code' => $confirmation['authorization_code'] ?? $payment->authorization_code,
                     'response_code' => (string) ($confirmation['response_code'] ?? ''),
                     'gateway_response' => $confirmation,
+                    'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago'),
                 ]);
             }
 

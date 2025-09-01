@@ -5,9 +5,13 @@ namespace App\Services\Admin\Participants;
 use App\Models\Participant;
 use App\Models\ParticipantProgramDiscount;
 use App\Models\Course;
+use App\Models\Program;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Exception;
+use App\Services\Admin\Installments\InstallmentRecalculationService;
+use App\Helpers\ParticipantPriceHelper;
 
 class UpdateParticipatService
 {
@@ -26,7 +30,7 @@ class UpdateParticipatService
 
             // Validar que el RUT no se esté intentando modificar
             if (isset($data['document_number']) && $data['document_number'] !== $participant->document_number) {
-                throw new \Exception('El RUT no se puede modificar');
+                throw new Exception('El RUT no se puede modificar');
             }
 
             // Preparar los datos para actualización
@@ -119,7 +123,7 @@ class UpdateParticipatService
 
             return $participant;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             throw $e;
         }
@@ -210,6 +214,118 @@ class UpdateParticipatService
         $discountsToDelete = $existingDiscounts->whereNotIn('id', $processedDiscountIds);
         foreach ($discountsToDelete as $discount) {
             $discount->delete();
+        }
+
+        // AUTO-RECÁLCULO: Recalcular cuotas automáticamente después de cambios en descuentos
+        Log::info('UpdateParticipatService: Iniciando recálculo automático después de cambios en descuentos', [
+            'participant_program_id' => $participantProgramId,
+            'discounts_processed' => count($processedDiscountIds),
+            'discounts_deleted' => $discountsToDelete->count()
+        ]);
+        
+        $this->autoRecalculateInstallments($participantProgramId);
+    }
+
+    /**
+     * Recalcula automáticamente las cuotas después de cambios en descuentos
+     *
+     * @param int $participantProgramId
+     * @return void
+     */
+    private function autoRecalculateInstallments(int $participantProgramId): void
+    {
+        try {
+            Log::info('AutoRecalculationService: Iniciando búsqueda de plan de cuotas', [
+                'participant_program_id' => $participantProgramId
+            ]);
+            
+            // Obtener el participant_program para acceder a participant y program
+            $participantProgram = DB::table('participant_program')
+                ->where('id', $participantProgramId)
+                ->first();
+
+            if (!$participantProgram) {
+                Log::info('AutoRecalculationService: No se encontró participant_program', [
+                    'participant_program_id' => $participantProgramId
+                ]);
+                return;
+            }
+            
+            // Buscar el plan de cuotas activo usando participant_id y program_id
+            $installmentPlan = DB::table('installment_plans')
+                ->where('participant_id', $participantProgram->participant_id)
+                ->where('program_id', $participantProgram->program_id)
+                ->where('status', 'active')
+                ->first();
+
+            if (!$installmentPlan) {
+                Log::info('AutoRecalculationService: No se encontró plan de cuotas activo', [
+                    'participant_program_id' => $participantProgramId,
+                    'participant_id' => $participantProgram->participant_id,
+                    'program_id' => $participantProgram->program_id
+                ]);
+                return; // No hay plan de cuotas activo
+            }
+            
+            Log::info('AutoRecalculationService: Plan de cuotas encontrado', [
+                'installment_plan_id' => $installmentPlan->id,
+                'current_total_amount' => $installmentPlan->total_amount,
+                'participant_id' => $participantProgram->participant_id,
+                'program_id' => $participantProgram->program_id
+            ]);
+
+            // Obtener el participante y programa
+            $participant = Participant::find($participantProgram->participant_id);
+            $program = Program::find($participantProgram->program_id);
+
+            if (!$participant || !$program) {
+                Log::info('AutoRecalculationService: No se encontró participante o programa', [
+                    'participant_id' => $participantProgram->participant_id,
+                    'program_id' => $participantProgram->program_id,
+                    'participant_found' => $participant ? 'yes' : 'no',
+                    'program_found' => $program ? 'yes' : 'no'
+                ]);
+                return;
+            }
+
+            // Calcular el nuevo precio final con descuentos aplicados
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            $newTotalAmount = $priceData['final_price'];
+
+            Log::info('AutoRecalculationService: Precio calculado', [
+                'old_total_amount' => $installmentPlan->total_amount,
+                'new_total_amount' => $newTotalAmount,
+                'difference' => $installmentPlan->total_amount - $newTotalAmount,
+                'price_data' => $priceData
+            ]);
+
+            // Si el precio no ha cambiado, no hacer nada
+            if (abs($installmentPlan->total_amount - $newTotalAmount) < 0.01) {
+                Log::info('AutoRecalculationService: No se requiere recálculo, precio sin cambios');
+                return;
+            }
+
+            Log::info('AutoRecalculationService: Detectado cambio de precio, recalculando cuotas automáticamente', [
+                'installment_plan_id' => $installmentPlan->id,
+                'old_total_amount' => $installmentPlan->total_amount,
+                'new_total_amount' => $newTotalAmount,
+                'difference' => $installmentPlan->total_amount - $newTotalAmount
+            ]);
+
+            // Usar el servicio de recálculo existente
+            $recalculationService = new InstallmentRecalculationService();
+            $result = $recalculationService->recalculateInstallmentsAfterDiscount($installmentPlan->id);
+
+            Log::info('AutoRecalculationService: Cuotas recalculadas exitosamente', [
+                'installment_plan_id' => $installmentPlan->id,
+                'result' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('AutoRecalculationService: Error al recalcular cuotas automáticamente: ' . $e->getMessage(), [
+                'participant_program_id' => $participantProgramId,
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }
