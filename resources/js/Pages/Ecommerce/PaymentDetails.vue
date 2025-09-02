@@ -302,6 +302,17 @@
 
         <!-- Footer -->
         <Footer class="mt-16" />
+
+        <!-- Sistema de Alertas -->
+        <Alerts
+            :show="showAlert"
+            :type="alertType"
+            :title="alertTitle"
+            :message="alertMessage"
+            :auto-close="true"
+            :duration="5000"
+            @close="closeAlert"
+        />
     </div>
 </template>
 
@@ -313,6 +324,7 @@ import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
 import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
 import SearchableSelect from "@/Components/Ecommerce/SearchableSelect.vue";
+import Alerts from "@/Components/Alerts.vue";
 
 export default {
     name: "PaymentDetails",
@@ -322,6 +334,7 @@ export default {
         ProcessSteps,
         BackToHomeButton,
         SearchableSelect,
+        Alerts,
     },
     props: {
         paymentData: {
@@ -379,6 +392,11 @@ export default {
                 isValid: null,
                 message: "",
             },
+            // Estado de alertas
+            showAlert: false,
+            alertType: "error",
+            alertTitle: "",
+            alertMessage: "",
         };
     },
     computed: {
@@ -816,6 +834,8 @@ export default {
                 }
             } catch (error) {
                 console.error('Error buscando cliente frecuente:', error);
+                // Mostrar alerta de error genérico
+                this.showClientSearchErrorAlert();
             }
         },
 
@@ -933,6 +953,15 @@ export default {
             this.rutValidation.message = this.rutValidation.isValid
                 ? "RUT válido"
                 : "RUT inválido";
+
+            // Mostrar alerta si el RUT es inválido
+            if (!this.rutValidation.isValid && this.rutValidation.message) {
+                this.showAlertMessage(
+                    'warning',
+                    'RUT inválido',
+                    this.rutValidation.message
+                );
+            }
         },
 
         calculateDv(body) {
@@ -951,7 +980,10 @@ export default {
             router.visit(`/programs/${this.programId}?document=${this.document}&document_type=${this.document_type}`);
         },
         continueToPayment() {
-            if (!this.isFormValid) return;
+            if (!this.isFormValid) {
+                this.showFormValidationAlert();
+                return;
+            }
 
             // Obtener el tipo de documento seleccionado
             const selectedDocType = this.documentTypes.find(
@@ -1143,7 +1175,74 @@ export default {
                 })
             }).catch(error => {
                 console.error('Error recording payment details view:', error);
+                // No mostrar alerta al usuario por errores de analytics
+                // Solo log en consola para debugging
             });
+        },
+
+        showAlertMessage(type, title, message) {
+            this.alertType = type;
+            this.alertTitle = title;
+            this.alertMessage = message;
+            this.showAlert = true;
+        },
+
+        closeAlert() {
+            this.showAlert = false;
+        },
+
+        // Método para mostrar alerta de validación de formulario
+        showFormValidationAlert() {
+            this.showAlertMessage(
+                'warning',
+                'Formulario incompleto',
+                'Por favor, completa todos los campos obligatorios correctamente antes de continuar.'
+            );
+        },
+
+        // Método para mostrar alerta de error genérico
+        showGenericErrorAlert() {
+            this.showAlertMessage(
+                'error',
+                'Error inesperado',
+                'Ha ocurrido un error inesperado. Por favor, intenta nuevamente.'
+            );
+        },
+
+        // Método para mostrar alerta de error en búsqueda de cliente
+        showClientSearchErrorAlert() {
+            this.showAlertMessage(
+                'warning',
+                'Búsqueda no disponible',
+                'No se pudo verificar si eres cliente frecuente. Puedes continuar con el formulario.'
+            );
+        },
+
+        // Método para mostrar alerta de validación de formulario
+        showFormValidationAlert() {
+            this.showAlertMessage(
+                'warning',
+                'Formulario incompleto',
+                'Por favor, completa todos los campos obligatorios correctamente antes de continuar.'
+            );
+        },
+
+        // Método para mostrar alerta de error genérico
+        showGenericErrorAlert() {
+            this.showAlertMessage(
+                'error',
+                'Error inesperado',
+                'Ha ocurrido un error inesperado. Por favor, intenta nuevamente.'
+            );
+        },
+
+        // Método para mostrar alerta de error en búsqueda de cliente
+        showClientSearchErrorAlert() {
+            this.showAlertMessage(
+                'warning',
+                'Búsqueda no disponible',
+                'No se pudo verificar si eres cliente frecuente. Puedes continuar con el formulario.'
+            );
         },
 
 

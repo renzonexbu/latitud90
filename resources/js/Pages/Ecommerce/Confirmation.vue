@@ -116,6 +116,17 @@
 
         <!-- Footer -->
         <Footer class="mt-16" />
+
+        <!-- Sistema de Alertas -->
+        <Alerts
+            :show="showAlert"
+            :type="alertType"
+            :title="alertTitle"
+            :message="alertMessage"
+            :auto-close="true"
+            :duration="5000"
+            @close="closeAlert"
+        />
     </div>
 </template>
 
@@ -126,6 +137,7 @@ import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
 import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
 import PaymentPanel from "@/Components/Ecommerce/ProgramDetailComponents/PaymentPanel.vue";
 import ConfirmationCard from "@/Components/Ecommerce/ConfirmationCard.vue";
+import Alerts from "@/Components/Alerts.vue";
 
 export default {
     name: "Confirmation",
@@ -136,6 +148,7 @@ export default {
         BackToHomeButton,
         PaymentPanel,
         ConfirmationCard,
+        Alerts,
     },
     props: {
         confirmationData: {
@@ -208,9 +221,24 @@ export default {
         }
     },
 
+    watch: {
+        // Watcher para mostrar alertas cuando cambie el estado de error
+        paymentErrorStatus(newStatus) {
+            if (newStatus) {
+                // Mostrar alerta genérica de error de pago
+                this.showPaymentErrorAlert();
+            }
+        }
+    },
+
     data() {
         return {
-            paymentErrorStatus: null
+            paymentErrorStatus: null,
+            // Estado de alertas
+            showAlert: false,
+            alertType: "error",
+            alertTitle: "",
+            alertMessage: "",
         };
     },
 
@@ -248,7 +276,6 @@ export default {
                     participant_rut: this.document,
                 })
             }).catch(error => {
-                console.error('Error recording confirmation view:', error);
             });
         },
         formatDueDate(dateStr) {
@@ -283,6 +310,9 @@ export default {
             if (status) {
                 this.paymentErrorStatus = status;
                 
+                // Mostrar alerta genérica de error de pago
+                this.showPaymentErrorAlert();
+                
                 // Limpiar la URL para evitar mostrar el error en recargas
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.delete('status');
@@ -301,6 +331,35 @@ export default {
             // Redirigir al inicio
             const homeUrl = this.document ? `/?document=${encodeURIComponent(this.document)}&document_type=${encodeURIComponent(this.document_type)}` : '/';
             window.location.href = homeUrl;
+        },
+
+        showAlertMessage(type, title, message) {
+            this.alertType = type;
+            this.alertTitle = title;
+            this.alertMessage = message;
+            this.showAlert = true;
+        },
+
+        closeAlert() {
+            this.showAlert = false;
+        },
+
+        // Método para mostrar alerta de error de pago
+        showPaymentErrorAlert() {
+            this.showAlertMessage(
+                'error',
+                'Error en el Pago',
+                'Ha ocurrido un error durante el procesamiento del pago. Por favor, intenta nuevamente.'
+            );
+        },
+
+        // Método para mostrar alerta de error genérico
+        showGenericErrorAlert() {
+            this.showAlertMessage(
+                'error',
+                'Error inesperado',
+                'Ha ocurrido un error inesperado. Por favor, intenta nuevamente.'
+            );
         },
     },
 };

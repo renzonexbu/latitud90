@@ -3,6 +3,15 @@
         <!-- Header -->
         <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
+        <!-- Alertas del sistema -->
+        <Alerts 
+            :show="showErrorAlert"
+            type="error"
+            title="Ha ocurrido un error"
+            message="Lo sentimos, ha ocurrido un error inesperado. Por favor, intenta nuevamente."
+            @close="showErrorAlert = false"
+        />
+
         <!-- Contenido de Programas -->
         <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6">
             <!-- Información del Participante -->
@@ -44,12 +53,14 @@
 <script>
 import { Head } from "@inertiajs/vue3";
 import { router } from "@inertiajs/vue3";
+import { ref } from "vue";
 import Header from "@/Components/Ecommerce/Header.vue";
 import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProgramsGrid from "@/Components/Ecommerce/ProgramsGrid.vue";
 import ParticipantHeader from "@/Components/Ecommerce/ParticipantHeader.vue";
 import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
 import BackToHomeButton from "@/Components/Ecommerce/BackToHomeButton.vue";
+import Alerts from "@/Components/Alerts.vue";
 
 export default {
     components: {
@@ -60,6 +71,7 @@ export default {
         ParticipantHeader,
         ProcessSteps,
         BackToHomeButton,
+        Alerts,
     },
     props: {
         participant: {
@@ -78,6 +90,18 @@ export default {
             type: String,
             required: true,
         },
+    },
+    setup() {
+        const showErrorAlert = ref(false);
+
+        const showGenericError = () => {
+            showErrorAlert.value = true;
+        };
+
+        return {
+            showErrorAlert,
+            showGenericError
+        };
     },
     mounted() {
         // Registrar vista de lista de programas en analytics
@@ -106,6 +130,8 @@ export default {
                 })
             }).catch(error => {
                 console.error('Error recording program list view:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
             });
         },
         formatParticipantName(firstName, secondName, firstLastName, secondLastName) {
@@ -147,8 +173,8 @@ export default {
         },
 
         handleProgramClick(program) {
-            // Guardar enrollment_code en localStorage para identificar pagos
             try {
+                // Guardar enrollment_code en localStorage para identificar pagos
                 const participant = this.participant || {};
                 let enrollmentCode = program.enrollment_code;
                 
@@ -171,15 +197,18 @@ export default {
                 
                 // Registrar selección de programa en analytics
                 this.recordProgramSelection(program, enrollmentCode);
-            } catch (e) {
-                // noop
+                
+                // Navegar al detalle del programa
+                router.get(route("ecommerce.program-detail", program.id), {
+                    document: this.document,
+                    document_type: this.document_type,
+                    rut: this.document, // Usar document como rut para compatibilidad
+                });
+            } catch (error) {
+                console.error('Error al procesar programa:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
             }
-            // Navegar al detalle del programa
-            router.get(route("ecommerce.program-detail", program.id), {
-                document: this.document,
-                document_type: this.document_type,
-                rut: this.document, // Usar document como rut para compatibilidad
-            });
         },
         
         recordProgramSelection(program, enrollmentCode) {
@@ -207,6 +236,8 @@ export default {
                 })
             }).catch(error => {
                 console.error('Error recording program selection:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
             });
         },
     },

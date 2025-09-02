@@ -87,11 +87,14 @@
                                 :disabled="loading"
                             >
                                 <div class="button-text">
-                                    {{
-                                        loading
-                                            ? "Enviando..."
-                                            : "Enviar mensaje"
-                                    }}
+                                    <span v-if="loading" class="flex items-center gap-2">
+                                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Enviando...
+                                    </span>
+                                    <span v-else>Enviar mensaje</span>
                                 </div>
                             </button>
                         </form>
@@ -118,60 +121,87 @@ const loading = ref(false);
 const successMessage = ref("");
 const errorMessage = ref("");
 
+const emit = defineEmits(['contact-sent', 'contact-error']);
+
 const submitForm = async () => {
     loading.value = true;
     errorMessage.value = "";
     successMessage.value = "";
 
     try {
-        router.post("/contact/send", formData.value, {
-            preserveState: true,
-            onSuccess: (page) => {
-                // Verificar si hay mensaje de éxito en la sesión
-                if (page.props.flash?.contact_success) {
-                    successMessage.value = page.props.flash.contact_success;
-                    // Limpiar formulario
-                    formData.value = {
-                        name: "",
-                        email: "",
-                        phone: "",
-                        message: "",
-                    };
-                } else {
-                    successMessage.value =
-                        "Mensaje enviado correctamente. Te responderemos pronto.";
-                    // Limpiar formulario
-                    formData.value = {
-                        name: "",
-                        email: "",
-                        phone: "",
-                        message: "",
-                    };
-                }
-                loading.value = false;
+        // Usar fetch directamente para evitar recarga de página
+        const response = await fetch('/contact/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json',
             },
-            onError: (errors) => {
-                // Verificar si hay errores específicos de contacto
-                if (errors.contact_error) {
-                    errorMessage.value = errors.contact_error;
-                } else if (Object.keys(errors).length > 0) {
-                    // Si hay errores de validación
-                    const firstError = Object.values(errors)[0];
-                    errorMessage.value = Array.isArray(firstError) ? firstError[0] : firstError;
-                } else {
-                    errorMessage.value =
-                        "Error al enviar el mensaje. Por favor, verifica los datos e intenta nuevamente.";
-                }
-                loading.value = false;
-            },
-            onFinish: () => {
-                loading.value = false;
-            },
+            body: JSON.stringify(formData.value)
         });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Éxito
+            successMessage.value = result.message || "Mensaje enviado correctamente. Te responderemos pronto.";
+            
+            // Limpiar formulario
+            formData.value = {
+                name: "",
+                email: "",
+                phone: "",
+                message: "",
+            };
+            
+            // Emitir evento de éxito
+            emit('contact-sent');
+            
+            // Limpiar mensaje de éxito después de 5 segundos
+            setTimeout(() => {
+                successMessage.value = "";
+            }, 5000);
+        } else {
+            // Error
+            let errorMsg = "Error al enviar el mensaje. Por favor, verifica los datos e intenta nuevamente.";
+            
+            // Si hay errores de validación del backend
+            if (result.errors) {
+                const firstError = Object.values(result.errors)[0];
+                errorMsg = Array.isArray(firstError) ? firstError[0] : firstError;
+            } else if (result.message) {
+                errorMsg = result.message;
+            }
+            
+            errorMessage.value = errorMsg;
+            
+            // Emitir evento de error
+            emit('contact-error');
+            
+            // Limpiar mensaje de error después de 8 segundos
+            setTimeout(() => {
+                errorMessage.value = "";
+            }, 8000);
+        }
     } catch (error) {
-        errorMessage.value =
-            "Error al enviar el mensaje. Por favor, intenta nuevamente.";
-        loading.value = false;
+        console.error('Error en el formulario:', error);
+        
+        let errorMsg = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.";
+        
+        // Si es un error de validación del navegador
+        if (error.name === 'ValidationError') {
+            errorMsg = "Por favor, completa todos los campos requeridos correctamente.";
+        }
+        
+        errorMessage.value = errorMsg;
+        
+        // Emitir evento de error
+        emit('contact-error');
+        
+        // Limpiar mensaje de error después de 8 segundos
+        setTimeout(() => {
+            errorMessage.value = "";
+        }, 8000);
     }
 };
 </script>
@@ -630,5 +660,31 @@ const submitForm = async () => {
         height: 52px;
         border-radius: 26px;
     }
+}
+
+/* Animación del spinner */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* Mejorar la transición del botón */
+.submit-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: scale(0.98);
+}
+
+.submit-button:not(:disabled):hover {
+    transform: scale(1.02);
+    transition: transform 0.2s ease;
 }
 </style>

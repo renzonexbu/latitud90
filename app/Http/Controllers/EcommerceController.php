@@ -64,13 +64,30 @@ class EcommerceController extends Controller
         try {
             $result = $this->contactMessageService->sendContactMessage($request->all());
             
+            // Si es una petición AJAX, responder con JSON
+            if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json($result);
+            }
+            
+            // Si no es AJAX, responder con redirección (fallback)
             if ($result['success']) {
                 return back()->with('contact_success', $result['message']);
             } else {
                 return back()->withErrors(['contact_error' => $result['message']]);
             }
         } catch (\Exception $e) {
-            return back()->withErrors(['contact_error' => 'Error al enviar el mensaje. Por favor, intenta nuevamente.']);
+            $errorMessage = 'Error al enviar el mensaje. Por favor, intenta nuevamente.';
+            
+            // Si es una petición AJAX, responder con JSON
+            if ($request->expectsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage
+                ], 422);
+            }
+            
+            // Si no es AJAX, responder con redirección (fallback)
+            return back()->withErrors(['contact_error' => $errorMessage]);
         }
     }
 }

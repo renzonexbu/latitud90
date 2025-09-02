@@ -301,6 +301,8 @@ import { ref, reactive, watch } from "vue";
 import { router } from "@inertiajs/vue3";
 import axios from "axios";
 
+const emit = defineEmits(['participant-not-found']);
+
 const searchQuery = ref("");
 const rutValidation = reactive({
     isValid: null,
@@ -460,10 +462,8 @@ const performSearch = async () => {
                 });
             } else {
                 console.log("No se encontró el participante");
-                // Mostrar mensaje de error (puedes implementar un toast o alert)
-                alert(
-                    `No se encontró ningún participante con ese ${selectedDocumentType.value === 'RUT' ? 'RUT' : 'pasaporte'}. Por favor, verifica el número ingresado.`
-                );
+                // Emitir evento para mostrar alerta personalizada
+                emit('participant-not-found');
             }
         } catch (error) {
             console.error("Error en la búsqueda:", error);

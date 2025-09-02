@@ -1405,6 +1405,8 @@ import images from "@images/index.js";
 const newsletterEmail = ref('');
 const isSubscribing = ref(false);
 
+const emit = defineEmits(['newsletter-subscribed', 'newsletter-error']);
+
 const subscribeToNewsletter = async () => {
     if (!newsletterEmail.value || isSubscribing.value) return;
     
@@ -1425,13 +1427,16 @@ const subscribeToNewsletter = async () => {
         const result = await response.json();
         
         if (result.success) {
-            alert(result.message);
             newsletterEmail.value = '';
+            // Emitir evento de éxito
+            emit('newsletter-subscribed');
         } else {
-            alert(result.message);
+            // Emitir evento de error
+            emit('newsletter-error');
         }
     } catch (error) {
-        alert('Error al suscribirse. Por favor, intenta nuevamente.');
+        // Emitir evento de error
+        emit('newsletter-error');
     } finally {
         isSubscribing.value = false;
     }

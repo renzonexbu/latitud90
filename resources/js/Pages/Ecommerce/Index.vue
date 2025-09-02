@@ -5,10 +5,43 @@
       <WelcomePaymentModal @close="showWelcomeModal = false" />
     </Modal>
     
+    <!-- Alertas del sistema -->
+    <Alerts 
+      :show="showParticipantErrorAlert"
+      type="error"
+      title="Participante no encontrado"
+      message="No se pudo encontrar la información del participante. Verifica los datos ingresados."
+      @close="showParticipantErrorAlert = false"
+    />
+    
+    <Alerts 
+      :show="showContactAlert"
+      type="success"
+      title="¡Mensaje enviado!"
+      message="Tu mensaje ha sido enviado correctamente. Te responderemos pronto."
+      @close="showContactAlert = false"
+    />
+    
+    <Alerts 
+      :show="showNewsletterAlert"
+      type="success"
+      title="¡Suscripción exitosa!"
+      message="Te has suscrito correctamente a nuestro newsletter."
+      @close="showNewsletterAlert = false"
+    />
+    
+    <Alerts 
+      :show="showNewsletterErrorAlert"
+      type="error"
+      title="Error en suscripción"
+      message="No se pudo completar la suscripción. Por favor, intenta nuevamente."
+      @close="showNewsletterErrorAlert = false"
+    />
+    
     <!-- Header -->
     <Header :isScrolled="isScrolled" class="bg-transparent text-blanco shadow-none"> </Header>
     <!-- Hero Section -->
-    <HeroSection id=""></HeroSection>
+    <HeroSection id="" @participant-not-found="handleParticipantNotFound"></HeroSection>
 
     <!-- Logo Carousel -->
     <div class="section-spacing">
@@ -52,11 +85,11 @@
 
     <!-- Contact Section -->
     <div class="section-spacing" id="contact">
-      <Contact></Contact>
+      <Contact @contact-sent="handleContactSent" @contact-error="handleContactError" />
     </div>
 
     <!-- Footer -->
-    <Footer class="rounded-lg"></Footer>
+    <Footer class="rounded-lg" @newsletter-subscribed="handleNewsletterSubscribed" @newsletter-error="handleNewsletterError"></Footer>
   </div>
 </template>
 
@@ -79,6 +112,7 @@
   import WelcomePaymentModal from "@/Components/Ecommerce/WelcomePaymentModal.vue";
   import LogoCarousel from "@/Components/Ecommerce/LogoCarousel.vue"; 
   import TransformSection from "@/Components/Ecommerce/TransformSection.vue";
+  import Alerts from "@/Components/Alerts.vue";
 
   export default {
     components: {
@@ -98,7 +132,8 @@
       Link,
       Head,
       LogoCarousel,
-      TransformSection
+      TransformSection,
+      Alerts
     },
     props: {
       programs: Object,
@@ -196,6 +231,31 @@
 
       const showWelcomeModal = ref(true);
       const isScrolled = ref(false);
+      const showContactAlert = ref(false);
+      const showNewsletterAlert = ref(false);
+      const showParticipantErrorAlert = ref(false);
+      const showNewsletterErrorAlert = ref(false);
+
+      // Métodos para manejar alertas
+      const handleContactSent = () => {
+        showContactAlert.value = true;
+      };
+
+      const handleContactError = () => {
+        showParticipantErrorAlert.value = true;
+      };
+
+      const handleNewsletterSubscribed = () => {
+        showNewsletterAlert.value = true;
+      };
+
+      const handleNewsletterError = () => {
+        showNewsletterErrorAlert.value = true;
+      };
+
+      const handleParticipantNotFound = () => {
+        showParticipantErrorAlert.value = true;
+      };
 
       // Función para manejar el scroll
       const handleScroll = () => {
@@ -265,12 +325,21 @@
         filters,
         showWelcomeModal,
         isScrolled,
+        showContactAlert,
+        showNewsletterAlert,
+        showParticipantErrorAlert,
+        showNewsletterErrorAlert,
         formatServiceType,
         formatPrice,
         formatDate,
         performSearch,
         applyFilters,
-        generatePagination
+        generatePagination,
+        handleContactSent,
+        handleContactError,
+        handleNewsletterSubscribed,
+        handleNewsletterError,
+        handleParticipantNotFound
       };
     }
   };

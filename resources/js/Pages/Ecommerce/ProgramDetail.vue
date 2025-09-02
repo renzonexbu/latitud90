@@ -3,6 +3,15 @@
         <!-- Header -->
         <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
+        <!-- Alertas del sistema -->
+        <Alerts 
+            :show="showErrorAlert"
+            type="error"
+            title="Ha ocurrido un error"
+            message="Lo sentimos, ha ocurrido un error inesperado. Por favor, intenta nuevamente."
+            @close="showErrorAlert = false"
+        />
+
         <!-- Contenido del Detalle del Programa -->
         <div class="py-8">
             <!-- Información del Participante -->
@@ -197,6 +206,7 @@ import ProgramPillars from "@/Components/Ecommerce/ProgramDetailComponents/Progr
 import ProgramDocuments from "@/Components/Ecommerce/ProgramDetailComponents/ProgramDocuments.vue";
 import ItineraryDescription from "@/Components/Ecommerce/ProgramDetailComponents/ItineraryDescription.vue";
 import PaymentPanel from "@/Components/Ecommerce/ProgramDetailComponents/PaymentPanel.vue";
+import Alerts from "@/Components/Alerts.vue";
 import { getFirstInstallmentAmount, formatPrice } from "@/utils/paymentUtils";
 
 export default {
@@ -216,6 +226,7 @@ export default {
         ProgramDocuments,
         ItineraryDescription,
         PaymentPanel,
+        Alerts,
     },
     props: {
         participant: {
@@ -239,6 +250,19 @@ export default {
             type: String,
             required: true,
         },
+    },
+
+    setup() {
+        const showErrorAlert = ref(false);
+
+        const showGenericError = () => {
+            showErrorAlert.value = true;
+        };
+
+        return {
+            showErrorAlert,
+            showGenericError
+        };
     },
 
     data() {
@@ -275,6 +299,8 @@ export default {
                 })
             }).catch(error => {
                 console.error('Error recording program detail view:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
             });
         },
         formatParticipantName(firstName, secondName, firstLastName, secondLastName) {
@@ -315,64 +341,91 @@ export default {
             this.isMobilePaymentOpen = false;
         },
         startPayment() {
-            if (this.isPaymentComplete) {
-                alert('Ya has pagado el monto total del programa. No hay pagos pendientes.');
-                return;
+            try {
+                if (this.isPaymentComplete) {
+                    this.showGenericError();
+                    return;
+                }
+                
+                if (!this.canProceedWithPayment) {
+                    this.showGenericError();
+                    return;
+                }
+                
+                // Debug: Verificar qué valores tienen las props
+                console.log('ProgramDetail - startPayment values:', {
+                    document: this.document,
+                    document_type: this.document_type,
+                    rut: this.rut || this.document,
+                    programId: this.program.id
+                });
+                
+                // Construir la URL con query parameters
+                const params = new URLSearchParams({
+                    document: this.document || '',
+                    document_type: this.document_type || 'RUT',
+                    rut: this.rut || this.document || '' // Usar document como fallback si rut no está disponible
+                });
+                
+                const url = `/programs/${this.program.id}/payment?${params.toString()}`;
+                console.log('URL generada:', url);
+                
+                // Usar window.location para forzar la navegación
+                window.location.href = url;
+            } catch (error) {
+                console.error('Error al iniciar pago:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
             }
-            
-            if (!this.canProceedWithPayment) {
-                alert('No se puede proceder con el pago. Verifica que tengas un saldo pendiente válido.');
-                return;
-            }
-            
-            // Debug: Verificar qué valores tienen las props
-            console.log('ProgramDetail - startPayment values:', {
-                document: this.document,
-                document_type: this.document_type,
-                rut: this.rut || this.document,
-                programId: this.program.id
-            });
-            
-            // Construir la URL con query parameters
-            const params = new URLSearchParams({
-                document: this.document || '',
-                document_type: this.document_type || 'RUT',
-                rut: this.rut || this.document || '' // Usar document como fallback si rut no está disponible
-            });
-            
-            const url = `/programs/${this.program.id}/payment?${params.toString()}`;
-            console.log('URL generada:', url);
-            
-            // Usar window.location para forzar la navegación
-            window.location.href = url;
         }
     },
     computed: {
         displayPayAmount() {
-            // Si hay cuota activa, mostrar el monto de esa cuota
-            if (this.program.active_installment) {
-                return Number(this.program.active_installment.amount) || 0;
-            }
-            
-            // Si ya se pagó todo, mostrar 0
-            const balance = Number(this.program.participant_balance ?? 0);
-            if (balance <= 0) {
+            try {
+                // Si hay cuota activa, mostrar el monto de esa cuota
+                if (this.program.active_installment) {
+                    return Number(this.program.active_installment.amount) || 0;
+                }
+                
+                // Si ya se pagó todo, mostrar 0
+                const balance = Number(this.program.participant_balance ?? 0);
+                if (balance <= 0) {
+                    return 0;
+                }
+                
+                // Para pagos normales, calcular según las cuotas seleccionadas
+                const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
+                const installments = Math.max(1, Number(this.currentInstallments || 1));
+                
+                // Usar el método estandarizado de redondeo
+                return getFirstInstallmentAmount(Number(base), installments);
+            } catch (error) {
+                console.error('Error al calcular monto de pago:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
                 return 0;
             }
-            
-            // Para pagos normales, calcular según las cuotas seleccionadas
-            const base = this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price;
-            const installments = Math.max(1, Number(this.currentInstallments || 1));
-            
-            // Usar el método estandarizado de redondeo
-            return getFirstInstallmentAmount(Number(base), installments);
         },
         isPaymentComplete() {
-            const balance = Number(this.program.participant_balance ?? 0);
-            return balance <= 0;
+            try {
+                const balance = Number(this.program.participant_balance ?? 0);
+                return balance <= 0;
+            } catch (error) {
+                console.error('Error al verificar estado de pago:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
+                return false;
+            }
         },
         canProceedWithPayment() {
-            return !this.isPaymentComplete && this.displayPayAmount > 0;
+            try {
+                return !this.isPaymentComplete && this.displayPayAmount > 0;
+            } catch (error) {
+                console.error('Error al verificar si se puede proceder con el pago:', error);
+                // Mostrar error genérico sin detalles técnicos
+                this.showGenericError();
+                return false;
+            }
         }
     }
 };
