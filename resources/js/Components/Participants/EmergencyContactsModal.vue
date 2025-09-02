@@ -84,10 +84,34 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Código de País *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
+                    <input 
+                      :value="contact.document_number"
+                      type="text"
+                      placeholder="00.000.000-0"
+                      required
+                      @input="(event) => handleRutInput(event, contact)"
+                      @blur="validateRut(contact)"
+                      :class="[
+                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent',
+                        contact.rutValidation && contact.rutValidation.isValid === false ? 'border-red-500' : '',
+                        contact.rutValidation && contact.rutValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+                      ]"
+                    />
+                    <span
+                      v-if="contact.rutValidation && contact.rutValidation.message"
+                      :class="[
+                        'text-xs mt-1',
+                        contact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                      ]"
+                    >
+                      {{ contact.rutValidation.message }}
+                    </span>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Código de País</label>
                     <select 
                       v-model="contact.code_phone"
-                      required
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                     >
                       <option value="">Seleccionar código</option>
@@ -103,19 +127,17 @@
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                     <input 
                       v-model="contact.phone"
                       type="tel"
-                      required
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">País *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">País</label>
                     <select 
                       v-model="contact.country"
-                      required
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                     >
                       <option value="">Seleccionar país</option>
@@ -206,10 +228,34 @@
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Código de País *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
+                <input 
+                  v-model="newContact.document_number"
+                  type="text"
+                  placeholder="00.000.000-0"
+                  required
+                  @input="formatNewContactRut"
+                  @blur="validateNewContactRut"
+                  :class="[
+                    'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent',
+                    newContact.rutValidation && newContact.rutValidation.isValid === false ? 'border-red-500' : '',
+                    newContact.rutValidation && newContact.rutValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+                  ]"
+                />
+                <span
+                  v-if="newContact.rutValidation && newContact.rutValidation.message"
+                  :class="[
+                    'text-xs mt-1',
+                    newContact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                  ]"
+                >
+                  {{ newContact.rutValidation.message }}
+                </span>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Código de País</label>
                 <select 
                   v-model="newContact.code_phone"
-                  required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                 >
                   <option value="">Seleccionar código</option>
@@ -225,19 +271,17 @@
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                 <input 
                   v-model="newContact.phone"
                   type="tel"
-                  required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">País *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">País</label>
                 <select 
                   v-model="newContact.country"
-                  required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                 >
                   <option value="">Seleccionar país</option>
@@ -296,7 +340,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -326,7 +370,9 @@ const newContact = ref({
   phone: '',
   country: 'CL',
   birth_date: '',
-  address: ''
+  address: '',
+  document_number: '',
+  rutValidation: null
 });
 
 const formatDate = (dateString) => {
@@ -335,13 +381,21 @@ const formatDate = (dateString) => {
   return date.toISOString().split('T')[0];
 };
 
-// Watcher para formatear las fechas cuando se abra el modal
+// Watcher para formatear las fechas y RUTs cuando se abra el modal
 watch(() => props.show, (newValue) => {
   if (newValue && props.participant.emergency_contacts) {
-    // Formatear las fechas de los contactos existentes
+    // Formatear las fechas y RUTs de los contactos existentes e inicializar validación de RUT
     props.participant.emergency_contacts.forEach(contact => {
       if (contact.birth_date) {
         contact.birth_date = formatDate(contact.birth_date);
+      }
+      // Formatear RUT existente si no está formateado
+      if (contact.document_number && !contact.document_number.includes('.')) {
+        formatExistingRut(contact);
+      }
+      // Inicializar validación de RUT si no existe
+      if (!contact.rutValidation) {
+        contact.rutValidation = null;
       }
     });
   }
@@ -377,6 +431,7 @@ const updateContact = (contactId, index) => {
   formData.append('contact_id', contactId);
   formData.append('name', contact.name);
   formData.append('email', contact.email);
+  formData.append('document_number', contact.document_number || '');
   formData.append('code_phone', contact.code_phone);
   formData.append('phone', contact.phone);
   formData.append('country', contact.country);
@@ -434,7 +489,9 @@ const resetNewContactForm = () => {
     phone: '',
     country: 'CL',
     birth_date: '',
-    address: ''
+    address: '',
+    document_number: '',
+    rutValidation: null
   };
 };
 
@@ -447,6 +504,215 @@ const getFullName = (participant) => {
   const secondLastName = participant.second_last_name ? participant.second_last_name.charAt(0).toUpperCase() + participant.second_last_name.slice(1) : '';
 
   return `${firstLastName} ${secondLastName} ${firstName} ${secondName}`.trim();
+};
+
+// Funciones para validar RUT de contactos existentes
+const formatExistingRut = (contact) => {
+  if (!contact.document_number) return;
+  
+  // Remover todos los caracteres no numéricos excepto K
+  let rut = contact.document_number.replace(/[^0-9kK]/g, '').toUpperCase();
+  
+  if (rut.length > 1) {
+    const body = rut.slice(0, -1);
+    const dv = rut.slice(-1);
+
+    // Formatear el cuerpo con puntos
+    let formattedBody = '';
+    for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+      if (j > 0 && j % 3 === 0) {
+        formattedBody = '.' + formattedBody;
+      }
+      formattedBody = body[i] + formattedBody;
+    }
+
+    // Combinar cuerpo formateado con dígito verificador
+    const formattedRut = `${formattedBody}-${dv}`;
+    
+    // Actualizar el valor del contacto
+    contact.document_number = formattedRut;
+  }
+};
+
+const handleRutInput = (event, contact) => {
+  const inputValue = event.target.value;
+  
+  // Remover todos los caracteres no numéricos excepto K
+  let rut = inputValue.replace(/[^0-9kK]/g, '').toUpperCase();
+  
+  if (rut.length > 0) {
+    // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+    if (rut.length > 1) {
+      const body = rut.slice(0, -1);
+      const dv = rut.slice(-1);
+
+      // Formatear el cuerpo con puntos
+      let formattedBody = '';
+      for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+        if (j > 0 && j % 3 === 0) {
+          formattedBody = '.' + formattedBody;
+        }
+        formattedBody = body[i] + formattedBody;
+      }
+
+      // Combinar cuerpo formateado con dígito verificador
+      const formattedRut = `${formattedBody}-${dv}`;
+      
+      // Actualizar el valor del contacto
+      contact.document_number = formattedRut;
+    } else {
+      contact.document_number = rut;
+    }
+  } else {
+    contact.document_number = '';
+  }
+};
+
+const formatRut = (contact) => {
+  if (!contact.document_number) return;
+  
+  // Remover todos los caracteres no numéricos excepto K
+  let rut = contact.document_number.replace(/[^0-9kK]/g, '').toUpperCase();
+  
+  if (rut.length > 0) {
+    // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+    if (rut.length > 1) {
+      const body = rut.slice(0, -1);
+      const dv = rut.slice(-1);
+
+      // Formatear el cuerpo con puntos
+      let formattedBody = '';
+      for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+        if (j > 0 && j % 3 === 0) {
+          formattedBody = '.' + formattedBody;
+        }
+        formattedBody = body[i] + formattedBody;
+      }
+
+      // Combinar cuerpo formateado con dígito verificador
+      const formattedRut = `${formattedBody}-${dv}`;
+      
+      // Actualizar el valor del contacto
+      contact.document_number = formattedRut;
+    } else {
+      contact.document_number = rut;
+    }
+  }
+};
+
+const validateRut = (contact) => {
+  if (!contact.document_number) return;
+  
+  const rut = contact.document_number.replace(/\./g, '').replace(/-/g, '');
+  if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+    contact.rutValidation = { isValid: false, message: 'Formato de RUT inválido' };
+    return;
+  }
+
+  const body = rut.slice(0, -1);
+  const dv = rut.slice(-1).toUpperCase();
+
+  if (body.length < 7) {
+    contact.rutValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
+    return;
+  }
+
+  let sum = 0;
+  let factor = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += body[i] * factor;
+    factor = factor === 7 ? 2 : factor + 1;
+  }
+  
+  const dvCalculado = 11 - (sum % 11);
+  const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
+  
+  contact.rutValidation = {
+    isValid: dv === dvFinal,
+    message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
+  };
+};
+
+const formatNewContactRut = () => {
+  if (!newContact.value.document_number) return;
+  
+  // Remover todos los caracteres no numéricos excepto K
+  let rut = newContact.value.document_number.replace(/[^0-9kK]/g, '').toUpperCase();
+  
+  if (rut.length > 0) {
+    // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+    if (rut.length > 1) {
+      const body = rut.slice(0, -1);
+      const dv = rut.slice(-1);
+
+      // Formatear el cuerpo con puntos
+      let formattedBody = '';
+      for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+        if (j > 0 && j % 3 === 0) {
+          formattedBody = '.' + formattedBody;
+        }
+        formattedBody = body[i] + formattedBody;
+      }
+
+      // Combinar cuerpo formateado con dígito verificador
+      const formattedRut = `${formattedBody}-${dv}`;
+      
+      // Solo actualizar si el formato es diferente para evitar loops infinitos
+      if (newContact.value.document_number !== formattedRut) {
+        nextTick(() => {
+          newContact.value.document_number = formattedRut;
+        });
+      }
+    } else {
+      const formattedRut = rut;
+      if (newContact.value.document_number !== formattedRut) {
+        nextTick(() => {
+          newContact.value.document_number = formattedRut;
+        });
+      }
+    }
+  }
+};
+
+const validateNewContactRut = () => {
+  if (!newContact.value.document_number) {
+    newContact.value.rutValidation = null;
+    return;
+  }
+  
+  const rut = newContact.value.document_number.replace(/\./g, '').replace(/-/g, '');
+  
+  // Validar formato básico
+  if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+    newContact.value.rutValidation = { isValid: false, message: 'Formato de RUT inválido' };
+    return;
+  }
+
+  // Separar cuerpo y dígito verificador
+  const body = rut.slice(0, -1);
+  const dv = rut.slice(-1).toUpperCase();
+
+  // Validar que el cuerpo tenga al menos 7 dígitos
+  if (body.length < 7) {
+    newContact.value.rutValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
+    return;
+  }
+
+  // Calcular dígito verificador
+  let sum = 0;
+  let factor = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += body[i] * factor;
+    factor = factor === 7 ? 2 : factor + 1;
+  }
+  
+  const dvCalculado = 11 - (sum % 11);
+  const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
+  
+  newContact.value.rutValidation = {
+    isValid: dv === dvFinal,
+    message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
+  };
 };
 </script>
 
