@@ -351,6 +351,9 @@
                                         <span v-if="!canEnableExcel()" class="text-red-500 text-xs mt-1">
                                             Completa primero: Institución y Nivel de educación
                                         </span>
+                                        <span v-if="errors.students_file" class="text-red-500 text-sm mt-1">
+                                            {{ errors.students_file }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -419,6 +422,9 @@
                             <div class="payment-description">
                                 ¿Cómo quieres que pague el grupo? Elige las opciones disponibles.
                             </div>
+                            <span v-if="errors.payment_options" class="text-red-500 text-sm mb-4 block">
+                                {{ errors.payment_options }}
+                            </span>
 
                             <!-- Opción Pago Total -->
                             <div class="payment-option">
@@ -472,6 +478,9 @@
                                                 <span>{{ opt.label }}</span>
                                             </label>
                                         </div>
+                                        <span v-if="errors.full_payment_options" class="text-red-500 text-sm mt-1">
+                                            {{ errors.full_payment_options }}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -529,6 +538,9 @@
                                                     <span>{{ opt.label }}</span>
                                                 </label>
                                             </div>
+                                            <span v-if="errors.lat90_payment_options" class="text-red-500 text-sm mt-1">
+                                                {{ errors.lat90_payment_options }}
+                                            </span>
                                         </div>
                                     </div>
                                     
@@ -1903,5 +1915,25 @@ const viewPaymentStates = () => {
     font-size: 14px;
     font-weight: 500;
     user-select: none;
+}
+
+/* Estilos para mensajes de error */
+.error-message {
+    color: #dc2626;
+    font-size: 14px;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+.text-red-500 {
+    color: #dc2626;
+}
+
+.text-red-500.text-sm {
+    font-size: 14px;
+}
+
+.text-red-500.text-xs {
+    font-size: 12px;
 }
 </style>

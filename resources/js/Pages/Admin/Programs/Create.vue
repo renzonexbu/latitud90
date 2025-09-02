@@ -205,6 +205,11 @@ watch(paymentData, (newValue) => {
     // Forzar sincronización de institución (requerido en backend)
     form.institution_id = newValue.institution_id || form.institution_id;
     
+    // Establecer 2 cuotas como base si no se selecciona cuotas
+    if (!newValue.max_installments || newValue.max_installments === '') {
+        form.max_installments = 2;
+    }
+    
     // Debug: Log de los datos de pago que se están sincronizando
     console.log('Datos de pago sincronizados:', {
         payment_options: newValue.payment_options,
@@ -284,9 +289,37 @@ const validateForm = () => {
         errors.images = 'Debe seleccionar al menos una imagen para el programa';
     }
     
+    // Validar que el archivo de estudiantes sea obligatorio
+    if (!paymentData.value.students_file) {
+        errors.students_file = 'El archivo de estudiantes es obligatorio';
+    }
+    
     // Validar que el ejecutivo comercial sea obligatorio
     if (!paymentData.value.sales_executive_id || paymentData.value.sales_executive_id === '') {
         errors.sales_executive_id = 'El ejecutivo comercial es obligatorio';
+    }
+    
+    // Validar que se seleccione al menos una opción de pago
+    if (!paymentData.value.payment_options || paymentData.value.payment_options.length === 0) {
+        errors.payment_options = 'Debe seleccionar al menos una opción de pago';
+    }
+    
+    // Validar que se seleccione al menos un método de pago para cada tipo seleccionado
+    if (paymentData.value.payment_options && paymentData.value.payment_options.includes('full_payment')) {
+        if (!paymentData.value.full_payment_options || paymentData.value.full_payment_options.length === 0) {
+            errors.full_payment_options = 'Debe seleccionar al menos una opción de pago total';
+        }
+    }
+    
+    if (paymentData.value.payment_options && paymentData.value.payment_options.includes('installments')) {
+        if (!paymentData.value.lat90_payment_options || paymentData.value.lat90_payment_options.length === 0) {
+            errors.lat90_payment_options = 'Debe seleccionar al menos una opción de pago mensual';
+        }
+        
+        if (!paymentData.value.max_installments || paymentData.value.max_installments === '') {
+            // Si no se selecciona cuotas, establecer 2 como base
+            paymentData.value.max_installments = 2;
+        }
     }
     
     // Asignar errores locales
@@ -322,7 +355,11 @@ const scrollToFirstError = () => {
                 'education_level': 'select:has(option[value="inicial"])',
                 'shift': 'select:has(option[value="mañana"])',
                 'grade': 'select:has(option[value="A"])',
-                'students_file': 'input[type="file"]'
+                'students_file': 'input[type="file"]',
+                'payment_options': 'input[type="checkbox"][value="full_payment"], input[type="checkbox"][value="installments"]',
+                'full_payment_options': 'input[type="checkbox"][value*="full_"]',
+                'lat90_payment_options': 'input[type="checkbox"][value*="lat90_"]',
+                'max_installments': 'select[v-model*="max_installments"]'
             };
             
             // Buscar el primer campo con error usando los selectores específicos
@@ -461,6 +498,11 @@ const submit = () => {
     // Convertir sales_executive_id a entero si no está vacío
     if (form.sales_executive_id && form.sales_executive_id !== '') {
         form.sales_executive_id = parseInt(form.sales_executive_id);
+    }
+    
+    // Establecer 2 cuotas como base si no se selecciona cuotas
+    if (!form.max_installments || form.max_installments === '') {
+        form.max_installments = 2;
     }
 
     // Debug: Log de los datos que se van a enviar
