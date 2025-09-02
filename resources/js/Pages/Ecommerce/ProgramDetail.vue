@@ -352,23 +352,13 @@ export default {
                     return;
                 }
                 
-                // Debug: Verificar qué valores tienen las props
-                console.log('ProgramDetail - startPayment values:', {
-                    document: this.document,
-                    document_type: this.document_type,
-                    rut: this.rut || this.document,
-                    programId: this.program.id
-                });
-                
-                // Construir la URL con query parameters
+                // Construir la URL con solo los parámetros necesarios
                 const params = new URLSearchParams({
                     document: this.document || '',
-                    document_type: this.document_type || 'RUT',
-                    rut: this.rut || this.document || '' // Usar document como fallback si rut no está disponible
+                    document_type: this.document_type || 'RUT'
                 });
                 
                 const url = `/programs/${this.program.id}/payment?${params.toString()}`;
-                console.log('URL generada:', url);
                 
                 // Usar window.location para forzar la navegación
                 window.location.href = url;

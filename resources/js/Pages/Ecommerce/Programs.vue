@@ -202,7 +202,6 @@ export default {
                 router.get(route("ecommerce.program-detail", program.id), {
                     document: this.document,
                     document_type: this.document_type,
-                    rut: this.document, // Usar document como rut para compatibilidad
                 });
             } catch (error) {
                 console.error('Error al procesar programa:', error);
