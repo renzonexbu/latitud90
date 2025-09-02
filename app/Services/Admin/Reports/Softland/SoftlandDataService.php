@@ -41,8 +41,8 @@ class SoftlandDataService
                 continue;
             }
             
-            // Verificar si es un reembolso por payment_option_id
-            $isRefund = ($payment->payment_option_id == 19);
+            // Verificar si es un reembolso por payment_option_code
+            $isRefund = ($payment->paymentOption && $payment->paymentOption->code === 'refund_credit_note');
             
             Log::info('SoftlandDataService: Procesando pago', [
                 'payment_id' => $payment->id,

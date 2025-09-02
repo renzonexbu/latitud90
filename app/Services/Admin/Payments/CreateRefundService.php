@@ -36,9 +36,9 @@ class CreateRefundService
             $participant = Participant::findOrFail($data['participant_id']);
             $program = Program::findOrFail($data['program_id']);
             
-            // Para reembolsos, usar gateway ID 4 (refund) y opción de pago ID 19 (refund_credit_note)
-            $paymentGateway = PaymentGateway::findOrFail(4);
-            $paymentOption = PaymentOption::findOrFail(19);
+            // Para reembolsos, buscar por código en lugar de ID hardcodeado
+            $paymentGateway = PaymentGateway::where('code', 'refund')->firstOrFail();
+            $paymentOption = PaymentOption::where('code', 'refund_credit_note')->firstOrFail();
 
             // Calcular montos del participante
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);

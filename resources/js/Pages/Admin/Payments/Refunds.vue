@@ -401,7 +401,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 
@@ -770,7 +770,8 @@ const loadParticipantPaymentStatus = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-CSRF-TOKEN': usePage().props._csrf || '',
+                'Accept': 'application/json',
             },
             body: JSON.stringify({
                 program_id: form.program_id,

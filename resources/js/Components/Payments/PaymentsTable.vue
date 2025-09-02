@@ -207,7 +207,18 @@ export default {
         getPaymentMethodDisplay(payment) {
             // Si tiene payment_option_id, mostrar información del paymentOption
             if (payment.payment_option_id && payment.payment_option) {
-                return payment.payment_option.gateway_code || payment.payment_option.label || "N/A";
+                let displayText = payment.payment_option.gateway_code || payment.payment_option.label || "N/A";
+                
+                // Convertir a Title Case y manejar casos especiales
+                if (displayText === 'refund') {
+                    return 'Reembolso';
+                }
+                
+                // Convertir a Title Case para todos los demás
+                return displayText
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
             }
             
             // Si no tiene payment_option_id, es un pago presencial

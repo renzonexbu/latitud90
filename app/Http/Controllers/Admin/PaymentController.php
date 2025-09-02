@@ -209,7 +209,6 @@ class PaymentController extends Controller
 
         try {
             $result = $this->getParticipantPaymentStatusService->execute($request);
-
             return response()->json($result);
         } catch (\Exception $e) {
             return response()->json([
