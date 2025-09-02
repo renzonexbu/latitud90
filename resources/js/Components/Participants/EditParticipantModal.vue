@@ -64,17 +64,63 @@
                     </h3>
 
                     <div class="grid grid-cols-2 gap-6">
-                        <!-- Nombre -->
+                        <!-- Primer Apellido -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                Nombre *
+                                Primer Apellido *
+                            </label>
+                            <input
+                                v-model="form.first_last_name"
+                                type="text"
+                                placeholder="Primer Apellido"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :class="{
+                                    'border-red-500': errors?.first_last_name,
+                                }"
+                            />
+                            <div
+                                v-if="errors?.first_last_name"
+                                class="text-red-500 text-sm mt-1"
+                            >
+                                {{ errors.first_last_name }}
+                            </div>
+                        </div>
+
+                        <!-- Segundo Apellido -->
+                        <div>
+                            <label
+                                class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
+                            >
+                                Segundo Apellido
+                            </label>
+                            <input
+                                v-model="form.second_last_name"
+                                type="text"
+                                placeholder="Segundo Apellido (opcional)"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :class="{ 'border-red-500': errors?.second_last_name }"
+                            />
+                            <div
+                                v-if="errors?.second_last_name"
+                                class="text-red-500 text-sm mt-1"
+                            >
+                                {{ errors.second_last_name }}
+                            </div>
+                        </div>
+
+                        <!-- Primer Nombre -->
+                        <div>
+                            <label
+                                class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
+                            >
+                                Primer Nombre *
                             </label>
                             <input
                                 v-model="form.first_name"
                                 type="text"
-                                placeholder="Nombre"
+                                placeholder="Primer Nombre"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
                                 :class="{
                                     'border-red-500': errors?.first_name,
@@ -88,44 +134,44 @@
                             </div>
                         </div>
 
-                        <!-- Apellido -->
+                        <!-- Segundo Nombre -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                Apellido *
+                                Segundo Nombre
                             </label>
                             <input
-                                v-model="form.last_name"
+                                v-model="form.second_name"
                                 type="text"
-                                placeholder="Apellido"
+                                placeholder="Segundo Nombre (opcional)"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
-                                :class="{ 'border-red-500': errors?.last_name }"
+                                :class="{ 'border-red-500': errors?.second_name }"
                             />
                             <div
-                                v-if="errors?.last_name"
+                                v-if="errors?.second_name"
                                 class="text-red-500 text-sm mt-1"
                             >
-                                {{ errors.last_name }}
+                                {{ errors.second_name }}
                             </div>
                         </div>
 
-                        <!-- RUT (bloqueado y formateado) -->
+                        <!-- RUT/PASAPORTE (bloqueado y formateado) -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
-                                RUT *
+                                RUT / PASAPORTE *
                             </label>
                             <input
-                                :value="formattedRut"
+                                :value="formattedDocument"
                                 type="text"
                                 placeholder="000000000"
                                 disabled
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                             />
                             <p class="text-gray-500 text-sm mt-1">
-                                El RUT no se puede modificar
+                                El documento no se puede modificar
                             </p>
                         </div>
 
@@ -267,78 +313,308 @@
                                 disabled
                             />
                         </div>
-
-                        <!-- Ajuste (+/-): Izquierda -->
-                        <div>
-                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
-                                Ajuste (+/-)
-                            </label>
-                            <input
-                                v-model="form.price_adjustments"
-                                type="number"
-                                step="1"
-                                placeholder="0"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
-                            />
-                        </div>
-
-                        <!-- Motivo: Derecha -->
-                        <div>
-                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
-                                Motivo Del Ajuste
-                            </label>
-                            <textarea
-                                v-model="form.adjustment_reason"
-                                rows="2"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
-                                :class="{ 'border-red-500': showAdjustmentReasonError }"
-                                placeholder="Beca, liberado de pago, descuento personal, etc."
-                            />
-                            <div v-if="showAdjustmentReasonError" class="text-red-500 text-sm mt-1">
-                                Debes ingresar el motivo del ajuste.
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Descuento Por Programa (Simplificado) -->
+                <!-- Sistema de Descuentos Múltiples -->
                 <div class="mb-6">
-                    <h3 class="text-[18px] font-nexa-bold text-turquesa mb-4">Descuento Por Programa</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div class="md:col-span-1">
-                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">Liberado (100%)</label>
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" v-model="discounts.liberado" />
-                                <span class="text-[14px] text-gray-700">Aplicar liberado</span>
-                            </label>
-                        </div>
-                        <div class="md:col-span-1">
-                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">Tipo De Descuento</label>
-                            <select v-model="discounts.type" :disabled="discounts.liberado" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
-                                <option value="">Sin descuento</option>
-                                <option value="percent">Porcentaje</option>
-                                <option value="amount">Monto fijo</option>
-                            </select>
-                        </div>
-                        <div class="md:col-span-1" v-if="discounts.type">
-                            <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
-                                {{ discounts.type === 'percent' ? 'Valor (%)' : 'Valor (CLP)' }}
-                            </label>
-                            <input
-                                :type="discounts.type === 'percent' ? 'number' : 'number'"
-                                :min="discounts.type === 'percent' ? 0 : 0"
-                                :max="discounts.type === 'percent' ? 100 : null"
-                                :step="discounts.type === 'percent' ? 0.01 : 1"
-                                v-model.number="discounts.value"
-                                :disabled="discounts.liberado"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                                :placeholder="discounts.type === 'percent' ? 'Ej: 10' : 'Ej: 50000'"
-                            />
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[18px] font-nexa-bold text-turquesa">
+                            Descuentos Y Ajustes
+                        </h3>
+                        <button
+                            type="button"
+                            @click="addDiscount"
+                            class="px-4 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark transition-colors text-sm"
+                        >
+                            + Agregar Descuento
+                        </button>
+                    </div>
+
+                    <!-- Lista de descuentos existentes -->
+                    <div v-if="discounts.length > 0" class="space-y-3 mb-4">
+                        <div
+                            v-for="(discount, index) in discounts"
+                            :key="index"
+                            class="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                        >
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1">
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <!-- Descripción -->
+                                        <div class="md:col-span-2">
+                                            <label class="block text-[12px] font-nexa-bold text-gray-700 mb-1">
+                                                Descripción Del Descuento
+                                            </label>
+                                            <input
+                                                v-model="discount.comment"
+                                                type="text"
+                                                placeholder="Ej: Descuento familiar, Beca institucional, etc."
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                            />
+                                        </div>
+
+                                        <!-- Tipo de descuento -->
+                                        <div>
+                                            <label class="block text-[12px] font-nexa-bold text-gray-700 mb-1">
+                                                Tipo
+                                            </label>
+                                            <select
+                                                v-model="discount.type"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                            >
+                                                <option value="percent">Porcentaje (%)</option>
+                                                <option value="amount">Monto fijo (CLP)</option>
+                                                <option value="liberado">Liberado (100%)</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- Valor -->
+                                        <div>
+                                            <label class="block text-[12px] font-nexa-bold text-gray-700 mb-1">
+                                                {{ getDiscountValueLabel(discount.type) }}
+                                            </label>
+                                            <input
+                                                v-model.number="discount.value"
+                                                :type="discount.type === 'percent' ? 'number' : 'number'"
+                                                :min="discount.type === 'percent' ? 0 : 0"
+                                                :max="discount.type === 'percent' ? 100 : null"
+                                                :step="discount.type === 'percent' ? 0.01 : 1"
+                                                :disabled="discount.type === 'liberado'"
+                                                :placeholder="getDiscountValuePlaceholder(discount.type)"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                                :class="{ 'bg-gray-100': discount.type === 'liberado' }"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Botón eliminar -->
+                                <button
+                                    type="button"
+                                    @click="removeDiscount(index)"
+                                    class="ml-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Eliminar descuento"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor"/>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Resumen del descuento -->
+                            <div class="text-sm text-gray-600 bg-white p-2 rounded border">
+                                <strong>Descuento calculado:</strong> 
+                                ${{ formatNumber(calculateDiscountAmount(discount)) }} 
+                                <span v-if="discount.type === 'percent'">({{ discount.value || 0 }}%)</span>
+                                <span v-if="discount.type === 'liberado'">(100%)</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="mt-3 text-sm text-gray-600" v-if="usingDiscounts">
-                        Descuento Estimado: <strong>${{ formatNumber(computedDiscount) }}</strong>
-                        • Total Nuevo: <strong>${{ formatNumber(Math.max(0, Number(form.individual_price || 0) + Number(form.price_adjustments || 0))) }}</strong>
+
+                    <!-- Resumen total de descuentos -->
+                    <div v-if="discounts.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <span class="font-semibold text-gray-700">Precio base:</span>
+                                <div class="text-lg font-bold text-turquesa">${{ formatNumber(basePrice) }}</div>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-700">Total descuentos:</span>
+                                <div class="text-lg font-bold text-red-600">-${{ formatNumber(totalDiscounts) }}</div>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-700">Precio final:</span>
+                                <div class="text-lg font-bold text-green-600">${{ formatNumber(finalPrice) }}</div>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-700">Ahorro total:</span>
+                                <div class="text-lg font-bold text-blue-600">{{ formatPercentage(totalDiscountPercentage) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mensaje cuando no hay descuentos -->
+                    <div v-else class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        </svg>
+                        <p class="text-sm">No hay descuentos aplicados</p>
+                        <p class="text-xs mt-1">Haz clic en "Agregar Descuento" para comenzar</p>
+                    </div>
+                </div>
+
+                <!-- Reestructuración de Cuotas -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[18px] font-nexa-bold text-turquesa">
+                            Reestructuración de Cuotas
+                        </h3>
+                        <div class="flex gap-2">
+                            <button
+                                type="button"
+                                @click="showRestructureForm = !showRestructureForm"
+                                :class="[
+                                    'px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                                    showRestructureForm 
+                                        ? 'bg-gray-500 text-white hover:bg-gray-600' 
+                                        : 'bg-turquesa text-white hover:bg-turquesa-dark'
+                                ]"
+                            >
+                                {{ showRestructureForm ? 'Ocultar' : 'Reestructurar Cuotas' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formulario de reestructuración -->
+                    <div v-if="showRestructureForm" class="border border-gray-200 rounded-lg p-6 bg-gray-50">
+                        <!-- Información del plan actual -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Plan de Cuotas Actual
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Total de cuotas:</span>
+                                    <div class="text-lg font-bold text-turquesa">{{ currentInstallmentPlan?.total_installments || 'N/A' }}</div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Cuotas pagadas:</span>
+                                    <div class="text-lg font-bold text-green-600">{{ paidInstallmentsCount || 0 }}</div>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg border">
+                                    <span class="font-semibold text-gray-700">Cuotas pendientes:</span>
+                                    <div class="text-lg font-bold text-orange-600">{{ pendingInstallmentsCount || 0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formulario de nueva estructura -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Nueva Estructura de Cuotas
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                        Nuevo número de cuotas *
+                                    </label>
+                                    <input
+                                        v-model.number="restructureForm.newTotalInstallments"
+                                        type="number"
+                                        min="1"
+                                        :max="maxPossibleInstallments"
+                                        placeholder="Ej: 8"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                        :class="{ 'border-red-500': restructureErrors?.newTotalInstallments }"
+                                    />
+                                    <div v-if="restructureErrors?.newTotalInstallments" class="text-red-500 text-sm mt-1">
+                                        {{ restructureErrors.newTotalInstallments }}
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Mínimo: {{ paidInstallmentsCount || 1 }} | Máximo: {{ maxPossibleInstallments }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                        Razón del cambio *
+                                    </label>
+                                    <select
+                                        v-model="restructureForm.reason"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                        :class="{ 'border-red-500': restructureErrors?.reason }"
+                                    >
+                                        <option value="">-- Selecciona una razón --</option>
+                                        <option value="Solicitud del cliente">Solicitud del cliente</option>
+                                        <option value="Cambio de situación financiera">Cambio de situación financiera</option>
+                                        <option value="Ajuste por descuento aplicado">Ajuste por descuento aplicado</option>
+                                        <option value="Reestructuración administrativa">Reestructuración administrativa</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                    <div v-if="restructureErrors?.reason" class="text-red-500 text-sm mt-1">
+                                        {{ restructureErrors.reason }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Razón personalizada -->
+                            <div v-if="restructureForm.reason === 'Otro'" class="mt-4">
+                                <label class="block text-[14px] font-nexa-bold text-gray-700 mb-2">
+                                    Especificar razón personalizada *
+                                </label>
+                                <textarea
+                                    v-model="restructureForm.customReason"
+                                    rows="3"
+                                    placeholder="Describe la razón específica para reestructurar las cuotas..."
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                    :class="{ 'border-red-500': restructureErrors?.customReason }"
+                                ></textarea>
+                                <div v-if="restructureErrors?.customReason" class="text-red-500 text-sm mt-1">
+                                    {{ restructureErrors.customReason }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen de la reestructuración -->
+                        <div class="mb-6">
+                            <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-3">
+                                Resumen de la Reestructuración
+                            </h4>
+                            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Estado actual:</span>
+                                        <div class="text-gray-600">
+                                            {{ currentInstallmentPlan?.total_installments || 0 }} cuotas totales
+                                            <span class="text-green-600">({{ paidInstallmentsCount || 0 }} pagadas)</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span class="font-semibold text-gray-700">Nuevo estado:</span>
+                                        <div class="text-turquesa font-semibold">
+                                            {{ restructureForm.newTotalInstallments || 'N/A' }} cuotas totales
+                                            <span class="text-green-600">({{ paidInstallmentsCount || 0 }} pagadas)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <span class="font-semibold text-gray-700">Acción:</span>
+                                    <div class="text-orange-600">
+                                        Se cancelarán {{ (currentInstallmentPlan?.total_installments || 0) - (paidInstallmentsCount || 0) }} cuotas pendientes y se crearán {{ (restructureForm.newTotalInstallments || 0) - (paidInstallmentsCount || 0) }} nuevas cuotas
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botón de reestructuración -->
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                @click="restructureInstallments"
+                                :disabled="!canRestructure || isRestructuring"
+                                class="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                            >
+                                <span v-if="isRestructuring" class="flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Reestructurando...
+                                </span>
+                                <span v-else>
+                                    Confirmar Reestructuración
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mensaje cuando no hay plan de cuotas -->
+                    <div v-else-if="!currentInstallmentPlan" class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="text-sm">No hay plan de cuotas disponible</p>
+                        <p class="text-xs mt-1">Este participante no tiene un plan de cuotas activo para reestructurar</p>
                     </div>
                 </div>
 
@@ -379,25 +655,30 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    participantProgramsWithDiscounts: {
+        type: Array,
+        default: () => [],
+    },
     errors: {
         type: Object,
         default: () => ({}),
+    },
+    preSelectedCourseId: {
+        type: [String, Number],
+        default: null,
     },
 });
 
 const emit = defineEmits(["close"]);
 
 const isSubmitting = ref(false);
-const showAdjustmentReasonError = ref(false);
-const discounts = ref({
-    liberado: false,
-    type: "", // '' | 'percent' | 'amount'
-    value: null,
-});
+const discounts = ref([]);
 
 const form = ref({
+    first_last_name: "",
+    second_last_name: "",
     first_name: "",
-    last_name: "",
+    second_name: "",
     document_number: "",
     birth_date: "",
     email: "",
@@ -405,8 +686,89 @@ const form = ref({
     phone: "",
     pivot_course_id: "",
     individual_price: "",
-    price_adjustments: "",
-    adjustment_reason: "",
+});
+
+// Variables para reestructuración de cuotas
+const showRestructureForm = ref(false);
+const isRestructuring = ref(false);
+const isRecalculating = ref(false);
+const restructureErrors = ref({});
+const restructureForm = ref({
+    newTotalInstallments: null,
+    reason: "",
+    customReason: ""
+});
+
+// Computed properties para reestructuración
+const currentInstallmentPlan = computed(() => {
+    if (!form.value.pivot_course_id || !props.participantProgramsWithDiscounts) {
+        return null;
+    }
+    
+    // Buscar el plan de cuotas para el curso seleccionado
+    // Primero encontrar el curso en participant.courses para obtener el program_id
+    const course = props.participant?.courses?.find(c => c.id == form.value.pivot_course_id);
+    if (!course || !course.program) {
+        console.log('❌ Curso no encontrado o sin programa');
+        return null;
+    }
+    
+    // Ahora buscar en participantProgramsWithDiscounts usando el program_id
+    const participantProgram = props.participantProgramsWithDiscounts.find(
+        pp => pp.program_id === course.program.id
+    );
+    
+    console.log('🔍 Curso seleccionado:', form.value.pivot_course_id);
+    console.log('🔍 Curso encontrado:', course);
+    console.log('🔍 Program ID del curso:', course.program?.id);
+    console.log('🔍 Programa encontrado:', participantProgram);
+    console.log('🔍 Plan de cuotas:', participantProgram?.installment_plan);
+    
+    return participantProgram?.installment_plan || null;
+});
+
+const paidInstallmentsCount = computed(() => {
+    if (!currentInstallmentPlan.value) return 0;
+    
+    // Contar cuotas pagadas (que tienen payment_id O status 'paid')
+    return currentInstallmentPlan.value.installments?.filter(
+        installment => installment.payment_id || installment.status === 'paid'
+    ).length || 0;
+});
+
+const pendingInstallmentsCount = computed(() => {
+    if (!currentInstallmentPlan.value) return 0;
+    
+    // Contar cuotas pendientes (que NO tienen payment_id Y NO tienen status 'paid')
+    return currentInstallmentPlan.value.installments?.filter(
+        installment => !installment.payment_id && installment.status !== 'paid'
+    ).length || 0;
+});
+
+const maxPossibleInstallments = computed(() => {
+    // El máximo posible es el precio total dividido por un monto mínimo razonable por cuota
+    // Por ejemplo, si el precio es 1,000,000, el mínimo por cuota podría ser 50,000
+    const basePrice = Number(form.value.individual_price || 0);
+    const minAmountPerInstallment = 50000; // 50,000 CLP mínimo por cuota
+    
+    if (basePrice <= 0) return 12; // Default máximo
+    
+    return Math.min(24, Math.floor(basePrice / minAmountPerInstallment)); // Máximo 24 cuotas
+});
+
+const canRestructure = computed(() => {
+    return restructureForm.value.newTotalInstallments &&
+           restructureForm.value.newTotalInstallments >= paidInstallmentsCount.value &&
+           restructureForm.value.newTotalInstallments <= maxPossibleInstallments.value &&
+           restructureForm.value.reason &&
+           (restructureForm.value.reason !== 'Otro' || restructureForm.value.customReason) &&
+           currentInstallmentPlan.value &&
+           pendingInstallmentsCount.value > 0;
+});
+
+// Detectar si hay descuentos aplicados
+const hasDiscountApplied = computed(() => {
+    return discounts.value.length > 0;
 });
 
 const formatDateForInput = (dateString) => {
@@ -415,32 +777,124 @@ const formatDateForInput = (dateString) => {
     return date.toISOString().split("T")[0];
 };
 
+// Cargar descuentos existentes desde la tabla participant_program_discounts
+const loadExistingDiscounts = () => {
+    const courseId = form.value.pivot_course_id;
+    if (!courseId || !props.participant || !props.participant.courses) {
+        discounts.value = [];
+        return;
+    }
+    
+    const course = props.participant.courses.find((c) => c.id == courseId);
+    if (!course || !course.program) {
+        discounts.value = [];
+        return;
+    }
+
+    // Buscar el participant_program_id usando los datos del componente padre
+    const participantProgram = props.participantProgramsWithDiscounts?.find(
+        pp => pp.program_id === course.program.id
+    );
+
+    if (participantProgram && participantProgram.discounts) {
+        discounts.value = participantProgram.discounts.map(discount => {
+            // Determinar el tipo basado en los datos almacenados
+            let type = "percent";
+            let value = discount.percent || 0;
+            
+            if (discount.amount && discount.amount > 0) {
+                type = "amount";
+                value = discount.amount;
+            } else if (discount.discount_type === 'released' || (discount.percent && discount.percent >= 100)) {
+                type = "liberado";
+                value = 100;
+            }
+            
+            return {
+                id: discount.id,
+                type: type,
+                value: value,
+                comment: discount.comment,
+                approved_by: discount.approved_by
+            };
+        });
+    } else {
+        discounts.value = [];
+    }
+};
+
 // Cargar datos del participante cuando se abre el modal
 watch(
     () => props.participant,
     (newParticipant) => {
         if (newParticipant && Object.keys(newParticipant).length > 0) {
             form.value = {
+                first_last_name: newParticipant.first_last_name || "",
+                second_last_name: newParticipant.second_last_name || "",
                 first_name: newParticipant.first_name || "",
-                last_name: newParticipant.last_name || "",
+                second_name: newParticipant.second_name || "",
                 document_number: newParticipant.document_number || "",
                 birth_date: formatDateForInput(newParticipant.birth_date),
                 email: newParticipant.email || "",
                 code_phone: newParticipant.code_phone || "+56",
                 phone: newParticipant.phone || "",
-                pivot_course_id:
-                    (newParticipant.courses && newParticipant.courses[0]?.id) ||
-                    "",
+                pivot_course_id: props.preSelectedCourseId || (newParticipant.courses && newParticipant.courses[0]?.id) || "",
                 individual_price: newParticipant.individual_price ?? "",
-                price_adjustments: newParticipant.price_adjustments ?? "",
-                adjustment_reason: newParticipant.adjustment_reason ?? "",
             };
 
-            // Inicializar estado de descuentos según el pivote seleccionado
-            initializeDiscountState();
+            // Cargar descuentos existentes si los hay
+            loadExistingDiscounts();
+            
+            // Debug: Mostrar datos disponibles
+            console.log('👤 Participante cargado:', newParticipant);
+            console.log('📚 Programas con descuentos:', props.participantProgramsWithDiscounts);
         }
     },
     { immediate: true, deep: true }
+);
+
+// Sincronizar cuando cambie el preSelectedCourseId
+watch(
+    () => props.preSelectedCourseId,
+    (newCourseId) => {
+        if (newCourseId && props.participant && props.participant.courses) {
+            // Verificar que el curso existe en la lista del participante
+            const courseExists = props.participant.courses.some(c => c.id == newCourseId);
+            if (courseExists) {
+                form.value.pivot_course_id = newCourseId;
+                // Recargar descuentos para el nuevo curso seleccionado
+                loadExistingDiscounts();
+            }
+        }
+    },
+    { immediate: true }
+);
+
+// Debug: Watcher para ver los datos de cuotas
+watch(
+    () => currentInstallmentPlan.value,
+    (newPlan) => {
+        if (newPlan) {
+            console.log('🔍 Plan de cuotas detectado:', newPlan);
+            console.log('📊 Cuotas totales:', newPlan.installments?.length || 0);
+            console.log('💰 Cuotas pagadas:', paidInstallmentsCount.value);
+            console.log('⏳ Cuotas pendientes:', pendingInstallmentsCount.value);
+            console.log('📋 Detalle de cuotas:', newPlan.installments);
+        } else {
+            console.log('❌ No se detectó plan de cuotas');
+            console.log('🔍 Datos disponibles:', props.participantProgramsWithDiscounts);
+        }
+    },
+    { immediate: true }
+);
+
+// Debug: Watcher para ver cuando cambia el curso seleccionado
+watch(
+    () => form.value.pivot_course_id,
+    (newCourseId) => {
+        console.log('🔄 Curso seleccionado cambió a:', newCourseId);
+        console.log('🔄 Form completo:', form.value);
+    }
 );
 
 // Sincronizar precio individual mostrado según el curso/programa seleccionado
@@ -454,102 +908,125 @@ watch(
         if (course && course.pivot) {
             form.value.individual_price = course.pivot.individual_price ?? form.value.individual_price;
         }
-
-        // Recalcular estado de descuentos al cambiar de curso
-        initializeDiscountState();
+        
+        // Recargar descuentos cuando cambie el curso
+        loadExistingDiscounts();
     },
     { immediate: true }
 );
 
-// Recalcular ajuste a partir de descuentos
-const usingDiscounts = computed(() => {
-    return discounts.value.liberado || !!discounts.value.type;
+// Funciones para el sistema de descuentos múltiples
+const addDiscount = () => {
+    discounts.value.push({
+        type: "percent",
+        value: 0,
+        comment: "",
+    });
+};
+
+const removeDiscount = (index) => {
+    discounts.value.splice(index, 1);
+};
+
+const getDiscountValueLabel = (type) => {
+    switch (type) {
+        case "percent": return "Porcentaje (%)";
+        case "amount": return "Monto (CLP)";
+        case "liberado": return "Liberado";
+        default: return "Valor";
+    }
+};
+
+const getDiscountValuePlaceholder = (type) => {
+    switch (type) {
+        case "percent": return "Ej: 10";
+        case "amount": return "Ej: 50000";
+        case "liberado": return "100%";
+        default: return "";
+    }
+};
+
+const calculateDiscountAmount = (discount) => {
+    const basePrice = Number(form.value.individual_price || 0);
+    
+    if (discount.type === "liberado") {
+        return basePrice;
+    }
+    
+    if (discount.type === "percent") {
+        const percentage = Math.max(0, Math.min(100, Number(discount.value || 0)));
+        return (basePrice * percentage) / 100;
+    }
+    
+    if (discount.type === "amount") {
+        return Math.min(basePrice, Math.max(0, Number(discount.value || 0)));
+    }
+    
+    return 0;
+};
+
+// Computed properties para el resumen
+const basePrice = computed(() => Number(form.value.individual_price || 0));
+
+const totalDiscounts = computed(() => {
+    return discounts.value.reduce((total, discount) => {
+        return total + calculateDiscountAmount(discount);
+    }, 0);
 });
 
-const computedDiscount = computed(() => {
-    const price = Number(form.value.individual_price || 0);
-    if (discounts.value.liberado) return price; // 100%
-    if (!discounts.value.type) return 0;
-    if (discounts.value.type === 'percent') {
-        const pct = Math.max(0, Math.min(100, Number(discounts.value.value || 0)));
-        return Math.min(price, (price * pct) / 100);
-    }
-    // amount
-    const fixed = Math.max(0, Number(discounts.value.value || 0));
-    return Math.min(price, fixed);
+const finalPrice = computed(() => {
+    return Math.max(0, basePrice.value - totalDiscounts.value);
 });
 
-watch([discounts, () => form.value.individual_price], () => {
-    if (!usingDiscounts.value) {
-        // No descuentos: restablecer ajuste y motivo a base
-        form.value.price_adjustments = 0;
-        form.value.adjustment_reason = '';
-        return;
-    }
-    const discountValue = computedDiscount.value;
-    form.value.price_adjustments = -Math.round(Number(discountValue));
-    // Armar motivo
-    if (discounts.value.liberado) {
-        form.value.adjustment_reason = 'Liberado';
-    } else if (discounts.value.type === 'percent') {
-        form.value.adjustment_reason = `Descuento ${discounts.value.value || 0}%`;
-    } else if (discounts.value.type === 'amount') {
-        form.value.adjustment_reason = `Descuento $${formatNumber(discounts.value.value || 0)}`;
-    }
-}, { deep: true });
-
-// Si se desmarca Liberado y no hay tipo seleccionado, resetear explícitamente
-watch(() => discounts.value.liberado, (now) => {
-    if (!now && !discounts.value.type) {
-        form.value.price_adjustments = 0;
-        form.value.adjustment_reason = '';
-    }
-});
-
-// Si se limpia el tipo de descuento y no está liberado, resetear
-watch(() => discounts.value.type, (now) => {
-    if (!now && !discounts.value.liberado) {
-        form.value.price_adjustments = 0;
-        form.value.adjustment_reason = '';
-    }
+const totalDiscountPercentage = computed(() => {
+    if (basePrice.value === 0) return 0;
+    return (totalDiscounts.value / basePrice.value) * 100;
 });
 
 const updateParticipant = () => {
     isSubmitting.value = true;
 
     const formData = new FormData();
+    formData.append("first_last_name", form.value.first_last_name);
+    formData.append("second_last_name", form.value.second_last_name);
     formData.append("first_name", form.value.first_name);
-    formData.append("last_name", form.value.last_name);
+    formData.append("second_name", form.value.second_name);
     formData.append("document_number", form.value.document_number);
     formData.append("birth_date", form.value.birth_date);
     formData.append("email", form.value.email);
     formData.append("code_phone", form.value.code_phone);
     formData.append("phone", form.value.phone);
-    if (form.value.pivot_course_id)
+    
+    if (form.value.pivot_course_id) {
         formData.append("pivot_course_id", form.value.pivot_course_id);
-    if (form.value.individual_price !== "")
+    }
+    
+    if (form.value.individual_price !== "") {
         formData.append("individual_price", form.value.individual_price);
-    // Validación de motivo de ajuste en cliente
-    showAdjustmentReasonError.value = false;
-    if (form.value.price_adjustments !== "") {
-        formData.append("price_adjustments", form.value.price_adjustments);
-        if (!form.value.adjustment_reason || form.value.adjustment_reason.trim() === "") {
-            showAdjustmentReasonError.value = true;
-            isSubmitting.value = false;
-            return;
-        }
     }
-    if (form.value.adjustment_reason !== "") {
-        formData.append("adjustment_reason", form.value.adjustment_reason);
-    }
+
+    // Enviar los descuentos como JSON para procesarlos en el backend
+    formData.append("discounts", JSON.stringify(discounts.value));
+    
     formData.append("_method", "PUT");
 
     router.post(
         route("admin.participants.update", props.participant.id),
         formData,
         {
-            onSuccess: () => {
+            onSuccess: async () => {
+                // AUTO-RECÁLCULO: Recalcular cuotas después de aplicar/cancelar descuentos
+                if (currentInstallmentPlan.value && hasDiscountApplied.value) {
+                    try {
+                        await recalculateInstallmentsAfterDiscountChange();
+                    } catch (error) {
+                        console.warn('No se pudieron recalcular las cuotas automáticamente:', error);
+                    }
+                }
+                
+                // Cerrar el modal primero
                 emit("close");
+                // Luego recargar la página
                 window.location.reload();
             },
             onError: (errors) => {
@@ -561,40 +1038,233 @@ const updateParticipant = () => {
         }
     );
 };
-// Formatear RUT para visualización
-const formattedRut = computed(() => {
-    const rut = form.value.document_number || "";
-    const clean = rut.replace(/\./g, "").replace(/-/g, "");
-    if (clean.length < 2) return rut;
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return `${withDots}-${dv}`;
+
+// Formatear documento para visualización
+const formattedDocument = computed(() => {
+    const document = form.value.document_number || "";
+    const documentType = props.participant?.document_type || 'RUT';
+    
+    if (documentType === 'RUT') {
+        const clean = document.replace(/\./g, "").replace(/-/g, "");
+        if (clean.length < 2) return document;
+        const body = clean.slice(0, -1);
+        const dv = clean.slice(-1);
+        const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `${withDots}-${dv}`;
+    } else {
+        // Para pasaporte u otros documentos, mostrar en uppercase
+        return document.toUpperCase();
+    }
 });
 
 const formatNumber = (n) => new Intl.NumberFormat('es-CL').format(Number(n || 0));
 
-function initializeDiscountState() {
-    const courseId = form.value.pivot_course_id;
-    if (!courseId || !props.participant || !props.participant.courses) {
-        discounts.value = { liberado: false, type: '', value: null };
+const formatPercentage = (n) => {
+    return `${Number(n || 0).toFixed(1)}%`;
+};
+
+// Método para reestructurar cuotas
+const restructureInstallments = async () => {
+    if (!canRestructure.value) {
         return;
     }
-    const course = props.participant.courses.find((c) => c.id == courseId);
-    const piv = course?.pivot || {};
-    const base = Number(piv.individual_price || 0);
-    const adj = Number(piv.price_adjustments || 0);
-    const total = base + adj;
-    const isLiberado = (piv.adjustment_reason || '').toLowerCase().includes('liberado') || total <= 0;
-    if (isLiberado) {
-        discounts.value = { liberado: true, type: '', value: null };
-        // Asegurar que el ajuste refleja el 100%
-        form.value.price_adjustments = -Math.round(base);
-        form.value.adjustment_reason = 'Liberado';
-    } else {
-        discounts.value = { liberado: false, type: '', value: null };
+
+    // Validar formulario
+    restructureErrors.value = {};
+    
+    if (!restructureForm.value.newTotalInstallments) {
+        restructureErrors.value.newTotalInstallments = 'El número de cuotas es requerido';
+        return;
     }
-}
+    
+    if (restructureForm.value.newTotalInstallments < paidInstallmentsCount.value) {
+        restructureErrors.value.newTotalInstallments = `No se puede reducir a menos de ${paidInstallmentsCount.value} cuotas (ya pagadas)`;
+        return;
+    }
+    
+    if (restructureForm.value.newTotalInstallments > maxPossibleInstallments.value) {
+        restructureErrors.value.newTotalInstallments = `El máximo permitido es ${maxPossibleInstallments.value} cuotas`;
+        return;
+    }
+    
+    if (!restructureForm.value.reason) {
+        restructureErrors.value.reason = 'La razón del cambio es requerida';
+        return;
+    }
+    
+    if (restructureForm.value.reason === 'Otro' && !restructureForm.value.customReason) {
+        restructureErrors.value.customReason = 'Debe especificar la razón personalizada';
+        return;
+    }
+
+    // Confirmar acción
+    const finalReason = restructureForm.value.reason === 'Otro' 
+        ? restructureForm.value.customReason 
+        : restructureForm.value.reason;
+    
+    const confirmMessage = `¿Estás seguro de que quieres reestructurar las cuotas?\n\n` +
+        `Cambio: ${currentInstallmentPlan.value.total_installments} → ${restructureForm.value.newTotalInstallments} cuotas\n` +
+        `Razón: ${finalReason}\n\n` +
+        `Esta acción:\n` +
+        `• Mantendrá las ${paidInstallmentsCount.value} cuotas ya pagadas\n` +
+        `• Cancelará ${pendingInstallmentsCount.value} cuotas pendientes\n` +
+        `• Creará ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas\n\n` +
+        `¿Deseas continuar?`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    isRestructuring.value = true;
+    restructureErrors.value = {};
+
+    try {
+        const formData = new FormData();
+        formData.append("installment_plan_id", currentInstallmentPlan.value.id);
+        formData.append("new_total_installments", restructureForm.value.newTotalInstallments);
+        formData.append("reason", finalReason);
+        formData.append("_method", "POST");
+
+        // Llamar al endpoint de reestructuración
+        const response = await fetch(route('admin.installments.restructure'), {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Éxito
+            alert(`✅ Cuotas reestructuradas exitosamente!\n\n` +
+                `El plan ahora tiene ${restructureForm.value.newTotalInstallments} cuotas.\n` +
+                `Se han eliminado ${pendingInstallmentsCount.value} cuotas pendientes y creado ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas.`);
+            
+            // Limpiar formulario
+            restructureForm.value = {
+                newTotalInstallments: null,
+                reason: "",
+                customReason: ""
+            };
+            showRestructureForm.value = false;
+            
+            // Cerrar el modal completo
+            emit('close');
+            
+            // Recargar la página para mostrar los cambios
+            window.location.reload();
+        } else {
+            // Error del servidor
+            throw new Error(result.error || 'Error desconocido del servidor');
+        }
+    } catch (error) {
+        console.error('Error al reestructurar cuotas:', error);
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            restructureErrors.value.general = 'Error de conexión. Verifica tu conexión a internet.';
+        } else {
+            restructureErrors.value.general = error.message || 'Error inesperado al reestructurar las cuotas.';
+        }
+        
+        alert(`❌ Error al reestructurar cuotas:\n\n${restructureErrors.value.general}`);
+            } finally {
+            isRestructuring.value = false;
+        }
+    };
+
+    // Método para recalcular cuotas después de aplicar descuento
+    const recalculateInstallmentsAfterDiscount = async () => {
+        if (!currentInstallmentPlan.value) {
+            alert('❌ No se encontró un plan de cuotas activo');
+            return;
+        }
+
+        // Confirmar acción
+        const confirmMessage = `¿Estás seguro de que quieres recalcular las cuotas?\n\n` +
+            `Esta acción recalculará las cuotas pendientes basándose en el precio final con descuentos aplicados.\n\n` +
+            `• Se mantendrán las cuotas ya pagadas\n` +
+            `• Se recalcularán las cuotas pendientes\n` +
+            `• Los montos se ajustarán al nuevo precio final`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+
+        isRecalculating.value = true;
+
+        try {
+            const response = await fetch('/admin/installments/recalculate-after-discount', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    installment_plan_id: currentInstallmentPlan.value.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Éxito
+                alert(`✅ Cuotas recalculadas exitosamente!\n\n` +
+                    `• Precio anterior: $${formatNumber(result.data.old_total_amount)}\n` +
+                    `• Precio nuevo: $${formatNumber(result.data.new_total_amount)}\n` +
+                    `• Descuento aplicado: $${formatNumber(result.data.discount_applied)}\n` +
+                    `• Monto pagado: $${formatNumber(result.data.paid_amount)}\n` +
+                    `• Nuevo saldo pendiente: $${formatNumber(result.data.new_remaining_balance)}\n` +
+                    `• Cuotas recalculadas: ${result.data.cuotas_nuevas}`);
+                
+                // Cerrar el modal completo
+                emit('close');
+                
+                // Recargar la página para mostrar los cambios
+                window.location.reload();
+            } else {
+                // Error
+                const errorMessage = result.error || 'Error desconocido al recalcular las cuotas';
+                alert(`❌ Error: ${errorMessage}`);
+            }
+        } catch (error) {
+            console.error('Error al recalcular cuotas:', error);
+            alert('❌ Error de conexión al recalcular las cuotas');
+        } finally {
+            isRecalculating.value = false;
+        }
+    };
+
+    // Método para recalcular cuotas automáticamente después de cambios en descuentos
+    const recalculateInstallmentsAfterDiscountChange = async () => {
+        if (!currentInstallmentPlan.value) {
+            return; // No hay plan de cuotas, no hacer nada
+        }
+
+        try {
+            const response = await fetch('/admin/installments/recalculate-after-discount', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    installment_plan_id: currentInstallmentPlan.value.id
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                console.log('✅ Cuotas recalculadas automáticamente después de cambio en descuentos:', result.data);
+            } else {
+                console.warn('⚠️ No se pudieron recalcular las cuotas automáticamente:', result.error);
+            }
+        } catch (error) {
+            console.warn('⚠️ Error al recalcular cuotas automáticamente:', error);
+        }
+    };
 </script>
 
 <style scoped>

@@ -12,6 +12,7 @@ class Course extends Model
     protected $fillable = [
         'institution_id',
         'education_level',
+        'grade',
         'year',
         'course_number',
         'course_name',
@@ -65,6 +66,16 @@ class Course extends Model
                     ->withTimestamps();
     }
 
+    public function participantPrograms()
+    {
+        return $this->hasMany(ParticipantProgram::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -80,30 +91,54 @@ class Course extends Model
     {
         $level = $this->education_level;
         $num = $this->course_number;
+        $grade = $this->grade;
         $name = $this->course_name;
 
         // Preescolar: solo Kínder (sin Prekínder)
         if ($level === 'preescolar') {
-            return $name ?: 'Kínder';
+            $label = $name ?: 'Kínder';
+            // Agregar grado si existe
+            if ($grade) {
+                $label .= ' ' . $grade;
+            }
+            return $label;
         }
 
         // Universitaria: libre
         if ($level === 'universitaria') {
-            return $name ?: 'Universitaria';
+            $label = $name ?: 'Universitaria';
+            // Agregar grado si existe
+            if ($grade) {
+                $label .= ' ' . $grade;
+            }
+            return $label;
         }
 
         // Básica y Media con número
         $suffix = 'º';
         if ($level === 'basica') {
             $label = $num ? ($num . $suffix . ' Básico') : ($name ?: 'Básica');
+            // Agregar grado si existe
+            if ($grade) {
+                $label .= ' ' . $grade;
+            }
             return $label;
         }
         if ($level === 'media') {
             $label = $num ? ($num . $suffix . ' Medio') : ($name ?: 'Media');
+            // Agregar grado si existe
+            if ($grade) {
+                $label .= ' ' . $grade;
+            }
             return $label;
         }
 
-        return $name ?: ucfirst($level);
+        $label = $name ?: ucfirst($level);
+        // Agregar grado si existe
+        if ($grade) {
+            $label .= ' ' . $grade;
+        }
+        return $label;
     }
 
     public function getPaymentPercentageAttribute()

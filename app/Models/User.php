@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_active',
     ];
 
     /**
@@ -41,6 +43,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -57,5 +60,23 @@ class User extends Authenticatable
     public function programs()
     {
         return $this->hasMany(Program::class, 'created_by');
+    }
+
+    /**
+     * Get the sales executives created by this user.
+     */
+    public function salesExecutives()
+    {
+        return $this->hasMany(SalesExecutive::class, 'created_by');
+    }
+
+    public function approvedDiscounts()
+    {
+        return $this->hasMany(ParticipantProgramDiscount::class, 'approved_by');
+    }
+
+    public function institutions()
+    {
+        return $this->hasMany(Institution::class, 'created_by');
     }
 }

@@ -199,7 +199,7 @@
                                             :key="program.id" 
                                             :value="program.name"
                                         >
-                                            {{ program.name }}
+                                            {{ program.code }} - {{ program.name }}
                                         </option>
                                     </select>
                                     <span v-if="errors.associatedProgram" class="text-red-500 text-xs mt-1">{{ errors.associatedProgram }}</span>

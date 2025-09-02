@@ -22,7 +22,7 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
-            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/'],
+            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/','unique:programs,code,' . $this->route('program')->id],
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
             'departure_date' => 'nullable|date',
@@ -49,15 +49,32 @@ class UpdateProgramRequest extends FormRequest
             'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
             'trip_price' => 'nullable|numeric|min:0',
             'total_price' => 'nullable|numeric|min:0', // Campo del frontend
-            'final_payment_date' => 'nullable|date',
+            'final_payment_date' => [
+                'nullable',
+                'date',
+                'before_or_equal:departure_date',
+                function ($attribute, $value, $fail) {
+                    $departureDate = $this->input('departure_date');
+                    if ($value && $departureDate) {
+                        $departure = \Carbon\Carbon::parse($departureDate);
+                        $paymentDate = \Carbon\Carbon::parse($value);
+                        $daysDifference = $departure->diffInDays($paymentDate);
+                        
+                        if ($daysDifference < 60) {
+                            $fail('La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.');
+                        }
+                    }
+                }
+            ],
             'seller_name' => 'nullable|string|max:255',
-            'sales_executive_id' => 'nullable|exists:sales_executives,id',
+            'sales_executive_id' => 'nullable|integer|exists:sales_executives,id',
             'sales_person' => 'nullable|string|max:255', // Campo del frontend
             
             // Campos del detalle administrativo (todos opcionales)
             'institution_id' => 'nullable|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
             'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
+            'grade' => 'nullable|string|in:A,B,C,D,E',
             'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
@@ -68,13 +85,35 @@ class UpdateProgramRequest extends FormRequest
             'payment_options.*' => 'string|in:full_payment,installments',
             'payment_option' => 'nullable|string|in:full_payment,installments',
             'full_payment_options' => 'nullable|array',
-            'full_payment_options.*' => 'string|exists:payment_options,code',
+            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12,full_international',
             'lat90_payment_options' => 'nullable|array',
-            'lat90_payment_options.*' => 'string|exists:payment_options,code',
+            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0',
             'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
             // Aceptar claves antiguas y nuevas para mantener compatibilidad
             'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
-            'max_installments' => 'nullable|string|in:3,6,9,12',
+            'max_installments' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:12',
+                function ($attribute, $value, $fail) {
+                    if ($value && $this->input('final_payment_date')) {
+                        $finalPaymentDate = \Carbon\Carbon::parse($this->input('final_payment_date'));
+                        $now = \Carbon\Carbon::now();
+                        
+                        // Calcular meses disponibles hasta la fecha de pago
+                        $monthsAvailable = $now->diffInMonths($finalPaymentDate);
+                        if ($now->day > $finalPaymentDate->day) {
+                            $monthsAvailable -= 1;
+                        }
+                        $monthsAvailable = max(0, $monthsAvailable);
+                        
+                        if ($value > $monthsAvailable) {
+                            $fail("El número máximo de cuotas ({$value}) no puede exceder los meses disponibles hasta la fecha de pago ({$monthsAvailable} meses).");
+                        }
+                    }
+                }
+            ],
             'payment_mode_id' => 'nullable|exists:payment_modes,id',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
             'active' => 'boolean',
@@ -129,7 +168,10 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Mensajes para campos obligatorios
-            'name.required' => 'El nombre del programa es obligatorio.',
+            'code.string' => 'El código del programa debe ser texto.',
+            'code.max' => 'El código del programa no puede exceder 8 caracteres.',
+            'code.regex' => 'El código del programa debe ser de 4 dígitos.',
+            'code.unique' => 'El código del programa ya existe. Por favor, utiliza un código diferente.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
             
@@ -161,6 +203,10 @@ class UpdateProgramRequest extends FormRequest
             'final_payment_date.required' => 'La fecha final de pago es obligatoria.',
             'final_payment_date.date' => 'La fecha final de pago debe tener un formato válido.',
             'final_payment_date.after' => 'La fecha final de pago debe ser posterior a hoy.',
+            'final_payment_date.before_or_equal' => 'La fecha final de pago no puede ser posterior a la fecha de salida.',
+            
+            'sales_executive_id.integer' => 'El ejecutivo de ventas debe ser un número válido.',
+            'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe.',
             
             'seller_name.required_without' => 'El nombre del vendedor es obligatorio.',
             'sales_person.required_without' => 'El nombre del vendedor es obligatorio.',
@@ -192,6 +238,10 @@ class UpdateProgramRequest extends FormRequest
             'students_file.mimes' => 'El archivo de estudiantes debe ser Excel (.xlsx, .xls) o CSV.',
             'students_file.max' => 'El archivo de estudiantes no puede exceder 10MB.',
             
+            // Mensajes para opciones de pago
+            'full_payment_options.*.in' => 'La opción de pago total seleccionada no es válida.',
+            'lat90_payment_options.*.in' => 'La opción de pago mensual seleccionada no es válida.',
+            
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
             'shift.in' => 'El turno seleccionado no es válido.',
@@ -202,10 +252,16 @@ class UpdateProgramRequest extends FormRequest
             'payment_option.in' => 'La opción de pago seleccionada no es válida.',
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
             'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
-            'max_installments.in' => 'El número máximo de cuotas seleccionado no es válido.',
+            'max_installments.integer' => 'El número máximo de cuotas debe ser un número entero.',
+            'max_installments.min' => 'El número máximo de cuotas debe ser al menos 1.',
+            'max_installments.max' => 'El número máximo de cuotas no puede ser mayor a 12.',
             
             // Mensajes para validaciones básicas
             'institution_id.exists' => 'La institución seleccionada no existe.',
+            
+            // Mensajes para validaciones personalizadas
+            'final_payment_date.60_days_before_departure' => 'La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.',
+            'max_installments.months_available' => 'El número máximo de cuotas no puede exceder los meses disponibles hasta la fecha de pago.',
         ];
     }
 } 

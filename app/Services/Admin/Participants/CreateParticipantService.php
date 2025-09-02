@@ -5,11 +5,14 @@ namespace App\Services\Admin\Participants;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
 use App\Models\Course;
+use App\Models\Program;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CreateParticipantService
 {
+    use AdminLogging;
     /**
      * Crear un nuevo participante con sus contactos de emergencia y cursos
      *
@@ -24,6 +27,11 @@ class CreateParticipantService
         try {
             DB::beginTransaction();
 
+            // Normalizar país: usar código 'CL' al guardar (compat con Excel)
+            if (!empty($participantData['country']) && strtolower($participantData['country']) === 'chile') {
+                $participantData['country'] = 'CL';
+            }
+
             // Crear el participante
             $participant = $this->createParticipant($participantData);
 
@@ -32,12 +40,45 @@ class CreateParticipantService
                 $this->createEmergencyContacts($participant, $emergencyContactsData);
             }
 
-            // Asociar curso desde payload plano si viene course_id (caso Create.vue)
-            if (!empty($participantData['course_id'])) {
+            // Asociar programa y curso automáticamente
+            if (!empty($participantData['program_id'])) {
+                $program = \App\Models\Program::with('course')->find($participantData['program_id']);
+                
+                if ($program && $program->course) {
+                    // Calcular el precio individual por participante (precio del programa dividido por número de participantes)
+                    $individualPrice = $this->calculateIndividualPrice($program);
+                    
+                    // Generar enrollment_code consistente con el flujo Excel
+                    $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
+                    
+                    // Asociar al curso del programa automáticamente
+                    $coursePivotData = [
+                        'status' => 'pending_payment',
+                        'individual_price' => $individualPrice,
+                        'price_adjustments' => $participantData['price_adjustments'] ?? 0,
+                        'adjustment_reason' => $participantData['adjustment_reason'] ?? null,
+                    ];
+                    $participant->courses()->attach($program->course->id, $coursePivotData);
+                    
+                    // Asociar al programa con el precio individual
+                    $participant->programs()->attach($participantData['program_id'], [
+                        'enrollment_code' => $enrollmentCode,
+                        'individual_price' => $individualPrice,
+                        'status' => 'pending_payment',
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::info('Participante asociado automáticamente al curso del programa', [
+                        'participant_id' => $participant->id,
+                        'program_id' => $program->id,
+                        'course_id' => $program->course->id,
+                        'individual_price' => $individualPrice
+                    ]);
+                }
+            } elseif (!empty($participantData['course_id'])) {
+                // Caso fallback: si solo viene course_id sin program_id
                 $pivotData = [
-                    'education_level' => $participantData['education_level'] ?? null,
-                    'year' => $participantData['year'] ?? null,
-                    'grade' => $participantData['grade'] ?? null,
                     'status' => 'pending_payment',
                     'individual_price' => $participantData['individual_price'] ?? null,
                     'price_adjustments' => $participantData['price_adjustments'] ?? 0,
@@ -50,16 +91,29 @@ class CreateParticipantService
 
             DB::commit();
 
+            // Log the participant creation
+            $this->logCreate(
+                'participants',
+                'Participant',
+                $participant->id,
+                "Participante creado: {$participant->first_name} {$participant->first_last_name}",
+                $participant->toArray(),
+                [
+                    'courses_count' => $participant->courses->count(),
+                    'emergency_contacts_count' => $participant->emergencyContacts->count(),
+                    'has_course_association' => !empty($coursesData),
+                ]
+            );
+
             Log::info('Participante creado exitosamente', [
                 'participant_id' => $participant->id,
                 'email' => $participant->email
             ]);
 
             return $participant;
-
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Error al crear participante', [
                 'error' => $e->getMessage(),
                 'data' => $participantData
@@ -82,6 +136,14 @@ class CreateParticipantService
         $data['registration_date'] = $data['registration_date'] ?? now();
         $data['price_adjustments'] = $data['price_adjustments'] ?? 0;
 
+        // Limpiar RUT si es tipo RUT
+        if (!empty($data['document_number']) && !empty($data['document_type'])) {
+            $documentType = \App\Models\Document::find($data['document_type']);
+            if ($documentType && strtolower($documentType->name) === 'rut') {
+                $data['document_number'] = $this->cleanRut($data['document_number']);
+            }
+        }
+
         // Normalizar email si existe
         if (!empty($data['email'])) {
             $data['email'] = $this->normalizeEmail($data['email']);
@@ -100,11 +162,18 @@ class CreateParticipantService
     {
         foreach ($emergencyContactsData as $contactData) {
             $contactData['participant_id'] = $participant->id;
-            $contactData['relationship'] = $contactData['relationship'] ?? 'Familiar';
+            $contactData['relationship'] = 'Familiar'; // Valor por defecto
+            $contactData['country'] = 'CL'; // Normalizar país como Chile
+            
+            // Limpiar RUT del contacto de emergencia si existe
+            if (!empty($contactData['document_number'])) {
+                $contactData['document_number'] = $this->cleanRut($contactData['document_number']);
+            }
+            
             if (!empty($contactData['email'])) {
                 $contactData['email'] = $this->normalizeEmail($contactData['email']);
             }
-            
+
             EmergencyContact::create($contactData);
         }
     }
@@ -121,9 +190,6 @@ class CreateParticipantService
         foreach ($coursesData as $courseData) {
             $courseId = $courseData['course_id'];
             $pivotData = [
-                'education_level' => $courseData['education_level'] ?? null,
-                'year' => $courseData['year'] ?? null,
-                'grade' => $courseData['grade'] ?? null,
                 'status' => $courseData['status'] ?? 'pending_payment',
                 'individual_price' => $courseData['individual_price'] ?? null,
                 'price_adjustments' => $courseData['price_adjustments'] ?? 0,
@@ -132,6 +198,34 @@ class CreateParticipantService
 
             $participant->courses()->attach($courseId, $pivotData);
         }
+    }
+
+
+
+    /**
+     * Clean RUT by removing dots and dashes.
+     */
+    private function cleanRut(string $rut): string
+    {
+        // Quitar puntos y guiones, mantener solo números y dígito verificador
+        return str_replace(['.', '-'], '', $rut);
+    }
+
+    /**
+     * Calcula el precio individual por participante para un programa
+     */
+    private function calculateIndividualPrice(Program $program): float
+    {
+        // Obtener el número total de participantes en el curso del programa
+        $totalParticipants = $program->course->participants()->count();
+        
+        // Si no hay participantes, usar 1 como divisor
+        $divisor = max(1, $totalParticipants);
+        
+        // Calcular precio individual: precio total del programa dividido por número de participantes
+        $individualPrice = (float) ($program->trip_price ?? 0) / $divisor;
+        
+        return round($individualPrice, 2);
     }
 
     /**
@@ -154,168 +248,5 @@ class CreateParticipantService
         }
         $normalized = preg_replace('/\s+/', '', $normalized);
         return $normalized ?? $email;
-    }
-
-    /**
-     * Procesar participantes desde Excel con la nueva lógica de tabla pivote
-     *
-     * @param array $participantsData
-     * @param Course $course
-     * @return array
-     */
-    public function processParticipantsFromExcel(array $participantsData, Course $course): array
-    {
-        $createdCount = 0;
-        $updatedCount = 0;
-        $errors = [];
-
-        foreach ($participantsData as $index => $participantData) {
-            try {
-                // Limpiar RUT
-                $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
-                
-                if (empty($cleanRut)) {
-                    $errors[] = "Fila " . ($index + 2) . ": RUT vacío o inválido";
-                    continue;
-                }
-
-                // Buscar participante existente por RUT
-                $existingParticipant = Participant::where('document_number', $cleanRut)
-                    ->where('document_type', 'RUT')
-                    ->where('country', 'CL')
-                    ->first();
-
-                if ($existingParticipant) {
-                    // Verificar si ya está asociado a este curso
-                    $isAlreadyInCourse = $existingParticipant->courses()
-                        ->where('course_id', $course->id)
-                        ->exists();
-
-                    if ($isAlreadyInCourse) {
-                        // UPDATE: Actualizar datos del participante y la relación con el curso
-                        $this->updateParticipantAndCourseRelation($existingParticipant, $participantData, $course);
-                        $updatedCount++;
-                    } else {
-                        // CREATE: Agregar nueva relación con el curso
-                        $this->addParticipantToCourse($existingParticipant, $participantData, $course);
-                        $createdCount++;
-                    }
-                } else {
-                    // CREATE: Crear nuevo participante y asociarlo al curso
-                    $newParticipant = $this->createNewParticipantFromExcel($participantData, $course);
-                    $createdCount++;
-                }
-
-            } catch (\Exception $e) {
-                $errors[] = "Fila " . ($index + 2) . ": " . $e->getMessage();
-            }
-        }
-
-        return [
-            'created' => $createdCount,
-            'updated' => $updatedCount,
-            'errors' => $errors
-        ];
-    }
-
-    /**
-     * Limpiar RUT de caracteres especiales
-     */
-    private function cleanRut(string $rut): string
-    {
-        return preg_replace('/[^0-9kK]/', '', $rut);
-    }
-
-    /**
-     * Actualizar participante existente y su relación con el curso
-     */
-    private function updateParticipantAndCourseRelation(Participant $participant, array $participantData, Course $course): void
-    {
-        // Actualizar datos del participante
-        $participant->update([
-            'first_name' => $participantData['Nombre'] ?? $participant->first_name,
-            'last_name' => $participantData['Apellido'] ?? $participant->last_name,
-            'email' => $participantData['Email'] ?? $participant->email,
-            'phone' => $participantData['Teléfono'] ?? $participant->phone,
-            'birth_date' => $participantData['Fecha de nacimiento'] ?? $participant->birth_date,
-            'address' => $participantData['Dirección'] ?? $participant->address,
-            'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $participant->dietary_restrictions,
-            'medical_conditions' => $participantData['Condición médica'] ?? $participant->medical_conditions,
-        ]);
-
-        // Actualizar relación con el curso
-        $pivotData = [
-            'education_level' => $participantData['Nivel de educación'] ?? null,
-            'year' => $participantData['Año'] ?? null,
-            'grade' => $participantData['Grado'] ?? null,
-            'shift' => $participantData['Turno'] ?? null,
-            'individual_price' => $participantData['Precio individual'] ?? null,
-            'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
-            'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
-        ];
-
-        $participant->courses()->updateExistingPivot($course->id, $pivotData);
-    }
-
-    /**
-     * Agregar participante existente a un nuevo curso
-     */
-    private function addParticipantToCourse(Participant $participant, array $participantData, Course $course): void
-    {
-        $pivotData = [
-            'education_level' => $participantData['Nivel de educación'] ?? null,
-            'year' => $participantData['Año'] ?? null,
-            'grade' => $participantData['Grado'] ?? null,
-            'shift' => $participantData['Turno'] ?? null,
-            'status' => 'pending_payment',
-            'individual_price' => $participantData['Precio individual'] ?? null,
-            'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
-            'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
-        ];
-
-        $participant->courses()->attach($course->id, $pivotData);
-    }
-
-    /**
-     * Crear nuevo participante desde Excel y asociarlo al curso
-     */
-    private function createNewParticipantFromExcel(array $participantData, Course $course): Participant
-    {
-        $cleanRut = $this->cleanRut($participantData['RUT'] ?? '');
-
-        $participant = Participant::create([
-            'first_name' => $participantData['Nombre'] ?? '',
-            'last_name' => $participantData['Apellido'] ?? '',
-            'email' => $participantData['Email'] ?? '',
-            'code_phone' => '+56',
-            'phone' => $participantData['Teléfono'] ?? '',
-            'document_type' => 'RUT',
-            'document_number' => $cleanRut,
-            'country' => 'CL',
-            'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
-            'address' => $participantData['Dirección'] ?? null,
-            'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-            'medical_conditions' => $participantData['Condición médica'] ?? null,
-            'status' => 'pending_payment',
-            'registration_date' => now(),
-            'individual_price' => 0,
-            'price_adjustments' => 0,
-        ]);
-
-        // Asociar al curso
-        $pivotData = [
-            'education_level' => $participantData['Nivel de educación'] ?? null,
-            'year' => $participantData['Año'] ?? null,
-            'grade' => $participantData['Grado'] ?? null,
-            'shift' => $participantData['Turno'] ?? null,
-            'status' => 'pending_payment',
-            'individual_price' => $participantData['Precio individual'] ?? null,
-            'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
-            'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
-        ];
-
-        $participant->courses()->attach($course->id, $pivotData);
-
-        return $participant;
     }
 }

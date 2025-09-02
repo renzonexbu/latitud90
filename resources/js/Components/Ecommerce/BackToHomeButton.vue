@@ -20,7 +20,11 @@ import { router } from "@inertiajs/vue3";
 
 export default {
   props: {
-    rut: {
+    document: {
+      type: String,
+      required: true
+    },
+    document_type: {
       type: String,
       required: true
     },
@@ -35,7 +39,7 @@ export default {
     },
     route: {
       type: String,
-      default: '/'
+      default: null
     }
   },
   computed: {
@@ -50,23 +54,51 @@ export default {
   },
   methods: {
     handleClick() {
-      // Usar la ruta proporcionada (por defecto es '/')
-      if (this.route === '/' || this.route === null) {
-        // Si es home, usar la lógica original según el variant
-        if (this.variant === 'programs') {
-          // En ProgramDetail.vue - volver a programas
-          router.get(route('ecommerce.programs'), {
-            rut: this.rut
+      console.log('BackToHomeButton - Props received:', {
+        route: this.route,
+        variant: this.variant,
+        document: this.document,
+        document_type: this.document_type
+      });
+      
+      // Si se proporciona una ruta personalizada, usarla
+      if (this.route && this.route !== '/' && this.route !== null && this.route !== '') {
+        console.log('Using custom route:', this.route);
+        console.log('About to navigate to:', this.route);
+        
+        // Usar window.location.href para forzar navegación completa y evitar interceptores
+        window.location.href = this.route;
+        return;
+      }
+      
+      console.log('No custom route provided or route is empty, using default logic');
+      
+      // Si no hay ruta personalizada, usar la lógica por defecto
+      if (this.variant === 'programs') {
+        // Verificar que los parámetros no estén vacíos
+        if (!this.document || !this.document_type) {
+          console.error('Missing document or document_type:', {
+            document: this.document,
+            document_type: this.document_type
           });
-        } else {
-          // En Programs.vue - volver al home
-          router.visit('/');
+          alert('Error: Faltan parámetros de documento');
+          return;
         }
-      } else {
-        // Si es una ruta personalizada diferente a '/'
-        router.visit(this.route, {
-          data: { rut: this.rut }
+        
+        console.log('Navigating to programs list with params:', {
+          document: this.document,
+          document_type: this.document_type
         });
+        
+        // En PaymentDetails.vue o similar - volver a la lista de programas
+        router.get('/programs', {
+          document: this.document,
+          document_type: this.document_type
+        });
+      } else {
+        console.log('Navigating to home');
+        // En Programs.vue - volver al home
+        router.visit('/');
       }
     }
   }

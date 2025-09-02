@@ -15,15 +15,13 @@ class UpdateEmergencyContactService
         }
 
         $contact->update([
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
+            'name' => $data['name'],
             'email' => $data['email'],
             'code_phone' => $data['code_phone'],
             'phone' => $data['phone'],
             'country' => $data['country'],
             'birth_date' => $data['birth_date'] ?? null,
             'address' => $data['address'] ?? null,
-            'relationship' => $data['relationship'],
         ]);
     }
 

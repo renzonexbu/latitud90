@@ -21,6 +21,11 @@ return new class extends Migration
             $table->string('website')->nullable();
             $table->boolean('active')->default(true);
             $table->timestamps();
+            
+            // Índices para optimizar consultas
+            $table->index(['active']); // Para filtros por estado activo
+            $table->index(['name']); // Para búsquedas por nombre
+            $table->index(['created_at']); // Para filtros por fecha
         });
     }
 

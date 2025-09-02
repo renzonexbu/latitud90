@@ -5,13 +5,29 @@ namespace App\Services\Admin\Courses;
 use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
+use App\Helpers\ParticipantPriceHelper;
+use App\Traits\AdminLogging;
 
 class EditCourseService
 {
+    use AdminLogging;
     public function execute(int $courseId): array
     {
         $course = Course::with(['institution', 'program', 'participants'])
             ->findOrFail($courseId);
+
+        // Log the course view
+        $this->logView(
+            'courses',
+            'Course',
+            $course->id,
+            "Visualización de curso: {$course->course_name}",
+            [
+                'institution_name' => $course->institution?->name,
+                'participants_count' => $course->participants->count(),
+                'has_program' => $course->program !== null,
+            ]
+        );
 
         // Asegurar que los programas se carguen con todos los campos necesarios
         if ($course->program) {
@@ -24,7 +40,13 @@ class EditCourseService
             });
 
             $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
-                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? ($course->program->trip_price ?? 0));
+                // Usar el helper para calcular el precio final con descuentos
+                if ($course->program) {
+                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $course->program);
+                    return $carry + $priceData['final_price'];
+                }
+                // Fallback si no hay programa
+                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
                 $adj = (float) ($p->pivot->price_adjustments ?? 0);
                 return $carry + round($base + $adj, 2);
             }, 0.0);
@@ -32,7 +54,7 @@ class EditCourseService
             $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($course) {
                     $q->where('program_id', $course->program->id);
                 })
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'completed'])
                 ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
 

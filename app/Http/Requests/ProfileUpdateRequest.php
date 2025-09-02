@@ -15,9 +15,16 @@ class ProfileUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($this->user()->id)],
+        $rules = [
+            'name' => ['sometimes', 'string', 'max:255'],
         ];
+
+        // Si se está actualizando la contraseña, agregar reglas de validación
+        if ($this->filled('password')) {
+            $rules['current_password'] = ['required', 'current_password'];
+            $rules['password'] = ['required', 'confirmed', 'min:8'];
+        }
+
+        return $rules;
     }
 }

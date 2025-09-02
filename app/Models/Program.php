@@ -25,18 +25,22 @@ class Program extends Model
         'equipment_list',
         'trip_price',
         'year',
+        'grade',
         'final_payment_date',
         'seller_name',
         'sales_executive_id',
         'enable_total_payment',
         'enable_lat90_payment',
         'lat90_max_installments',
+        'total_payment_method_id',
+        'lat90_payment_method_id',
         // Campos de descuento
         'discount_type',
         'discount_value',
         'course_id',
         'created_by',
-        'active'
+        'active',
+        'status'
     ];
 
     protected $casts = [
@@ -46,7 +50,8 @@ class Program extends Model
         'discount_value' => 'decimal:2',
         'enable_total_payment' => 'boolean',
         'enable_lat90_payment' => 'boolean',
-        'active' => 'boolean'
+        'active' => 'boolean',
+        'status' => 'string'
     ];
 
     protected $appends = [
@@ -93,10 +98,21 @@ class Program extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function institution()
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
+    public function salesExecutive()
+    {
+        return $this->belongsTo(SalesExecutive::class);
+    }
+
     public function participants()
     {
-        // Esta relación no se usa directamente, se accede a través de course->participants()
-        return $this->course->participants() ?? collect();
+        return $this->belongsToMany(Participant::class, 'participant_program')
+                    ->withPivot('enrollment_code', 'individual_price', 'status', 'created_at', 'updated_at')
+                    ->withTimestamps();
     }
 
     public function features()
@@ -113,9 +129,31 @@ class Program extends Model
                     ->withTimestamps();
     }
 
+    public function paymentOptions()
+    {
+        return $this->belongsToMany(PaymentOption::class, 'program_payment_option')
+                    ->withPivot('enabled')
+                    ->withTimestamps();
+    }
+
+    public function participantPrograms()
+    {
+        return $this->hasMany(ParticipantProgram::class);
+    }
+
+    public function participantDiscounts()
+    {
+        return $this->hasManyThrough(ParticipantProgramDiscount::class, ParticipantProgram::class);
+    }
+
     public function orders()
     {
-        return $this->hasManyThrough(Order::class, Participant::class);
+        return $this->hasMany(Order::class);
+    }
+
+    public function courseOrders()
+    {
+        return $this->hasMany(Order::class, 'program_id')->whereNotNull('course_id');
     }
 
     public function getActiveParticipantsAttribute()
@@ -170,7 +208,6 @@ class Program extends Model
     public function getImagesAttribute()
     {
         if (!$this->images_folder) {
-            Log::info('No hay images_folder para el programa', ['program_id' => $this->id]);
             return [];
         }
 
@@ -178,15 +215,6 @@ class Program extends Model
         $relativePath = str_replace('public/', '', $this->images_folder);
         $path = storage_path('app/public/' . $relativePath);
         
-        Log::info('Buscando imágenes en ruta', [
-            'program_id' => $this->id,
-            'images_folder' => $this->images_folder,
-            'relative_path' => $relativePath,
-            'full_path' => $path,
-            'path_exists' => is_dir($path),
-            'storage_path' => storage_path('app/public'),
-            'public_path' => public_path()
-        ]);
         
         if (!is_dir($path)) {
             Log::warning('La carpeta de imágenes no existe', [
@@ -197,11 +225,6 @@ class Program extends Model
         }
 
         $files = glob($path . '/*');
-        Log::info('Archivos encontrados en la carpeta', [
-            'program_id' => $this->id,
-            'files_count' => count($files),
-            'files' => $files
-        ]);
         
         $images = [];
         
@@ -213,13 +236,56 @@ class Program extends Model
                 'path' => $relativePath . '/' . $filename
             ];
         }
-
-        Log::info('Imágenes procesadas', [
-            'program_id' => $this->id,
-            'images_count' => count($images),
-            'images' => $images
-        ]);
-
         return $images;
+    }
+
+    /**
+     * Scope para filtrar por status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope para programas en reserva
+     */
+    public function scopeReserva($query)
+    {
+        return $query->where('status', 'reserva');
+    }
+
+    /**
+     * Scope para programas ejecutados
+     */
+    public function scopeEjecutado($query)
+    {
+        return $query->where('status', 'ejecutado');
+    }
+
+    /**
+     * Obtener el label del status
+     */
+    public function getStatusLabelAttribute()
+    {
+        $labels = [
+            'reserva' => 'Reserva',
+            'ejecutado' => 'Ejecutado'
+        ];
+
+        return $labels[$this->status] ?? null;
+    }
+
+    /**
+     * Obtener la clase CSS del status
+     */
+    public function getStatusClassAttribute()
+    {
+        $classes = [
+            'reserva' => 'bg-yellow-100 text-yellow-800',
+            'ejecutado' => 'bg-blue-100 text-blue-800'
+        ];
+
+        return $classes[$this->status] ?? null;
     }
 }

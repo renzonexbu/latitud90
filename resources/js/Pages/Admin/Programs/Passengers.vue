@@ -13,7 +13,7 @@
                   Pasajeros del Programa
                 </h2>
                 <p class="text-gray-600">
-                  {{ program.name }} - {{ program.destination }}
+                  {{ program.code }} - {{ program.name }} - {{ program.destination }}
                 </p>
                 <div
                   class="mt-2 flex items-center space-x-4 text-sm text-gray-500">
@@ -455,7 +455,7 @@
       getStatusLabel(status) {
         const labels = {
           confirmed: "Confirmado",
-          pending_payment: "Pago Pendiente",
+          pending_payment: "Pendiente de Pago",
           cancelled: "Cancelado"
         };
         return labels[status] || status;

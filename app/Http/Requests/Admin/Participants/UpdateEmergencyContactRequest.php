@@ -15,15 +15,13 @@ class UpdateEmergencyContactRequest extends FormRequest
     {
         return [
             'contact_id' => 'required|exists:emergency_contact,id',
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
-            'code_phone' => 'required|string|max:10',
-            'phone' => 'required|string|max:20',
-            'country' => 'required|string|max:100',
-            'birth_date' => 'nullable|date|before:today',
-            'address' => 'nullable|string',
-            'relationship' => 'required|string|max:100',
+            'code_phone' => 'required|string|max:255',
+            'phone' => 'required|string|max:255',
+            'country' => 'required|string|max:255',
+            'birth_date' => 'nullable|date',
+            'address' => 'nullable|string|max:255',
         ];
     }
 }

@@ -95,9 +95,22 @@
                     @change="performSearch"
                 >
                     <option value="">Estado de pago</option>
-                    <option value="pending_payment">Pendiente</option>
+                    <option value="pending_payment">Pendiente de Pago</option>
                     <option value="confirmed">Completado</option>
                     <option value="cancelled">Liberado</option>
+                </select>
+            </div>
+
+            <!-- Estado activo/inactivo -->
+            <div class="relative flex-shrink-0 w-[134px]">
+                <select
+                    v-model="filters.active"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    @change="performSearch"
+                >
+                    <option value="">Estado del participante</option>
+                    <option :value="true">Activo</option>
+                    <option :value="false">Inactivo</option>
                 </select>
             </div>
 
@@ -139,6 +152,7 @@ export default {
                 level: this.initialFilters.level || "",
                 course_number: this.initialFilters.course_number || "",
                 paymentStatus: this.initialFilters.paymentStatus || "",
+                active: this.initialFilters.active !== undefined ? this.initialFilters.active : "",
             }
         };
     },
@@ -177,10 +191,17 @@ export default {
     },
     methods: {
         performSearch: _.debounce(function () {
+            console.log('🔍 ParticipantsFilters - Filtros enviados:', {
+                filters: this.filters,
+                activeFilter: this.filters.active,
+                activeFilterType: typeof this.filters.active,
+                activeFilterStrict: this.filters.active
+            });
             this.$emit('filters-changed', this.filters);
         }, 300),
         
         clearFilters() {
+            console.log('🔍 ParticipantsFilters - Limpiando filtros');
             this.filters = {
                 search: "",
                 program: "",
@@ -188,7 +209,9 @@ export default {
                 level: "",
                 course_number: "",
                 paymentStatus: "",
+                active: "",
             };
+            console.log('🔍 ParticipantsFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         },
         

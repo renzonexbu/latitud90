@@ -13,17 +13,27 @@ return new class extends Migration
     {
         Schema::create('emergency_contact', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name');
-            $table->string('last_name');
-            $table->string('email');
-            $table->string('code_phone');
-            $table->string('phone');
+            // Información del apoderado
+            $table->string('name'); // Nombre completo del apoderado
+            $table->string('email'); // Correo electrónico del apoderado
+            $table->foreignId('document_type')->default(1)->constrained('document'); // Tipo de documento del apoderado
+            $table->string('document_number'); // Número de documento del apoderado
+            
+            // Información adicional del contacto
+            $table->string('code_phone')->nullable();
+            $table->string('phone')->nullable();
             $table->string('country')->nullable();
             $table->date('birth_date')->nullable();
             $table->text('address')->nullable();
             $table->string('relationship')->default('Familiar');
-            $table->foreignId('participant_id')->constrained('participants');
+            
+            // Relación con el participante
+            $table->foreignId('participant_id')->constrained('participants')->onDelete('cascade');
             $table->timestamps();
+            
+            // Índices
+            $table->index(['document_number']); // Para búsquedas por documento
+            $table->index(['email']); // Para búsquedas por email
         });
     }
 

@@ -10,68 +10,158 @@ use Inertia\Inertia;
 use App\Http\Requests\Admin\Payments\DailyReportRequest;
 use App\Http\Requests\Admin\Payments\ConsolidatedReportRequest;
 use App\Services\Admin\Payments\ReportsService;
+use App\Services\Admin\Payments\GetPaymentsService;
+use App\Services\Admin\Payments\GetCreateDataService;
+use App\Services\Admin\Payments\StorePaymentService;
+use App\Services\Admin\Payments\GetEditDataService;
+use App\Services\Admin\Payments\UpdatePaymentService;
+use App\Services\Admin\Payments\DeletePaymentService;
+use App\Services\Admin\Payments\GetInstallmentScheduleService;
+use App\Services\Admin\Payments\GetAccountStatementService;
+use App\Services\Admin\Payments\GetParticipantPaymentStatusService;
 
 class PaymentController extends Controller
 {
-    public function __construct(private ReportsService $reportsService) {}
+    protected $reportsService;
+    protected $getPaymentsService;
+    protected $getCreateDataService;
+    protected $storePaymentService;
+    protected $getEditDataService;
+    protected $updatePaymentService;
+    protected $deletePaymentService;
+    protected $getInstallmentScheduleService;
+    protected $getAccountStatementService;
+    protected $getParticipantPaymentStatusService;
+
+    public function __construct(
+        ReportsService $reportsService,
+        GetPaymentsService $getPaymentsService,
+        GetCreateDataService $getCreateDataService,
+        StorePaymentService $storePaymentService,
+        GetEditDataService $getEditDataService,
+        UpdatePaymentService $updatePaymentService,
+        DeletePaymentService $deletePaymentService,
+        GetInstallmentScheduleService $getInstallmentScheduleService,
+        GetAccountStatementService $getAccountStatementService,
+        GetParticipantPaymentStatusService $getParticipantPaymentStatusService
+    ) {
+        $this->reportsService = $reportsService;
+        $this->getPaymentsService = $getPaymentsService;
+        $this->getCreateDataService = $getCreateDataService;
+        $this->storePaymentService = $storePaymentService;
+        $this->getEditDataService = $getEditDataService;
+        $this->updatePaymentService = $updatePaymentService;
+        $this->deletePaymentService = $deletePaymentService;
+        $this->getInstallmentScheduleService = $getInstallmentScheduleService;
+        $this->getAccountStatementService = $getAccountStatementService;
+        $this->getParticipantPaymentStatusService = $getParticipantPaymentStatusService;
+    }
+
     public function index(Request $request)
     {
-        $query = Payment::with(['passenger.program']);
+        $data = $this->getPaymentsService->execute($request);
 
-        // Filtros
-        if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('id', 'like', '%' . $request->search . '%')
-                  ->orWhere('transaction_id', 'like', '%' . $request->search . '%')
-                  ->orWhereHas('passenger', function ($sq) use ($request) {
-                      $sq->where('first_name', 'like', '%' . $request->search . '%')
-                        ->orWhere('last_name', 'like', '%' . $request->search . '%')
-                        ->orWhere('email', 'like', '%' . $request->search . '%');
-                  });
-            });
-        }
-
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->gateway) {
-            $query->where('payment_method', $request->gateway);
-        }
-
-        if ($request->date_from) {
-            $query->whereDate('created_at', '>=', $request->date_from);
-        }
-
-        if ($request->date_to) {
-            $query->whereDate('created_at', '<=', $request->date_to);
-        }
-
-        $payments = $query->latest()->paginate(15);
-
-        // Estadísticas
-        $stats = [
-            'total_revenue' => Payment::where('status', 'approved')->sum('amount'),
-            'completed' => Payment::where('status', 'approved')->count(),
-            'pending' => Payment::where('status', 'pending')->count(),
-            'failed' => Payment::where('status', 'rejected')->count(),
-            'refunded' => Payment::where('status', 'refunded')->count(),
-        ];
-
-        return Inertia::render('Admin/Payments/Index', [
-            'payments' => $payments,
-            'stats' => $stats,
-            'filters' => $request->only(['search', 'status', 'gateway', 'date_from', 'date_to'])
-        ]);
+        return Inertia::render('Admin/Payments/Index', $data);
     }
 
     public function show(Payment $payment)
     {
-        $payment->load(['passenger.program']);
-        
+        $payment->load([
+            'order',
+            'order.participant.documentType',
+            'order.program.course.institution',
+            'orderDetail.country',
+            'orderDetail.region',
+            'orderDetail.city',
+            'paymentGateway',
+            'paymentOption'
+        ]);
+
         return Inertia::render('Admin/Payments/Show', [
             'payment' => $payment
         ]);
+    }
+
+    public function create()
+    {
+        $data = $this->getCreateDataService->execute();
+
+        return Inertia::render('Admin/Payments/Create', $data);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'program_id' => 'required|exists:programs,id',
+            'participant_id' => 'required|exists:participants,id',
+            'amount' => 'required|numeric|min:0',
+            'status' => 'required|in:pending,completed,failed,authorized',
+            'presential_payment_type' => 'required|in:BX,TE,CH,DP',
+            'payment_code' => 'required|string|max:255',
+            'authorization_code' => 'nullable|string',
+            'notes' => 'nullable|string',
+
+            // Datos del comprador
+            'buyer_full_name' => 'required|string|max:255',
+            'buyer_document_type' => 'required|exists:document,id',
+            'buyer_document_number' => 'required|string|max:255',
+            'buyer_email' => 'required|email|max:255',
+            'buyer_phone' => 'required|string|max:255',
+            'buyer_code_phone' => 'required|string|max:10',
+            'buyer_country' => 'required|exists:countries,id',
+            'buyer_region' => 'required|exists:regions,id',
+            'buyer_city' => 'required|exists:comunes,id',
+        ]);
+
+        try {
+            $result = $this->storePaymentService->execute($request);
+
+            return redirect()->route('admin.payments.index')
+                ->with('success', 'Pago presencial registrado exitosamente. Se han reestructurado las cuotas pendientes.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al registrar el pago: ' . $e->getMessage()]);
+        }
+    }
+
+    public function edit(Payment $payment)
+    {
+        $data = $this->getEditDataService->execute($payment);
+
+        return Inertia::render('Admin/Payments/Edit', $data);
+    }
+
+    public function update(Request $request, Payment $payment)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'status' => 'required|in:pending,completed,failed,authorized',
+            'transaction_date' => 'required|date',
+            'authorization_code' => 'nullable|string',
+            'card_number' => 'nullable|string',
+            'card_type' => 'nullable|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            $this->updatePaymentService->execute($request, $payment);
+
+            return redirect()->route('admin.payments.index')
+                ->with('success', 'Pago actualizado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al actualizar el pago: ' . $e->getMessage()]);
+        }
+    }
+
+    public function destroy(Payment $payment)
+    {
+        try {
+            $this->deletePaymentService->execute($payment);
+
+            return redirect()->route('admin.payments.index')
+                ->with('success', 'Pago eliminado exitosamente.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al eliminar el pago: ' . $e->getMessage()]);
+        }
     }
 
     public function dailyReport(DailyReportRequest $request)
@@ -98,33 +188,34 @@ class PaymentController extends Controller
 
     public function installmentSchedule()
     {
-        $upcomingPayments = Payment::with(['passenger.program'])
-            ->where('status', 'pending')
-            ->where('payment_type', 'installment')
-            ->orderBy('created_at', 'asc')
-            ->get();
+        $data = $this->getInstallmentScheduleService->execute();
 
-        return Inertia::render('Admin/Reports/InstallmentSchedule', [
-            'upcomingPayments' => $upcomingPayments
-        ]);
+        return Inertia::render('Admin/Reports/InstallmentSchedule', $data);
     }
 
     public function accountStatement(Passenger $passenger)
     {
-        $passenger->load(['program', 'payments', 'contracts']);
-        
-        $statement = [
-            'passenger' => $passenger,
-            'total_program_price' => $passenger->individual_price + $passenger->price_adjustments,
-            'total_paid' => $passenger->total_paid,
-            'pending_amount' => $passenger->pending_amount,
-            'payments_history' => $passenger->payments()->orderBy('created_at', 'desc')->get(),
-            'payment_progress' => $passenger->total_paid > 0 ? 
-                round(($passenger->total_paid / ($passenger->individual_price + $passenger->price_adjustments)) * 100, 2) : 0
-        ];
+        $data = $this->getAccountStatementService->execute($passenger);
 
-        return Inertia::render('Admin/Reports/AccountStatement', [
-            'statement' => $statement
+        return Inertia::render('Admin/Reports/AccountStatement', $data);
+    }
+
+    public function getParticipantPaymentStatus(Request $request)
+    {
+        $request->validate([
+            'program_id' => 'required|exists:programs,id',
+            'participant_id' => 'required|exists:participants,id',
         ]);
+
+        try {
+            $result = $this->getParticipantPaymentStatusService->execute($request);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener el estado de pagos: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

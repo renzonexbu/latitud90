@@ -1,9 +1,9 @@
 <template>
-    <div class="bg-[#f7efee] rounded-[12px] p-[18px_15px] h-[180px] mx-4 max-w-[320px]">
-        <div class="flex flex-row gap-[12px] items-start">
+    <div class="bg-[#f7efee] rounded-[12px] p-[12px_10px] md:p-[18px_15px] h-auto md:h-[180px] mx-2 md:mx-4 w-full max-w-full md:max-w-[320px]">
+        <div class="flex flex-row gap-[8px] md:gap-[12px] items-start">
             <!-- Warning SVG -->
             <svg
-                class="w-[17.5px] h-[17.5px]"
+                class="w-[15px] h-[15px] md:w-[17.5px] md:h-[17.5px] flex-shrink-0"
                 width="19"
                 height="18"
                 viewBox="0 0 19 18"
@@ -19,8 +19,8 @@
             </svg>
 
             <!-- Warning Message -->
-            <div class="flex flex-col gap-[4px] flex-1">
-                <div class="text-[#d54a42] font-nexa text-[14px] leading-[16px] w-[252px]">
+            <div class="flex flex-col gap-[2px] md:gap-[4px] flex-1 min-w-0">
+                <div class="text-[#d54a42] font-nexa text-[12px] md:text-[14px] leading-[14px] md:leading-[16px] w-full">
                     <span class="font-nexa font-normal">
                         Al elegir el Pago Mensual de Cuota LAT90, se
                     </span>

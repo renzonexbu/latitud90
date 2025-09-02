@@ -9,7 +9,7 @@
 
         <!-- Esferas decorativas -->
         <div
-            class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col hidden md:flex"
+            class="absolute right-0 top-1/2 transform -translate-y-1/2 hidden md:flex md:flex-col"
         >
             <div class="w-[69px] h-[99px] relative">
                 <svg
@@ -95,7 +95,7 @@
             class="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center text-left"
         >
             <svg
-                class="w-full max-w-[582px] h-auto md:w-[582px] md:h-[199px] sm:max-w-[400px] xs:max-w-[300px]"
+                class="w-full max-w-[582px] h-auto md:w-[582px] md:h-[199px] sm:max-w-[320px] xs:max-w-[280px] mt-8 md:mt-0"
                 viewBox="0 0 582 199"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
@@ -123,25 +123,78 @@
             </svg>
 
             <div class="max-w-lg my-8">
+                <!-- Tipo de Documento -->
+                <div class="flex flex-col gap-3 mb-4">
+                    <label class="text-white font-medium text-sm">
+                        Tipo de documento
+                    </label>
+                    <div class="flex gap-6 justify-center md:justify-start">
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative">
+                                <input
+                                    type="radio"
+                                    name="documentType"
+                                    value="RUT"
+                                    v-model="selectedDocumentType"
+                                    class="sr-only peer"
+                                />
+                                <div class="w-5 h-5 border-2 border-white rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                </div>
+                            </div>
+                            <span class="text-white font-medium text-sm group-hover:text-[#FBBD51] transition-colors duration-200">
+                                RUT
+                            </span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative">
+                                <input
+                                    type="radio"
+                                    name="documentType"
+                                    value="PASAPORTE"
+                                    v-model="selectedDocumentType"
+                                    class="sr-only peer"
+                                />
+                                <div class="w-5 h-5 border-2 border-white rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                </div>
+                            </div>
+                            <span class="text-white font-medium text-sm group-hover:text-[#FBBD51] transition-colors duration-200">
+                                PASAPORTE
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
                 <div
                     class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative input-container"
                 >
                     <input
                         v-model="searchQuery"
                         type="text"
-                        placeholder="Ingresar Rut del viajero"
+                        :placeholder="getDocumentPlaceholder()"
                         :class="[
                             'w-full px-6 py-3 rounded-full border-0 shadow-lg focus:ring-2 focus:ring-teal-500',
-                            rutValidation.isValid === false ? 'border-red-500 ring-red-500' : '',
-                            rutValidation.isValid === true ? 'border-green-500 ring-green-500' : ''
+                            rutValidation.isValid === false
+                                ? 'border-red-500 ring-red-500'
+                                : '',
+                            rutValidation.isValid === true
+                                ? 'border-green-500 ring-green-500'
+                                : '',
                         ]"
-                        @input="formatRut"
-                        @blur="validateRut"
+                        @input="formatDocument"
+                        @blur="validateDocument"
                         @keypress.enter="performSearch"
                     />
-                    <div v-if="rutValidation.message" class="absolute -bottom-6 left-0 text-xs mt-1 validation-message" :class="[
-                        rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
-                    ]">
+                    <div
+                        v-if="rutValidation.message"
+                        class="absolute -bottom-6 left-0 text-xs mt-1 validation-message"
+                        :class="[
+                            rutValidation.isValid === true
+                                ? 'text-green-500'
+                                : 'text-red-500',
+                        ]"
+                    >
                         {{ rutValidation.message }}
                     </div>
                     <button
@@ -149,7 +202,9 @@
                         :disabled="!rutValidation.isValid"
                         :class="[
                             'mt-3 sm:mt-0 sm:absolute sm:top-1/2 sm:right-2 sm:transform sm:-translate-y-1/2 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200 mobile-search-btn',
-                            rutValidation.isValid ? 'bg-teal-500 hover:bg-teal-600' : 'bg-gray-400 cursor-not-allowed'
+                            rutValidation.isValid
+                                ? 'bg-teal-500 hover:bg-teal-600'
+                                : 'bg-gray-400 cursor-not-allowed',
                         ]"
                     >
                         <!-- Ícono de lupa para mobile con fondo circular verde -->
@@ -198,7 +253,7 @@
                             />
                         </svg>
                     </div>
-                    <span>Ingrese el número Rut del alumno</span>
+                    <span>Ingrese el {{ selectedDocumentType === 'RUT' ? 'número de RUT' : 'número de pasaporte' }} del alumno</span>
                 </div>
 
                 <div class="flex items-center">
@@ -242,108 +297,121 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, watch } from "vue";
 import { router } from "@inertiajs/vue3";
 import axios from "axios";
 
 const searchQuery = ref("");
 const rutValidation = reactive({
     isValid: null,
-    message: ""
+    message: "",
 });
 
-const performSearch = async () => {
-    if (searchQuery.value.trim() && rutValidation.isValid) {
-        // Limpiar el RUT antes de enviarlo
-        const cleanRut = searchQuery.value.replace(/\./g, '').replace(/-/g, '');
-        
-        try {
-            const response = await axios.post(route('ecommerce.search-participant'), {
-                rut: cleanRut
-            });
-            
-            console.log('Resultado de búsqueda:', response.data);
-            
-            if (response.data.found) {
-                console.log('Participante encontrado:', response.data.participant);
-                // Redirigir a la vista de programas
-                router.get(route('ecommerce.programs'), { rut: cleanRut });
-            } else {
-                console.log('No se encontró el participante');
-                // Mostrar mensaje de error (puedes implementar un toast o alert)
-                alert('No se encontró ningún participante con ese RUT. Por favor, verifica el número ingresado.');
-            }
-        } catch (error) {
-            console.error('Error en la búsqueda:', error);
-        }
-    }
+const selectedDocumentType = ref("RUT");
+
+// Watcher para cuando cambie el tipo de documento
+watch(selectedDocumentType, (newType) => {
+    // Limpiar validación y búsqueda cuando cambie el tipo
+    rutValidation.isValid = null;
+    rutValidation.message = "";
+    searchQuery.value = "";
+});
+
+const getDocumentPlaceholder = () => {
+    return selectedDocumentType.value === "RUT" ? "Ingresar Rut del viajero" : "Ingresar Número de Pasaporte";
 };
 
-const formatRut = () => {
-    // Remover todos los caracteres no numéricos excepto K
-    let rut = searchQuery.value.replace(/[^0-9kK]/g, '');
-    
-    if (rut.length > 0) {
-        rut = rut.toUpperCase();
-        
-        // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
-        if (rut.length > 1) {
-            const body = rut.slice(0, -1);
-            const dv = rut.slice(-1);
-            
-            // Formatear el cuerpo con puntos
-            let formattedBody = '';
-            for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
-                if (j > 0 && j % 3 === 0) {
-                    formattedBody = '.' + formattedBody;
+const formatDocument = () => {
+    if (selectedDocumentType.value === "RUT") {
+        // Solo formatear RUTs
+        let documentNumber = searchQuery.value.replace(/[^0-9kK]/g, "");
+
+        if (documentNumber.length > 0) {
+            documentNumber = documentNumber.toUpperCase();
+
+            // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
+            if (documentNumber.length > 1) {
+                const body = documentNumber.slice(0, -1);
+                const dv = documentNumber.slice(-1);
+
+                // Formatear el cuerpo con puntos
+                let formattedBody = "";
+                for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+                    if (j > 0 && j % 3 === 0) {
+                        formattedBody = "." + formattedBody;
+                    }
+                    formattedBody = body[i] + formattedBody;
                 }
-                formattedBody = body[i] + formattedBody;
+
+                // Combinar cuerpo formateado con dígito verificador
+                searchQuery.value = `${formattedBody}-${dv}`;
+            } else {
+                searchQuery.value = documentNumber;
             }
-            
-            // Combinar cuerpo formateado con dígito verificador
-            searchQuery.value = `${formattedBody}-${dv}`;
-        } else {
-            searchQuery.value = rut;
         }
+    } else {
+        // Para pasaporte, solo convertir a mayúsculas y limpiar espacios
+        searchQuery.value = searchQuery.value.toUpperCase().trim();
     }
-    
-    // Validar el RUT después de formatearlo
-    validateRut();
+
+    // Validar el documento después de formatearlo
+    validateDocument();
 };
 
-const validateRut = () => {
-    const rut = searchQuery.value.replace(/\./g, '').replace(/-/g, '');
-    
-    if (rut.length === 0) {
+const validateDocument = () => {
+    const documentNumber = searchQuery.value.replace(/\./g, "").replace(/-/g, "");
+
+    if (documentNumber.length === 0) {
         rutValidation.isValid = null;
-        rutValidation.message = '';
+        rutValidation.message = "";
         return;
     }
-    
-    // Validar formato básico
-    if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-        rutValidation.isValid = false;
-        rutValidation.message = 'Formato de RUT inválido';
-        return;
+
+    if (selectedDocumentType.value === "RUT") {
+        // Validar RUT
+        if (!/^[0-9]+[0-9kK]$/.test(documentNumber)) {
+            rutValidation.isValid = false;
+            rutValidation.message = "Formato de RUT inválido";
+            return;
+        }
+
+        // Separar cuerpo y dígito verificador
+        const body = documentNumber.slice(0, -1);
+        const dv = documentNumber.slice(-1).toUpperCase();
+
+        // Validar que el cuerpo tenga al menos 7 dígitos
+        if (body.length < 7) {
+            rutValidation.isValid = false;
+            rutValidation.message = "RUT debe tener al menos 7 dígitos";
+            return;
+        }
+
+        // Calcular dígito verificador
+        const dvCalculado = calculateDv(body);
+
+        // Comparar dígitos verificadores
+        rutValidation.isValid = dv === dvCalculado;
+        rutValidation.message = rutValidation.isValid
+            ? "RUT válido"
+            : "RUT inválido";
+    } else {
+        // Validar PASAPORTE (más flexible)
+        if (documentNumber.length < 3) {
+            rutValidation.isValid = false;
+            rutValidation.message = "Pasaporte debe tener al menos 3 caracteres";
+            return;
+        }
+
+        // Para pasaporte, solo validar que tenga caracteres válidos
+        if (!/^[A-Z0-9]+$/i.test(documentNumber)) {
+            rutValidation.isValid = false;
+            rutValidation.message = "Pasaporte contiene caracteres inválidos";
+            return;
+        }
+
+        rutValidation.isValid = true;
+        rutValidation.message = ""; // No mostrar mensaje de "válido" para pasaporte
     }
-    
-    // Separar cuerpo y dígito verificador
-    const body = rut.slice(0, -1);
-    const dv = rut.slice(-1).toUpperCase();
-    
-    // Validar que el cuerpo tenga al menos 7 dígitos
-    if (body.length < 7) {
-        rutValidation.isValid = false;
-        rutValidation.message = 'RUT debe tener al menos 7 dígitos';
-        return;
-    }
-    
-    // Calcular dígito verificador
-    const dvCalculado = calculateDv(body);
-    
-    // Comparar dígitos verificadores
-    rutValidation.isValid = dv === dvCalculado;
-    rutValidation.message = rutValidation.isValid ? 'RUT válido' : 'RUT inválido';
 };
 
 const calculateDv = (body) => {
@@ -354,7 +422,53 @@ const calculateDv = (body) => {
         factor = factor === 7 ? 2 : factor + 1;
     }
     const dv = 11 - (sum % 11);
-    return dv === 10 ? 'K' : dv === 11 ? '0' : dv.toString();
+    return dv === 10 ? "K" : dv === 11 ? "0" : dv.toString();
+};
+
+const performSearch = async () => {
+    if (searchQuery.value.trim() && rutValidation.isValid) {
+        // Limpiar el documento antes de enviarlo
+        const cleanDocument = searchQuery.value.replace(/\./g, "").replace(/-/g, "");
+
+        try {
+            const response = await axios.post(
+                route("ecommerce.search-participant"),
+                {
+                    document: cleanDocument,
+                    document_type: selectedDocumentType.value
+                }
+            );
+
+            console.log("Resultado de búsqueda:", response.data);
+
+            if (response.data.found) {
+                console.log(
+                    "Participante encontrado:",
+                    response.data.participant
+                );
+                
+                // Guardar session_id en localStorage para mantener la sesión en todo el flujo
+                if (response.data.session_id) {
+                    localStorage.setItem('analytics_session_id', response.data.session_id);
+                    console.log('Session ID guardado:', response.data.session_id);
+                }
+                
+                // Redirigir a la vista de programas
+                router.get(route("ecommerce.programs"), { 
+                    document: cleanDocument,
+                    document_type: selectedDocumentType.value 
+                });
+            } else {
+                console.log("No se encontró el participante");
+                // Mostrar mensaje de error (puedes implementar un toast o alert)
+                alert(
+                    `No se encontró ningún participante con ese ${selectedDocumentType.value === 'RUT' ? 'RUT' : 'pasaporte'}. Por favor, verifica el número ingresado.`
+                );
+            }
+        } catch (error) {
+            console.error("Error en la búsqueda:", error);
+        }
+    }
 };
 </script>
 

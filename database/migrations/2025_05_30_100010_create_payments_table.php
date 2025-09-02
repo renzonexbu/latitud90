@@ -18,11 +18,15 @@ return new class extends Migration
             $table->foreignId('order_detail_id')->constrained('orders_detail')->onDelete('cascade');
             $table->foreignId('payment_gateway_id')->nullable()->constrained('payment_gateways');
             $table->foreignId('payment_option_id')->nullable()->constrained('payment_options');
-
+            // Tipo de documento para reportes
+            $table->enum('document_type', ['B2', 'BC', 'FF', 'AC'])
+                ->nullable()
+                ->comment('Tipo de documento: B2=Boleta, BC=Nota de crédito, FF=Factura, AC=Reserva');
             // Identificadores de la transacción
             $table->string('buy_order')->nullable();            // Para Transbank
             $table->string('session_id')->nullable();           // Para Transbank
             $table->string('token')->nullable();                // Para Transbank
+            $table->string('payment_method')->nullable()->comment('Para Transbank VD=DEBITO, VN=CREDITO SIN CUOTAS, VC=Venta crédito cuotas bancarias, SI=Crédito 3 cuotas sin intereses, NC=Venta cuotas sin intereses, S2=Crédito 2 cuotas sin intereses, VP=PREPAGO, TE= 	Transferencia electrónica de fondos');      // Para Transbank VD
             $table->string('external_payment_id')->nullable();  // Para Khipu u otros (payment_id, etc.)
 
             // Respuesta de la pasarela
@@ -36,6 +40,7 @@ return new class extends Migration
             $table->string('card_number')->nullable();          // Últimos 4 dígitos
             $table->string('card_type')->nullable();            // Tipo de tarjeta
             $table->integer('installments_number')->nullable(); // Número de cuotas
+            $table->decimal('installment_amount', 10, 2)->nullable(); // Monto por cuota si aplica
 
             // Estado del pago
             // Usamos string para flexibilizar (e.g. approved, rejected, refunded, etc.)
@@ -43,14 +48,20 @@ return new class extends Migration
 
             // Respuesta completa de la pasarela (JSON)
             $table->json('gateway_response')->nullable();
+            $table->string('bsale_document_id')->nullable();
+            $table->string('bsale_number')->nullable();
+            $table->string('bsale_token')->nullable();
             $table->json('raw_notification')->nullable();
 
             // Campos adicionales
             $table->string('commerce_code')->nullable();        // Código de comercio
+            $table->string('payment_code')->nullable();         // Código de boleta/factura para pagos presenciales
             $table->decimal('amount', 10, 2);                   // Monto del pago
             $table->char('currency', 3)->default('CLP');        // Moneda
             $table->decimal('balance', 10, 2)->nullable();      // Saldo restante (para cuotas)
             $table->text('error_message')->nullable();          // Mensaje de error si falla
+            $table->boolean('email_sent')->default(false);
+
 
             $table->timestamps();
 
@@ -60,7 +71,13 @@ return new class extends Migration
             $table->index(['token']);
             $table->index(['external_payment_id']);
             $table->index(['authorization_code']);
+            $table->index(['payment_code']); // Para búsquedas por código de boleta/factura
             $table->index(['order_id', 'status']);
+            $table->index(['status']); // Para filtros por status
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
+            $table->index(['document_type']); // Para filtros por tipo de documento
+            $table->index(['document_type', 'created_at']); // Para filtros combinados con tipo de documento
         });
     }
 

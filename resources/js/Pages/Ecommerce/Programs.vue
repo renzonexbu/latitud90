@@ -1,17 +1,17 @@
 <template>
-    <div class="min-h-screen bg-gray-50 w-full p-3">
+    <div class="min-h-screen bg-gray-50 w-full p-3 sm:p-4">
         <!-- Header -->
         <Header class="bg-transparent text-blanco shadow-none"> </Header>
 
         <!-- Contenido de Programas -->
-        <div class="max-w-6xl mx-auto py-8 px-4">
+        <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6">
             <!-- Información del Participante -->
             <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
                 <!-- Header del Participante -->
                 <div class="mb-6">
                     <ParticipantHeader
                         :participant-name="
-                            participant.first_name + ' ' + participant.last_name
+                            formatParticipantName(participant.first_name, participant.second_name, participant.first_last_name, participant.second_last_name)
                         "
                     />
                 </div>
@@ -25,13 +25,14 @@
             <!-- Grid de Programas -->
             <ProgramsGrid
                 :programs="programs"
-                :rut="rut"
+                :document="document"
+                :document_type="document_type"
                 @program-click="handleProgramClick"
             />
 
             <!-- Botón Volver al Home -->
             <div class="mt-8">
-                <BackToHomeButton :rut="rut" variant="home" />
+                <BackToHomeButton :document="document" :document_type="document_type" variant="home" />
             </div>
         </div>
 
@@ -66,15 +67,67 @@ export default {
             required: true,
         },
         programs: {
-            type: Array,
+            type: [Array, Object],
             required: true,
         },
-        rut: {
+        document: {
+            type: String,
+            required: true,
+        },
+        document_type: {
             type: String,
             required: true,
         },
     },
+    mounted() {
+        // Registrar vista de lista de programas en analytics
+        this.recordProgramListView();
+    },
     methods: {
+        recordProgramListView() {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de vista de lista de programas al backend
+            fetch('/api/analytics/program-list-view', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                })
+            }).catch(error => {
+                console.error('Error recording program list view:', error);
+            });
+        },
+        formatParticipantName(firstName, secondName, firstLastName, secondLastName) {
+            // Filtrar valores undefined, null o vacíos y construir el nombre completo
+            const nameParts = [firstName, secondName, firstLastName, secondLastName]
+                .filter(part => part && part.trim() !== '');
+            
+            // Si no hay nombre válido, mostrar un valor por defecto
+            if (nameParts.length === 0) {
+                return 'Participante';
+            }
+            
+            // Unir todas las partes del nombre
+            const fullName = nameParts.join(' ').trim();
+            
+            // Convertir a Title Case (primera letra de cada palabra en mayúscula)
+            return fullName
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        },
         formatRut(rut) {
             if (!rut) return "";
             const cleanRut = rut.replace(/\./g, "").replace(/-/g, "");
@@ -97,20 +150,63 @@ export default {
             // Guardar enrollment_code en localStorage para identificar pagos
             try {
                 const participant = this.participant || {};
-                const rutFirst6 = participant.rut_first6 || (participant.document_number ? String(participant.document_number).replace(/\D/g, '').slice(0,6) : '');
-                const enrollmentCode = program.enrollment_code || (program.code && rutFirst6 ? `${program.code}${rutFirst6}` : null);
+                let enrollmentCode = program.enrollment_code;
+                
+                if (!enrollmentCode && program.code && participant.document_number) {
+                    if (this.document_type === 'RUT') {
+                        // Para RUT: usar código del programa + RUT completo sin dígito verificador
+                        const rutDigits = String(participant.document_number).replace(/\D/g, '').slice(0, -1);
+                        enrollmentCode = `${program.code}${rutDigits}`;
+                    } else {
+                        // Para pasaporte: usar código del programa + número completo del pasaporte
+                        enrollmentCode = `${program.code}${participant.document_number}`;
+                    }
+                }
                 const payload = {
                     enrollment_code: enrollmentCode,
                     program_id: program.id,
                     participant_id: participant.id || null,
                 };
                 localStorage.setItem('selectedEnrollment', JSON.stringify(payload));
+                
+                // Registrar selección de programa en analytics
+                this.recordProgramSelection(program, enrollmentCode);
             } catch (e) {
                 // noop
             }
             // Navegar al detalle del programa
             router.get(route("ecommerce.program-detail", program.id), {
-                rut: this.rut,
+                document: this.document,
+                document_type: this.document_type,
+                rut: this.document, // Usar document como rut para compatibilidad
+            });
+        },
+        
+        recordProgramSelection(program, enrollmentCode) {
+            // Obtener session_id desde localStorage
+            const sessionId = localStorage.getItem('analytics_session_id');
+            
+            if (!sessionId) {
+                console.warn('No se encontró session_id en localStorage');
+                return;
+            }
+            
+            // Enviar datos de selección de programa al backend
+            fetch('/api/analytics/program-selection', {
+                method: 'POST',
+                credentials: 'same-origin', // Incluir cookies de sesión
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    program_id: program.id,
+                    enrollment_code: enrollmentCode,
+                    program_name: program.name,
+                })
+            }).catch(error => {
+                console.error('Error recording program selection:', error);
             });
         },
     },

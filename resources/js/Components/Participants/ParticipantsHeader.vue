@@ -24,9 +24,10 @@
         </div>
 
         <!-- Right side - Action buttons -->
-        <div v-if="showCreateButton" class="flex flex-row items-center justify-end flex-shrink-0 relative">
+        <div class="flex flex-row items-center justify-end flex-shrink-0 relative gap-4">
+
             <!-- Create Participant Button Container -->
-            <div class="relative">
+            <div v-if="showCreateButton" class="relative">
                 <!-- Plus icon positioned above the button -->
                 <div class="absolute top-[0.8rem] -right-[230px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] relative overflow-visible">
                     <svg 
@@ -67,6 +68,7 @@
 </template>
 
 <script>
+import { Link } from "@inertiajs/vue3";
 import { ParticipantIcon } from "@/Components/Icons";
 
 export default {
@@ -97,3 +99,13 @@ export default {
     }
 };
 </script>
+
+<style scoped>
+.text-turquesa {
+    color: #007e93;
+}
+
+.hover\:text-turquesa-dark:hover {
+    color: #006b7d;
+}
+</style>

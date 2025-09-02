@@ -6,6 +6,7 @@ use App\Models\Program;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -13,17 +14,49 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class UpdateProgramService
 {
+    use AdminLogging;
     /**
      * Execute the program update.
      */
     public function execute(array $programData, Program $program): Program
     {
+        // Capturar datos originales antes de la actualización para el logging
+        $originalData = $program->toArray();
+        
+        // LOG: Verificar qué datos llegan al método
+        Log::info('UpdateProgramService: Datos recibidos al inicio', [
+            'program_id' => $program->id,
+            'programData_keys' => array_keys($programData),
+            'arrays_received' => array_filter($programData, 'is_array'),
+            'full_payment_options' => $programData['full_payment_options'] ?? 'NO PRESENTE',
+            'lat90_payment_options' => $programData['lat90_payment_options'] ?? 'NO PRESENTE'
+        ]);
+        
+        // Guardar los arrays de opciones de pago antes de filtrar
+        $fullPaymentOptions = $programData['full_payment_options'] ?? [];
+        $lat90PaymentOptions = $programData['lat90_payment_options'] ?? [];
+        
+        // Filtrar campos que no deben guardarse directamente en el modelo Program
+        $programData = array_filter($programData, function($key) {
+            return !in_array($key, ['full_payment_options', 'lat90_payment_options']);
+        }, ARRAY_FILTER_USE_KEY);
+        
+        Log::info('UpdateProgramService: Datos después del filtrado inicial', [
+            'program_id' => $program->id,
+            'programData_keys' => array_keys($programData),
+            'arrays_after_filter' => array_filter($programData, 'is_array')
+        ]);
+        
         try {
             DB::beginTransaction();
 
             Log::info('UpdateProgramService: Payload recibido', [
                 'program_id' => $program->id,
                 'keys' => array_keys($programData),
+                'filtered_arrays' => [
+                    'full_payment_options' => $fullPaymentOptions,
+                    'lat90_payment_options' => $lat90PaymentOptions
+                ],
                 'payment_option' => $programData['payment_option'] ?? null,
                 'payment_options' => $programData['payment_options'] ?? null,
                 'full_payment_method' => $programData['full_payment_method'] ?? null,
@@ -136,13 +169,54 @@ class UpdateProgramService
                 isset($programData['institution_id']) ||
                 isset($programData['institution_name']) ||
                 isset($programData['education_level']) ||
+                isset($programData['grade']) ||
                 isset($programData['course_number']) ||
                 isset($programData['destination']) ||
                 isset($programData['departure_date'])
             );
             if ($shouldRebuildName) {
-                $merged = array_merge($program->toArray(), $programData);
-                $autoName = $this->buildProgramNameForUpdate($merged);
+                // Filtrar también los arrays del programa para evitar conflictos
+                $programArray = $program->toArray();
+                Log::info('UpdateProgramService: programArray antes de filtrar', [
+                    'program_id' => $program->id,
+                    'programArray_keys' => array_keys($programArray),
+                    'arrays_in_programArray' => array_filter($programArray, 'is_array')
+                ]);
+                
+                $filteredProgramArray = array_filter($programArray, function($value, $key) {
+                    // Filtrar todos los arrays para evitar problemas con "Array to string conversion"
+                    return !is_array($value);
+                }, ARRAY_FILTER_USE_BOTH);
+                
+                Log::info('UpdateProgramService: programData antes del merge', [
+                    'program_id' => $program->id,
+                    'programData_keys' => array_keys($programData),
+                    'arrays_in_programData' => array_filter($programData, 'is_array')
+                ]);
+                
+                $merged = array_merge($filteredProgramArray, $programData);
+                
+                Log::info('UpdateProgramService: Datos para buildProgramNameForUpdate', [
+                    'program_id' => $program->id,
+                    'merged_keys' => array_keys($merged),
+                    'arrays_in_merged' => array_filter($merged, 'is_array')
+                ]);
+                
+                try {
+                    $autoName = $this->buildProgramNameForUpdate($merged);
+                    Log::info('UpdateProgramService: buildProgramNameForUpdate exitoso', [
+                        'program_id' => $program->id,
+                        'autoName' => $autoName
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('UpdateProgramService: Error en buildProgramNameForUpdate', [
+                        'program_id' => $program->id,
+                        'error' => $e->getMessage(),
+                        'merged_data' => $merged,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
                 if ($autoName) {
                     $updateData['name'] = $autoName;
                 }
@@ -158,7 +232,36 @@ class UpdateProgramService
                     'update_keys' => array_keys($updateData),
                     'update_preview' => $updateData,
                 ]);
-                $program->update($updateData);
+                
+                // Verificar si hay arrays en updateData antes de update
+                $arrayFields = [];
+                foreach ($updateData as $key => $value) {
+                    if (is_array($value)) {
+                        $arrayFields[$key] = $value;
+                    }
+                }
+                
+                if (!empty($arrayFields)) {
+                    Log::error('UpdateProgramService: ARRAYS DETECTADOS en updateData - ESTO CAUSARÁ ERROR', [
+                        'program_id' => $program->id,
+                        'array_fields' => $arrayFields
+                    ]);
+                }
+                
+                try {
+                    $program->update($updateData);
+                    Log::info('UpdateProgramService: Primera actualización exitosa', [
+                        'program_id' => $program->id
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('UpdateProgramService: Error en primera actualización', [
+                        'program_id' => $program->id,
+                        'error' => $e->getMessage(),
+                        'updateData' => $updateData,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
             }
 
             // Actualizar rutas de archivos si se procesaron nuevos
@@ -184,19 +287,47 @@ class UpdateProgramService
                         'update_keys' => array_keys($updateData),
                         'update_preview' => $updateData,
                     ]);
-                    $program->update($updateData);
+                    
+                    // Verificar si hay arrays en updateData de archivos
+                    $arrayFields = [];
+                    foreach ($updateData as $key => $value) {
+                        if (is_array($value)) {
+                            $arrayFields[$key] = $value;
+                        }
+                    }
+                    
+                    if (!empty($arrayFields)) {
+                        Log::error('UpdateProgramService: ARRAYS DETECTADOS en updateData de archivos - ESTO CAUSARÁ ERROR', [
+                            'program_id' => $program->id,
+                            'array_fields' => $arrayFields
+                        ]);
+                    }
+                    
+                    try {
+                        $program->update($updateData);
+                        Log::info('UpdateProgramService: Actualización de archivos exitosa', [
+                            'program_id' => $program->id
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('UpdateProgramService: Error en actualización de archivos', [
+                            'program_id' => $program->id,
+                            'error' => $e->getMessage(),
+                            'updateData' => $updateData,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        throw $e;
+                    }
                 }
             }
 
             // Lógica para crear/actualizar curso y participantes si se proporcionan los datos
-            // Solo crear curso si no existe uno ya
             $existingCourse = Course::where('program_id', $program->id)->first();
             
             if (!$existingCourse && 
                 !empty($programData['institution_id']) && 
                 !empty($programData['education_level'])) {
                 
-                // Solo crear curso si no existe uno
+                // Crear curso nuevo si no existe uno
                 $course = $this->createOrUpdateCourse($programData, $program);
                 
                 // Asignar el curso al programa
@@ -206,9 +337,14 @@ class UpdateProgramService
                 if (!empty($programData['students_file'])) {
                     $this->processParticipants($programData['students_file'], $course, $program);
                 }
-            } elseif ($existingCourse && !empty($programData['students_file'])) {
-                // Si ya existe un curso, solo procesar participantes si se sube un nuevo archivo
-                $this->processParticipants($programData['students_file'], $existingCourse, $program);
+            } elseif ($existingCourse) {
+                // Si ya existe un curso, actualizarlo con los nuevos datos que afectan al nombre
+                $this->updateExistingCourse($existingCourse, $programData);
+                
+                // Procesar participantes si se sube un nuevo archivo
+                if (!empty($programData['students_file'])) {
+                    $this->processParticipants($programData['students_file'], $existingCourse, $program);
+                }
             }
 
             // Recalcular el total del programa (trip_price = precio final por participante x #participantes)
@@ -223,9 +359,43 @@ class UpdateProgramService
             }
 
             // Sincronizar opciones de pago (pivote program_payment_option) si vienen nuevas
-            $this->syncProgramPaymentOptions($program, $programData);
+            // Usar los arrays guardados anteriormente
+            $paymentOptionsData = [
+                'full_payment_options' => $fullPaymentOptions,
+                'lat90_payment_options' => $lat90PaymentOptions
+            ];
+            $this->syncProgramPaymentOptions($program, $paymentOptionsData);
 
             DB::commit();
+            
+            // Log the program update
+            $freshData = $program->fresh()->toArray();
+            
+            // Filtrar arrays para evitar problemas con array_diff_assoc
+            $filteredOriginalData = array_filter($originalData, function($value) {
+                return !is_array($value);
+            });
+            $filteredFreshData = array_filter($freshData, function($value) {
+                return !is_array($value);
+            });
+            
+            $this->logUpdate(
+                'programs',
+                'Program',
+                $program->id,
+                "Programa actualizado: {$program->name} ({$program->code})",
+                $originalData,
+                $freshData,
+                [
+                    'program_name' => $program->name,
+                    'program_code' => $program->code,
+                    'destination' => $program->destination,
+                    'departure_date' => $program->departure_date,
+                    'trip_price' => $program->trip_price,
+                    'updated_fields' => array_keys(array_diff_assoc($filteredFreshData, $filteredOriginalData)),
+                ]
+            );
+            
             Log::info('UpdateProgramService: Actualización finalizada', [
                 'program_id' => $program->id
             ]);
@@ -247,16 +417,11 @@ class UpdateProgramService
      */
     private function ensureParticipantProgram(\App\Models\Participant $participant, Program $program, ?float $individualPrice = null): void
     {
-        $code = (string) ($program->code ?? '');
-        $rutFirst6 = $participant->rut_first6;
-        if (!$rutFirst6) {
-            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
-            $rutFirst6 = substr($digits, 0, 6) ?: null;
+        $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
+        
+        if (!$enrollmentCode) {
+            return; // No podemos generar enrollment_code
         }
-        if (!$code || !$rutFirst6) {
-            return;
-        }
-        $enrollmentCode = $code . $rutFirst6;
 
         DB::table('participant_program')->updateOrInsert(
             [
@@ -383,7 +548,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->itinerary_file);
             }
             $filename = "itinerario_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['itinerary_file'], $filename);
+            $file = $programData['itinerary_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['itinerary_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -393,7 +563,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->travel_assistance_coverage);
             }
             $filename = "cobertura_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['coverage_file'], $filename);
+            $file = $programData['coverage_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['coverage_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -403,7 +578,12 @@ class UpdateProgramService
                 Storage::disk('public')->delete($program->equipment_list);
             }
             $filename = "equipo_{$programId}_{$timestamp}.pdf";
-            Storage::disk('public')->putFileAs($pdfDir, $programData['equipment_file'], $filename);
+            $file = $programData['equipment_file'];
+            if (method_exists($file, 'storeAs')) {
+                $file->storeAs($pdfDir, $filename, 'public');
+            } else {
+                Storage::disk('public')->put($pdfDir . '/' . $filename, file_get_contents($file));
+            }
             $processedData['equipment_file_path'] = $pdfDir . '/' . $filename;
         }
 
@@ -414,7 +594,11 @@ class UpdateProgramService
                 if ($image && $image->isValid()) {
                     $ext = $image->getClientOriginalExtension();
                     $filename = "imagen_{$programId}_{$timestamp}_{$index}.{$ext}";
-                    Storage::disk('public')->putFileAs($imagesDir, $image, $filename);
+                    if (method_exists($image, 'storeAs')) {
+                        $image->storeAs($imagesDir, $filename, 'public');
+                    } else {
+                        Storage::disk('public')->put($imagesDir . '/' . $filename, file_get_contents($image));
+                    }
                     $storedAny = true;
                 }
             }
@@ -610,10 +794,15 @@ class UpdateProgramService
 
         // Course
         $course = null;
-        if (!empty($data['education_level']) || !empty($data['course_number'])) {
+        if (!empty($data['education_level']) || !empty($data['course_number']) || !empty($data['grade'])) {
             $level = $this->mapEducationLevel($data['education_level'] ?? '');
             $num = $data['course_number'] ?? '';
+            $grade = $data['grade'] ?? '';
             $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+            // Agregar grado si existe
+            if ($grade) {
+                $course .= ' ' . strtoupper($grade);
+            }
         }
 
         $destination = $data['destination'] ?? null;
@@ -635,6 +824,7 @@ class UpdateProgramService
         $course = Course::create([
             'institution_id' => $programData['institution_id'],
             'education_level' => $this->mapEducationLevel($programData['education_level']),
+            'grade' => $programData['grade'] ?? null,
             'year' => date('Y'),
             'course_number' => $programData['course_number'] ?? null,
             'course_name' => $programData['course_name'] ?? null,
@@ -722,16 +912,19 @@ class UpdateProgramService
                         
                         // Actualizar datos del participante
                         $existingParticipant->update([
-                            'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
-                            'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
+                            'first_last_name' => $participantData['Primer apellido'] ?? $existingParticipant->first_last_name,
+                            'second_last_name' => $participantData['Segundo apellido'] ?? $existingParticipant->second_last_name,
+                            'first_name' => $participantData['Primer Nombre'] ?? $existingParticipant->first_name,
+                            'second_name' => $participantData['Segundo Nombre'] ?? $existingParticipant->second_name,
                             'email' => isset($participantData['Email']) && $participantData['Email'] !== ''
                                 ? $this->normalizeEmail($participantData['Email'])
                                 : $existingParticipant->email,
                             'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
-                            'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha de nacimiento']) ?? $existingParticipant->birth_date,
                             'address' => $participantData['Dirección'] ?? $existingParticipant->address,
                             'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
-                            'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
+                            'intolerances' => $participantData['Intolerancia'] ?? $existingParticipant->intolerances,
+                            'allergies' => $participantData['Alergias'] ?? $existingParticipant->allergies,
                         ]);
                         
                         // Actualizar relación con el curso
@@ -774,18 +967,21 @@ class UpdateProgramService
                     
                     
                     $participant = Participant::create([
-                        'first_name' => $participantData['Nombre'] ?? '',
-                        'last_name' => $participantData['Apellido'] ?? '',
+                        'first_last_name' => $participantData['Primer apellido'] ?? '',
+                        'second_last_name' => $participantData['Segundo apellido'] ?? '',
+                        'first_name' => $participantData['Primer Nombre'] ?? '',
+                        'second_name' => $participantData['Segundo Nombre'] ?? '',
                         'email' => $this->normalizeEmail($participantData['Email'] ?? ''),
                         'code_phone' => '+56', // Código por defecto para Chile
                         'phone' => $participantData['Teléfono'] ?? '',
                         'document_type' => $documentType,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
+                        'birth_date' => $this->parseBirthDate($participantData['Fecha de nacimiento']) ?? null,
                         'address' => $participantData['Dirección'] ?? null,
                         'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-                        'medical_conditions' => $participantData['Condición médica'] ?? null,
+                        'intolerances' => $participantData['Intolerancia'] ?? null,
+                        'allergies' => $participantData['Alergias'] ?? null,
                         'status' => 'pending_payment',
                         'registration_date' => now(),
                         'individual_price' => 0, // Se calculará después
@@ -813,8 +1009,7 @@ class UpdateProgramService
                 $participants[] = $participant; // Guardar referencia al participante
                 
                 // Manejar contacto de emergencia
-                if (!empty($participantData['Nombre contacto emergencia']) && 
-                    !empty($participantData['Apellido contacto emergencia'])) {
+                if (!empty($participantData['Nombre contacto emergencia'])) {
                     
                     // Verificar si ya existe un contacto de emergencia para este participante
                     $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
@@ -822,13 +1017,12 @@ class UpdateProgramService
                     if ($existingEmergencyContact) {
                         // UPDATE: Actualizar contacto de emergencia existente
                         $existingEmergencyContact->update([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'name' => $participantData['Nombre contacto emergencia'],
                             'email' => isset($participantData['Email contacto emergencia']) && $participantData['Email contacto emergencia'] !== ''
                                 ? $this->normalizeEmail($participantData['Email contacto emergencia'])
                                 : $existingEmergencyContact->email,
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha nacimiento contacto emergencia']) ?? $existingEmergencyContact->birth_date,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
                         ]);
                         
@@ -836,13 +1030,12 @@ class UpdateProgramService
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
                         $emergencyContact = EmergencyContact::create([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
+                            'name' => $participantData['Nombre contacto emergencia'],
                             'email' => $this->normalizeEmail($participantData['Email contacto emergencia'] ?? ''),
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
                             'country' => 'CL', // Chile por defecto
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
+                            'birth_date' => $this->parseBirthDate($participantData['Fecha nacimiento contacto emergencia']) ?? null,
                             'address' => null,
                             'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
                             'participant_id' => $participant->id,
@@ -930,6 +1123,11 @@ class UpdateProgramService
         // Si es solo números, podría ser un RUT sin formato
         if (is_numeric(str_replace(['.', '-'], '', $documentNumber))) {
             return 'RUT';
+        }
+        
+        // Si contiene letras, es un pasaporte
+        if (preg_match('/[A-Za-z]/', $documentNumber)) {
+            return 'PASSPORT';
         }
         
         // Por defecto, asumir que es un RUT
@@ -1094,5 +1292,101 @@ class UpdateProgramService
         ];
 
         return $discountMapping[$discountType] ?? null;
+    }
+
+    /**
+     * Update existing course with new data that affects the program name.
+     */
+    private function updateExistingCourse(Course $course, array $programData): void
+    {
+        $updateData = [];
+        
+        // Solo actualizar campos que afectan al nombre del programa
+        if (isset($programData['institution_id'])) {
+            $updateData['institution_id'] = $programData['institution_id'];
+        }
+        if (isset($programData['education_level'])) {
+            $updateData['education_level'] = $this->mapEducationLevel($programData['education_level']);
+        }
+        if (isset($programData['grade'])) {
+            $updateData['grade'] = $programData['grade'];
+        }
+        if (isset($programData['course_number'])) {
+            $updateData['course_number'] = $programData['course_number'];
+        }
+        if (isset($programData['course_name'])) {
+            $updateData['course_name'] = $programData['course_name'];
+        }
+        if (isset($programData['contact_email'])) {
+            $updateData['contact_email'] = $programData['contact_email'];
+        }
+        if (isset($programData['contact_phone'])) {
+            $updateData['contact_phone'] = $programData['contact_phone'];
+        }
+        if (isset($programData['final_payment_date'])) {
+            $updateData['end_date'] = $programData['final_payment_date'];
+        }
+        
+        // Solo actualizar si hay datos para cambiar
+        if (!empty($updateData)) {
+            Log::info('UpdateProgramService: Actualizando curso existente', [
+                'course_id' => $course->id,
+                'update_data' => $updateData,
+            ]);
+            $course->update($updateData);
+        }
+    }
+
+    /**
+     * Parsear fecha de nacimiento en diferentes formatos
+     * Soporta: YYYY/MM/DD, DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+     */
+    private function parseBirthDate(?string $dateString): ?string
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        $dateString = trim($dateString);
+        
+        // Si ya es un formato válido de fecha, retornarlo
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+            return $dateString;
+        }
+
+        // Formato YYYY/MM/DD
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD/MM/YYYY
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato YYYY-MM-DD (con espacios)
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Si no coincide con ningún formato, retornar null
+        return null;
     }
 }

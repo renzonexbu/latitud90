@@ -16,12 +16,13 @@
         <!-- Programs Grid - 3x2 layout -->
         <div
             v-else
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 justify-items-center md:justify-items-stretch"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8 justify-items-center md:justify-items-stretch px-2 sm:px-0"
         >
             <ProgramCard
                 v-for="program in paginatedPrograms"
                 :key="program.id"
                 :program="program"
+                :show-status-badge="false"
                 @click="handleProgramClick(program)"
             />
         </div>
@@ -53,7 +54,11 @@ export default {
             type: Object,
             required: true,
         },
-        rut: {
+        document: {
+            type: String,
+            required: true,
+        },
+        document_type: {
             type: String,
             required: true,
         },
@@ -91,6 +96,9 @@ export default {
                         paymentPercentage: program.paymentPercentage ?? 0,
                         paidAmount: program.paidAmount ?? 0,
                         totalAmount: participantTotal,
+                        total_installments: program.total_installments ?? 0,
+                        paid_installments: program.paid_installments ?? 0,
+                        installments_summary: program.installments_summary ?? null,
                     };
                 });
             }
@@ -105,7 +113,8 @@ export default {
                 route("ecommerce.programs"),
                 { 
                     page,
-                    rut: this.rut
+                    document: this.document,
+                    document_type: this.document_type
                 },
                 {
                     preserveState: true,

@@ -10,8 +10,8 @@
             </svg>
           </div>
           <div>
-            <h2 class="text-[24px] font-nexa-bold text-gray-800">Contactos de Emergencia</h2>
-            <p class="text-[14px] text-gray-600">{{ participant.first_name }} {{ participant.last_name }}</p>
+            <h2 class="text-[24px] font-nexa-bold text-gray-800">Apoderado</h2>
+            <p class="text-[14px] text-gray-600">{{ getFullName(participant) }}</p>
           </div>
         </div>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
@@ -25,7 +25,7 @@
       <div class="p-6 overflow-y-auto flex-1">
         <!-- Existing Contacts -->
         <div class="mb-6">
-          <h3 class="text-[18px] font-nexa-bold text-gray-800 mb-4">Contactos de Emergencia</h3>
+          <h3 class="text-[18px] font-nexa-bold text-gray-800 mb-4">Apoderado</h3>
           
           <div v-if="participant.emergency_contacts && participant.emergency_contacts.length > 0" class="space-y-4">
             <div v-for="(contact, index) in participant.emergency_contacts" :key="contact.id" class="border border-gray-200 rounded-lg p-4">
@@ -37,15 +37,15 @@
                     </svg>
                   </div>
                   <div class="text-left">
-                    <div class="font-nexa-bold text-gray-800">Contacto {{ index + 1 }}</div>
-                    <div class="text-sm text-gray-600">{{ contact.first_name }} {{ contact.last_name }}</div>
+                    <div class="font-nexa-bold text-gray-800">Apoderado {{ index + 1 }}</div>
+                    <div class="text-sm text-gray-600">{{ contact.name }}</div>
                   </div>
                 </div>
                 <button 
                   v-if="participant.emergency_contacts && participant.emergency_contacts.length > 1"
                   @click="deleteContact(contact.id)"
                   class="text-red-500 hover:text-red-700 transition-colors"
-                  title="Eliminar contacto"
+                  title="Eliminar apoderado"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/>
@@ -54,7 +54,7 @@
                 <div 
                   v-else
                   class="text-gray-400 cursor-not-allowed"
-                  title="No se puede eliminar el último contacto de emergencia"
+                  title="No se puede eliminar el último apoderado"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/>
@@ -65,19 +65,10 @@
               <!-- Editable Form -->
               <form @submit.prevent="updateContact(contact.id, index)" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                  <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
                     <input 
-                      v-model="contact.first_name"
-                      type="text"
-                      required
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-                    <input 
-                      v-model="contact.last_name"
+                      v-model="contact.name"
                       type="text"
                       required
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
@@ -91,24 +82,6 @@
                       required
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                     />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Relación *</label>
-                    <select 
-                      v-model="contact.relationship"
-                      required
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
-                    >
-                      <option value="">Seleccionar relación</option>
-                      <option value="Padre">Padre</option>
-                      <option value="Madre">Madre</option>
-                      <option value="Hermano/a">Hermano/a</option>
-                      <option value="Abuelo/a">Abuelo/a</option>
-                      <option value="Tío/a">Tío/a</option>
-                      <option value="Primo/a">Primo/a</option>
-                      <option value="Amigo/a">Amigo/a</option>
-                      <option value="Otro">Otro</option>
-                    </select>
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Código de País *</label>
@@ -183,7 +156,7 @@
                     :disabled="isSubmitting"
                     class="px-4 py-2 bg-azul-oscuro text-white rounded-lg hover:bg-azul-oscuro-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {{ isSubmitting ? 'Actualizando...' : 'Actualizar Contacto' }}
+                    {{ isSubmitting ? 'Actualizando...' : 'Actualizar Apoderado' }}
                   </button>
                 </div>
               </form>
@@ -191,12 +164,12 @@
           </div>
           
           <div v-else class="text-center py-8">
-            <p class="text-gray-500">No hay contactos de emergencia registrados.</p>
+            <p class="text-gray-500">No hay apoderados registrados.</p>
           </div>
         </div>
 
         <!-- Add New Contact Button -->
-        <div class="mb-6">
+        <!-- <div class="mb-6">
           <button 
             @click="showNewContactForm = true"
             class="w-full px-4 py-3 bg-azul-oscuro text-white rounded-lg hover:bg-azul-oscuro-dark transition-colors flex items-center justify-center gap-2"
@@ -204,29 +177,20 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 5V19M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            Agregar Nuevo Contacto
+            Agregar Nuevo Apoderado
           </button>
-        </div>
+        </div> -->
 
         <!-- New Contact Form -->
         <div v-if="showNewContactForm" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-          <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-4">Nuevo Contacto de Emergencia</h4>
+          <h4 class="text-[16px] font-nexa-bold text-gray-800 mb-4">Nuevo Apoderado</h4>
           
           <form @submit.prevent="saveNewContact" class="space-y-4">
             <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
                 <input 
-                  v-model="newContact.first_name"
-                  type="text"
-                  required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-                <input 
-                  v-model="newContact.last_name"
+                  v-model="newContact.name"
                   type="text"
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
@@ -240,24 +204,6 @@
                   required
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
                 />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Relación *</label>
-                <select 
-                  v-model="newContact.relationship"
-                  required
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
-                >
-                  <option value="">Seleccionar relación</option>
-                  <option value="Padre">Padre</option>
-                  <option value="Madre">Madre</option>
-                  <option value="Hermano/a">Hermano/a</option>
-                  <option value="Abuelo/a">Abuelo/a</option>
-                  <option value="Tío/a">Tío/a</option>
-                  <option value="Primo/a">Primo/a</option>
-                  <option value="Amigo/a">Amigo/a</option>
-                  <option value="Otro">Otro</option>
-                </select>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Código de País *</label>
@@ -339,7 +285,7 @@
                 :disabled="isSubmitting"
                 class="px-4 py-2 bg-azul-oscuro text-white rounded-lg hover:bg-azul-oscuro-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {{ isSubmitting ? 'Guardando...' : 'Guardar Contacto' }}
+                {{ isSubmitting ? 'Guardando...' : 'Guardar Apoderado' }}
               </button>
             </div>
           </form>
@@ -374,15 +320,13 @@ const isSubmitting = ref(false);
 const showNewContactForm = ref(false);
 
 const newContact = ref({
-  first_name: '',
-  last_name: '',
+  name: '',
   email: '',
   code_phone: '+56',
   phone: '',
   country: 'CL',
   birth_date: '',
-  address: '',
-  relationship: ''
+  address: ''
 });
 
 const formatDate = (dateString) => {
@@ -390,6 +334,18 @@ const formatDate = (dateString) => {
   const date = new Date(dateString);
   return date.toISOString().split('T')[0];
 };
+
+// Watcher para formatear las fechas cuando se abra el modal
+watch(() => props.show, (newValue) => {
+  if (newValue && props.participant.emergency_contacts) {
+    // Formatear las fechas de los contactos existentes
+    props.participant.emergency_contacts.forEach(contact => {
+      if (contact.birth_date) {
+        contact.birth_date = formatDate(contact.birth_date);
+      }
+    });
+  }
+}, { immediate: true });
 
 const saveNewContact = () => {
   isSubmitting.value = true;
@@ -419,15 +375,13 @@ const updateContact = (contactId, index) => {
   const contact = props.participant.emergency_contacts[index];
   const formData = new FormData();
   formData.append('contact_id', contactId);
-  formData.append('first_name', contact.first_name);
-  formData.append('last_name', contact.last_name);
+  formData.append('name', contact.name);
   formData.append('email', contact.email);
   formData.append('code_phone', contact.code_phone);
   formData.append('phone', contact.phone);
   formData.append('country', contact.country);
   formData.append('birth_date', contact.birth_date || '');
   formData.append('address', contact.address || '');
-  formData.append('relationship', contact.relationship);
   formData.append('_method', 'PUT');
 
   router.post(route('admin.participants.update-emergency-contact', props.participant.id), formData, {
@@ -444,7 +398,7 @@ const updateContact = (contactId, index) => {
 };
 
 const deleteContact = (contactId) => {
-  if (!confirm('¿Estás seguro de que quieres eliminar este contacto de emergencia?')) {
+  if (!confirm('¿Estás seguro de que quieres eliminar este apoderado?')) {
     return;
   }
 
@@ -474,16 +428,25 @@ const cancelNewContact = () => {
 
 const resetNewContactForm = () => {
   newContact.value = {
-    first_name: '',
-    last_name: '',
+    name: '',
     email: '',
     code_phone: '+56',
     phone: '',
     country: 'CL',
     birth_date: '',
-    address: '',
-    relationship: ''
+    address: ''
   };
+};
+
+const getFullName = (participant) => {
+  if (!participant) return '';
+  
+  const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1) : '';
+  const secondName = participant.second_name ? participant.second_name.charAt(0).toUpperCase() + participant.second_name.slice(1) : '';
+  const firstLastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1) : '';
+  const secondLastName = participant.second_last_name ? participant.second_last_name.charAt(0).toUpperCase() + participant.second_last_name.slice(1) : '';
+
+  return `${firstLastName} ${secondLastName} ${firstName} ${secondName}`.trim();
 };
 </script>
 

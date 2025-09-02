@@ -13,9 +13,14 @@ return new class extends Migration
     {
         Schema::create('medical_conditions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('participant_id')->constrained('participants');
+            $table->foreignId('participant_id')->constrained('participants')->onDelete('cascade');
+            $table->enum('type', ['dietary_restriction', 'intolerance', 'allergy', 'medical_condition']);
             $table->string('description');
+            $table->text('notes')->nullable();
             $table->timestamps();
+            
+            // Índices
+            $table->index(['participant_id', 'type']); // Para búsquedas por participante y tipo
         });
     }
 

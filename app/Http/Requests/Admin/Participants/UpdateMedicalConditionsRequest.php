@@ -14,7 +14,8 @@ class UpdateMedicalConditionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'medical_conditions' => 'nullable|string',
+            'allergies' => 'nullable|string',
+            'intolerances' => 'nullable|string',
             'dietary_restrictions' => 'nullable|string',
         ];
     }

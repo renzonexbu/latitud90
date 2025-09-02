@@ -34,13 +34,10 @@
                 <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
                     Año
                 </div>
-                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-between w-[110px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
-                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center w-[48px]">
+                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-center w-[110px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
+                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center">
                         {{ course.year }}
                     </div>
-                    <svg class="w-[12.62px] h-[25.21px] text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
                 </div>
             </div>
             
@@ -49,13 +46,10 @@
                 <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
                     Curso
                 </div>
-                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-between w-full shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
-                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-left w-full">
+                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-center w-full shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
+                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center w-full">
                         {{ formatCourseDisplay(course) }}
                     </div>
-                    <svg class="w-[12.62px] h-[25.21px] text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
                 </div>
             </div>
             
@@ -64,13 +58,22 @@
                 <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
                     Nivel de educación
                 </div>
-                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-between w-[210px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
-                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-left w-[90px]">
+                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-center w-[210px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
+                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center w-full">
                         {{ capitalizeWords(course.education_level) }}
                     </div>
-                    <svg class="w-[12.62px] h-[25.21px] text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
+                </div>
+            </div>
+            
+            <!-- Sección -->
+            <div class="flex flex-col gap-2 w-[110px]">
+                <div class="text-[#5b5b5b] text-[10px] leading-[14px] font-nexa-regular">
+                    Sección
+                </div>
+                <div class="bg-white border border-[#f0f0f0] rounded-[50px] px-4 py-2 flex items-center justify-center w-[110px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)]">
+                    <div class="text-turquesa text-[14px] leading-[22px] font-nexa-bold text-center">
+                        {{ course.grade || 'N/A' }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,32 +85,6 @@
         
         <!-- Bottom Section -->
         <div class="flex justify-between items-center">
-            <!-- Contact Info -->
-            <div class="flex gap-[22px]">
-                <!-- Email -->
-                <div class="flex items-center gap-[5px]">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                        <rect width="18" height="18" fill="white"/>
-                        <path d="M2.25 5.25006C2.25 4.85224 2.40804 4.47071 2.68934 4.1894C2.97064 3.9081 3.35218 3.75006 3.75 3.75006H14.25C14.6478 3.75006 15.0294 3.9081 15.3107 4.1894C15.592 4.47071 15.75 4.85224 15.75 5.25006V12.7501C15.75 13.1479 15.592 13.5294 15.3107 13.8107C15.0294 14.092 14.6478 14.2501 14.25 14.2501H3.75C3.35218 14.2501 2.97064 14.092 2.68934 13.8107C2.40804 13.5294 2.25 13.1479 2.25 12.7501V5.25006Z" stroke="#1C4F4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M2.25 5.25006L9 9.75006L15.75 5.25006" stroke="#1C4F4A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <div class="text-verde-oscuro text-[12px] leading-[13px] font-nexa-bold w-[94px]">
-                        {{ course.contact_email || 'N/A' }}
-                    </div>
-                </div>
-                
-                <!-- Phone -->
-                <div class="flex items-center gap-[5px] ml-[65px]">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
-                        <rect width="18" height="18" fill="white"/>
-                        <path d="M11.6999 10.8916C9.90365 12.7816 5.3219 8.24109 7.1249 6.34359C8.2259 5.18484 6.9824 3.86109 6.2939 2.88684C5.00165 1.06059 2.1659 3.58209 2.2514 5.18634C2.52365 10.2458 7.9964 16.2413 13.2959 15.7178C14.9534 15.5543 16.8584 12.5603 14.9572 11.4661C14.0062 10.9186 12.7004 9.83859 11.6999 10.8908M10.4999 2.25009C11.8923 2.25009 13.2276 2.80321 14.2122 3.78777C15.1968 4.77234 15.7499 6.1077 15.7499 7.50009M10.4999 5.25009C11.0966 5.25009 11.6689 5.48714 12.0909 5.90909C12.5129 6.33105 12.7499 6.90335 12.7499 7.50009" stroke="#1C4F4A" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <div class="text-verde-oscuro text-[12px] leading-[13px] font-nexa-bold w-[94px]">
-                        {{ course.contact_phone || 'N/A' }}
-                    </div>
-                </div>
-            </div>
-            
             <!-- Students Count -->
             <div class="flex items-center gap-[5px]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="18" viewBox="0 0 20 18" fill="none">

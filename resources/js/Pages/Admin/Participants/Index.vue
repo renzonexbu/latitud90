@@ -76,6 +76,8 @@
             :show="showCreateModal" 
             :courses="courses"
             :institutions="institutions"
+            :programs="programs"
+            :document-types="documentTypes"
             :errors="errors"
             @close="closeCreateModal" 
         />
@@ -135,6 +137,14 @@ export default {
             type: Array,
             default: () => [],
         },
+        programs: {
+            type: Array,
+            default: () => [],
+        },
+        documentTypes: {
+            type: Array,
+            default: () => [],
+        },
         errors: {
             type: Object,
             default: () => ({}),
@@ -151,6 +161,7 @@ export default {
                 level: "",
                 course_number: "",
                 paymentStatus: "",
+                active: "",
             }
         };
     },
@@ -160,6 +171,21 @@ export default {
         },
         // Lista plana de participantes repetidos por cada programa (inscripción)
         flattenedParticipantsData() {
+            console.log('🔍 Index.vue - Props recibidos:', {
+                participants: this.participants,
+                enrollments: this.enrollments,
+                allParticipants: this.allParticipants
+            });
+            
+            // Debug específico para el campo is_active
+            if (this.enrollments && this.enrollments.length > 0) {
+                console.log('🔍 Index.vue - Primer enrollment is_active:', {
+                    enrollment: this.enrollments[0],
+                    is_active: this.enrollments[0].is_active,
+                    is_active_type: typeof this.enrollments[0].is_active
+                });
+            }
+            
             // Preferir inscripciones del backend si están presentes (array o paginado con data)
             let enrollments = [];
             if (Array.isArray(this.enrollments) && this.enrollments.length > 0) {
@@ -171,14 +197,21 @@ export default {
                 // Sin dataset desde backend, mantener listado vacío para no inventar datos inconsistentes
                 enrollments = [];
             }
+            
+            console.log('🔍 Index.vue - Enrollments procesados:', enrollments);
+            
             // Mapear al formato que la tabla espera: un objeto de participante por fila
-            return enrollments.map((enr) => ({
+            const result = enrollments.map((enr) => ({
                 id: enr.participant_id,
+                first_last_name: enr.participant?.first_last_name ?? enr.first_last_name ?? '',
+                second_last_name: enr.participant?.second_last_name ?? enr.second_last_name ?? '',
                 first_name: enr.participant?.first_name ?? enr.first_name ?? '',
-                last_name: enr.participant?.last_name ?? enr.last_name ?? '',
+                second_name: enr.participant?.second_name ?? enr.second_name ?? '',
                 document_number: enr.participant?.document_number ?? enr.document_number ?? '',
+                document_type: enr.participant?.document_type ?? enr.document_type ?? 'RUT',
                 phone: enr.participant?.phone,
                 code_phone: enr.participant?.code_phone,
+                is_active: enr.is_active, // Ahora viene directamente del backend
                 courses: [
                     {
                         institution: { name: enr.institution_name || null },
@@ -195,8 +228,25 @@ export default {
                 __paid_amount: enr.paid_amount ?? 0,
                 __total_due: enr.total_due ?? 0,
             }));
+            
+            console.log('🔍 Index.vue - Resultado final mapeado:', result);
+            
+            // Debug específico para el campo is_active en el resultado
+            if (result.length > 0) {
+                console.log('🔍 Index.vue - Primer participante mapeado:', {
+                    participant: result[0],
+                    is_active: result[0].is_active,
+                    is_active_type: typeof result[0].is_active
+                });
+            }
+            
+            return result;
         },
         filteredParticipants() {
+            console.log('🔍 Index.vue - Iniciando filtrado de participantes');
+            console.log('🔍 Index.vue - Filtros activos:', this.localFilters);
+            console.log('🔍 Index.vue - Total de participantes antes de filtrar:', this.flattenedParticipantsData.length);
+            
             let filtered = this.flattenedParticipantsData;
 
             // Filtro de búsqueda
@@ -204,7 +254,9 @@ export default {
                 const searchTerm = this.localFilters.search.toLowerCase();
                 filtered = filtered.filter(participant => 
                     participant.first_name?.toLowerCase().includes(searchTerm) ||
-                    participant.last_name?.toLowerCase().includes(searchTerm) ||
+                    participant.second_name?.toLowerCase().includes(searchTerm) ||
+                    participant.first_last_name?.toLowerCase().includes(searchTerm) ||
+                    participant.second_last_name?.toLowerCase().includes(searchTerm) ||
                     participant.document_number?.toLowerCase().includes(searchTerm) ||
                     this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
                 );
@@ -249,11 +301,90 @@ export default {
                 );
             }
 
+            // Filtro por estado activo/inactivo
+            console.log('🔍 Verificando filtro activo:', {
+                filterValue: this.localFilters.active,
+                filterType: typeof this.localFilters.active,
+                filterValueStrict: this.localFilters.active,
+                isNull: this.localFilters.active === null,
+                isEmpty: this.localFilters.active === '',
+                shouldApplyFilter: this.localFilters.active !== ''
+            });
+            
+            if (this.localFilters.active !== '') {
+                console.log('🔍 Filtro activo aplicado:', {
+                    filterValue: this.localFilters.active,
+                    filterType: typeof this.localFilters.active,
+                    filterValueStrict: this.localFilters.active,
+                    totalBeforeFilter: filtered.length
+                });
+                
+                // Debug: mostrar algunos participantes antes del filtro
+                console.log('🔍 Primeros 3 participantes antes del filtro:', 
+                    filtered.slice(0, 3).map(p => ({
+                        id: p.id,
+                        is_active: p.is_active,
+                        is_active_type: typeof p.is_active
+                    }))
+                );
+                
+                filtered = filtered.filter(participant => {
+                    // Convertir el valor del participante a booleano
+                    const participantActive = Boolean(participant.is_active);
+                    
+                    // Convertir el valor del filtro a booleano
+                    let filterActive;
+                    if (this.localFilters.active === true || this.localFilters.active === 'true') {
+                        filterActive = true;
+                    } else if (this.localFilters.active === false || this.localFilters.active === 'false') {
+                        filterActive = false;
+                    } else {
+                        filterActive = null; // No debería llegar aquí
+                    }
+                    
+                    const matches = participantActive === filterActive;
+                    
+                    console.log('🔍 Comparando participante:', {
+                        participantId: participant.id,
+                        participantActive: participantActive,
+                        participantActiveType: typeof participantActive,
+                        filterActive: filterActive,
+                        filterActiveType: typeof filterActive,
+                        matches: matches,
+                        filterOriginal: this.localFilters.active
+                    });
+                    
+                    return matches;
+                });
+                
+                console.log('🔍 Total después del filtro activo:', filtered.length);
+                
+                // Debug: mostrar algunos participantes después del filtro
+                if (filtered.length > 0) {
+                    console.log('🔍 Primeros 3 participantes después del filtro:', 
+                        filtered.slice(0, 3).map(p => ({
+                            id: p.id,
+                            is_active: p.is_active,
+                            is_active_type: typeof p.is_active
+                        }))
+                    );
+                                }
+            } else {
+                console.log('🔍 Filtro activo NO aplicado - mostrando todos los participantes (valor del filtro:', this.localFilters.active, ')');
+            }
+            
             // Paginación
             const perPage = 10;
             const startIndex = (this.currentPage - 1) * perPage;
             const endIndex = startIndex + perPage;
             const paginatedData = filtered.slice(startIndex, endIndex);
+
+            console.log('🔍 Index.vue - Resultado del filtrado:', {
+                totalFiltrados: filtered.length,
+                totalPaginados: paginatedData.length,
+                paginaActual: this.currentPage,
+                filtrosAplicados: this.localFilters
+            });
 
             return {
                 data: paginatedData,
@@ -273,11 +404,31 @@ export default {
                 this.openCreateModal();
             }
         } catch (_) {}
+        
+        // Inicializar filtros desde el backend
+        if (this.filters.active !== undefined) {
+            this.localFilters.active = this.filters.active;
+        }
     },
     methods: {
         handleFiltersChanged(newFilters) {
+            console.log('🔍 Index.vue - Filtros recibidos:', {
+                newFilters: newFilters,
+                activeFilter: newFilters.active,
+                activeFilterType: typeof newFilters.active,
+                activeFilterStrict: newFilters.active
+            });
+            
             this.localFilters = newFilters;
             this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
+            
+            console.log('🔍 Index.vue - Filtros locales actualizados:', {
+                localFilters: this.localFilters,
+                activeFilters: this.localFilters,
+                activeFilter: this.localFilters.active,
+                activeFilterType: typeof this.localFilters.active
+            });
+            
             // No hacemos router.get aquí para mantener todo interno
         },
         handlePageChanged(page) {
@@ -312,9 +463,9 @@ export default {
         getFirstCoursePivotStatus(participant) {
             const firstCourse = this.getFirstCourse(participant);
             if (!firstCourse || !firstCourse.pivot) {
-                return 'pending_payment';
+                return 'pendiente_pago';
             }
-            return firstCourse.pivot.status || 'pending_payment';
+            return firstCourse.pivot.status || 'pendiente_pago';
         },
     },
 };

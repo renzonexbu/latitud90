@@ -9,25 +9,49 @@ class PaymentOptionSeeder extends Seeder
 {
 	public function run(): void
 	{
+		// Limpieza previa: eliminar opciones obsoletas lat90_installments_* y sus pivotes
+		$obsoleteIds = DB::table('payment_options')
+			->where('code', 'like', 'lat90_installments_%')
+			->pluck('id')
+			->all();
+		if (!empty($obsoleteIds)) {
+			DB::table('program_payment_option')->whereIn('payment_option_id', $obsoleteIds)->delete();
+			DB::table('payment_options')->whereIn('id', $obsoleteIds)->delete();
+		}
+
 		$options = [
 			// Pago total - Transferencia Khipu
-			['code' => 'full_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'full', 'gateway_code' => 'khipu', 'installments' => null, 'active' => true],
-			// Pago total - Débito Webpay
-			['code' => 'full_debit_webpay', 'label' => 'Débito (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => null, 'active' => true],
-			// Pago total - Crédito Webpay (sin y con cuotas)
-			['code' => 'full_credit_webpay_0', 'label' => 'Crédito sin cuotas (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => 0, 'active' => true],
-			['code' => 'full_credit_webpay_3', 'label' => 'Crédito 3 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => 3, 'active' => true],
-			['code' => 'full_credit_webpay_6', 'label' => 'Crédito 6 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => 6, 'active' => true],
-			['code' => 'full_credit_webpay_9', 'label' => 'Crédito 9 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => 9, 'active' => true],
-			['code' => 'full_credit_webpay_12', 'label' => 'Crédito 12 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'installments' => 12, 'active' => true],
-			// Pago mensual (Lat90)
-			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'installments' => null, 'active' => true],
-			['code' => 'lat90_debit_webpay', 'label' => 'Débito (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'installments' => null, 'active' => true],
-			['code' => 'lat90_credit_0', 'label' => 'Crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'installments' => 0, 'active' => true],
-			['code' => 'lat90_installments_3', 'label' => 'Lat90 3 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'installments' => 3, 'active' => true],
-			['code' => 'lat90_installments_6', 'label' => 'Lat90 6 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'installments' => 6, 'active' => true],
-			['code' => 'lat90_installments_9', 'label' => 'Lat90 9 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'installments' => 9, 'active' => true],
-			['code' => 'lat90_installments_12', 'label' => 'Lat90 12 cuotas', 'mode' => 'lat90', 'gateway_code' => null, 'installments' => 12, 'active' => true],
+			['code' => 'full_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'full', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
+			
+			// Pago total - Débito y crédito sin cuotas
+			['code' => 'full_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
+			
+			// Pago total - Débito y crédito con cuotas
+			['code' => 'full_debit_credit_3', 'label' => 'Débito y crédito hasta 3 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 3, 'active' => true],
+			['code' => 'full_debit_credit_6', 'label' => 'Débito y crédito hasta 6 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 6, 'active' => true],
+			['code' => 'full_debit_credit_9', 'label' => 'Débito y crédito hasta 9 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 9, 'active' => true],
+			['code' => 'full_debit_credit_12', 'label' => 'Débito y crédito hasta 12 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 12, 'active' => true],
+			
+			// Pago total - Internacional
+			['code' => 'full_international', 'label' => 'Pago Internacional (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => null, 'active' => true],
+			
+			// Pago total - Webpay con link de pago
+			['code' => 'full_webpay_link', 'label' => 'Pago webpay con link de pago', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'WP', 'installments' => null, 'active' => true],
+			
+			// Pagos presenciales
+			['code' => 'full_office_card', 'label' => 'Pago con tarjeta en oficina', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'BX', 'installments' => null, 'active' => true],
+			['code' => 'full_bank_transfer', 'label' => 'Transferencia bancaria', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TE', 'installments' => null, 'active' => true],
+			['code' => 'full_check', 'label' => 'Cheque', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
+			['code' => 'full_deposit', 'label' => 'Depósito', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
+			
+			// Pago mensual (Lat90) - Transferencia Khipu
+			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
+			
+			// Pago mensual (Lat90) - Débito y crédito sin cuotas (método; las cuotas N se manejan aparte)
+			['code' => 'lat90_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
+			
+			// Devoluciones
+			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'full', 'gateway_code' => 'refund', 'report_code' => 'BC', 'installments' => null, 'active' => true],
 		];
 
 		foreach ($options as $opt) {

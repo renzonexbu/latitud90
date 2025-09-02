@@ -17,6 +17,7 @@ class DocumentSeeder extends Seeder
         $documents = array(
             array('name' => 'RUT', 'country' => 'CL'),
             array('name' => 'PASAPORTE', 'country' => null),
+            array('name' => 'DNI', 'country' => 'AR'),
         );
 
         DB::table('document')->insert($documents);

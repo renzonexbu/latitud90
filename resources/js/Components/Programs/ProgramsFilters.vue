@@ -72,6 +72,19 @@
                 </select>
             </div>
 
+            <!-- Status Dropdown -->
+            <div class="relative w-[150px]">
+                <select
+                    v-model="filters.status"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
+                    @change="performSearch"
+                >
+                    <option value="">Estado</option>
+                    <option value="reserva">Reserva</option>
+                    <option value="ejecutado">Ejecutado</option>
+                </select>
+            </div>
+
             <!-- Combined Institution, Level, Grade Dropdown -->
             <div class="bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 flex flex-row items-center justify-start h-[46px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] min-w-[300px]">
                 <!-- Institution -->
@@ -161,6 +174,7 @@ export default {
                 institution: this.initialFilters.institution || "",
                 level: this.initialFilters.level || "",
                 course_number: this.initialFilters.course_number || "",
+                status: this.initialFilters.status || "",
             },
             showActivePrograms: true
         };
@@ -219,6 +233,7 @@ export default {
                 institution: "",
                 level: "",
                 course_number: "",
+                status: "",
             };
             this.performSearch();
         }

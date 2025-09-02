@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
 {
@@ -12,6 +14,8 @@ class Order extends Model
     protected $fillable = [
         'participant_id',
         'program_id',
+        'course_id',
+        'participant_program_id',
         'total_amount',
         'discount',
         'final_amount',
@@ -20,6 +24,7 @@ class Order extends Model
         'status',
         'notes',
         'order_number',
+        'session_id',
     ];
 
     protected $casts = [
@@ -39,9 +44,29 @@ class Order extends Model
         return $this->belongsTo(Program::class);
     }
 
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function participantProgram()
+    {
+        return $this->belongsTo(ParticipantProgram::class);
+    }
+
     public function orderDetails()
     {
         return $this->hasMany(OrderDetail::class);
+    }
+
+    public function installmentPlan()
+    {
+        return $this->hasOne(InstallmentPlan::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 
     /**

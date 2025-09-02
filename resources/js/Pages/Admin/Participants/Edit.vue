@@ -4,12 +4,31 @@
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <!-- Flash Messages -->
+                <div v-if="page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ page.props.flash.success }}</span>
+                    <button @click="page.props.flash.success = null" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                        <svg class="fill-current h-6 w-6 text-green-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <title>Close</title>
+                            <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div v-if="page.props.flash.error" class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                    <span class="block sm:inline">{{ page.props.flash.error }}</span>
+                    <button @click="page.props.flash.error = null" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                        <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <title>Close</title>
+                            <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                        </svg>
+                    </button>
+                </div>
+
                 <!-- Header -->
                 <ParticipantsHeader
                     subtitle="Visualización de participantes"
-                    :participant-name="
-                        participant.first_name + ' ' + participant.last_name
-                    "
+                    :participant-name="getFullName(participant)"
                 />
 
                 <!-- Participant Info Card -->
@@ -40,15 +59,38 @@
                                                 <div
                                                     class="flex flex-col gap-[6px] items-start justify-center flex-shrink-0 flex-1 relative"
                                                 >
-                                                    <div
-                                                        class="text-turquesa text-left font-nexa-bold text-[24px] leading-[28px] font-bold relative self-stretch"
-                                                    >
-                                                        {{
-                                                            participant.first_name
-                                                        }}
-                                                        {{
-                                                            participant.last_name
-                                                        }}
+                                                    <div class="flex items-center gap-3">
+                                                        <div
+                                                            class="text-turquesa text-left font-nexa-bold text-[24px] leading-[28px] font-bold relative self-stretch"
+                                                        >
+                                                            {{ getFullName(participant) }}
+                                                        </div>
+                                                                                <!-- Status Badge -->
+                        <div class="flex items-center gap-2">
+                            <div
+                                :class="[
+                                    'px-3 py-1 rounded-full text-xs font-medium',
+                                    participant.is_active 
+                                        ? 'bg-green-100 text-green-800 border border-green-200'
+                                        : 'bg-red-100 text-red-800 border border-red-200'
+                                ]"
+                            >
+                                {{ participant.is_active ? 'Activo' : 'Inactivo' }}
+                            </div>
+                            <!-- Info Tooltip -->
+                            <div class="relative group">
+                                <svg class="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                                    {{ participant.is_active 
+                                        ? 'Participante visible en el flujo de compra' 
+                                        : 'Participante oculto del flujo de compra' 
+                                    }}
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                            </div>
+                        </div>
                                                     </div>
                                                 </div>
                                                 <div
@@ -63,8 +105,7 @@
                                                         <div
                                                             class="text-white text-left font-nexa-bold text-[12px] leading-[18px] font-bold relative flex items-end justify-start"
                                                         >
-                                                            Ver contacto de
-                                                            emergencia
+                                                            Ver apoderado
                                                         </div>
                                                     </button>
                                                     <button
@@ -115,6 +156,37 @@
                                                             />
                                                         </svg>
                                                     </button>
+                                                    <button
+                                                        @click="confirmToggleParticipantStatus"
+                                                        :class="[
+                                                            'rounded-[112.894px] border flex h-[40px] w-[40px] items-center justify-center relative overflow-visible transition-colors',
+                                                            participant.is_active
+                                                                ? 'border-red-500 bg-red-50 hover:bg-red-100'
+                                                                : 'border-green-500 bg-green-50 hover:bg-green-100'
+                                                        ]"
+                                                        :title="participant.is_active ? 'Desactivar participante' : 'Activar participante'"
+                                                    >
+                                                        <!-- Toggle Status Icon -->
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            width="16"
+                                                            height="16"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            class="flex-shrink-0"
+                                                        >
+                                                            <path
+                                                                v-if="participant.is_active"
+                                                                d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                                                fill="#DC2626"
+                                                            />
+                                                            <path
+                                                                v-else
+                                                                d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
+                                                                fill="#10B981"
+                                                            />
+                                                        </svg>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -127,7 +199,6 @@
                                 <div
                                     class="flex flex-row gap-[9.56px] items-center justify-start flex-shrink-0 relative"
                                 >
-    
                                     <!-- <div
                                         class="flex flex-row gap-[5.98px] items-center justify-start flex-shrink-0 relative"
                                     >
@@ -189,213 +260,94 @@
                                 <div
                                     class="flex flex-col gap-[11px] items-start justify-start self-stretch flex-shrink-0 relative"
                                 >
-                                    <div
-                                        class="flex flex-row gap-[25px] items-start justify-start flex-wrap self-stretch flex-shrink-0 relative"
-                                    >
-                                        <div
-                                            class="flex flex-row gap-[25px] items-center justify-start flex-shrink-0 relative"
-                                        >
-                                            <div
-                                                class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative"
+                                    <!-- Documento (RUT/Pasaporte) - Full width, below -->
+                                    <div class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative w-full">
+                                        <div class="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible">
+                                            <!-- ID Icon -->
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width="18"
+                                                height="19"
+                                                viewBox="0 0 18 19"
+                                                fill="none"
                                             >
-                                                <div
-                                                    class="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
-                                                >
-                                                    <!-- Phone Icon -->
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="18"
-                                                        height="19"
-                                                        viewBox="0 0 18 19"
-                                                        fill="none"
-                                                    >
-                                                        <rect
-                                                            width="18"
-                                                            height="18"
-                                                            transform="translate(0 0.888184)"
-                                                            fill="white"
-                                                        />
-                                                        <path
-                                                            d="M11.6999 11.6675C9.90365 13.5575 5.3219 9.01696 7.1249 7.11946C8.2259 5.96071 6.9824 4.63696 6.2939 3.66271C5.00165 1.83646 2.1659 4.35796 2.2514 5.96221C2.52365 11.0217 7.9964 17.0172 13.2959 16.4937C14.9534 16.3302 16.8584 13.3362 14.9572 12.242C14.0062 11.6945 12.7004 10.6145 11.6999 11.6667M10.4999 3.02596C11.8923 3.02596 13.2276 3.57909 14.2122 4.56365C15.1968 5.54822 15.7499 6.88358 15.7499 8.27596M10.4999 6.02596C11.0966 6.02596 11.6689 6.26302 12.0909 6.68497C12.5129 7.10693 12.7499 7.67923 12.7499 8.27596"
-                                                            stroke="#007E93"
-                                                            stroke-width="1.125"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                                <div
-                                                    class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold underline relative w-[115px] h-[10px]"
-                                                >
-                                                    {{
-                                                        participant.phone ||
-                                                        "0000000000"
-                                                    }}
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative"
+                                                <rect
+                                                    width="18"
+                                                    height="18"
+                                                    transform="translate(0 0.888184)"
+                                                    fill="white"
+                                                />
+                                                <path
+                                                    d="M2.4 15.7763V16.3763H3.6V15.7763H2.4ZM8.4 15.7763V16.3763H9.6V15.7763H8.4ZM3.6 15.7763V15.1763H2.4V15.7763H3.6ZM8.4 15.1763V15.7763H9.6V15.1763H8.4ZM6 12.7763C6.63652 12.7763 7.24697 13.0291 7.69706 13.4792C8.14714 13.9293 8.4 14.5398 8.4 15.1763H9.6C9.6 14.2215 9.22072 13.3058 8.54558 12.6307C7.87045 11.9556 6.95478 11.5763 6 11.5763V12.7763ZM3.6 15.1763C3.6 14.5398 3.85286 13.9293 4.30294 13.4792C4.75303 13.0291 5.36348 12.7763 6 12.7763V11.5763C5.04522 11.5763 4.12955 11.9556 3.45442 12.6307C2.77928 13.3058 2.4 14.2215 2.4 15.1763H3.6ZM6 5.57627C5.36348 5.57627 4.75303 5.82913 4.30294 6.27921C3.85286 6.7293 3.6 7.33975 3.6 7.97627H4.8C4.8 7.65801 4.92643 7.35279 5.15147 7.12774C5.37652 6.9027 5.68174 6.77627 6 6.77627V5.57627ZM8.4 7.97627C8.4 7.33975 8.14714 6.7293 7.69706 6.27921C7.24697 5.82913 6.63652 5.57627 6 5.57627V6.77627C6.31826 6.77627 6.62348 6.9027 6.84853 7.12774C7.07357 7.35279 7.2 7.65801 7.2 7.97627H8.4ZM6 10.3763C6.63652 10.3763 7.24697 10.1234 7.69706 9.67333C8.14714 9.22324 8.4 8.61279 8.4 7.97627H7.2C7.2 8.29453 7.07357 8.59975 6.84853 8.8248C6.62348 9.04984 6.31826 9.17627 6 9.17627V10.3763ZM6 9.17627C5.68174 9.17627 5.37652 9.04984 5.15147 8.8248C4.92643 8.59975 4.8 8.29453 4.8 7.97627H3.6C3.6 8.61279 3.85286 9.22324 4.30294 9.67333C4.75303 10.1234 5.36348 10.3763 6 10.3763V9.17627ZM1.8 4.37627H16.2V3.17627H1.8V4.37627ZM16.8 4.97627V14.5763H18V4.97627H16.8ZM16.2 15.1763H1.8V16.3763H16.2V15.1763ZM1.2 14.5763V4.97627H0V14.5763H1.2ZM1.8 15.1763C1.64087 15.1763 1.48826 15.1131 1.37574 15.0005C1.26321 14.888 1.2 14.7354 1.2 14.5763H0C0 15.0537 0.189642 15.5115 0.527208 15.8491C0.864773 16.1866 1.32261 16.3763 1.8 16.3763V15.1763ZM16.8 14.5763C16.8 14.7354 16.7368 14.888 16.6243 15.0005C16.5117 15.1131 16.3591 15.1763 16.2 15.1763V16.3763C16.6774 16.3763 17.1352 16.1866 17.4728 15.8491C17.8104 15.5115 18 15.0537 18 14.5763H16.8ZM16.2 4.37627C16.3591 4.37627 16.5117 4.43948 16.6243 4.55201C16.7368 4.66453 16.8 4.81714 16.8 4.97627H18C18 4.49888 17.8104 4.04104 17.4728 3.70348C17.1352 3.36591 16.6774 3.17627 16.2 3.17627V4.37627ZM1.8 3.17627C1.32261 3.17627 0.864773 3.36591 0.527208 3.70348C0.189642 4.04104 0 4.49888 0 4.97627H1.2C1.2 4.81714 1.26321 4.66453 1.37574 4.55201C1.48826 4.43948 1.64087 4.37627 1.8 4.37627V3.17627ZM10.8 7.97627H14.4V6.77627H10.8V7.97627ZM10.8 11.5763H14.4V10.3763H10.8V11.5763Z"
+                                                fill="#007E93"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
+                                        RUT / PASAPORTE: {{ formatRutDisplay(participant.document_number) || "00.000.000-0" }}
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-row gap-[25px] items-center justify-start flex-shrink-0 relative">
+                                    <!-- Fecha de Nacimiento -->
+                                    <div class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative">
+                                        <div class="bg-white flex-shrink-0 w-[18px] h-[18px] relative overflow-hidden">
+                                            <!-- Birthday Icon -->
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width="18"
+                                                height="19"
+                                                viewBox="0 0 18 19"
+                                                fill="none"
                                             >
-                                                <div
-                                                    class="bg-white flex-shrink-0 w-[18px] h-[18px] relative overflow-hidden"
-                                                >
-                                                    <!-- Birthday Icon -->
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="18"
-                                                        height="19"
-                                                        viewBox="0 0 18 19"
-                                                        fill="none"
-                                                    >
-                                                        <rect
-                                                            width="18"
-                                                            height="18"
-                                                            transform="translate(0 0.888184)"
-                                                            fill="white"
-                                                        />
-                                                        <path
-                                                            fill-rule="evenodd"
-                                                            clip-rule="evenodd"
-                                                            d="M13.5 7.52588C14.0739 7.52585 14.6261 7.74512 15.0437 8.13884C15.4613 8.53256 15.7126 9.07096 15.7463 9.64388L15.75 9.77588V12.0259C15.75 12.5059 15.4657 12.8801 15.0885 13.0511L15 13.0864V15.7759C15.0001 16.1543 14.8572 16.5188 14.5999 16.7963C14.3426 17.0738 13.9899 17.2437 13.6125 17.2721L13.5 17.2759H4.5C4.12157 17.276 3.75708 17.1331 3.47959 16.8758C3.2021 16.6184 3.03213 16.2657 3.00375 15.8884L3 15.7759V13.0871C2.79758 13.0165 2.61973 12.8892 2.48768 12.7203C2.35563 12.5514 2.27494 12.3481 2.25525 12.1346L2.25 12.0259V9.77588C2.24997 9.20197 2.46924 8.64974 2.86296 8.23218C3.25668 7.81462 3.79508 7.5633 4.368 7.52963L4.5 7.52588H13.5ZM13.4498 12.5509C13.3334 12.4636 13.1942 12.412 13.049 12.4024C12.9039 12.3928 12.7591 12.4256 12.6322 12.4969L12.5497 12.5509L12.3502 12.7009C11.9822 12.977 11.5384 13.1337 11.0785 13.1498C10.6187 13.1659 10.1649 13.0406 9.7785 12.7909L9.65025 12.7009L9.45 12.5509C9.33365 12.4636 9.19442 12.412 9.04927 12.4024C8.90413 12.3928 8.75932 12.4256 8.6325 12.4969L8.55 12.5509L8.34975 12.7009C7.98179 12.9769 7.53807 13.1335 7.07838 13.1496C6.61869 13.1657 6.16511 13.0405 5.77875 12.7909L5.64975 12.7009L5.45025 12.5509C5.3339 12.4636 5.19467 12.412 5.04952 12.4024C4.90438 12.3928 4.75957 12.4256 4.63275 12.4969L4.55025 12.5509L4.5 12.5884V15.7759H13.5V12.5884L13.4498 12.5509ZM13.5 9.02588H4.5C4.30109 9.02588 4.11032 9.1049 3.96967 9.24555C3.82902 9.3862 3.75 9.57697 3.75 9.77588V11.2796C4.13745 11.0208 4.59569 10.8886 5.06146 10.9014C5.52724 10.9142 5.97756 11.0712 6.35025 11.3509L6.54975 11.5009C6.67957 11.5982 6.83747 11.6509 6.99975 11.6509C7.16203 11.6509 7.31993 11.5982 7.44975 11.5009L7.65 11.3509C8.03947 11.0588 8.51317 10.9009 9 10.9009C9.48683 10.9009 9.96053 11.0588 10.35 11.3509L10.5503 11.5009C10.6801 11.5982 10.838 11.6509 11.0002 11.6509C11.1625 11.6509 11.3204 11.5982 11.4503 11.5009L11.6497 11.3509C12.0224 11.0712 12.4728 10.9142 12.9385 10.9014C13.4043 10.8886 13.8626 11.0208 14.25 11.2796V9.77588C14.25 9.57697 14.171 9.3862 14.0303 9.24555C13.8897 9.1049 13.6989 9.02588 13.5 9.02588ZM9.45 2.42588C9.75965 2.66855 10.0475 2.93782 10.3102 3.23063C10.7032 3.67238 11.25 4.41713 11.25 5.27588C11.25 5.87262 11.0129 6.44491 10.591 6.86687C10.169 7.28883 9.59674 7.52588 9 7.52588C8.40326 7.52588 7.83097 7.28883 7.40901 6.86687C6.98705 6.44491 6.75 5.87262 6.75 5.27588C6.75 4.41713 7.2975 3.67238 7.68975 3.23063C7.9525 2.93782 8.24035 2.66855 8.55 2.42588C8.67982 2.32851 8.83772 2.27588 9 2.27588C9.16228 2.27588 9.32018 2.32851 9.45 2.42588ZM9 4.02638C8.93471 4.09142 8.87143 4.15845 8.81025 4.22738C8.45325 4.62938 8.25 5.00963 8.25 5.27588C8.25 5.47479 8.32902 5.66556 8.46967 5.80621C8.61032 5.94686 8.80109 6.02588 9 6.02588C9.19891 6.02588 9.38968 5.94686 9.53033 5.80621C9.67098 5.66556 9.75 5.47479 9.75 5.27588C9.75 5.00963 9.5475 4.62938 9.18975 4.22738C9.12857 4.15845 9.06529 4.09142 9 4.02638Z"
-                                                            fill="#007E93"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                                <div
-                                                    class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[92px] h-[12px]"
-                                                >
-                                                    {{
-                                                        formatDate(
-                                                            participant.birth_date
-                                                        ) || "10/09/2005"
-                                                    }}
-                                                </div>
+                                                <rect
+                                                    width="18"
+                                                    height="18"
+                                                    transform="translate(0 0.888184)"
+                                                    fill="white"
+                                                />
+                                                <path
+                                                    fill-rule="evenodd"
+                                                    clip-rule="evenodd"
+                                                    d="M13.5 7.52588C14.0739 7.52585 14.6261 7.74512 15.0437 8.13884C15.4613 8.53256 15.7126 9.07096 15.7463 9.64388L15.75 9.77588V12.0259C15.75 12.5059 15.4657 12.8801 15.0885 13.0511L15 13.0864V15.7759C15.0001 16.1543 14.8572 16.5188 14.5999 16.7963C14.3426 17.0738 13.9899 17.2437 13.6125 17.2721L13.5 17.2759H4.5C4.12157 17.276 3.75708 17.1331 3.47959 16.8758C3.2021 16.6184 3.03213 16.2657 3.00375 15.8884L3 15.7759V13.0871C2.79758 13.0165 2.61973 12.8892 2.48768 12.7203C2.35563 12.5514 2.27494 12.3481 2.25525 12.1346L2.25 12.0259V9.77588C2.24997 9.20197 2.46924 8.64974 2.86296 8.23218C3.25668 7.81462 3.79508 7.5633 4.368 7.52963L4.5 7.52588H13.5ZM13.4498 12.5509C13.3334 12.4636 13.1942 12.412 13.049 12.4024C12.9039 12.3928 12.7591 12.4256 12.6322 12.4969L12.5497 12.5509L12.3502 12.7009C11.9822 12.977 11.5384 13.1337 11.0785 13.1498C10.6187 13.1659 10.1649 13.0406 9.7785 12.7909L9.65025 12.7009L9.45 12.5509C9.33365 12.4636 9.19442 12.412 9.04927 12.4024C8.90413 12.3928 8.75932 12.4256 8.6325 12.4969L8.55 12.5509L8.34975 12.7009C7.98179 12.9769 7.53807 13.1335 7.07838 13.1496C6.61869 13.1657 6.16511 13.0405 5.77875 12.7909L5.64975 12.7009L5.45025 12.5509C5.3339 12.4636 5.19467 12.412 5.04952 12.4024C4.90438 12.3928 4.75957 12.4256 4.63275 12.4969L4.55025 12.5509L4.5 12.5884V15.7759H13.5V12.5884L13.4498 12.5509ZM13.5 9.02588H4.5C4.30109 9.02588 4.11032 9.1049 3.96967 9.24555C3.82902 9.3862 3.75 9.57697 3.75 9.77588V11.2796C4.13745 11.0208 4.59569 10.8886 5.06146 10.9014C5.52724 10.9142 5.97756 11.0712 6.35025 11.3509L6.54975 11.5009C6.67957 11.5982 6.83747 11.6509 6.99975 11.6509C7.16203 11.6509 7.31993 11.5982 7.44975 11.5009L7.65 11.3509C8.03947 11.0588 8.51317 10.9009 9 10.9009C9.48683 10.9009 9.96053 11.0588 10.35 11.3509L10.5503 11.5009C10.6801 11.5982 10.838 11.6509 11.0002 11.6509C11.1625 11.6509 11.3204 11.5982 11.4503 11.5009L11.6497 11.3509C12.0224 11.0712 12.4728 10.9142 12.9385 10.9014C13.4043 10.8886 13.8626 11.0208 14.25 11.2796V9.77588C14.25 9.57697 14.171 9.3862 14.0303 9.24555C13.8897 9.1049 13.6989 9.02588 13.5 9.02588ZM9.45 2.42588C9.75965 2.66855 10.0475 2.93782 10.3102 3.23063C10.7032 3.67238 11.25 4.41713 11.25 5.27588C11.25 5.87262 11.0129 6.44491 10.591 6.86687C10.169 7.28883 9.59674 7.52588 9 7.52588C8.40326 7.52588 7.83097 7.28883 7.40901 6.86687C6.98705 6.44491 6.75 5.87262 6.75 5.27588C6.75 4.41713 7.2975 3.67238 7.68975 3.23063C7.9525 2.93782 8.24035 2.66855 8.55 2.42588C8.67982 2.32851 8.83772 2.27588 9 2.27588C9.16228 2.27588 9.32018 2.32851 9.45 2.42588ZM9 4.02638C8.93471 4.09142 8.87143 4.15845 8.81025 4.22738C8.45325 4.62938 8.25 5.00963 8.25 5.27588C8.25 5.47479 8.32902 5.66556 8.46967 5.80621C8.61032 5.94686 8.80109 6.02588 9 6.02588C9.19891 6.02588 9.38968 5.94686 9.53033 5.80621C9.67098 5.66556 9.75 5.47479 9.75 5.27588C9.75 5.00963 9.5475 4.62938 9.18975 4.22738C9.12857 4.15845 9.06529 4.09142 9 4.02638Z"
+                                                fill="#007E93"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
+                                                {{ formatBirthDate(participant.birth_date) || "Fecha no disponible" }}
                                             </div>
                                         </div>
-                                        <div
-                                            class="flex flex-row gap-[25px] items-center justify-start flex-shrink-0 relative"
-                                        >
-                                            <div
-                                                class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative"
-                                            >
-                                                <div
-                                                    class="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
-                                                >
-                                                    <!-- ID Icon -->
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="18"
-                                                        height="19"
-                                                        viewBox="0 0 18 19"
-                                                        fill="none"
-                                                    >
-                                                        <rect
-                                                            width="18"
-                                                            height="18"
-                                                            transform="translate(0 0.888184)"
-                                                            fill="white"
-                                                        />
-                                                        <path
-                                                            d="M2.4 15.7763V16.3763H3.6V15.7763H2.4ZM8.4 15.7763V16.3763H9.6V15.7763H8.4ZM3.6 15.7763V15.1763H2.4V15.7763H3.6ZM8.4 15.1763V15.7763H9.6V15.1763H8.4ZM6 12.7763C6.63652 12.7763 7.24697 13.0291 7.69706 13.4792C8.14714 13.9293 8.4 14.5398 8.4 15.1763H9.6C9.6 14.2215 9.22072 13.3058 8.54558 12.6307C7.87045 11.9556 6.95478 11.5763 6 11.5763V12.7763ZM3.6 15.1763C3.6 14.5398 3.85286 13.9293 4.30294 13.4792C4.75303 13.0291 5.36348 12.7763 6 12.7763V11.5763C5.04522 11.5763 4.12955 11.9556 3.45442 12.6307C2.77928 13.3058 2.4 14.2215 2.4 15.1763H3.6ZM6 5.57627C5.36348 5.57627 4.75303 5.82913 4.30294 6.27921C3.85286 6.7293 3.6 7.33975 3.6 7.97627H4.8C4.8 7.65801 4.92643 7.35279 5.15147 7.12774C5.37652 6.9027 5.68174 6.77627 6 6.77627V5.57627ZM8.4 7.97627C8.4 7.33975 8.14714 6.7293 7.69706 6.27921C7.24697 5.82913 6.63652 5.57627 6 5.57627V6.77627C6.31826 6.77627 6.62348 6.9027 6.84853 7.12774C7.07357 7.35279 7.2 7.65801 7.2 7.97627H8.4ZM6 10.3763C6.63652 10.3763 7.24697 10.1234 7.69706 9.67333C8.14714 9.22324 8.4 8.61279 8.4 7.97627H7.2C7.2 8.29453 7.07357 8.59975 6.84853 8.8248C6.62348 9.04984 6.31826 9.17627 6 9.17627V10.3763ZM6 9.17627C5.68174 9.17627 5.37652 9.04984 5.15147 8.8248C4.92643 8.59975 4.8 8.29453 4.8 7.97627H3.6C3.6 8.61279 3.85286 9.22324 4.30294 9.67333C4.75303 10.1234 5.36348 10.3763 6 10.3763V9.17627ZM1.8 4.37627H16.2V3.17627H1.8V4.37627ZM16.8 4.97627V14.5763H18V4.97627H16.8ZM16.2 15.1763H1.8V16.3763H16.2V15.1763ZM1.2 14.5763V4.97627H0V14.5763H1.2ZM1.8 15.1763C1.64087 15.1763 1.48826 15.1131 1.37574 15.0005C1.26321 14.888 1.2 14.7354 1.2 14.5763H0C0 15.0537 0.189642 15.5115 0.527208 15.8491C0.864773 16.1866 1.32261 16.3763 1.8 16.3763V15.1763ZM16.8 14.5763C16.8 14.7354 16.7368 14.888 16.6243 15.0005C16.5117 15.1131 16.3591 15.1763 16.2 15.1763V16.3763C16.6774 16.3763 17.1352 16.1866 17.4728 15.8491C17.8104 15.5115 18 15.0537 18 14.5763H16.8ZM16.2 4.37627C16.3591 4.37627 16.5117 4.43948 16.6243 4.55201C16.7368 4.66453 16.8 4.81714 16.8 4.97627H18C18 4.49888 17.8104 4.04104 17.4728 3.70348C17.1352 3.36591 16.6774 3.17627 16.2 3.17627V4.37627ZM1.8 3.17627C1.32261 3.17627 0.864773 3.36591 0.527208 3.70348C0.189642 4.04104 0 4.49888 0 4.97627H1.2C1.2 4.81714 1.26321 4.66453 1.37574 4.55201C1.48826 4.43948 1.64087 4.37627 1.8 4.37627V3.17627ZM10.8 7.97627H14.4V6.77627H10.8V7.97627ZM10.8 11.5763H14.4V10.3763H10.8V11.5763Z"
-                                                            fill="#007E93"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                                <div
-                                                    class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[131px] h-[10px]"
-                                                >
-                                                    RUT:
-                                                    {{
-                                                        formatRutDisplay(
-                                                            participant.document_number
-                                                        ) ||
-                                                        "00.000.000-0"
-                                                    }}
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative"
-                                            >
-                                                <div
-                                                    class="flex-shrink-0 w-[17.931px] h-[17.931px] relative overflow-hidden aspect-square"
-                                                >
-                                                    <!-- Travel Bag Icon -->
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        width="18"
-                                                        height="19"
-                                                        viewBox="0 0 18 19"
-                                                        fill="none"
-                                                    >
-                                                        <path
-                                                            d="M11.207 5.63198H6.72437M11.207 5.63198C13.3199 5.63198 14.377 5.63198 15.033 6.28869C15.6897 6.94465 15.6897 8.00181 15.6897 10.1146V11.9824C15.6897 14.0953 15.6897 15.1524 15.033 15.8084C14.377 16.4651 13.3199 16.4651 11.207 16.4651H6.72437C4.61154 16.4651 3.55437 16.4651 2.89841 15.8084C2.2417 15.1524 2.2417 14.0953 2.2417 11.9824V10.1146C2.2417 8.00181 2.2417 6.94465 2.89841 6.28869C3.55437 5.63198 4.61154 5.63198 6.72437 5.63198M11.207 5.63198V5.25842C11.207 4.20126 11.207 3.67305 10.8783 3.34582C10.5503 3.01709 10.0229 3.01709 8.9657 3.01709C7.90854 3.01709 7.38033 3.01709 7.05309 3.34582C6.72437 3.6738 6.72437 4.20201 6.72437 5.25842V5.63198"
-                                                            stroke="#007E93"
-                                                            stroke-width="1.12067"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                        />
-                                                        <path
-                                                            d="M15.6897 8.62077C14.8971 8.62077 14.137 8.30592 13.5765 7.74547C13.0161 7.18503 12.7013 6.42491 12.7013 5.63232M2.2417 13.477C3.03428 13.477 3.79441 13.7918 4.35485 14.3523C4.91529 14.9127 5.23014 15.6728 5.23014 16.4654M2.2417 8.62077C3.03428 8.62077 3.79441 8.30592 4.35485 7.74547C4.91529 7.18503 5.23014 6.42491 5.23014 5.63232M15.6897 13.477C14.8971 13.477 14.137 13.7918 13.5765 14.3523C13.0161 14.9127 12.7013 15.6728 12.7013 16.4654M10.8335 8.99432V9.00179M6.91114 9.74143L6.35081 10.3018L6.91114 10.8621L7.47148 10.3018L6.91114 9.74143ZM10.4599 13.3276L9.33925 13.1034L10.2358 12.2069L10.4599 13.3276Z"
-                                                            stroke="#007E93"
-                                                            stroke-width="1.12067"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                                <div
-                                                    class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative w-[127px] h-[14px]"
-                                                >
-                                                    Viajes totales:
-                                                    {{
-                                                        participantPrograms.length
-                                                    }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div
-                                            class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative"
-                                        >
-                                            <div
-                                                class="flex-shrink-0 w-[18px] h-[18px] relative overflow-hidden flex items-center justify-center"
-                                            >
-                                                <!-- Mail Icon -->
+
+                                        <!-- Viajes Totales -->
+                                        <div class="flex flex-row gap-[5px] items-center justify-start flex-shrink-0 relative">
+                                            <div class="flex-shrink-0 w-[17.931px] h-[17.931px] relative overflow-hidden aspect-square">
+                                                <!-- Travel Bag Icon -->
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
-                                                    width="19"
+                                                    width="18"
                                                     height="19"
-                                                    viewBox="0 0 19 19"
+                                                    viewBox="0 0 18 19"
                                                     fill="none"
                                                 >
-                                                    <rect
-                                                        width="18"
-                                                        height="18"
-                                                        transform="translate(0.930664 0.888184)"
-                                                        fill="white"
-                                                    />
                                                     <path
-                                                        d="M3.18066 6.02588C3.18066 5.62805 3.3387 5.24652 3.62 4.96522C3.90131 4.68391 4.28284 4.52588 4.68066 4.52588H15.1807C15.5785 4.52588 15.96 4.68391 16.2413 4.96522C16.5226 5.24652 16.6807 5.62805 16.6807 6.02588V13.5259C16.6807 13.9237 16.5226 14.3052 16.2413 14.5865C15.96 14.8678 15.5785 15.0259 15.1807 15.0259H4.68066C4.28284 15.0259 3.90131 14.8678 3.62 14.5865C3.3387 14.3052 3.18066 13.9237 3.18066 13.5259V6.02588Z"
+                                                        d="M11.207 5.63198H6.72437M11.207 5.63198C13.3199 5.63198 14.377 5.63198 15.033 6.28869C15.6897 6.94465 15.6897 8.00181 15.6897 10.1146V11.9824C15.6897 14.0953 15.6897 15.1524 15.033 15.8084C14.377 16.4651 13.3199 16.4651 11.207 16.4651H6.72437C4.61154 16.4651 3.55437 16.4651 2.89841 15.8084C2.2417 15.1524 2.2417 14.0953 2.2417 11.9824V10.1146C2.2417 8.00181 2.2417 6.94465 2.89841 6.28869C3.55437 5.63198 4.61154 5.63198 6.72437 5.63198M11.207 5.63198V5.25842C11.207 4.20126 11.207 3.67305 10.8783 3.34582C10.5503 3.01709 10.0229 3.01709 8.9657 3.01709C7.90854 3.01709 7.38033 3.01709 7.05309 3.34582C6.72437 3.6738 6.72437 4.20201 6.72437 5.25842V5.63198"
                                                         stroke="#007E93"
-                                                        stroke-width="1.5"
+                                                        stroke-width="1.12067"
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
                                                     />
                                                     <path
-                                                        d="M3.18066 6.02588L9.93066 10.5259L16.6807 6.02588"
+                                                        d="M15.6897 8.62077C14.8971 8.62077 14.137 8.30592 13.5765 7.74547C13.0161 7.18503 12.7013 6.42491 12.7013 5.63232M2.2417 13.477C3.03428 13.477 3.79441 13.7918 4.35485 14.3523C4.91529 14.9127 5.23014 15.6728 5.23014 16.4654M2.2417 8.62077C3.03428 8.62077 3.79441 8.30592 4.35485 7.74547C4.91529 7.18503 5.23014 6.42491 5.23014 5.63232M15.6897 13.477C14.8971 13.477 14.137 13.7918 13.5765 14.3523C13.0161 14.9127 12.7013 15.6728 12.7013 16.4654M10.8335 8.99432V9.00179M6.91114 9.74143L6.35081 10.3018L6.91114 10.8621L7.47148 10.3018L6.91114 9.74143ZM10.4599 13.3276L9.33925 13.1034L10.2358 12.2069L10.4599 13.3276Z"
                                                         stroke="#007E93"
-                                                        stroke-width="1.5"
+                                                        stroke-width="1.12067"
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
                                                     />
                                                 </svg>
                                             </div>
-                                            <div
-                                                class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold underline relative w-[115px] h-[10px]"
-                                            >
-                                                {{
-                                                    participant.email ||
-                                                    "Mail@gmail.com"
-                                                }}
+                                            <div class="text-turquesa text-left font-nexa-bold text-[14px] leading-[18px] font-bold relative">
+                                                Viajes totales: {{ participantPrograms.length }}
                                             </div>
                                         </div>
                                     </div>
@@ -411,7 +363,34 @@
                         Programas del Participante
                     </h3>
 
-                    <ProgramsGrid :programs="formattedPrograms" :prefer-participant-metrics="true" />
+                    <!-- Programs Grid específico para esta vista -->
+                    <div>
+                        <!-- No Programs Message -->
+                        <div
+                            v-if="!formattedPrograms || !formattedPrograms.data || formattedPrograms.data.length === 0"
+                            class="text-center py-12"
+                        >
+                            <div class="text-gray-500 text-lg mb-4">
+                                No hay programas disponibles
+                            </div>
+                            <div class="text-gray-400 text-sm">
+                                Este participante no tiene programas asignados
+                            </div>
+                        </div>
+
+                        <!-- Programs Grid - 3x2 layout -->
+                        <div
+                            v-else
+                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+                        >
+                            <ProgramCard
+                                v-for="program in formattedPrograms.data"
+                                :key="program.id"
+                                :program="program"
+                                @click="handleProgramCardClick(program)"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Back Button -->
@@ -430,7 +409,11 @@
         <EditParticipantModal
             :show="showEditModal"
             :participant="participant"
+            :participant-programs-with-discounts="
+                participantProgramsWithDiscounts
+            "
             :errors="errors"
+            :pre-selected-course-id="preSelectedCourseId"
             @close="closeEditModal"
         />
 
@@ -453,14 +436,17 @@
 </template>
 
 <script setup>
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue";
 import EditParticipantModal from "@/Components/Participants/EditParticipantModal.vue";
 import MedicalConditionsModal from "@/Components/Participants/MedicalConditionsModal.vue";
 import EmergencyContactsModal from "@/Components/Participants/EmergencyContactsModal.vue";
-import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
-import { ref, computed } from "vue";
+import ProgramCard from "@/Components/Programs/ProgramCard.vue";
+import { ref, computed, watch } from "vue";
+import { router } from "@inertiajs/vue3";
+
+const page = usePage();
 
 const props = defineProps({
     participant: Object,
@@ -468,12 +454,27 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    participantProgramsWithDiscounts: {
+        type: Array,
+        default: () => [],
+    },
+    errors: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
     const date = new Date(dateString);
     return date.toLocaleDateString("es-ES");
+};
+
+const formatBirthDate = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('es-ES', options);
 };
 
 const formatCurrency = (amount) => {
@@ -484,12 +485,24 @@ const formatCurrency = (amount) => {
 // Formatear RUT (12.345.678-9)
 const formatRutDisplay = (rut) => {
     if (!rut) return null;
-    const clean = String(rut).replace(/\./g, '').replace(/-/g, '').toUpperCase();
-    if (!/^\d+[\dK]$/.test(clean)) return rut; // fallback si no calza
-    const body = clean.slice(0, -1);
-    const dv = clean.slice(-1);
-    const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return `${withDots}-${dv}`;
+    
+    // Detectar si es RUT o PASAPORTE basándose en el formato
+    const isRut = /^\d+[\dK]$/.test(rut.replace(/\./g, "").replace(/-/g, ""));
+    
+    if (isRut) {
+        // Formatear como RUT
+        const clean = String(rut)
+            .replace(/\./g, "")
+            .replace(/-/g, "")
+            .toUpperCase();
+        const body = clean.slice(0, -1);
+        const dv = clean.slice(-1);
+        const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return `${withDots}-${dv}`;
+    } else {
+        // Para pasaporte u otros documentos, mostrar en uppercase
+        return String(rut).toUpperCase();
+    }
 };
 
 // Computed property para formatear los programas al formato que espera ProgramsGrid
@@ -508,14 +521,13 @@ const formattedPrograms = computed(() => {
             const totalForParticipant =
                 program.participant_total_due ??
                 program.totalAmount ??
-                program.trip_price ?? 0;
-            const paid =
-                program.paidAmount ??
-                program.paid_amount ??
+                program.trip_price ??
                 0;
-            const percentage = totalForParticipant > 0
-                ? Math.round((paid / totalForParticipant) * 10000) / 100
-                : 0;
+            const paid = program.paidAmount ?? program.paid_amount ?? 0;
+            const percentage =
+                totalForParticipant > 0
+                    ? Math.round((paid / totalForParticipant) * 10000) / 100
+                    : 0;
 
             return {
                 ...program,
@@ -548,18 +560,30 @@ const calculateDuration = (departureDate) => {
     return 7; // 7 días por defecto
 };
 
+const getFullName = (participant) => {
+    const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1) : '';
+    const secondName = participant.second_name ? participant.second_name.charAt(0).toUpperCase() + participant.second_name.slice(1) : '';
+    const firstLastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1) : '';
+    const secondLastName = participant.second_last_name ? participant.second_last_name.charAt(0).toUpperCase() + participant.second_last_name.slice(1) : '';
+
+    return `${firstLastName} ${secondLastName} ${firstName} ${secondName}`;
+};
+
 // Modal state
 const showEditModal = ref(false);
 const showMedicalModal = ref(false);
 const showEmergencyContactsModal = ref(false);
+const preSelectedCourseId = ref(null);
 
 // Modal functions
 const openEditModal = () => {
+    preSelectedCourseId.value = null;
     showEditModal.value = true;
 };
 
 const closeEditModal = () => {
     showEditModal.value = false;
+    preSelectedCourseId.value = null;
 };
 
 const openMedicalModal = () => {
@@ -577,6 +601,52 @@ const openEmergencyContactsModal = () => {
 const closeEmergencyContactsModal = () => {
     showEmergencyContactsModal.value = false;
 };
+
+const confirmToggleParticipantStatus = () => {
+    const action = props.participant.is_active ? 'desactivar' : 'activar';
+    const message = props.participant.is_active 
+        ? `¿Estás seguro de que quieres desactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción solo afectará su visibilidad en el flujo de compra, pero podrás seguir editándolo normalmente en el panel administrativo.`
+        : `¿Estás seguro de que quieres activar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
+    
+    if (confirm(message)) {
+        router.delete(route('admin.participants.destroy', props.participant.id), {
+            onSuccess: () => {
+                // Recargar la página para mostrar el nuevo estado
+                router.reload();
+            },
+            onError: (errors) => {
+                console.error('Error al cambiar estado del participante:', errors);
+                alert('Error al cambiar el estado del participante. Por favor, inténtalo de nuevo.');
+            }
+        });
+    }
+};
+
+const handleProgramCardClick = (program) => {
+    // Buscar el course_id correspondiente al programa
+    if (program.course && program.course.id) {
+        preSelectedCourseId.value = program.course.id;
+    } else if (program.course_id) {
+        preSelectedCourseId.value = program.course_id;
+    }
+    
+    // Abrir el modal de edición
+    showEditModal.value = true;
+};
+
+// Auto-cerrar mensajes flash después de 5 segundos
+watch(() => page.props.flash, (newFlash) => {
+    if (newFlash && (newFlash.success || newFlash.error)) {
+        setTimeout(() => {
+            if (newFlash.success) {
+                page.props.flash.success = null;
+            }
+            if (newFlash.error) {
+                page.props.flash.error = null;
+            }
+        }, 5000);
+    }
+}, { deep: true, immediate: true });
 </script>
 
 <style scoped>

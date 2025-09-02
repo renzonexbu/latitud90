@@ -4,15 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Participant extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $fillable = [
+        'first_last_name',
+        'second_last_name',
         'first_name',
-        'last_name',
+        'second_name',
         'email',
         'code_phone',
         'phone',
@@ -20,16 +21,31 @@ class Participant extends Model
         'document_number',
         'country',
         'birth_date',
+        'nationality',
+        'gender',
         'address',
         'dietary_restrictions',
-        'medical_conditions',
+        'intolerances',
+        'allergies',
         'status',
-        'registration_date'
+        'registration_date',
+        'is_active'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'registration_date' => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    protected $attributes = [
+        'is_active' => true,
+    ];
+
+    protected $appends = [
+        'full_name',
+        'formatted_first_name',
+        'formatted_last_name'
     ];
 
     public function emergencyContacts()
@@ -40,6 +56,16 @@ class Participant extends Model
     public function medicalConditions()
     {
         return $this->hasMany(MedicalCondition::class);
+    }
+
+    public function country()
+    {
+        return $this->belongsTo(Country::class, 'country', 'code');
+    }
+
+    public function documentType()
+    {
+        return $this->belongsTo(Document::class, 'document_type');
     }
 
     public function courses()
@@ -63,14 +89,89 @@ class Participant extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function courseOrders()
+    {
+        return $this->hasMany(Order::class, 'participant_id')->whereNotNull('course_id');
+    }
+
+    public function programs()
+    {
+        return $this->belongsToMany(Program::class, 'participant_program')
+                    ->withPivot([
+                        'enrollment_code',
+                        'individual_price',
+                        'status'
+                    ])
+                    ->withTimestamps();
+    }
+
     public function payments()
     {
         return $this->hasManyThrough(Payment::class, Order::class);
     }
 
+    public function programDiscounts()
+    {
+        return $this->hasManyThrough(ParticipantProgramDiscount::class, ParticipantProgram::class);
+    }
+
     public function getFullNameAttribute()
     {
-        return $this->first_name . ' ' . $this->last_name;
+        $parts = [];
+        
+        // Construir nombre completo usando el orden correcto: nombres primero, luego apellidos
+        if ($this->first_name) {
+            $parts[] = $this->capitalizeWords($this->first_name);
+        }
+        if ($this->second_name) {
+            $parts[] = $this->capitalizeWords($this->second_name);
+        }
+        if ($this->first_last_name) {
+            $parts[] = $this->capitalizeWords($this->first_last_name);
+        }
+        if ($this->second_last_name) {
+            $parts[] = $this->capitalizeWords($this->second_last_name);
+        }
+        
+        return !empty($parts) ? implode(' ', $parts) : 'N/A';
+    }
+
+    /**
+     * Accessor para formatted_first_name - compatibilidad con frontend
+     */
+    public function getFormattedFirstNameAttribute()
+    {
+        $names = [];
+        if ($this->attributes['first_name']) {
+            $names[] = $this->capitalizeWords($this->attributes['first_name']);
+        }
+        if ($this->attributes['second_name']) {
+            $names[] = $this->capitalizeWords($this->attributes['second_name']);
+        }
+        return implode(' ', $names);
+    }
+
+    /**
+     * Accessor para formatted_last_name - compatibilidad con frontend
+     */
+    public function getFormattedLastNameAttribute()
+    {
+        $lastNames = [];
+        if ($this->attributes['first_last_name']) {
+            $lastNames[] = $this->capitalizeWords($this->attributes['first_last_name']);
+        }
+        if ($this->attributes['second_last_name']) {
+            $lastNames[] = $this->capitalizeWords($this->attributes['second_last_name']);
+        }
+        return implode(' ', $lastNames);
+    }
+
+    /**
+     * Aplicar CapitalCase a un string
+     */
+    private function capitalizeWords(string $text): string
+    {
+        return ucwords(strtolower(trim($text)));
     }
 
     // Totales deben calcularse desde el pivote y pagos; se eliminaron campos locales de pago

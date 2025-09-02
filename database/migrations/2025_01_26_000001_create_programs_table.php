@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -14,7 +15,7 @@ return new class extends Migration
         Schema::create('programs', function (Blueprint $table) {
 			$table->id();
 			$table->foreignId('institution_id')->constrained('institutions')->onDelete('cascade');
-			$table->string('code', 8); // Código del programa (4 dígitos hoy, capacidad hasta 8)
+			$table->string('code', 8)->unique(); // Código del programa (4 dígitos hoy, capacidad hasta 8)
 			$table->string('name');
             $table->string('destination');
             $table->date('departure_date');
@@ -46,13 +47,46 @@ return new class extends Migration
             // Campos de auditoría
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->boolean('active')->default(true);
+            $table->enum('status', ['reserva', 'ejecutado'])->nullable();
             $table->timestamps();
 
             // Índices
 			$table->index(['active', 'departure_date']);
+			$table->index(['status', 'departure_date']);
 			$table->index(['code']);
             $table->index(['destination']);
+            $table->index(['created_at']); // Para filtros por fecha
+            $table->index(['status', 'created_at']); // Para filtros combinados
+            $table->index(['institution_id']); // Para joins con institutions
         });
+
+        // Crear trigger para actualizar status a 'ejecutado' cuando pase la fecha de salida
+        DB::unprepared('
+            CREATE TRIGGER update_program_status_to_ejecutado
+            BEFORE UPDATE ON programs
+            FOR EACH ROW
+            BEGIN
+                IF NEW.departure_date < CURDATE() AND NEW.status != "ejecutado" THEN
+                    SET NEW.status = "ejecutado";
+                    SET NEW.active = false;
+                END IF;
+            END;
+        ');
+
+        // Crear trigger para insertar
+        DB::unprepared('
+            CREATE TRIGGER insert_program_status_check
+            BEFORE INSERT ON programs
+            FOR EACH ROW
+            BEGIN
+                IF NEW.departure_date < CURDATE() THEN
+                    SET NEW.status = "ejecutado";
+                    SET NEW.active = false;
+                ELSEIF NEW.departure_date > DATE_ADD(CURDATE(), INTERVAL 1 YEAR) THEN
+                    SET NEW.status = "reserva";
+                END IF;
+            END;
+        ');
     }
 
     /**
@@ -60,6 +94,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Eliminar triggers antes de eliminar la tabla
+        DB::unprepared('DROP TRIGGER IF EXISTS update_program_status_to_ejecutado');
+        DB::unprepared('DROP TRIGGER IF EXISTS insert_program_status_check');
+        
         Schema::dropIfExists('programs');
     }
 };

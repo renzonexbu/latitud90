@@ -28,6 +28,12 @@ class PaymentGatewaySeeder extends Seeder
                 'code' => 'presencial',
                 'description' => 'Pagos presenciales en efectivo o tarjeta',
                 'active' => true
+            ],
+            [
+                'name' => 'Reembolso',
+                'code' => 'refund',
+                'description' => 'Reembolsos procesados manualmente',
+                'active' => true
             ]
         ];
 
@@ -42,5 +48,6 @@ class PaymentGatewaySeeder extends Seeder
         $this->command->info('💳 Transbank (Débito/Crédito)');
         $this->command->info('🏦 Khipu (Transferencia)');
         $this->command->info('🏪 Presencial (Efectivo/Tarjeta)');
+        $this->command->info('💰 Reembolso (Manual)');
     }
 } 

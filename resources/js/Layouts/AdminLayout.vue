@@ -20,28 +20,28 @@
                 <NavLink
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <HouseIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.dashboard')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                     />
                 </NavLink>
                 <NavLink
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <BackpackIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.programs.*')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                         stroke-color="currentColor"
                     />
@@ -49,14 +49,14 @@
                 <NavLink
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <LuggageIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.courses.*')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                         stroke-color="currentColor"
                     />
@@ -64,29 +64,29 @@
                 <NavLink
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <PersonsIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.participants.*')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                         stroke-color="currentColor"
                     />
                 </NavLink>
-                <!-- <NavLink
+                 <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
                     <PaymentsIcon
-                        class="w-10 h-10 transition-colors"
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.payments.*')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                         stroke-color="currentColor"
                     />
@@ -94,40 +94,65 @@
                 <NavLink
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
-                    class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors mt-11"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
                 >
-                    <EditIcon
-                        class="w-10 h-10 transition-colors"
+                    <ReportIcon
+                        class="w-8 h-8 transition-colors"
                         :class="
                             route().current('admin.reports.*')
                                 ? 'text-turquesa'
-                                : 'text-gray-400'
+                                : 'text-gray-400 group-hover:text-turquesa'
                         "
                         fill-color="currentColor"
                     />
-                </NavLink> -->
+                </NavLink>
+                
+                <!-- Mantenedor - Solo para Super Admin -->
+                <NavLink
+                    v-if="$page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')"
+                    :href="route('admin.maintainer.index')"
+                    :active="route().current('admin.maintainer.*')"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                >
+                    <SettingsIcon
+                        class="w-8 h-8 transition-colors"
+                        :class="
+                            route().current('admin.maintainer.*')
+                                ? 'text-turquesa'
+                                : 'text-gray-400 group-hover:text-turquesa'
+                        "
+                        stroke-color="currentColor"
+                    />
+                </NavLink>
             </nav>
 
             <!-- User Info Section -->
             <div class="border-t border-gray-200">
                 <div class="flex flex-col items-center space-y-4 py-4">
-                    <NavLink
+                    <!-- <NavLink
                         :href="route('admin.profile.edit')"
-                        class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
+                        class="flex justify-center w-full p-1 group transition-colors"
                     >
-                        <AyudaIcon />
-                    </NavLink>
+                        <AyudaIcon 
+                            class="w-8 h-8 transition-colors"
+                            :class="
+                                route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
+                                    ? 'text-turquesa'
+                                    : 'text-gray-400 group-hover:text-turquesa'
+                            "
+                        />
+                    </NavLink> -->
                     <div class="relative user-dropdown-container">
                         <button
                             @click="showingUserDropdown = !showingUserDropdown"
-                            class="flex justify-center w-full p-2 hover:bg-gray-50 transition-colors"
+                            class="flex justify-center w-full p-1 group transition-colors"
                         >
                             <UserIcon
-                                class="w-10 h-10 transition-colors"
+                                class="w-8 h-8 transition-colors"
                                 :class="
                                     route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
                                         ? 'text-turquesa'
-                                        : 'text-gray-400'
+                                        : 'text-gray-400 group-hover:text-turquesa'
                                 "
                             />
                         </button>
@@ -146,12 +171,19 @@
                                     Ver perfil
                                 </NavLink>
                                 <NavLink
+                                    :href="route('admin.users.index')"
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    @click="showingUserDropdown = false"
+                                >
+                                    Administrar usuarios
+                                </NavLink>
+                                <NavLink
                                     :href="route('logout')"
                                     method="post"
                                     as="button"
                                     class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
-                                    :data="{ redirect: '/login' }"
+                                    :data="{ redirect: 'http://latitud90.test/login' }"
                                 >
                                     Cerrar sesión
                                 </NavLink>
@@ -174,9 +206,30 @@
                 class="fixed top-4 right-4 z-50"
             >
                 <div
-                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg"
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
                 >
-                    {{ $page.props.flash.message }}
+                    <span>{{ $page.props.flash.message }}</span>
+                    <button @click="clearFlashMessage('message')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div
+                v-if="$page.props.flash.success"
+                class="fixed top-4 right-4 z-50"
+            >
+                <div
+                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
+                >
+                    <span>{{ $page.props.flash.success }}</span>
+                    <button @click="clearFlashMessage('success')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
 
@@ -185,9 +238,14 @@
                 class="fixed top-4 right-4 z-50"
             >
                 <div
-                    class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg"
+                    class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
                 >
-                    {{ $page.props.flash.error }}
+                    <span>{{ $page.props.flash.error }}</span>
+                    <button @click="clearFlashMessage('error')" class="ml-4 text-white hover:text-gray-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
@@ -212,6 +270,8 @@ import {
     EditIcon,
     AyudaIcon,
     UserIcon,
+    ReportIcon,
+    SettingsIcon,
 } from "@/Components/Icons";
 
 import images from "../../images/index.js";
@@ -234,6 +294,8 @@ export default {
         EditIcon,
         AyudaIcon,
         UserIcon,
+        ReportIcon,
+        SettingsIcon,
     },
     data() {
         return {
@@ -246,6 +308,9 @@ export default {
     mounted() {
         // Cerrar dropdown cuando se hace clic fuera
         document.addEventListener('click', this.closeUserDropdown);
+        
+        // Auto-cerrar mensajes flash después de 5 segundos
+        this.autoCloseFlashMessages();
     },
     beforeUnmount() {
         document.removeEventListener('click', this.closeUserDropdown);
@@ -256,6 +321,23 @@ export default {
             if (dropdown && !dropdown.contains(event.target)) {
                 this.showingUserDropdown = false;
             }
+        },
+        clearFlashMessage(type) {
+            this.$page.props.flash[type] = null;
+        },
+        autoCloseFlashMessages() {
+            // Auto-cerrar mensajes flash después de 5 segundos
+            setTimeout(() => {
+                if (this.$page.props.flash.message) {
+                    this.$page.props.flash.message = null;
+                }
+                if (this.$page.props.flash.success) {
+                    this.$page.props.flash.success = null;
+                }
+                if (this.$page.props.flash.error) {
+                    this.$page.props.flash.error = null;
+                }
+            }, 5000);
         }
     },
 };

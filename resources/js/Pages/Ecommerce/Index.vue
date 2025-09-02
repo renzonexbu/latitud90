@@ -6,7 +6,7 @@
     </Modal>
     
     <!-- Header -->
-    <Header class="bg-transparent text-blanco shadow-none"> </Header>
+    <Header :isScrolled="isScrolled" class="bg-transparent text-blanco shadow-none"> </Header>
     <!-- Hero Section -->
     <HeroSection id=""></HeroSection>
 
@@ -21,13 +21,13 @@
     </div>
 
     <!-- About Section -->
-    <div class="section-spacing">
+    <div class="section-spacing" id="about">
       <AboutSection></AboutSection>
     </div>
 
     <!-- Experiences Section -->
-    <div class="section-spacing">
-      <ExperienceSection id="nuestrosProgramas"></ExperienceSection>
+    <div class="section-spacing" id="nuestrosProgramas">
+      <ExperienceSection></ExperienceSection>
     </div>
 
     <!-- Schools Section -->
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Courses Section -->
-    <div class="section-spacing">
+    <div class="section-spacing" id="courses">
       <CoursesSection></CoursesSection>
     </div>
 
@@ -46,12 +46,12 @@
     </div>
 
     <!-- FAQ Section -->
-    <div class="section-spacing">
+    <div class="section-spacing" id="faq">
       <FaqSection></FaqSection>
     </div>
 
     <!-- Contact Section -->
-    <div class="section-spacing">
+    <div class="section-spacing" id="contact">
       <Contact></Contact>
     </div>
 
@@ -62,7 +62,7 @@
 
 <script>
   import { Link, Head } from "@inertiajs/vue3";
-  import { ref, reactive } from "vue";
+  import { ref, reactive, onMounted, onUnmounted } from "vue";
   import { router } from "@inertiajs/vue3";
   import Header from "@/Components/Ecommerce/Header.vue";
   import Footer from "@/Components/Ecommerce/Footer.vue";
@@ -195,11 +195,76 @@
       };
 
       const showWelcomeModal = ref(true);
+      const isScrolled = ref(false);
+
+      // Función para manejar el scroll
+      const handleScroll = () => {
+        // Detectar si se ha hecho scroll pasando el hero section
+        // El hero section tiene h-[80vh] = 80% del viewport height
+        const scrollPosition = window.scrollY;
+        const heroHeight = window.innerHeight * 0.8; // 80% del viewport height para coincidir con h-[80vh]
+        
+        isScrolled.value = scrollPosition > heroHeight - 100; // Cambiar un poco antes para mejor UX
+      };
+
+      // Función para hacer scroll automático a la sección guardada
+      const handleAutoScroll = () => {
+        // Verificar si hay una sección guardada en localStorage
+        const targetSection = localStorage.getItem('scrollToSection');
+        
+        if (targetSection) {
+          // Limpiar el localStorage
+          localStorage.removeItem('scrollToSection');
+          
+          // Hacer scroll después de un pequeño delay para asegurar que la página cargó completamente
+          setTimeout(() => {
+            const element = document.getElementById(targetSection);
+            if (element) {
+              const headerHeight = 120; // Altura aproximada del header
+              const elementPosition = element.offsetTop - headerHeight;
+              
+              window.scrollTo({
+                top: elementPosition,
+                behavior: 'smooth'
+              });
+            }
+          }, 500); // 500ms de delay para asegurar que todo cargó
+        }
+        
+        // También verificar hash en la URL como fallback
+        if (window.location.hash) {
+          const sectionId = window.location.hash.substring(1);
+          setTimeout(() => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+              const headerHeight = 120;
+              const elementPosition = element.offsetTop - headerHeight;
+              
+              window.scrollTo({
+                top: elementPosition,
+                behavior: 'smooth'
+              });
+            }
+          }, 500);
+        }
+      };
+
+      // Listeners de scroll
+      onMounted(() => {
+        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // Verificar estado inicial
+        handleAutoScroll(); // Verificar si hay scroll automático pendiente
+      });
+
+      onUnmounted(() => {
+        window.removeEventListener('scroll', handleScroll);
+      });
 
       return {
         searchQuery,
         filters,
         showWelcomeModal,
+        isScrolled,
         formatServiceType,
         formatPrice,
         formatDate,

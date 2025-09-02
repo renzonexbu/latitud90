@@ -60,7 +60,7 @@
 
 <script setup>
 import { Head, useForm } from "@inertiajs/vue3";
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
 import PaymentDetails from "@/Components/Ecommerce/CreateProgramComponents/PaymentDetails.vue";
@@ -107,6 +107,7 @@ const form = useForm({
     institution_name: "",
     institution_id: "",
     education_level: "",
+    grade: "",
     course_number: "",
     students_file: null,
     group_benefit: "",
@@ -147,6 +148,7 @@ const paymentData = ref({
     institution_name: "",
     institution_id: "",
     education_level: "",
+    grade: "",
     course_number: "",
     students_file: null,
     group_benefit: "",
@@ -260,9 +262,11 @@ const validateForm = () => {
     clearLocalErrors();
     const errors = {};
     
-    // Validar que el nombre del programa sea obligatorio
-    if (!programData.value.name || programData.value.name.trim() === '') {
-        errors.name = 'El nombre del programa es obligatorio';
+    // El nombre del programa ya no es obligatorio
+    
+    // Validar que el código del programa sea obligatorio
+    if (!programData.value.code || programData.value.code.trim() === '') {
+        errors.code = 'El código del programa es obligatorio';
     }
     
     // Validar que el destino sea obligatorio
@@ -278,6 +282,11 @@ const validateForm = () => {
     // Validar que al menos una imagen sea obligatoria
     if (!selectedImages.value || selectedImages.value.length === 0) {
         errors.images = 'Debe seleccionar al menos una imagen para el programa';
+    }
+    
+    // Validar que el ejecutivo comercial sea obligatorio
+    if (!paymentData.value.sales_executive_id || paymentData.value.sales_executive_id === '') {
+        errors.sales_executive_id = 'El ejecutivo comercial es obligatorio';
     }
     
     // Asignar errores locales
@@ -299,6 +308,7 @@ const scrollToFirstError = () => {
         if (errorFieldNames.length > 0) {
             // Mapeo de nombres de campos a selectores específicos
             const fieldSelectors = {
+                'code': 'input[placeholder="1234"]',
                 'name': 'input[placeholder="Nombre"]',
                 'destination': 'input[placeholder*="Santiago"]',
                 'departure_date': 'input[type="date"]',
@@ -307,10 +317,11 @@ const scrollToFirstError = () => {
                 'total_price': 'input[placeholder="--------"]',
                 'final_payment_date': 'input[type="date"]',
                 'sales_person': 'input[placeholder="Nombre"]',
+                'sales_executive_id': 'select[v-model*="sales_executive_id"]',
                 'institution_id': 'select[id*="institution"]',
                 'education_level': 'select:has(option[value="inicial"])',
                 'shift': 'select:has(option[value="mañana"])',
-                'grade': 'select:has(option[value="1"])',
+                'grade': 'select:has(option[value="A"])',
                 'students_file': 'input[type="file"]'
             };
             
@@ -447,11 +458,17 @@ const submit = () => {
         return;
     }
 
+    // Convertir sales_executive_id a entero si no está vacío
+    if (form.sales_executive_id && form.sales_executive_id !== '') {
+        form.sales_executive_id = parseInt(form.sales_executive_id);
+    }
+
     // Debug: Log de los datos que se van a enviar
     console.log('Datos que se van a enviar al backend:', {
         payment_options: form.payment_options,
         full_payment_options: form.full_payment_options,
         lat90_payment_options: form.lat90_payment_options,
+        sales_executive_id: form.sales_executive_id,
         form_data: form.data()
     });
 
@@ -466,6 +483,24 @@ const submit = () => {
 
     form.post(route("admin.programs.store"));
 };
+
+const maxInstallmentChoices = computed(() => {
+    const choices = [];
+    // Determinar máximo por fecha final
+    let maxByDate = 12;
+    if (form.final_payment_date) {
+        const now = new Date();
+        const end = new Date(form.final_payment_date + 'T00:00:00');
+        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+        if (now.getDate() > end.getDate()) months -= 1;
+        maxByDate = Math.max(0, months);
+    }
+    const hardMax = 12;
+    const max = Math.min(hardMax, maxByDate);
+    for (let i = 1; i <= max; i++) choices.push({ value: i.toString(), label: `${i}` });
+    if (choices.length === 0) choices.push({ value: '1', label: '1' });
+    return choices;
+});
 </script>
 
 <style scoped>

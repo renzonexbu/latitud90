@@ -1,6 +1,6 @@
 <template>
     <div
-        class="relative w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+        class="relative w-full max-w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         @click="$emit('click', program)"
     >
         <!-- Background Image -->
@@ -22,13 +22,12 @@
             <div class="flex flex-col text-white" style="width: 250px">
                 <!-- Destination -->
                 <div
-                    class="truncate mb-1"
+                    class="truncate mb-1 text-[10px] sm:text-xs"
                     style="
                         color: #fff;
                         font-family: Outfit;
-                        font-size: 12px;
                         font-weight: 500;
-                        line-height: 16px;
+                        line-height: 14px;
                         width: 250px;
                     "
                 >
@@ -37,13 +36,12 @@
 
                 <!-- Program Name -->
                 <div
-                    class="line-clamp-2 mb-1"
+                    class="line-clamp-2 mb-1 text-lg sm:text-2xl"
                     style="
                         color: #fff;
                         font-family: Outfit;
-                        font-size: 24px;
                         font-weight: 600;
-                        line-height: 28px;
+                        line-height: 22px;
                         width: 250px;
                     "
                 >
@@ -52,13 +50,12 @@
 
                 <!-- Date -->
                 <div
-                    class="truncate"
+                    class="truncate text-[10px] sm:text-xs"
                     style="
                         color: #fff;
                         font-family: Nexa;
-                        font-size: 12px;
                         font-weight: 800;
-                        line-height: 16px;
+                        line-height: 14px;
                         width: 250px;
                     "
                 >
@@ -66,25 +63,37 @@
                 </div>
             </div>
 
-            <!-- SVG Icon (Right side) -->
-            <div
-                class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 19 19"
-                    fill="none"
+            <!-- SVG Icon and Status Badge (Right side) -->
+            <div class="flex flex-col items-end gap-2">
+                <!-- Status Badge -->
+                <div 
+                    v-if="showStatusBadge && program.status"
+                    class="px-2 py-1 rounded-full text-xs font-medium"
+                    :class="getStatusClass(program.status)"
                 >
-                    <path
-                        d="M2 17L17 2M17 2H4.72727M17 2V14.2727"
-                        stroke="white"
-                        stroke-width="2.187"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    />
-                </svg>
+                    {{ getStatusLabel(program.status) }}
+                </div>
+                
+                <!-- SVG Icon -->
+                <div
+                    class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 19 19"
+                        fill="none"
+                    >
+                        <path
+                            d="M2 17L17 2M17 2H4.72727M17 2V14.2727"
+                            stroke="white"
+                            stroke-width="2.187"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                </div>
             </div>
         </div>
 
@@ -95,7 +104,7 @@
             <!-- Course Info -->
             <div class="text-white mb-3">
                 <div
-                    class="flex items-center mt-2 text-xs opacity-90 justify-end"
+                    class="flex items-center mt-2 text-[10px] sm:text-xs opacity-90 justify-end"
                 >
                     <span v-if="program.course?.institution?.name">{{
                         capitalizeFirst(program.course.institution.name)
@@ -121,7 +130,7 @@
 
             <!-- Progress Bar Card -->
             <div
-                class="bg-white rounded-[12px] p-[14px_16px] flex flex-col gap-2 items-start justify-start self-stretch flex-shrink-0 relative"
+                class="bg-white rounded-[12px] p-3 sm:p-4 flex flex-col gap-2 items-start justify-start self-stretch flex-shrink-0 relative"
             >
                 <div
                     class="flex flex-col gap-[11px] items-start justify-start self-stretch flex-shrink-0 relative"
@@ -135,11 +144,12 @@
                             <div
                                 class="flex flex-row items-start justify-between self-stretch flex-shrink-0 relative"
                             >
-                                <!-- Percentage -->
+                                <!-- Percentage or Installments -->
                                 <div
-                                    class="text-[#4B8D7F] text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative"
+                                    class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative"
                                 >
-                                    {{ program.paymentPercentage }}%
+                                    <span v-if="program.installments_summary">{{ program.installments_summary }}</span>
+                                    <span v-else>{{ program.paymentPercentage }}%</span>
                                 </div>
 
                                 <!-- Money Values -->
@@ -147,12 +157,12 @@
                                     class="flex flex-row items-end justify-end flex-shrink-0 relative"
                                 >
                                     <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative min-w-0"
+                                        class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative min-w-0"
                                     >
                                         {{ formatPrice(program.paidAmount) }}
                                     </div>
                                      <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2"
+                                        class="text-[#4B8D7F] text-left font-nexa text-[10px] sm:text-xs font-normal font-bold leading-3 sm:leading-4 relative ml-2"
                                      >
                                          /{{ formatPrice(getDisplayTotalAmount()) }}
                                      </div>
@@ -222,6 +232,10 @@ export default {
         program: {
             type: Object,
             required: true,
+        },
+        showStatusBadge: {
+            type: Boolean,
+            default: true,
         },
     },
     emits: ["click"],
@@ -293,6 +307,20 @@ export default {
                 month: "2-digit",
                 year: "numeric",
             });
+        },
+        getStatusLabel(status) {
+            const labels = {
+                'reserva': 'Reserva',
+                'ejecutado': 'Ejecutado'
+            };
+            return labels[status] || status;
+        },
+        getStatusClass(status) {
+            const classes = {
+                'reserva': 'bg-yellow-100 text-yellow-800',
+                'ejecutado': 'bg-blue-100 text-blue-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
         },
     },
 };

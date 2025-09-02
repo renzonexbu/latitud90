@@ -46,7 +46,7 @@
                                 <div class="field-container" style="flex: 2;">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
-                                            Nombre del programa *
+                                            Nombre del programa
                                         </div>
                                         <input
                                             type="text"
@@ -68,7 +68,7 @@
                                 <div class="field-container" style="flex: 1;">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
-                                            Código del programa (4 dígitos)
+                                            Código del programa *
                                         </div>
                                         <input
                                             type="text"

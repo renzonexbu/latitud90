@@ -47,4 +47,47 @@ return [
         'base_url' => env('KHIPU_BASE_URL', 'https://payment-api.khipu.com'),
     ],
 
+    'bsale' => [
+        'token' => env('BSALE_TOKEN'),
+        'base_url' => env('BSALE_BASE_URL', 'https://api.bsale.io/v1'),
+        // IDs configurables por ambiente/cuenta
+        'document_type_id' => env('BSALE_DOCUMENT_TYPE_ID', 3), // NOTA VENTA por defecto
+        'price_list_id' => env('BSALE_PRICE_LIST_ID', 2), // Lista Base detectada en sandbox
+        // Modo pruebas: invertir lógica de "mismo año"
+        'invert_same_year_logic' => env('BSALE_INVERT_SAME_YEAR_LOGIC', false),
+    ],
+
+    'virtualpos' => [
+        'no_cuotes' => [
+            'api_key' => env('VP_API_KEY_SC', 'd0f282-9c0c9d-ab74f7-965013-03232e'),
+            'secret_key' => env('VP_SECRET_SC', '13d86e16bbb4d2d05d83a82112b0d310'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_NO_COUTES', '41760243'),
+        ],
+        '3_cuotes' => [
+            'api_key' => env('VP_API_KEY_3CSI', 'cf3b17-b85239-a3a242-1aaa9d-b74cf0'),
+            'secret_key' => env('VP_SECRET_3CSI', '352cf28ba166598afef7c93e246c0b04'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_3_COUTES', '41760252'),
+        ],
+        '6_cuotes' => [
+            'api_key' => env('VP_API_KEY_6CSI', 'b70bfd-0865f4-13e6ba-ed1802-cacaad'),
+            'secret_key' => env('VP_SECRET_6CSI', '426e5436b6733f9f4c4a3d460e641725'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_6_COUTES', '41760255'),
+        ],
+        '9_cuotes' => [
+            'api_key' => env('VP_API_KEY_9CSI', '755aca-18366a-2e96a4-e24137-3c16f0'),
+            'secret_key' => env('VP_SECRET_9CSI', '0a7990ada573a145957b6f7a0c530c12'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_9_COUTES', '41760255'),
+        ],
+        '12_cuotes' => [
+            'api_key' => env('VP_API_KEY_12CSI', '2a75eb-4d3776-000183-7d449d-edd576'),
+            'secret_key' => env('VP_SECRET_12CSI', 'cff9a217d5d6f2e2caeb79fa4f3a3497'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_12_COUTES', '41760262'),
+        ],
+        'international' => [
+            'api_key' => env('VP_API_KEY_INTERNATIONAL', 'e66971-d09fbe-9372f6-d0e81f-9f2788'),
+            'secret_key' => env('VP_SECRET_INTERNATIONAL', 'e63c06f334bf760f7f029ebe0cc5dfe6'),
+            'commerce_code' => env('VIRTUALPOS_COMMERCE_CODE_INTERNATIONAL', '41760262'),
+        ]
+    ],
+
 ];

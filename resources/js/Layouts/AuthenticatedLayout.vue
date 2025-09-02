@@ -60,7 +60,7 @@
         </div>
         <nav class="mt-2">
           <NavLink
-            :href="route('profile.edit')"
+            :href="route('admin.profile.edit')"
             class="block px-4 py-2 hover:bg-gray-50">
             Perfil
           </NavLink>
@@ -150,7 +150,7 @@
             </div>
 
             <div class="mt-3 space-y-1">
-              <ResponsiveNavLink :href="route('profile.edit')">
+              <ResponsiveNavLink :href="route('admin.profile.edit')">
                 Perfil
               </ResponsiveNavLink>
               <ResponsiveNavLink

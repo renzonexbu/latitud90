@@ -4,7 +4,7 @@ use App\Http\Controllers\Client\ProgramController;
 use App\Http\Controllers\Client\GeneratePaymentController;
 use App\Http\Controllers\Client\ConfirmPaymentController;
 use App\Http\Controllers\Client\ProcessPaymentController;
-use App\Http\Controllers\Client\PaymentGatewayController;
+use App\Http\Controllers\Client\PaymentConfirmationController;
 use Illuminate\Support\Facades\Route;
 
 // Rutas de programas
@@ -20,31 +20,21 @@ Route::get('/programs/{programId}/confirmation', [ConfirmPaymentController::clas
 
 // Payment Processing Routes
 Route::post('/process-payment', [ProcessPaymentController::class, 'processPayment'])->name('payment.process');
-Route::get('/payment/success/{orderDetailId}', [ProcessPaymentController::class, 'paymentSuccess'])->name('payment.success');
-Route::get('/payment/failure/{orderDetailId}', [ProcessPaymentController::class, 'paymentFailure'])->name('payment.failure');
 
-// Callback Transbank con spinner y confirmación
-Route::get('/payment/callback/{orderDetailId}', [PaymentGatewayController::class, 'callbackSpinner'])->name('payment.callback');
-Route::post('/payment/confirm', [PaymentGatewayController::class, 'confirmTransbank'])->name('payment.confirm');
+// Rutas unificadas de confirmación de pagos
+Route::match(['get', 'post'], '/payment/callback/{orderDetailId}', [PaymentConfirmationController::class, 'showSpinner'])->name('payment.callback');
+Route::post('/payment/callback/{orderDetailId}', [PaymentConfirmationController::class, 'handleVirtualPosWebhook'])->name('payment.callback.post');
+Route::post('/payment/confirm', [PaymentConfirmationController::class, 'confirmPayment'])->name('payment.confirm');
 
-// Payment Gateway Notification Routes (deshabilitadas: confirmación vía polling)
-// Route::post('/webhook/transbank', [PaymentGatewayController::class, 'handleTransbankNotification'])->name('webhook.transbank');
-// Route::post('/webhook/khipu', [PaymentGatewayController::class, 'handleKhipuNotification'])->name('webhook.khipu');
+// Rutas unificadas de resultado
+Route::get('/payment/success/{orderDetailId}', [PaymentConfirmationController::class, 'showSuccess'])->name('payment.success');
+Route::get('/payment/failure/{orderDetailId}', [PaymentConfirmationController::class, 'showFailure'])->name('payment.failure');
 
-// Payment Result Processing
-Route::get('/payment/result/{orderDetailId}', [PaymentGatewayController::class, 'processPaymentResult'])->name('payment.result');
-Route::get('/payment/status/{orderDetailId}', [PaymentGatewayController::class, 'checkPaymentStatus'])->name('payment.status');
+// Rutas de compatibilidad (redirigir a las nuevas con gateway explícito)
+Route::get('/khipu/callback/{orderDetailId}', function($orderDetailId) {
+    return redirect()->route('payment.callback', ['orderDetailId' => $orderDetailId, 'gateway' => 'khipu']);
+})->name('khipu.callback');
 
-// Khipu callback con spinner y confirmación por consulta
-Route::get('/khipu/callback/{orderDetailId}', [PaymentGatewayController::class, 'khipuCallbackSpinner'])->name('khipu.callback');
-Route::post('/khipu/confirm', [PaymentGatewayController::class, 'confirmKhipu'])->name('khipu.confirm');
-
-// Resolver último payment_id para un orderDetail (ayuda a vista de verificación)
-Route::get('/khipu/last/{orderDetailId}', function($orderDetailId) {
-    $payment = \App\Models\Payment::where('order_detail_id', (int) $orderDetailId)
-        ->whereNotNull('external_payment_id')
-        ->latest()->first();
-    return response()->json([
-        'payment_id' => $payment?->external_payment_id ?: session('last_khipu_payment_id')
-    ]);
-})->name('khipu.last');
+Route::get('/khipu/view/{orderDetailId}', function($orderDetailId) {
+    return redirect()->route('payment.callback', ['orderDetailId' => $orderDetailId, 'gateway' => 'khipu']);
+})->name('khipu.view');

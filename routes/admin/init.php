@@ -2,10 +2,7 @@
 
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\PassengerController;
 use App\Http\Controllers\Admin\PaymentController;
-use App\Http\Controllers\Admin\ReportController;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 // Dashboard principal (redirige al admin)
@@ -29,40 +26,40 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // Gestión de participantes
     include __DIR__ . '/participants.php';
-    
+
+    // Gestión de cuotas
+    include __DIR__ . '/installments.php';
+
     // Gestión de pagos
     include __DIR__ . '/payments.php';
 
-    // Gestión de perfil
-    include __DIR__ . '/profile.php';
-    
+    // Gestión de reportes
+    include __DIR__ . '/reports.php';
 
+    // Gestión de usuarios
+    include __DIR__ . '/users.php';
 
-    // Gestión de pasajeros - Comentado temporalmente
-    // Route::resource('passengers', PassengerController::class);
-    // Route::patch('passengers/{passenger}/update-status', [PassengerController::class, 'updateStatus'])->name('passengers.update-status');
-    // Route::patch('passengers/{passenger}/update-price', [PassengerController::class, 'updatePrice'])->name('passengers.update-price');
-    // Route::get('passengers/{passenger}/payments', [PassengerController::class, 'payments'])->name('passengers.payments');
-    // Route::get('passengers/{passenger}/contracts', [PassengerController::class, 'contracts'])->name('passengers.contracts');
-    // Route::post('passengers/{passenger}/send-payment-link', [PassengerController::class, 'sendPaymentLink'])->name('passengers.send-payment-link');
-    // Route::get('passengers/export', [PassengerController::class, 'export'])->name('passengers.export');
-
-    // Gestión de pagos
-    Route::resource('payments', PaymentController::class)->only(['index', 'show', 'update']);
-    Route::patch('payments/{payment}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
-    Route::patch('payments/{payment}/cancel', [PaymentController::class, 'cancel'])->name('payments.cancel');
-    Route::post('payments/{payment}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
-    Route::get('payments/export', [PaymentController::class, 'export'])->name('payments.export');
-    Route::get('payments/pending-report', [PaymentController::class, 'pendingReport'])->name('payments.pending-report');
-    Route::get('payments/revenue-report', [PaymentController::class, 'revenueReport'])->name('payments.revenue-report');
-
-    // Reportes generales
-    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
-    Route::get('reports/sales-chart', [ReportController::class, 'salesChart'])->name('reports.sales-chart');
+    // Gestión del mantenedor (solo super admin)
+    include __DIR__ . '/maintainer.php';
 
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
-    // Route::get('reports/passengers', [PassengerController::class, 'reportsIndex'])->name('reports.passengers');
     Route::get('reports/payments', [PaymentController::class, 'reportsIndex'])->name('reports.payments');
     Route::get('reports/financial', [PaymentController::class, 'financialReport'])->name('reports.financial');
+
+    // Analytics del Ecommerce
+    Route::prefix('analytics')->name('analytics.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])->name('index');
+        Route::get('/funnel', [\App\Http\Controllers\Admin\AnalyticsController::class, 'funnel'])->name('funnel');
+        Route::get('/export', [\App\Http\Controllers\Admin\AnalyticsController::class, 'export'])->name('export');
+    });
+
+    // Logs Administrativos
+    Route::prefix('logs')->name('logs.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\AdminLogsController::class, 'index'])->name('index');
+        Route::get('/{log}', [\App\Http\Controllers\Admin\AdminLogsController::class, 'show'])->name('show');
+        Route::get('/export', [\App\Http\Controllers\Admin\AdminLogsController::class, 'export'])->name('export');
+    });
+
+    // Gestión de perfil
+    include __DIR__ . '/profile.php';
 });

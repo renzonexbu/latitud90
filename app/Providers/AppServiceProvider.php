@@ -40,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Configurar timezone global
+        date_default_timezone_set('America/Santiago');
+        
         // Optimización de memoria
         if ($this->app->isProduction()) {
             \Illuminate\Database\Eloquent\Model::preventLazyLoading(!$this->app->isProduction());

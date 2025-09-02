@@ -6,7 +6,7 @@
         @click.self="closeModal"
     >
         <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[580px] w-full modal-content">
+        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[800px] w-full modal-content">
             <!-- Header -->
             <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
                 <div class="flex flex-row gap-[20px] items-start justify-end w-full">
@@ -130,7 +130,27 @@
                                     <span v-if="errors.courseNumber" class="text-red-500 text-xs mt-1">{{ errors.courseNumber }}</span>
                                 </div>
 
-                                
+                                <!-- Grado -->
+                                <div class="flex flex-col gap-[7px] flex-shrink-0">
+                                    <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                                        Grado
+                                    </label>
+                                    <select 
+                                        v-model="form.grade"
+                                        :class="[
+                                            'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none w-[70px]',
+                                            errors.grade ? 'border-red-500' : 'border-[#5b5b5b]'
+                                        ]"
+                                    >
+                                        <option value="">---</option>
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                        <option value="E">E</option>
+                                    </select>
+                                    <span v-if="errors.grade" class="text-red-500 text-xs mt-1">{{ errors.grade }}</span>
+                                </div>
                             </div>
 
                             <!-- Contact row -->
@@ -273,6 +293,7 @@ export default {
                 educationLevel: "",
                 year: "2025",
                 courseNumber: "",
+                grade: "",
                 contactEmail: "",
                 contactPhone: "",
                 associatedProgram: "",
@@ -297,14 +318,16 @@ export default {
                 const selectedInstitution = this.institutions.find(inst => String(inst.id) === String(newInstitutionId));
                 console.log('Selected institution:', selectedInstitution);
                 if (selectedInstitution) {
-                    this.form.contactEmail = selectedInstitution.email || "";
-                    this.form.contactPhone = selectedInstitution.phone || "";
+                    // Solo llenar los campos si están vacíos o si el usuario no los ha modificado manualmente
+                    if (!this.form.contactEmail || this.form.contactEmail === this.course?.contact_email) {
+                        this.form.contactEmail = selectedInstitution.email || "";
+                    }
+                    if (!this.form.contactPhone || this.form.contactPhone === this.course?.contact_phone) {
+                        this.form.contactPhone = selectedInstitution.phone || "";
+                    }
                 }
-            } else {
-                // Si no hay institución seleccionada, limpiar los campos
-                this.form.contactEmail = "";
-                this.form.contactPhone = "";
             }
+            // No limpiar los campos cuando se deselecciona la institución
         }
     },
     mounted() {
@@ -332,6 +355,7 @@ export default {
                     educationLevel: this.course.education_level || "",
                     year: this.course.year || "2025",
                     courseNumber: this.course.course_number || "",
+                    grade: this.course.grade || "",
                     contactEmail: this.course.contact_email || "",
                     contactPhone: this.course.contact_phone || "",
                     associatedProgram: this.course.program_id ? String(this.course.program_id) : "",
@@ -385,6 +409,7 @@ export default {
             formData.append('educationLevel', this.form.educationLevel || '');
             formData.append('year', this.form.year || '');
             formData.append('courseNumber', this.form.courseNumber || '');
+            formData.append('grade', this.form.grade || '');
             formData.append('contactEmail', this.form.contactEmail || (this.course.contact_email || ''));
             formData.append('contactPhone', this.form.contactPhone || (this.course.contact_phone || ''));
             formData.append('associatedProgram', this.form.associatedProgram || '');

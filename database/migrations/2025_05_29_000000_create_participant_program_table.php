@@ -22,6 +22,10 @@ return new class extends Migration
 
 			$table->unique(['participant_id', 'program_id']);
 			$table->index(['status']);
+			$table->index(['created_at']); // Para filtros por fecha
+			$table->index(['status', 'created_at']); // Para filtros combinados
+			$table->index(['participant_id', 'created_at']); // Para consultas por participante
+			$table->index(['program_id', 'created_at']); // Para consultas por programa
 		});
 	}
 

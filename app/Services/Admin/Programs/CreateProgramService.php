@@ -6,6 +6,7 @@ use App\Models\Program;
 use App\Models\Course;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -13,30 +14,45 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class CreateProgramService
 {
+    use AdminLogging;
     /**
      * Execute the program creation.
      */
     public function execute(array $programData): Program
     {
+        // Validar que sales_executive_id esté presente
+        if (empty($programData['sales_executive_id'])) {
+            throw new \InvalidArgumentException('El ejecutivo de ventas es obligatorio.');
+        }
+        
+        // Guardar los arrays de opciones de pago antes de filtrar
+        $fullPaymentOptions = $programData['full_payment_options'] ?? [];
+        $lat90PaymentOptions = $programData['lat90_payment_options'] ?? [];
+        
+        // Filtrar campos que no deben guardarse directamente en el modelo Program
+        $programData = array_filter($programData, function($key) {
+            return !in_array($key, ['full_payment_options', 'lat90_payment_options']);
+        }, ARRAY_FILTER_USE_KEY);
+        
         try {
             DB::beginTransaction();
 
             // Procesar los pilares como string separado por comas
-        $pillars = [];
-        if (!empty($programData['pilar_1'])) {
-            $pillars[] = $programData['pilar_1'];
-        }
-        if (!empty($programData['pilar_2'])) {
-            $pillars[] = $programData['pilar_2'];
-        }
-        if (!empty($programData['pilar_3'])) {
-            $pillars[] = $programData['pilar_3'];
-        }
-        if (!empty($programData['pilar_4'])) {
-            $pillars[] = $programData['pilar_4'];
-        }
-        $programData['pillars'] = implode(', ', $pillars);
-        
+            $pillars = [];
+            if (!empty($programData['pilar_1'])) {
+                $pillars[] = $programData['pilar_1'];
+            }
+            if (!empty($programData['pilar_2'])) {
+                $pillars[] = $programData['pilar_2'];
+            }
+            if (!empty($programData['pilar_3'])) {
+                $pillars[] = $programData['pilar_3'];
+            }
+            if (!empty($programData['pilar_4'])) {
+                $pillars[] = $programData['pilar_4'];
+            }
+            $programData['pillars'] = implode(', ', $pillars);
+
 
             // Crear el programa primero (sin archivos por ahora)
             $autoName = $this->buildProgramName($programData);
@@ -53,26 +69,14 @@ class CreateProgramService
                 'itinerary_file' => null, // Se actualizará después
                 'travel_assistance_coverage' => null, // Se actualizará después
                 'equipment_list' => null, // Se actualizará después
-                // trip_price en BD almacena el total del programa (precio por participante FINAL x #participantes)
-                // Inicialmente 0; se recalculará tras procesar participantes
                 'trip_price' => 0,
                 'year' => (int) date('Y', strtotime($programData['departure_date'])),
                 'final_payment_date' => $programData['final_payment_date'],
                 'seller_name' => null,
-                'sales_executive_id' => $programData['sales_executive_id'],
-                
-                // Configuración de pago total
+                'sales_executive_id' => $programData['sales_executive_id'] ?? null,
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
-                // Mapear nombres semánticos del frontend a IDs sembrados por PaymentMethodSeeder
-                // Eliminado: total_payment_method_id (usamos payment_options + pivote)
-                
-                // Configuración de pago mensual Lat90
                 'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
-                // Usa el mismo mapeo de métodos que pago total
-                // Eliminado: lat90_payment_method_id (usamos payment_options + pivote)
                 'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
-                
-                // Campos de descuento
                 'discount_type' => $programData['discount_type'] ?? $programData['group_benefit'] ?? null,
                 'discount_value' => $this->calculateDiscountValue($programData),
                 'created_by' => auth()->id(),
@@ -83,7 +87,7 @@ class CreateProgramService
 
             // Procesar archivos después de crear el programa para poder usar su ID
             $processedData = $this->processFiles($programData, $program);
-            
+
             // Actualizar el programa con las rutas de los archivos
             $program->update([
                 'images_folder' => $processedData['images_folder'] ?? null,
@@ -97,13 +101,13 @@ class CreateProgramService
             if (!empty($programData['institution_id']) && (
                 !empty($programData['education_level']) || !empty($programData['students_file'])
             )) {
-                
+
                 // Crear el curso
                 $course = $this->createCourse($programData, $program);
-                
+
                 // Asignar el curso al programa
                 $program->update(['course_id' => $course->id]);
-                
+
                 // Procesar participantes si se proporciona el archivo
                 if (!empty($programData['students_file'])) {
                     $this->processParticipants($programData['students_file'], $course, $program);
@@ -111,7 +115,13 @@ class CreateProgramService
             }
 
             // Guardar opciones de pago seleccionadas (program_payment_option)
-            $this->syncProgramPaymentOptions($program, $programData);
+            // Sincronizar opciones de pago (pivote program_payment_option) si vienen nuevas
+            // Usar los arrays guardados anteriormente
+            $paymentOptionsData = [
+                'full_payment_options' => $fullPaymentOptions,
+                'lat90_payment_options' => $lat90PaymentOptions
+            ];
+            $this->syncProgramPaymentOptions($program, $paymentOptionsData);
 
             // Recalcular y actualizar el total del programa (trip_price) según #participantes y precio por participante final
             $this->recalculateProgramTotal($program, $programData);
@@ -126,8 +136,24 @@ class CreateProgramService
             }
 
             DB::commit();
-            return $program;
 
+            // Log the program creation
+            $this->logCreate(
+                'programs',
+                'Program',
+                $program->id,
+                "Programa creado: {$program->name} - {$program->destination}",
+                $program->toArray(),
+                [
+                    'institution_id' => $programData['institution_id'] ?? null,
+                    'has_course' => $program->course_id !== null,
+                    'has_participants' => $program->course && $program->course->participants->count() > 0,
+                    'participants_count' => $program->course ? $program->course->participants->count() : 0,
+                    'has_files' => !empty($processedData['images_folder']) || !empty($processedData['itinerary_file_path']),
+                ]
+            );
+
+            return $program;
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -141,8 +167,12 @@ class CreateProgramService
         $codes = [];
         $full = $programData['full_payment_options'] ?? [];
         $lat90 = $programData['lat90_payment_options'] ?? [];
-        if (is_array($full)) { $codes = array_merge($codes, $full); }
-        if (is_array($lat90)) { $codes = array_merge($codes, $lat90); }
+        if (is_array($full)) {
+            $codes = array_merge($codes, $full);
+        }
+        if (is_array($lat90)) {
+            $codes = array_merge($codes, $lat90);
+        }
         $codes = array_values(array_unique($codes));
 
         if (empty($codes)) {
@@ -188,14 +218,28 @@ class CreateProgramService
         }
 
         $course = null;
-        if (!empty($programData['education_level']) || !empty($programData['course_number'])) {
+        if (!empty($programData['education_level']) || !empty($programData['course_number']) || !empty($programData['grade'])) {
             $level = $this->mapEducationLevel($programData['education_level'] ?? '');
             $num = $programData['course_number'] ?? '';
+            $grade = $programData['grade'] ?? '';
             $course = trim(($num ? ($num . '° ') : '') . ($level ?: ''));
+            // Agregar grado si existe
+            if ($grade) {
+                $course .= ' ' . strtoupper($grade);
+            }
         }
 
         $destination = $programData['destination'] ?? null;
-        $year = (int) ($programData['year'] ?? date('Y'));
+        $year = null;
+        
+        // Obtener el año de la fecha de salida si está disponible
+        if (!empty($programData['departure_date'])) {
+            $year = (int) date('Y', strtotime($programData['departure_date']));
+        } elseif (!empty($programData['year'])) {
+            $year = (int) $programData['year'];
+        } else {
+            $year = (int) date('Y');
+        }
 
         if ($institutionName && $course && $destination && $year) {
             return sprintf('%s - %s - %s - %d', $institutionName, $course, $destination, $year);
@@ -211,10 +255,10 @@ class CreateProgramService
         // Si no tenemos el programa aún, creamos un identificador temporal
         $programId = $program ? $program->id : uniqid('temp_');
         $timestamp = now()->format('Y_m_d_H_i_s');
-        
+
         // Crear la carpeta base del programa
         $programFolder = "public/programs/{$programId}";
-        
+
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
             $pdfPath = "{$programFolder}/pdfs/itinerario_{$programId}_{$timestamp}.pdf";
@@ -343,7 +387,7 @@ class CreateProgramService
     private function getPaymentModeCode(?string $paymentOption, ?string $paymentMethod): string
     {
         $methodCode = $this->getMethodCode($paymentMethod);
-        
+
         if ($paymentOption === 'full_payment') {
             return 'full_payment_' . $methodCode;
         } elseif ($paymentOption === 'installments') {
@@ -373,7 +417,7 @@ class CreateProgramService
     private function getPaymentModeDescription(?string $paymentOption, ?string $paymentMethod): string
     {
         $methodDesc = $this->getMethodDescription($paymentMethod);
-        
+
         if ($paymentOption === 'full_payment') {
             return "Pago total del viaje. $methodDesc";
         } elseif ($paymentOption === 'installments') {
@@ -434,6 +478,7 @@ class CreateProgramService
             'institution_id' => $programData['institution_id'],
             // Usar nivel provisto o un valor por defecto ('media') cuando no venga, para no bloquear la creación
             'education_level' => $this->mapEducationLevel($programData['education_level'] ?? 'media'),
+            'grade' => $programData['grade'] ?? null,
             'year' => date('Y'),
             'course_number' => $programData['course_number'] ?? null,
             'course_name' => $programData['course_name'] ?? null,
@@ -452,13 +497,11 @@ class CreateProgramService
     private function processParticipants($file, Course $course, Program $program): void
     {
         try {
-            
-            
             // Guardar el archivo
             $filePath = $file->store('courses/students', 'public');
-            
-            
-            
+
+
+
             // Actualizar el curso con la información del archivo
             $course->update([
                 'students_file_path' => $filePath,
@@ -469,81 +512,267 @@ class CreateProgramService
             $spreadsheet = IOFactory::load(storage_path('app/public/' . $filePath));
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
-            
-            
-            
+
+
+
             // La primera fila contiene los headers
             $headers = array_shift($rows);
-            
-            
-            
+
+            // Log detallado para debug: ver qué archivo y columnas se están procesando
+            Log::info('=== INICIO PROCESAMIENTO ARCHIVO EXCEL ===', [
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $filePath,
+                'total_rows' => count($rows),
+                'headers_detected' => $headers,
+                'headers_count' => count($headers),
+                'sample_row' => !empty($rows) ? $rows[0] : 'No hay filas de datos'
+            ]);
+
             // Mapear headers a campos de participantes
             $participantCount = 0;
             $updatedCount = 0;
             $createdCount = 0;
             $participants = []; // Array para almacenar los participantes procesados
-            
+
             foreach ($rows as $rowIndex => $row) {
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
-                    
                     continue;
                 }
-                
+
                 // Asegurar que la fila tenga el mismo número de columnas que los headers
                 while (count($row) < count($headers)) {
                     $row[] = '';
                 }
-                
+
                 $participantData = array_combine($headers, $row);
-                // Soportar múltiples encabezados posibles para RUT/Documento
-                $rutRaw = $participantData['RUT']
-                    ?? $participantData['Rut']
-                    ?? $participantData['rut']
-                    ?? $participantData['Documento']
-                    ?? $participantData['Documento de identidad']
-                    ?? $participantData['Documento Identidad']
-                    ?? '';
-                $cleanRut = $this->cleanRut($rutRaw);
                 
+                // Log detallado para debug: ver exactamente qué datos se están procesando
+                Log::info('=== INICIO PROCESAMIENTO FILA EXCEL ===', [
+                    'row' => $rowIndex + 2,
+                    'headers_count' => count($headers),
+                    'row_count' => count($row),
+                    'headers' => $headers,
+                    'raw_row' => $row,
+                    'participant_data_mapped' => $participantData
+                ]);
                 
+                // Función helper para obtener valor de múltiples nombres de columna
+                $getFieldValue = function($possibleNames) use ($participantData) {
+                    foreach ($possibleNames as $name) {
+                        // Buscar la columna exacta (case-insensitive)
+                        if (isset($participantData[$name]) && !empty($participantData[$name])) {
+                            return $participantData[$name];
+                        }
+                        
+                        // Buscar la columna con comparación case-insensitive y espacios
+                        foreach (array_keys($participantData) as $columnName) {
+                            if (strtolower(trim($columnName)) === strtolower(trim($name)) && !empty($participantData[$columnName])) {
+                                return $participantData[$columnName];
+                            }
+                        }
+                    }
+                    return null;
+                };
                 
+                // Log específico para las columnas que necesitamos
+                Log::info('Columnas clave del participante:', [
+                    'row' => $rowIndex + 2,
+                    'documento' => $getFieldValue([
+                        'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
+                    ]),
+                    'primer_apellido' => $getFieldValue([
+                        'primer apellido', 'apellido paterno'
+                    ]),
+                    'segundo_apellido' => $getFieldValue([
+                        'segundo apellido', 'apellido materno'
+                    ]),
+                    'primer_nombre' => $getFieldValue([
+                        'primer nombre', 'nombre'
+                    ]),
+                    'segundo_nombre' => $getFieldValue([
+                        'segundo nombre', 'nombre segundo'
+                    ]),
+                    'fecha_nacimiento' => $getFieldValue([
+                        'fecha de nacimiento', 'fecha nacimiento', 'nacimiento'
+                    ]),
+                    'nacionalidad' => $getFieldValue([
+                        'nacionalidad', 'pais', 'origen'
+                    ]),
+                    'sexo' => $getFieldValue([
+                        'sexo', 'genero', 'género'
+                    ]),
+                    'restriccion_alimenticia' => $getFieldValue([
+                        'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria'
+                    ]),
+                    'intolerancia' => $getFieldValue([
+                        'intolerancia', 'intolerancias'
+                    ]),
+                    'alergias' => $getFieldValue([
+                        'alergias', 'alergia'
+                    ]),
+                    'nombre_apoderado' => $getFieldValue([
+                        'nombre del apoderado', 'nombre apoderado', 'apoderado'
+                    ]),
+                    'email_apoderado' => $getFieldValue([
+                        'correo electronico del apoderado', 'correo apoderado', 'email apoderado', 'email del apoderado'
+                    ]),
+                    'rut_apoderado' => $getFieldValue([
+                        'rut apoderado', 'documento apoderado', 'rut del apoderado'
+                    ])
+                ]);
+                
+                // Log adicional para debug de mapeo de columnas
+                Log::info('Debug mapeo de columnas:', [
+                    'row' => $rowIndex + 2,
+                    'columnas_disponibles' => array_keys($participantData),
+                    'busqueda_documento' => [
+                        'buscando' => ['n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'],
+                        'encontrado' => $getFieldValue([
+                            'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
+                        ])
+                    ]
+                ]);
+
+                // Obtener valores usando múltiples nombres posibles de columna
+                $rutRaw = $getFieldValue([
+                    'n° de documento', 'rut del participante', 'rut', 'documento', 'documento del participante'
+                ]);
+                
+                // Validar que el RUT exista y no esté vacío
+                if (!$rutRaw || empty(trim($rutRaw))) {
+                    Log::warning('Fila sin RUT del participante', [
+                        'row' => $rowIndex + 2,
+                        'participant_data' => $participantData
+                    ]);
+                    continue; // Saltar filas sin RUT
+                }
+                
+                // Limpiar RUT del participante con manejo de errores
+                $cleanRut = null;
+                try {
+                    $cleanRut = $this->cleanRut($rutRaw);
+                } catch (\Exception $e) {
+                    Log::warning('Error limpiando RUT del participante', [
+                        'row' => $rowIndex + 2,
+                        'rut_raw' => $rutRaw,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue; // Saltar filas con RUT inválido
+                }
+
+                // Log para debug: ver qué RUT se está procesando
+                Log::info('RUT procesado:', [
+                    'row' => $rowIndex + 2,
+                    'rut_raw' => $rutRaw,
+                    'clean_rut' => $cleanRut
+                ]);
+
+                if (empty($cleanRut)) {
+                    continue; // Saltar filas sin RUT
+                }
+
+                // Obtener tipo de documento del participante
+                $documentType = $getFieldValue([
+                    'tipo de documento', 'tipo documento', 'documento tipo', 'rut/pasaporte'
+                ]);
+                
+                // Validar que el tipo de documento exista
+                if (!$documentType || empty(trim($documentType))) {
+                    Log::warning('Fila sin tipo de documento', [
+                        'row' => $rowIndex + 2,
+                        'participant_data' => $participantData
+                    ]);
+                    continue; // Saltar filas sin tipo de documento
+                }
+                
+                $documentTypeId = $this->getDocumentTypeId($documentType);
+
+                // Log para debug: ver qué tipo de documento se está procesando
+                Log::info('Tipo de documento:', [
+                    'row' => $rowIndex + 2,
+                    'document_type' => $documentType,
+                    'document_type_id' => $documentTypeId
+                ]);
+
                 // Buscar participante existente por RUT
-                $documentType = $this->getDocumentType($participantData);
                 $existingParticipant = Participant::where('document_number', $cleanRut)
-                    ->where('document_type', $documentType)
+                    ->where('document_type', $documentTypeId)
                     ->where('country', 'CL')
                     ->first();
-                
+
                 if ($existingParticipant) {
                     // Verificar si ya está asociado a este curso
                     $isAlreadyInCourse = $existingParticipant->courses()
                         ->where('course_id', $course->id)
                         ->exists();
-                    
+
                     if ($isAlreadyInCourse) {
                         // UPDATE: Actualizar datos del participante y la relación con el curso
                         
-                        
+                        // Log para debug: ver qué valores se van a actualizar
+                        $firstLastName = $this->toLowercase($getFieldValue([
+                            'Primer apellido', 'primer apellido', 'apellido paterno'
+                        ]));
+                        $secondLastName = $this->toLowercase($getFieldValue([
+                            'Segundo apellido', 'segundo apellido', 'apellido materno'
+                        ]));
+                        $firstName = $this->toLowercase($getFieldValue([
+                            'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                        ]));
+                        $secondName = $this->toLowercase($getFieldValue([
+                            'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                        ]));
+
+                        Log::info('Valores para actualizar participante:', [
+                            'row' => $rowIndex + 2,
+                            'first_last_name' => $firstLastName,
+                            'second_last_name' => $secondLastName,
+                            'first_name' => $firstName,
+                            'second_name' => $secondName,
+                            'document_type_id' => $documentTypeId
+                        ]);
+
                         // Actualizar datos del participante
                         // Preparar RUT normalizado
                         $digitsOnly = preg_replace('/\D/', '', $cleanRut);
                         $first6 = substr($digitsOnly, 0, 6);
-                        $existingParticipant->update([
-                            'first_name' => $participantData['Nombre'] ?? $existingParticipant->first_name,
-                            'last_name' => $participantData['Apellido'] ?? $existingParticipant->last_name,
-                            'email' => isset($participantData['Email']) && $participantData['Email'] !== ''
-                                ? $this->normalizeEmail($participantData['Email'])
-                                : $existingParticipant->email,
-                            'phone' => $participantData['Teléfono'] ?? $existingParticipant->phone,
-                            'birth_date' => $participantData['Fecha de nacimiento'] ?? $existingParticipant->birth_date,
-                            'address' => $participantData['Dirección'] ?? $existingParticipant->address,
-                            'dietary_restrictions' => $participantData['Restricción dietaria'] ?? $existingParticipant->dietary_restrictions,
-                            'medical_conditions' => $participantData['Condición médica'] ?? $existingParticipant->medical_conditions,
-                            'rut_digits' => $digitsOnly ?: $existingParticipant->rut_digits,
-                            'rut_first6' => $first6 ?: $existingParticipant->rut_first6,
-                        ]);
                         
+                        $existingParticipant->update([
+                            'first_last_name' => $firstLastName ?? $existingParticipant->first_last_name,
+                            'second_last_name' => $secondLastName ?? $existingParticipant->second_last_name,
+                            'first_name' => $firstName ?? $existingParticipant->first_name,
+                            'second_name' => $secondName ?? $existingParticipant->second_name,
+                            'email' => $this->toLowercase($getFieldValue([
+                                'Email', 'email', 'correo', 'correo electronico'
+                            ])) ?? $existingParticipant->email,
+                            'phone' => $getFieldValue([
+                                'Teléfono', 'telefono', 'fono', 'celular'
+                            ]) ?? $existingParticipant->phone,
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
+                                'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                            ])) ?? $existingParticipant->birth_date,
+                            'nationality' => $this->toLowercase($getFieldValue([
+                                'nacionalidad', 'pais', 'origen'
+                            ])) ?? $existingParticipant->nationality,
+                            'gender' => $this->normalizeGender($getFieldValue([
+                                'sexo', 'genero', 'género'
+                            ])) ?? $existingParticipant->gender,
+                            'address' => $getFieldValue([
+                                'Dirección', 'direccion', 'domicilio', 'domicilio'
+                            ]) ?? $existingParticipant->address,
+                            'dietary_restrictions' => $getFieldValue([
+                                'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                            ]) ?? $existingParticipant->dietary_restrictions, // NO convertir a lowercase
+                            'intolerances' => $getFieldValue([
+                                'intolerancia', 'intolerancias'
+                            ]) ?? $existingParticipant->intolerances, // NO convertir a lowercase
+                            'allergies' => $getFieldValue([
+                                'alergias', 'alergia'
+                            ]) ?? $existingParticipant->allergies, // NO convertir a lowercase
+                            'document_type' => $documentTypeId,
+                        ]);
+
                         // Actualizar relación con el curso
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -554,17 +783,16 @@ class CreateProgramService
                             'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                             'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                         ];
-                        
+
                         $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
                         // Asegurar registro participant_program (programa-participante), aunque ya exista
                         $this->ensureParticipantProgram($existingParticipant, $program, $pivotData['individual_price'] ?? ($existingParticipant->individual_price ?? null));
                         $updatedCount++;
                         $participant = $existingParticipant;
-                        
                     } else {
                         // CREATE: Agregar nueva relación con el curso
-                        
-                        
+
+
                         $pivotData = [
                             'education_level' => $participantData['Nivel de educación'] ?? null,
                             'year' => $participantData['Año'] ?? null,
@@ -575,39 +803,81 @@ class CreateProgramService
                             'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                             'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                         ];
-                        
+
                         $existingParticipant->courses()->attach($course->id, $pivotData);
                         $createdCount++;
                         $participant = $existingParticipant;
                     }
-                    
                 } else {
                     // CREATE: Crear nuevo participante y asociarlo al curso
                     
-                    
+                    // Log para debug: ver qué valores se van a usar para crear
+                    $firstLastName = $this->toLowercase($getFieldValue([
+                        'Primer apellido', 'primer apellido', 'apellido paterno'
+                    ]));
+                    $secondLastName = $this->toLowercase($getFieldValue([
+                        'Segundo apellido', 'segundo apellido', 'apellido materno'
+                    ]));
+                    $firstName = $this->toLowercase($getFieldValue([
+                        'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                    ]));
+                    $secondName = $this->toLowercase($getFieldValue([
+                        'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                    ]));
+
+                    Log::info('Valores para crear nuevo participante:', [
+                        'row' => $rowIndex + 2,
+                        'first_last_name' => $firstLastName,
+                        'second_last_name' => $secondLastName,
+                        'first_name' => $firstName,
+                        'second_name' => $secondName,
+                        'document_type_id' => $documentTypeId,
+                        'clean_rut' => $cleanRut
+                    ]);
+
                     $digitsOnly = preg_replace('/\D/', '', $cleanRut);
                     $first6 = substr($digitsOnly, 0, 6);
+                    
                     $participant = Participant::create([
-                        'first_name' => $participantData['Nombre'] ?? '',
-                        'last_name' => $participantData['Apellido'] ?? '',
-                        'email' => $this->normalizeEmail($participantData['Email'] ?? ''),
+                        'first_last_name' => $firstLastName ?? '',
+                        'second_last_name' => $secondLastName ?? '',
+                        'first_name' => $firstName ?? '',
+                        'second_name' => $secondName ?? '',
+                        'email' => $this->toLowercase($getFieldValue([
+                            'Email', 'email', 'correo', 'correo electronico'
+                        ])) ?? '',
                         'code_phone' => '+56', // Código por defecto para Chile
-                        'phone' => $participantData['Teléfono'] ?? '',
-                        'document_type' => $documentType,
+                        'phone' => $getFieldValue([
+                            'Teléfono', 'telefono', 'fono', 'celular'
+                        ]) ?? '',
+                        'document_type' => $documentTypeId,
                         'document_number' => $cleanRut,
-                        'rut_digits' => $digitsOnly,
-                        'rut_first6' => $first6,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $participantData['Fecha de nacimiento'] ?? null,
-                        'address' => $participantData['Dirección'] ?? null,
-                        'dietary_restrictions' => $participantData['Restricción dietaria'] ?? null,
-                        'medical_conditions' => $participantData['Condición médica'] ?? null,
+                        'birth_date' => $this->parseBirthDate($getFieldValue([
+                            'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                        ])) ?? null,
+                        'nationality' => $this->toLowercase($getFieldValue([
+                            'nacionalidad', 'pais', 'origen'
+                        ])) ?? 'chilena',
+                        'gender' => $this->normalizeGender($getFieldValue([
+                            'sexo', 'genero', 'género'
+                        ])) ?? 'Masculino',
+                        'address' => $getFieldValue([
+                            'Dirección', 'direccion', 'domicilio', 'domicilio'
+                        ]) ?? null,
+                        'dietary_restrictions' => $getFieldValue([
+                            'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                        ]) ?? null, // NO convertir a lowercase
+                        'intolerances' => $getFieldValue([
+                            'intolerancia', 'intolerancias'
+                        ]) ?? null, // NO convertir a lowercase
+                        'allergies' => $getFieldValue([
+                            'alergias', 'alergia'
+                        ]) ?? null, // NO convertir a lowercase
                         'status' => 'pending_payment',
                         'registration_date' => now(),
-                        'individual_price' => 0, // Se calculará después
-                        'price_adjustments' => 0,
                     ]);
-                    
+
                     // Asociar al curso
                     $pivotData = [
                         'education_level' => $participantData['Nivel de educación'] ?? null,
@@ -619,62 +889,124 @@ class CreateProgramService
                         'price_adjustments' => $participantData['Ajustes de precio'] ?? 0,
                         'adjustment_reason' => $participantData['Razón del ajuste'] ?? null,
                     ];
-                    
+
                     $participant->courses()->attach($course->id, $pivotData);
                     // Asegurar registro participant_program (programa-participante)
                     $this->ensureParticipantProgram($participant, $program, $pivotData['individual_price'] ?? ($participant->individual_price ?? null));
                     $createdCount++;
-                    
-                        
                 }
-                
+
                 $participants[] = $participant; // Guardar referencia al participante
-                
+
                 // Manejar contacto de emergencia
-                if (!empty($participantData['Nombre contacto emergencia']) && 
-                    !empty($participantData['Apellido contacto emergencia'])) {
-                    
+                if ($getFieldValue([
+                    'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                ])) {
+                    // Obtener datos del apoderado
+                    $guardianName = $getFieldValue([
+                        'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                    ]);
+                    $guardianEmail = $getFieldValue([
+                        'correo electronico del apoderado', 'correo apoderado', 'email apoderado', 'email del apoderado'
+                    ]);
+                    $guardianRut = $getFieldValue([
+                        'rut apoderado', 'documento apoderado', 'rut del apoderado'
+                    ]);
+
                     // Verificar si ya existe un contacto de emergencia para este participante
                     $existingEmergencyContact = EmergencyContact::where('participant_id', $participant->id)->first();
-                    
+
                     if ($existingEmergencyContact) {
                         // UPDATE: Actualizar contacto de emergencia existente
+                        
+                        // Obtener tipo de documento del apoderado (por defecto RUT)
+                        $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
+                        
+                        // Limpiar RUT del apoderado solo si existe
+                        $cleanGuardianRut = null;
+                        if ($guardianRut && !empty(trim($guardianRut))) {
+                            try {
+                                $cleanGuardianRut = $this->cleanRut($guardianRut);
+                            } catch (\Exception $e) {
+                                Log::warning('Error limpiando RUT del apoderado', [
+                                    'row' => $rowIndex + 2,
+                                    'guardian_rut' => $guardianRut,
+                                    'error' => $e->getMessage()
+                                ]);
+                                $cleanGuardianRut = null;
+                            }
+                        }
+                        
                         $existingEmergencyContact->update([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => isset($participantData['Email contacto emergencia']) && $participantData['Email contacto emergencia'] !== ''
-                                ? $this->normalizeEmail($participantData['Email contacto emergencia'])
-                                : $existingEmergencyContact->email,
-                            'phone' => $participantData['Teléfono contacto emergencia'] ?? $existingEmergencyContact->phone,
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? $existingEmergencyContact->birth_date,
-                            'relationship' => $participantData['Relación contacto emergencia'] ?? $existingEmergencyContact->relationship,
+                            'name' => $this->toLowercase($guardianName) ?? $existingEmergencyContact->name,
+                            'email' => $this->toLowercase($guardianEmail) ?? $existingEmergencyContact->email,
+                            'document_type' => $guardianDocumentTypeId,
+                            'document_number' => $cleanGuardianRut,
+                            'phone' => $getFieldValue([
+                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                            ]) ?? $existingEmergencyContact->phone,
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
+                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                            ])) ?? $existingEmergencyContact->birth_date,
+                            'relationship' => $getFieldValue([
+                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                            ]) ?? $existingEmergencyContact->relationship,
                         ]);
-                        
-                        
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
+                        
+                        // Obtener tipo de documento del apoderado (por defecto RUT)
+                        $guardianDocumentTypeId = $this->getDocumentTypeId('RUT');
+                        
+                        // Limpiar RUT del apoderado solo si existe
+                        $cleanGuardianRut = null;
+                        if ($guardianRut && !empty(trim($guardianRut))) {
+                            try {
+                                $cleanGuardianRut = $this->cleanRut($guardianRut);
+                            } catch (\Exception $e) {
+                                Log::warning('Error limpiando RUT del apoderado', [
+                                    'row' => $rowIndex + 2,
+                                    'guardian_rut' => $guardianRut,
+                                    'error' => $e->getMessage()
+                                ]);
+                                $cleanGuardianRut = null;
+                            }
+                        }
+                        
                         $emergencyContact = EmergencyContact::create([
-                            'first_name' => $participantData['Nombre contacto emergencia'],
-                            'last_name' => $participantData['Apellido contacto emergencia'],
-                            'email' => $this->normalizeEmail($participantData['Email contacto emergencia'] ?? ''),
+                            'name' => $this->toLowercase($guardianName),
+                            'email' => $this->toLowercase($guardianEmail),
+                            'document_type' => $guardianDocumentTypeId,
+                            'document_number' => $cleanGuardianRut,
                             'code_phone' => '+56', // Código por defecto para Chile
-                            'phone' => $participantData['Teléfono contacto emergencia'] ?? '',
+                            'phone' => $getFieldValue([
+                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                            ]) ?? '',
                             'country' => 'CL', // Chile por defecto
-                            'birth_date' => $participantData['Fecha nacimiento contacto emergencia'] ?? null,
+                            'birth_date' => $this->parseBirthDate($getFieldValue([
+                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                            ])) ?? null,
                             'address' => null,
-                            'relationship' => $participantData['Relación contacto emergencia'] ?? 'Familiar',
+                            'relationship' => $getFieldValue([
+                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                            ]) ?? 'Familiar',
                             'participant_id' => $participant->id,
                         ]);
-                        
-                        
                     }
                 } else {
-                    
                 }
-                
+
                 $participantCount++;
+                
+                // Log de resumen de la fila procesada
+                Log::info('=== FIN PROCESAMIENTO FILA EXCEL ===', [
+                    'row' => $rowIndex + 2,
+                    'participant_processed' => true,
+                    'participant_id' => $participant->id ?? null,
+                    'participant_count' => $participantCount
+                ]);
             }
-            
+
             // Calcular el precio individual (por participante) aplicando descuento del programa
             if ($participantCount > 0) {
                 $tripPrice = (float) $program->trip_price;
@@ -702,13 +1034,27 @@ class CreateProgramService
                     ]);
                 }
             }
-            
-            
-            
+
+
+
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
             
+            // Log de resumen del archivo completo
+            Log::info('=== FIN PROCESAMIENTO ARCHIVO EXCEL ===', [
+                'file_name' => $file->getClientOriginalName(),
+                'total_participants_processed' => $participantCount,
+                'participants_created' => $createdCount,
+                'participants_updated' => $updatedCount,
+                'course_id' => $course->id,
+                'program_id' => $program->id
+            ]);
         } catch (\Exception $e) {
+            Log::error('Error al procesar archivo de estudiantes', [
+                'file_name' => $file->getClientOriginalName(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
     }
@@ -718,17 +1064,11 @@ class CreateProgramService
      */
     private function ensureParticipantProgram(Participant $participant, Program $program, ?float $individualPrice = null): void
     {
-        $code = (string) ($program->code ?? '');
-        // Preferir rut_first6 si existe, si no, derivarlo de document_number
-        $rutFirst6 = $participant->rut_first6;
-        if (!$rutFirst6) {
-            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
-            $rutFirst6 = substr($digits, 0, 6) ?: null;
-        }
-        if (!$code || !$rutFirst6) {
+        $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
+        
+        if (!$enrollmentCode) {
             return; // No podemos generar enrollment_code
         }
-        $enrollmentCode = $code . $rutFirst6;
 
         // Evitar duplicados por la clave única (participant_id, program_id)
         \Illuminate\Support\Facades\DB::table('participant_program')->updateOrInsert(
@@ -776,17 +1116,22 @@ class CreateProgramService
     private function getDocumentType(array $participantData): string
     {
         $documentNumber = $participantData['RUT'] ?? '';
-        
+
         // Si contiene puntos y guión, es un RUT chileno
         if (strpos($documentNumber, '.') !== false && strpos($documentNumber, '-') !== false) {
             return 'RUT';
         }
-        
+
         // Si es solo números, podría ser un RUT sin formato
         if (is_numeric(str_replace(['.', '-'], '', $documentNumber))) {
             return 'RUT';
         }
-        
+
+        // Si contiene letras, es un pasaporte
+        if (preg_match('/[A-Za-z]/', $documentNumber)) {
+            return 'PASSPORT';
+        }
+
         // Por defecto, asumir que es un RUT
         return 'RUT';
     }
@@ -853,7 +1198,7 @@ class CreateProgramService
     private function calculateDiscountValue(array $programData): ?float
     {
         $discountType = $programData['discount_type'] ?? $programData['group_benefit'] ?? '';
-        
+
         if (!$discountType) {
             return null;
         }
@@ -880,9 +1225,9 @@ class CreateProgramService
     public function isTotalPaymentEnabled(array $programData): bool
     {
         // Verificar si el pago total está habilitado basado en la selección del usuario
-        return isset($programData['payment_options']) && 
-               is_array($programData['payment_options']) && 
-               in_array('full_payment', $programData['payment_options']);
+        return isset($programData['payment_options']) &&
+            is_array($programData['payment_options']) &&
+            in_array('full_payment', $programData['payment_options']);
     }
 
     /**
@@ -893,9 +1238,9 @@ class CreateProgramService
         if (!$this->isTotalPaymentEnabled($programData)) {
             return null;
         }
-        
+
         $paymentMethod = $programData['full_payment_method'] ?? '';
-        
+
         if (!$paymentMethod) {
             return null;
         }
@@ -917,9 +1262,9 @@ class CreateProgramService
     public function isLat90PaymentEnabled(array $programData): bool
     {
         // Verificar si el pago Lat90 está habilitado basado en la selección del usuario
-        return isset($programData['payment_options']) && 
-               is_array($programData['payment_options']) && 
-               in_array('installments', $programData['payment_options']);
+        return isset($programData['payment_options']) &&
+            is_array($programData['payment_options']) &&
+            in_array('installments', $programData['payment_options']);
     }
 
     /**
@@ -952,7 +1297,7 @@ class CreateProgramService
             'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',
             'webpay_3' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
             'webpay_6' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
-            'webpay_12'=> 'Débito y crédito 12 cuotas sin interés (Webpay)',
+            'webpay_12' => 'Débito y crédito 12 cuotas sin interés (Webpay)',
         ];
         $targetName = $nameByKey[$paymentMethodKey] ?? null;
         if (!$targetName) {
@@ -972,4 +1317,93 @@ class CreateProgramService
         }
         return $programData['max_installments'] ?? null;
     }
-} 
+
+    /**
+     * Obtener el ID del tipo de documento
+     */
+    private function getDocumentTypeId(string $documentType): int
+    {
+        $document = \App\Models\Document::where('name', 'LIKE', "%{$documentType}%")->first();
+        return $document ? $document->id : 1; // Por defecto ID 1 (RUT)
+    }
+
+    /**
+     * Convertir texto a lowercase (excepto datos médicos)
+     */
+    private function toLowercase(?string $text): ?string
+    {
+        if (empty($text)) return $text;
+        return strtolower(trim($text));
+    }
+
+    /**
+     * Normalizar género
+     */
+    private function normalizeGender(string $gender): string
+    {
+        $gender = strtolower(trim($gender));
+        
+        if (in_array($gender, ['m', 'masculino', 'male', 'hombre'])) {
+            return 'Masculino';
+        }
+        
+        if (in_array($gender, ['f', 'femenino', 'female', 'mujer'])) {
+            return 'Femenino';
+        }
+        
+        return 'Masculino'; // Por defecto
+    }
+
+    /**
+     * Parsear fecha de nacimiento en diferentes formatos
+     * Soporta: YYYY/MM/DD, DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+     */
+    private function parseBirthDate(?string $dateString): ?string
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        $dateString = trim($dateString);
+        
+        // Si ya es un formato válido de fecha, retornarlo
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
+            return $dateString;
+        }
+
+        // Formato YYYY/MM/DD
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD/MM/YYYY
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato YYYY-MM-DD (con espacios)
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
+            $year = $matches[1];
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Formato DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $dateString, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            $year = $matches[3];
+            return "{$year}-{$month}-{$day}";
+        }
+
+        // Si no coincide con ningún formato, retornar null
+        return null;
+    }
+}
