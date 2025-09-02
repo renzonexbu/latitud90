@@ -576,6 +576,40 @@ const submit = () => {
     // Enviar siempre los arrays de opciones específicas (para sincronizar pivote)
     form.full_payment_options = Array.isArray(paymentData.value.full_payment_options) ? paymentData.value.full_payment_options : [];
     form.lat90_payment_options = Array.isArray(paymentData.value.lat90_payment_options) ? paymentData.value.lat90_payment_options : [];
+    
+    // Validar que las opciones de pago total sean válidas según la fecha final de pago
+    if (form.full_payment_options && form.full_payment_options.length > 0) {
+        const finalPaymentDate = paymentData.value.final_payment_date;
+        
+        if (finalPaymentDate) {
+            const now = new Date();
+            const end = new Date(finalPaymentDate + 'T00:00:00');
+            let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+            if (now.getDate() > end.getDate()) months -= 1;
+            const availableMonths = Math.max(0, months);
+            
+            // Definir las opciones con cuotas y sus límites
+            const optionsWithInstallments = {
+                'full_debit_credit_3': 3,
+                'full_debit_credit_6': 6,
+                'full_debit_credit_9': 9,
+                'full_debit_credit_12': 12
+            };
+            
+            // Filtrar opciones que excedan los meses disponibles
+            form.full_payment_options = form.full_payment_options.filter(option => {
+                if (optionsWithInstallments[option]) {
+                    return optionsWithInstallments[option] <= availableMonths;
+                }
+                return true; // Opciones sin cuotas siempre están disponibles
+            });
+            
+            // Si se filtraron opciones, mostrar advertencia en consola
+            if (form.full_payment_options.length < paymentData.value.full_payment_options.length) {
+                console.warn(`⚠️ Algunas opciones de pago total fueron filtradas automáticamente debido a la fecha final de pago. Solo quedan ${availableMonths} meses disponibles.`);
+            }
+        }
+    }
     // Forzar payment_options en base a los arrays (para habilitar/deshabilitar secciones)
     const derivedPaymentOptions = [];
     if (form.full_payment_options.length > 0) derivedPaymentOptions.push('full_payment');

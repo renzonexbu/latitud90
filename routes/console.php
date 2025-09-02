@@ -6,6 +6,8 @@ use App\Services\Commands\InstallmentOverdueService;
 use App\Services\Commands\LogCleanupService;
 use App\Services\Commands\SystemHealthService;
 use App\Services\Commands\PaymentProcessingService;
+use App\Services\Commands\UpdatePaymentOptionsService;
+use Illuminate\Support\Facades\DB;
 
 /*
 |--------------------------------------------------------------------------
@@ -93,4 +95,26 @@ Artisan::command('system:health-check', function () {
 
     $this->info('✅ Verificación de salud completada');
 })->purpose('Verificar estado general del sistema');
+
+// Comando para actualizar opciones de pago y cuotas automáticamente
+Artisan::command('payment-options:update', function () {
+    $service = new UpdatePaymentOptionsService();
+    $results = $service->updatePaymentOptions();
+
+    $this->info('🔄 Actualizando opciones de pago automáticamente...');
+    $this->info("📊 Programas procesados: {$results['programs_processed']}");
+    $this->info("✅ Opciones actualizadas: {$results['options_updated']}");
+    $this->info("📈 Cuotas actualizadas: {$results['installments_updated']}");
+    
+    if (!empty($results['errors'])) {
+        $this->warn("⚠️ Errores encontrados:");
+        foreach ($results['errors'] as $error) {
+            $this->warn("   • {$error}");
+        }
+    }
+    
+    $this->info('✅ Actualización de opciones de pago completada');
+})->purpose('Actualizar automáticamente las opciones de pago y cuotas según el tiempo transcurrido');
+
+
 

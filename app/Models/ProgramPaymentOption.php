@@ -14,11 +14,13 @@ class ProgramPaymentOption extends Model
     protected $fillable = [
         'program_id',
         'payment_option_id',
-        'enabled'
+        'enabled',
+        'manually_disabled'
     ];
 
     protected $casts = [
-        'enabled' => 'boolean'
+        'enabled' => 'boolean',
+        'manually_disabled' => 'boolean'
     ];
 
     public function program()

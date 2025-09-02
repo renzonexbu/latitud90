@@ -481,6 +481,9 @@
                                         <span v-if="errors.full_payment_options" class="text-red-500 text-sm mt-1">
                                             {{ errors.full_payment_options }}
                                         </span>
+                                        <div v-if="fullPaymentChoices.length < fullPaymentChoicesBase.length && formData.final_payment_date" class="text-blue-600 text-sm mt-1">
+                                            ℹ️ Algunas opciones de cuotas no están disponibles debido a la fecha final de pago
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -666,15 +669,39 @@ const selectedStudentsFile = ref(null);
 // Propiedad computada para el precio formateado
 const formattedPrice = ref('');
 // Catálogos locales (idealmente venir desde backend)
-const fullPaymentChoices = [
-    { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)' },
-    { code: 'full_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
-    { code: 'full_debit_credit_3', label: 'Débito y crédito hasta 3 cuotas sin interés (Webpay)' },
-    { code: 'full_debit_credit_6', label: 'Débito y crédito hasta 6 cuotas sin interés (Webpay)' },
-    { code: 'full_debit_credit_9', label: 'Débito y crédito hasta 9 cuotas sin interés (Webpay)' },
-    { code: 'full_debit_credit_12', label: 'Débito y crédito hasta 12 cuotas sin interés (Webpay)' },
-    { code: 'full_international', label: 'Pago Internacional (Webpay)' },
+const fullPaymentChoicesBase = [
+    { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)', installments: null },
+    { code: 'full_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)', installments: 0 },
+    { code: 'full_debit_credit_3', label: 'Débito y crédito hasta 3 cuotas sin interés (Webpay)', installments: 3 },
+    { code: 'full_debit_credit_6', label: 'Débito y crédito hasta 6 cuotas sin interés (Webpay)', installments: 6 },
+    { code: 'full_debit_credit_9', label: 'Débito y crédito hasta 9 cuotas sin interés (Webpay)', installments: 9 },
+    { code: 'full_debit_credit_12', label: 'Débito y crédito hasta 12 cuotas sin interés (Webpay)', installments: 12 },
+    { code: 'full_international', label: 'Pago Internacional (Webpay)', installments: null },
 ];
+
+// Opciones de pago filtradas según la fecha final de pago
+const fullPaymentChoices = computed(() => {
+    if (!formData.value.final_payment_date) {
+        return fullPaymentChoicesBase; // Si no hay fecha, mostrar todas
+    }
+
+    const now = new Date();
+    const end = new Date(formData.value.final_payment_date + 'T00:00:00');
+    
+    // Calcular meses completos entre hoy y la fecha final
+    let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+    if (now.getDate() > end.getDate()) months -= 1; // Mes incompleto
+    const availableMonths = Math.max(0, months);
+
+    return fullPaymentChoicesBase.filter(option => {
+        // Si no tiene cuotas (null) o es 0, siempre está disponible
+        if (option.installments === null || option.installments === 0) {
+            return true;
+        }
+        // Si tiene cuotas, verificar que no exceda los meses disponibles
+        return option.installments <= availableMonths;
+    });
+});
 const lat90Choices = [
     { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
     { code: 'lat90_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
@@ -927,6 +954,12 @@ onMounted(() => {
 
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
+    
+    // Actualizar opciones de pago automáticamente si hay fecha final de pago
+    if (formData.value.final_payment_date) {
+        updatePaymentOptionsAutomatically();
+    }
+    
     // Emitir el estado inicial
     emit('update:modelValue', formData.value);
 
@@ -937,8 +970,6 @@ onMounted(() => {
     if (!Array.isArray(formData.value.lat90_payment_options)) {
         formData.value.lat90_payment_options = [];
     }
-    
-
 });
 
 // Handlers para checkboxes manuales (evitar efectos de referencia)
@@ -1068,6 +1099,16 @@ watch(() => formData.value.grade, (newValue) => {
     }
     emit('update:modelValue', formData.value);
 }, { immediate: true });
+
+// Watcher para actualizar opciones de pago automáticamente cuando cambie la fecha final de pago
+watch(() => formData.value.final_payment_date, (newValue, oldValue) => {
+    if (newValue && newValue !== oldValue) {
+        // Esperar un momento para que se procese el cambio
+        nextTick(() => {
+            updatePaymentOptionsAutomatically();
+        });
+    }
+});
 
 // Función para determinar si mostrar el input del Excel
 const shouldShowExcelInput = () => {
@@ -1227,6 +1268,45 @@ const formatPrice = (price) => {
 const viewPaymentStates = () => {
     // TODO: Implementar vista de estados de pagos
     alert('Función "Ver estados de pagos" - Por implementar');
+};
+
+// Función para actualizar opciones de pago automáticamente
+const updatePaymentOptionsAutomatically = () => {
+    try {
+        const now = new Date();
+        const finalPaymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
+        
+        // Calcular meses disponibles
+        let months = (finalPaymentDate.getFullYear() - now.getFullYear()) * 12 + (finalPaymentDate.getMonth() - now.getMonth());
+        if (now.getDate() > finalPaymentDate.getDate()) months -= 1;
+        const availableMonths = Math.max(0, months);
+        
+        // Filtrar opciones de pago total según meses disponibles
+        const validFullOptions = fullPaymentChoicesBase.filter(option => {
+            if (option.installments === null || option.installments === 0) {
+                return true;
+            }
+            return option.installments <= availableMonths;
+        });
+        
+        // Actualizar opciones disponibles
+        if (validFullOptions.length < fullPaymentChoicesBase.length) {
+            console.log(`🔄 Opciones de pago actualizadas automáticamente. Meses disponibles: ${availableMonths}`);
+            
+            // Filtrar opciones seleccionadas que ya no son válidas
+            if (formData.value.full_payment_options) {
+                formData.value.full_payment_options = formData.value.full_payment_options.filter(option => 
+                    validFullOptions.some(valid => valid.code === option)
+                );
+            }
+            
+            // Emitir cambios
+            emit('update:modelValue', formData.value);
+        }
+        
+    } catch (error) {
+        console.error('Error actualizando opciones de pago automáticamente:', error);
+    }
 };
 </script>
 

@@ -308,6 +308,34 @@ const validateForm = () => {
     if (paymentData.value.payment_options && paymentData.value.payment_options.includes('full_payment')) {
         if (!paymentData.value.full_payment_options || paymentData.value.full_payment_options.length === 0) {
             errors.full_payment_options = 'Debe seleccionar al menos una opción de pago total';
+        } else {
+            // Validar que las opciones seleccionadas sean válidas según la fecha final de pago
+            const selectedOptions = paymentData.value.full_payment_options;
+            const finalPaymentDate = paymentData.value.final_payment_date;
+            
+            if (finalPaymentDate) {
+                const now = new Date();
+                const end = new Date(finalPaymentDate + 'T00:00:00');
+                let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
+                if (now.getDate() > end.getDate()) months -= 1;
+                const availableMonths = Math.max(0, months);
+                
+                // Definir las opciones con cuotas y sus límites
+                const optionsWithInstallments = {
+                    'full_debit_credit_3': 3,
+                    'full_debit_credit_6': 6,
+                    'full_debit_credit_9': 9,
+                    'full_debit_credit_12': 12
+                };
+                
+                // Verificar que las opciones seleccionadas no excedan los meses disponibles
+                for (const option of selectedOptions) {
+                    if (optionsWithInstallments[option] && optionsWithInstallments[option] > availableMonths) {
+                        errors.full_payment_options = `La opción "${option}" no está disponible. Solo quedan ${availableMonths} meses hasta la fecha final de pago.`;
+                        break;
+                    }
+                }
+            }
         }
     }
     

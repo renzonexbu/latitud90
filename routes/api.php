@@ -37,3 +37,4 @@ Route::post('/analytics/payment-initiated', [AnalyticsController::class, 'record
 Route::post('/analytics/payment-completed', [AnalyticsController::class, 'recordPaymentCompleted']);
 Route::post('/analytics/payment-failed', [AnalyticsController::class, 'recordPaymentFailed']);
 Route::post('/analytics/confirmation-changes', [AnalyticsController::class, 'recordConfirmationChanges']);
+
