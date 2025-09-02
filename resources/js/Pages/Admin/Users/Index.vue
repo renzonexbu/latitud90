@@ -6,6 +6,7 @@ import UsersTable from "@/Components/Users/UsersTable.vue";
 import UsersHeader from "@/Components/Users/UsersHeader.vue";
 import UsersFilters from "@/Components/Users/UsersFilters.vue";
 import UsersPagination from "@/Components/Users/UsersPagination.vue";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 const props = defineProps({
     users: Object,
@@ -58,6 +59,9 @@ const handlePageChanged = (page) => {
 <template>
     <AdminLayout>
         <Head title="Administrar Usuarios" />
+
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
 
         <div class="p-6">
             <!-- Header -->

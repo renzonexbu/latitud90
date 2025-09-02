@@ -4,6 +4,7 @@ import { Head, useForm, Link } from "@inertiajs/vue3";
 import { ref } from "vue";
 import { EyeIcon, EyeSlashIcon, ArrowLeftIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import RolesModal from "@/Components/Users/RolesModal.vue";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 const props = defineProps({
     user: Object,
@@ -38,6 +39,9 @@ const closeRolesModal = () => {
 <template>
     <AdminLayout>
         <Head title="Editar Usuario" />
+
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
 
         <div class="p-6">
             <!-- Header -->

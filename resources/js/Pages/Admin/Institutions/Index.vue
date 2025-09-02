@@ -2,6 +2,9 @@
     <AdminLayout>
         <Head title="Gestión de Instituciones" />
 
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
+
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8">
                 <!-- Header -->
@@ -157,6 +160,7 @@ import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
 import { SchoolIcon } from "@/Components/Icons";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 export default {
     name: "InstitutionsIndex",

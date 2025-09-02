@@ -200,54 +200,17 @@
                 <slot />
             </main>
 
-            <!-- Toast Notifications -->
-            <div
-                v-if="$page.props.flash.message"
-                class="fixed top-4 right-4 z-50"
-            >
-                <div
-                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
-                >
-                    <span>{{ $page.props.flash.message }}</span>
-                    <button @click="clearFlashMessage('message')" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div
-                v-if="$page.props.flash.success"
-                class="fixed top-4 right-4 z-50"
-            >
-                <div
-                    class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
-                >
-                    <span>{{ $page.props.flash.success }}</span>
-                    <button @click="clearFlashMessage('success')" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <div
-                v-if="$page.props.flash.error"
-                class="fixed top-4 right-4 z-50"
-            >
-                <div
-                    class="bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px]"
-                >
-                    <span>{{ $page.props.flash.error }}</span>
-                    <button @click="clearFlashMessage('error')" class="ml-4 text-white hover:text-gray-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <!-- Sistema de Alertas Unificado -->
+            <Alerts
+                v-if="showAlert"
+                :show="showAlert"
+                :type="alertType"
+                :title="alertTitle"
+                :message="alertMessage"
+                :auto-close="true"
+                :duration="5000"
+                @close="closeAlert"
+            />
         </div>
     </div>
 </template>
@@ -258,6 +221,8 @@ import Dropdown from "@/Components/Dropdown.vue";
 import DropdownLink from "@/Components/DropdownLink.vue";
 import NavLink from "@/Components/NavLink.vue";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink.vue";
+import Alerts from "@/Components/Alerts.vue";
+import { watch } from "vue";
 
 // Importar iconos SVG
 import {
@@ -285,6 +250,7 @@ export default {
         DropdownLink,
         NavLink,
         ResponsiveNavLink,
+        Alerts,
         HouseIcon,
         BackpackIcon,
         LuggageIcon,
@@ -303,14 +269,32 @@ export default {
             showingUserDropdown: false,
             images,
             backgroundImage,
+            showAlert: false,
+            alertType: 'success',
+            alertTitle: '',
+            alertMessage: '',
         };
     },
     mounted() {
         // Cerrar dropdown cuando se hace clic fuera
         document.addEventListener('click', this.closeUserDropdown);
         
-        // Auto-cerrar mensajes flash después de 5 segundos
-        this.autoCloseFlashMessages();
+        // Detectar y mostrar flash messages como alertas
+        this.detectFlashMessages();
+        
+        // Watcher para detectar cambios en flash messages
+        this.$watch('$page.props.flash', (newFlash) => {
+            if (newFlash.success) {
+                this.showAlertMessage('success', 'Éxito', newFlash.success);
+                this.$page.props.flash.success = null;
+            } else if (newFlash.error) {
+                this.showAlertMessage('error', 'Error', newFlash.error);
+                this.$page.props.flash.error = null;
+            } else if (newFlash.message) {
+                this.showAlertMessage('info', 'Información', newFlash.message);
+                this.$page.props.flash.message = null;
+            }
+        }, { deep: true });
     },
     beforeUnmount() {
         document.removeEventListener('click', this.closeUserDropdown);
@@ -324,6 +308,28 @@ export default {
         },
         clearFlashMessage(type) {
             this.$page.props.flash[type] = null;
+        },
+        detectFlashMessages() {
+            // Detectar mensajes flash y convertirlos a alertas
+            if (this.$page.props.flash.success) {
+                this.showAlertMessage('success', 'Éxito', this.$page.props.flash.success);
+                this.$page.props.flash.success = null;
+            } else if (this.$page.props.flash.error) {
+                this.showAlertMessage('error', 'Error', this.$page.props.flash.error);
+                this.$page.props.flash.error = null;
+            } else if (this.$page.props.flash.message) {
+                this.showAlertMessage('info', 'Información', this.$page.props.flash.message);
+                this.$page.props.flash.message = null;
+            }
+        },
+        showAlertMessage(type, title, message) {
+            this.alertType = type;
+            this.alertTitle = title;
+            this.alertMessage = message;
+            this.showAlert = true;
+        },
+        closeAlert() {
+            this.showAlert = false;
         },
         autoCloseFlashMessages() {
             // Auto-cerrar mensajes flash después de 5 segundos

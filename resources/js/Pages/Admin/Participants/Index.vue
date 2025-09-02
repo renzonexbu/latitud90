@@ -1,13 +1,12 @@
 <template>
-  <AdminLayout>
+    <AdminLayout>
         <Head title="Gestión de Participantes" />
 
-    <div class="py-12">
-      <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-                <!-- Success Message -->
-                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
-                </div>
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
+
+        <div class="py-12">
+            <div class="max-w-full mx-auto sm:px-6 lg:px-8">
 
                 <!-- Header -->
                 <ParticipantsHeader
@@ -93,6 +92,7 @@ import ParticipantsPagination from "@/Components/Participants/ParticipantsPagina
 import ParticipantsTable from "@/Components/Participants/ParticipantsTable.vue";
 import CreateParticipantModal from "./Create.vue";
 import { PersonsIcon } from "@/Components/Icons";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 import _ from "lodash";
 
 export default {
@@ -111,6 +111,7 @@ export default {
         ParticipantsPagination,
         CreateParticipantModal,
         PersonsIcon,
+        AlertWrapper,
     },
     props: {
         participants: {

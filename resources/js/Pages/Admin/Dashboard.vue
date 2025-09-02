@@ -1,6 +1,10 @@
 <template>
     <AdminLayout>
         <Head title="Dashboard" />
+        
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
+        
         <div class="p-4">
             <HomeHeader />
             <div class="mt-6">
@@ -20,6 +24,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import HomeHeader from "@/Components/HomeHeader.vue";
 import DashboardProgramsGrid from "@/Components/DashboardProgramsGrid.vue";
 import InstitutionsPaymentsTable from "@/Components/Payments/InstitutionsPaymentsTable.vue";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 export default {
     name: "AdminDashboard",
@@ -29,6 +34,7 @@ export default {
         HomeHeader,
         DashboardProgramsGrid,
         InstitutionsPaymentsTable,
+        AlertWrapper,
     },
     props: {
         activePrograms: {

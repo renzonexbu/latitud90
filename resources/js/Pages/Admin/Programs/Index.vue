@@ -2,12 +2,11 @@
     <AdminLayout>
         <Head title="Gestión de Programas" />
 
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
+
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-                <!-- Success Message -->
-                <div v-if="$page.props.flash.success" class="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-                    <span class="block sm:inline">{{ $page.props.flash.success }}</span>
-                </div>
 
                 <!-- Header -->
                 <ProgramsHeader
@@ -42,6 +41,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramsHeader from "@/Components/Programs/ProgramsHeader.vue";
 import ProgramsFilters from "@/Components/Programs/ProgramsFilters.vue";
 import ProgramsGrid from "@/Components/Programs/ProgramsGrid.vue";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 import _ from "lodash";
 
 export default {
@@ -57,6 +57,7 @@ export default {
         ProgramsHeader,
         ProgramsFilters,
         ProgramsGrid,
+        AlertWrapper,
     },
     props: {
         programs: {

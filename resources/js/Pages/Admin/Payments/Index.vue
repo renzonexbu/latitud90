@@ -2,6 +2,9 @@
     <AdminLayout>
         <Head title="Gestión de Pagos" />
 
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
+
         <div class="bg-white min-h-screen">
             <!-- Header -->
             <PaymentsHeader
@@ -164,6 +167,7 @@ import PaymentsFilters from "@/Components/Payments/PaymentsFilters.vue";
 import PaymentsTable from "@/Components/Payments/PaymentsTable.vue";
 import Pagination from "@/Components/Pagination.vue";
 import PaymentDetailModal from "@/Components/Payments/PaymentDetailModal.vue";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 const props = defineProps({
     payments: {

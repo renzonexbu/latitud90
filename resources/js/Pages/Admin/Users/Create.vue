@@ -3,6 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Head, useForm, Link } from "@inertiajs/vue3";
 import { ref } from "vue";
 import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/vue/24/outline";
+import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 const props = defineProps({
     roles: Object,
@@ -67,6 +68,9 @@ const getRoleDescription = (roleName) => {
 <template>
     <AdminLayout>
         <Head title="Crear Usuario" />
+
+        <!-- Sistema de Alertas -->
+        <AlertWrapper ref="alertWrapper" />
 
         <div class="p-6">
             <!-- Header -->
