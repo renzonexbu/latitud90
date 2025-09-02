@@ -51,11 +51,14 @@ class ConsolidatedPaymentsDataProvider
             ->groupBy('o2.participant_id', 'o2.program_id');
 
         return DB::table('payments as pay')
-            ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
             ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
-            ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('payment_gateways as pg', function($join) {
+                $join->on('pg.id', '=', 'pay.payment_gateway_id')
+                     ->orOn('pg.id', '=', DB::raw('(SELECT payment_gateway_id FROM orders_detail WHERE id = pay.order_detail_id)'));
+            })
+            ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('participant_program as pp', 'o.participant_program_id', '=', 'pp.id')
             ->leftJoinSub($scholarshipSub, 'sch', function ($join) {
                 $join->on('sch.participant_program_id', '=', 'o.participant_program_id');
@@ -94,15 +97,16 @@ class ConsolidatedPaymentsDataProvider
                 'pg.code as payment_method_code',
                 'pg.name as payment_method_name',
                 'pay.installments_number',
-                'od.paid_at as payment_date',
+                DB::raw('COALESCE(od.paid_at, pay.transaction_date, pay.created_at) as payment_date'),
                 
-                // Datos del pagador
-                'od.name as payer_name',
-                'od.email as payer_email',
+                // Datos del pagador (con fallback para pagos sin cuotas)
+                DB::raw('COALESCE(od.name, CONCAT_WS(" ", p.first_name, p.second_name, p.first_last_name, p.second_last_name)) as payer_name'),
+                DB::raw('COALESCE(od.email, p.email) as payer_email'),
                 
                 // Orden / Reserva
                 'o.order_number',
                 'o.total_installments',
+                'o.payment_type',
 
                 // Agregados
                 DB::raw('COALESCE(ins_stats.paid_installments_ins, od_stats.paid_installments_od, 0) as paid_installments'),
@@ -110,6 +114,7 @@ class ConsolidatedPaymentsDataProvider
                 DB::raw('COALESCE(sch.scholarship_amount, 0) as scholarship_amount'),
                 DB::raw('CASE WHEN COALESCE(rel.released_count, 0) > 0 THEN 1 ELSE 0 END as released'),
                 DB::raw('CASE WHEN pp.individual_price IS NULL OR pp.individual_price = 0 THEN pr.trip_price ELSE pp.individual_price END as program_total_value'),
+                DB::raw('CASE WHEN o.payment_type = "total" THEN "Pago Total" ELSE "Pago en Cuotas" END as payment_type_label'),
 
                 // Campos adicionales para filtros
                 'pay.created_at',
@@ -117,7 +122,7 @@ class ConsolidatedPaymentsDataProvider
                 'pay.order_id',
                 'pay.order_detail_id',
             ])
-            ->orderBy('od.paid_at', 'desc');
+            ->orderBy(DB::raw('COALESCE(od.paid_at, pay.transaction_date, pay.created_at)'), 'desc');
     }
 
     public function getConsolidatedPayments(Builder $query, int $page = 1): LengthAwarePaginator
@@ -138,8 +143,8 @@ class ConsolidatedPaymentsDataProvider
             DB::raw('SUM(CASE WHEN pay.amount > 0 THEN pay.amount ELSE 0 END) as total_payments_amount'),
             DB::raw('SUM(CASE WHEN pay.amount < 0 THEN ABS(pay.amount) ELSE 0 END) as total_refunds_amount'),
             DB::raw('SUM(pay.amount) as net_amount'),
-            DB::raw('MIN(od.paid_at) as first_payment_date'),
-            DB::raw('MAX(od.paid_at) as last_payment_date'),
+            DB::raw('MIN(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as first_payment_date'),
+            DB::raw('MAX(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as last_payment_date'),
         ])->first();
 
         return [

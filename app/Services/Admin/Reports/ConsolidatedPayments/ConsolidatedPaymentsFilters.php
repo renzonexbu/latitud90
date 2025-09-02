@@ -39,6 +39,7 @@ class ConsolidatedPaymentsFilters
         if (!empty($filters['dateFrom'])) {
             $query->where(function($q) use ($filters) {
                 $q->whereDate('od.paid_at', '>=', $filters['dateFrom'])
+                  ->orWhereDate('pay.transaction_date', '>=', $filters['dateFrom'])
                   ->orWhereDate('pay.created_at', '>=', $filters['dateFrom']);
             });
         }
@@ -47,6 +48,7 @@ class ConsolidatedPaymentsFilters
         if (!empty($filters['dateTo'])) {
             $query->where(function($q) use ($filters) {
                 $q->whereDate('od.paid_at', '<=', $filters['dateTo'])
+                  ->orWhereDate('pay.transaction_date', '<=', $filters['dateTo'])
                   ->orWhereDate('pay.created_at', '<=', $filters['dateTo']);
             });
         }
@@ -58,9 +60,11 @@ class ConsolidatedPaymentsFilters
             
             $query->where(function($q) use ($startDate, $endDate) {
                 $q->whereDate('od.paid_at', '>=', $startDate->format('Y-m-d'))
+                  ->orWhereDate('pay.transaction_date', '>=', $startDate->format('Y-m-d'))
                   ->orWhereDate('pay.created_at', '>=', $startDate->format('Y-m-d'));
             })->where(function($q) use ($startDate, $endDate) {
                 $q->whereDate('od.paid_at', '<=', $endDate->format('Y-m-d'))
+                  ->orWhereDate('pay.transaction_date', '<=', $endDate->format('Y-m-d'))
                   ->orWhereDate('pay.created_at', '<=', $endDate->format('Y-m-d'));
             });
         }

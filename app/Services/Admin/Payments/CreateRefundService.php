@@ -66,8 +66,9 @@ class CreateRefundService
             // Si antes había pagado 100.000 y reembolsamos 50.000, ahora efectivamente ha pagado 50.000
             $newPaidAmount = $paidAmount - $data['amount'];
             
-            // Crear o actualizar plan de cuotas y reestructurar
-            $this->handleInstallmentPlan($order, $participant, $program, $totalAmount, $newPaidAmount);
+            // NOTA: Los reembolsos NO crean cuotas automáticamente
+            // Solo se registra el reembolso en la orden. Si se necesita un plan de cuotas,
+            // debe crearse manualmente desde la interfaz de administración.
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -285,7 +286,8 @@ class CreateRefundService
 
     /**
      * Manejar plan de cuotas y reestructurar
-     * Para reembolsos, necesitamos recalcular las cuotas considerando que ahora debe más
+     * NOTA: Este método NO se usa para reembolsos
+     * Los reembolsos no crean cuotas automáticamente
      */
     private function handleInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount, float $newPaidAmount): void
     {

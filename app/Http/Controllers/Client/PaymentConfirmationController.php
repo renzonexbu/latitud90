@@ -67,25 +67,15 @@ class PaymentConfirmationController extends Controller
                         return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
                             ->with('status', 'canceled');
                     }
-                    // Si está aprobado, redirigir a éxito
+                    // Si está aprobado, usar el servicio centralizado para evitar duplicación
                     elseif (in_array($status, ['aprobado', 'approved', 'paid', 'success'])) {
-                        $payment->update([
-                            'status' => 'completed',
-                            'authorization_code' => $confirmResult['authorization_code'] ?? $payment->authorization_code,
-                            'installments_number' => isset($confirmResult['installments']) ? (int) $confirmResult['installments'] : $payment->installments_number,
-                            'installment_amount' => $confirmResult['installment_amount'] ?? $payment->installment_amount,
-                            'gateway_response' => $confirmResult,
-                            'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago'),
-                        ]);
-
-                        $orderDetail = $payment->orderDetail;
-                        if ($orderDetail) {
-                            $orderDetail->update([
-                                'status' => 'paid',
-                                'is_paid' => true,
-                                'paid_at' => now()->setTimezone('America/Santiago'),
-                            ]);
-                        }
+                        // Usar el servicio centralizado para procesar el pago exitoso
+                        // Esto evitará duplicación de emails y asegurará consistencia
+                        $this->paymentConfirmationService->confirmPayment(
+                            $orderDetailId,
+                            'virtualpos',
+                            $confirmResult
+                        );
                         
                         return redirect()->route('payment.success', ['orderDetailId' => $orderDetailId]);
                     }
@@ -253,25 +243,13 @@ class PaymentConfirmationController extends Controller
             $result = $virtualPosService->processNotification($notificationData);
 
             if ($result['success']) {
-                // Actualizar el estado del pago
-                $payment->update([
-                    'status' => 'completed',
-                    'authorization_code' => $result['authorization_code'] ?? $payment->authorization_code,
-                    'installments_number' => isset($result['installments']) ? (int) $result['installments'] : $payment->installments_number,
-                    'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
-                    'gateway_response' => $result,
-                    'transaction_date' => $payment->transaction_date ?? now()->setTimezone('America/Santiago'),
-                ]);
-
-                // Actualizar el order detail
-                $orderDetail = $payment->orderDetail;
-                if ($orderDetail) {
-                    $orderDetail->update([
-                        'status' => 'paid',
-                        'is_paid' => true,
-                        'paid_at' => now()->setTimezone('America/Santiago'),
-                    ]);
-                }
+                // Usar el servicio centralizado para procesar el pago exitoso
+                // Esto evitará duplicación de emails y asegurará consistencia
+                $this->paymentConfirmationService->confirmPayment(
+                    $orderDetailId,
+                    'virtualpos',
+                    $result
+                );
 
                 Log::info('VirtualPOS webhook processed successfully', [
                     'order_detail_id' => $orderDetailId,

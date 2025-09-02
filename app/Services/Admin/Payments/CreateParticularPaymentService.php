@@ -73,8 +73,9 @@ class CreateParticularPaymentService
             // Crear el pago
             $payment = $this->createPayment($order, $orderDetail, $paymentGateway, $paymentOption, $data);
 
-            // Crear o actualizar plan de cuotas y reestructurar
-            $this->handleInstallmentPlan($order, $participant, $program, $totalAmount, $paidAmount + $data['amount']);
+            // NOTA: Los pagos presenciales NO crean cuotas automáticamente
+            // Solo se registra el pago en la orden. Si se necesita un plan de cuotas,
+            // debe crearse manualmente desde la interfaz de administración.
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -180,7 +181,7 @@ class CreateParticularPaymentService
             'total_installments' => 1, // Se ajustará según el plan de cuotas
             'payment_type' => 'total',
             'status' => 'pending',
-            'order_number' => $this->generateOrderNumber(),
+            'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
             'notes' => 'Orden creada desde pago presencial'
         ]);
 
@@ -259,6 +260,8 @@ class CreateParticularPaymentService
 
     /**
      * Manejar plan de cuotas y reestructurar
+     * NOTA: Este método NO se usa para pagos presenciales
+     * Los pagos presenciales no crean cuotas automáticamente
      */
     private function handleInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount, float $newPaidAmount): void
     {
@@ -367,26 +370,7 @@ class CreateParticularPaymentService
         ]);
     }
 
-    /**
-     * Generar número de orden único
-     */
-    private function generateOrderNumber(): string
-    {
-        $prefix = 'ORD';
-        $year = date('Y');
-        $month = date('m');
-        
-        do {
-            // Generar un número aleatorio de 6 dígitos
-            $randomSequence = str_pad(rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $orderNumber = sprintf('%s-%s%s-%s', $prefix, $year, $month, $randomSequence);
-            
-            // Verificar que no exista ya en la base de datos
-            $exists = Order::where('order_number', $orderNumber)->exists();
-        } while ($exists);
-        
-        return $orderNumber;
-    }
+
 
     /**
      * Mapear el tipo de pago presencial a la opción de pago correspondiente

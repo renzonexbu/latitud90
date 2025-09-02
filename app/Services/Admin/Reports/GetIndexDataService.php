@@ -109,8 +109,7 @@ class GetIndexDataService
         // Obtener datos de métodos de pago
         $paymentMethods = $this->getPaymentMethodsData($request);
 
-        // Obtener análisis de cuotas y tipos de pago
-        $installmentsAnalysis = $this->getInstallmentsAnalysisData($request);
+        // Obtener tipos de pago
         $paymentTypes = $this->getPaymentTypesData($request);
 
         return [
@@ -118,7 +117,6 @@ class GetIndexDataService
             'programViews' => $programViews,
             'frequentParticipants' => $frequentParticipants,
             'paymentMethods' => $paymentMethods,
-            'installmentsAnalysis' => $installmentsAnalysis,
             'paymentTypes' => $paymentTypes,
         ];
     }
@@ -238,47 +236,7 @@ class GetIndexDataService
         return $combinedData;
     }
 
-    /**
-     * Obtener análisis de cuotas
-     *
-     * @param Request $request
-     * @return array
-     */
-    private function getInstallmentsAnalysisData(Request $request): array
-    {
-        $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
-        $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        // Contar pagos con cuotas y sin cuotas
-        $withInstallments = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('payment_method')
-            ->whereNotNull('installments_count')
-            ->where('installments_count', '>', 0)
-            ->count();
-
-        $withoutInstallments = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('payment_method')
-            ->where(function ($query) {
-                $query->whereNull('installments_count')
-                    ->orWhere('installments_count', 0);
-            })
-            ->count();
-
-        $data = [
-            [
-                'installments_count' => 0,
-                'count' => $withoutInstallments,
-                'label' => 'Sin cuotas'
-            ],
-            [
-                'installments_count' => 1,
-                'count' => $withInstallments,
-                'label' => 'Con cuotas'
-            ]
-        ];
-
-        return $data;
-    }
 
     /**
      * Obtener datos de tipos de pago
@@ -291,31 +249,51 @@ class GetIndexDataService
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        // Contar pagos por tipo
-        $contado = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('payment_method')
-            ->where(function ($query) {
-                $query->whereNull('installments_count')
-                    ->orWhere('installments_count', 0);
-            })
+        // Contar pagos por modo de payment_option (por order_id único para evitar duplicados)
+        $fullPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.status', 'completed')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('payment_options.mode', 'full')
             ->count();
 
-        $cuotas = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('payment_method')
-            ->whereNotNull('installments_count')
-            ->where('installments_count', '>', 0)
+        $lat90Payments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.status', 'completed')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('payment_options.mode', 'lat90')
+            ->count();
+
+        $presentialPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.status', 'completed')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('payment_options.mode', 'presential')
+            ->count();
+
+        $refundPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.status', 'completed')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('payment_options.mode', 'refund')
             ->count();
 
         $data = [
             [
-                'payment_type' => 'contado',
-                'count' => $contado,
-                'label' => 'Pago al contado'
+                'payment_type' => 'full',
+                'count' => $fullPayments,
+                'label' => 'Pago Total (Full)'
             ],
             [
-                'payment_type' => 'cuotas',
-                'count' => $cuotas,
-                'label' => 'Pago en cuotas'
+                'payment_type' => 'lat90',
+                'count' => $lat90Payments,
+                'label' => 'Pago en Mensualidades (Lat90)'
+            ],
+            [
+                'payment_type' => 'presential',
+                'count' => $presentialPayments,
+                'label' => 'Pagos Presenciales'
+            ],
+            [
+                'payment_type' => 'refund',
+                'count' => $refundPayments,
+                'label' => 'Devoluciones'
             ]
         ];
 

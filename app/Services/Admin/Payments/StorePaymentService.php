@@ -243,6 +243,8 @@ class StorePaymentService
 
     /**
      * Manejar plan de cuotas y reestructuración
+     * NOTA: Este método NO se usa para pagos presenciales
+     * Los pagos presenciales no crean cuotas automáticamente
      *
      * @param Order $order
      * @param int $participantId

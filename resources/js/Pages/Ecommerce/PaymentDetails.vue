@@ -800,15 +800,18 @@ export default {
             }
         },
 
-        handleDocumentBlur() {
-            // Validar documento si es RUT
-            if (this.isRutDocument) {
-                this.validateDocument();
-            }
-
-            // Buscar cliente frecuente si hay tipo de documento y número
+        async handleDocumentBlur() {
+            // Buscar cliente frecuente primero si hay tipo de documento y número
             if (this.formData.documentType && this.formData.documentNumber.trim()) {
-                this.searchFrequentClient();
+                const foundClient = await this.searchFrequentClient();
+                
+                // Solo validar el RUT si NO se encontró un cliente frecuente
+                if (!foundClient && this.isRutDocument) {
+                    this.validateDocument();
+                }
+            } else if (this.isRutDocument) {
+                // Si no hay documento para buscar cliente frecuente, validar RUT
+                this.validateDocument();
             }
         },
 
@@ -831,11 +834,15 @@ export default {
                 if (result.success && result.data) {
                     // Autocompletar el formulario con los datos del cliente frecuente
                     this.autocompleteForm(result.data);
+                    return true; // Cliente encontrado
                 }
+                
+                return false; // Cliente no encontrado
             } catch (error) {
                 console.error('Error buscando cliente frecuente:', error);
                 // Mostrar alerta de error genérico
                 this.showClientSearchErrorAlert();
+                return false; // Error en la búsqueda
             }
         },
 
@@ -853,6 +860,10 @@ export default {
             
             // Marcar que es un cliente frecuente
             this.formData.isFrequentClient = true;
+            
+            // Limpiar cualquier validación de RUT previa ya que es un cliente frecuente
+            this.rutValidation.isValid = true;
+            this.rutValidation.message = "";
 
             // Para la comuna, esperar a que se carguen las comunas después de establecer la región
             this.$nextTick(() => {
@@ -954,14 +965,6 @@ export default {
                 ? "RUT válido"
                 : "RUT inválido";
 
-            // Mostrar alerta si el RUT es inválido
-            if (!this.rutValidation.isValid && this.rutValidation.message) {
-                this.showAlertMessage(
-                    'warning',
-                    'RUT inválido',
-                    this.rutValidation.message
-                );
-            }
         },
 
         calculateDv(body) {

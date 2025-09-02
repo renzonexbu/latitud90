@@ -4,9 +4,11 @@ namespace App\Services\Admin\Installments;
 
 use App\Models\InstallmentPlan;
 use App\Models\Installment;
+use App\Models\InstallmentRestructure;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class InstallmentRepaymentService
 {
@@ -88,6 +90,9 @@ class InstallmentRepaymentService
                 'updated_at' => now()
             ]);
 
+            // Registrar la restructuración en la base de datos
+            $this->recordRestructure($plan, $reason, $pendingInstallments->count(), $newInstallmentsCount);
+
             // Log de la reestructuración
             Log::info('Cuotas reestructuradas exitosamente', [
                 'installment_plan_id' => $plan->id,
@@ -168,5 +173,66 @@ class InstallmentRepaymentService
         $date->add(new \DateInterval("P{$monthsToAdd}M"));
         
         return $date->format('Y-m-d');
+    }
+
+    /**
+     * Registrar la restructuración en la base de datos
+     * 
+     * @param InstallmentPlan $plan
+     * @param string $reason
+     * @param int $installmentsDeleted
+     * @param int $installmentsCreated
+     * @return void
+     */
+    private function recordRestructure(InstallmentPlan $plan, string $reason, int $installmentsDeleted, int $installmentsCreated): void
+    {
+        $user = Auth::user();
+        $oldTotalInstallments = $plan->getOriginal('total_installments');
+        $oldPaidInstallments = $plan->installments()->whereNotNull('payment_id')->count();
+        $oldPendingInstallments = $oldTotalInstallments - $oldPaidInstallments;
+        $oldPaidAmount = $plan->installments()->whereNotNull('payment_id')->sum('amount');
+        $oldRemainingBalance = $plan->total_amount - $oldPaidAmount;
+
+        // Obtener datos de las cuotas anteriores (solo las pendientes que se eliminaron)
+        $oldInstallmentsData = $plan->installments()
+            ->whereNull('payment_id')
+            ->get(['installment_number', 'amount', 'due_date', 'status'])
+            ->toArray();
+
+        // Obtener datos de las nuevas cuotas
+        $newInstallmentsData = $plan->installments()
+            ->whereNull('payment_id')
+            ->get(['installment_number', 'amount', 'due_date', 'status'])
+            ->toArray();
+
+        InstallmentRestructure::create([
+            'installment_plan_id' => $plan->id,
+            'user_id' => $user?->id,
+            'user_name' => $user?->name,
+            'user_email' => $user?->email,
+            'participant_id' => $plan->participant_id,
+            'program_id' => $plan->program_id,
+            'old_total_installments' => $oldTotalInstallments,
+            'old_total_amount' => $plan->total_amount,
+            'old_paid_installments' => $oldPaidInstallments,
+            'old_pending_installments' => $oldPendingInstallments,
+            'old_paid_amount' => $oldPaidAmount,
+            'old_remaining_balance' => $oldRemainingBalance,
+            'new_total_installments' => $plan->total_installments,
+            'new_total_amount' => $plan->total_amount,
+            'new_paid_installments' => $oldPaidInstallments,
+            'new_pending_installments' => $plan->total_installments - $oldPaidInstallments,
+            'new_paid_amount' => $oldPaidAmount,
+            'new_remaining_balance' => $oldRemainingBalance,
+            'reason' => $reason,
+            'installments_deleted' => $installmentsDeleted,
+            'installments_created' => $installmentsCreated,
+            'restructure_type' => 'manual',
+            'old_installments_data' => $oldInstallmentsData,
+            'new_installments_data' => $newInstallmentsData,
+            'notes' => "Restructuración manual realizada por {$user?->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 }

@@ -49,6 +49,24 @@ class PaymentConfirmationService
         try {
             $orderDetail = OrderDetail::findOrFail($orderDetailId);
 
+            // Verificar si ya se procesó este pago para evitar duplicación
+            if ($orderDetail->is_paid && $orderDetail->status === 'paid') {
+                $this->logInfo('PaymentConfirmationService: Pago ya procesado anteriormente, omitiendo confirmación duplicada', [
+                    'order_detail_id' => $orderDetailId,
+                    'gateway_type' => $gatewayType,
+                    'order_detail_status' => $orderDetail->status,
+                    'order_detail_is_paid' => $orderDetail->is_paid,
+                    'paid_at' => $orderDetail->paid_at,
+                ]);
+                
+                return [
+                    'success' => true,
+                    'message' => 'Pago ya confirmado anteriormente',
+                    'status' => 'already_confirmed',
+                    'data' => null,
+                ];
+            }
+
             $this->logInfo('PaymentConfirmationService: confirmPayment', [
                 'order_detail_id' => $orderDetailId,
                 'gateway_type' => $gatewayType,
@@ -176,7 +194,7 @@ class PaymentConfirmationService
                 'gateway_data' => $gatewayData,
             ]);
             // No crear registro de pago fallido para errores técnicos de retroceso
-            $pendingPayment->markAsFailed('Error al procesar el pago'); 
+            $pendingPayment->markAsFailed('Error al procesar el pago');
             return [
                 'success' => false,
                 'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
@@ -310,11 +328,11 @@ class PaymentConfirmationService
     {
         $paymentId = $gatewayData['payment_id'] ?? null;
 
-                    $this->logInfo('PaymentConfirmationService: confirmKhipuPayment', [
-                'order_detail_id' => $orderDetail->id,
-                'gateway_data' => $gatewayData,
-                'payment_id' => $paymentId,
-            ]);
+        $this->logInfo('PaymentConfirmationService: confirmKhipuPayment', [
+            'order_detail_id' => $orderDetail->id,
+            'gateway_data' => $gatewayData,
+            'payment_id' => $paymentId,
+        ]);
 
         if (!$paymentId) {
             $this->logError('PaymentConfirmationService: ID de pago de Khipu no proporcionado', [
@@ -422,6 +440,14 @@ class PaymentConfirmationService
      */
     private function processSuccessfulPayment(OrderDetail $orderDetail, array $result, string $gatewayType, string $sessionId = null): void
     {
+        $this->logInfo('PaymentConfirmationService: processSuccessfulPayment iniciado', [
+            'order_detail_id' => $orderDetail->id,
+            'gateway_type' => $gatewayType,
+            'order_detail_status' => $orderDetail->status,
+            'order_detail_is_paid' => $orderDetail->is_paid,
+            'session_id' => $sessionId,
+        ]);
+
         // Buscar pago existente por order_detail_id (sin importar external_payment_id)
         $payment = Payment::where('order_detail_id', $orderDetail->id)
             ->latest()
@@ -464,12 +490,12 @@ class PaymentConfirmationService
                 'gateway_response' => $result,
                 'email_sent' => false,
             ];
-            
+
             // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
             if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['paid_at'])) {
                 $updateData['transaction_date'] = $transactionDate;
             }
-            
+
             $payment->update($updateData);
         }
 
@@ -489,6 +515,9 @@ class PaymentConfirmationService
         // Enviar email de confirmación
         $this->sendSuccessEmail($orderDetail, $payment);
 
+        // Actualizar el estado de la orden principal
+        $orderDetail->order->refreshStatus();
+
         // Registrar pago completado en analytics
         $this->analyticsService->recordPaymentCompletedFromBackend($orderDetail, [
             'payment_method' => $orderDetail->paymentGateway->name ?? null,
@@ -499,6 +528,10 @@ class PaymentConfirmationService
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'gateway_type' => $gatewayType,
+            'email_sent' => $payment->email_sent,
+            'order_detail_status' => $orderDetail->status,
+            'order_detail_is_paid' => $orderDetail->is_paid,
+            'order_status' => $orderDetail->order->status,
         ]);
     }
 
@@ -545,12 +578,12 @@ class PaymentConfirmationService
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
                 'gateway_response' => $result,
             ];
-            
+
             // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
             if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['updated_at'])) {
                 $updateData['transaction_date'] = $transactionDate;
             }
-            
+
             $payment->update($updateData);
         }
 
@@ -582,21 +615,21 @@ class PaymentConfirmationService
         // Buscar cuotas asociadas a este order detail usando installment_number
         // ya que las cuotas se crean inicialmente sin payment_order_detail_id
         $installments = Installment::where('installment_number', $orderDetail->installment_number)
-            ->whereHas('installmentPlan', function($query) use ($orderDetail) {
+            ->whereHas('installmentPlan', function ($query) use ($orderDetail) {
                 $query->where('participant_id', $orderDetail->order->participant_id)
-                      ->where('program_id', $orderDetail->order->program_id);
+                    ->where('program_id', $orderDetail->order->program_id);
             })
             ->where('status', 'pending')
             ->get();
 
         // Debug: buscar todas las cuotas relacionadas
         $allInstallments = Installment::where('installment_number', $orderDetail->installment_number)
-            ->whereHas('installmentPlan', function($query) use ($orderDetail) {
+            ->whereHas('installmentPlan', function ($query) use ($orderDetail) {
                 $query->where('participant_id', $orderDetail->order->participant_id)
-                      ->where('program_id', $orderDetail->order->program_id);
+                    ->where('program_id', $orderDetail->order->program_id);
             })
             ->get();
-        
+
         $this->logInfo('PaymentConfirmationService: Processing installments - Debug', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
@@ -605,7 +638,7 @@ class PaymentConfirmationService
             'program_id' => $orderDetail->order->program_id,
             'all_installments_count' => $allInstallments->count(),
             'pending_installments_count' => $installments->count(),
-            'all_installments' => $allInstallments->map(function($installment) {
+            'all_installments' => $allInstallments->map(function ($installment) {
                 return [
                     'id' => $installment->id,
                     'installment_number' => $installment->installment_number,
@@ -697,14 +730,14 @@ class PaymentConfirmationService
     {
         try {
             $bsaleResult = $this->bsaleService->generateInvoice($orderDetail, $payment);
-            
+
             if ($bsaleResult) {
                 // Guardar información de la boleta en el pago
                 $payment->update([
                     'bsale_document_id' => $bsaleResult['id'] ?? null,
                     'bsale_number' => $bsaleResult['number'] ?? null,
                 ]);
-                
+
                 $this->logInfo('PaymentConfirmationService: Boleta Bsale generada exitosamente', [
                     'order_detail_id' => $orderDetail->id,
                     'payment_id' => $payment->id,
@@ -727,43 +760,75 @@ class PaymentConfirmationService
      */
     private function sendSuccessEmail(OrderDetail $orderDetail, Payment $payment): void
     {
-        $payment->update(['email_sent' => true]);
-        // // Verificar si ya se envió un email para este pago
-        // if ($payment->email_sent) {
-        //     Log::info('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'customer_email' => $orderDetail->email,
-        //     ]);
-        //     return;
-        // }
-        
-        // try {
-        //     $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
-            
-        //     if ($emailSent) {
-        //         // Marcar que se envió el email
-        //         $payment->update(['email_sent' => true]);
+        // Verificar si ya se envió un email para este pago
+        if ($payment->email_sent) {
+            $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'customer_email' => $orderDetail->email,
+                'payment_status' => $payment->status,
+                'email_sent_at' => $payment->updated_at,
+            ]);
+            return;
+        }
+
+        // Verificación adicional: solo enviar email si el pago está realmente completado
+        if ($payment->status !== 'completed') {
+            $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'payment_status' => $payment->status,
+                'customer_email' => $orderDetail->email,
+            ]);
+            return;
+        }
+
+        // Verificar que el order detail esté pagado
+        if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
+            $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'order_detail_status' => $orderDetail->status,
+                'order_detail_is_paid' => $orderDetail->is_paid,
+                'customer_email' => $orderDetail->email,
+            ]);
+            return;
+        }
+
+        try {
+            $this->logInfo('PaymentConfirmationService: Enviando email de confirmación', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'customer_email' => $orderDetail->email,
+                'payment_status' => $payment->status,
+                'order_detail_status' => $orderDetail->status,
+            ]);
+
+            $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+
+            if ($emailSent) {
+                // Marcar que se envió el email
+                $payment->update(['email_sent' => true]);
                 
-        //         Log::info('PaymentConfirmationService: Email de confirmación enviado', [
-        //             'order_detail_id' => $orderDetail->id,
-        //             'payment_id' => $payment->id,
-        //             'customer_email' => $orderDetail->email,
-        //         ]);
-        //     } else {
-        //         Log::warning('PaymentConfirmationService: Error al enviar email de confirmación', [
-        //             'order_detail_id' => $orderDetail->id,
-        //             'payment_id' => $payment->id,
-        //             'customer_email' => $orderDetail->email,
-        //         ]);
-        //     }
-        // } catch (\Exception $e) {
-        //     Log::error('PaymentConfirmationService: Excepción al enviar email de confirmación', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'error' => $e->getMessage(),
-        //     ]);
-        // }
+                $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'customer_email' => $orderDetail->email,
+                ]);
+            } else {
+                $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'customer_email' => $orderDetail->email,
+                ]);
+            }
+        } catch (\Exception $e) {
+            $this->logError('PaymentConfirmationService: Excepción al enviar email de confirmación', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -133,59 +133,28 @@ class UpdatePaymentOptionsService
         // Obtener opciones actualmente configuradas para este programa
         $currentProgramOptions = DB::table('program_payment_option')
             ->where('program_id', $program->id)
-            ->get(['payment_option_id', 'enabled', 'manually_disabled']);
+            ->pluck('payment_option_id')
+            ->toArray();
         
         // Crear o actualizar todas las opciones de pago disponibles
         foreach ($allPaymentOptions as $paymentOption) {
             $isValid = in_array($paymentOption->code, $validOptions);
-            $existingOption = $currentProgramOptions->where('payment_option_id', $paymentOption->id)->first();
+            $exists = in_array($paymentOption->id, $currentProgramOptions);
             
-            if ($existingOption) {
-                // Si la opción ya existe, verificar si fue deshabilitada manualmente
-                $wasManuallyDisabled = $existingOption->manually_disabled;
-                
-                if ($wasManuallyDisabled) {
-                    // Si fue deshabilitada manualmente, NO reactivar automáticamente
-                    Log::info('Opción deshabilitada manualmente, no se reactiva automáticamente', [
-                        'program_id' => $program->id,
-                        'payment_option_id' => $paymentOption->id,
-                        'code' => $paymentOption->code,
-                        'manually_disabled' => true
-                    ]);
-                    continue; // Saltar esta opción
-                }
-                
-                // Solo actualizar si no fue deshabilitada manualmente
-                if ($existingOption->enabled != $isValid) {
-                    DB::table('program_payment_option')
-                        ->where('program_id', $program->id)
-                        ->where('payment_option_id', $paymentOption->id)
-                        ->update(['enabled' => $isValid]);
-                    
-                    Log::info('Estado de opción actualizado automáticamente', [
-                        'program_id' => $program->id,
-                        'payment_option_id' => $paymentOption->id,
-                        'code' => $paymentOption->code,
-                        'old_enabled' => $existingOption->enabled,
-                        'new_enabled' => $isValid
-                    ]);
-                }
+            if ($exists) {
+                // Actualizar estado de opción existente
+                DB::table('program_payment_option')
+                    ->where('program_id', $program->id)
+                    ->where('payment_option_id', $paymentOption->id)
+                    ->update(['enabled' => $isValid]);
             } else {
                 // Crear nueva opción para el programa
                 DB::table('program_payment_option')->insert([
                     'program_id' => $program->id,
                     'payment_option_id' => $paymentOption->id,
                     'enabled' => $isValid,
-                    'manually_disabled' => false,
                     'created_at' => now(),
                     'updated_at' => now(),
-                ]);
-                
-                Log::info('Nueva opción de pago creada para programa', [
-                    'program_id' => $program->id,
-                    'payment_option_id' => $paymentOption->id,
-                    'code' => $paymentOption->code,
-                    'enabled' => $isValid
                 ]);
             }
         }

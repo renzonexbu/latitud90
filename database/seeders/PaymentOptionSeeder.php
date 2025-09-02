@@ -39,10 +39,10 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'full_webpay_link', 'label' => 'Pago webpay con link de pago', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'WP', 'installments' => null, 'active' => true],
 			
 			// Pagos presenciales
-			['code' => 'full_office_card', 'label' => 'Pago con tarjeta en oficina', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'BX', 'installments' => null, 'active' => true],
-			['code' => 'full_bank_transfer', 'label' => 'Transferencia bancaria', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TE', 'installments' => null, 'active' => true],
-			['code' => 'full_check', 'label' => 'Cheque', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
-			['code' => 'full_deposit', 'label' => 'Depósito', 'mode' => 'full', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
+			['code' => 'presential_office_card', 'label' => 'Pago con tarjeta en oficina', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'BX', 'installments' => null, 'active' => true],
+			['code' => 'presential_bank_transfer', 'label' => 'Transferencia bancaria', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TE', 'installments' => null, 'active' => true],
+			['code' => 'presential_check', 'label' => 'Cheque', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
+			['code' => 'presential_deposit', 'label' => 'Depósito', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
 			
 			// Pago mensual (Lat90) - Transferencia Khipu
 			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
@@ -51,7 +51,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'lat90_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
 			
 			// Devoluciones
-			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'full', 'gateway_code' => 'refund', 'report_code' => 'BC', 'installments' => null, 'active' => true],
+			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'BC', 'installments' => null, 'active' => true],
 		];
 
 		foreach ($options as $opt) {

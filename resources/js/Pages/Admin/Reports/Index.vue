@@ -971,33 +971,17 @@
                     </div>
                 </div>
 
-                <!-- Análisis de Cuotas y Tipos de Pago -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Análisis de Cuotas -->
-                    <div
-                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
-                    >
-                        <div class="p-6 text-gray-900">
-                            <h3 class="text-lg font-semibold mb-4">
-                                Análisis de Cuotas
-                            </h3>
-                            <div class="h-64">
-                                <canvas ref="installmentsChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Distribución por Tipo de Pago -->
-                    <div
-                        class="bg-white overflow-hidden shadow-sm sm:rounded-lg"
-                    >
-                        <div class="p-6 text-gray-900">
-                            <h3 class="text-lg font-semibold mb-4">
-                                Distribución por Tipo de Pago
-                            </h3>
-                            <div class="h-64">
-                                <canvas ref="paymentTypesChart"></canvas>
-                            </div>
+                <!-- Distribución por Tipo de Pago -->
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 text-gray-900">
+                        <h3 class="text-lg font-semibold mb-4">
+                            Distribución por Tipo de Pago
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Compara la cantidad de pagos por tipo: Totales (Full), Mensualidades (Lat90), Presenciales y Devoluciones.
+                        </p>
+                        <div class="h-64">
+                            <canvas ref="paymentTypesChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1188,7 +1172,6 @@ const props = defineProps({
             programViews: [],
             frequentParticipants: [],
             paymentMethods: [],
-            installmentsAnalysis: [],
             paymentTypes: [],
         }),
     },
@@ -1234,7 +1217,6 @@ const programViewsChart = ref(null);
 const frequentParticipantsChart = ref(null);
 const funnelChart = ref(null);
 const paymentMethodsChart = ref(null);
-const installmentsChart = ref(null);
 const paymentTypesChart = ref(null);
 
 // Instancias de los gráficos
@@ -1242,7 +1224,6 @@ let programViewsChartInstance = null;
 let frequentParticipantsChartInstance = null;
 let funnelChartInstance = null;
 let paymentMethodsChartInstance = null;
-let installmentsChartInstance = null;
 let paymentTypesChartInstance = null;
 
 // Establecer fechas por defecto (último mes)
@@ -1268,7 +1249,6 @@ const createAllCharts = () => {
     createFrequentParticipantsChart();
     createFunnelChart();
     createPaymentMethodsChart();
-    createInstallmentsChart();
     createPaymentTypesChart();
 };
 
@@ -1605,40 +1585,49 @@ const createInstallmentsChart = () => {
         const data = props.ecommerceData.installmentsAnalysis;
 
         installmentsChartInstance = new Chart(ctx, {
-            type: "bar",
+            type: "doughnut",
             data: {
                 labels: data.map(
                     (item) => item.label || `${item.installments_count} cuotas`
                 ),
                 datasets: [
                     {
-                        label: "Cantidad de Pagos",
                         data: data.map((item) => item.count || 0),
-                        backgroundColor: "rgba(99, 102, 241, 0.8)",
-                        borderColor: "rgba(99, 102, 241, 1)",
-                        borderWidth: 1,
+                        backgroundColor: [
+                            "rgba(34, 197, 94, 0.8)",  // Verde para sin cuotas
+                            "rgba(99, 102, 241, 0.8)",  // Azul para 1 cuota
+                            "rgba(251, 146, 60, 0.8)",  // Naranja para 2+ cuotas
+                        ],
+                        borderWidth: 2,
+                        borderColor: "#fff",
                     },
                 ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: "Cantidad de Pagos",
-                        },
-                    },
-                },
                 plugins: {
                     legend: {
-                        display: false,
+                        position: "right",
                     },
                     title: {
                         display: true,
                         text: "Distribución por Número de Cuotas",
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const total = context.dataset.data.reduce(
+                                    (a, b) => a + b,
+                                    0
+                                );
+                                const percentage = (
+                                    (context.parsed / total) *
+                                    100
+                                ).toFixed(1);
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            },
+                        },
                     },
                 },
             },

@@ -49,6 +49,13 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/payment-options-update.log'));
+
+        // Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
+        $schedule->command('marketing:process-emails')
+            ->twiceDaily(6, 18)
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/marketing-emails.log'));
     }
 
     /**

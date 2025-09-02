@@ -452,52 +452,22 @@ class UpdateProgramService
             return;
         }
 
-        // Obtener todas las opciones de pago disponibles en el sistema
-        $allPaymentOptions = DB::table('payment_options')->where('active', true)->get(['id', 'code']);
-        
-        // Obtener opciones actualmente configuradas para este programa
-        $currentProgramOptions = DB::table('program_payment_option')
-            ->where('program_id', $program->id)
-            ->get(['payment_option_id', 'enabled', 'manually_disabled']);
-        
-        // Procesar cada opción de pago disponible
-        foreach ($allPaymentOptions as $paymentOption) {
-            $isSelected = in_array($paymentOption->code, $codes);
-            $existingOption = $currentProgramOptions->where('payment_option_id', $paymentOption->id)->first();
-            
-            if ($existingOption) {
-                // Si la opción ya existe, actualizar su estado
-                $newEnabled = $isSelected;
-                $newManuallyDisabled = !$isSelected; // Si no está seleccionada, marcar como manualmente deshabilitada
-                
-                DB::table('program_payment_option')
-                    ->where('program_id', $program->id)
-                    ->where('payment_option_id', $paymentOption->id)
-                    ->update([
-                        'enabled' => $newEnabled,
-                        'manually_disabled' => $newManuallyDisabled,
-                        'updated_at' => now()
-                    ]);
-            } else {
-                // Crear nueva opción para el programa
-                DB::table('program_payment_option')->insert([
-                    'program_id' => $program->id,
-                    'payment_option_id' => $paymentOption->id,
-                    'enabled' => $isSelected,
-                    'manually_disabled' => !$isSelected, // Si no está seleccionada, marcar como manualmente deshabilitada
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-        
-        Log::info('Opciones de pago sincronizadas manualmente para programa', [
+        // Vaciar y volver a insertar lo enviado
+        DB::table('program_payment_option')->where('program_id', $program->id)->delete();
+        if (empty($codes)) return;
+
+        $optionIds = DB::table('payment_options')->whereIn('code', $codes)->pluck('id')->toArray();
+        $now = now();
+        $rows = array_map(fn($id) => [
             'program_id' => $program->id,
-            'total_options' => $allPaymentOptions->count(),
-            'selected_options' => count($codes),
-            'enabled_options' => count($codes),
-            'manually_disabled_options' => $allPaymentOptions->count() - count($codes)
-        ]);
+            'payment_option_id' => $id,
+            'enabled' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $optionIds);
+        if (!empty($rows)) {
+            DB::table('program_payment_option')->insert($rows);
+        }
     }
 
     /**

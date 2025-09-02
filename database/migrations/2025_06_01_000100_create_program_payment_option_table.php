@@ -13,7 +13,6 @@ return new class extends Migration
 			$table->foreignId('program_id')->constrained('programs')->onDelete('cascade');
 			$table->foreignId('payment_option_id')->constrained('payment_options')->onDelete('cascade');
 			$table->boolean('enabled')->default(true);
-			$table->boolean('manually_disabled')->default(false); // Campo para distinguir cambios manuales vs automáticos
 			$table->timestamps();
 			$table->unique(['program_id', 'payment_option_id']);
 		});

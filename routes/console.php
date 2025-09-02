@@ -7,7 +7,7 @@ use App\Services\Commands\LogCleanupService;
 use App\Services\Commands\SystemHealthService;
 use App\Services\Commands\PaymentProcessingService;
 use App\Services\Commands\UpdatePaymentOptionsService;
-use Illuminate\Support\Facades\DB;
+use App\Services\Commands\MarketingMailsService;
 
 /*
 |--------------------------------------------------------------------------
@@ -115,6 +115,35 @@ Artisan::command('payment-options:update', function () {
     
     $this->info('✅ Actualización de opciones de pago completada');
 })->purpose('Actualizar automáticamente las opciones de pago y cuotas según el tiempo transcurrido');
+
+// Comando para procesar emails de marketing (ejecutar 2 veces al día)
+Artisan::command('marketing:process-emails', function () {
+    $service = new MarketingMailsService();
+    $results = $service->processMarketingEmails();
+
+    $this->info('📧 Procesando emails de marketing...');
+    $this->info("📊 Total emails procesados: {$results['total_processed']}");
+    $this->info("✅ Nuevos emails agregados: {$results['new_emails_added']}");
+    $this->info("🔄 Emails existentes actualizados: {$results['existing_emails_updated']}");
+    
+    if (!empty($results['errors'])) {
+        $this->warn("⚠️ Errores encontrados:");
+        foreach ($results['errors'] as $error) {
+            $this->warn("   • {$error}");
+        }
+    }
+    
+    // Mostrar estadísticas
+    $stats = $service->getMarketingEmailsStats();
+    $this->info("📈 Estadísticas actuales:");
+    $this->info("   • Total emails en tabla: {$stats['total_emails']}");
+    $this->info("   • Emails activos: {$stats['active_emails']}");
+    $this->info("   • Emails inactivos: {$stats['inactive_emails']}");
+    $this->info("   • Orders con marketing: {$stats['total_orders_with_marketing']}");
+    $this->info("   • Clientes frecuentes con marketing: {$stats['total_frequent_clients_with_marketing']}");
+    
+    $this->info('✅ Procesamiento de emails de marketing completado');
+})->purpose('Procesar y almacenar emails de marketing desde orders_detail y frequent_client');
 
 
 
