@@ -7,6 +7,8 @@ use App\Models\Course;
 use App\Models\Program;
 use App\Models\Payment;
 use App\Models\OrderDetail;
+use App\Models\InstallmentPlan;
+use App\Models\Order;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +40,9 @@ class ProgramService
 
     public function getAvailablePrograms(Participant $participant): array
     {
-        // Obtener todos los programas disponibles
-        $programs = Program::where('active', true)
+        // Obtener solo los programas donde el participante esté inscrito
+        $programs = $participant->programs()
+            ->where('active', true)
             ->with(['course.institution', 'features', 'requirements'])
             ->get();
 
@@ -94,6 +97,11 @@ class ProgramService
                     ->first();
                 $enrollmentCode = $pp->enrollment_code ?? null;
                 
+                // Si no hay enrollment_code, generarlo como fallback
+                if (!$enrollmentCode && $program->code && $participant->document_number) {
+                    $enrollmentCode = $program->code . $participant->document_number;
+                }
+                
                 // Usar el helper para calcular el precio final con descuentos
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
                 $totalAmount = $priceData['final_price'];
@@ -111,50 +119,55 @@ class ProgramService
                 $participantTotalAmount = $totalAmount;
                 $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0;
 
-                // Calcular información de cuotas
+                // Calcular cuotas
                 $totalInstallments = 0;
                 $paidInstallments = 0;
                 $installmentsSummary = null;
 
-                // Buscar planes de cuotas del participante para este programa
-                $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
-                    ->where('program_id', $program->id)
-                    ->with(['installments'])
-                    ->get();
-
-                foreach ($installmentPlans as $plan) {
-                    $totalInstallments = $plan->installments->count();
+                if ($enrollment) {
+                    $totalInstallments = $enrollment->pivot->total_installments ?? 0;
+                    $paidInstallments = $enrollment->pivot->paid_installments ?? 0;
                     
-                    foreach ($plan->installments as $installment) {
-                        if ($installment->status === 'paid') {
-                            $paidInstallments++;
-                        }
-                    }
-                }
-
-                // Si no hay planes de cuotas, buscar en orders como fallback
-                if ($totalInstallments == 0) {
-                    $orders = \App\Models\Order::where('participant_id', $participant->id)
+                    // Buscar planes de cuotas del participante para este programa
+                    $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
                         ->where('program_id', $program->id)
-                        ->with(['orderDetails'])
+                        ->with(['installments'])
                         ->get();
 
-                    foreach ($orders as $order) {
-                        if ($order->orderDetails) {
-                            $totalInstallments = $order->orderDetails->count();
-                            
-                            foreach ($order->orderDetails as $detail) {
-                                if ($detail->is_paid) {
-                                    $paidInstallments++;
+                    foreach ($installmentPlans as $plan) {
+                        $totalInstallments = $plan->installments->count();
+                        
+                        foreach ($plan->installments as $installment) {
+                            if ($installment->status === 'paid') {
+                                $paidInstallments++;
+                            }
+                        }
+                    }
+
+                    // Si no hay planes de cuotas, buscar en orders como fallback
+                    if ($totalInstallments == 0) {
+                        $orders = \App\Models\Order::where('participant_id', $participant->id)
+                            ->where('program_id', $program->id)
+                            ->with(['orderDetails'])
+                            ->get();
+
+                        foreach ($orders as $order) {
+                            if ($order->orderDetails) {
+                                $totalInstallments = $order->orderDetails->count();
+                                
+                                foreach ($order->orderDetails as $detail) {
+                                    if ($detail->is_paid) {
+                                        $paidInstallments++;
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Crear resumen de cuotas si hay cuotas
-                if ($totalInstallments > 0) {
-                    $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
+                    // Crear resumen de cuotas si hay cuotas
+                    if ($totalInstallments > 0) {
+                        $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
+                    }
                 }
 
                 $availablePrograms[] = [
