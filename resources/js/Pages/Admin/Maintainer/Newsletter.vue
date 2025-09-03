@@ -7,9 +7,7 @@
                 <!-- Header -->
                 <MaintainerHeader 
                     subtitle="Gestión de suscriptores del newsletter"
-                    :show-action-button="true"
-                    action-button-text="Exportar Lista"
-                    @action="exportNewsletter"
+                    :show-back-button="true"
                 />
 
                 <!-- Filters -->
@@ -18,6 +16,7 @@
                         :initial-filters="filters"
                         :newsletters="newsletters"
                         @filters-changed="handleFiltersChanged"
+                        @export="exportNewsletter"
                     />
                 </div>
 
@@ -123,13 +122,34 @@ export default {
         },
 
         exportNewsletter() {
-            // Crear un enlace temporal para descargar el archivo
-            const link = document.createElement('a');
-            link.href = route('admin.maintainer.newsletter.export', this.filters);
-            link.download = '';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Crear un formulario temporal para enviar POST con los filtros
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = route('admin.maintainer.newsletter.export');
+            
+            // Agregar CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+            
+            // Agregar filtros como campos ocultos
+            Object.keys(this.filters).forEach(key => {
+                if (this.filters[key]) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = this.filters[key];
+                    form.appendChild(input);
+                }
+            });
+            
+            // Agregar el formulario al DOM, enviarlo y removerlo
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
         }
     }
 };

@@ -4,18 +4,15 @@ namespace App\Services\Admin\SuperAdmin\Newsletter;
 
 use App\Models\Newsletter;
 use App\Traits\AdminLogging;
-use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportNewsletterService
 {
-    use AdminLogging, SystemLogging;
+    use AdminLogging;
 
     public function execute(Request $request): StreamedResponse
     {
-        $this->logOperationStart('Exportación de newsletters', ['request' => $request->all()]);
-        
         try {
             // Limpiar cualquier output buffer
             while (ob_get_level()) {
@@ -44,7 +41,6 @@ class ExportNewsletterService
 
             // Obtener todos los newsletters (sin paginación para exportación)
             $newsletters = $query->get();
-            $this->logInfo('Newsletters obtenidos para exportación', ['count' => $newsletters->count()]);
 
             // Preparar datos para exportación
             $data = collect();
@@ -140,13 +136,10 @@ class ExportNewsletterService
                     'filename' => $filename . '.xlsx',
                 ]
             );
-
-            $this->logOperationSuccess('Exportación de newsletters', ['filename' => $filename . '.xlsx']);
             
             return $response;
 
         } catch (\Exception $e) {
-            $this->logOperationFailure('Exportación de newsletters', $e->getMessage());
             throw new \RuntimeException('Error al exportar newsletters: ' . $e->getMessage());
         }
     }

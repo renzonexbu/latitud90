@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             ComunesSeeder::class,
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
+            MarketingMailSeeder::class,
         ]);
     }
 }

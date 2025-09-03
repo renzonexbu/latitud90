@@ -11,7 +11,7 @@
             />
 
             <!-- Content Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Gestión de Newsletter -->
                 <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
@@ -25,6 +25,27 @@
                     </p>
                     <button 
                         @click="goToNewsletter"
+                        class="bg-turquesa text-white px-4 py-2 rounded-md hover:bg-turquesa-dark transition-colors"
+                    >
+                        Acceder
+                    </button>
+                </div>
+
+                <!-- Marketing Mails -->
+                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            Marketing Mails
+                        </h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">
+                        Gestionar lista de emails para marketing, activar/desactivar suscriptores y administrar campañas.
+                    </p>
+                    <button 
+                        @click="goToMarketingMails"
                         class="bg-turquesa text-white px-4 py-2 rounded-md hover:bg-turquesa-dark transition-colors"
                     >
                         Acceder
@@ -105,6 +126,9 @@ export default {
     methods: {
         goToNewsletter() {
             this.$inertia.visit(route('admin.maintainer.newsletter.index'));
+        },
+        goToMarketingMails() {
+            this.$inertia.visit(route('admin.maintainer.marketing.mails.index'));
         },
         goToAdminLogs() {
             this.$inertia.visit(route('admin.maintainer.admin-logs.index'));

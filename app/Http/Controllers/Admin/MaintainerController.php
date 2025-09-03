@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\Admin\SuperAdmin\Marketing\MarketingMailService;
 use App\Services\Admin\SuperAdmin\GetMaintainerIndexService;
 use App\Services\Admin\SuperAdmin\Newsletter\GetNewsletterService;
 use App\Services\Admin\SuperAdmin\Newsletter\GetNewsletterEditService;
@@ -98,6 +99,55 @@ class MaintainerController extends Controller
             return $service->execute($request);
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Error al exportar logs: ' . $e->getMessage()]);
+        }
+    }
+
+    public function marketingMails(Request $request)
+    {
+        $service = new MarketingMailService();
+        $data = $service->execute($request);
+
+        return Inertia::render('Admin/Maintainer/MarketingMail', $data);
+    }
+
+    public function toggleMarketingMailStatus($id)
+    {
+        try {
+            $service = new MarketingMailService();
+            $result = $service->toggleStatus($id);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar estado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroyMarketingMail($id)
+    {
+        try {
+            $service = new MarketingMailService();
+            $result = $service->destroy($id);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function exportMarketingMails(Request $request)
+    {
+        try {
+            $filters = $request->only(['search', 'status', 'sort_by', 'sort_order']);
+            $service = new \App\Services\Admin\Reports\MarketingMailExportService();
+            return $service->export($filters);
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al exportar marketing mails: ' . $e->getMessage()]);
         }
     }
 }

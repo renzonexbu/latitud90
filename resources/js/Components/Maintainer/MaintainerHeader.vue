@@ -25,23 +25,22 @@
             </template>
         </div>
 
-        <!-- Right side - Action buttons -->
-        <div v-if="showActionButton" class="flex flex-row items-center justify-end flex-shrink-0 relative">
-            <!-- Action Button Container -->
+        <!-- Right side - Back button -->
+        <div v-if="showBackButton" class="flex flex-row items-center justify-end flex-shrink-0 relative">
+            <!-- Back Button Container -->
             <div class="relative">
-                <!-- Action Button -->
+                <!-- Back Button -->
                 <button
-                    @click="handleAction"
-                    class="bg-turquesa rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center hover:bg-turquesa-dark transition-colors"
+                    @click="goBackToIndex"
+                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center transition-colors border border-gray-300"
                 >
                     <div class="flex-shrink-0 w-[21.52px] h-[21.52px] relative overflow-hidden aspect-square">
-                        <SettingsIcon 
-                            class="w-full h-full"
-                            stroke-color="white"
-                        />
+                        <svg class="w-full h-full text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
                     </div>
-                    <div class="text-white text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start">
-                        {{ actionButtonText }}
+                    <div class="text-gray-700 text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start">
+                        Volver
                     </div>
                 </button>
             </div>
@@ -50,37 +49,27 @@
 </template>
 
 <script>
-import { SettingsIcon } from "@/Components/Icons";
-
 export default {
     name: "MaintainerHeader",
-    components: {
-        SettingsIcon,
-    },
     props: {
         subtitle: {
             type: String,
             default: "Panel de administración avanzada"
         },
 
-        showActionButton: {
-            type: Boolean,
-            default: false
-        },
-
-        actionButtonText: {
-            type: String,
-            default: "Acción del Sistema"
-        },
-
         additionalInfo: {
             type: String,
             default: null
+        },
+
+        showBackButton: {
+            type: Boolean,
+            default: false
         }
     },
     methods: {
-        handleAction() {
-            this.$emit('action');
+        goBackToIndex() {
+            this.$inertia.visit(route('admin.maintainer.index'));
         }
     }
 };

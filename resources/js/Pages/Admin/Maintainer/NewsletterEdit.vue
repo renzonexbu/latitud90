@@ -8,6 +8,7 @@
                 <MaintainerHeader 
                     subtitle="Editar suscriptor del newsletter"
                     :show-action-button="false"
+                    :show-back-button="true"
                 />
 
                 <!-- Form -->

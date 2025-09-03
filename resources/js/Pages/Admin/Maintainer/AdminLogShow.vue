@@ -8,6 +8,7 @@
                 <MaintainerHeader 
                     subtitle="Detalles del log del sistema"
                     :show-action-button="false"
+                    :show-back-button="true"
                 />
 
                 <!-- Log Details -->
