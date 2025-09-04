@@ -440,8 +440,10 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId']);
+            $format = $request->get('format', 'excel'); // Por defecto Excel
             $filename = 'softland_movimientos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
-            return $this->softlandExcelExporter->export($filename, $filters);
+            
+            return $this->softlandExcelExporter->export($filename, $filters, $format);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
         }

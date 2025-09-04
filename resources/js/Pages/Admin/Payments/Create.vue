@@ -560,8 +560,8 @@
                                             <option value="TE">
                                                 Transferencia bancaria
                                             </option>
-                                            <option value="CH">Cheque</option>
-                                            <option value="DP">Depósito</option>
+                                            <!-- <option value="CH">Cheque</option>
+                                            <option value="DP">Depósito</option> -->
                                         </select>
                                         <span
                                             v-if="

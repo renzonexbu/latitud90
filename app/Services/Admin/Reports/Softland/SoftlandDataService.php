@@ -15,7 +15,8 @@ class SoftlandDataService
     public function generateMovements(array $filters = []): Collection
     {
         // Obtener SOLO pagos completados que generaron boleta (B2)
-        $payments = Payment::where('status', 'completed')
+        $payments = Payment::with(['paymentOption', 'order.participant', 'order.program', 'order.participantProgram'])
+        ->where('status', 'completed')
         ->where('document_type', 'B2')
         ->when(isset($filters['dateFrom']), function ($query) use ($filters) {
             $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
@@ -90,109 +91,109 @@ class SoftlandDataService
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-010', // Cuenta de cobranzas
             'debe' => abs($payment->amount), // Siempre usar valor absoluto
-            'haber' => 0,
+            'haber' => '', // Vacío para DEBE
             'descripcion_movimiento' => $this->formatDescription($payment, $participant, $paymentOption),
-            'equivalencia_moneda' => 1,
-            'monto_debe_moneda_adicional' => 0,
-            'monto_haber_moneda_adicional' => 0,
+            'equivalencia_moneda' => '', // Columna E - vacía
+            'monto_debe_moneda_adicional' => '', // Columna F - vacía
+            'monto_haber_moneda_adicional' => '', // Columna G - vacía
             
-            // Códigos
-            'codigo_condicion_venta' => '',
-            'codigo_vendedor' => '',
-            'codigo_ubicacion' => '',
-            'codigo_concepto_caja' => '',
-            'codigo_instrumento_financiero' => '',
-            'cantidad_instrumento_financiero' => 0,
-            'codigo_detalle_gasto' => '',
-            'cantidad_concepto_gasto' => 0,
-            'codigo_centro_costo' => '',
+            // Códigos (columnas H-M vacías)
+            'codigo_condicion_venta' => '', // Columna H - vacía
+            'codigo_vendedor' => '', // Columna I - vacía
+            'codigo_ubicacion' => '', // Columna J - vacía
+            'codigo_concepto_caja' => '', // Columna K - vacía
+            'codigo_instrumento_financiero' => '', // Columna L - vacía
+            'cantidad_instrumento_financiero' => '', // Columna M - vacía
+            'codigo_detalle_gasto' => '', // Columna N - vacía
+            'cantidad_concepto_gasto' => '', // Columna O - vacía
+            'codigo_centro_costo' => '', // Columna P - vacía para DEBE
             
             // Documentación
-            'tipo_docto_conciliacion' => '',
-            'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($participantProgram),
-            'tipo_documento' => $payment->document_type ?? 'B2',
-            'nro_documento' => $payment->buy_order ?? $payment->id,
-            'fecha_emision_docto' => $this->formatDate($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDate($payment->transaction_date),
-            'tipo_docto_referencia' => $payment->document_type ?? 'B2',
-            'nro_docto_referencia' => $payment->buy_order ?? $payment->id,
-            'nro_correlativo_interno' => $payment->buy_order ?? $payment->id,
+            'tipo_docto_conciliacion' => '', // Columna Q - vacía
+            'nro_docto_conciliacion' => '', // Columna R - vacía
+            'codigo_auxiliar' => $this->formatAuxiliaryCode($participant), // Columna S - RUT sin puntos/guiones
+            'tipo_documento' => $payment->document_type ?? 'B2', // Columna T - tipo documento
+            'nro_documento' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna U - bsale_number
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'tipo_docto_referencia' => $payment->document_type ?? 'B2', // Columna X - B2 para DEBE
+            'nro_docto_referencia' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna Y - bsale_number
+            'nro_correlativo_interno' => '', // Columna Z - vacía
             
             // Montos detalle libro
-            'monto_1_detalle_libro' => 0, // NETO
-            'monto_2_detalle_libro' => abs($payment->amount), // EXENTO (monto pagado)
-            'monto_3_detalle_libro' => 0, // IVA
-            'monto_4_detalle_libro' => 0, // ESPECIFICO
-            'monto_5_detalle_libro' => 0,
-            'monto_6_detalle_libro' => 0,
-            'monto_7_detalle_libro' => 0,
-            'monto_8_detalle_libro' => 0,
-            'monto_9_detalle_libro' => 0,
-            'monto_suma_detalle_libro' => abs($payment->amount),
+            'monto_1_detalle_libro' => '', // Columna AA - vacía
+            'monto_2_detalle_libro' => abs($payment->amount), // Columna AB - mismo monto del debe
+            'monto_3_detalle_libro' => '', // Columna AC - vacía
+            'monto_4_detalle_libro' => '', // Columna AD - vacía
+            'monto_5_detalle_libro' => '', // Columna AE - vacía
+            'monto_6_detalle_libro' => '', // Columna AF - vacía
+            'monto_7_detalle_libro' => '', // Columna AG - vacía
+            'monto_8_detalle_libro' => '', // Columna AH - vacía
+            'monto_9_detalle_libro' => '', // Columna AI - vacía
+            'monto_suma_detalle_libro' => abs($payment->amount), // Columna AJ - mismo monto del debe
             
             // Configuración
-            'graba_detalle_libro' => 'S',
-            'documento_nulo' => 'N',
+            'graba_detalle_libro' => 'S', // Columna AK - 'S' para DEBE
+            'documento_nulo' => '', // Columna AL - vacía
             
-            // Flujos de efectivo (vacíos por ahora)
-            'codigo_flujo_efectivo_1' => '',
-            'monto_flujo_1' => 0,
-            'codigo_flujo_efectivo_2' => '',
-            'monto_flujo_2' => 0,
-            'codigo_flujo_efectivo_3' => '',
-            'monto_flujo_3' => 0,
-            'codigo_flujo_efectivo_4' => '',
-            'monto_flujo_4' => 0,
-            'codigo_flujo_efectivo_5' => '',
-            'monto_flujo_5' => 0,
-            'codigo_flujo_efectivo_6' => '',
-            'monto_flujo_6' => 0,
-            'codigo_flujo_efectivo_7' => '',
-            'monto_flujo_7' => 0,
-            'codigo_flujo_efectivo_8' => '',
-            'monto_flujo_8' => 0,
-            'codigo_flujo_efectivo_9' => '',
-            'monto_flujo_9' => 0,
-            'codigo_flujo_efectivo_10' => '',
-            'monto_flujo_10' => 0,
+            // Flujos de efectivo (todas vacías)
+            'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
+            'monto_flujo_1' => '', // Columna AN - vacía
+            'codigo_flujo_efectivo_2' => '', // Columna AO - vacía
+            'monto_flujo_2' => '', // Columna AP - vacía
+            'codigo_flujo_efectivo_3' => '', // Columna AQ - vacía
+            'monto_flujo_3' => '', // Columna AR - vacía
+            'codigo_flujo_efectivo_4' => '', // Columna AS - vacía
+            'monto_flujo_4' => '', // Columna AT - vacía
+            'codigo_flujo_efectivo_5' => '', // Columna AU - vacía
+            'monto_flujo_5' => '', // Columna AV - vacía
+            'codigo_flujo_efectivo_6' => '', // Columna AW - vacía
+            'monto_flujo_6' => '', // Columna AX - vacía
+            'codigo_flujo_efectivo_7' => '', // Columna AY - vacía
+            'monto_flujo_7' => '', // Columna AZ - vacía
+            'codigo_flujo_efectivo_8' => '', // Columna BA - vacía
+            'monto_flujo_8' => '', // Columna BB - vacía
+            'codigo_flujo_efectivo_9' => '', // Columna BC - vacía
+            'monto_flujo_9' => '', // Columna BD - vacía
+            'codigo_flujo_efectivo_10' => '', // Columna BE - vacía
+            'monto_flujo_10' => '', // Columna BF - vacía
             
-            // Información adicional
-            'numero_cuota_pago' => $payment->installments_number ?? 1,
-            'numero_documento_desde' => '',
-            'numero_documento_hasta' => '',
+            // Información adicional (todas vacías)
+            'numero_cuota_pago' => '', // Columna BG - vacía
+            'numero_documento_desde' => '', // Columna BH - vacía
+            'numero_documento_hasta' => '', // Columna BI - vacía
             
-            // Centros de costo concepto presupuesto caja (vacíos por ahora)
-            'centro_costo_concepto_presupuesto_caja_1' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'centro_costo_concepto_presupuesto_caja_2' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'centro_costo_concepto_presupuesto_caja_3' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'centro_costo_concepto_presupuesto_caja_4' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'centro_costo_concepto_presupuesto_caja_5' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'centro_costo_concepto_presupuesto_caja_6' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'centro_costo_concepto_presupuesto_caja_7' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'centro_costo_concepto_presupuesto_caja_8' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'centro_costo_concepto_presupuesto_caja_9' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'centro_costo_concepto_presupuesto_caja_10' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => 0,
+            // Centros de costo concepto presupuesto caja (todas vacías)
+            'centro_costo_concepto_presupuesto_caja_1' => '', // Columna BJ - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BK - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BL - vacía
+            'centro_costo_concepto_presupuesto_caja_2' => '', // Columna BM - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BN - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BO - vacía
+            'centro_costo_concepto_presupuesto_caja_3' => '', // Columna BP - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BQ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BR - vacía
+            'centro_costo_concepto_presupuesto_caja_4' => '', // Columna BS - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BT - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BU - vacía
+            'centro_costo_concepto_presupuesto_caja_5' => '', // Columna BV - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BW - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BX - vacía
+            'centro_costo_concepto_presupuesto_caja_6' => '', // Columna BY - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '', // Columna BZ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '', // Columna CA - vacía
+            'centro_costo_concepto_presupuesto_caja_7' => '', // Columna CB - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CC - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CD - vacía
+            'centro_costo_concepto_presupuesto_caja_8' => '', // Columna CE - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CF - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CG - vacía
+            'centro_costo_concepto_presupuesto_caja_9' => '', // Columna CH - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CI - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CJ - vacía
+            'centro_costo_concepto_presupuesto_caja_10' => '', // Columna CK - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CL - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CM - vacía
         ];
     }
 
@@ -208,149 +209,154 @@ class SoftlandDataService
         return [
             // Información básica
             'codigo_plan_cuenta' => '3-1-01-021', // Cuenta de ingresos
-            'debe' => 0,
+            'debe' => '', // Vacío para HABER
             'haber' => abs($payment->amount), // Siempre usar valor absoluto
             'descripcion_movimiento' => $this->formatCreditDescription($payment, $participant, $program, $paymentOption),
-            'equivalencia_moneda' => 1,
-            'monto_debe_moneda_adicional' => 0,
-            'monto_haber_moneda_adicional' => 0,
+            'equivalencia_moneda' => '', // Columna E - vacía
+            'monto_debe_moneda_adicional' => '', // Columna F - vacía
+            'monto_haber_moneda_adicional' => '', // Columna G - vacía
             
-            // Códigos
-            'codigo_condicion_venta' => '',
-            'codigo_vendedor' => '',
-            'codigo_ubicacion' => '',
-            'codigo_concepto_caja' => '',
-            'codigo_instrumento_financiero' => '',
-            'cantidad_instrumento_financiero' => 0,
-            'codigo_detalle_gasto' => '',
-            'cantidad_concepto_gasto' => 0,
-            'codigo_centro_costo' => '',
+            // Códigos (columnas H-M vacías)
+            'codigo_condicion_venta' => '', // Columna H - vacía
+            'codigo_vendedor' => '', // Columna I - vacía
+            'codigo_ubicacion' => '', // Columna J - vacía
+            'codigo_concepto_caja' => '', // Columna K - vacía
+            'codigo_instrumento_financiero' => '', // Columna L - vacía
+            'cantidad_instrumento_financiero' => '', // Columna M - vacía
+            'codigo_detalle_gasto' => '', // Columna N - vacía
+            'cantidad_concepto_gasto' => '', // Columna O - vacía para HABER de boletas
+            'codigo_centro_costo' => 'E2-02-01', // Columna P - código para HABER de boletas
             
             // Documentación
-            'tipo_docto_conciliacion' => '',
-            'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => '',
-            'tipo_documento' => 'E2-02-01', // Factura exenta
-            'nro_documento' => $this->generateInvoiceNumber($payment),
-            'fecha_emision_docto' => $this->formatDate($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDate($payment->transaction_date),
-            'tipo_docto_referencia' => $payment->document_type ?? 'B2',
-            'nro_docto_referencia' => $payment->buy_order ?? $payment->id,
-            'nro_correlativo_interno' => '',
+            'tipo_docto_conciliacion' => '', // Columna Q - vacía
+            'nro_docto_conciliacion' => '', // Columna R - vacía
+            'codigo_auxiliar' => $this->formatAuxiliaryCode($participant), // Columna S - RUT sin puntos/guiones
+            'tipo_documento' => '', // Columna T - vacío para HABER de boletas
+            'nro_documento' => '', // Columna U - vacío para HABER
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'tipo_docto_referencia' => '', // Columna X - vacío para HABER
+            'nro_docto_referencia' => '', // Columna Y - vacío para HABER
+            'nro_correlativo_interno' => '', // Columna Z - vacía
             
             // Montos detalle libro
-            'monto_1_detalle_libro' => 0, // NETO
-            'monto_2_detalle_libro' => 0, // EXENTO
-            'monto_3_detalle_libro' => 0, // IVA
-            'monto_4_detalle_libro' => 0, // ESPECIFICO
-            'monto_5_detalle_libro' => 0,
-            'monto_6_detalle_libro' => 0,
-            'monto_7_detalle_libro' => 0,
-            'monto_8_detalle_libro' => 0,
-            'monto_9_detalle_libro' => 0,
-            'monto_suma_detalle_libro' => $payment->amount,
+            'monto_1_detalle_libro' => '', // Columna AA - vacía
+            'monto_2_detalle_libro' => '', // Columna AB - vacía para HABER
+            'monto_3_detalle_libro' => '', // Columna AC - vacía
+            'monto_4_detalle_libro' => '', // Columna AD - vacía
+            'monto_5_detalle_libro' => '', // Columna AE - vacía
+            'monto_6_detalle_libro' => '', // Columna AF - vacía
+            'monto_7_detalle_libro' => '', // Columna AG - vacía
+            'monto_8_detalle_libro' => '', // Columna AH - vacía
+            'monto_9_detalle_libro' => '', // Columna AI - vacía
+            'monto_suma_detalle_libro' => '', // Columna AJ - vacía para HABER
             
             // Configuración
-            'graba_detalle_libro' => 'S',
-            'documento_nulo' => 'N',
+            'graba_detalle_libro' => '', // Columna AK - vacía para HABER
+            'documento_nulo' => '', // Columna AL - vacía
             
-            // Flujos de efectivo (vacíos por ahora)
-            'codigo_flujo_efectivo_1' => '',
-            'monto_flujo_1' => 0,
-            'codigo_flujo_efectivo_2' => '',
-            'monto_flujo_2' => 0,
-            'codigo_flujo_efectivo_3' => '',
-            'monto_flujo_3' => 0,
-            'codigo_flujo_efectivo_4' => '',
-            'monto_flujo_4' => 0,
-            'codigo_flujo_efectivo_5' => '',
-            'monto_flujo_5' => 0,
-            'codigo_flujo_efectivo_6' => '',
-            'monto_flujo_6' => 0,
-            'codigo_flujo_efectivo_7' => '',
-            'monto_flujo_7' => 0,
-            'codigo_flujo_efectivo_8' => '',
-            'monto_flujo_8' => 0,
-            'codigo_flujo_efectivo_9' => '',
-            'monto_flujo_9' => 0,
-            'codigo_flujo_efectivo_10' => '',
-            'monto_flujo_10' => 0,
+            // Flujos de efectivo (todas vacías)
+            'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
+            'monto_flujo_1' => '', // Columna AN - vacía
+            'codigo_flujo_efectivo_2' => '', // Columna AO - vacía
+            'monto_flujo_2' => '', // Columna AP - vacía
+            'codigo_flujo_efectivo_3' => '', // Columna AQ - vacía
+            'monto_flujo_3' => '', // Columna AR - vacía
+            'codigo_flujo_efectivo_4' => '', // Columna AS - vacía
+            'monto_flujo_4' => '', // Columna AT - vacía
+            'codigo_flujo_efectivo_5' => '', // Columna AU - vacía
+            'monto_flujo_5' => '', // Columna AV - vacía
+            'codigo_flujo_efectivo_6' => '', // Columna AW - vacía
+            'monto_flujo_6' => '', // Columna AX - vacía
+            'codigo_flujo_efectivo_7' => '', // Columna AY - vacía
+            'monto_flujo_7' => '', // Columna AZ - vacía
+            'codigo_flujo_efectivo_8' => '', // Columna BA - vacía
+            'monto_flujo_8' => '', // Columna BB - vacía
+            'codigo_flujo_efectivo_9' => '', // Columna BC - vacía
+            'monto_flujo_9' => '', // Columna BD - vacía
+            'codigo_flujo_efectivo_10' => '', // Columna BE - vacía
+            'monto_flujo_10' => '', // Columna BF - vacía
             
-            // Información adicional
-            'numero_cuota_pago' => $payment->installments_number ?? 1,
-            'numero_documento_desde' => '',
-            'numero_documento_hasta' => '',
+            // Información adicional (todas vacías)
+            'numero_cuota_pago' => '', // Columna BG - vacía
+            'numero_documento_desde' => '', // Columna BH - vacía
+            'numero_documento_hasta' => '', // Columna BI - vacía
             
-            // Centros de costo concepto presupuesto caja (vacíos por ahora)
-            'centro_costo_concepto_presupuesto_caja_1' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'centro_costo_concepto_presupuesto_caja_2' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'centro_costo_concepto_presupuesto_caja_3' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'centro_costo_concepto_presupuesto_caja_4' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'centro_costo_concepto_presupuesto_caja_5' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'centro_costo_concepto_presupuesto_caja_6' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'centro_costo_concepto_presupuesto_caja_7' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'centro_costo_concepto_presupuesto_caja_8' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'centro_costo_concepto_presupuesto_caja_9' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'centro_costo_concepto_presupuesto_caja_10' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => 0,
+            // Centros de costo concepto presupuesto caja (todas vacías)
+            'centro_costo_concepto_presupuesto_caja_1' => '', // Columna BJ - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BK - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BL - vacía
+            'centro_costo_concepto_presupuesto_caja_2' => '', // Columna BM - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BN - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BO - vacía
+            'centro_costo_concepto_presupuesto_caja_3' => '', // Columna BP - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BQ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BR - vacía
+            'centro_costo_concepto_presupuesto_caja_4' => '', // Columna BS - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BT - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BU - vacía
+            'centro_costo_concepto_presupuesto_caja_5' => '', // Columna BV - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BW - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BX - vacía
+            'centro_costo_concepto_presupuesto_caja_6' => '', // Columna BY - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '', // Columna BZ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '', // Columna CA - vacía
+            'centro_costo_concepto_presupuesto_caja_7' => '', // Columna CB - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CC - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CD - vacía
+            'centro_costo_concepto_presupuesto_caja_8' => '', // Columna CE - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CF - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CG - vacía
+            'centro_costo_concepto_presupuesto_caja_9' => '', // Columna CH - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CI - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CJ - vacía
+            'centro_costo_concepto_presupuesto_caja_10' => '', // Columna CK - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CL - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CM - vacía
         ];
     }
 
     /**
-     * Formatea la descripción del movimiento de cobro
+     * Formatea la descripción del movimiento de cobro (DEBE)
      */
     private function formatDescription(Payment $payment, $participant, $paymentOption): string
     {
         $documentType = $payment->document_type ?? 'B2';
-        $orderNumber = $payment->buy_order ?? $payment->id;
+        $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
         $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'PARTICIPANTE-NO-ENCONTRADO';
-        $reportCode = $paymentOption ? ($paymentOption->report_code ?? '') : 'SIN-CODIGO';
+        $paymentMethod = $paymentOption ? ($paymentOption->report_code ?? 'SIN-METODO') : 'SIN-METODO';
 
-        return "{$documentType} - {$orderNumber} - {$participantName} / {$reportCode}";
+        return "{$documentType}-{$boletaNumber}-{$participantName}/{$paymentMethod}";
     }
 
     /**
-     * Formatea la descripción del movimiento de ingreso
+     * Formatea la descripción del movimiento de ingreso (HABER)
      */
     private function formatCreditDescription(Payment $payment, $participant, $program, $paymentOption): string
     {
-        $invoiceNumber = $this->generateInvoiceNumber($payment);
-        $programName = $program ? ($program->name ?? 'Programa') : 'PROGRAMA-NO-ENCONTRADO';
+        $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
         $documentType = $payment->document_type ?? 'B2';
-        $orderNumber = $payment->buy_order ?? $payment->id;
+        $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
-        return "{$invoiceNumber} / {$programName} - {$documentType} - {$orderNumber}";
+        return "N{$programCode}/Programa Educacion/{$documentType}-{$boletaNumber}";
     }
 
     /**
-     * Formatea el código auxiliar (participant_program.enrollment_code)
+     * Formatea el código auxiliar (RUT del participante sin puntos ni guiones)
      */
-    private function formatAuxiliaryCode($participantProgram): string
+    private function formatAuxiliaryCode($participant): string
     {
-        if (!$participantProgram) {
+        if (!$participant) {
             return '';
         }
 
-        return $participantProgram->enrollment_code ?? '';
+        // Obtener el número de documento del participante
+        $documentNumber = $participant->document_number ?? '';
+        
+        // Limpiar puntos y guiones
+        $cleanDocument = str_replace(['.', '-'], '', $documentNumber);
+        
+        return $cleanDocument;
     }
 
     /**
@@ -373,115 +379,114 @@ class SoftlandDataService
     {
         $participant = $payment->order->participant ?? null;
         $paymentOption = $payment->paymentOption;
-        $participantProgram = $payment->order->participantProgram ?? null;
         
         return [
             // Información básica
             'codigo_plan_cuenta' => '5-1-01-001', // Cuenta de gastos por servicios
             'debe' => abs($payment->amount), // Usar valor absoluto
-            'haber' => 0,
+            'haber' => '', // Vacío para DEBE
             'descripcion_movimiento' => $this->formatRefundDescription($payment, $participant),
-            'equivalencia_moneda' => 1,
-            'monto_debe_moneda_adicional' => 0,
-            'monto_haber_moneda_adicional' => 0,
+            'equivalencia_moneda' => '', // Columna E - vacía
+            'monto_debe_moneda_adicional' => '', // Columna F - vacía
+            'monto_haber_moneda_adicional' => '', // Columna G - vacía
             
-            // Códigos
-            'codigo_condicion_venta' => '',
-            'codigo_vendedor' => '',
-            'codigo_ubicacion' => '',
-            'codigo_concepto_caja' => '',
-            'codigo_instrumento_financiero' => '',
-            'cantidad_instrumento_financiero' => 0,
-            'codigo_detalle_gasto' => 'E2-02-01', // Detalle de gasto
-            'cantidad_concepto_gasto' => 1,
-            'codigo_centro_costo' => '',
+            // Códigos (columnas H-M vacías)
+            'codigo_condicion_venta' => '', // Columna H - vacía
+            'codigo_vendedor' => '', // Columna I - vacía
+            'codigo_ubicacion' => '', // Columna J - vacía
+            'codigo_concepto_caja' => '', // Columna K - vacía
+            'codigo_instrumento_financiero' => '', // Columna L - vacía
+            'cantidad_instrumento_financiero' => '', // Columna M - vacía
+            'codigo_detalle_gasto' => '', // Columna N - vacía
+            'cantidad_concepto_gasto' => '', // Columna O - vacía
+            'codigo_centro_costo' => '', // Columna P - vacía para DEBE
             
             // Documentación
-            'tipo_docto_conciliacion' => '',
-            'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($participantProgram),
-            'tipo_documento' => 'NC', // Nota de crédito
-            'nro_documento' => 'REEMB-' . ($payment->buy_order ?? $payment->id),
-            'fecha_emision_docto' => $this->formatDate($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDate($payment->transaction_date),
-            'tipo_docto_referencia' => $payment->document_type ?? 'B2',
-            'nro_docto_referencia' => $payment->buy_order ?? $payment->id,
-            'nro_correlativo_interno' => $payment->buy_order ?? $payment->id,
+            'tipo_docto_conciliacion' => '', // Columna Q - vacía
+            'nro_docto_conciliacion' => '', // Columna R - vacía
+            'codigo_auxiliar' => $this->formatAuxiliaryCode($participant), // Columna S - RUT sin puntos/guiones
+            'tipo_documento' => 'NC', // Columna T - Nota de crédito
+            'nro_documento' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna U - bsale_number
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'tipo_docto_referencia' => 'NC', // Columna X - NC para DEBE
+            'nro_docto_referencia' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna Y - bsale_number
+            'nro_correlativo_interno' => '', // Columna Z - vacía
             
             // Montos detalle libro
-            'monto_1_detalle_libro' => 0, // NETO
-            'monto_2_detalle_libro' => abs($payment->amount), // EXENTO (monto del reembolso)
-            'monto_3_detalle_libro' => 0, // IVA
-            'monto_4_detalle_libro' => 0, // ESPECIFICO
-            'monto_5_detalle_libro' => 0,
-            'monto_6_detalle_libro' => 0,
-            'monto_7_detalle_libro' => 0,
-            'monto_8_detalle_libro' => 0,
-            'monto_9_detalle_libro' => 0,
-            'monto_suma_detalle_libro' => abs($payment->amount),
+            'monto_1_detalle_libro' => '', // Columna AA - vacía
+            'monto_2_detalle_libro' => abs($payment->amount), // Columna AB - mismo monto del debe
+            'monto_3_detalle_libro' => '', // Columna AC - vacía
+            'monto_4_detalle_libro' => '', // Columna AD - vacía
+            'monto_5_detalle_libro' => '', // Columna AE - vacía
+            'monto_6_detalle_libro' => '', // Columna AF - vacía
+            'monto_7_detalle_libro' => '', // Columna AG - vacía
+            'monto_8_detalle_libro' => '', // Columna AH - vacía
+            'monto_9_detalle_libro' => '', // Columna AI - vacía
+            'monto_suma_detalle_libro' => abs($payment->amount), // Columna AJ - mismo monto del debe
             
             // Configuración
-            'graba_detalle_libro' => 'S',
-            'documento_nulo' => 'N',
+            'graba_detalle_libro' => 'S', // Columna AK - 'S' para DEBE
+            'documento_nulo' => '', // Columna AL - vacía
             
-            // Flujos de efectivo (vacíos por ahora)
-            'codigo_flujo_efectivo_1' => '',
-            'monto_flujo_1' => 0,
-            'codigo_flujo_efectivo_2' => '',
-            'monto_flujo_2' => 0,
-            'codigo_flujo_efectivo_3' => '',
-            'monto_flujo_3' => 0,
-            'codigo_flujo_efectivo_4' => '',
-            'monto_flujo_4' => 0,
-            'codigo_flujo_efectivo_5' => '',
-            'monto_flujo_5' => 0,
-            'codigo_flujo_efectivo_6' => '',
-            'monto_flujo_6' => 0,
-            'codigo_flujo_efectivo_7' => '',
-            'monto_flujo_7' => 0,
-            'codigo_flujo_efectivo_8' => '',
-            'monto_flujo_8' => 0,
-            'codigo_flujo_efectivo_9' => '',
-            'monto_flujo_9' => 0,
-            'codigo_flujo_efectivo_10' => '',
-            'monto_flujo_10' => 0,
+            // Flujos de efectivo (todas vacías)
+            'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
+            'monto_flujo_1' => '', // Columna AN - vacía
+            'codigo_flujo_efectivo_2' => '', // Columna AO - vacía
+            'monto_flujo_2' => '', // Columna AP - vacía
+            'codigo_flujo_efectivo_3' => '', // Columna AQ - vacía
+            'monto_flujo_3' => '', // Columna AR - vacía
+            'codigo_flujo_efectivo_4' => '', // Columna AS - vacía
+            'monto_flujo_4' => '', // Columna AT - vacía
+            'codigo_flujo_efectivo_5' => '', // Columna AU - vacía
+            'monto_flujo_5' => '', // Columna AV - vacía
+            'codigo_flujo_efectivo_6' => '', // Columna AW - vacía
+            'monto_flujo_6' => '', // Columna AX - vacía
+            'codigo_flujo_efectivo_7' => '', // Columna AY - vacía
+            'monto_flujo_7' => '', // Columna AZ - vacía
+            'codigo_flujo_efectivo_8' => '', // Columna BA - vacía
+            'monto_flujo_8' => '', // Columna BB - vacía
+            'codigo_flujo_efectivo_9' => '', // Columna BC - vacía
+            'monto_flujo_9' => '', // Columna BD - vacía
+            'codigo_flujo_efectivo_10' => '', // Columna BE - vacía
+            'monto_flujo_10' => '', // Columna BF - vacía
             
-            // Información adicional
-            'numero_cuota_pago' => $payment->installments_number ?? 1,
-            'numero_documento_desde' => '',
-            'numero_documento_hasta' => '',
+            // Información adicional (todas vacías)
+            'numero_cuota_pago' => '', // Columna BG - vacía
+            'numero_documento_desde' => '', // Columna BH - vacía
+            'numero_documento_hasta' => '', // Columna BI - vacía
             
-            // Centros de costo concepto presupuesto caja (vacíos por ahora)
-            'centro_costo_concepto_presupuesto_caja_1' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'centro_costo_concepto_presupuesto_caja_2' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'centro_costo_concepto_presupuesto_caja_3' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'centro_costo_concepto_presupuesto_caja_4' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'centro_costo_concepto_presupuesto_caja_5' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'centro_costo_concepto_presupuesto_caja_6' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'centro_costo_concepto_presupuesto_caja_7' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'centro_costo_concepto_presupuesto_caja_8' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'centro_costo_concepto_presupuesto_caja_9' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'centro_costo_concepto_presupuesto_caja_10' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => 0,
+            // Centros de costo concepto presupuesto caja (todas vacías)
+            'centro_costo_concepto_presupuesto_caja_1' => '', // Columna BJ - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BK - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BL - vacía
+            'centro_costo_concepto_presupuesto_caja_2' => '', // Columna BM - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BN - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BO - vacía
+            'centro_costo_concepto_presupuesto_caja_3' => '', // Columna BP - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BQ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BR - vacía
+            'centro_costo_concepto_presupuesto_caja_4' => '', // Columna BS - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BT - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BU - vacía
+            'centro_costo_concepto_presupuesto_caja_5' => '', // Columna BV - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BW - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BX - vacía
+            'centro_costo_concepto_presupuesto_caja_6' => '', // Columna BY - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '', // Columna BZ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '', // Columna CA - vacía
+            'centro_costo_concepto_presupuesto_caja_7' => '', // Columna CB - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CC - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CD - vacía
+            'centro_costo_concepto_presupuesto_caja_8' => '', // Columna CE - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CF - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CG - vacía
+            'centro_costo_concepto_presupuesto_caja_9' => '', // Columna CH - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CI - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CJ - vacía
+            'centro_costo_concepto_presupuesto_caja_10' => '', // Columna CK - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CL - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CM - vacía
         ];
     }
 
@@ -497,110 +502,110 @@ class SoftlandDataService
         return [
             // Información básica
             'codigo_plan_cuenta' => '2-1-01-001', // Cuenta de pasivos corrientes
-            'debe' => 0,
+            'debe' => '', // Vacío para HABER
             'haber' => abs($payment->amount), // Usar valor absoluto
             'descripcion_movimiento' => $this->formatRefundCreditDescription($payment, $participant, $program),
-            'equivalencia_moneda' => 1,
-            'monto_debe_moneda_adicional' => 0,
-            'monto_haber_moneda_adicional' => 0,
+            'equivalencia_moneda' => '', // Columna E - vacía
+            'monto_debe_moneda_adicional' => '', // Columna F - vacía
+            'monto_haber_moneda_adicional' => '', // Columna G - vacía
             
-            // Códigos
-            'codigo_condicion_venta' => '',
-            'codigo_vendedor' => '',
-            'codigo_ubicacion' => '',
-            'codigo_concepto_caja' => '',
-            'codigo_instrumento_financiero' => '',
-            'cantidad_instrumento_financiero' => 0,
-            'codigo_detalle_gasto' => '',
-            'cantidad_concepto_gasto' => 0,
-            'codigo_centro_costo' => '',
+            // Códigos (columnas H-M vacías)
+            'codigo_condicion_venta' => '', // Columna H - vacía
+            'codigo_vendedor' => '', // Columna I - vacía
+            'codigo_ubicacion' => '', // Columna J - vacía
+            'codigo_concepto_caja' => '', // Columna K - vacía
+            'codigo_instrumento_financiero' => '', // Columna L - vacía
+            'cantidad_instrumento_financiero' => '', // Columna M - vacía
+            'codigo_detalle_gasto' => '', // Columna N - vacía
+            'cantidad_concepto_gasto' => '', // Columna O - vacía para HABER
+            'codigo_centro_costo' => 'E2-02-01', // Columna P - código para HABER de reembolsos
             
             // Documentación
-            'tipo_docto_conciliacion' => '',
-            'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => '',
-            'tipo_documento' => 'NC', // Nota de crédito
-            'nro_documento' => 'REEMB-' . ($payment->buy_order ?? $payment->id),
-            'fecha_emision_docto' => $this->formatDate($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDate($payment->transaction_date),
-            'tipo_docto_referencia' => $payment->document_type ?? 'B2',
-            'nro_docto_referencia' => $payment->buy_order ?? $payment->id,
-            'nro_correlativo_interno' => '',
+            'tipo_docto_conciliacion' => '', // Columna Q - vacía
+            'nro_docto_conciliacion' => '', // Columna R - vacía
+            'codigo_auxiliar' => $this->formatAuxiliaryCode($participant), // Columna S - RUT sin puntos/guiones
+            'tipo_documento' => '', // Columna T - vacío para HABER
+            'nro_documento' => '', // Columna U - vacío para HABER
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'tipo_docto_referencia' => '', // Columna X - vacío para HABER
+            'nro_docto_referencia' => '', // Columna Y - vacío para HABER
+            'nro_correlativo_interno' => '', // Columna Z - vacía
             
             // Montos detalle libro
-            'monto_1_detalle_libro' => 0, // NETO
-            'monto_2_detalle_libro' => 0, // EXENTO
-            'monto_3_detalle_libro' => 0, // IVA
-            'monto_4_detalle_libro' => 0, // ESPECIFICO
-            'monto_5_detalle_libro' => 0,
-            'monto_6_detalle_libro' => 0,
-            'monto_7_detalle_libro' => 0,
-            'monto_8_detalle_libro' => 0,
-            'monto_9_detalle_libro' => 0,
-            'monto_suma_detalle_libro' => abs($payment->amount),
+            'monto_1_detalle_libro' => '', // Columna AA - vacía
+            'monto_2_detalle_libro' => '', // Columna AB - vacía para HABER
+            'monto_3_detalle_libro' => '', // Columna AC - vacía
+            'monto_4_detalle_libro' => '', // Columna AD - vacía
+            'monto_5_detalle_libro' => '', // Columna AE - vacía
+            'monto_6_detalle_libro' => '', // Columna AF - vacía
+            'monto_7_detalle_libro' => '', // Columna AG - vacía
+            'monto_8_detalle_libro' => '', // Columna AH - vacía
+            'monto_9_detalle_libro' => '', // Columna AI - vacía
+            'monto_suma_detalle_libro' => '', // Columna AJ - vacía para HABER
             
             // Configuración
-            'graba_detalle_libro' => 'S',
-            'documento_nulo' => 'N',
+            'graba_detalle_libro' => '', // Columna AK - vacía para HABER
+            'documento_nulo' => '', // Columna AL - vacía
             
-            // Flujos de efectivo (vacíos por ahora)
-            'codigo_flujo_efectivo_1' => '',
-            'monto_flujo_1' => 0,
-            'codigo_flujo_efectivo_2' => '',
-            'monto_flujo_2' => 0,
-            'codigo_flujo_efectivo_3' => '',
-            'monto_flujo_3' => 0,
-            'codigo_flujo_efectivo_4' => '',
-            'monto_flujo_4' => 0,
-            'codigo_flujo_efectivo_5' => '',
-            'monto_flujo_5' => 0,
-            'codigo_flujo_efectivo_6' => '',
-            'monto_flujo_6' => 0,
-            'codigo_flujo_efectivo_7' => '',
-            'monto_flujo_7' => 0,
-            'codigo_flujo_efectivo_8' => '',
-            'monto_flujo_8' => 0,
-            'codigo_flujo_efectivo_9' => '',
-            'monto_flujo_9' => 0,
-            'codigo_flujo_efectivo_10' => '',
-            'monto_flujo_10' => 0,
+            // Flujos de efectivo (todas vacías)
+            'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
+            'monto_flujo_1' => '', // Columna AN - vacía
+            'codigo_flujo_efectivo_2' => '', // Columna AO - vacía
+            'monto_flujo_2' => '', // Columna AP - vacía
+            'codigo_flujo_efectivo_3' => '', // Columna AQ - vacía
+            'monto_flujo_3' => '', // Columna AR - vacía
+            'codigo_flujo_efectivo_4' => '', // Columna AS - vacía
+            'monto_flujo_4' => '', // Columna AT - vacía
+            'codigo_flujo_efectivo_5' => '', // Columna AU - vacía
+            'monto_flujo_5' => '', // Columna AV - vacía
+            'codigo_flujo_efectivo_6' => '', // Columna AW - vacía
+            'monto_flujo_6' => '', // Columna AX - vacía
+            'codigo_flujo_efectivo_7' => '', // Columna AY - vacía
+            'monto_flujo_7' => '', // Columna AZ - vacía
+            'codigo_flujo_efectivo_8' => '', // Columna BA - vacía
+            'monto_flujo_8' => '', // Columna BB - vacía
+            'codigo_flujo_efectivo_9' => '', // Columna BC - vacía
+            'monto_flujo_9' => '', // Columna BD - vacía
+            'codigo_flujo_efectivo_10' => '', // Columna BE - vacía
+            'monto_flujo_10' => '', // Columna BF - vacía
             
-            // Información adicional
-            'numero_cuota_pago' => $payment->installments_number ?? 1,
-            'numero_documento_desde' => '',
-            'numero_documento_hasta' => '',
+            // Información adicional (todas vacías)
+            'numero_cuota_pago' => '', // Columna BG - vacía
+            'numero_documento_desde' => '', // Columna BH - vacía
+            'numero_documento_hasta' => '', // Columna BI - vacía
             
-            // Centros de costo concepto presupuesto caja (vacíos por ahora)
-            'centro_costo_concepto_presupuesto_caja_1' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => 0,
-            'centro_costo_concepto_presupuesto_caja_2' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => 0,
-            'centro_costo_concepto_presupuesto_caja_3' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => 0,
-            'centro_costo_concepto_presupuesto_caja_4' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => 0,
-            'centro_costo_concepto_presupuesto_caja_5' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => 0,
-            'centro_costo_concepto_presupuesto_caja_6' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => 0,
-            'centro_costo_concepto_presupuesto_caja_7' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => 0,
-            'centro_costo_concepto_presupuesto_caja_8' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => 0,
-            'centro_costo_concepto_presupuesto_caja_9' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => 0,
-            'centro_costo_concepto_presupuesto_caja_10' => '',
-            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => 0,
-            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => 0,
+            // Centros de costo concepto presupuesto caja (todas vacías)
+            'centro_costo_concepto_presupuesto_caja_1' => '', // Columna BJ - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BK - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '', // Columna BL - vacía
+            'centro_costo_concepto_presupuesto_caja_2' => '', // Columna BM - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BN - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '', // Columna BO - vacía
+            'centro_costo_concepto_presupuesto_caja_3' => '', // Columna BP - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BQ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '', // Columna BR - vacía
+            'centro_costo_concepto_presupuesto_caja_4' => '', // Columna BS - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BT - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '', // Columna BU - vacía
+            'centro_costo_concepto_presupuesto_caja_5' => '', // Columna BV - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BW - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '', // Columna BX - vacía
+            'centro_costo_concepto_presupuesto_caja_6' => '', // Columna BY - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '', // Columna BZ - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '', // Columna CA - vacía
+            'centro_costo_concepto_presupuesto_caja_7' => '', // Columna CB - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CC - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '', // Columna CD - vacía
+            'centro_costo_concepto_presupuesto_caja_8' => '', // Columna CE - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CF - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '', // Columna CG - vacía
+            'centro_costo_concepto_presupuesto_caja_9' => '', // Columna CH - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CI - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '', // Columna CJ - vacía
+            'centro_costo_concepto_presupuesto_caja_10' => '', // Columna CK - vacía
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CL - vacía
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '', // Columna CM - vacía
         ];
     }
 
@@ -609,13 +614,12 @@ class SoftlandDataService
      */
     private function formatRefundDescription(Payment $payment, $participant): string
     {
-        $documentType = $payment->document_type ?? 'B2';
-        $orderNumber = $payment->buy_order ?? $payment->id;
+        $documentType = 'NC'; // Nota de crédito para reembolsos
+        $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
         $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'PARTICIPANTE-NO-ENCONTRADO';
-        $gatewayResponse = $payment->gateway_response ?? [];
-        $refundNote = $gatewayResponse['note'] ?? $gatewayResponse['notes'] ?? 'Reembolso';
+        $paymentMethod = 'REEMBOLSO';
 
-        return "REEMBOLSO - {$refundNote} - {$documentType} - {$orderNumber} - {$participantName}";
+        return "{$documentType}-{$boletaNumber}-{$participantName}/{$paymentMethod}";
     }
 
     /**
@@ -623,14 +627,11 @@ class SoftlandDataService
      */
     private function formatRefundCreditDescription(Payment $payment, $participant, $program): string
     {
-        $refundNumber = 'REEMB-' . ($payment->buy_order ?? $payment->id);
-        $programName = $program ? ($program->name ?? 'Programa') : 'PROGRAMA-NO-ENCONTRADO';
-        $documentType = $payment->document_type ?? 'B2';
-        $orderNumber = $payment->buy_order ?? $payment->id;
-        $gatewayResponse = $payment->gateway_response ?? [];
-        $refundNote = $gatewayResponse['note'] ?? $gatewayResponse['notes'] ?? 'Reembolso';
+        $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
+        $documentType = 'NC'; // Nota de crédito para reembolsos
+        $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
-        return "{$refundNumber} / {$programName} - REEMBOLSO {$refundNote} - {$documentType} - {$orderNumber}";
+        return "N{$programCode}/Programa Educacion/{$documentType}-{$boletaNumber}";
     }
 
     /**
@@ -647,5 +648,21 @@ class SoftlandDataService
         }
 
         return Carbon::parse($date)->format('d/m/Y');
+    }
+
+    /**
+     * Formatea fecha en formato DD-MM-YYYY
+     */
+    private function formatDateDDMMYYYY($date): string
+    {
+        if (!$date) {
+            return '';
+        }
+
+        if ($date instanceof Carbon) {
+            return $date->format('d-m-Y');
+        }
+
+        return Carbon::parse($date)->format('d-m-Y');
     }
 }

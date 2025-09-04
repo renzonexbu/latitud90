@@ -58,6 +58,13 @@ class ExcelExporter
                         $value = (string) $value;
                     }
                     
+                    // Asegurar que la columna "N° Documento" siempre sea tratada como texto
+                    $currentHeader = $headers[$colIndex];
+                    if ($currentHeader === 'N° Documento') {
+                        $sheet->getStyle($col . $rowIndex)->getNumberFormat()->setFormatCode('@');
+                        $value = (string) $value;
+                    }
+                    
                     $sheet->setCellValue($col . $rowIndex, $value);
                     $colIndex++;
                 }
@@ -112,7 +119,7 @@ class ExcelExporter
         $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . '1')->applyFromArray($headerStyle);
         
         // Formato para columnas específicas
-        $textColumns = ['N° Orden', 'Documento'];
+        $textColumns = ['N° Orden', 'Documento', 'N° Documento'];
         
         foreach ($headers as $index => $header) {
             $col = chr(65 + $index);

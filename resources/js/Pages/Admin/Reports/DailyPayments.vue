@@ -178,7 +178,7 @@
                             <h4 class="text-lg font-semibold text-gray-900 mb-3">Información del Participante</h4>
                             <div class="space-y-2">
                                 <p><span class="font-medium">Nombre del Alumno:</span> {{ selectedPayment.participant_name || 'N/A' }}</p>
-                                <p><span class="font-medium">N° Documento:</span> {{ formatRut(selectedPayment.participant_document) }}</p>
+                                <p><span class="font-medium">N° Documento:</span> {{ selectedPayment.transaction_document_number || 'N/A' }}</p>
                                 <p><span class="font-medium">Tipo de Dcto:</span> {{ selectedPayment.document_type || 'RUT' }}</p>
                             </div>
                         </div>
@@ -300,7 +300,7 @@
                                     </label>
                                     <label class="flex items-center">
                                         <input type="checkbox" v-model="exportFields.participant.document" class="mr-2">
-                                        <span class="text-sm">N° Documento</span>
+                                        <span class="text-sm">N° Documento de Transacción</span>
                                     </label>
                                     <label class="flex items-center">
                                         <input type="checkbox" v-model="exportFields.participant.documentType" class="mr-2">

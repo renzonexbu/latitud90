@@ -33,7 +33,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'full_debit_credit_12', 'label' => 'Débito y crédito hasta 12 cuotas sin interés (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 12, 'active' => true],
 			
 			// Pago total - Internacional
-			['code' => 'full_international', 'label' => 'Pago Internacional (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => null, 'active' => true],
+			['code' => 'full_international', 'label' => 'Pago Internacional (Webpay)', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'VPI', 'installments' => null, 'active' => true],
 			
 			// Pago total - Webpay con link de pago
 			['code' => 'full_webpay_link', 'label' => 'Pago webpay con link de pago', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'WP', 'installments' => null, 'active' => true],
@@ -51,7 +51,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'lat90_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
 			
 			// Devoluciones
-			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'BC', 'installments' => null, 'active' => true],
+			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'NC', 'installments' => null, 'active' => true],
 		];
 
 		foreach ($options as $opt) {

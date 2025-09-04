@@ -41,6 +41,9 @@ class DailyPaymentsTransformer
         // Obtener información del apoderado (contacto de emergencia)
         $apoderadoInfo = $this->getApoderadoInfo($item->order_id);
 
+        // Determinar el número de documento de la transacción según el tipo
+        $transactionDocumentNumber = $this->getTransactionDocumentNumber($item);
+
         return [
             'id' => $item->payment_id,
             'order_id' => $item->order_id,
@@ -54,6 +57,7 @@ class DailyPaymentsTransformer
             'document_type' => $this->getDocumentTypeLabel($item->document_type),
             'document_type_code' => $item->document_type ?? 'N/A',
             'participant_document' => $this->formatDocument($item->document_number ?? ''),
+            'transaction_document_number' => $transactionDocumentNumber, // ← NUEVO CAMPO
             'program_departure_date' => $item->departure_date,
             'program_price' => $participantPrice['final_price'], // Precio real con descuentos
             'scholarships_amount' => (float) $discountBreakdown['normal_discounts'], // Descuentos normales (no liberados)
@@ -117,7 +121,7 @@ class DailyPaymentsTransformer
             // 6. Tipo de Dcto
             ['section' => 'participant', 'field' => 'documentType', 'header' => 'Tipo de Dcto', 'value' => $transformed['document_type_code']],
             // 7. N° Documento
-            ['section' => 'participant', 'field' => 'document', 'header' => 'N° Documento', 'value' => $transformed['participant_document']],
+            ['section' => 'participant', 'field' => 'document', 'header' => 'N° Documento', 'value' => $transformed['transaction_document_number']],
             // 8. Fecha de Inicio de Programa
             ['section' => 'program', 'field' => 'startDate', 'header' => 'Fecha de Inicio de Programa', 'value' => $this->formatDate($transformed['program_departure_date'])],
             // 9. $ Programa
@@ -153,7 +157,7 @@ class DailyPaymentsTransformer
                 'Nombre del Alumno' => $transformed['participant_name'],
                 'Forma de Pago' => $transformed['payment_form_code'],
                 'Tipo de Dcto' => $transformed['document_type_code'],
-                'N° Documento' => $transformed['participant_document'],
+                'N° Documento' => $transformed['transaction_document_number'],
                                 'Fecha de Inicio de Programa' => $this->formatDate($transformed['program_departure_date']),
                 '$ Programa' => round($transformed['program_price']),
                 'Abonos + becas' => round($transformed['scholarships_amount']),
@@ -532,5 +536,61 @@ class DailyPaymentsTransformer
             ->value('trip_price');
             
         return (float) ($programPrice ?? 0);
+    }
+
+    /**
+     * Determina el número de documento de la transacción según el tipo de pago
+     */
+    private function getTransactionDocumentNumber($item): string
+    {
+        // 1. Para pagos presenciales y devoluciones: usar payment_code
+        if ($item->payment_code) {
+            return $item->payment_code;
+        }
+        
+        // 2. Para facturas y boletas: usar bsale_number
+        if ($item->bsale_number) {
+            return $item->bsale_number;
+        }
+        
+        // 3. Para reservas (AC): generar folio del contrato (código_programa-guión-documento_participante)
+        if ($item->document_type === 'AC') {
+            $programCode = $item->program_code ?? 'N/A';
+            // Para RUTs, eliminar puntos y guiones del documento del participante
+            $participantDoc = $this->cleanDocumentNumber($item->document_number ?? '');
+            return $programCode . '-' . $participantDoc;
+        }
+        
+        // 4. Para otros casos: usar buy_order o número de orden
+        if ($item->buy_order) {
+            return $item->buy_order;
+        }
+        
+        if ($item->order_number) {
+            return $item->order_number;
+        }
+        
+        return 'N/A';
+    }
+
+    /**
+     * Limpia el número de documento eliminando puntos y guiones (para RUTs)
+     */
+    private function cleanDocumentNumber(?string $documentNumber): string
+    {
+        if (empty($documentNumber)) {
+            return 'N/A';
+        }
+        
+        // Eliminar puntos y guiones para RUTs
+        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        
+        // Si es un RUT válido (7-8 dígitos + dígito verificador), devolver limpio
+        if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
+            return $cleanNumber;
+        }
+        
+        // Si no es un RUT, devolver tal como está
+        return $documentNumber;
     }
 }

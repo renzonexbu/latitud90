@@ -105,7 +105,7 @@
                         <!-- N° Documento -->
                         <td class="px-4 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">
-                                {{ formatRut(payment.participant_document) }}
+                                {{ payment.transaction_document_number || 'N/A' }}
                             </div>
                         </td>
 

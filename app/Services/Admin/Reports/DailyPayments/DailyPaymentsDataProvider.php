@@ -34,6 +34,9 @@ class DailyPaymentsDataProvider
                 'pay.order_id',
                 'pay.order_detail_id',
                 'pay.document_type',
+                'pay.payment_code', // ← NUEVO CAMPO
+                'pay.bsale_number', // ← NUEVO CAMPO
+                'pay.buy_order', // ← NUEVO CAMPO
                 // Datos de la orden
                 'o.order_number',
                 'o.total_amount',

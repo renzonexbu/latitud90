@@ -179,7 +179,7 @@
                                     <h3
                                         class="text-lg font-semibold text-indigo-800"
                                     >
-                                        Plantilla Softland
+                                        Softland
                                     </h3>
                                 </div>
                                 <p class="text-sm text-indigo-600">
