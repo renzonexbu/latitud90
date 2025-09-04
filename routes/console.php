@@ -26,14 +26,14 @@ Artisan::command('inspire', function () {
 
 // Comando para confirmar pagos pendientes cada minuto
 Artisan::command('payments:process-pending', function () {
-    $service = new PaymentProcessingService();
+    $service = app(PaymentProcessingService::class);
     $results = $service->processPendingPayments();
-    
+
     $this->info('🔄 Procesando pagos pendientes...');
     $this->info("📊 Total pagos pendientes: {$results['total_pending']}");
     $this->info("✅ Pagos procesados: {$results['processed']}");
     $this->info("❌ Errores: {$results['errors']}");
-    
+
     if (!empty($results['details'])) {
         foreach ($results['details'] as $detail) {
             if ($detail['status'] === 'error') {
@@ -43,7 +43,7 @@ Artisan::command('payments:process-pending', function () {
             }
         }
     }
-    
+
     $this->info('✅ Procesamiento de pagos pendientes completado');
 })->purpose('Procesar pagos pendientes de confirmación');
 
@@ -105,14 +105,14 @@ Artisan::command('payment-options:update', function () {
     $this->info("📊 Programas procesados: {$results['programs_processed']}");
     $this->info("✅ Opciones actualizadas: {$results['options_updated']}");
     $this->info("📈 Cuotas actualizadas: {$results['installments_updated']}");
-    
+
     if (!empty($results['errors'])) {
         $this->warn("⚠️ Errores encontrados:");
         foreach ($results['errors'] as $error) {
             $this->warn("   • {$error}");
         }
     }
-    
+
     $this->info('✅ Actualización de opciones de pago completada');
 })->purpose('Actualizar automáticamente las opciones de pago y cuotas según el tiempo transcurrido');
 
@@ -125,14 +125,14 @@ Artisan::command('marketing:process-emails', function () {
     $this->info("📊 Total emails procesados: {$results['total_processed']}");
     $this->info("✅ Nuevos emails agregados: {$results['new_emails_added']}");
     $this->info("🔄 Emails existentes actualizados: {$results['existing_emails_updated']}");
-    
+
     if (!empty($results['errors'])) {
         $this->warn("⚠️ Errores encontrados:");
         foreach ($results['errors'] as $error) {
             $this->warn("   • {$error}");
         }
     }
-    
+
     // Mostrar estadísticas
     $stats = $service->getMarketingEmailsStats();
     $this->info("📈 Estadísticas actuales:");
@@ -141,9 +141,6 @@ Artisan::command('marketing:process-emails', function () {
     $this->info("   • Emails inactivos: {$stats['inactive_emails']}");
     $this->info("   • Orders con marketing: {$stats['total_orders_with_marketing']}");
     $this->info("   • Clientes frecuentes con marketing: {$stats['total_frequent_clients_with_marketing']}");
-    
+
     $this->info('✅ Procesamiento de emails de marketing completado');
 })->purpose('Procesar y almacenar emails de marketing desde orders_detail y frequent_client');
-
-
-

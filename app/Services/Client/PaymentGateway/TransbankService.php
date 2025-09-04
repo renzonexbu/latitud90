@@ -8,7 +8,6 @@ use Transbank\Webpay\Options;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCreateException;
 use Transbank\Webpay\WebpayPlus\Exceptions\MallTransactionCommitException;
 use App\Traits\SystemLogging;
-use Illuminate\Support\Facades\Log;
 
 class TransbankService
 {
@@ -38,10 +37,7 @@ class TransbankService
         }
     }
 
-    /**
-     * Crear transacción usando la API de Transbank (compatible con VirtualPOS)
-     */
-    public function createTransaction($orderId, $amount, $returnUrl, $notificationUrl = null, $paymentType = null, $installments = null, $customerEmail = null, $customerDocument = null, $customerName = null, $customerPhone = null)
+    public function createTransaction($orderId, $amount, $returnUrl, $notificationUrl = null, $paymentType = null, $installments = null)
     {
         try {
             $sessionId = session()->getId();
@@ -60,51 +56,17 @@ class TransbankService
             $mall = new MallTransaction($options);
             $response = $mall->create((string) $orderId, (string) $sessionId, (string) $returnUrl, $details);
 
-            Log::info('💳 TRANSBANK TRANSACTION CREATED - Response received (PRUEBAS)', [
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'token' => $response->getToken(),
-                'url' => $response->getUrl(),
-                'customer_email' => $customerEmail,
-                'customer_name' => $customerName,
-                'gateway' => 'TRANSBANK'
-            ]);
-            
-            $this->logInfo('Transbank createTransaction response (PRUEBAS)', [
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'token' => $response->getToken(),
-                'url' => $response->getUrl(),
-                'customer_email' => $customerEmail,
-                'customer_name' => $customerName
-            ]);
-
             return [
                 'success' => true,
-                'payment_id' => $response->getToken(), // Para compatibilidad con VirtualPOS
-                'url' => $response->getUrl(),
                 'token' => $response->getToken(),
-                'full_response' => [
-                    'token' => $response->getToken(),
-                    'url' => $response->getUrl(),
-                ]
+                'url' => $response->getUrl(),
             ];
         } catch (MallTransactionCreateException $e) {
-            $this->logError('Transbank createTransaction error (PRUEBAS)', [
-                'order_id' => $orderId,
-                'error' => $e->getMessage(),
-            ], $e);
-
             return [
                 'success' => false,
                 'error' => method_exists($e, 'getTransbankErrorMessage') && $e->getTransbankErrorMessage() ? $e->getTransbankErrorMessage() : $e->getMessage(),
             ];
         } catch (\Exception $e) {
-            $this->logError('Transbank createTransaction error (PRUEBAS)', [
-                'order_id' => $orderId,
-                'error' => $e->getMessage(),
-            ], $e);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -112,43 +74,7 @@ class TransbankService
         }
     }
 
-    /**
-     * Procesar notificación webhook de Transbank (compatible con VirtualPOS)
-     * Transbank no usa webhooks como VirtualPOS, pero mantenemos la interfaz para compatibilidad
-     */
-    public function processNotification($notificationData)
-    {
-        try {
-            $this->logInfo('Transbank processNotification - Full details (PRUEBAS)', [
-                'notification_data' => $notificationData,
-            ]);
 
-            // Transbank no usa webhooks como VirtualPOS, pero mantenemos la interfaz
-            // para compatibilidad. En su lugar, usamos confirmTransaction
-            $paymentId = $notificationData['payment_id'] ?? $notificationData['token_ws'] ?? null;
-
-            if (!$paymentId) {
-                $this->logError('Transbank notification: No payment_id provided (PRUEBAS)', $notificationData);
-                return [
-                    'success' => false,
-                    'error' => 'No payment_id provided'
-                ];
-            }
-
-            // Usar confirmTransaction para obtener el estado
-            return $this->confirmTransaction($paymentId);
-        } catch (\Exception $e) {
-            $this->logError('Transbank processNotification error (PRUEBAS)', [
-                'error' => $e->getMessage(),
-                'notification_data' => $notificationData
-            ], $e);
-
-            return [
-                'success' => false,
-                'error' => 'Error procesando notificación de Transbank: ' . $e->getMessage()
-            ];
-        }
-    }
 
     public function confirmTransaction($token)
     {

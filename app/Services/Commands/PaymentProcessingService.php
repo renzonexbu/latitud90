@@ -3,11 +3,19 @@
 namespace App\Services\Commands;
 
 use App\Models\Payment;
+use App\Services\Client\PaymentGateway\PaymentConfirmationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
 class PaymentProcessingService
 {
+    private PaymentConfirmationService $paymentConfirmationService;
+
+    public function __construct(PaymentConfirmationService $paymentConfirmationService)
+    {
+        $this->paymentConfirmationService = $paymentConfirmationService;
+    }
+
     /**
      * Procesar pagos pendientes de confirmación
      */
@@ -21,15 +29,15 @@ class PaymentProcessingService
         ];
         
         try {
-            $pendingPayments = Payment::where('status', 'pending')->orWhere('status', 'processing')
-                ->whereNull('token') // Excluir pagos que tienen token (siendo procesados por callback)
-                ->with(['orderDetail', 'paymentGateway'])
+            // Obtener pagos pendientes con sus relaciones necesarias
+            $pendingPayments = Payment::where('status', 'pending')
+                ->with(['orderDetail.order', 'paymentGateway'])
                 ->get();
                 
             $results['total_pending'] = $pendingPayments->count();
             
             if ($pendingPayments->isEmpty()) {
-                Log::info('No hay pagos pendientes para procesar (excluyendo los que tienen token/callback activo)');
+                Log::info('No hay pagos pendientes para procesar');
                 return $results;
             }
             
@@ -42,6 +50,7 @@ class PaymentProcessingService
                     
                     $results['details'][] = [
                         'payment_id' => $payment->id,
+                        'order_detail_id' => $payment->order_detail_id,
                         'status' => 'processed',
                         'message' => 'Pago procesado exitosamente'
                     ];
@@ -51,6 +60,7 @@ class PaymentProcessingService
                     
                     $results['details'][] = [
                         'payment_id' => $payment->id,
+                        'order_detail_id' => $payment->order_detail_id,
                         'status' => 'error',
                         'message' => $e->getMessage()
                     ];
@@ -80,64 +90,65 @@ class PaymentProcessingService
      */
     private function processPayment(Payment $payment): void
     {
-        // Aquí implementarías la lógica específica para cada tipo de gateway
-        // Por ejemplo, consultar el estado del pago en Transbank, Khipu, etc.
-        
         $gatewayCode = $payment->paymentGateway->code ?? 'unknown';
+        
+        Log::info("Procesando pago ID: {$payment->id} con gateway: {$gatewayCode}");
+        
+        // Construir los datos del gateway según el tipo
+        $gatewayData = $this->buildGatewayData($payment);
+        
+        if (empty($gatewayData)) {
+            Log::warning("No se pudieron obtener datos del gateway para pago ID: {$payment->id}", [
+                'gateway_code' => $gatewayCode,
+                'payment_data' => $payment->toArray()
+            ]);
+            return;
+        }
+        
+        // Usar el PaymentConfirmationService para confirmar el pago
+        $result = $this->paymentConfirmationService->confirmPayment(
+            $payment->order_detail_id,
+            $gatewayCode,
+            $gatewayData
+        );
+        
+        Log::info("Resultado de confirmación para pago ID: {$payment->id}", [
+            'result' => $result,
+            'gateway_code' => $gatewayCode
+        ]);
+    }
+    
+    /**
+     * Construir datos del gateway según el tipo de pago
+     */
+    private function buildGatewayData(Payment $payment): array
+    {
+        $gatewayCode = $payment->paymentGateway->code ?? 'unknown';
+        $gatewayData = [];
         
         switch ($gatewayCode) {
             case 'transbank':
-                $this->processTransbankPayment($payment);
+            case 'virtualpos':
+                // Para Transbank/VirtualPOS necesitamos el token o payment_id
+                if ($payment->token) {
+                    $gatewayData['token_ws'] = $payment->token;
+                } elseif ($payment->external_payment_id) {
+                    $gatewayData['payment_id'] = $payment->external_payment_id;
+                }
                 break;
                 
             case 'khipu':
-                $this->processKhipuPayment($payment);
+                // Para Khipu necesitamos el external_payment_id
+                if ($payment->external_payment_id) {
+                    $gatewayData['payment_id'] = $payment->external_payment_id;
+                }
                 break;
                 
             default:
-                Log::warning("Gateway no soportado para pago ID: {$payment->id}", [
-                    'gateway_code' => $gatewayCode
-                ]);
+                Log::warning("Gateway no soportado para construcción de datos: {$gatewayCode}");
                 break;
         }
-    }
-    
-    /**
-     * Procesar pago de Transbank
-     */
-    private function processTransbankPayment(Payment $payment): void
-    {
-        // Implementar lógica específica de Transbank
-        // Por ejemplo, consultar estado del pago via API
         
-        Log::info("Procesando pago Transbank ID: {$payment->id}");
-        
-        // TODO: Implementar consulta real a Transbank
-        // Por ahora solo simulamos el procesamiento
-        
-        // Simular actualización del estado
-        $payment->update([
-            'status' => 'processing',
-            'updated_at' => now()
-        ]);
-    }
-    
-    /**
-     * Procesar pago de Khipu
-     */
-    private function processKhipuPayment(Payment $payment): void
-    {
-        // Implementar lógica específica de Khipu
-        
-        Log::info("Procesando pago Khipu ID: {$payment->id}");
-        
-        // TODO: Implementar consulta real a Khipu
-        // Por ahora solo simulamos el procesamiento
-        
-        // Simular actualización del estado
-        $payment->update([
-            'status' => 'processing',
-            'updated_at' => now()
-        ]);
+        return $gatewayData;
     }
 }
