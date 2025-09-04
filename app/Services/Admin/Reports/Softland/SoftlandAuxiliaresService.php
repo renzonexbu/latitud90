@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\Country;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class SoftlandAuxiliaresService
 {
@@ -39,11 +40,15 @@ class SoftlandAuxiliaresService
      */
     public function generateAuxiliaresData(): Collection
     {
-        // Obtener compradores únicos de orders_detail
+        // Obtener compradores únicos de orders_detail agrupados por document_number
         $orderDetails = OrderDetail::with(['documentType', 'country', 'region', 'city'])
             ->select('name', 'email', 'phone', 'document_type', 'document_number', 'country', 'region', 'city')
-            ->distinct()
-            ->get();
+            ->get()
+            ->groupBy('document_number') // Agrupar por número de documento
+            ->map(function ($group) {
+                // Tomar el primer registro de cada grupo (document_number único)
+                return $group->first();
+            });
 
         return $orderDetails->map(function ($orderDetail) {
             return $this->mapOrderDetailToAuxiliar($orderDetail);

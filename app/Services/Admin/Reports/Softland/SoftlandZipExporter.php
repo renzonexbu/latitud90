@@ -30,11 +30,6 @@ class SoftlandZipExporter
      */
     public function exportToZip(array $filters = [], string $format = 'excel'): string
     {
-        Log::info('Iniciando exportación ZIP de archivos Softland', [
-            'filters' => $filters,
-            'format' => $format
-        ]);
-
         try {
             // Crear directorio temporal si no existe
             $tempDir = storage_path('app/temp');
@@ -47,8 +42,6 @@ class SoftlandZipExporter
             $zipFileName = "softland_completo_{$timestamp}.zip";
             $zipPath = "{$tempDir}/{$zipFileName}";
 
-            Log::info('Creando archivo ZIP', ['zip_path' => $zipPath]);
-
             // Crear archivo ZIP
             $zip = new ZipArchive();
             if ($zip->open($zipPath, ZipArchive::CREATE) !== TRUE) {
@@ -56,39 +49,21 @@ class SoftlandZipExporter
             }
 
             // 1. Generar archivo de Auxiliares
-            Log::info('Generando archivo de auxiliares');
             $auxiliaresFileName = $this->generateAuxiliaresFile($format, $timestamp);
-            Log::info('Resultado generación auxiliares', [
-                'file_name' => $auxiliaresFileName,
-                'exists' => $auxiliaresFileName ? file_exists($auxiliaresFileName) : false
-            ]);
             if ($auxiliaresFileName && file_exists($auxiliaresFileName)) {
                 $auxiliaresContent = file_get_contents($auxiliaresFileName);
                 $zip->addFromString(basename($auxiliaresFileName), $auxiliaresContent);
-                Log::info('Archivo de auxiliares agregado al ZIP', ['file' => basename($auxiliaresFileName)]);
-            } else {
-                Log::error('No se pudo agregar archivo de auxiliares al ZIP', [
-                    'file_name' => $auxiliaresFileName,
-                    'exists' => $auxiliaresFileName ? file_exists($auxiliaresFileName) : false
-                ]);
             }
 
             // 2. Generar archivo de Movimientos Contables
-            Log::info('Generando archivo de movimientos contables');
             $movimientosFileName = $this->generateMovimientosFile($filters, $format, $timestamp);
             if ($movimientosFileName && file_exists($movimientosFileName)) {
                 $movimientosContent = file_get_contents($movimientosFileName);
                 $zip->addFromString(basename($movimientosFileName), $movimientosContent);
-                Log::info('Archivo de movimientos agregado al ZIP', ['file' => basename($movimientosFileName)]);
             }
 
             // Cerrar ZIP
             $zip->close();
-
-            Log::info('Archivo ZIP creado exitosamente', [
-                'zip_path' => $zipPath,
-                'size' => filesize($zipPath)
-            ]);
 
             // Limpiar archivos temporales individuales
             $this->cleanupTempFiles([$auxiliaresFileName, $movimientosFileName]);
@@ -96,10 +71,6 @@ class SoftlandZipExporter
             return $zipPath;
 
         } catch (\Exception $e) {
-            Log::error('Error al generar archivo ZIP', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }
@@ -130,16 +101,9 @@ class SoftlandZipExporter
                 if (file_exists($tempCsvPath)) {
                     // Simplemente usar el archivo temporal como archivo final
                     $filePath = $tempCsvPath;
-                    Log::info('Archivo CSV de auxiliares generado correctamente', [
-                        'file_path' => $filePath,
-                        'exists' => file_exists($filePath)
-                    ]);
-                } else {
-                    Log::error('Archivo temporal CSV no existe', ['temp_path' => $tempCsvPath]);
                 }
             }
 
-            Log::info('Archivo de auxiliares generado', ['file' => $fileName]);
             return $filePath;
 
         } catch (\Exception $e) {
@@ -170,7 +134,6 @@ class SoftlandZipExporter
             // Guardar el contenido en el archivo
             file_put_contents($filePath, $content);
 
-            Log::info('Archivo de movimientos generado', ['file' => $fileName]);
             return $filePath;
 
         } catch (\Exception $e) {
@@ -189,7 +152,6 @@ class SoftlandZipExporter
         foreach ($files as $file) {
             if ($file && file_exists($file)) {
                 unlink($file);
-                Log::info('Archivo temporal eliminado', ['file' => basename($file)]);
             }
         }
     }
@@ -206,13 +168,10 @@ class SoftlandZipExporter
             foreach ($files as $file) {
                 if (filemtime($file) < (time() - 3600)) { // 1 hora
                     unlink($file);
-                    Log::info('Archivo ZIP antiguo eliminado', ['file' => basename($file)]);
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Error al limpiar archivos antiguos', [
-                'error' => $e->getMessage()
-            ]);
+            // Silenciar errores de limpieza
         }
     }
 }

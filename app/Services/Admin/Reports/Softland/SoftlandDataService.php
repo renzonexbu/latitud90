@@ -335,10 +335,11 @@ class SoftlandDataService
     private function formatCreditDescription(Payment $payment, $participant, $program, $paymentOption): string
     {
         $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
+        $programName = $program ? ($program->name ?? 'SIN-NOMBRE') : 'SIN-NOMBRE';
         $documentType = $payment->document_type ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
-        return "N{$programCode}/Programa Educacion/{$documentType}-{$boletaNumber}";
+        return "N{$programCode}/{$programName}/{$documentType}-{$boletaNumber}";
     }
 
     /**
@@ -628,10 +629,11 @@ class SoftlandDataService
     private function formatRefundCreditDescription(Payment $payment, $participant, $program): string
     {
         $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
+        $programName = $program ? ($program->name ?? 'SIN-NOMBRE') : 'SIN-NOMBRE';
         $documentType = 'NC'; // Nota de crédito para reembolsos
         $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
-        return "N{$programCode}/Programa Educacion/{$documentType}-{$boletaNumber}";
+        return "N{$programCode}/{$programName}/{$documentType}-{$boletaNumber}";
     }
 
     /**

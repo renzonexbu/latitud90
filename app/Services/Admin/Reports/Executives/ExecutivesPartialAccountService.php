@@ -133,7 +133,7 @@ class ExecutivesPartialAccountService
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
                     'overdue_installments' => $overdueInstallments,
-                    'payment_method' => $row->payment_method ?: '',
+                    'payment_method' => $this->mapPaymentMethodCode($row->payment_method ?: ''),
                     'scholarship' => $scholarship,
                     'released' => $released,
                     'balance' => $porPagar,
@@ -158,6 +158,22 @@ class ExecutivesPartialAccountService
             ],
             'programs' => \App\Models\Program::select('id', 'code', 'name')->orderBy('code')->get(),
         ];
+    }
+
+    /**
+     * Mapea códigos de forma de pago a nombres descriptivos
+     */
+    private function mapPaymentMethodCode(string $code): string
+    {
+        $mapping = [
+            'KP' => 'Khipu',
+            'BX' => 'Tarjeta Presencial',
+            'TE' => 'Transferencia',
+            'VP' => 'Pago en VirtualPos',
+            'VPI' => 'Pago Internacional',
+        ];
+
+        return $mapping[$code] ?? $code;
     }
 }
 

@@ -321,10 +321,6 @@ class ReportController extends Controller
     public function exportSoftlandZip(Request $request)
     {
         try {
-            Log::info('Iniciando exportación ZIP de archivos Softland', [
-                'request_params' => $request->all()
-            ]);
-
             // Obtener parámetros
             $format = $request->get('format', 'excel');
             $dateFrom = $request->get('dateFrom');
@@ -337,8 +333,6 @@ class ReportController extends Controller
             if ($dateTo) $filters['dateTo'] = $dateTo;
             if ($programId) $filters['programId'] = $programId;
 
-            Log::info('Filtros aplicados', ['filters' => $filters, 'format' => $format]);
-
             // Limpiar archivos antiguos
             $this->softlandZipExporter->cleanupOldFiles();
 
@@ -350,12 +344,6 @@ class ReportController extends Controller
             }
 
             $fileName = basename($zipPath);
-            $fileSize = filesize($zipPath);
-
-            Log::info('Archivo ZIP generado exitosamente', [
-                'file_name' => $fileName,
-                'file_size' => $fileSize
-            ]);
 
             // Descargar el archivo
             return response()->download($zipPath, $fileName)->deleteFileAfterSend(true);

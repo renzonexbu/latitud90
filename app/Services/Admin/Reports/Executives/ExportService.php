@@ -346,9 +346,9 @@ class ExportService
             'A10' => 'Alumno',
             'B10' => 'Precio',
             'C10' => 'Abono',
-            'D10' => 'Cuotas Pagadas',
-            'E10' => 'Cuotas Vencidas',
-            'F10' => 'Forma de Pago',
+            'D10' => "Cuotas\nPagadas",
+            'E10' => "Cuotas\nVencidas",
+            'F10' => "Forma de\nPago",
             'G10' => 'Aporte/Beca',
             'H10' => 'Monto Liberado',
             'I10' => 'Por pagar',
@@ -358,6 +358,10 @@ class ExportService
         }
         $this->styleHeader($sheet, 'A10:I10');
         $sheet->setAutoFilter('A10:I10');
+        
+        // Configurar altura de fila para headers con salto de línea
+        $sheet->getRowDimension(10)->setRowHeight(40);
+        
         // Anchos fijos para que la tabla quepa en una página Carta
         $sheet->getColumnDimension('A')->setWidth(35); // Alumno
         $sheet->getColumnDimension('B')->setWidth(12); // Precio
@@ -461,7 +465,8 @@ class ExportService
                     $orderDetail = \App\Models\OrderDetail::find($lastPayment->order_detail_id);
                     if ($orderDetail) {
                         $paymentOption = \App\Models\PaymentOption::find($orderDetail->payment_option_id);
-                        $paymentMethod = $paymentOption->report_code ?? '';
+                        $paymentMethodCode = $paymentOption->report_code ?? '';
+                        $paymentMethod = $this->mapPaymentMethodCode($paymentMethodCode);
                     }
                 }
             }
@@ -496,9 +501,13 @@ class ExportService
             $sheet->setCellValue('H' . $row, $released);
             $sheet->setCellValue('I' . $row, $porPagar);
 
+            // Aplicar formato de moneda a las columnas numéricas
             foreach (['B','C','G','H','I'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
             }
+            
+            // Centrar contenido en columnas D, E, F (Cuotas Pagadas, Cuotas Vencidas, Forma de Pago)
+            $sheet->getStyle('D' . $row . ':F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $totals['price'] += $price;
             $totals['abono'] += $abono;
@@ -631,7 +640,8 @@ class ExportService
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true
             ],
             'borders' => [
                 'allBorders' => [
@@ -677,6 +687,22 @@ class ExportService
             return $numFmt . '-' . $dv;
         }
         return $rutStr;
+    }
+
+    /**
+     * Mapea códigos de forma de pago a nombres descriptivos
+     */
+    private function mapPaymentMethodCode(string $code): string
+    {
+        $mapping = [
+            'KP' => 'Khipu',
+            'BX' => 'Tarjeta Presencial',
+            'TE' => 'Transferencia',
+            'VP' => 'Pago en VirtualPos',
+            'VPI' => 'Pago Internacional',
+        ];
+
+        return $mapping[$code] ?? $code;
     }
 }
 
