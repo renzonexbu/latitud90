@@ -21,15 +21,15 @@ class PaymentProcessingService
         ];
         
         try {
-            // Obtener pagos pendientes
-            $pendingPayments = Payment::where('status', 'pending')
+            $pendingPayments = Payment::where('status', 'pending')->orWhere('status', 'processing')
+                ->whereNull('token') // Excluir pagos que tienen token (siendo procesados por callback)
                 ->with(['orderDetail', 'paymentGateway'])
                 ->get();
                 
             $results['total_pending'] = $pendingPayments->count();
             
             if ($pendingPayments->isEmpty()) {
-                Log::info('No hay pagos pendientes para procesar');
+                Log::info('No hay pagos pendientes para procesar (excluyendo los que tienen token/callback activo)');
                 return $results;
             }
             

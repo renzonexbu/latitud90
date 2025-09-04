@@ -14,6 +14,7 @@ use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentConfirmationService
 {
@@ -91,6 +92,9 @@ class PaymentConfirmationService
 
                 switch ($gatewayType) {
                     case 'transbank':
+                        $lastResult = $this->confirmTransbankPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
+                        break;
+
                     case 'virtualpos':
                         $lastResult = $this->confirmVirtualPosPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
                         break;
@@ -203,12 +207,38 @@ class PaymentConfirmationService
         }
 
         try {
+            Log::info('💳 TRANSBANK CONFIRMATION - Calling confirmTransaction', [
+                'order_detail_id' => $orderDetail->id,
+                'token_ws' => $tokenWs
+            ]);
+            
             $result = $this->transbankService->confirmTransaction($tokenWs);
+
+            Log::info('💳 TRANSBANK CONFIRMATION - Result received', [
+                'order_detail_id' => $orderDetail->id,
+                'result' => $result,
+                'success' => $result['success'] ?? false,
+                'response_code' => $result['response_code'] ?? null
+            ]);
 
             // Validar responseCode según documentación de Transbank
             if ($result['success'] && $result['response_code'] === 0) {
+                Log::info('💳 TRANSBANK PAYMENT APPROVED - Processing successful payment', [
+                    'order_detail_id' => $orderDetail->id,
+                    'response_code' => $result['response_code']
+                ]);
+                
                 // Pago aprobado - responseCode = 0
+                Log::info('💳 TRANSBANK - About to call processSuccessfulPayment', [
+                    'order_detail_id' => $orderDetail->id,
+                    'result_keys' => array_keys($result)
+                ]);
+                
                 $this->processSuccessfulPayment($orderDetail, $result, 'transbank', $sessionId);
+                
+                Log::info('💳 TRANSBANK - processSuccessfulPayment completed', [
+                    'order_detail_id' => $orderDetail->id
+                ]);
                 $pendingPayment->markAsConfirmed();
 
                 return [
@@ -218,6 +248,12 @@ class PaymentConfirmationService
                     'data' => $result,
                 ];
             } else {
+                Log::info('💳 TRANSBANK PAYMENT REJECTED - Processing failed payment', [
+                    'order_detail_id' => $orderDetail->id,
+                    'result' => $result,
+                    'response_code' => $result['response_code'] ?? null
+                ]);
+                
                 // Pago rechazado por Transbank - responseCode ≠ 0
                 $errorMessage = $result['error'] ?? 'Pago rechazado por Transbank';
                 $this->processFailedPayment($orderDetail, $result, 'transbank', $errorMessage);

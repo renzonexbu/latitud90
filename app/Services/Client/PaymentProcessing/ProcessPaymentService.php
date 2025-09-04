@@ -16,6 +16,7 @@ use App\Services\Client\PaymentProcessing\CreateGatewayTransactionService;
 use App\Services\Client\PaymentProcessing\RecordPendingPaymentService;
 use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ProcessPaymentService
 {
@@ -249,15 +250,41 @@ class ProcessPaymentService
     private function normalizeGatewayType(string $method): string
     {
         $methodRaw = (string) $method;
+        
+        // LÓGICA DINÁMICA: Determinar qué gateway usar según configuración
+        $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+        
+        // LOG PARA VERIFICAR NORMALIZACIÓN
+        Log::info('🎯 GATEWAY NORMALIZATION - Config value: ' . ($useVirtualPos ? 'true' : 'false'), [
+            'original_method' => $methodRaw,
+            'gateway_selected' => $useVirtualPos ? 'virtualpos' : 'transbank',
+            'config_file' => 'config/lat90.php'
+        ]);
+        
         // VirtualPOS: debit_credit_0, debit_credit_3, etc.
         if (stripos($methodRaw, 'debit_credit') !== false) {
-            return 'virtualpos';
+            $result = $useVirtualPos ? 'virtualpos' : 'transbank';
+            Log::info('🔍 METHOD MATCH: debit_credit -> ' . $result, [
+                'method' => $methodRaw,
+                'result' => $result
+            ]);
+            return $result;
         }
         // Legacy Transbank
         else if (stripos($methodRaw, 'credit') !== false) {
-            return 'credit';
+            $result = $useVirtualPos ? 'virtualpos' : 'transbank';
+            Log::info('🔍 METHOD MATCH: credit -> ' . $result, [
+                'method' => $methodRaw,
+                'result' => $result
+            ]);
+            return $result;
         } else if (stripos($methodRaw, 'debit') !== false) {
-            return 'debit';
+            $result = $useVirtualPos ? 'virtualpos' : 'transbank';
+            Log::info('🔍 METHOD MATCH: debit -> ' . $result, [
+                'method' => $methodRaw,
+                'result' => $result
+            ]);
+            return $result;
         }
         return 'other';
     }
