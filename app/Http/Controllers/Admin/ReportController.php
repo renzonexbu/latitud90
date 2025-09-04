@@ -23,6 +23,10 @@ use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleDetailService;
 use App\Services\EcommerceAnalyticsService;
 use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
+use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
+use App\Services\Admin\Reports\Softland\SoftlandAuxiliaresService;
+use App\Services\Admin\Reports\Softland\SoftlandZipExporter;
+use Illuminate\Support\Facades\Log;
 
 class ReportController extends Controller
 {
@@ -42,395 +46,189 @@ class ReportController extends Controller
         private PaymentScheduleSummaryService $paymentScheduleSummaryService,
         private PaymentScheduleDetailService $paymentScheduleDetailService,
         private EcommerceAnalyticsService $analyticsService,
-        private SoftlandExcelExporter $softlandExcelExporter
+        private SoftlandExcelExporter $softlandExcelExporter,
+        private AuxiliaresExporter $auxiliaresExporter,
+        private SoftlandAuxiliaresService $auxiliaresService,
+        private SoftlandZipExporter $softlandZipExporter
     ) {}
 
     public function index(Request $request)
     {
         $data = $this->getIndexDataService->execute($request);
-
         return Inertia::render('Admin/Reports/Index', $data);
     }
 
-
-
-
-
     public function export(Request $request)
     {
-        $filters = [
-            'dateFrom' => $request->dateFrom ?? Carbon::now()->subMonth()->format('Y-m-d'),
-            'dateTo' => $request->dateTo ?? Carbon::now()->format('Y-m-d'),
-            'programId' => $request->program
-        ];
-
         try {
-            return $this->consolidatedExportService->export($filters);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            $format = $request->get('format', 'excel');
+            
+            return $this->exportService->export($filters, $format);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
         }
     }
 
-
-
     public function salesChart(Request $request)
     {
-        $data = $this->getSalesChartService->execute($request);
-
-        return response()->json($data);
-    }
-
-
-
-    public function consolidatedPayments(Request $request)
-    {
-        $filters = $request->only([
-            'paymentMethodId',
-            'programId',
-            'participantQuery',
-            'dateFrom',
-            'dateTo',
-            'page'
-        ]);
-
-        // Obtener datos paginados
-        $page = $request->get('page', 1);
-        $consolidatedPayments = $this->consolidatedPaymentsService->getConsolidatedPayments($filters, $page);
-
-        // Obtener resumen
-        $summary = $this->consolidatedPaymentsService->getSummary($filters);
-
-        // Obtener datos para filtros
-        $paymentMethods = $this->consolidatedPaymentsService->getPaymentMethods();
-        $programs = \App\Models\Program::select('id', 'code', 'name', 'destination')->orderBy('code')->get();
-
-        return Inertia::render('Admin/Reports/ConsolidatedPayments', [
-            'consolidatedPayments' => $consolidatedPayments,
-            'paymentMethods' => $paymentMethods,
-            'programs' => $programs,
-            'filters' => $filters,
-            'summary' => $summary
-        ]);
-    }
-
-    public function installmentSchedule(Request $request)
-    {
-        $data = $this->getInstallmentScheduleService->execute($request);
-
-        return Inertia::render('Admin/Reports/InstallmentSchedule', $data);
-    }
-
-    public function revenueChart(Request $request)
-    {
-        $data = $this->getRevenueChartService->execute($request);
-
-        return Inertia::render('Admin/Reports/RevenueChart', $data);
-    }
-
-
-
-
-
-    public function exportConsolidatedPayments(Request $request)
-    {
-        $filters = $request->only([
-            'programId',
-            'participantQuery',
-            'paymentMethodId',
-            'dateFrom',
-            'dateTo'
-        ]);
-        $fields = json_decode($request->get('fields', '{}'), true);
-        $format = $request->get('format', 'xlsx');
-        $includeAll = $request->get('include_all', 'current');
-
         try {
-            // Obtener datos para exportación
-            if ($includeAll === 'all') {
-                $exportData = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, $fields);
-            } else {
-                // Solo página actual (implementar lógica si es necesario)
-                $exportData = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, $fields);
-            }
-
-            // Validar que tenemos datos para exportar
-            if ($exportData->isEmpty()) {
-                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
-            }
-
-            // Generar nombre de archivo
-            $filename = 'consolidado_pagos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
-
-            // Exportar según el formato
-            return $this->consolidatedPaymentsExportService->export($exportData, $filename, $format);
+            $data = $this->getSalesChartService->execute($request);
+            return response()->json($data);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener datos del gráfico: ' . $e->getMessage()], 500);
         }
     }
 
     public function partialAccount(Request $request)
     {
-        $filters = $request->only(['programId', 'participantId', 'dateFrom', 'dateTo', 'page']);
-
-        $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
-
-        // Obtener datos del estado de cuenta parcial
-        $partialAccounts = $partialAccountService->getPartialAccounts($filters);
-
-        // Obtener datos de filtros
-        $filterData = $partialAccountService->getFilterData();
-
-        return Inertia::render('Admin/Reports/PartialAccount', [
-            'partialAccounts' => $partialAccounts,
-            'programs' => $filterData['programs'],
-            'participants' => $filterData['participants'],
-            'filters' => $filters
-        ]);
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $data = $this->reportsSummaryService->getPartialAccountData($filters);
+            
+            return Inertia::render('Admin/Reports/PartialAccount', [
+                'data' => $data,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar estado de cuenta parcial: ' . $e->getMessage()], 500);
+        }
     }
 
     public function paymentSchedule(Request $request)
     {
-        $filters = $request->only(['programId', 'salesExecutiveId', 'dateFrom', 'dateTo', 'status', 'page']);
-
-        // Solo aplicar filtros de fecha si el usuario los especifica explícitamente
-        // Si no hay filtros, mostrar TODOS los datos
-        if (!empty($filters['dateFrom']) && !empty($filters['dateTo'])) {
-            // Validar que las fechas sean válidas
-            if (strtotime($filters['dateFrom']) > strtotime($filters['dateTo'])) {
-                $filters['dateFrom'] = now()->format('Y-m-d');
-                $filters['dateTo'] = now()->addMonth()->format('Y-m-d');
-            }
-        } else {
-            // Si no hay filtros de fecha, no aplicar restricciones
-            unset($filters['dateFrom']);
-            unset($filters['dateTo']);
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $data = $this->paymentScheduleSummaryService->getSummaryData($filters);
+            
+            return Inertia::render('Admin/Reports/PaymentSchedule', [
+                'data' => $data,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar cronograma de pagos: ' . $e->getMessage()], 500);
         }
-
-        // Obtener datos del cronograma de cuotas
-        $paymentSchedules = $this->recoveryScheduleService->getPaymentSchedules($filters, $filters['page'] ?? 1);
-
-        // Obtener resumen
-        $summary = $this->recoveryScheduleService->getSummary($filters);
-
-        // Obtener programas para filtros
-        $programs = $this->recoveryScheduleService->getPrograms();
-
-        // Obtener resumen ejecutivo
-        $executiveSummary = $this->paymentScheduleSummaryService->getExecutiveSummary($filters);
-
-        // Obtener ejecutivos para filtros
-        $salesExecutives = $this->paymentScheduleSummaryService->getSalesExecutives();
-
-        return Inertia::render('Admin/Reports/PaymentSchedule', [
-            'paymentSchedules' => $paymentSchedules,
-            'programs' => $programs,
-            'salesExecutives' => $salesExecutives,
-            'filters' => $filters,
-            'summary' => $summary,
-            'executiveSummary' => $executiveSummary
-        ]);
     }
 
     public function paymentScheduleDetails(Request $request)
     {
-        $filters = $request->only(['programId', 'salesExecutiveId', 'yearMonth', 'dateFrom', 'dateTo']);
-
         try {
-            // Obtener detalles del cronograma de cuotas (solo cuotas que vencen en el mes)
-            $scheduleDetails = $this->paymentScheduleDetailService->getScheduleDetails($filters);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $data = $this->paymentScheduleDetailService->getDetailData($filters);
             
-            // Obtener participantes liberados (siempre se muestran)
-            $liberatedParticipants = $this->paymentScheduleDetailService->getLiberatedParticipants($filters);
-
-            return response()->json([
-                'success' => true,
-                'data' => $scheduleDetails,
-                'liberated' => $liberatedParticipants,
-                'filters' => $filters
-            ]);
+            return response()->json($data);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Payment Schedule Details Error:', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'filters' => $filters,
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener los detalles: ' . $e->getMessage(),
-                'data' => [],
-                'liberated' => []
-            ], 500);
-        }
-    }
-
-    public function exportPartialAccount(Request $request)
-    {
-        $filters = $request->only(['programId', 'participantId', 'dateFrom', 'dateTo']);
-        $fields = json_decode($request->get('fields', '{}'), true);
-        $format = $request->get('format', 'xlsx');
-        $includeAll = $request->get('include_all', 'current');
-
-        $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
-        $exportService = app(\App\Services\Admin\Reports\PartialReport\ExportService::class);
-
-        // Validar campos de exportación
-        if (!$exportService->validateExportFields($fields)) {
-            return response()->json(['error' => 'Debe seleccionar al menos un campo para exportar'], 400);
-        }
-
-        try {
-            // Obtener datos para exportación
-            $exportData = $partialAccountService->getExportData($filters, $fields, $includeAll);
-
-            // Validar que tenemos datos para exportar
-            if ($exportData->isEmpty()) {
-                return response()->json(['error' => 'No hay datos válidos para exportar'], 400);
-            }
-
-            // Generar nombre de archivo
-            $filename = $exportService->generateFilename('estado_cuenta_parcial');
-
-            // Exportar según el formato
-            return $exportService->export($exportData, $format, $filename);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Export Error', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
-        }
-    }
-
-
-
-
-
-    public function exportPaymentSchedule(Request $request)
-    {
-        $filters = $request->only(['programId', 'salesExecutiveId', 'dateFrom', 'dateTo', 'status']);
-        $format = $request->get('format', 'xlsx');
-
-        try {
-            // Resumen por ejecutivo/programa/mes
-            $executiveSummary = $this->paymentScheduleSummaryService->getExecutiveSummary($filters);
-
-            // Detalle por participante (incluye suscritos sin pagos) para el rango/mes
-            $details = $this->paymentScheduleDetailService->getScheduleDetails($filters);
-
-            if ($executiveSummary->isEmpty() || $details->isEmpty()) {
-                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
-            }
-
-            // Exportar en 2 hojas
-            $filename = 'payment_schedule_' . now()->format('Y-m-d_H-i-s');
-            $exporter = app(\App\Services\Admin\Reports\PaymentSchedule\ExportService::class);
-            return $exporter->export($executiveSummary, $details, $filename, $format);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Export Payment Schedule Error', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al obtener detalles del cronograma: ' . $e->getMessage()], 500);
         }
     }
 
     public function dailyPayments(Request $request)
     {
-        $filters = $request->only([
-            'programId',
-            'salesExecutiveId',
-            'financingType',
-            'paymentMethodId',
-            'dateFrom',
-            'dateTo',
-            'page'
-        ]);
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            $data = $this->dailyPaymentsService->getData($filters);
+            
+            return Inertia::render('Admin/Reports/DailyPayments', [
+                'data' => $data,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar reporte de pagos diarios: ' . $e->getMessage()], 500);
+        }
+    }
 
-        // Obtener datos paginados
-        $page = $request->get('page', 1);
-        $dailyPayments = $this->dailyPaymentsService->getDailyPayments($filters, $page);
+    public function consolidatedPayments(Request $request)
+    {
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            $data = $this->consolidatedPaymentsService->getData($filters);
+            
+            return Inertia::render('Admin/Reports/ConsolidatedPayments', [
+                'data' => $data,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar reporte consolidado: ' . $e->getMessage()], 500);
+        }
+    }
 
-        // Obtener resumen
-        $summary = $this->dailyPaymentsService->getSummary($filters);
+    public function installmentSchedule(Request $request)
+    {
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $data = $this->getInstallmentScheduleService->execute($filters);
+            
+            return Inertia::render('Admin/Reports/InstallmentSchedule', [
+                'data' => $data,
+                'filters' => $filters
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al generar cronograma de cuotas: ' . $e->getMessage()], 500);
+        }
+    }
 
-        // Obtener datos para filtros
-        $programs = $this->dailyPaymentsService->getPrograms();
-        $salesExecutives = $this->dailyPaymentsService->getSalesExecutives();
-        $financingTypes = $this->dailyPaymentsService->getFinancingTypes();
-        $paymentMethods = $this->dailyPaymentsService->getPaymentMethods();
-
-        return Inertia::render('Admin/Reports/DailyPayments', [
-            'dailyPayments' => $dailyPayments,
-            'programs' => $programs,
-            'salesExecutives' => $salesExecutives,
-            'financingTypes' => $financingTypes,
-            'paymentMethods' => $paymentMethods,
-            'filters' => $filters,
-            'summary' => $summary
-        ]);
+    public function revenueChart(Request $request)
+    {
+        try {
+            $data = $this->getRevenueChartService->execute($request);
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al obtener datos del gráfico de ingresos: ' . $e->getMessage()], 500);
+        }
     }
 
     public function exportDailyPayments(Request $request)
     {
-        $filters = $request->only([
-            'programId',
-            'salesExecutiveId',
-            'financingType',
-            'paymentMethodId',
-            'dateFrom',
-            'dateTo'
-        ]);
-        $fields = json_decode($request->get('fields', '{}'), true);
-        $format = $request->get('format', 'xlsx');
-        $includeAll = $request->get('include_all', 'current');
-
         try {
-            // Obtener datos para exportación
-            if ($includeAll === 'all') {
-                $exportData = $this->dailyPaymentsService->getAllDailyPayments($filters, $fields);
-            } else {
-                // Solo página actual (implementar lógica si es necesario)
-                $exportData = $this->dailyPaymentsService->getAllDailyPayments($filters, $fields);
-            }
-
-            // Validar que tenemos datos para exportar
-            if ($exportData->isEmpty()) {
-                return response()->json(['error' => 'No hay datos válidos para exportar'], 500);
-            }
-
-            // Generar nombre de archivo
-            $filename = 'pagos_diarios_' . now()->format('Y-m-d_H-i-s');
-
-            // Exportar según el formato
-            return $this->dailyPaymentsExportService->export($exportData, $filename, $format, $fields);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            $format = $request->get('format', 'excel');
+            
+            return $this->dailyPaymentsExportService->export($filters, $format);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Export Daily Payments Error', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al exportar pagos diarios: ' . $e->getMessage()], 500);
         }
     }
 
-    public function softland()
+    public function exportConsolidatedPayments(Request $request)
     {
-        $programs = \App\Models\Program::select('id', 'code', 'name')
-            ->where('active', true)
-            ->orderBy('code')
-            ->get();
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            $format = $request->get('format', 'excel');
+            
+            return $this->consolidatedPaymentsExportService->export($filters, $format);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar pagos consolidados: ' . $e->getMessage()], 500);
+        }
+    }
 
+    public function exportPartialAccount(Request $request)
+    {
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $format = $request->get('format', 'excel');
+            
+            return $this->exportService->exportPartialAccount($filters, $format);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar estado de cuenta parcial: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function exportPaymentSchedule(Request $request)
+    {
+        try {
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $format = $request->get('format', 'excel');
+            
+            return $this->exportService->exportPaymentSchedule($filters, $format);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar cronograma de pagos: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function softland(Request $request)
+    {
+        $programs = Program::select('id', 'name', 'code')->orderBy('name')->get();
+        
         return Inertia::render('Admin/Reports/SoftlandReport', [
             'programs' => $programs
         ]);
@@ -446,6 +244,126 @@ class ReportController extends Controller
             return $this->softlandExcelExporter->export($filename, $filters, $format);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar el archivo: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function previewSoftlandAuxiliares(Request $request)
+    {
+        try {
+            Log::info('Generando preview JSON de auxiliares Softland');
+            
+            $jsonData = $this->auxiliaresService->generateJsonData();
+            
+            Log::info('JSON generado exitosamente con ' . $jsonData['total_auxiliares'] . ' auxiliares');
+            
+            return response()->json($jsonData);
+            
+        } catch (\Exception $e) {
+            Log::error('Error en previewSoftlandAuxiliares: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Error al generar preview de auxiliares: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function exportSoftlandAuxiliares(Request $request)
+    {
+        try {
+            Log::info('Iniciando exportación de auxiliares Softland');
+            $format = $request->get('format', 'excel'); // Por defecto Excel
+            Log::info('Formato solicitado: ' . $format);
+            
+            // Limpiar archivos temporales antiguos
+            Log::info('Limpiando archivos temporales antiguos');
+            $this->auxiliaresExporter->cleanTempFiles();
+            
+            if ($format === 'csv') {
+                Log::info('Generando archivo CSV');
+                $filepath = $this->auxiliaresExporter->exportToCsv();
+                $filename = basename($filepath);
+                $mimeType = 'text/csv';
+                
+                // Verificar que el archivo existe antes de la descarga
+                if (!file_exists($filepath)) {
+                    Log::error('ERROR: El archivo no existe en la ruta: ' . $filepath);
+                    throw new \Exception('El archivo generado no se encuentra');
+                }
+                
+                $fileSize = filesize($filepath);
+                Log::info('Tamaño del archivo: ' . $fileSize . ' bytes');
+                
+                if ($fileSize === 0) {
+                    Log::error('ERROR: El archivo está vacío');
+                    throw new \Exception('El archivo generado está vacío');
+                }
+                
+                Log::info('Iniciando descarga del archivo CSV');
+                return response()->download($filepath, $filename, [
+                    'Content-Type' => $mimeType,
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                ])->deleteFileAfterSend(true);
+            } else {
+                Log::info('Generando archivo Excel con StreamedResponse');
+                $response = $this->auxiliaresExporter->exportToExcel();
+                Log::info('StreamedResponse creado exitosamente');
+                return $response;
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Error en exportSoftlandAuxiliares: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Error al generar el archivo de auxiliares: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Exporta ambos archivos Softland en un ZIP
+     */
+    public function exportSoftlandZip(Request $request)
+    {
+        try {
+            Log::info('Iniciando exportación ZIP de archivos Softland', [
+                'request_params' => $request->all()
+            ]);
+
+            // Obtener parámetros
+            $format = $request->get('format', 'excel');
+            $dateFrom = $request->get('dateFrom');
+            $dateTo = $request->get('dateTo');
+            $programId = $request->get('programId');
+
+            // Construir filtros
+            $filters = [];
+            if ($dateFrom) $filters['dateFrom'] = $dateFrom;
+            if ($dateTo) $filters['dateTo'] = $dateTo;
+            if ($programId) $filters['programId'] = $programId;
+
+            Log::info('Filtros aplicados', ['filters' => $filters, 'format' => $format]);
+
+            // Limpiar archivos antiguos
+            $this->softlandZipExporter->cleanupOldFiles();
+
+            // Generar archivo ZIP
+            $zipPath = $this->softlandZipExporter->exportToZip($filters, $format);
+
+            if (!file_exists($zipPath)) {
+                throw new \Exception('No se pudo generar el archivo ZIP');
+            }
+
+            $fileName = basename($zipPath);
+            $fileSize = filesize($zipPath);
+
+            Log::info('Archivo ZIP generado exitosamente', [
+                'file_name' => $fileName,
+                'file_size' => $fileSize
+            ]);
+
+            // Descargar el archivo
+            return response()->download($zipPath, $fileName)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Error en exportSoftlandZip: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Error al generar el archivo ZIP: ' . $e->getMessage()], 500);
         }
     }
 
