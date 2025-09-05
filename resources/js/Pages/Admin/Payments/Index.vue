@@ -219,7 +219,7 @@ const handleCreatePayment = () => {
 };
 
 const handleCreateRefund = () => {
-    router.visit(route("admin.payments.refunds.create"));
+    router.visit(route("admin.payments.refunds.menu"));
 };
 
 const handleFiltersChanged = (newFilters) => {

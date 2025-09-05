@@ -37,8 +37,11 @@ Route::prefix('payments')->name('payments.')->group(function () {
     
     // Rutas para reembolsos
     Route::prefix('refunds')->name('refunds.')->group(function () {
+        Route::get('menu', [CreateRefundController::class, 'menu'])->name('menu');
         Route::get('create', [CreateRefundController::class, 'create'])->name('create');
         Route::post('store', [CreateRefundController::class, 'store'])->name('store');
+        Route::get('import', [CreateRefundController::class, 'import'])->name('import');
+        Route::post('import-store', [CreateRefundController::class, 'importStore'])->name('import-store');
         Route::post('participant-status', [CreateRefundController::class, 'getParticipantStatus'])->name('participant-status');
     });
 

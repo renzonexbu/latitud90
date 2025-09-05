@@ -9,6 +9,7 @@ use App\Models\Participant;
 use App\Models\Program;
 use App\Models\Region;
 use App\Services\Admin\Payments\CreateRefundService;
+use App\Services\Admin\Payments\ImportRefundsService;
 use App\Models\Payment;
 use App\Models\Installment;
 use Illuminate\Http\Request;
@@ -18,11 +19,62 @@ use Inertia\Inertia;
 class CreateRefundController extends Controller
 {
     public function __construct(
-        private CreateRefundService $createRefundService
+        private CreateRefundService $createRefundService,
+        private ImportRefundsService $importRefundsService
     ) {}
 
     /**
-     * Mostrar el formulario de creación de reembolso
+     * Mostrar el menú de opciones para devoluciones
+     */
+    public function menu()
+    {
+        return Inertia::render('Admin/Payments/RefundsMenu');
+    }
+
+    /**
+     * Mostrar el formulario de importación desde Excel
+     */
+    public function import()
+    {
+        return Inertia::render('Admin/Payments/RefundsImport');
+    }
+
+    /**
+     * Procesar la importación desde Excel
+     */
+    public function importStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx,xls|max:10240', // 10MB máximo
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        try {
+            $file = $request->file('file');
+
+            // Procesar el archivo Excel
+            $result = $this->importRefundsService->processExcel($file);
+
+            if ($result['success']) {
+                $successCount = $result['results']['successful'];
+                $totalCount = $result['results']['processed'];
+                
+                return back()->with('success', "Importación exitosa: {$successCount} de {$totalCount} devoluciones procesadas correctamente.");
+            } else {
+                return back()->withErrors(['error' => $result['error']])->withInput();
+            }
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error al procesar el archivo: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+
+    /**
+     * Mostrar el formulario de creación de reembolso manual
      */
     public function create()
     {
@@ -49,22 +101,14 @@ class CreateRefundController extends Controller
         $validator = Validator::make($request->all(), [
             'program_id' => 'required|exists:programs,id',
             'participant_id' => 'required|exists:participants,id',
-            'amount' => 'required|numeric|min:1',
-            'payment_code' => 'required|string|max:255',
+            'sii_code' => 'required|string|max:255',
+            'document_number' => 'required|string|max:255',
             'transaction_date' => 'required|date',
-            'authorization_code' => 'nullable|string|max:255',
-            'notes' => 'required|string',
+            'total_amount' => 'required|numeric|min:1',
             
-            // Validar datos del comprador
-            'buyer_full_name' => 'required|string|max:255',
-            'buyer_document_type' => 'required|exists:document,id',
-            'buyer_document_number' => 'required|string|max:255',
-            'buyer_email' => 'required|email|max:255',
-            'buyer_phone' => 'required|string|max:20',
-            'buyer_code_phone' => 'required|string|max:10',
-            'buyer_country' => 'required|exists:countries,id',
-            'buyer_region' => 'required|exists:regions,id',
-            'buyer_city' => 'required|exists:comunes,id',
+            // Validar datos del cliente
+            'client_rut' => 'required|string|max:255',
+            'client_name' => 'required|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -76,22 +120,18 @@ class CreateRefundController extends Controller
             $refundData = [
                 'program_id' => $request->program_id,
                 'participant_id' => $request->participant_id,
-                'amount' => $request->amount,
+                'amount' => $request->total_amount,
                 'transaction_date' => $request->transaction_date,
-                'payment_code' => $request->payment_code,
-                'authorization_code' => $request->authorization_code,
-                'notes' => $request->notes,
+                'payment_code' => $request->sii_code,
                 
-                // Datos del comprador
-                'buyer_full_name' => $request->buyer_full_name,
-                'buyer_document_type' => $request->buyer_document_type,
-                'buyer_document_number' => $request->buyer_document_number,
-                'buyer_email' => $request->buyer_email,
-                'buyer_phone' => $request->buyer_phone,
-                'buyer_code_phone' => $request->buyer_code_phone,
-                'buyer_country' => $request->buyer_country,
-                'buyer_region' => $request->buyer_region,
-                'buyer_city' => $request->buyer_city,
+                // Datos fiscales
+                'sii_code' => $request->sii_code,
+                'document_number' => $request->document_number,
+                'total_amount' => $request->total_amount,
+                
+                // Datos del cliente
+                'client_rut' => $request->client_rut,
+                'client_name' => $request->client_name,
             ];
 
             // Ejecutar el servicio

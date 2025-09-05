@@ -17,188 +17,60 @@
                         </div>
 
                         <form @submit.prevent="submit" class="space-y-8">
-                            <!-- SECCIÓN 1: DATOS DEL COMPRADOR -->
+                            <!-- SECCIÓN 1: DATOS DEL CLIENTE -->
                             <div class="border-b border-gray-200 pb-6">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos del Reembolso</h3>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos del Cliente</h3>
                                 
-                                <!-- Tipo de Documento - Full Width -->
-                                <div class="mb-6">
-                                    <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal mb-3 block">
-                                        Tipo de documento *
-                                    </label>
-                                    <div class="flex gap-6">
-                                        <label class="flex items-center gap-3 cursor-pointer group">
-                                            <div class="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="documentType"
-                                                    :value="getDocumentTypeId('RUT')"
-                                                    v-model="buyerForm.documentType"
-                                                    class="sr-only peer"
-                                                />
-                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#e74c3c] peer-checked:bg-[#e74c3c] transition-all duration-200 flex items-center justify-center">
-                                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
-                                                </div>
-                                            </div>
-                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#e74c3c] transition-colors duration-200">
-                                                RUT
-                                            </span>
-                                        </label>
-                                        <label class="flex items-center gap-3 cursor-pointer group">
-                                            <div class="relative">
-                                                <input
-                                                    type="radio"
-                                                    name="documentType"
-                                                    :value="getDocumentTypeId('Pasaporte')"
-                                                    v-model="buyerForm.documentType"
-                                                    class="sr-only peer"
-                                                />
-                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#e74c3c] peer-checked:bg-[#e74c3c] transition-all duration-200 flex items-center justify-center">
-                                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
-                                                </div>
-                                            </div>
-                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#e74c3c] transition-colors duration-200">
-                                                Pasaporte
-                                            </span>
-                                        </label>
-                                    </div>
-                                </div>
-
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <!-- Left Column - Document Number and Personal Information -->
-                                    <div class="flex flex-col gap-[18px]">
-                                        <!-- Número de Documento -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                {{ getDocumentLabel() }} *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                :placeholder="getDocumentPlaceholder()"
-                                                :class="[
-                                                    'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                    isRutDocument && rutValidation.isValid === false ? 'border-red-500' : '',
-                                                    isRutDocument && rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]',
-                                                ]"
-                                                v-model="buyerForm.documentNumber"
-                                                @input="handleDocumentInput"
-                                                @blur="handleDocumentBlur"
-                                            />
-                                            <div
-                                                v-if="isRutDocument && rutValidation.message"
-                                                class="text-xs mt-1 validation-message"
-                                                :class="[
-                                                    rutValidation.isValid === true ? 'text-green-500' : 'text-red-500',
-                                                ]"
-                                            >
-                                                {{ rutValidation.message }}
-                                            </div>
-                                        </div>
-
-                                        <!-- Nombre completo -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                Nombre completo *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Nombre y apellido"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                                v-model="buyerForm.fullName"
-                                            />
-                                        </div>
-
-                                        <!-- Correo electrónico -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                Correo electrónico *
-                                            </label>
-                                            <input
-                                                type="email"
-                                                placeholder="Escriba su correo electronico"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                                v-model="buyerForm.email"
-                                            />
-                                        </div>
-
-                                        <!-- Número de celular -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                Número de celular *
-                                            </label>
-                                            <div class="flex">
-                                                <select
-                                                    v-model="buyerForm.code_phone"
-                                                    class="w-[70px] h-[46px] bg-white border border-[#5B5B5B] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
-                                                >
-                                                    <option value="+56">🇨🇱</option>
-                                                    <option value="+54">🇦🇷</option>
-                                                    <option value="+51">🇵🇪</option>
-                                                    <option value="+598">🇺🇾</option>
-                                                </select>
-                                                <input
-                                                    type="tel"
-                                                    placeholder="9-- --- ---"
-                                                    class="flex-1 h-[46px] bg-white border rounded-r px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                                    v-model="buyerForm.phone"
-                                                />
-                                            </div>
+                                    <!-- RUT del Cliente -->
+                                    <div class="flex flex-col gap-[12px]">
+                                        <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
+                                            RUT del Cliente *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: 12.345.678-9"
+                                            :class="[
+                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                rutValidation.isValid === false ? 'border-red-500' : '',
+                                                rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]',
+                                            ]"
+                                            v-model="clientForm.rut"
+                                            @input="handleRutInput"
+                                            @blur="handleRutBlur"
+                                        />
+                                        <div
+                                            v-if="rutValidation.message"
+                                            class="text-xs mt-1 validation-message"
+                                            :class="[
+                                                rutValidation.isValid === true ? 'text-green-500' : 'text-red-500',
+                                            ]"
+                                        >
+                                            {{ rutValidation.message }}
                                         </div>
                                     </div>
 
-                                    <!-- Right Column - Location Information -->
-                                    <div class="flex flex-col gap-[18px]">
-                                        <!-- País -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                País *
-                                            </label>
-                                            <SearchableSelect
-                                                ref="countrySelect"
-                                                :options="countries"
-                                                :value="buyerForm.country"
-                                                placeholder="Busca y selecciona tu país"
-                                                @input="handleCountryChange"
-                                                search-key="name"
-                                            />
-                                        </div>
-
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                Región *
-                                            </label>
-                                            <SearchableSelect
-                                                :options="regions"
-                                                :value="buyerForm.region"
-                                                placeholder="Busca y selecciona tu región"
-                                                @input="handleRegionChange"
-                                                search-key="name"
-                                            />
-                                        </div>
-
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                                Comuna *
-                                            </label>
-                                            <SearchableSelect
-                                                :options="filteredComunes"
-                                                :value="buyerForm.city"
-                                                placeholder="Busca y selecciona tu comuna"
-                                                :disabled="!buyerForm.region"
-                                                @input="handleCityChange"
-                                                search-key="name"
-                                            />
-                                        </div>
+                                    <!-- Nombre del Cliente -->
+                                    <div class="flex flex-col gap-[12px]">
+                                        <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
+                                            Nombre del Cliente *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            placeholder="Nombre completo del cliente"
+                                            class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                            v-model="clientForm.name"
+                                        />
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- SECCIÓN 2: INFORMACIÓN DEL REEMBOLSO -->
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Información del Reembolso</h3>
+                            <!-- SECCIÓN 2: NEGOCIO AFILIADO -->
+                            <div class="border-b border-gray-200 pb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Negocio Afiliado</h3>
                                 
                                 <!-- Selección de Programa y Participante -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
                                             Programa *
@@ -246,7 +118,7 @@
                                 </div>
 
                                 <!-- Información del Estado de Pagos del Participante -->
-                                <div v-if="participantPaymentStatus" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <div v-if="participantPaymentStatus" class="mt-6 p-4 bg-gray-50 rounded-lg">
                                     <h4 class="text-md font-semibold text-gray-800 mb-3">Estado de Pagos del Participante</h4>
                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div>
@@ -266,112 +138,75 @@
                                             <p class="font-semibold text-blue-600">{{ participantPaymentStatus.payment_info.installments_summary }} cuotas</p>
                                         </div>
                                     </div>
-                                    <div class="mt-3">
-                                        <span class="text-sm text-gray-600">Progreso de Pago:</span>
-                                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1">
-                                            <div 
-                                                class="bg-green-600 h-2.5 rounded-full transition-all duration-300"
-                                                :style="{ width: participantPaymentStatus.payment_info.payment_percentage + '%' }"
-                                            ></div>
-                                        </div>
-                                        <p class="text-sm text-gray-600 mt-1">{{ participantPaymentStatus.payment_info.payment_percentage }}% completado</p>
-                                    </div>
-                                    <div class="mt-3">
-                                        <span class="text-sm text-gray-600">Estado:</span>
-                                        <span 
-                                            class="ml-2 px-2 py-1 text-xs font-medium rounded-full"
-                                            :class="getPaymentStatusClass(participantPaymentStatus.payment_info.payment_status)"
-                                        >
-                                            {{ getPaymentStatusLabel(participantPaymentStatus.payment_info.payment_status) }}
-                                        </span>
-                                        <div class="mt-1 text-sm text-gray-600">
-                                            {{ getDetailedPaymentStatus(participantPaymentStatus.payment_info) }}
-                                        </div>
-                                    </div>
                                 </div>
+                            </div>
 
-                                <!-- Información del Reembolso -->
-                                <div class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
-                                    <h4 class="text-md font-semibold text-red-800 mb-3">Datos del Reembolso</h4>
-                                    <!-- Monto del Reembolso -->
-                                    <div class="mb-4">
+                            <!-- SECCIÓN 3: DATOS FISCALES DE LA NOTA DE CRÉDITO -->
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos Fiscales de la Nota de Crédito</h3>
+
+                                <!-- Campos fiscales -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <!-- Código SII -->
+                                    <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Monto del Reembolso (CLP) *
+                                            Código SII *
                                         </label>
                                         <input
-                                            v-model="form.amount"
+                                            v-model="form.sii_code"
+                                            type="text"
+                                            placeholder="Ej: NC001-2024"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.sii_code }"
+                                        />
+                                        <span v-if="errors.sii_code" class="text-red-500 text-sm mt-1">{{ errors.sii_code }}</span>
+                                    </div>
+
+                                    <!-- N. Documento -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            N. Documento *
+                                        </label>
+                                        <input
+                                            v-model="form.document_number"
+                                            type="text"
+                                            placeholder="Número de documento"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.document_number }"
+                                        />
+                                        <span v-if="errors.document_number" class="text-red-500 text-sm mt-1">{{ errors.document_number }}</span>
+                                    </div>
+
+                                    <!-- Fecha -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Fecha *
+                                        </label>
+                                        <input
+                                            v-model="form.transaction_date"
+                                            type="date"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.transaction_date }"
+                                        />
+                                        <span v-if="errors.transaction_date" class="text-red-500 text-sm mt-1">{{ errors.transaction_date }}</span>
+                                    </div>
+
+                                    <!-- Total -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Total (CLP) *
+                                        </label>
+                                        <input
+                                            v-model="form.total_amount"
                                             type="number"
                                             min="0"
                                             step="1"
                                             placeholder="0"
                                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.amount }"
+                                            :class="{ 'border-red-500': errors.total_amount }"
                                         />
-                                        <span v-if="errors.amount" class="text-red-500 text-sm mt-1">{{ errors.amount }}</span>
+                                        <span v-if="errors.total_amount" class="text-red-500 text-sm mt-1">{{ errors.total_amount }}</span>
                                     </div>
-
-                                    <!-- Código de Reembolso -->
-                                    <div class="mb-4">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Código de Reembolso/Comprobante *
-                                        </label>
-                                        <input
-                                            v-model="form.payment_code"
-                                            type="text"
-                                            placeholder="Ej: R001-2024, REF-2024-001, REEMB-001"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.payment_code }"
-                                        />
-                                        <p class="text-sm text-gray-500 mt-1">
-                                            Ingrese el código del comprobante de reembolso
-                                        </p>
-                                        <span v-if="errors.payment_code" class="text-red-500 text-sm mt-1">{{ errors.payment_code }}</span>
-                                    </div>
-
-                                    <!-- Fecha de Transacción y Código de Autorización -->
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Fecha de Reembolso *
-                                            </label>
-                                            <input
-                                                v-model="form.transaction_date"
-                                                type="datetime-local"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                                :class="{ 'border-red-500': errors.transaction_date }"
-                                            />
-                                            <span v-if="errors.transaction_date" class="text-red-500 text-sm mt-1">{{ errors.transaction_date }}</span>
-                                        </div>
-
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                                Código de Autorización
-                                            </label>
-                                            <input
-                                                v-model="form.authorization_code"
-                                                type="text"
-                                                placeholder="Código de autorización (opcional)"
-                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                                :class="{ 'border-red-500': errors.authorization_code }"
-                                            />
-                                            <span v-if="errors.authorization_code" class="text-red-500 text-sm mt-1">{{ errors.authorization_code }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Motivo del Reembolso -->
-                                <div class="mb-6">
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Motivo del Reembolso *
-                                    </label>
-                                    <textarea
-                                        v-model="form.notes"
-                                        rows="3"
-                                        placeholder="Especifique el motivo del reembolso..."
-                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                        :class="{ 'border-red-500': errors.notes }"
-                                    ></textarea>
-                                    <span v-if="errors.notes" class="text-red-500 text-sm mt-1">{{ errors.notes }}</span>
                                 </div>
                             </div>
 
@@ -385,7 +220,7 @@
                                 </Link>
                                 <button
                                     type="submit"
-                                    :disabled="form.processing || !isBuyerFormValid"
+                                    :disabled="form.processing || !isFormValid"
                                     class="bg-[#e74c3c] hover:bg-[#c0392b] disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200"
                                 >
                                     {{ form.processing ? 'Procesando...' : 'Procesar Reembolso' }}
@@ -428,28 +263,20 @@ const props = defineProps({
     }
 });
 
-// Formulario de datos del comprador
-const buyerForm = reactive({
-    fullName: "",
-    documentType: "",
-    documentNumber: "",
-    email: "",
-    phone: "",
-    code_phone: "+56",
-    country: "",
-    region: "",
-    city: "",
+// Formulario de datos del cliente
+const clientForm = reactive({
+    rut: "",
+    name: "",
 });
 
 // Formulario de información del reembolso
 const form = useForm({
     program_id: '',
     participant_id: '',
-    amount: '',
-    payment_code: '',
-    transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 16),
-    authorization_code: '',
-    notes: ''
+    sii_code: '',
+    document_number: '',
+    transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 10),
+    total_amount: ''
 });
 
 const availableParticipants = ref([]);
@@ -487,40 +314,32 @@ const isRutDocument = computed(() => {
     );
 });
 
-const isBuyerFormValid = computed(() => {
-    const validations = {
-        fullName: buyerForm.fullName.trim() !== "",
-        documentType: buyerForm.documentType !== "",
-        documentNumber: buyerForm.documentNumber.trim() !== "",
-        email: buyerForm.email.trim() !== "",
-        phone: buyerForm.phone.trim() !== "",
-        country: buyerForm.country !== "",
-        region: buyerForm.region !== "",
-        city: buyerForm.city !== "",
+const isFormValid = computed(() => {
+    const clientValidations = {
+        rut: clientForm.rut.trim() !== "",
+        name: clientForm.name.trim() !== "",
     };
 
-    const basicValidation = Object.values(validations).every(
+    const clientValidation = Object.values(clientValidations).every(
         (v) => v === true
     );
-    const rutOk = isRutDocument.value
-        ? rutValidation.isValid === true
-        : true;
+    const rutOk = rutValidation.isValid === true;
     
     // Validar también los campos del formulario de reembolso
     const refundValidations = {
         program_id: form.program_id !== "",
         participant_id: form.participant_id !== "",
-        amount: form.amount !== "" && parseFloat(form.amount) > 0,
-        payment_code: form.payment_code.trim() !== "",
+        sii_code: form.sii_code.trim() !== "",
+        document_number: form.document_number.trim() !== "",
         transaction_date: form.transaction_date !== "",
-        notes: form.notes.trim() !== "",
+        total_amount: form.total_amount !== "" && parseFloat(form.total_amount) > 0,
     };
 
     const refundValidation = Object.values(refundValidations).every(
         (v) => v === true
     );
 
-    return basicValidation && rutOk && refundValidation;
+    return clientValidation && rutOk && refundValidation;
 });
 
 // Methods
@@ -563,22 +382,12 @@ const getDocumentTypeId = (name) => {
     return docType ? docType.id : "";
 };
 
-const handleDocumentInput = () => {
-    if (isRutDocument.value) {
-        formatRut();
-    }
+const handleRutInput = () => {
+    formatRut();
 };
 
-const handleDocumentBlur = () => {
-    // Validar documento si es RUT
-    if (isRutDocument.value) {
-        validateDocument();
-    }
-
-    // Buscar cliente frecuente si hay tipo de documento y número
-    if (buyerForm.documentType && buyerForm.documentNumber.trim()) {
-        searchFrequentClient();
-    }
+const handleRutBlur = () => {
+    validateRut();
 };
 
 const searchFrequentClient = async () => {
@@ -641,7 +450,7 @@ const validateDocument = () => {
 
 const formatRut = () => {
     // Remover todos los caracteres no numéricos excepto K
-    let rut = buyerForm.documentNumber.replace(/[^0-9kK]/g, "");
+    let rut = clientForm.rut.replace(/[^0-9kK]/g, "");
 
     if (rut.length > 0) {
         rut = rut.toUpperCase();
@@ -661,9 +470,9 @@ const formatRut = () => {
             }
 
             // Combinar cuerpo formateado con dígito verificador
-            buyerForm.documentNumber = `${formattedBody}-${dv}`;
+            clientForm.rut = `${formattedBody}-${dv}`;
         } else {
-            buyerForm.documentNumber = rut;
+            clientForm.rut = rut;
         }
     }
 
@@ -672,7 +481,7 @@ const formatRut = () => {
 };
 
 const validateRut = () => {
-    const rut = buyerForm.documentNumber
+    const rut = clientForm.rut
         .replace(/\./g, "")
         .replace(/-/g, "");
 
@@ -886,19 +695,11 @@ const formatParticipantDocument = (participant) => {
 };
 
 const submit = () => {
-    // Combinar los datos del comprador con los datos del reembolso
+    // Combinar los datos del cliente con los datos del reembolso
     const combinedData = {
         ...form.data(),
-        status: 'completed', // Siempre completado para reembolsos
-        buyer_full_name: buyerForm.fullName,
-        buyer_document_type: buyerForm.documentType,
-        buyer_document_number: buyerForm.documentNumber,
-        buyer_email: buyerForm.email,
-        buyer_phone: buyerForm.phone,
-        buyer_code_phone: buyerForm.code_phone,
-        buyer_country: buyerForm.country,
-        buyer_region: buyerForm.region,
-        buyer_city: buyerForm.city,
+        client_rut: clientForm.rut,
+        client_name: clientForm.name,
     };
 
     // Crear un nuevo formulario con los datos combinados
@@ -908,8 +709,7 @@ const submit = () => {
 
 // Lifecycle
 onMounted(() => {
-    // Establecer RUT como tipo de documento por defecto
-    buyerForm.documentType = getDocumentTypeId('RUT');
+    // No hay configuración inicial necesaria
 });
 </script>
 

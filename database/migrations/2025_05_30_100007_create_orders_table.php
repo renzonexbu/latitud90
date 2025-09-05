@@ -36,6 +36,11 @@ return new class extends Migration
             $table->text('notes')->nullable(); // Notas adicionales
             $table->string('order_number')->unique(); // Número de orden único
 
+            // Campos fiscales para notas de crédito
+            $table->string('sii_code')->nullable()->comment('Código SII de la nota de crédito');
+            $table->string('document_number')->nullable()->comment('Número de documento de la nota de crédito');
+            $table->decimal('total_amount_fiscal', 10, 2)->nullable()->comment('Total fiscal de la nota de crédito');
+
             $table->timestamps();
 
             // Índices para optimizar consultas
@@ -45,6 +50,8 @@ return new class extends Migration
             $table->index(['participant_id', 'created_at']); // Para consultas por participante
             $table->index(['program_id', 'created_at']); // Para consultas por programa
             $table->index(['status']); // Para filtros por status
+            $table->index(['sii_code']); // Para búsquedas por código SII
+            $table->index(['document_number']); // Para búsquedas por número de documento
         });
 
         Schema::create('orders_detail', function (Blueprint $table) {
