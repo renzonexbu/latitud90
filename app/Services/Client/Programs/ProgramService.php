@@ -50,7 +50,6 @@ class ProgramService
 
         foreach ($programs as $program) {
             // Verificar si el participante ya está inscrito en este programa
-            // Buscar a través de la relación course del programa
             $isEnrolled = $participant->courses()
                 ->where('course_id', $program->course_id)
                 ->exists();
@@ -107,7 +106,7 @@ class ProgramService
                 $totalAmount = $priceData['final_price'];
 
                 // Sumar pagos aprobados y completados del participante para este programa
-                $paidAmount = (float) \App\Models\Payment::whereHas('order', function($q) use ($participant, $program) {
+                $paidAmount = (float) Payment::whereHas('order', function($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
                     })
@@ -129,7 +128,7 @@ class ProgramService
                     $paidInstallments = $enrollment->pivot->paid_installments ?? 0;
                     
                     // Buscar planes de cuotas del participante para este programa
-                    $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
+                    $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
                         ->where('program_id', $program->id)
                         ->with(['installments'])
                         ->get();
@@ -145,9 +144,11 @@ class ProgramService
                     }
 
                     // Si no hay planes de cuotas, buscar en orders como fallback
+                    // Excluir órdenes de reembolsos del conteo de cuotas
                     if ($totalInstallments == 0) {
-                        $orders = \App\Models\Order::where('participant_id', $participant->id)
+                        $orders = Order::where('participant_id', $participant->id)
                             ->where('program_id', $program->id)
+                            ->where('notes', '!=', 'Orden creada desde reembolso') // Excluir órdenes de reembolso
                             ->with(['orderDetails'])
                             ->get();
 
@@ -156,7 +157,14 @@ class ProgramService
                                 $totalInstallments = $order->orderDetails->count();
                                 
                                 foreach ($order->orderDetails as $detail) {
-                                    if ($detail->is_paid) {
+                                    // Verificar que el detalle no sea de un reembolso
+                                    $isRefundDetail = Payment::where('order_detail_id', $detail->id)
+                                        ->whereHas('paymentOption', function($q) {
+                                            $q->where('code', 'refund_credit_note');
+                                        })
+                                        ->exists();
+                                    
+                                    if ($detail->is_paid && !$isRefundDetail) {
                                         $paidInstallments++;
                                     }
                                 }

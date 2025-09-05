@@ -8,6 +8,7 @@ use App\Models\Institution;
 use App\Models\Program;
 use App\Models\Document;
 use App\Helpers\ParticipantPriceHelper;
+use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
@@ -134,7 +135,7 @@ class GetParticipantsService
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
-                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
+                DB::raw('0 as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
             ->get();
@@ -147,8 +148,19 @@ class GetParticipantsService
             if ($participant && $program) {
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
                 $enrollment->total_due = $priceData['final_price'];
+                
+                // Calcular monto pagado correctamente (incluyendo reembolsos como negativos)
+                $paidAmount = Payment::whereHas('order', function($q) use ($enrollment) {
+                        $q->where('participant_id', $enrollment->participant_id)
+                          ->where('program_id', $enrollment->program_id);
+                    })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->sum('amount');
+                
+                $enrollment->paid_amount = round($paidAmount, 2);
             } else {
                 $enrollment->total_due = $enrollment->individual_price ?? 0;
+                $enrollment->paid_amount = 0;
             }
 
             return $enrollment;
