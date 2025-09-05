@@ -10,6 +10,16 @@ use Firebase\JWT\Key;
 class VirtualPosService
 {
     use SystemLogging;
+    
+    // Constantes para estados de pago aprobados
+    const APPROVED_STATUSES = ['approved', 'paid', 'success', 'aprobado'];
+    
+    // Constantes para estados de pago rechazados
+    const REJECTED_STATUSES = ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'];
+    
+    // Constantes para estados de pago pendientes
+    const PENDING_STATUSES = ['pending', 'processing', 'pendiente'];
+    
     private $client;
     private $baseUrl;
     private $config;
@@ -203,7 +213,7 @@ class VirtualPosService
 
             if ($response->getStatusCode() === 200) {
                 $status = $result['status'] ?? 'unknown';
-                $isApproved = in_array($status, ['approved', 'paid', 'success']);
+                $isApproved = in_array($status, self::APPROVED_STATUSES);
 
                 // Extraer datos anidados según la respuesta de ejemplo provista por el usuario
                 $paymentData = $result['payment'] ?? [];
@@ -299,7 +309,7 @@ class VirtualPosService
                 ];
             }
 
-            $isApproved = in_array($status, ['approved', 'paid', 'success']);
+            $isApproved = in_array($status, self::APPROVED_STATUSES);
 
             // Extraer campos según respuesta ejemplo
             $paymentData = $notificationData['payment']['order'] ?? [];
@@ -490,6 +500,137 @@ class VirtualPosService
         }
 
         return $cleanPhone;
+    }
+
+    /**
+     * Manejar notificación webhook de VirtualPOS de forma unificada
+     * 
+     * @param array $notificationData
+     * @param int|null $orderDetailId
+     * @return array
+     */
+    public function handleWebhookNotification(array $notificationData, ?int $orderDetailId = null): array
+    {
+        try {
+            $this->logInfo('VirtualPOS handleWebhookNotification - Full details', [
+                'notification_data' => $notificationData,
+                'order_detail_id' => $orderDetailId,
+                'payment_id' => $notificationData['payment_id'] ?? $notificationData['id'] ?? $notificationData['uuid'] ?? null,
+                'status' => $notificationData['status'] ?? null,
+                'amount' => $notificationData['amount'] ?? null,
+                'currency' => $notificationData['currency'] ?? 'CLP'
+            ]);
+
+            $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? $notificationData['uuid'] ?? null;
+            $status = $notificationData['status'] ?? null;
+            $amount = $notificationData['amount'] ?? null;
+            $currency = $notificationData['currency'] ?? 'CLP';
+
+            if (!$paymentId) {
+                $this->logError('VirtualPOS webhook: No payment_id provided', $notificationData);
+                return [
+                    'success' => false,
+                    'error' => 'No payment_id provided'
+                ];
+            }
+
+            // Verificar que la notificación sea válida
+            if (!$this->validateNotification($notificationData)) {
+                $this->logError('VirtualPOS webhook: Invalid signature or data', $notificationData);
+                return [
+                    'success' => false,
+                    'error' => 'Invalid notification signature'
+                ];
+            }
+
+            // Buscar el pago usando el método centralizado
+            $payment = \App\Models\Payment::findByVirtualPosId($paymentId);
+            
+            if (!$payment) {
+                // Log adicional para debug
+                $allPayments = $orderDetailId ? 
+                    \App\Models\Payment::findByOrderDetailId($orderDetailId) : 
+                    \App\Models\Payment::findSimilarExternalIds($paymentId);
+                    
+                $this->logError('VirtualPOS webhook: Payment not found - Debug info', [
+                    'payment_id' => $paymentId,
+                    'order_detail_id' => $orderDetailId,
+                    'all_payments_found' => $allPayments->map(function($p) {
+                        return [
+                            'id' => $p->id,
+                            'external_payment_id' => $p->external_payment_id,
+                            'token' => $p->token,
+                            'status' => $p->status,
+                            'amount' => $p->amount,
+                            'order_detail_id' => $p->order_detail_id
+                        ];
+                    })
+                ]);
+                return [
+                    'success' => false,
+                    'error' => 'Payment not found'
+                ];
+            }
+
+            // Si el webhook no incluye status, consultar el estado del pago
+            if (!$status) {
+                $this->logInfo('VirtualPOS webhook: No status provided, consulting payment status', [
+                    'payment_id' => $paymentId
+                ]);
+                
+                $confirmResult = $this->confirmTransaction($paymentId);
+                if ($confirmResult['success']) {
+                    $status = $confirmResult['status'];
+                    $notificationData['status'] = $status;
+                    $notificationData['amount'] = $confirmResult['amount'];
+                    $notificationData['authorization_code'] = $confirmResult['authorization_code'];
+                    $notificationData['installments'] = $confirmResult['installments'] ?? null;
+                    $notificationData['installment_amount'] = $confirmResult['installment_amount'] ?? null;
+                } else {
+                    // Verificar si el resultado contiene información de estado rechazado
+                    $responseStatus = $confirmResult['full_response']['payment']['order']['status'] ?? null;
+                    
+                    if (in_array($responseStatus, self::REJECTED_STATUSES)) {
+                        return [
+                            'success' => false,
+                            'status' => $responseStatus,
+                            'error' => 'Payment rejected',
+                            'payment' => $payment,
+                            'confirm_result' => $confirmResult
+                        ];
+                    } else {
+                        $this->logError('VirtualPOS webhook: Failed to confirm transaction', [
+                            'payment_id' => $paymentId,
+                            'result' => $confirmResult
+                        ]);
+                        return [
+                            'success' => false,
+                            'error' => 'Failed to confirm transaction'
+                        ];
+                    }
+                }
+            }
+            
+            // Procesar la notificación
+            $result = $this->processNotification($notificationData);
+            $result['payment'] = $payment;
+            $result['payment_id'] = $paymentId;
+            $result['status'] = $status;
+
+            return $result;
+
+        } catch (\Exception $e) {
+            $this->logError('VirtualPOS handleWebhookNotification error', [
+                'error' => $e->getMessage(),
+                'notification_data' => $notificationData,
+                'order_detail_id' => $orderDetailId
+            ], $e);
+
+            return [
+                'success' => false,
+                'error' => 'Error procesando notificación de VirtualPOS: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**

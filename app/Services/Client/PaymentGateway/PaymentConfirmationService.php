@@ -14,6 +14,7 @@ use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentConfirmationService
 {
@@ -67,11 +68,11 @@ class PaymentConfirmationService
                 ];
             }
 
-            $this->logInfo('PaymentConfirmationService: confirmPayment', [
-                'order_detail_id' => $orderDetailId,
-                'gateway_type' => $gatewayType,
-                'gateway_data' => $gatewayData,
-            ]);
+                    $this->logInfo('PaymentConfirmationService: confirmPayment', [
+            'order_detail_id' => $orderDetailId,
+            'gateway_type' => $gatewayType,
+            'gateway_data' => $gatewayData,
+        ]);
 
             // Crear o actualizar registro de pago pendiente
             $pendingPayment = $this->createOrUpdatePendingPayment($orderDetail, $gatewayType, $gatewayData);
@@ -92,7 +93,14 @@ class PaymentConfirmationService
                 switch ($gatewayType) {
                     case 'transbank':
                     case 'virtualpos':
-                        $lastResult = $this->confirmVirtualPosPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
+                        // Verificar flag para usar VirtualPOS (producción) o Transbank (pruebas)
+                        $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+                        
+                        if ($useVirtualPos) {
+                            $lastResult = $this->confirmVirtualPosPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
+                        } else {
+                            $lastResult = $this->confirmTransbankPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
+                        }
                         break;
 
                     case 'khipu':
@@ -142,11 +150,12 @@ class PaymentConfirmationService
                 'data' => $lastResult['data'] ?? null,
             ];
         } catch (\Exception $e) {
-            $this->logError('PaymentConfirmationService: Error confirming payment', [
+            Log::error('PaymentConfirmationService: Error confirming payment', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
                 'gateway_type' => $gatewayType,
-            ], $e);
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             return [
                 'success' => false,
@@ -175,78 +184,6 @@ class PaymentConfirmationService
         );
     }
 
-    /**
-     * Confirmar pago de Transbank con validaciones específicas según documentación
-     */
-    private function confirmTransbankPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
-    {
-        $tokenWs = $gatewayData['token_ws'] ?? null;
-
-        $this->logInfo('PaymentConfirmationService: confirmTransbankPayment', [
-            'order_detail_id' => $orderDetail->id,
-            'gateway_data' => $gatewayData,
-            'token_ws' => $tokenWs,
-        ]);
-
-        if (!$tokenWs) {
-            $this->logError('PaymentConfirmationService: Token de Transbank no proporcionado', [
-                'order_detail_id' => $orderDetail->id,
-                'gateway_data' => $gatewayData,
-            ]);
-            // No crear registro de pago fallido para errores técnicos de retroceso
-            $pendingPayment->markAsFailed('Error al procesar el pago');
-            return [
-                'success' => false,
-                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
-                'status' => 'error',
-            ];
-        }
-
-        try {
-            $result = $this->transbankService->confirmTransaction($tokenWs);
-
-            // Validar responseCode según documentación de Transbank
-            if ($result['success'] && $result['response_code'] === 0) {
-                // Pago aprobado - responseCode = 0
-                $this->processSuccessfulPayment($orderDetail, $result, 'transbank', $sessionId);
-                $pendingPayment->markAsConfirmed();
-
-                return [
-                    'success' => true,
-                    'message' => 'Pago confirmado exitosamente',
-                    'status' => 'approved',
-                    'data' => $result,
-                ];
-            } else {
-                // Pago rechazado por Transbank - responseCode ≠ 0
-                $errorMessage = $result['error'] ?? 'Pago rechazado por Transbank';
-                $this->processFailedPayment($orderDetail, $result, 'transbank', $errorMessage);
-                $pendingPayment->markAsFailed($errorMessage);
-
-                return [
-                    'success' => false,
-                    'message' => $errorMessage,
-                    'status' => 'rejected',
-                    'data' => $result,
-                ];
-            }
-        } catch (\Exception $e) {
-            $this->logError('PaymentConfirmationService: Error confirming Transbank payment', [
-                'error' => $e->getMessage(),
-                'order_detail_id' => $orderDetail->id,
-                'token_ws' => $tokenWs,
-            ], $e);
-
-            // No crear registro de pago fallido para errores técnicos
-            $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
-
-            return [
-                'success' => false,
-                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
-                'status' => 'error',
-            ];
-        }
-    }
 
     /**
      * Confirmar pago de VirtualPOS (reemplaza a Transbank)
@@ -279,7 +216,7 @@ class PaymentConfirmationService
             $result = $this->virtualPosService->confirmTransaction($paymentId);
 
             // Validar status según documentación de VirtualPOS
-            if ($result['success'] && in_array($result['status'], ['approved', 'paid', 'success'])) {
+            if ($result['success'] && in_array($result['status'], \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES)) {
                 // Pago aprobado
                 $this->processSuccessfulPayment($orderDetail, $result, 'virtualpos', $sessionId);
                 $pendingPayment->markAsConfirmed();
@@ -309,6 +246,80 @@ class PaymentConfirmationService
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $paymentId,
             ], $e);
+
+            // No crear registro de pago fallido para errores técnicos
+            $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
+                'status' => 'error',
+            ];
+        }
+    }
+
+    /**
+     * Confirmar pago de Transbank (pruebas)
+     */
+    private function confirmTransbankPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
+    {
+        $token = $gatewayData['token'] ?? null;
+
+        $this->logInfo('PaymentConfirmationService: confirmTransbankPayment', [
+            'order_detail_id' => $orderDetail->id,
+            'gateway_data' => $gatewayData,
+            'token' => $token,
+        ]);
+
+        if (!$token) {
+            Log::error('PaymentConfirmationService: Token de Transbank no proporcionado', [
+                'order_detail_id' => $orderDetail->id,
+                'gateway_data' => $gatewayData,
+            ]);
+            // No crear registro de pago fallido para errores técnicos de retroceso
+            $pendingPayment->markAsFailed('Error al procesar el pago');
+            return [
+                'success' => false,
+                'message' => 'Ha ocurrido un error durante el procesamiento del pago.',
+                'status' => 'error',
+            ];
+        }
+
+        try {
+            $result = $this->transbankService->confirmTransaction($token);
+
+            // Validar status según documentación de Transbank
+            if ($result['success'] && $result['response_code'] === 0) {
+                // Pago aprobado
+                $this->processSuccessfulPayment($orderDetail, $result, 'transbank', $sessionId);
+                $pendingPayment->markAsConfirmed();
+
+                return [
+                    'success' => true,
+                    'message' => 'Pago confirmado exitosamente',
+                    'status' => 'approved',
+                    'data' => $result,
+                ];
+            } else {
+                // Pago rechazado por Transbank
+                $errorMessage = $result['error'] ?? 'Pago rechazado por Transbank';
+                $this->processFailedPayment($orderDetail, $result, 'transbank', $errorMessage);
+                $pendingPayment->markAsFailed($errorMessage);
+
+                return [
+                    'success' => false,
+                    'message' => $errorMessage,
+                    'status' => 'rejected',
+                    'data' => $result,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::error('PaymentConfirmationService: Error confirming Transbank payment', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+                'token' => $token,
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             // No crear registro de pago fallido para errores técnicos
             $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
@@ -466,6 +477,32 @@ class PaymentConfirmationService
             $transactionDate = now()->setTimezone('America/Santiago');
         }
 
+        // Extraer datos específicos según el tipo de gateway
+        $authorizationCode = $result['authorization_code'] ?? null;
+        $cardType = null;
+        $installmentsNumber = null;
+        $installmentAmount = null;
+        $vci = $result['vci'] ?? null;
+        $cardNumber = null;
+
+        // Mapear datos específicos según el gateway
+        if ($gatewayType === 'virtualpos') {
+            $cardType = $result['payment_method'] ?? null;
+            $installmentsNumber = $result['installments'] ?? null;
+            $installmentAmount = $result['installment_amount'] ?? null;
+        } elseif ($gatewayType === 'transbank') {
+            // Para Transbank, extraer datos del full_response
+            $fullResponse = $result['full_response'] ?? [];
+            $details = $fullResponse['details'] ?? [];
+            $firstDetail = $details[0] ?? null;
+            
+            if ($firstDetail) {
+                $cardType = $firstDetail['payment_type_code'] ?? null;
+                $installmentsNumber = $firstDetail['installments_number'] ?? null;
+                $cardNumber = $fullResponse['card_detail']['card_number'] ?? null;
+            }
+        }
+
         if (!$payment) {
             // Crear registro de pago solo si no existe
             $payment = Payment::create([
@@ -479,6 +516,12 @@ class PaymentConfirmationService
                 'amount' => $orderDetail->amount,
                 'status' => 'completed',
                 'transaction_date' => $transactionDate,
+                'authorization_code' => $authorizationCode,
+                'card_type' => $cardType,
+                'installments_number' => $installmentsNumber,
+                'installment_amount' => $installmentAmount,
+                'vci' => $vci,
+                'card_number' => $cardNumber,
                 'gateway_response' => $result,
                 'email_sent' => false, // Marcar que aún no se ha enviado el email
             ]);
@@ -487,6 +530,12 @@ class PaymentConfirmationService
             $updateData = [
                 'status' => 'completed',
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
+                'authorization_code' => $authorizationCode,
+                'card_type' => $cardType,
+                'installments_number' => $installmentsNumber,
+                'installment_amount' => $installmentAmount,
+                'vci' => $vci,
+                'card_number' => $cardNumber,
                 'gateway_response' => $result,
                 'email_sent' => false,
             ];

@@ -36,10 +36,8 @@ class PaymentConfirmationController extends Controller
             
             $paymentId = $request->input('uuid');
             
-            // Buscar el pago
-            $payment = \App\Models\Payment::where('token', $paymentId)
-                ->orWhere('external_payment_id', $paymentId)
-                ->first();
+            // Buscar el pago usando el método centralizado
+            $payment = \App\Models\Payment::findByVirtualPosId($paymentId);
             
             if ($payment) {
                 // Consultar el estado del pago en VirtualPOS
@@ -50,7 +48,7 @@ class PaymentConfirmationController extends Controller
                     $status = $confirmResult['full_response']['payment']['order']['status'];
                     
                     // Si el pago fue rechazado/cancelado, redirigir a fallo
-                    if (in_array($status, ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'])) {
+                    if (in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::REJECTED_STATUSES)) {
                         $payment->update([
                             'status' => 'failed',
                             'gateway_response' => $confirmResult,
@@ -68,7 +66,7 @@ class PaymentConfirmationController extends Controller
                             ->with('status', 'canceled');
                     }
                     // Si está aprobado, usar el servicio centralizado para evitar duplicación
-                    elseif (in_array($status, ['aprobado', 'approved', 'paid', 'success'])) {
+                    elseif (in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES)) {
                         // Usar el servicio centralizado para procesar el pago exitoso
                         // Esto evitará duplicación de emails y asegurará consistencia
                         $this->paymentConfirmationService->confirmPayment(
@@ -131,7 +129,7 @@ class PaymentConfirmationController extends Controller
     /**
      * Manejar notificaciones webhook de VirtualPOS
      */
-    public function handleVirtualPosWebhook(Request $request, $orderDetailId)
+    public function handleVirtualPosWebhook(Request $request, $orderDetailId = null)
     {
         try {
             // Log detallado de la notificación recibida
@@ -148,153 +146,80 @@ class PaymentConfirmationController extends Controller
             ]);
 
             $notificationData = $request->all();
-            $paymentId = $notificationData['payment_id'] ?? $notificationData['id'] ?? $notificationData['uuid'] ?? null;
-
-            if (!$paymentId) {
-                Log::error('VirtualPOS webhook: No payment_id provided', [
-                    'order_detail_id' => $orderDetailId,
-                    'data' => $notificationData
-                ]);
-                return response()->json(['error' => 'No payment_id provided'], 400);
-            }
-
-            // Buscar el pago en la base de datos usando el payment_id (uuid)
-            // Para VirtualPOS, el UUID se guarda en la columna 'token'
-            $payment = \App\Models\Payment::where('token', $paymentId)
-                ->orWhere('external_payment_id', $paymentId)
-                ->first();
             
-            if (!$payment) {
-                // Log adicional para debug: buscar todos los pagos relacionados con este order_detail
-                $allPayments = \App\Models\Payment::where('order_detail_id', $orderDetailId)->get();
-                Log::error('VirtualPOS webhook: Payment not found - Debug info', [
-                    'order_detail_id' => $orderDetailId,
-                    'payment_id' => $paymentId,
-                    'all_payments_for_order_detail' => $allPayments->map(function($p) {
-                        return [
-                            'id' => $p->id,
-                            'external_payment_id' => $p->external_payment_id,
-                            'token' => $p->token,
-                            'status' => $p->status,
-                            'amount' => $p->amount
-                        ];
-                    })
-                ]);
-                return response()->json(['error' => 'Payment not found'], 404);
-            }
-
-            // Procesar la notificación usando el servicio VirtualPOS
+            // Usar el método unificado del VirtualPosService
             $virtualPosService = app(\App\Services\Client\PaymentGateway\VirtualPosService::class);
-            
-            // Si el webhook no incluye status, consultar el estado del pago
-            $status = $notificationData['status'] ?? null;
-            if (!$status) {
-                Log::info('VirtualPOS webhook: No status provided, consulting payment status', [
-                    'payment_id' => $paymentId
-                ]);
-                
-                $confirmResult = $virtualPosService->confirmTransaction($paymentId);
-                if ($confirmResult['success']) {
-                    $status = $confirmResult['status'];
-                    $notificationData['status'] = $status;
-                    $notificationData['amount'] = $confirmResult['amount'];
-                    $notificationData['authorization_code'] = $confirmResult['authorization_code'];
-                    $notificationData['installments'] = $confirmResult['installments'] ?? null;
-                    $notificationData['installment_amount'] = $confirmResult['installment_amount'] ?? null;
-                } else {
-                    // Verificar si el resultado contiene información de estado rechazado
-                    $responseStatus = $confirmResult['full_response']['payment']['order']['status'] ?? null;
-                    
-                    if (in_array($responseStatus, ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'])) {
-                        // Actualizar el estado del pago a fallido
-                        $payment->update([
-                            'status' => 'failed',
-                            'gateway_response' => $confirmResult,
-                        ]);
+            $result = $virtualPosService->handleWebhookNotification($notificationData, $orderDetailId);
 
-                        $orderDetail = $payment->orderDetail;
-                        if ($orderDetail) {
-                            $orderDetail->update([
-                                'status' => 'failed',
-                                'is_paid' => false,
-                            ]);
-                        }
-                        
-                        Log::info('VirtualPOS payment marked as failed', [
-                            'order_detail_id' => $orderDetailId,
-                            'payment_id' => $paymentId,
-                            'status' => $responseStatus,
-                            'result' => $confirmResult
-                        ]);
-                        
-                        // Redirigir directamente a la página de fallo
-                        return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
-                            ->with('status', 'canceled');
-                    } else {
-                        Log::error('VirtualPOS webhook: Failed to confirm transaction', [
-                            'payment_id' => $paymentId,
-                            'result' => $confirmResult
-                        ]);
-                        return response()->json(['error' => 'Failed to confirm transaction'], 400);
-                    }
+            if (!$result['success']) {
+                if (isset($result['error']) && $result['error'] === 'Payment not found') {
+                    return response()->json(['error' => 'Payment not found'], 404);
                 }
+                return response()->json(['error' => $result['error']], 400);
             }
-            
-            $result = $virtualPosService->processNotification($notificationData);
 
-            if ($result['success']) {
+            $payment = $result['payment'];
+            $status = $result['status'];
+            $paymentId = $result['payment_id'];
+
+            // Determinar si el pago fue aprobado o rechazado usando las constantes
+            $isApproved = in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES);
+            $isRejected = in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::REJECTED_STATUSES);
+
+            if ($isApproved) {
                 // Usar el servicio centralizado para procesar el pago exitoso
-                // Esto evitará duplicación de emails y asegurará consistencia
                 $this->paymentConfirmationService->confirmPayment(
-                    $orderDetailId,
+                    $payment->order_detail_id,
                     'virtualpos',
                     $result
                 );
 
                 Log::info('VirtualPOS webhook processed successfully', [
-                    'order_detail_id' => $orderDetailId,
+                    'order_detail_id' => $payment->order_detail_id,
                     'payment_id' => $paymentId,
                     'status' => $status,
                     'result' => $result
                 ]);
 
                 return response()->json(['success' => true]);
-            } else {
-                // Si el pago fue rechazado/cancelado, actualizar el estado y redirigir
-                if (in_array($status, ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'])) {
-                    $payment->update([
+            } elseif ($isRejected) {
+                // Actualizar el estado del pago a fallido
+                $payment->update([
+                    'status' => 'failed',
+                    'gateway_response' => $result,
+                ]);
+
+                $orderDetail = $payment->orderDetail;
+                if ($orderDetail) {
+                    $orderDetail->update([
                         'status' => 'failed',
-                        'gateway_response' => $result,
+                        'is_paid' => false,
                     ]);
-
-                    $orderDetail = $payment->orderDetail;
-                    if ($orderDetail) {
-                        $orderDetail->update([
-                            'status' => 'failed',
-                            'is_paid' => false,
-                        ]);
-                    }
-
-                    Log::info('VirtualPOS payment rejected/cancelled', [
-                        'order_detail_id' => $orderDetailId,
-                        'payment_id' => $paymentId,
-                        'status' => $status,
-                        'result' => $result
-                    ]);
-
-                    // Redirigir directamente a la página de fallo
-                    return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
-                        ->with('status', 'canceled');
-                } else {
-                    Log::error('VirtualPOS webhook processing failed', [
-                        'order_detail_id' => $orderDetailId,
-                        'payment_id' => $paymentId,
-                        'status' => $status,
-                        'result' => $result
-                    ]);
-
-                    return response()->json(['error' => $result['error']], 400);
                 }
+
+                Log::info('VirtualPOS payment rejected/cancelled', [
+                    'order_detail_id' => $payment->order_detail_id,
+                    'payment_id' => $paymentId,
+                    'status' => $status,
+                    'result' => $result
+                ]);
+
+                // Si tenemos order_detail_id, redirigir a la página de fallo
+                if ($payment->order_detail_id) {
+                    return redirect()->route('payment.failure', ['orderDetailId' => $payment->order_detail_id])
+                        ->with('status', 'canceled');
+                }
+
+                return response()->json(['success' => false, 'status' => 'rejected']);
+            } else {
+                Log::error('VirtualPOS webhook processing failed - Unknown status', [
+                    'order_detail_id' => $payment->order_detail_id ?? $orderDetailId,
+                    'payment_id' => $paymentId,
+                    'status' => $status,
+                    'result' => $result
+                ]);
+
+                return response()->json(['error' => 'Unknown payment status'], 400);
             }
         } catch (\Exception $e) {
             Log::error('VirtualPOS webhook error', [

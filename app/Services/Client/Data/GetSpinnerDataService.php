@@ -30,6 +30,7 @@ class GetSpinnerDataService
             'gateway_detected' => $gatewayType,
             'gateway_data' => $gatewayData,
             'rut_in_session' => $rut,
+            'use_virtualpos_flag' => config('lat90.payment.use_virtualpos', true),
         ]);
 
         // Obtener el programId y session_id desde el orderDetail
@@ -57,17 +58,44 @@ class GetSpinnerDataService
     {
         // Prioridad 1: Parámetro explícito gateway
         $gateway = $request->query('gateway');
-        if ($gateway && in_array($gateway, ['transbank', 'khipu'])) {
+        if ($gateway && in_array($gateway, ['transbank', 'virtualpos', 'khipu'])) {
+            // Si el gateway es 'virtualpos' pero el flag está en false, usar 'transbank'
+            if ($gateway === 'virtualpos' && !config('lat90.payment.use_virtualpos', true)) {
+                            $this->logInfo('GetSpinnerDataService: Overriding virtualpos to transbank due to flag', [
+                'original_gateway' => $gateway,
+                'use_virtualpos_flag' => config('lat90.payment.use_virtualpos', true),
+                'final_gateway' => 'transbank'
+            ]);
+                return 'transbank';
+            }
+            
+            $this->logInfo('GetSpinnerDataService: Using explicit gateway parameter', [
+                'gateway' => $gateway,
+                'use_virtualpos_flag' => config('lat90.payment.use_virtualpos', true),
+            ]);
             return $gateway;
         }
 
         // Prioridad 2: Detección por parámetros específicos (fallback)
-        if ($request->query('token_ws')) {
-            return 'transbank';
+        if ($request->query('token_ws') || $request->query('token')) {
+            // Verificar flag para determinar si usar VirtualPOS o Transbank
+            $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+            $detectedGateway = $useVirtualPos ? 'virtualpos' : 'transbank';
+            
+            $this->logInfo('GetSpinnerDataService: Detected gateway by token', [
+                'token_ws' => $request->query('token_ws'),
+                'token' => $request->query('token'),
+                'use_virtualpos' => $useVirtualPos,
+                'detected_gateway' => $detectedGateway,
+            ]);
+            
+            return $detectedGateway;
         }
 
         if ($request->query('payment_id')) {
-            return 'khipu';
+            // Verificar si es VirtualPOS o Khipu basado en el flag
+            $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+            return $useVirtualPos ? 'virtualpos' : 'khipu';
         }
 
         // Prioridad 3: Detección por URL path (legacy)
@@ -76,7 +104,9 @@ class GetSpinnerDataService
             return 'khipu';
         }
         if (str_contains($path, 'transbank') || str_contains($path, 'webpay')) {
-            return 'transbank';
+            // Verificar flag para determinar si usar VirtualPOS o Transbank
+            $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+            return $useVirtualPos ? 'virtualpos' : 'transbank';
         }
 
         return 'unknown';
@@ -94,7 +124,12 @@ class GetSpinnerDataService
         switch ($gatewayType) {
             case 'transbank':
                 return [
-                    'token_ws' => $request->query('token_ws'),
+                    'token_ws' => $request->query('token_ws') ?? $request->query('token'),
+                ];
+            
+            case 'virtualpos':
+                return [
+                    'payment_id' => $request->query('payment_id') ?? $request->query('uuid'),
                 ];
             
             case 'khipu':

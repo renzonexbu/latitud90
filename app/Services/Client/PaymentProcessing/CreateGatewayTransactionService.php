@@ -4,6 +4,7 @@ namespace App\Services\Client\PaymentProcessing;
 
 use App\Models\OrderDetail;
 use App\Services\Client\PaymentGateway\VirtualPosService;
+use App\Services\Client\PaymentGateway\TransbankService;
 use App\Services\Client\PaymentGateway\KhipuService;
 use App\Traits\SystemLogging;
 
@@ -13,6 +14,7 @@ class CreateGatewayTransactionService
 
     public function __construct(
         private VirtualPosService $virtualPosService,
+        private TransbankService $transbankService,
         private KhipuService $khipuService
     ) {}
 
@@ -95,24 +97,39 @@ class CreateGatewayTransactionService
                 $paymentType = $paymentData['paymentType'] ?? null;
                 $installments = $installmentsOverride ?? ($paymentData['installments'] ?? null);
 
-                // Obtener datos del cliente desde el OrderDetail
-                $customerEmail = $orderDetail->email;
-                $customerDocument = $orderDetail->document_number;
-                $customerName = $orderDetail->name;
-                $customerPhone = $orderDetail->phone;
+                // Verificar flag para usar VirtualPOS (producción) o Transbank (pruebas)
+                $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+                
+                if ($useVirtualPos) {
+                    // Usar VirtualPOS (producción)
+                    $customerEmail = $orderDetail->email;
+                    $customerDocument = $orderDetail->document_number;
+                    $customerName = $orderDetail->name;
+                    $customerPhone = $orderDetail->phone;
 
-                return $this->virtualPosService->createTransaction(
-                    $orderId,
-                    $amount,
-                    $virtualPosCallbackUrl,
-                    $virtualPosNotificationUrl, // notification URL
-                    $paymentType,
-                    $installments,
-                    $customerEmail,
-                    $customerDocument,
-                    $customerName,
-                    $customerPhone
-                );
+                    return $this->virtualPosService->createTransaction(
+                        $orderId,
+                        $amount,
+                        $virtualPosCallbackUrl,
+                        $virtualPosNotificationUrl, // notification URL
+                        $paymentType,
+                        $installments,
+                        $customerEmail,
+                        $customerDocument,
+                        $customerName,
+                        $customerPhone
+                    );
+                } else {
+                    // Usar Transbank (pruebas)
+                    return $this->transbankService->createTransaction(
+                        $orderId,
+                        $amount,
+                        $virtualPosCallbackUrl,
+                        $virtualPosNotificationUrl,
+                        $paymentType,
+                        $installments
+                    );
+                }
 
             case 'khipu':
                 // Para Khipu, necesitamos crear la transacción primero para obtener el payment_id

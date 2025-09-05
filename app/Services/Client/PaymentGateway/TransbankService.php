@@ -79,6 +79,10 @@ class TransbankService
     public function confirmTransaction($token)
     {
         try {
+            $this->logInfo('TransbankService: confirmTransaction', [
+                'token' => $token,
+            ]);
+            
             $options = new Options($this->apiKey, $this->parentCommerceCode, $this->environment);
             $mall = new MallTransaction($options);
             $commit = $mall->commit((string) $token);
@@ -125,15 +129,27 @@ class TransbankService
                 ],
             ];
             $this->logInfo('TransbankService: confirmTransaction response', [
-                'response' => $response
+                'success' => $response['success'] ?? false,
+                'status' => $response['status'] ?? 'unknown'
             ]);
             return $response;
         } catch (MallTransactionCommitException $e) {
+            $this->logError('TransbankService: MallTransactionCommitException', [
+                'token' => $token,
+                'error' => $e->getMessage(),
+                'transbank_error' => method_exists($e, 'getTransbankErrorMessage') ? $e->getTransbankErrorMessage() : null,
+            ], $e);
+            
             return [
                 'success' => false,
                 'error' => method_exists($e, 'getTransbankErrorMessage') && $e->getTransbankErrorMessage() ? $e->getTransbankErrorMessage() : $e->getMessage(),
             ];
         } catch (\Exception $e) {
+            $this->logError('TransbankService: Exception in confirmTransaction', [
+                'token' => $token,
+                'error' => $e->getMessage(),
+            ], $e);
+            
             return [
                 'success' => false,
                 'error' => $e->getMessage()

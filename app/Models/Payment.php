@@ -260,6 +260,41 @@ class Payment extends Model
     }
 
     /**
+     * Buscar pago por ID de VirtualPOS (UUID)
+     * 
+     * @param string $paymentId
+     * @return Payment|null
+     */
+    public static function findByVirtualPosId(string $paymentId): ?Payment
+    {
+        return self::where('token', $paymentId)
+            ->orWhere('external_payment_id', $paymentId)
+            ->first();
+    }
+
+    /**
+     * Buscar pagos por order_detail_id con logging detallado
+     * 
+     * @param int $orderDetailId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function findByOrderDetailId(int $orderDetailId)
+    {
+        return self::where('order_detail_id', $orderDetailId)->get();
+    }
+
+    /**
+     * Buscar pagos con external_payment_id similar (para debugging)
+     * 
+     * @param string $paymentId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public static function findSimilarExternalIds(string $paymentId)
+    {
+        return self::where('external_payment_id', 'like', '%' . $paymentId . '%')->get();
+    }
+
+    /**
      * Boot method para configurar timezone automáticamente y tipo de documento
      */
     protected static function boot()

@@ -57,4 +57,9 @@ return [
             'phone' => '+56 9 1234 5678',
         ],
     ],
+    
+
+    'payment' => [
+        'use_virtualpos' => false, // true = VirtualPOS (producción), false = Transbank (pruebas)
+    ],
 ];
