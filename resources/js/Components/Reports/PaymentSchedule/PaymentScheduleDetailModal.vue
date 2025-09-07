@@ -318,7 +318,7 @@ const itemsPerPage = ref(10);
 // Obtener datos cuando se abra el modal
 const fetchScheduleDetails = async () => {
     if (!props.detailFilters.yearMonth) {
-        // Falta yearMonth para filtrar cuotas del mes
+        error.value = 'Falta especificar el mes para obtener los detalles';
         return;
     }
 
@@ -326,7 +326,7 @@ const fetchScheduleDetails = async () => {
     error.value = '';
     
     try {
-        // Cargar detalles del mes
+        // Cargar detalles del mes desde el backend
         const response = await axios.get('/admin/reports/payment-schedule/details', {
             params: {
                 salesExecutiveId: props.detailFilters.salesExecutiveId,

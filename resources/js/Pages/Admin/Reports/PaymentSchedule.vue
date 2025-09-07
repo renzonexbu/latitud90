@@ -10,8 +10,6 @@
                     subtitle="Cuotas pactadas diariamente, vencimientos futuros y cuotas por cobrar en período determinado"
                 />
 
-
-
                 <!-- Resumen General por Ejecutivo y Programa -->
                 <PaymentScheduleSummary
                     :executive-summary="executiveSummary"
@@ -422,8 +420,6 @@ const updateFilter = (key, value) => {
 
 // Función para abrir modal de detalles del mes
 const openMonthDetailModal = (detailFilters) => {
-    console.log('Opening month detail modal with filters:', detailFilters);
-    console.log('Available schedules:', allSchedules.value);
     monthDetailFilters.value = detailFilters;
     showMonthDetailModal.value = true;
 };

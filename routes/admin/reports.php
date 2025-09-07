@@ -12,6 +12,7 @@ Route::get('/reports/sales-chart', [ReportController::class, 'salesChart'])->nam
 
 // Estado de Cuenta Parcial
 Route::get('/reports/partial-account', [ReportController::class, 'partialAccount'])->name('reports.partial-account');
+Route::get('/reports/search-participants', [ReportController::class, 'searchParticipants'])->name('reports.search-participants');
 
 // Cronograma de Recuperación de Cuotas
 Route::get('/reports/payment-schedule', [ReportController::class, 'paymentSchedule'])->name('reports.payment-schedule');

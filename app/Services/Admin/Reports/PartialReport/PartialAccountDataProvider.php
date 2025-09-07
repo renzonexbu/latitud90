@@ -12,8 +12,20 @@ class PartialAccountDataProvider
     /**
      * Obtiene las inscripciones paginadas
      */
-    public function getEnrollments(Builder $query, int $page = 1): LengthAwarePaginator
+    public function getEnrollments(Builder $query, int $page = 1, int $perPage = 15, array $filters = []): LengthAwarePaginator
     {
+        // Apply participant search filter if provided
+        if (!empty($filters['participantSearch'])) {
+            $searchTerm = '%' . $filters['participantSearch'] . '%';
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('p.first_name', 'LIKE', $searchTerm)
+                  ->orWhere('p.first_last_name', 'LIKE', $searchTerm)
+                  ->orWhere('p.second_last_name', 'LIKE', $searchTerm)
+                  ->orWhereRaw("CONCAT(p.first_name, ' ', p.first_last_name) LIKE ?", [$searchTerm])
+                  ->orWhereRaw("CONCAT(p.first_name, ' ', p.first_last_name, ' ', p.second_last_name) LIKE ?", [$searchTerm]);
+            });
+        }
+
         $result = $query
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
@@ -44,12 +56,10 @@ class PartialAccountDataProvider
                 'c.course_number',
                 'i.name as institution_name',
                 'se.name as sales_executive_name',
-                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
+                DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
-            ->paginate(10);
-
-
+            ->paginate($perPage, ['*'], 'page', $page);
 
         return $result;
     }
@@ -89,7 +99,7 @@ class PartialAccountDataProvider
                 'c.course_number',
                 'i.name as institution_name',
                 'se.name as sales_executive_name',
-                DB::raw('COALESCE(SUM(od.amount), 0) as paid_amount'),
+                DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
             ->get();
@@ -104,19 +114,23 @@ class PartialAccountDataProvider
      */
     public function buildBaseQuery(): Builder
     {
-        return DB::table('participants as p')
-            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
+        return DB::table('participant_program as pp')
+            ->join('participants as p', 'p.id', '=', 'pp.participant_id')
+            ->join('programs as pr', 'pr.id', '=', 'pp.program_id')
             ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
             ->leftJoin('sales_executives as se', 'se.id', '=', 'pr.sales_executive_id')
             ->leftJoin('orders as o', function($join) {
                 $join->on('o.participant_id', '=', 'p.id')
-                     ->on('o.program_id', '=', 'pr.id');
+                     ->on('o.program_id', '=', 'pr.id')
+                     ->whereIn('o.status', ['completed', 'paid', 'approved']);
             })
-            ->leftJoin('orders_detail as od', function ($join) {
-                $join->on('od.order_id', '=', 'o.id')
-                    ->where('od.is_paid', true);
-            });
+            ->leftJoin('payments as pay', function($join) {
+                $join->on('pay.order_id', '=', 'o.id')
+                     ->whereIn('pay.status', ['completed', 'paid', 'approved'])
+                     ->where('pay.amount', '>', 0);
+            })
+            ->whereNotNull('pp.participant_id')
+            ->whereNotNull('pp.program_id');
     }
 }

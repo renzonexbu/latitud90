@@ -9,6 +9,7 @@ use Inertia\Inertia;
 use Carbon\Carbon;
 use App\Services\Admin\Reports\RecoverySchedule\RecoveryScheduleService;
 use App\Services\Admin\Reports\RecoverySchedule\ExportService;
+use App\Services\Admin\Reports\Executives\ExportService as ExecutivesExportService;
 use App\Services\Admin\Reports\DailyPayments\DailyPaymentsService;
 use App\Services\Admin\Reports\DailyPayments\ExportService as DailyPaymentsExportService;
 use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
@@ -21,6 +22,7 @@ use App\Services\Admin\Reports\GetInstallmentScheduleService;
 use App\Services\Admin\Reports\GetRevenueChartService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleDetailService;
+use App\Services\Admin\Reports\PaymentSchedule\ExportService as PaymentScheduleExportService;
 use App\Services\EcommerceAnalyticsService;
 use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
 use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
@@ -33,6 +35,7 @@ class ReportController extends Controller
     public function __construct(
         private RecoveryScheduleService $recoveryScheduleService,
         private ExportService $exportService,
+        private ExecutivesExportService $executivesExportService,
         private DailyPaymentsService $dailyPaymentsService,
         private DailyPaymentsExportService $dailyPaymentsExportService,
         private ConsolidatedPaymentsService $consolidatedPaymentsService,
@@ -45,6 +48,7 @@ class ReportController extends Controller
         private GetRevenueChartService $getRevenueChartService,
         private PaymentScheduleSummaryService $paymentScheduleSummaryService,
         private PaymentScheduleDetailService $paymentScheduleDetailService,
+        private PaymentScheduleExportService $paymentScheduleExportService,
         private EcommerceAnalyticsService $analyticsService,
         private SoftlandExcelExporter $softlandExcelExporter,
         private AuxiliaresExporter $auxiliaresExporter,
@@ -64,7 +68,13 @@ class ReportController extends Controller
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
             $format = $request->get('format', 'excel');
             
-            return $this->exportService->export($filters, $format);
+            // Obtener los datos para exportar
+            $data = $this->recoveryScheduleService->getAllPaymentSchedules($filters);
+            
+            // Generar nombre de archivo
+            $filename = 'cronograma_cuotas_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+            
+            return $this->exportService->export($data, $filename, $format);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
         }
@@ -83,15 +93,39 @@ class ReportController extends Controller
     public function partialAccount(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
-            $data = $this->reportsSummaryService->getPartialAccountData($filters);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'participantSearch', 'paymentStatus', 'page']);
+            
+            // Use the new PartialAccountService
+            $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
+            $partialAccounts = $partialAccountService->getPartialAccounts($filters);
+            $filterData = $partialAccountService->getFilterData();
             
             return Inertia::render('Admin/Reports/PartialAccount', [
-                'data' => $data,
+                'partialAccounts' => $partialAccounts,
+                'programs' => $filterData['programs'],
+                'participants' => $filterData['participants'],
                 'filters' => $filters
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al generar estado de cuenta parcial: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function searchParticipants(Request $request)
+    {
+        try {
+            $search = $request->get('search', '');
+            
+            if (strlen($search) < 2) {
+                return response()->json([]);
+            }
+            
+            $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
+            $participants = $partialAccountService->searchParticipants($search);
+            
+            return response()->json($participants);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al buscar participantes: ' . $e->getMessage()], 500);
         }
     }
 
@@ -102,7 +136,11 @@ class ReportController extends Controller
             $data = $this->paymentScheduleSummaryService->getSummaryData($filters);
             
             return Inertia::render('Admin/Reports/PaymentSchedule', [
-                'data' => $data,
+                'paymentSchedules' => $data['paymentSchedules'] ?? [],
+                'programs' => $data['programs'] ?? [],
+                'salesExecutives' => $data['salesExecutives'] ?? [],
+                'summary' => $data['summary'] ?? [],
+                'executiveSummary' => $data['executiveSummary'] ?? [],
                 'filters' => $filters
             ]);
         } catch (\Exception $e) {
@@ -113,12 +151,19 @@ class ReportController extends Controller
     public function paymentScheduleDetails(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'salesExecutiveId', 'yearMonth']);
             $data = $this->paymentScheduleDetailService->getDetailData($filters);
             
-            return response()->json($data);
+            return response()->json([
+                'success' => true,
+                'data' => $data['scheduleDetails'] ?? [],
+                'liberated' => $data['liberatedParticipants'] ?? []
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al obtener detalles del cronograma: ' . $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener detalles del cronograma: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -126,10 +171,16 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
+            
             $data = $this->dailyPaymentsService->getData($filters);
             
             return Inertia::render('Admin/Reports/DailyPayments', [
-                'data' => $data,
+                'dailyPayments' => $data['dailyPayments'],
+                'programs' => $data['programs'],
+                'salesExecutives' => $data['salesExecutives'],
+                'financingTypes' => $data['financingTypes'],
+                'paymentMethods' => $data['paymentMethods'],
+                'summary' => $data['summary'],
                 'filters' => $filters
             ]);
         } catch (\Exception $e) {
@@ -144,11 +195,15 @@ class ReportController extends Controller
             $data = $this->consolidatedPaymentsService->getData($filters);
             
             return Inertia::render('Admin/Reports/ConsolidatedPayments', [
-                'data' => $data,
-                'filters' => $filters
+                'consolidatedPayments' => $data['consolidatedPayments'],
+                'paymentMethods' => $data['paymentMethods'],
+                'programs' => \App\Models\Program::select('id', 'code', 'name')->orderBy('code')->get(),
+                'filters' => $filters,
+                'summary' => $data['summary']
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar reporte consolidado: ' . $e->getMessage()], 500);
+            Log::error('Error al generar reporte consolidado: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al generar reporte consolidado'], 500);
         }
     }
 
@@ -156,7 +211,7 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
-            $data = $this->getInstallmentScheduleService->execute($filters);
+            $data = $this->recoveryScheduleService->getPaymentSchedules($filters);
             
             return Inertia::render('Admin/Reports/InstallmentSchedule', [
                 'data' => $data,
@@ -167,23 +222,20 @@ class ReportController extends Controller
         }
     }
 
-    public function revenueChart(Request $request)
-    {
-        try {
-            $data = $this->getRevenueChartService->execute($request);
-            return response()->json($data);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al obtener datos del gráfico de ingresos: ' . $e->getMessage()], 500);
-        }
-    }
-
     public function exportDailyPayments(Request $request)
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
             $format = $request->get('format', 'excel');
+            $selectedFields = $request->get('selectedFields', []);
             
-            return $this->dailyPaymentsExportService->export($filters, $format);
+            // Obtener los datos para exportar
+            $data = $this->dailyPaymentsService->getAllDailyPayments($filters, $selectedFields);
+            
+            // Generar nombre de archivo
+            $filename = 'pagos_diarios_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+            
+            return $this->dailyPaymentsExportService->export($data, $filename, $format, $selectedFields);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al exportar pagos diarios: ' . $e->getMessage()], 500);
         }
@@ -193,9 +245,16 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
-            $format = $request->get('format', 'excel');
+            $format = $request->get('format', 'xlsx');
+            $selectedFields = $request->get('selectedFields', []);
             
-            return $this->consolidatedPaymentsExportService->export($filters, $format);
+            // Obtener los datos para exportar
+            $data = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, $selectedFields);
+            
+            // Generar nombre de archivo
+            $filename = 'pagos_consolidados_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+            
+            return $this->consolidatedPaymentsExportService->export($data, $filename, $format, $selectedFields);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al exportar pagos consolidados: ' . $e->getMessage()], 500);
         }
@@ -204,22 +263,171 @@ class ReportController extends Controller
     public function exportPartialAccount(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
-            $format = $request->get('format', 'excel');
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'paymentStatus']);
+            $selectedFields = json_decode($request->get('fields', '{}'), true);
+            $format = $request->get('format', 'xlsx');
+            $includeAll = $request->get('include_all', 'current');
             
-            return $this->exportService->exportPartialAccount($filters, $format);
+            $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
+            $data = $partialAccountService->getExportData($filters, $selectedFields, $includeAll);
+            
+            // Generate filename with timestamp
+            $timestamp = now('America/Santiago')->format('Y-m-d_H-i-s');
+            $baseFilename = 'estado_cuenta_parcial_' . $timestamp;
+            
+            if ($format === 'csv') {
+                return $this->exportToCsv($data, $baseFilename);
+            }
+            
+            return $this->exportToExcel($data, $baseFilename, $selectedFields);
+            
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al exportar estado de cuenta parcial: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function exportToCsv($data, $filename)
+    {
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
+        ];
+
+        $callback = function() use ($data) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Add headers if data is not empty
+            if ($data->isNotEmpty()) {
+                fputcsv($file, array_keys($data->first()), ';');
+                
+                foreach ($data as $row) {
+                    fputcsv($file, array_values($row), ';');
+                }
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    private function exportToExcel($data, $filename, $selectedFields)
+    {
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Estado de Cuenta Parcial');
+
+            // Add headers
+            if ($data->isNotEmpty()) {
+                $headers = array_keys($data->first());
+                
+                $col = 'A';
+                foreach ($headers as $header) {
+                    $sheet->setCellValue($col . '1', $header);
+                    $col++;
+                }
+
+                // Style headers
+                $lastCol = chr(64 + count($headers));
+                $sheet->getStyle('A1:' . $lastCol . '1')->getFont()->setBold(true);
+                $sheet->getStyle('A1:' . $lastCol . '1')->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FFE0E0E0');
+
+                // Add data
+                $row = 2;
+                foreach ($data as $item) {
+                    $col = 'A';
+                    foreach ($item as $value) {
+                        try {
+                            // Clean and handle values properly
+                            if ($value === null) {
+                                $sheet->setCellValue($col . $row, '');
+                            } elseif (is_numeric($value)) {
+                                $sheet->setCellValueExplicit($col . $row, (float)$value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+                            } elseif (is_bool($value)) {
+                                $sheet->setCellValue($col . $row, $value ? 'Sí' : 'No');
+                            } elseif (is_array($value) || is_object($value)) {
+                                $sheet->setCellValue($col . $row, json_encode($value));
+                            } else {
+                                // Clean string values - remove any control characters
+                                $cleanValue = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', (string)$value);
+                                $sheet->setCellValue($col . $row, $cleanValue);
+                            }
+                            $col++;
+                        } catch (\Exception $cellError) {
+                            // Set empty value and continue
+                            $sheet->setCellValue($col . $row, '');
+                            $col++;
+                        }
+                    }
+                    $row++;
+                }
+
+                // Auto-size columns
+                foreach (range('A', $lastCol) as $columnID) {
+                    $sheet->getColumnDimension($columnID)->setAutoSize(true);
+                }
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $tempFile = tempnam(sys_get_temp_dir(), 'partial_account_') . '.xlsx';
+            $writer->save($tempFile);
+
+            if (!file_exists($tempFile) || filesize($tempFile) === 0) {
+                throw new \Exception('Failed to create Excel file');
+            }
+
+            // Save to public directory and return URL
+            $publicPath = public_path('exports');
+            if (!file_exists($publicPath)) {
+                mkdir($publicPath, 0755, true);
+            }
+            
+            $publicFilename = $filename . '.xlsx';
+            $publicFilePath = $publicPath . '/' . $publicFilename;
+            
+            if (copy($tempFile, $publicFilePath)) {
+                unlink($tempFile);
+                
+                return response()->json([
+                    'success' => true,
+                    'download_url' => url('exports/' . $publicFilename),
+                    'filename' => $publicFilename,
+                    'message' => 'Archivo generado exitosamente'
+                ]);
+            } else {
+                throw new \Exception('Failed to save file for download');
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('=== EXCEL EXPORT ERROR ===');
+            \Illuminate\Support\Facades\Log::error('Error message: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error file: ' . $e->getFile());
+            \Illuminate\Support\Facades\Log::error('Error line: ' . $e->getLine());
+            \Illuminate\Support\Facades\Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Error generating Excel file: ' . $e->getMessage()], 500);
         }
     }
 
     public function exportPaymentSchedule(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
-            $format = $request->get('format', 'excel');
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'salesExecutiveId', 'yearMonth']);
+            $format = $request->get('format', 'xlsx');
             
-            return $this->exportService->exportPaymentSchedule($filters, $format);
+            // Obtener los datos para exportar
+            $data = $this->paymentScheduleSummaryService->getSummaryData($filters);
+            
+            // Generar nombre de archivo
+            $filename = 'cronograma_pagos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+            
+            // Usar el exportador específico para cronograma de pagos
+            return $this->paymentScheduleExportService->export($data, $filename, $format);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al exportar cronograma de pagos: ' . $e->getMessage()], 500);
         }

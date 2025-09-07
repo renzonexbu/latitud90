@@ -290,4 +290,184 @@ class ReportsSummaryService
         // Simulación de tasa de crecimiento
         return 12.3; // Porcentaje simulado
     }
+
+    public function getPartialAccountData(array $filters): array
+    {
+        $dateFrom = $filters['dateFrom'] ?? Carbon::now()->subDays(30)->format('Y-m-d');
+        $dateTo = $filters['dateTo'] ?? Carbon::now()->format('Y-m-d');
+        $programId = $filters['programId'] ?? null;
+        $participantId = $filters['participantId'] ?? null;
+
+        // Obtener estados de cuenta parciales
+        $partialAccounts = $this->getPartialAccountRecords($dateFrom, $dateTo, $programId, $participantId);
+
+        return [
+            'partialAccounts' => $partialAccounts
+        ];
+    }
+
+    private function getPartialAccountRecords($dateFrom, $dateTo, $programId, $participantId)
+    {
+        $query = Order::with([
+            'participant.emergencyContacts',
+            'program.salesExecutive',
+            'payments.paymentGateway',
+            'installmentPlan.installments',
+            'participantProgram'
+        ])
+        ->whereBetween('created_at', [$dateFrom, $dateTo]);
+
+        if ($programId) {
+            $query->where('program_id', $programId);
+        }
+
+        if ($participantId) {
+            $query->where('participant_id', $participantId);
+        }
+
+        $orders = $query->get();
+
+        return $orders->map(function ($order) {
+            $participant = $order->participant;
+            $program = $order->program;
+            $payments = $order->payments;
+            
+            // Obtener código de inscripción del participantProgram
+            $enrollmentCode = 'N/A';
+            if ($order->participantProgram) {
+                $enrollmentCode = $order->participantProgram->enrollment_code ?? 'N/A';
+            } else {
+                // Si no hay participantProgram en la orden, buscar directamente en la tabla
+                $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->first();
+                if ($participantProgram) {
+                    $enrollmentCode = $participantProgram->enrollment_code ?? 'N/A';
+                }
+            }
+            
+            // Obtener datos del apoderado (emergency contact)
+            $apoderado = $participant->emergencyContacts->first();
+            $apoderadoName = $apoderado ? ucwords(strtolower(trim($apoderado->name))) : 'No disponible';
+            $apoderadoEmail = $apoderado ? $apoderado->email : 'No disponible';
+            $apoderadoPhone = $apoderado ? $apoderado->phone : 'No disponible';
+            
+            // Calcular totales correctamente
+            $totalAmount = (float) ($order->total_amount ?? 0); // Precio original
+            $totalDiscounts = (float) ($order->discount ?? 0); // Descuentos aplicados
+            $netAmount = (float) ($order->final_amount ?? $totalAmount); // Monto final después de descuentos
+            $totalPaid = (float) $payments->whereIn('status', ['approved', 'completed', 'paid'])->sum('amount');
+            $pendingAmount = max($netAmount - $totalPaid, 0);
+            $progressPercentage = $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 0;
+            
+            // Determinar estado correctamente
+            $status = 'pending';
+            if ($totalPaid >= $netAmount) {
+                $status = 'paid';
+            } elseif ($totalPaid > 0) {
+                $status = 'partial';
+            }
+
+            // Obtener historial de pagos
+            $paymentHistory = $payments->whereIn('status', ['approved', 'completed', 'paid'])->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'date' => $payment->transaction_date ?? $payment->created_at,
+                    'amount' => (float) $payment->amount,
+                    'method' => $payment->paymentGateway->name ?? 'N/A',
+                    'status' => 'Pagado',
+                    'authorization_code' => $payment->authorization_code,
+                    'transaction_id' => $payment->transaction_id
+                ];
+            });
+
+            // Obtener próximos vencimientos
+            $upcomingPayments = collect();
+            if ($order->installmentPlan) {
+                $upcomingPayments = $order->installmentPlan->installments->where('status', 'pending')->map(function ($installment) {
+                    return [
+                        'id' => $installment->id,
+                        'installment_number' => $installment->installment_number,
+                        'due_date' => $installment->due_date,
+                        'amount' => (float) $installment->amount,
+                        'status' => 'Pendiente'
+                    ];
+                });
+            }
+
+            // Obtener descuentos aplicados
+            $discountsDetail = [];
+            if ($totalDiscounts > 0) {
+                $discountsDetail[] = [
+                    'comment' => 'Descuento aplicado',
+                    'type' => 'fixed',
+                    'value' => (float) $totalDiscounts
+                ];
+            }
+
+            return [
+                'id' => $order->id,
+                'participant_name' => $this->formatParticipantName($participant),
+                'participant_document' => $participant->document_number,
+                'participant_email' => $participant->email,
+                'participant_phone' => $participant->phone,
+                'apoderado_name' => $apoderadoName,
+                'apoderado_email' => $apoderadoEmail,
+                'apoderado_phone' => $apoderadoPhone,
+                'program_name' => $program->name,
+                'program_departure_date' => $program->departure_date,
+                'enrollment_code' => $enrollmentCode,
+                'sales_executive_name' => $program->salesExecutive->name ?? 'N/A',
+                'total_amount' => (float) $totalAmount,
+                'total_discounts' => (float) $totalDiscounts,
+                'net_amount' => (float) $netAmount,
+                'total_paid' => (float) $totalPaid,
+                'pending_amount' => (float) $pendingAmount,
+                'progress_percentage' => $progressPercentage,
+                'discounts_detail' => $discountsDetail,
+                'payment_history' => $paymentHistory,
+                'upcoming_payments' => $upcomingPayments,
+                'status' => $status
+            ];
+        });
+    }
+
+    private function calculateParticipantBalance($participant)
+    {
+        // Simulación del balance del participante
+        return $participant->orders->sum('total_amount') - $participant->orders->sum('paid_amount');
+    }
+
+    private function getParticipantPayments($participant, $dateFrom, $dateTo)
+    {
+        return $participant->orders()
+            ->with('payments')
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->get()
+            ->pluck('payments')
+            ->flatten();
+    }
+
+    /**
+     * Formatear nombre del participante en Title Case
+     */
+    private function formatParticipantName($participant)
+    {
+        $parts = [];
+        
+        if ($participant->first_name) {
+            $parts[] = ucwords(strtolower(trim($participant->first_name)));
+        }
+        if ($participant->second_name) {
+            $parts[] = ucwords(strtolower(trim($participant->second_name)));
+        }
+        if ($participant->first_last_name) {
+            $parts[] = ucwords(strtolower(trim($participant->first_last_name)));
+        }
+        if ($participant->second_last_name) {
+            $parts[] = ucwords(strtolower(trim($participant->second_last_name)));
+        }
+        
+        return implode(' ', $parts);
+    }
 }

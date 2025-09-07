@@ -14,11 +14,16 @@ class PartialAccountTransformer
     /**
      * Transforma las inscripciones para la vista principal
      */
-    public function transformEnrollments(array $enrollments): Collection
+    public function transformEnrollments(array $enrollments, array $filters = []): Collection
     {
-        return collect($enrollments)->map(function($enrollment) {
+        $transformed = collect($enrollments)->map(function($enrollment) {
             return $this->transformEnrollment($enrollment);
         });
+
+        // Payment status filter is now handled at the query level, not here
+        // This ensures filtering across all pages, not just current page
+
+        return $transformed;
     }
 
     /**
@@ -200,21 +205,36 @@ class PartialAccountTransformer
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
         }
         
-        $totalAmount = $enrollment->individual_price ?? 0;
-        $totalDiscounts = $priceData ? $priceData['discounts'] : 0;
-        $netAmount = $priceData ? $priceData['final_price'] : $totalAmount;
-        $totalPaid = $enrollment->paid_amount ?? 0;
-        $pendingAmount = $netAmount - $totalPaid;
+        // Use individual_price from participant_program as base price
+        $totalAmount = (float) ($enrollment->individual_price ?? ($program->trip_price ?? 0));
         
-        // Determinar estado
+        // Calculate discounts properly
+        $totalDiscounts = 0;
+        if ($priceData && isset($priceData['discounts'])) {
+            $totalDiscounts = (float) $priceData['discounts'];
+        }
+        
+        // Net amount is total amount minus discounts
+        $netAmount = $totalAmount - $totalDiscounts;
+        if ($priceData && isset($priceData['final_price'])) {
+            $netAmount = (float) $priceData['final_price'];
+        }
+        
+        // Get actual paid amount from orders
+        $totalPaid = (float) ($enrollment->paid_amount ?? 0);
+        
+        // Calculate pending amount (can't be negative)
+        $pendingAmount = max($netAmount - $totalPaid, 0);
+        
+        // Determine status
         $status = 'pending';
         if ($pendingAmount <= 0) {
             $status = 'paid';
-        } elseif ($pendingAmount < $netAmount) {
+        } elseif ($totalPaid > 0) {
             $status = 'partial';
         }
 
-        // Calcular porcentaje de avance
+        // Calculate progress percentage
         $progressPercentage = $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 0;
 
         return [

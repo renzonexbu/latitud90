@@ -91,4 +91,60 @@ class PaymentScheduleSummaryDataProvider
             ->orderBy('name')
             ->get();
     }
+
+    public function getPaymentSchedules(array $filters): Collection
+    {
+        $query = $this->buildExecutiveSummaryQuery();
+        
+        // Aplicar filtros básicos
+        if (!empty($filters['programId'])) {
+            $query->where('prog.id', $filters['programId']);
+        }
+        
+        if (!empty($filters['salesExecutiveId'])) {
+            $query->where('se.id', $filters['salesExecutiveId']);
+        }
+        
+        if (!empty($filters['dateFrom'])) {
+            $query->where('i.due_date', '>=', $filters['dateFrom']);
+        }
+        
+        if (!empty($filters['dateTo'])) {
+            $query->where('i.due_date', '<=', $filters['dateTo']);
+        }
+        
+        return $query->get();
+    }
+
+    public function getGeneralSummary(array $filters): array
+    {
+        $query = $this->buildExecutiveSummaryQuery();
+        
+        // Aplicar filtros básicos
+        if (!empty($filters['programId'])) {
+            $query->where('prog.id', $filters['programId']);
+        }
+        
+        if (!empty($filters['salesExecutiveId'])) {
+            $query->where('se.id', $filters['salesExecutiveId']);
+        }
+        
+        if (!empty($filters['dateFrom'])) {
+            $query->where('i.due_date', '>=', $filters['dateFrom']);
+        }
+        
+        if (!empty($filters['dateTo'])) {
+            $query->where('i.due_date', '<=', $filters['dateTo']);
+        }
+        
+        $data = $query->get();
+        
+        return [
+            'total_installments' => $data->count(),
+            'total_amount' => $data->sum('installment_amount'),
+            'paid_installments' => $data->where('installment_status', 'paid')->count(),
+            'overdue_installments' => $data->where('payment_status', 'overdue')->count(),
+            'pending_installments' => $data->where('payment_status', 'pending')->count(),
+        ];
+    }
 }

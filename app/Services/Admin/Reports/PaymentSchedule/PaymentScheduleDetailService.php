@@ -48,4 +48,15 @@ class PaymentScheduleDetailService
         $liberatedParticipants = $this->dataProvider->getLiberatedParticipantsForMonth($filters);
         return $this->transformer->transformForView($liberatedParticipants);
     }
+
+    public function getDetailData(array $filters): array
+    {
+        $scheduleDetails = $this->getScheduleDetails($filters);
+        $liberatedParticipants = $this->getLiberatedParticipants($filters);
+
+        return [
+            'scheduleDetails' => $scheduleDetails,
+            'liberatedParticipants' => $liberatedParticipants,
+        ];
+    }
 }

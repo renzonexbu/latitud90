@@ -20,25 +20,16 @@ class PartialAccountService
      */
     public function getPartialAccounts(array $filters): LengthAwarePaginator
     {
-        // Aplicar filtros
         $query = $this->filters->applyFilters($filters);
+        $enrollments = $this->dataProvider->getEnrollments($query, $filters['page'] ?? 1, 15, $filters);
+        $transformedData = $this->transformer->transformEnrollments($enrollments->items(), $filters);
         
-        // Obtener datos paginados
-        $enrollments = $this->dataProvider->getEnrollments($query, $filters['page'] ?? 1);
-        
-        // Transformar datos
-        $transformedData = $this->transformer->transformEnrollments($enrollments->items());
-        
-        // Crear paginador personalizado
         return new LengthAwarePaginator(
             $transformedData,
             $enrollments->total(),
             $enrollments->perPage(),
             $enrollments->currentPage(),
-            [
-                'path' => request()->url(),
-                'pageName' => 'page',
-            ]
+            ['path' => request()->url(), 'pageName' => 'page']
         );
     }
 
@@ -68,8 +59,36 @@ class PartialAccountService
     public function getFilterData(): array
     {
         return [
-            'programs' => Program::select('id', 'name')->get(),
+            'programs' => Program::select('id', 'code', 'name')->orderBy('code')->get(),
             'participants' => Participant::select('id', 'first_last_name', 'second_last_name', 'first_name', 'second_name')->get(),
         ];
+    }
+
+    /**
+     * Busca participantes por nombre
+     */
+    public function searchParticipants(string $search): Collection
+    {
+        return Participant::select('id', 'first_name', 'second_name', 'first_last_name', 'second_last_name')
+            ->where(function($query) use ($search) {
+                $query->where('first_name', 'LIKE', "%{$search}%")
+                      ->orWhere('second_name', 'LIKE', "%{$search}%")
+                      ->orWhere('first_last_name', 'LIKE', "%{$search}%")
+                      ->orWhere('second_last_name', 'LIKE', "%{$search}%");
+            })
+            ->limit(20)
+            ->get()
+            ->map(function($participant) {
+                $parts = [];
+                if ($participant->first_name) $parts[] = $participant->first_name;
+                if ($participant->second_name) $parts[] = $participant->second_name;
+                if ($participant->first_last_name) $parts[] = $participant->first_last_name;
+                if ($participant->second_last_name) $parts[] = $participant->second_last_name;
+                
+                return [
+                    'id' => $participant->id,
+                    'name' => implode(' ', $parts)
+                ];
+            });
     }
 }

@@ -33,4 +33,25 @@ class PaymentScheduleSummaryService
     {
         return $this->dataProvider->getSalesExecutives();
     }
+
+    public function getSummaryData(array $filters): array
+    {
+        $executiveSummary = $this->getExecutiveSummary($filters);
+        $programs = $this->getPrograms();
+        $salesExecutives = $this->getSalesExecutives();
+        
+        // Obtener datos de cronograma de pagos
+        $paymentSchedules = $this->dataProvider->getPaymentSchedules($filters);
+        
+        // Obtener resumen general
+        $summary = $this->dataProvider->getGeneralSummary($filters);
+
+        return [
+            'executiveSummary' => $executiveSummary,
+            'programs' => $programs,
+            'salesExecutives' => $salesExecutives,
+            'paymentSchedules' => $paymentSchedules,
+            'summary' => $summary,
+        ];
+    }
 }

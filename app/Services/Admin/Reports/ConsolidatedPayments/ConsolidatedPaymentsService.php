@@ -49,4 +49,20 @@ class ConsolidatedPaymentsService
     {
         return $this->dataProvider->getDefaultDateRange();
     }
+
+    public function getData(array $filters): array
+    {
+        $page = request()->get('page', 1);
+        $consolidatedPayments = $this->getConsolidatedPayments($filters, $page);
+        $summary = $this->getSummary($filters);
+        $paymentMethods = $this->getPaymentMethods();
+        $defaultDateRange = $this->getDefaultDateRange();
+
+        return [
+            'consolidatedPayments' => $consolidatedPayments,
+            'summary' => $summary,
+            'paymentMethods' => $paymentMethods,
+            'defaultDateRange' => $defaultDateRange,
+        ];
+    }
 }

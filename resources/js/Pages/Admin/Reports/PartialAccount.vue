@@ -43,21 +43,65 @@
                                 >
                                     Participante
                                 </label>
+                                <div class="relative">
+                                    <input
+                                        v-model="participantSearch"
+                                        @input="searchParticipants"
+                                        @focus="showParticipantDropdown = true"
+                                        type="text"
+                                        placeholder="Buscar participante..."
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <div
+                                        v-if="showParticipantDropdown && searchResults.length > 0"
+                                        class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                                    >
+                                        <div
+                                            v-for="participant in searchResults"
+                                            :key="participant.id"
+                                            @click="selectParticipant(participant)"
+                                            class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                                        >
+                                            {{ participant.name }}
+                                        </div>
+                                    </div>
+                                    <div
+                                        v-if="filters.participantId && selectedParticipantName"
+                                        class="mt-1 text-sm text-gray-600"
+                                    >
+                                        Seleccionado: {{ selectedParticipantName }}
+                                        <button
+                                            @click="clearParticipant"
+                                            class="ml-2 text-red-500 hover:text-red-700"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                >
+                                    Estado de Pago
+                                </label>
                                 <select
-                                    v-model="filters.participantId"
+                                    v-model="filters.paymentStatus"
                                     @change="applyFilters"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                 >
                                     <option value="">
-                                        Todos los participantes
+                                        Todos los estados
                                     </option>
-                                    <option
-                                        v-for="participant in participants"
-                                        :key="participant.id"
-                                        :value="participant.id"
-                                    >
-                                        {{ participant.first_name }}
-                                        {{ participant.last_name }}
+                                    <option value="pending">
+                                        Pendiente
+                                    </option>
+                                    <option value="partial">
+                                        Parcial
+                                    </option>
+                                    <option value="paid">
+                                        Pagado
                                     </option>
                                 </select>
                             </div>
@@ -238,7 +282,7 @@
                                     </p>
                                     <p class="text-xl font-bold text-gray-900">
                                         ${{
-                                            selectedAccount.total_amount?.toLocaleString()
+                                            selectedAccount.total_amount?.toLocaleString('es-CL')
                                         }}
                                     </p>
                                 </div>
@@ -248,7 +292,7 @@
                                     </p>
                                     <p class="text-xl font-bold text-red-600">
                                         -${{
-                                            selectedAccount.total_discounts?.toLocaleString()
+                                            selectedAccount.total_discounts?.toLocaleString('es-CL')
                                         }}
                                     </p>
                                 </div>
@@ -258,7 +302,7 @@
                                     </p>
                                     <p class="text-xl font-bold text-blue-600">
                                         ${{
-                                            selectedAccount.net_amount?.toLocaleString()
+                                            selectedAccount.net_amount?.toLocaleString('es-CL')
                                         }}
                                     </p>
                                 </div>
@@ -268,7 +312,7 @@
                                     </p>
                                     <p class="text-xl font-bold text-green-600">
                                         ${{
-                                            selectedAccount.total_paid?.toLocaleString()
+                                            selectedAccount.total_paid?.toLocaleString('es-CL')
                                         }}
                                     </p>
                                 </div>
@@ -314,7 +358,7 @@
                                     "
                                 >
                                     ${{
-                                        selectedAccount.pending_amount?.toLocaleString()
+                                        selectedAccount.pending_amount?.toLocaleString('es-CL')
                                     }}
                                 </p>
                             </div>
@@ -346,7 +390,7 @@
                                             discount.type === "percentage"
                                                 ? discount.value + "%"
                                                 : "$" +
-                                                  discount.value?.toLocaleString()
+                                                  discount.value?.toLocaleString('es-CL')
                                         }}
                                     </span>
                                 </div>
@@ -414,7 +458,7 @@
                                                 class="px-4 py-3 text-sm font-medium text-gray-900"
                                             >
                                                 ${{
-                                                    payment.amount?.toLocaleString()
+                                                    payment.amount?.toLocaleString('es-CL')
                                                 }}
                                             </td>
                                             <td
@@ -507,7 +551,7 @@
                                                 class="px-4 py-3 text-sm font-medium text-gray-900"
                                             >
                                                 ${{
-                                                    payment.amount?.toLocaleString()
+                                                    payment.amount?.toLocaleString('es-CL')
                                                 }}
                                             </td>
                                             <td class="px-4 py-3 text-sm">
@@ -743,9 +787,18 @@ const props = defineProps({
 const filters = reactive({
     programId: props.filters.programId || "",
     participantId: props.filters.participantId || "",
+    participantSearch: props.filters.participantSearch || "",
+    paymentStatus: props.filters.paymentStatus || "",
     dateFrom: props.filters.dateFrom || "",
     dateTo: props.filters.dateTo || "",
 });
+
+// Participant search functionality
+const participantSearch = ref("");
+const searchResults = ref([]);
+const showParticipantDropdown = ref(false);
+const selectedParticipantName = ref("");
+const searchTimeout = ref(null);
 
 // Estado del modal
 const showDetailModal = ref(false);
@@ -840,7 +893,7 @@ const applyFilters = () => {
     });
 };
 
-const exportReport = () => {
+const exportReport = async () => {
     const params = new URLSearchParams(filters);
     const selectedFields = Object.keys(exportFields).reduce((acc, key) => {
         acc[key] = Object.keys(exportFields[key]).filter(field => exportFields[key][field]);
@@ -850,18 +903,22 @@ const exportReport = () => {
     params.append('format', exportOptions.format);
     params.append('include_all', exportOptions.includeAll);
 
-    // Log para debug
-    console.log('Export Debug:', {
-        selectedFields,
-        format: exportOptions.format,
-        includeAll: exportOptions.includeAll,
-        url: `/admin/reports/export/partial-account?${params.toString()}`
-    });
-
-    window.open(
-        `/admin/reports/export/partial-account?${params.toString()}`,
-        "_blank"
-    );
+    try {
+        const response = await fetch(`/admin/reports/export/partial-account?${params.toString()}`);
+        const result = await response.json();
+        
+        if (result.success && result.download_url) {
+            // Open the direct download URL
+            window.open(result.download_url, '_blank');
+        } else {
+            console.error('Export failed:', result);
+            alert('Error al exportar: ' + (result.error || 'Error desconocido'));
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Error al exportar el archivo');
+    }
+    
     closeExportModal();
 };
 
@@ -890,6 +947,84 @@ const openExportModal = () => {
 const closeExportModal = () => {
     showExportModal.value = false;
 };
+
+// Participant search methods
+const searchParticipants = async () => {
+    if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+    }
+    
+    searchTimeout.value = setTimeout(async () => {
+        if (participantSearch.value.length < 2) {
+            searchResults.value = [];
+            showParticipantDropdown.value = false;
+            // Clear participant filter and apply filters for real-time update
+            if (filters.participantId) {
+                filters.participantId = "";
+                selectedParticipantName.value = "";
+                applyFilters();
+            }
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/admin/reports/search-participants?search=${encodeURIComponent(participantSearch.value)}`);
+            const data = await response.json();
+            searchResults.value = data;
+            showParticipantDropdown.value = true;
+            
+            // Apply real-time filtering by participant name
+            filters.participantSearch = participantSearch.value;
+            // Clear participantId when searching by name to avoid conflicts
+            if (!filters.participantId) {
+                applyFilters();
+            }
+        } catch (error) {
+            console.error('Error searching participants:', error);
+            searchResults.value = [];
+        }
+    }, 300);
+};
+
+const selectParticipant = (participant) => {
+    filters.participantId = participant.id;
+    filters.participantSearch = ""; // Clear search when selecting specific participant
+    selectedParticipantName.value = participant.name;
+    participantSearch.value = participant.name;
+    showParticipantDropdown.value = false;
+    searchResults.value = [];
+    applyFilters();
+};
+
+const clearParticipant = () => {
+    filters.participantId = "";
+    filters.participantSearch = "";
+    selectedParticipantName.value = "";
+    participantSearch.value = "";
+    showParticipantDropdown.value = false;
+    searchResults.value = [];
+    applyFilters();
+};
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event) => {
+    if (!event.target.closest('.relative')) {
+        showParticipantDropdown.value = false;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside);
+    
+    // Set selected participant name if there's a participantId in filters
+    if (filters.participantId && props.participants) {
+        const participant = props.participants.find(p => p.id == filters.participantId);
+        if (participant) {
+            selectedParticipantName.value = `${participant.first_name} ${participant.last_name}`;
+            participantSearch.value = selectedParticipantName.value;
+        }
+    }
+});
 
 const handlePageChange = (page) => {
     // Actualizar los filtros con la nueva página

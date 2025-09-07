@@ -4,6 +4,7 @@ namespace App\Services\Admin\Reports\DailyPayments;
 
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 use App\Traits\AdminLogging;
 
 class DailyPaymentsService
@@ -94,6 +95,42 @@ class DailyPaymentsService
     public function getDefaultDateRange(): array
     {
         return $this->dataProvider->getDefaultDateRange();
+    }
+
+    public function getData(array $filters): array
+    {
+        $page = request()->get('page', 1);
+        
+        Log::info('🔍 DailyPaymentsService - Obteniendo datos con filtros:', $filters);
+        Log::info('📄 DailyPaymentsService - Página solicitada:', ['page' => $page]);
+        
+        $dailyPayments = $this->getDailyPayments($filters, $page);
+        $summary = $this->getSummary($filters);
+        $programs = $this->getPrograms();
+        $salesExecutives = $this->getSalesExecutives();
+        $financingTypes = $this->getFinancingTypes();
+        $paymentMethods = $this->getPaymentMethods();
+        $defaultDateRange = $this->getDefaultDateRange();
+
+        Log::info('📊 DailyPaymentsService - Datos generados:', [
+            'dailyPayments_count' => $dailyPayments->count(),
+            'dailyPayments_total' => $dailyPayments->total(),
+            'summary' => $summary,
+            'programs_count' => $programs->count(),
+            'salesExecutives_count' => $salesExecutives->count(),
+            'financingTypes_count' => count($financingTypes),
+            'paymentMethods_count' => $paymentMethods->count()
+        ]);
+
+        return [
+            'dailyPayments' => $dailyPayments,
+            'summary' => $summary,
+            'programs' => $programs,
+            'salesExecutives' => $salesExecutives,
+            'financingTypes' => $financingTypes,
+            'paymentMethods' => $paymentMethods,
+            'defaultDateRange' => $defaultDateRange,
+        ];
     }
 
     /**

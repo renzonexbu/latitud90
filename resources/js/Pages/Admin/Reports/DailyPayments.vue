@@ -547,7 +547,6 @@ export default {
     },
     methods: {
         handleFiltersChanged(newFilters) {
-            console.log('🔍 DailyPayments - Filtros recibidos:', newFilters);
             this.localFilters = newFilters;
             this.currentPage = 1; // Resetear a la primera página
 

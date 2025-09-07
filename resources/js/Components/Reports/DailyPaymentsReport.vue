@@ -84,6 +84,7 @@
         </div>
       </div>
 
+
       <!-- Tabla de Resultados -->
       <div v-if="reportData.length > 0" class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
@@ -184,34 +185,41 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
-  programs: {
-    type: Array,
-    default: () => []
+  data: {
+    type: Object,
+    default: () => ({})
   },
-  executives: {
-    type: Array,
-    default: () => []
-  },
-  initialData: {
-    type: Array,
-    default: () => []
+  filters: {
+    type: Object,
+    default: () => ({})
   }
 })
 
+// Inicializar filtros desde props o con valores por defecto
 const filters = ref({
-  programId: '',
-  executiveId: '',
-  paymentMethod: '',
-  dateFrom: '',
-  dateTo: ''
+  programId: props.filters?.programId || '',
+  executiveId: props.filters?.executiveId || '',
+  paymentMethod: props.filters?.paymentMethod || '',
+  dateFrom: props.filters?.dateFrom || '',
+  dateTo: props.filters?.dateTo || ''
 })
 
-const reportData = ref(props.initialData || [])
-const hasSearched = ref(false)
+// Extraer datos de las props
+const programs = computed(() => {
+  return props.data?.programs || []
+})
+
+const executives = computed(() => {
+  return props.data?.salesExecutives || []
+})
+
+// Inicializar datos desde props
+const reportData = ref(props.data?.dailyPayments?.data || [])
+const hasSearched = ref(!!(props.data?.dailyPayments?.data && props.data.dailyPayments.data.length > 0))
 
 const totalAmount = computed(() => {
   return reportData.value.reduce((sum, payment) => sum + (payment.amount || 0), 0)
@@ -229,12 +237,30 @@ const totalRemaining = computed(() => {
   return reportData.value.reduce((sum, payment) => sum + (payment.remaining_balance || 0), 0)
 })
 
+// Watcher para monitorear cambios en reportData
+watch(reportData, (newData, oldData) => {
+  // Actualizar hasSearched cuando cambien los datos
+  hasSearched.value = newData && newData.length > 0
+}, { deep: true, immediate: true })
+
 const generateReport = () => {
   hasSearched.value = true
+  
   router.get('/admin/reports/daily-payments', filters.value, {
-    preserveState: true,
+    preserveState: false,
     onSuccess: (page) => {
-      reportData.value = page.props.dailyPayments || []
+      // Los datos vienen en page.props.data
+      if (page.props.data) {
+        // Actualizar reportData
+        if (page.props.data.dailyPayments) {
+          reportData.value = page.props.data.dailyPayments.data || []
+        }
+      } else {
+        reportData.value = []
+      }
+    },
+    onError: (errors) => {
+      console.error('Error al generar reporte:', errors)
     }
   })
 }
@@ -244,11 +270,13 @@ const formatDate = (date) => {
 }
 
 onMounted(() => {
-  // Establecer fechas por defecto (últimos 30 días)
-  const today = new Date()
-  const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000))
-  
-  filters.value.dateFrom = thirtyDaysAgo.toISOString().split('T')[0]
-  filters.value.dateTo = today.toISOString().split('T')[0]
+  // Solo establecer fechas por defecto si no vienen en las props
+  if (!filters.value.dateFrom || !filters.value.dateTo) {
+    const today = new Date()
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000))
+    
+    filters.value.dateFrom = filters.value.dateFrom || thirtyDaysAgo.toISOString().split('T')[0]
+    filters.value.dateTo = filters.value.dateTo || today.toISOString().split('T')[0]
+  }
 })
 </script>

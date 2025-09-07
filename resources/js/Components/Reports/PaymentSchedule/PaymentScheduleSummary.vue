@@ -490,6 +490,9 @@ const confirmExport = () => {
         if (selectedProgramId.value) params.append('programId', selectedProgramId.value);
     }
 
+    // Agregar formato por defecto
+    params.append('format', 'xlsx');
+
     // Descargar
     window.location.href = `/admin/reports/export/payment-schedule?${params.toString()}`;
     showExportModal.value = false;

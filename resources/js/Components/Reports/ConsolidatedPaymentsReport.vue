@@ -157,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import ReportsHeader from './ReportsHeader.vue'
 import ConsolidatedPaymentsFilters from './ConsolidatedPayments/ConsolidatedPaymentsFilters.vue'
@@ -200,33 +200,28 @@ const filters = reactive({
   participantQuery: props.filters.participantQuery || ''
 })
 
-// Estados de detalle (sin modal de exportación)
+// Estados de detalle
 const showDetailsModal = ref(false)
 const selectedPayment = ref(null)
 
 // Methods
-const applyFilters = () => {
-  router.get('/admin/reports/consolidated-payments', filters, {
-    preserveState: true,
-    preserveScroll: true
-  })
-}
-
 const onFiltersChanged = (newFilters) => {
   filters.dateFrom = newFilters.dateFrom || ''
   filters.dateTo = newFilters.dateTo || ''
   filters.paymentMethodId = newFilters.paymentMethodId || ''
   filters.programId = newFilters.programId || ''
   filters.participantQuery = newFilters.participantQuery || ''
-  applyFilters()
+  
+  router.get('/admin/reports/consolidated-payments', filters, {
+    preserveState: true,
+    preserveScroll: true
+  })
 }
 
 const exportReport = () => {
   const params = new URLSearchParams(filters)
-  window.open(
-    `/admin/reports/export/consolidated-payments?${params.toString()}`,
-    "_blank"
-  );
+  params.append('format', 'xlsx')
+  window.open(`/admin/reports/export/consolidated-payments?${params.toString()}`, '_blank')
 }
 
 const viewDetails = (payment) => {
@@ -235,14 +230,11 @@ const viewDetails = (payment) => {
 }
 
 const handlePageChange = (page) => {
-  // Actualizar los filtros con la nueva página
-  filters.page = page;
-
-  // Aplicar filtros al backend con la nueva página
-  router.get("/admin/reports/consolidated-payments", filters, {
+  filters.page = page
+  router.get('/admin/reports/consolidated-payments', filters, {
     preserveState: true,
-    preserveScroll: true,
-  });
+    preserveScroll: true
+  })
 }
 
 const formatCurrency = (value) => {

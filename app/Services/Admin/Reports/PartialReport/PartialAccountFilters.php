@@ -37,6 +37,24 @@ class PartialAccountFilters
             $query->where('pp.created_at', '<=', $filters['dateTo'] . ' 23:59:59');
         }
 
+        // Apply payment status filter if provided
+        if (!empty($filters['paymentStatus'])) {
+            // We need to filter by payment status at the query level
+            // This requires calculating the payment status in the query
+            $paymentStatus = $filters['paymentStatus'];
+            
+            if ($paymentStatus === 'paid') {
+                // Paid: total paid >= individual price (use individual_price from participant_program)
+                $query->havingRaw('COALESCE(SUM(pay.amount), 0) >= COALESCE(pp.individual_price, 0)');
+            } elseif ($paymentStatus === 'pending') {
+                // Pending: no payments made
+                $query->havingRaw('COALESCE(SUM(pay.amount), 0) = 0');
+            } elseif ($paymentStatus === 'partial') {
+                // Partial: some payment made but not fully paid
+                $query->havingRaw('COALESCE(SUM(pay.amount), 0) > 0 AND COALESCE(SUM(pay.amount), 0) < COALESCE(pp.individual_price, 0)');
+            }
+        }
+
         return $query;
     }
 

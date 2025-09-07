@@ -37,13 +37,12 @@ export function getFirstInstallmentAmount(total, installments) {
  */
 export function formatPrice(amount) {
     const safe = Number(amount ?? 0);
-    // Redondear hacia abajo como el backend
-    const rounded = Math.floor(safe);
+    // No redondear para mostrar el monto exacto
     return new Intl.NumberFormat("es-CL", {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     })
-        .format(rounded);
+        .format(safe);
 }
 
 /**
