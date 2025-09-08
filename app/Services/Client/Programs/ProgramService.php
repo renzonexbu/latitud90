@@ -144,19 +144,24 @@ class ProgramService
                     }
 
                     // Si no hay planes de cuotas, buscar en orders como fallback
-                    // Excluir órdenes de reembolsos del conteo de cuotas
+                    // Excluir órdenes de reembolsos y pagos presenciales del conteo de cuotas
                     if ($totalInstallments == 0) {
                         $orders = Order::where('participant_id', $participant->id)
                             ->where('program_id', $program->id)
                             ->where('notes', '!=', 'Orden creada desde reembolso') // Excluir órdenes de reembolso
-                            ->with(['orderDetails'])
+                            ->with(['orderDetails.paymentOption'])
                             ->get();
 
                         foreach ($orders as $order) {
                             if ($order->orderDetails) {
-                                $totalInstallments = $order->orderDetails->count();
+                                // Solo contar order details que NO sean de pagos presenciales
+                                $ecommerceOrderDetails = $order->orderDetails->filter(function($detail) {
+                                    return $detail->paymentOption && $detail->paymentOption->mode !== 'presential';
+                                });
                                 
-                                foreach ($order->orderDetails as $detail) {
+                                $totalInstallments = $ecommerceOrderDetails->count();
+                                
+                                foreach ($ecommerceOrderDetails as $detail) {
                                     // Verificar que el detalle no sea de un reembolso
                                     $isRefundDetail = Payment::where('order_detail_id', $detail->id)
                                         ->whereHas('paymentOption', function($q) {

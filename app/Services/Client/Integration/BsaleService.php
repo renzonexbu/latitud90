@@ -413,6 +413,9 @@ class BsaleService
             $payment->update([
                 'bsale_token' => $responseData['token']
             ]);
+            
+            // Descargar y almacenar el PDF inmediatamente
+            $this->downloadAndStoreBsalePdf($payment, $responseData);
         }
 
         return $responseData;
@@ -434,6 +437,75 @@ class BsaleService
     {
         $names = explode(' ', trim($fullName));
         return count($names) > 1 ? implode(' ', array_slice($names, 1)) : '';
+    }
+
+    /**
+     * Descargar y almacenar PDF de Bsale inmediatamente después de crear el documento
+     */
+    private function downloadAndStoreBsalePdf(Payment $payment, array $bsaleResponse): void
+    {
+        try {
+            // Construir la URL del PDF de Bsale
+            $bsaleUrl = "https://app2.bsale.cl/view/90370/" . $payment->bsale_token . ".pdf?sfd=99";
+            
+            // Crear directorio de almacenamiento permanente si no existe
+            $bsaleDir = storage_path('app/bsale_documents');
+            if (!file_exists($bsaleDir)) {
+                mkdir($bsaleDir, 0755, true);
+            }
+            
+            // Crear subdirectorio por año para mejor organización
+            $yearDir = $bsaleDir . '/' . date('Y');
+            if (!file_exists($yearDir)) {
+                mkdir($yearDir, 0755, true);
+            }
+            
+            // Generar nombre de archivo permanente
+            $bsaleNumber = $bsaleResponse['number'] ?? $payment->id;
+            $filename = 'bsale_' . $bsaleNumber . '_payment_' . $payment->id . '.pdf';
+            $filePath = $yearDir . '/' . $filename;
+            
+            // Verificar si el archivo ya existe
+            if (file_exists($filePath)) {
+                $this->logInfo('BsaleService: PDF de Bsale ya existe', [
+                    'payment_id' => $payment->id,
+                    'file_path' => $filePath,
+                    'file_size' => filesize($filePath),
+                ]);
+                return;
+            }
+            
+            // Descargar el PDF
+            $response = \Illuminate\Support\Facades\Http::timeout(30)->get($bsaleUrl);
+            
+            if ($response->successful()) {
+                file_put_contents($filePath, $response->body());
+                
+                $this->logInfo('BsaleService: PDF de Bsale descargado y almacenado automáticamente', [
+                    'payment_id' => $payment->id,
+                    'bsale_document_id' => $payment->bsale_document_id,
+                    'bsale_number' => $bsaleNumber,
+                    'bsale_token' => $payment->bsale_token,
+                    'file_path' => $filePath,
+                    'file_size' => filesize($filePath),
+                    'stored_permanently' => true,
+                    'auto_downloaded' => true,
+                ]);
+            } else {
+                $this->logError('BsaleService: Error descargando PDF de Bsale automáticamente', [
+                    'payment_id' => $payment->id,
+                    'bsale_url' => $bsaleUrl,
+                    'response_status' => $response->status(),
+                    'response_body' => $response->body(),
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            $this->logError('BsaleService: Error descargando PDF de Bsale automáticamente', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ], $e);
+        }
     }
 
     /**
