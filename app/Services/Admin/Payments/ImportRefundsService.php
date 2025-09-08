@@ -2,13 +2,19 @@
 
 namespace App\Services\Admin\Payments;
 
-use App\Models\ParticipantProgram;
+use App\Models\Order;
+use App\Models\OrderDetail;
+use App\Models\Payment;
+use App\Models\PaymentGateway;
+use App\Models\PaymentOption;
 use App\Models\Participant;
+use App\Models\ParticipantProgram;
 use App\Models\Program;
-use App\Services\Admin\Payments\CreateRefundService;
 use App\Traits\AdminLogging;
+use App\Helpers\RutHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Carbon\Carbon;
 
@@ -277,7 +283,7 @@ class ImportRefundsService
 
             // Obtener participante para validaciones
             $participant = Participant::find($participantProgram->participant_id);
-            $cleanRut = $this->cleanRut(trim($rowData['RUT']));
+            $cleanRut = RutHelper::clean(trim($rowData['RUT']));
             
             Log::info("RUT del comprador (Excel): '{$cleanRut}'");
 
@@ -373,7 +379,7 @@ class ImportRefundsService
         }
 
         // RUT ya validado en frontend, solo limpiarlo
-        $cleanRut = $this->cleanRut($data['RUT']);
+        $cleanRut = RutHelper::clean($data['RUT']);
         Log::info("RUT limpio en fila {$rowNumber}: " . $data['RUT'] . " -> " . $cleanRut);
 
         Log::info("Validación de fila {$rowNumber} exitosa");
@@ -394,43 +400,13 @@ class ImportRefundsService
     }
 
     /**
-     * Limpiar y formatear RUT
-     */
-    private function cleanRut($rut): string
-    {
-        return strtoupper(trim(preg_replace('/[^0-9kK]/', '', $rut)));
-    }
-
-    /**
-     * Validar RUT chileno
+     * Validar RUT chileno usando RutHelper
      */
     private function validateRut($rut): bool
     {
         Log::info("Validando RUT: '{$rut}' (longitud: " . strlen($rut) . ")");
         
-        if (strlen($rut) < 8) {
-            Log::error("RUT muy corto: '{$rut}'");
-            return false;
-        }
-
-        $body = substr($rut, 0, -1);
-        $dv = substr($rut, -1);
-        
-        Log::info("RUT - Body: '{$body}', DV: '{$dv}'");
-
-        $sum = 0;
-        $factor = 2;
-        for ($i = strlen($body) - 1; $i >= 0; $i--) {
-            $sum += intval($body[$i]) * $factor;
-            $factor = $factor === 7 ? 2 : $factor + 1;
-        }
-
-        $calculatedDv = 11 - ($sum % 11);
-        $calculatedDv = $calculatedDv === 10 ? 'K' : ($calculatedDv === 11 ? '0' : $calculatedDv);
-        
-        Log::info("RUT - DV calculado: '{$calculatedDv}', DV recibido: '{$dv}'");
-
-        $isValid = $dv === $calculatedDv;
+        $isValid = RutHelper::validate($rut);
         Log::info("RUT válido: " . ($isValid ? 'SÍ' : 'NO'));
         
         return $isValid;

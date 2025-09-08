@@ -69,7 +69,7 @@ class CreateProgramRequest extends FormRequest
             'institution_id' => 'required|exists:institutions,id',
             'institution_name' => 'nullable|string|max:255',
             'education_level' => 'nullable|string|in:preescolar,basica,media',
-            'grade' => 'nullable|in:A,B,C,D,E',
+            'grade' => 'required_if:education_level,basica,media|nullable|in:A,B,C,D,E',
             'course_number' => 'nullable|integer|min:1|max:12',
             'students_file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
             'group_benefit' => 'nullable|string',
@@ -202,6 +202,7 @@ class CreateProgramRequest extends FormRequest
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
+            'grade.required_if' => 'El grado es obligatorio cuando se selecciona educación básica o media.',
             'grade.in' => 'El grado seleccionado no es válido. Debe ser A, B, C, D o E.',
             'course_number.integer' => 'El curso debe ser un número válido.',
             'course_number.min' => 'El curso debe ser al menos 1.',

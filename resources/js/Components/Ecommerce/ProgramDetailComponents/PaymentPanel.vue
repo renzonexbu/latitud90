@@ -65,7 +65,7 @@
 
                 <!-- Mensual Option -->
                 <PaymentOption
-                    v-if="program.enable_lat90_payment"
+                    v-if="program.enable_lat90_payment && shouldShowMonthlyOption"
                     :is-selected="paymentType === 'monthly'"
                     :is-accordion-open="accordionOpen === 'monthly'"
                     title="Mensual | Cuota Lat 90"
@@ -358,7 +358,7 @@ export default {
                 this.$nextTick(() => this.reconcileSelection());
             } else {
                 // Estado base por defecto: mensual con mínima cuota permitida si está habilitado
-                if (this.program.enable_lat90_payment && !this.paymentType) {
+                if (this.program.enable_lat90_payment && this.shouldShowMonthlyOption && !this.paymentType) {
                     this.paymentType = 'monthly';
                     this.accordionOpen = 'monthly';
                     const allowedInst = this.getAvailableInstallments();
@@ -366,6 +366,17 @@ export default {
                     const availableOptions = this.getMonthlyPaymentOptions();
                     if (availableOptions.length > 0) {
                         this.monthlyPaymentOption = availableOptions[0].value;
+                    }
+                    this.savePaymentDataToLocalStorage();
+                    this.emitSelection();
+                    this.$nextTick(() => this.reconcileSelection());
+                } else if (this.program.enable_total_payment && !this.shouldShowMonthlyOption && !this.paymentType) {
+                    // Si solo hay 1 cuota disponible, seleccionar automáticamente pago total
+                    this.paymentType = 'total';
+                    this.accordionOpen = 'total';
+                    const availableOptions = this.getTotalPaymentOptions();
+                    if (availableOptions.length > 0) {
+                        this.totalPaymentOption = availableOptions[0].value;
                     }
                     this.savePaymentDataToLocalStorage();
                     this.emitSelection();
@@ -1021,6 +1032,11 @@ export default {
                    !this.isPaymentComplete && 
                    !this.isAmountExceeded &&
                    this.displayRemainingAmount > 0;
+        },
+        shouldShowMonthlyOption() {
+            const availableInstallments = this.getAvailableInstallments();
+            const maxInstallments = Math.max(...availableInstallments, 0);
+            return maxInstallments > 1;
         }
     }
 };

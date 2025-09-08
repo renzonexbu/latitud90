@@ -147,4 +147,82 @@ class PaymentScheduleSummaryDataProvider
             'pending_installments' => $data->where('payment_status', 'pending')->count(),
         ];
     }
+
+    /**
+     * Obtiene participantes que no han iniciado pagos por ecommerce
+     */
+    public function getParticipantsWithoutPayments(array $filters): Collection
+    {
+        $query = DB::table('participants as p')
+            ->join('participant_program as pp', 'p.id', '=', 'pp.participant_id')
+            ->join('programs as prog', 'pp.program_id', '=', 'prog.id')
+            ->leftJoin('sales_executives as se', 'prog.sales_executive_id', '=', 'se.id')
+            ->leftJoin('emergency_contact as ec', 'p.id', '=', 'ec.participant_id')
+            ->leftJoin('orders as o', function($join) {
+                $join->on('p.id', '=', 'o.participant_id')
+                     ->whereIn('o.status', ['pending', 'processing', 'paid']);
+            })
+            ->leftJoin('installment_plans as ip', 'o.id', '=', 'ip.order_id')
+            ->leftJoin('participant_program_discounts as ppd', 'pp.id', '=', 'ppd.participant_program_id')
+            ->select(
+                'p.id as participant_id',
+                'p.first_name',
+                'p.first_last_name',
+                'p.second_last_name',
+                'p.document_number',
+                'p.email as participant_email',
+                'pp.created_at as incorporation_date',
+                'pp.individual_price',
+                'prog.id as program_id',
+                'prog.name as program_name',
+                'prog.code as program_code',
+                'se.name as sales_executive_name',
+                'ec.name as emergency_contact_name',
+                'ec.email as emergency_contact_email',
+                'ec.phone as emergency_contact_phone',
+                'ec.relationship as emergency_contact_relationship',
+                DB::raw('COALESCE(ppd.amount, 0) as discount_amount'),
+                DB::raw('COALESCE(ppd.percent, 0) as discount_percent'),
+                DB::raw('CASE 
+                    WHEN ppd.percent IS NOT NULL THEN pp.individual_price - (pp.individual_price * ppd.percent / 100)
+                    WHEN ppd.amount IS NOT NULL THEN pp.individual_price - ppd.amount
+                    ELSE pp.individual_price
+                END as final_amount'),
+                DB::raw('COUNT(ip.id) as installment_plans_count')
+            )
+            ->where('p.is_active', true)
+            ->whereIn('p.status', ['pending_payment', 'confirmed'])
+            ->whereNotIn('ppd.discount_type', ['released']) // Excluir liberados
+            ->orWhereNull('ppd.discount_type')
+            ->groupBy(
+                'p.id', 'p.first_name', 'p.first_last_name', 'p.second_last_name',
+                'p.document_number', 'p.email', 'pp.created_at', 'pp.individual_price',
+                'prog.id', 'prog.name', 'prog.code', 'se.name',
+                'ec.name', 'ec.email', 'ec.phone', 'ec.relationship',
+                'ppd.amount', 'ppd.percent'
+            )
+            ->having('installment_plans_count', '=', 0);
+
+        // Aplicar filtros
+        if (!empty($filters['program_id'])) {
+            $query->where('prog.id', $filters['program_id']);
+        }
+        
+        if (!empty($filters['sales_executive_id'])) {
+            $query->where('se.id', $filters['sales_executive_id']);
+        }
+        
+        if (!empty($filters['search'])) {
+            $search = '%' . $filters['search'] . '%';
+            $query->where(function($q) use ($search) {
+                $q->where('p.first_name', 'like', $search)
+                  ->orWhere('p.first_last_name', 'like', $search)
+                  ->orWhere('p.second_last_name', 'like', $search)
+                  ->orWhere('p.document_number', 'like', $search)
+                  ->orWhere(DB::raw("CONCAT(p.first_name, ' ', p.first_last_name, ' ', p.second_last_name)"), 'like', $search);
+            });
+        }
+
+        return $query->get();
+    }
 }

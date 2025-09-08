@@ -10,6 +10,27 @@
                     subtitle="Cuotas pactadas diariamente, vencimientos futuros y cuotas por cobrar en período determinado"
                 />
 
+                <!-- Acceso rápido a Participantes Sin Pagos -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">Participantes Sin Pagos Iniciados</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                Ver participantes que no han iniciado el proceso de pago por ecommerce
+                            </p>
+                        </div>
+                        <div>
+                            <button
+                                @click="goToNoPaymentReport"
+                                class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                            >
+                                Ver No Pagos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+
                 <!-- Resumen General por Ejecutivo y Programa -->
                 <PaymentScheduleSummary
                     :executive-summary="executiveSummary"
@@ -416,6 +437,10 @@ const updateFilter = (key, value) => {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+const goToNoPaymentReport = () => {
+    router.get("/admin/reports/no-payment");
 };
 
 // Función para abrir modal de detalles del mes

@@ -25,6 +25,9 @@ class ExportService
             // Crear hoja de detalles
             $this->createDetailsSheet($spreadsheet, $data);
             
+            // Crear hoja de participantes sin pagos iniciados
+            $this->createNoPaymentSheet($spreadsheet, $data);
+            
             // Configurar writer XLSX
             $writer = new Xlsx($spreadsheet);
             $writer->setPreCalculateFormulas(false);
@@ -222,5 +225,143 @@ class ExportService
         
         $lastRow = $sheet->getHighestRow();
         $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . $lastRow)->applyFromArray($borderStyle);
+    }
+
+    private function createNoPaymentSheet(Spreadsheet $spreadsheet, array $data): void
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Pago no iniciado');
+        
+        // Headers para participantes sin pagos
+        $headers = [
+            'Participante',
+            'Documento',
+            'Email Participante',
+            'Contacto de Emergencia',
+            'Email Contacto',
+            'Teléfono Contacto',
+            'Relación',
+            'Fecha Inscripción',
+            'Precio Individual',
+            'Descuento',
+            'Monto Final',
+            'Programa',
+            'Código Programa',
+            'Ejecutivo Comercial'
+        ];
+        
+        // Escribir headers
+        $colIndex = 0;
+        foreach ($headers as $header) {
+            $col = chr(65 + $colIndex);
+            $sheet->setCellValue($col . '1', $header);
+            $colIndex++;
+        }
+        
+        // Escribir datos de participantes sin pagos
+        $rowIndex = 2;
+        $participantsWithoutPayments = $data['participantsWithoutPayments'] ?? [];
+        
+        // Convertir Collection a array si es necesario
+        if ($participantsWithoutPayments instanceof \Illuminate\Support\Collection) {
+            $participantsWithoutPayments = $participantsWithoutPayments->toArray();
+        }
+        
+        if (is_array($participantsWithoutPayments)) {
+            foreach ($participantsWithoutPayments as $participant) {
+                $participantArray = (array) $participant;
+                
+                $fullName = trim(
+                    ($participantArray['first_name'] ?? '') . ' ' . 
+                    ($participantArray['first_last_name'] ?? '') . ' ' . 
+                    ($participantArray['second_last_name'] ?? '')
+                );
+                
+                $incorporationDate = isset($participantArray['incorporation_date']) 
+                    ? date('d/m/Y', strtotime($participantArray['incorporation_date'])) 
+                    : 'N/A';
+                
+                $sheet->setCellValue('A' . $rowIndex, $fullName);
+                $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participantArray['document_number'] ?? ''));
+                $sheet->setCellValue('C' . $rowIndex, $participantArray['participant_email'] ?? 'N/A');
+                $sheet->setCellValue('D' . $rowIndex, $participantArray['emergency_contact_name'] ?? 'Sin contacto');
+                $sheet->setCellValue('E' . $rowIndex, $participantArray['emergency_contact_email'] ?? 'Sin email');
+                $sheet->setCellValue('F' . $rowIndex, $participantArray['emergency_contact_phone'] ?? 'N/A');
+                $sheet->setCellValue('G' . $rowIndex, $participantArray['emergency_contact_relationship'] ?? 'N/A');
+                $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
+                $sheet->setCellValue('I' . $rowIndex, (int)($participantArray['individual_price'] ?? 0));
+                $sheet->setCellValue('J' . $rowIndex, (int)($participantArray['discount_amount'] ?? 0));
+                $sheet->setCellValue('K' . $rowIndex, (int)($participantArray['final_amount'] ?? 0));
+                $sheet->setCellValue('L' . $rowIndex, $participantArray['program_name'] ?? 'N/A');
+                $sheet->setCellValue('M' . $rowIndex, $participantArray['program_code'] ?? 'N/A');
+                $sheet->setCellValue('N' . $rowIndex, $participantArray['sales_executive_name'] ?? 'Sin asignar');
+                
+                $rowIndex++;
+            }
+        }
+        
+        // Aplicar formato
+        $this->applyNoPaymentFormatting($sheet, $headers);
+    }
+
+    private function applyNoPaymentFormatting($sheet, array $headers): void
+    {
+        // Formato para headers
+        $headerStyle = [
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'DC3545'], // Color rojo para indicar "sin pago"
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ];
+        
+        $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . '1')->applyFromArray($headerStyle);
+        
+        // Auto-ajustar columnas
+        foreach (range('A', chr(65 + count($headers) - 1)) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        // Bordes para toda la tabla
+        $borderStyle = [
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ];
+        
+        $lastRow = $sheet->getHighestRow();
+        if ($lastRow > 1) {
+            $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . $lastRow)->applyFromArray($borderStyle);
+        }
+    }
+
+    private function formatRut($rut): string
+    {
+        if (!$rut) return 'N/A';
+        
+        // Limpiar el RUT de puntos y guiones
+        $rutLimpio = preg_replace('/[^0-9kK]/', '', (string)$rut);
+        
+        if (strlen($rutLimpio) < 2) return (string)$rut;
+        
+        // Separar número y dígito verificador
+        $dv = substr($rutLimpio, -1);
+        $numero = substr($rutLimpio, 0, -1);
+        
+        // Formatear número con puntos
+        $numeroFormateado = number_format((int)$numero, 0, '', '.');
+        
+        // Retornar RUT formateado
+        return $numeroFormateado . '-' . strtoupper($dv);
     }
 }

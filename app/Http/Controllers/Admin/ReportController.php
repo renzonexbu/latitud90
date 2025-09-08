@@ -23,6 +23,10 @@ use App\Services\Admin\Reports\GetRevenueChartService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryService;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleDetailService;
 use App\Services\Admin\Reports\PaymentSchedule\ExportService as PaymentScheduleExportService;
+use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryDataProvider;
+use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryFilters;
+use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryTransformer;
+use App\Models\SalesExecutive;
 use App\Services\EcommerceAnalyticsService;
 use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
 use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
@@ -131,21 +135,51 @@ class ReportController extends Controller
 
     public function paymentSchedule(Request $request)
     {
-        try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId']);
-            $data = $this->paymentScheduleSummaryService->getSummaryData($filters);
-            
-            return Inertia::render('Admin/Reports/PaymentSchedule', [
-                'paymentSchedules' => $data['paymentSchedules'] ?? [],
-                'programs' => $data['programs'] ?? [],
-                'salesExecutives' => $data['salesExecutives'] ?? [],
-                'summary' => $data['summary'] ?? [],
-                'executiveSummary' => $data['executiveSummary'] ?? [],
-                'filters' => $filters
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar cronograma de pagos: ' . $e->getMessage()], 500);
-        }
+        $dataProvider = new PaymentScheduleSummaryDataProvider();
+        $filters = new PaymentScheduleSummaryFilters();
+        $transformer = new PaymentScheduleSummaryTransformer();
+        
+        $summaryService = new PaymentScheduleSummaryService($dataProvider, $filters, $transformer);
+        $summaryData = $summaryService->getSummaryData($request->all());
+        
+        return Inertia::render('Admin/Reports/PaymentSchedule', [
+            'executiveSummary' => $summaryData['executiveSummary'],
+            'salesExecutives' => $summaryData['salesExecutives'],
+            'programs' => $summaryData['programs'],
+            'filters' => $request->all()
+        ]);
+    }
+
+    public function noPayment(Request $request)
+    {
+        $dataProvider = new PaymentScheduleSummaryDataProvider();
+        $participantsWithoutPayments = $dataProvider->getParticipantsWithoutPayments($request->all());
+        
+        // Add pagination
+        $perPage = 15;
+        $currentPage = $request->get('page', 1);
+        $total = $participantsWithoutPayments->count();
+        $items = $participantsWithoutPayments->forPage($currentPage, $perPage)->values();
+        
+        $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+        
+        $paginatedData->appends($request->query());
+        
+        return Inertia::render('Admin/Reports/NoPayment', [
+            'participantsWithoutPayments' => $paginatedData,
+            'programs' => Program::select('id', 'name')->get(),
+            'salesExecutives' => SalesExecutive::select('id', 'name')->get(),
+            'filters' => $request->all()
+        ]);
     }
 
     public function paymentScheduleDetails(Request $request)

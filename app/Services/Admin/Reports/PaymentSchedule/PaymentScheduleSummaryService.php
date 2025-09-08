@@ -46,12 +46,16 @@ class PaymentScheduleSummaryService
         // Obtener resumen general
         $summary = $this->dataProvider->getGeneralSummary($filters);
 
+        // Obtener participantes sin pagos iniciados
+        $participantsWithoutPayments = $this->dataProvider->getParticipantsWithoutPayments($filters);
+
         return [
             'executiveSummary' => $executiveSummary,
             'programs' => $programs,
             'salesExecutives' => $salesExecutives,
             'paymentSchedules' => $paymentSchedules,
             'summary' => $summary,
+            'participantsWithoutPayments' => $participantsWithoutPayments,
         ];
     }
 }

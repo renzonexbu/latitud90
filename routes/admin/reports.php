@@ -18,6 +18,9 @@ Route::get('/reports/search-participants', [ReportController::class, 'searchPart
 Route::get('/reports/payment-schedule', [ReportController::class, 'paymentSchedule'])->name('reports.payment-schedule');
 Route::get('/reports/payment-schedule/details', [ReportController::class, 'paymentScheduleDetails'])->name('reports.payment-schedule.details');
 
+// Participantes sin pagos iniciados
+Route::get('/reports/no-payment', [ReportController::class, 'noPayment'])->name('reports.no-payment');
+
 // Reporte de pagos diarios
 Route::get('/reports/daily-payments', [ReportController::class, 'dailyPayments'])->name('reports.daily-payments');
 

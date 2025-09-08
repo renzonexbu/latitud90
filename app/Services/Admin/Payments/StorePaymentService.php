@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Traits\AdminLogging;
+use App\Helpers\RutHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -147,7 +148,7 @@ class StorePaymentService
             'code_phone' => $request->buyer_code_phone,
             'phone' => $request->buyer_phone,
             'document_type' => $request->buyer_document_type,
-            'document_number' => $request->buyer_document_number,
+            'document_number' => RutHelper::clean($request->buyer_document_number),
             'billing_address' => null,
             'billing_city' => $request->buyer_city,
             'billing_country' => $request->buyer_country,
@@ -202,7 +203,7 @@ class StorePaymentService
                 'buyer_data' => [
                     'full_name' => $request->buyer_full_name,
                     'document_type' => $request->buyer_document_type,
-                    'document_number' => $request->buyer_document_number,
+                    'document_number' => RutHelper::clean($request->buyer_document_number),
                     'email' => $request->buyer_email,
                     'phone' => $request->buyer_phone,
                     'country' => $request->buyer_country,
@@ -223,13 +224,13 @@ class StorePaymentService
     private function mapPresentialPaymentTypeToOption(string $presentialPaymentType): string
     {
         $mapping = [
-            'BX' => 'full_office_card',      // Pago con tarjeta en oficina
-            'TE' => 'full_bank_transfer',    // Transferencia bancaria
-            'CH' => 'full_check',            // Cheque
-            'DP' => 'full_deposit',          // Depósito
+            'BX' => 'presential_office_card',      // Pago con tarjeta en oficina
+            'TE' => 'presential_bank_transfer',    // Transferencia bancaria
+            'CH' => 'presential_check',            // Cheque
+            'DP' => 'presential_deposit',          // Depósito
         ];
 
-        $result = $mapping[$presentialPaymentType] ?? 'full_office_card'; // Default fallback
+        $result = $mapping[$presentialPaymentType] ?? 'presential_office_card'; // Default fallback
         
         // Log temporal para diagnosticar
         Log::info('Mapeo presential_payment_type:', [

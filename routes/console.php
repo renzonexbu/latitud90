@@ -8,6 +8,7 @@ use App\Services\Commands\SystemHealthService;
 use App\Services\Commands\PaymentProcessingService;
 use App\Services\Commands\UpdatePaymentOptionsService;
 use App\Services\Commands\MarketingMailsService;
+use App\Services\Commands\NoPaymentService;
 
 /*
 |--------------------------------------------------------------------------
@@ -144,3 +145,15 @@ Artisan::command('marketing:process-emails', function () {
 
     $this->info('✅ Procesamiento de emails de marketing completado');
 })->purpose('Procesar y almacenar emails de marketing desde orders_detail y frequent_client');
+
+// Comando para detectar participantes sin pagos ecommerce
+Artisan::command('participants:no-payment-analysis', function () {
+    $service = new NoPaymentService();
+    
+    $this->info('🔍 Iniciando análisis de participantes sin pagos ecommerce...');
+    $this->newLine();
+    
+    $service->detectParticipantsWithoutEcommercePayments();
+    
+    $this->info('✅ Análisis completado');
+})->purpose('Detectar participantes que no han iniciado pagos por ecommerce');

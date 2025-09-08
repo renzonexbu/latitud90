@@ -222,7 +222,7 @@ class CreateRefundService
             'document_number' => $data['client_rut'] ?? null,
             
             // Información de la cuota (para reembolsos, usamos valores por defecto)
-            'installment_number' => 1,
+            'installment_number' => null, // Reembolso no es una cuota
             'base_amount' => $data['amount'],
             'discount_amount' => 0,
             'amount' => $data['amount'],

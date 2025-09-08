@@ -15,7 +15,7 @@ return new class extends Migration
 			$table->id();
 			$table->string('code')->unique(); // e.g. full_transfer_khipu, full_debit_credit_3, full_international, lat90_transfer_khipu, lat90_debit_credit_0
 			$table->string('label'); // Texto a mostrar en el admin/frontend
-			$table->enum('mode', ['full', 'lat90']);
+			$table->enum('mode', ['full', 'lat90', 'presential', 'refund']);
 			$table->string('gateway_code')->nullable(); // transbank | khipu | null
 			$table->string('report_code')->nullable();
 			$table->unsignedTinyInteger('installments')->nullable(); // 0/3/6/9/12 SOLO para opciones full_*; en lat90, null/0

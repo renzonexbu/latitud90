@@ -12,6 +12,7 @@ use App\Models\Program;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
+use App\Helpers\RutHelper;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -205,9 +206,9 @@ class CreateParticularPaymentService
             'code_phone' => $data['buyer_code_phone'] ?? null,
             'phone' => $data['buyer_phone'] ?? null,
             'document_type' => $data['buyer_document_type'] ?? null,
-            'document_number' => $data['buyer_document_number'] ?? null,
-            'installment_number' => 1,
-            'installments_number' => 1,
+            'document_number' => RutHelper::clean($data['buyer_document_number'] ?? null),
+            'installment_number' => null, // Pago presencial no es una cuota
+            'installments_number' => null,
             'base_amount' => $data['amount'],
             'discount_amount' => 0,
             'amount' => $data['amount'],
@@ -246,7 +247,7 @@ class CreateParticularPaymentService
                 'buyer_data' => [
                     'full_name' => $data['buyer_full_name'] ?? null,
                     'document_type' => $data['buyer_document_type'] ?? null,
-                    'document_number' => $data['buyer_document_number'] ?? null,
+                    'document_number' => RutHelper::clean($data['buyer_document_number'] ?? null),
                     'email' => $data['buyer_email'] ?? null,
                     'phone' => $data['buyer_phone'] ?? null,
                     'country' => $data['buyer_country'] ?? null,
@@ -378,12 +379,12 @@ class CreateParticularPaymentService
     private function mapPresentialPaymentTypeToOption(string $presentialType): string
     {
         $mapping = [
-            'BX' => 'full_office_card',      // Pago con tarjeta en oficina
-            'TE' => 'full_bank_transfer',    // Transferencia bancaria
-            'CH' => 'full_check',            // Cheque
-            'DP' => 'full_deposit',          // Depósito
+            'BX' => 'presential_office_card',      // Pago con tarjeta en oficina
+            'TE' => 'presential_bank_transfer',    // Transferencia bancaria
+            'CH' => 'presential_check',            // Cheque
+            'DP' => 'presential_deposit',          // Depósito
         ];
 
-        return $mapping[$presentialType] ?? 'full_office_card'; // Default a tarjeta en oficina
+        return $mapping[$presentialType] ?? 'presential_office_card'; // Default a tarjeta en oficina
     }
 }

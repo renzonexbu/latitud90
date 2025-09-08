@@ -40,13 +40,16 @@ class SoftlandAuxiliaresService
      */
     public function generateAuxiliaresData(): Collection
     {
-        // Obtener compradores únicos de orders_detail agrupados por document_number
+        // Obtener compradores únicos de orders_detail agrupados por document_number normalizado
         $orderDetails = OrderDetail::with(['documentType', 'country', 'region', 'city'])
             ->select('name', 'email', 'phone', 'document_type', 'document_number', 'country', 'region', 'city')
             ->get()
-            ->groupBy('document_number') // Agrupar por número de documento
+            ->groupBy(function ($item) {
+                // Normalizar el document_number para evitar duplicados por caracteres especiales
+                return $this->normalizeDocumentNumber($item->document_number);
+            })
             ->map(function ($group) {
-                // Tomar el primer registro de cada grupo (document_number único)
+                // Tomar el primer registro de cada grupo (document_number único normalizado)
                 return $group->first();
             });
 
@@ -62,12 +65,13 @@ class SoftlandAuxiliaresService
     {
         $documentNumber = $this->formatDocumentNumber($orderDetail);
         $auxiliarCode = $this->generateAuxiliarCode($orderDetail);
+        $nombreAuxiliar = $this->truncateString($orderDetail->name, 60);
         
         return [
             // Solo los 4 campos especificados
             'codigo_auxiliar' => $auxiliarCode,
-            'nombre_auxiliar' => $this->truncateString($orderDetail->name, 60),
-            'nombre_fantasia' => '', // Vacío
+            'nombre_auxiliar' => $nombreAuxiliar,
+            'nombre_fantasia' => $nombreAuxiliar, // Mismo valor que Nombre Auxiliar
             'rut_auxiliar' => $documentNumber,
             'activo' => 'S',
             
@@ -84,8 +88,8 @@ class SoftlandAuxiliaresService
             'telefono_3_auxiliar' => '',
             'fax_1_auxiliar' => '',
             'fax_2_auxiliar' => '',
-            'clasificacion_cliente' => '',
-            'clasificacion_proveedor' => '',
+            'clasificacion_cliente' => 'S', // Siempre S
+            'clasificacion_proveedor' => 'S', // Siempre S
             'clasificacion_empleado' => '',
             'clasificacion_socio' => '',
             'clasificacion_distribuidor' => '',
@@ -123,8 +127,8 @@ class SoftlandAuxiliaresService
             'telefono' => '',
             'dia_pago' => '',
             'codigo_lista_precio' => '',
-            'email_dte' => '',
-            'es_emisor_receptor_dte' => '',
+            'email_dte' => $orderDetail->email ?? '', // Email del comprador
+            'es_emisor_receptor_dte' => 'S', // Siempre S
             'codigo_clasificacion_negocio' => '',
             'cuenta_clientes_doctos_moneda_base' => '',
             'cuenta_clientes_doctos_moneda_extranjera' => '',
@@ -162,6 +166,19 @@ class SoftlandAuxiliaresService
         }
         
         return $this->truncateString($documentNumber, 11);
+    }
+
+    /**
+     * Normaliza el número de documento para evitar duplicados por caracteres especiales
+     */
+    private function normalizeDocumentNumber(?string $documentNumber): string
+    {
+        if (!$documentNumber) {
+            return '';
+        }
+        
+        // Remover todos los caracteres especiales (puntos, guiones, espacios) y convertir a mayúsculas
+        return strtoupper(preg_replace('/[^0-9A-Za-z]/', '', $documentNumber));
     }
 
     /**

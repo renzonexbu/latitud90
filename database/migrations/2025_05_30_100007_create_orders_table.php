@@ -83,11 +83,11 @@ return new class extends Migration
             $table->boolean('terms_accepted_confirmation')->default(false); // Términos aceptados en confirmación
 
             // Información de la cuota
-            $table->integer('installment_number'); // Número de cuota (1, 2, 3, etc.)
-			$table->decimal('base_amount', 10, 2); // Monto full original de esta cuota
+            $table->integer('installment_number')->nullable(); // Número de cuota (1, 2, 3, etc.)   
+			$table->decimal('base_amount', 10, 2)->nullable(); // Monto full original de esta cuota
 			$table->decimal('discount_amount', 10, 2)->default(0); // Monto de descuento aplicado a la cuota
-			$table->decimal('amount', 10, 2); // Monto vigente (ajustado) de esta cuota
-            $table->date('due_date'); // Fecha de vencimiento
+			$table->decimal('amount', 10, 2)->nullable(); // Monto vigente (ajustado) de esta cuota
+            $table->date('due_date')->nullable(); // Fecha de vencimiento
             $table->boolean('is_paid')->default(false); // Si fue pagada o no
             $table->datetime('paid_at')->nullable(); // Fecha cuando se pagó
             $table->enum('status', [
