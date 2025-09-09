@@ -116,12 +116,12 @@ class UpdateProgramService
                 $departureYear = (int) date('Y', strtotime($programData['departure_date']));
                 $currentYear = (int) date('Y');
                 
-                if ($departureYear > $currentYear + 1) {
-                    // More than 1 year in the future = reserva
+                if ($departureYear > $currentYear) {
+                    // Next year and beyond = reserva
                     $updateData['status'] = 'reserva';
-                } elseif ($departureYear >= $currentYear) {
-                    // Current year or next year = normal program (no status)
-                    $updateData['status'] = null;
+                } elseif ($departureYear == $currentYear) {
+                    // Current year = vigente
+                    $updateData['status'] = 'vigente';
                 }
                 // Note: If departure_date < current year, the database trigger will handle setting to 'ejecutado'
             }

@@ -47,7 +47,7 @@ return new class extends Migration
             // Campos de auditoría
             $table->foreignId('created_by')->nullable()->constrained('users');
             $table->boolean('active')->default(true);
-            $table->enum('status', ['reserva', 'ejecutado'])->nullable();
+            $table->enum('status', ['reserva', 'vigente', 'ejecutado'])->nullable();
             $table->timestamps();
 
             // Índices
@@ -82,8 +82,10 @@ return new class extends Migration
                 IF NEW.departure_date < CURDATE() THEN
                     SET NEW.status = "ejecutado";
                     SET NEW.active = false;
-                ELSEIF NEW.departure_date > DATE_ADD(CURDATE(), INTERVAL 1 YEAR) THEN
+                ELSEIF YEAR(NEW.departure_date) > YEAR(CURDATE()) THEN
                     SET NEW.status = "reserva";
+                ELSE
+                    SET NEW.status = "vigente";
                 END IF;
             END;
         ');

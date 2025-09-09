@@ -256,6 +256,14 @@ class Program extends Model
     }
 
     /**
+     * Scope para programas vigentes
+     */
+    public function scopeVigente($query)
+    {
+        return $query->where('status', 'vigente');
+    }
+
+    /**
      * Scope para programas ejecutados
      */
     public function scopeEjecutado($query)
@@ -270,6 +278,7 @@ class Program extends Model
     {
         $labels = [
             'reserva' => 'Reserva',
+            'vigente' => 'Vigente',
             'ejecutado' => 'Ejecutado'
         ];
 
@@ -283,6 +292,7 @@ class Program extends Model
     {
         $classes = [
             'reserva' => 'bg-yellow-100 text-yellow-800',
+            'vigente' => 'bg-green-100 text-green-800',
             'ejecutado' => 'bg-blue-100 text-blue-800'
         ];
 
