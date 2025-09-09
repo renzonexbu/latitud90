@@ -33,6 +33,8 @@ use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
 use App\Services\Admin\Reports\Softland\SoftlandAuxiliaresService;
 use App\Services\Admin\Reports\Softland\SoftlandZipExporter;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReportController extends Controller
 {
@@ -594,6 +596,169 @@ class ReportController extends Controller
             Log::error('Error en exportSoftlandZip: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json(['error' => 'Error al generar el archivo ZIP: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Show BSale documents management page
+     */
+    public function bsaleDocuments()
+    {
+        return Inertia::render('Admin/Reports/BsaleDocuments');
+    }
+
+    /**
+     * Get list of BSale documents
+     */
+    public function bsaleDocumentsList(Request $request)
+    {
+        try {
+            $year = $request->get('year');
+            $search = $request->get('search');
+            $perPage = $request->get('per_page', 50);
+
+            // Get all BSale documents from storage
+            $documents = collect();
+            $basePath = 'bsale_documents';
+            
+            // If year is specified, look in that year's folder
+            if ($year) {
+                $yearPath = $basePath . '/' . $year;
+                if (Storage::exists($yearPath)) {
+                    $files = Storage::files($yearPath);
+                    foreach ($files as $file) {
+                        $documents->push($this->formatBsaleDocument($file));
+                    }
+                }
+            } else {
+                // Get all years
+                $yearFolders = Storage::directories($basePath);
+                foreach ($yearFolders as $yearFolder) {
+                    $files = Storage::files($yearFolder);
+                    foreach ($files as $file) {
+                        $documents->push($this->formatBsaleDocument($file));
+                    }
+                }
+            }
+
+            // Filter by search term if provided
+            if ($search) {
+                $documents = $documents->filter(function ($doc) use ($search) {
+                    return stripos($doc['filename'], $search) !== false ||
+                           stripos($doc['bsale_number'], $search) !== false ||
+                           stripos($doc['payment_id'], $search) !== false;
+                });
+            }
+
+            // Sort by date (newest first)
+            $documents = $documents->sortByDesc('modified_at');
+
+            // Get available years for filter
+            $availableYears = collect(Storage::directories($basePath))
+                ->map(function ($path) {
+                    return basename($path);
+                })
+                ->sort()
+                ->values();
+
+            // Paginate results
+            $total = $documents->count();
+            $page = $request->get('page', 1);
+            $offset = ($page - 1) * $perPage;
+            $paginatedDocs = $documents->slice($offset, $perPage)->values();
+
+            return response()->json([
+                'documents' => $paginatedDocs,
+                'total' => $total,
+                'per_page' => $perPage,
+                'current_page' => $page,
+                'last_page' => ceil($total / $perPage),
+                'available_years' => $availableYears
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error listing BSale documents: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al listar documentos BSale'], 500);
+        }
+    }
+
+    /**
+     * Download a specific BSale document
+     */
+    public function downloadBsaleDocument(string $filename): BinaryFileResponse
+    {
+        try {
+            // Find the file in any year folder
+            $basePath = 'bsale_documents';
+            $yearFolders = Storage::directories($basePath);
+            
+            $filePath = null;
+            foreach ($yearFolders as $yearFolder) {
+                $possiblePath = $yearFolder . '/' . $filename;
+                if (Storage::exists($possiblePath)) {
+                    $filePath = $possiblePath;
+                    break;
+                }
+            }
+
+            if (!$filePath) {
+                abort(404, 'Documento BSale no encontrado');
+            }
+
+            $fullPath = Storage::path($filePath);
+            
+            return response()->download($fullPath, $filename, [
+                'Content-Type' => 'application/pdf',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading BSale document: ' . $e->getMessage());
+            abort(500, 'Error al descargar el documento');
+        }
+    }
+
+    /**
+     * Format BSale document information
+     */
+    private function formatBsaleDocument(string $filePath): array
+    {
+        $filename = basename($filePath);
+        $size = Storage::size($filePath);
+        $modifiedAt = Storage::lastModified($filePath);
+        
+        // Extract info from filename: bsale_{bsale_number}_payment_{payment_id}.pdf
+        $bsaleNumber = '';
+        $paymentId = '';
+        
+        if (preg_match('/bsale_(.+?)_payment_(\d+)\.pdf/', $filename, $matches)) {
+            $bsaleNumber = $matches[1];
+            $paymentId = $matches[2];
+        }
+
+        return [
+            'filename' => $filename,
+            'path' => $filePath,
+            'size' => $size,
+            'size_formatted' => $this->formatBytes($size),
+            'modified_at' => $modifiedAt,
+            'modified_at_formatted' => Carbon::createFromTimestamp($modifiedAt)->format('d/m/Y H:i'),
+            'bsale_number' => $bsaleNumber,
+            'payment_id' => $paymentId,
+            'year' => dirname($filePath) !== 'bsale_documents' ? basename(dirname($filePath)) : '',
+        ];
+    }
+
+    /**
+     * Format bytes to human readable format
+     */
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2) . ' KB';
+        } else {
+            return $bytes . ' bytes';
         }
     }
 

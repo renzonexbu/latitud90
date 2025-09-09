@@ -44,6 +44,11 @@ Route::get('/reports/export/softland-auxiliares', [ReportController::class, 'exp
 Route::get('/reports/preview/softland-auxiliares', [ReportController::class, 'previewSoftlandAuxiliares'])->name('reports.preview.softland-auxiliares');
 Route::get('/reports/export/softland-zip', [ReportController::class, 'exportSoftlandZip'])->name('reports.export.softland-zip');
 
+// BSale Documents
+Route::get('/reports/bsale-documents', [ReportController::class, 'bsaleDocuments'])->name('reports.bsale-documents');
+Route::get('/reports/bsale-documents/list', [ReportController::class, 'bsaleDocumentsList'])->name('reports.bsale-documents.list');
+Route::get('/reports/bsale-documents/download/{filename}', [ReportController::class, 'downloadBsaleDocument'])->name('reports.bsale-documents.download');
+
 // Ejecutivos: Consolidado de Área Ingresos y Estado de Cuenta Parcial
 use App\Http\Controllers\Admin\ExecutivesReportsController;
 Route::prefix('/reports/executives')->name('reports.executives.')->group(function () {

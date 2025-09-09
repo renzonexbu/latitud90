@@ -30,7 +30,7 @@ class FindParticipantController extends Controller
     {
         $request->validate([
             'document' => 'required|string|min:3',
-            'document_type' => 'nullable|string|in:RUT,PASAPORTE'
+            'document_type' => 'nullable|string|in:RUT,PASAPORTE,DNI'
         ]);
 
         $document = $request->input('document');

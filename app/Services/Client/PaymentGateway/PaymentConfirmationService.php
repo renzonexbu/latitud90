@@ -59,7 +59,7 @@ class PaymentConfirmationService
                     'order_detail_is_paid' => $orderDetail->is_paid,
                     'paid_at' => $orderDetail->paid_at,
                 ]);
-                
+
                 return [
                     'success' => true,
                     'message' => 'Pago ya confirmado anteriormente',
@@ -68,11 +68,11 @@ class PaymentConfirmationService
                 ];
             }
 
-                    $this->logInfo('PaymentConfirmationService: confirmPayment', [
-            'order_detail_id' => $orderDetailId,
-            'gateway_type' => $gatewayType,
-            'gateway_data' => $gatewayData,
-        ]);
+            $this->logInfo('PaymentConfirmationService: confirmPayment', [
+                'order_detail_id' => $orderDetailId,
+                'gateway_type' => $gatewayType,
+                'gateway_data' => $gatewayData,
+            ]);
 
             // Crear o actualizar registro de pago pendiente
             $pendingPayment = $this->createOrUpdatePendingPayment($orderDetail, $gatewayType, $gatewayData);
@@ -95,7 +95,7 @@ class PaymentConfirmationService
                     case 'virtualpos':
                         // Verificar flag para usar VirtualPOS (producción) o Transbank (pruebas)
                         $useVirtualPos = config('lat90.payment.use_virtualpos', true);
-                        
+
                         if ($useVirtualPos) {
                             $lastResult = $this->confirmVirtualPosPayment($orderDetail, $gatewayData, $pendingPayment, $sessionId);
                         } else {
@@ -495,7 +495,7 @@ class PaymentConfirmationService
             $fullResponse = $result['full_response'] ?? [];
             $details = $fullResponse['details'] ?? [];
             $firstDetail = $details[0] ?? null;
-            
+
             if ($firstDetail) {
                 $cardType = $firstDetail['payment_type_code'] ?? null;
                 $installmentsNumber = $firstDetail['installments_number'] ?? null;
@@ -809,75 +809,76 @@ class PaymentConfirmationService
      */
     private function sendSuccessEmail(OrderDetail $orderDetail, Payment $payment): void
     {
+        $payment->update(['email_sent' => true]);
         // Verificar si ya se envió un email para este pago
-        if ($payment->email_sent) {
-            $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'customer_email' => $orderDetail->email,
-                'payment_status' => $payment->status,
-                'email_sent_at' => $payment->updated_at,
-            ]);
-            return;
-        }
+        // if ($payment->email_sent) {
+        //     $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'customer_email' => $orderDetail->email,
+        //         'payment_status' => $payment->status,
+        //         'email_sent_at' => $payment->updated_at,
+        //     ]);
+        //     return;
+        // }
 
-        // Verificación adicional: solo enviar email si el pago está realmente completado
-        if ($payment->status !== 'completed') {
-            $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'payment_status' => $payment->status,
-                'customer_email' => $orderDetail->email,
-            ]);
-            return;
-        }
+        // // Verificación adicional: solo enviar email si el pago está realmente completado
+        // if ($payment->status !== 'completed') {
+        //     $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'payment_status' => $payment->status,
+        //         'customer_email' => $orderDetail->email,
+        //     ]);
+        //     return;
+        // }
 
-        // Verificar que el order detail esté pagado
-        if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
-            $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'order_detail_status' => $orderDetail->status,
-                'order_detail_is_paid' => $orderDetail->is_paid,
-                'customer_email' => $orderDetail->email,
-            ]);
-            return;
-        }
+        // // Verificar que el order detail esté pagado
+        // if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
+        //     $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'order_detail_status' => $orderDetail->status,
+        //         'order_detail_is_paid' => $orderDetail->is_paid,
+        //         'customer_email' => $orderDetail->email,
+        //     ]);
+        //     return;
+        // }
 
-        try {
-            $this->logInfo('PaymentConfirmationService: Enviando email de confirmación', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'customer_email' => $orderDetail->email,
-                'payment_status' => $payment->status,
-                'order_detail_status' => $orderDetail->status,
-            ]);
+        // try {
+        //     $this->logInfo('PaymentConfirmationService: Enviando email de confirmación', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'customer_email' => $orderDetail->email,
+        //         'payment_status' => $payment->status,
+        //         'order_detail_status' => $orderDetail->status,
+        //     ]);
 
-            $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+        //     $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
 
-            if ($emailSent) {
-                // Marcar que se envió el email
-                $payment->update(['email_sent' => true]);
-                
-                $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            } else {
-                $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            }
-        } catch (\Exception $e) {
-            $this->logError('PaymentConfirmationService: Excepción al enviar email de confirmación', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        //     if ($emailSent) {
+        //         // Marcar que se envió el email
+        //         $payment->update(['email_sent' => true]);
+
+        //         $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
+        //             'order_detail_id' => $orderDetail->id,
+        //             'payment_id' => $payment->id,
+        //             'customer_email' => $orderDetail->email,
+        //         ]);
+        //     } else {
+        //         $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
+        //             'order_detail_id' => $orderDetail->id,
+        //             'payment_id' => $payment->id,
+        //             'customer_email' => $orderDetail->email,
+        //         ]);
+        //     }
+        // } catch (\Exception $e) {
+        //     $this->logError('PaymentConfirmationService: Excepción al enviar email de confirmación', [
+        //         'order_detail_id' => $orderDetail->id,
+        //         'payment_id' => $payment->id,
+        //         'error' => $e->getMessage(),
+        //     ]);
+        // }
     }
 
     /**

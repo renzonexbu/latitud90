@@ -46,7 +46,12 @@ class FindParticipantService
             return 'RUT';
         }
         
-        // Si no es RUT, asumir que es PASAPORTE
+        // Detectar si es DNI (solo números, 7-8 dígitos)
+        if (preg_match('/^\d{7,8}$/', $clean)) {
+            return 'DNI';
+        }
+        
+        // Si no es RUT ni DNI, asumir que es PASAPORTE
         return 'PASAPORTE';
     }
     

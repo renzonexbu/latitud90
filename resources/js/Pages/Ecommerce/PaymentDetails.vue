@@ -63,6 +63,23 @@
                                             Pasaporte
                                         </span>
                                     </label>
+                                    <label class="flex items-center gap-3 cursor-pointer group">
+                                        <div class="relative">
+                                            <input
+                                                type="radio"
+                                                name="documentType"
+                                                :value="getDocumentTypeId('DNI')"
+                                                v-model="formData.documentType"
+                                                class="sr-only peer"
+                                            />
+                                            <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                            </div>
+                                        </div>
+                                        <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                            DNI
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 
@@ -78,12 +95,12 @@
                                     :placeholder="getDocumentPlaceholder()"
                                     :class="[
                                         'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                        isRutDocument &&
-                                        rutValidation.isValid === false
+                                        (isRutDocument || isDniDocument) &&
+                                        documentValidation.isValid === false
                                             ? 'border-red-500'
                                             : '',
-                                        isRutDocument &&
-                                        rutValidation.isValid === true
+                                        (isRutDocument || isDniDocument) &&
+                                        documentValidation.isValid === true
                                             ? 'border-green-500'
                                             : 'border-[#5B5B5B]',
                                     ]"
@@ -93,16 +110,16 @@
                                 />
                                 <div
                                     v-if="
-                                        isRutDocument && rutValidation.message
+                                        (isRutDocument || isDniDocument) && documentValidation.message
                                     "
                                     class="text-xs mt-1 validation-message"
                                     :class="[
-                                        rutValidation.isValid === true
+                                        documentValidation.isValid === true
                                             ? 'text-green-500'
                                             : 'text-red-500',
                                     ]"
                                 >
-                                    {{ rutValidation.message }}
+                                    {{ documentValidation.message }}
                                 </div>
                             </div>
 
@@ -388,7 +405,7 @@ export default {
                 marketingAccepted: false,
                 isFrequentClient: false, // Nuevo campo para indicar si es cliente frecuente
             },
-            rutValidation: {
+            documentValidation: {
                 isValid: null,
                 message: "",
             },
@@ -425,6 +442,15 @@ export default {
                 selectedDocType && selectedDocType.name.toLowerCase() === "rut"
             );
         },
+        isDniDocument() {
+            if (!this.formData.documentType) return false;
+            const selectedDocType = this.documentTypes.find(
+                (doc) => doc.id == this.formData.documentType
+            );
+            return (
+                selectedDocType && selectedDocType.name.toLowerCase() === "dni"
+            );
+        },
         isFormValid() {
             const validations = {
                 fullName: this.formData.fullName.trim() !== "",
@@ -441,10 +467,10 @@ export default {
             const basicValidation = Object.values(validations).every(
                 (v) => v === true
             );
-            const rutOk = this.isRutDocument
-                ? this.rutValidation.isValid === true
+            const documentOk = (this.isRutDocument || this.isDniDocument)
+                ? this.documentValidation.isValid === true
                 : true;
-            return basicValidation && rutOk;
+            return basicValidation && documentOk;
         },
     },
     mounted() {
@@ -537,9 +563,9 @@ export default {
                         // Trigger validation para actualizar el estado del formulario
                         this.validateForm();
 
-                        // Si es un RUT, validar el formato
+                        // Si es un RUT o DNI, validar el formato
                         if (
-                            this.isRutDocument &&
+                            (this.isRutDocument || this.isDniDocument) &&
                             this.formData.documentNumber
                         ) {
                             this.validateDocument();
@@ -577,9 +603,9 @@ export default {
         // Eliminado watcher profundo que recalculaba manualmente
 
         "formData.documentType"() {
-            // Limpiar validación de RUT cuando cambie el tipo de documento
-            this.rutValidation.isValid = null;
-            this.rutValidation.message = "";
+            // Limpiar validación de documento cuando cambie el tipo de documento
+            this.documentValidation.isValid = null;
+            this.documentValidation.message = "";
             this.formData.documentNumber = "";
         },
 
@@ -740,6 +766,8 @@ export default {
                     return "Ej: 12.345.678-9";
                 case "pasaporte":
                     return "Ej: A12345678";
+                case "dni":
+                    return "Ej: 12.345.678";
                 default:
                     return "Ingresa tu número de documento";
             }
@@ -797,6 +825,8 @@ export default {
         handleDocumentInput() {
             if (this.isRutDocument) {
                 this.formatRut();
+            } else if (this.isDniDocument) {
+                this.formatDni();
             }
         },
 
@@ -805,12 +835,12 @@ export default {
             if (this.formData.documentType && this.formData.documentNumber.trim()) {
                 const foundClient = await this.searchFrequentClient();
                 
-                // Solo validar el RUT si NO se encontró un cliente frecuente
-                if (!foundClient && this.isRutDocument) {
+                // Solo validar el documento si NO se encontró un cliente frecuente
+                if (!foundClient && (this.isRutDocument || this.isDniDocument)) {
                     this.validateDocument();
                 }
-            } else if (this.isRutDocument) {
-                // Si no hay documento para buscar cliente frecuente, validar RUT
+            } else if (this.isRutDocument || this.isDniDocument) {
+                // Si no hay documento para buscar cliente frecuente, validar documento
                 this.validateDocument();
             }
         },
@@ -861,9 +891,9 @@ export default {
             // Marcar que es un cliente frecuente
             this.formData.isFrequentClient = true;
             
-            // Limpiar cualquier validación de RUT previa ya que es un cliente frecuente
-            this.rutValidation.isValid = true;
-            this.rutValidation.message = "";
+            // Limpiar cualquier validación de documento previa ya que es un cliente frecuente
+            this.documentValidation.isValid = true;
+            this.documentValidation.message = "";
 
             // Para la comuna, esperar a que se carguen las comunas después de establecer la región
             this.$nextTick(() => {
@@ -891,7 +921,57 @@ export default {
         validateDocument() {
             if (this.isRutDocument) {
                 this.validateRut();
+            } else if (this.isDniDocument) {
+                this.validateDni();
             }
+        },
+
+        formatDni() {
+            // Para DNI, solo permitir números y formatear con puntos
+            let documentNumber = this.formData.documentNumber.replace(/[^0-9]/g, "");
+            
+            if (documentNumber.length > 0) {
+                // Formatear DNI argentino con puntos (ej: 12.345.678)
+                if (documentNumber.length > 6) {
+                    const formatted = documentNumber.replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3');
+                    this.formData.documentNumber = formatted;
+                } else if (documentNumber.length > 3) {
+                    const formatted = documentNumber.replace(/(\d{2})(\d{3})/, '$1.$2');
+                    this.formData.documentNumber = formatted;
+                } else {
+                    this.formData.documentNumber = documentNumber;
+                }
+            }
+
+            // Validar el DNI después de formatearlo
+            this.validateDni();
+        },
+
+        validateDni() {
+            const documentNumber = this.formData.documentNumber.replace(/\./g, "");
+
+            if (documentNumber.length === 0) {
+                this.documentValidation.isValid = null;
+                this.documentValidation.message = "";
+                return;
+            }
+
+            // Validar DNI argentino
+            if (!/^[0-9]+$/.test(documentNumber)) {
+                this.documentValidation.isValid = false;
+                this.documentValidation.message = "DNI debe contener solo números";
+                return;
+            }
+
+            // Validar longitud del DNI (7-8 dígitos)
+            if (documentNumber.length < 7 || documentNumber.length > 8) {
+                this.documentValidation.isValid = false;
+                this.documentValidation.message = "DNI debe tener entre 7 y 8 dígitos";
+                return;
+            }
+
+            this.documentValidation.isValid = true;
+            this.documentValidation.message = "DNI válido";
         },
 
         formatRut() {
@@ -932,15 +1012,15 @@ export default {
                 .replace(/-/g, "");
 
             if (rut.length === 0) {
-                this.rutValidation.isValid = null;
-                this.rutValidation.message = "";
+                this.documentValidation.isValid = null;
+                this.documentValidation.message = "";
                 return;
             }
 
             // Validar formato básico
             if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-                this.rutValidation.isValid = false;
-                this.rutValidation.message = "Formato de RUT inválido";
+                this.documentValidation.isValid = false;
+                this.documentValidation.message = "Formato de RUT inválido";
                 return;
             }
 
@@ -950,8 +1030,8 @@ export default {
 
             // Validar que el cuerpo tenga al menos 7 dígitos
             if (body.length < 7) {
-                this.rutValidation.isValid = false;
-                this.rutValidation.message =
+                this.documentValidation.isValid = false;
+                this.documentValidation.message =
                     "RUT debe tener al menos 7 dígitos";
                 return;
             }
@@ -960,8 +1040,8 @@ export default {
             const dvCalculado = this.calculateDv(body);
 
             // Comparar dígitos verificadores
-            this.rutValidation.isValid = dv === dvCalculado;
-            this.rutValidation.message = this.rutValidation.isValid
+            this.documentValidation.isValid = dv === dvCalculado;
+            this.documentValidation.message = this.documentValidation.isValid
                 ? "RUT válido"
                 : "RUT inválido";
 

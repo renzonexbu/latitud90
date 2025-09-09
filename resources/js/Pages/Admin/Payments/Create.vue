@@ -95,6 +95,35 @@
                                                 Pasaporte
                                             </span>
                                         </label>
+                                        <label
+                                            class="flex items-center gap-3 cursor-pointer group"
+                                        >
+                                            <div class="relative">
+                                                <input
+                                                    type="radio"
+                                                    name="documentType"
+                                                    :value="
+                                                        getDocumentTypeId('DNI')
+                                                    "
+                                                    v-model="
+                                                        buyerForm.documentType
+                                                    "
+                                                    class="sr-only peer"
+                                                />
+                                                <div
+                                                    class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center"
+                                                >
+                                                    <div
+                                                        class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                            <span
+                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200"
+                                            >
+                                                DNI
+                                            </span>
+                                        </label>
                                     </div>
                                 </div>
 

@@ -187,6 +187,40 @@
                                 </p>
                             </Link>
 
+                            <!-- Documentos BSale -->
+                            <Link
+                                :href="route('admin.reports.bsale-documents')"
+                                class="bg-red-50 hover:bg-red-100 p-6 rounded-lg border border-red-200 transition-colors"
+                            >
+                                <div class="flex items-center mb-3">
+                                    <div
+                                        class="p-2 bg-red-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-red-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                            ></path>
+                                        </svg>
+                                    </div>
+                                    <h3
+                                        class="text-lg font-semibold text-red-800"
+                                    >
+                                        Documentos BSale
+                                    </h3>
+                                </div>
+                                <p class="text-sm text-red-600">
+                                    Gestión y descarga de documentos PDF de BSale
+                                </p>
+                            </Link>
+
                             <!-- Consolidado Área Ingresos (Apoderados) -->
                             <Link
                                 :href="route('admin.reports.executives.consolidated')"

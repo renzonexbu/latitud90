@@ -163,6 +163,23 @@
                                 PASAPORTE
                             </span>
                         </label>
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative">
+                                <input
+                                    type="radio"
+                                    name="documentType"
+                                    value="DNI"
+                                    v-model="selectedDocumentType"
+                                    class="sr-only peer"
+                                />
+                                <div class="w-5 h-5 border-2 border-white rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                </div>
+                            </div>
+                            <span class="text-white font-medium text-sm group-hover:text-[#FBBD51] transition-colors duration-200">
+                                DNI
+                            </span>
+                        </label>
                     </div>
                 </div>
 
@@ -253,7 +270,7 @@
                             />
                         </svg>
                     </div>
-                    <span>Ingrese el {{ selectedDocumentType === 'RUT' ? 'número de RUT' : 'número de pasaporte' }} del alumno</span>
+                    <span>Ingrese el {{ selectedDocumentType === 'RUT' ? 'número de RUT' : selectedDocumentType === 'DNI' ? 'número de DNI' : 'número de pasaporte' }} del alumno</span>
                 </div>
 
                 <div class="flex items-center">
@@ -320,7 +337,13 @@ watch(selectedDocumentType, (newType) => {
 });
 
 const getDocumentPlaceholder = () => {
-    return selectedDocumentType.value === "RUT" ? "Ingresar Rut del viajero" : "Ingresar Número de Pasaporte";
+    if (selectedDocumentType.value === "RUT") {
+        return "Ingresar Rut del viajero";
+    } else if (selectedDocumentType.value === "DNI") {
+        return "Ingresar Número de DNI";
+    } else {
+        return "Ingresar Número de Pasaporte";
+    }
 };
 
 const formatDocument = () => {
@@ -347,6 +370,22 @@ const formatDocument = () => {
 
                 // Combinar cuerpo formateado con dígito verificador
                 searchQuery.value = `${formattedBody}-${dv}`;
+            } else {
+                searchQuery.value = documentNumber;
+            }
+        }
+    } else if (selectedDocumentType.value === "DNI") {
+        // Para DNI, solo permitir números y formatear con puntos
+        let documentNumber = searchQuery.value.replace(/[^0-9]/g, "");
+        
+        if (documentNumber.length > 0) {
+            // Formatear DNI argentino con puntos (ej: 12.345.678)
+            if (documentNumber.length > 6) {
+                const formatted = documentNumber.replace(/(\d{2})(\d{3})(\d{3})/, '$1.$2.$3');
+                searchQuery.value = formatted;
+            } else if (documentNumber.length > 3) {
+                const formatted = documentNumber.replace(/(\d{2})(\d{3})/, '$1.$2');
+                searchQuery.value = formatted;
             } else {
                 searchQuery.value = documentNumber;
             }
@@ -396,6 +435,23 @@ const validateDocument = () => {
         rutValidation.message = rutValidation.isValid
             ? "RUT válido"
             : "RUT inválido";
+    } else if (selectedDocumentType.value === "DNI") {
+        // Validar DNI argentino
+        if (!/^[0-9]+$/.test(documentNumber)) {
+            rutValidation.isValid = false;
+            rutValidation.message = "DNI debe contener solo números";
+            return;
+        }
+
+        // Validar longitud del DNI (7-8 dígitos)
+        if (documentNumber.length < 7 || documentNumber.length > 8) {
+            rutValidation.isValid = false;
+            rutValidation.message = "DNI debe tener entre 7 y 8 dígitos";
+            return;
+        }
+
+        rutValidation.isValid = true;
+        rutValidation.message = "DNI válido";
     } else {
         // Validar PASAPORTE (más flexible)
         if (documentNumber.length < 3) {

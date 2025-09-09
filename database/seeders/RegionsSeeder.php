@@ -90,7 +90,7 @@ class RegionsSeeder extends Seeder
             ],
             [
                 'id' => 14,
-                'name' => 'Región de Magallanes y de la AntárVca Chilena',
+                'name' => 'Región de Magallanes y de la Antártica Chilena',
                 'created_at' => '2025-08-07 12:51:55',
                 'updated_at' => '2025-08-07 12:51:55',
             ],
