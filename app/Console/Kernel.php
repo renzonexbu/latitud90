@@ -56,6 +56,13 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/marketing-emails.log'));
+
+        // Reporte mensual de participantes sin pagos - primer día de cada mes a las 9:00 AM
+        $schedule->command('participants:monthly-without-payments')
+            ->monthlyOn(1, '09:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/monthly-participants-without-payments.log'));
     }
 
     /**
