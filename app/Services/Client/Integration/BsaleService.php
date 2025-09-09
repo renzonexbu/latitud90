@@ -365,14 +365,25 @@ class BsaleService
         $responseData = $response->json();
         
 
-        // Guardar el token de Bsale en el pago para poder descargar el PDF
+        // Guardar datos de Bsale en el pago para poder descargar el PDF y adjuntarlo en emails
+        $updateData = [];
         if (isset($responseData['token'])) {
-            $payment->update([
-                'bsale_token' => $responseData['token']
-            ]);
+            $updateData['bsale_token'] = $responseData['token'];
+        }
+        if (isset($responseData['id'])) {
+            $updateData['bsale_document_id'] = $responseData['id'];
+        }
+        if (isset($responseData['number'])) {
+            $updateData['bsale_number'] = $responseData['number'];
+        }
+        
+        if (!empty($updateData)) {
+            $payment->update($updateData);
             
             // Descargar y almacenar el PDF inmediatamente
-            $this->downloadAndStoreBsalePdf($payment, $responseData);
+            if (isset($responseData['token'])) {
+                $this->downloadAndStoreBsalePdf($payment, $responseData);
+            }
         }
 
         return $responseData;

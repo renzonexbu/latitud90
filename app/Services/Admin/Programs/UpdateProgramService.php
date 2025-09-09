@@ -111,6 +111,19 @@ class UpdateProgramService
             }
             if (isset($programData['departure_date'])) {
                 $updateData['departure_date'] = $programData['departure_date'];
+                
+                // Update status based on departure_date
+                $departureYear = (int) date('Y', strtotime($programData['departure_date']));
+                $currentYear = (int) date('Y');
+                
+                if ($departureYear > $currentYear + 1) {
+                    // More than 1 year in the future = reserva
+                    $updateData['status'] = 'reserva';
+                } elseif ($departureYear >= $currentYear) {
+                    // Current year or next year = normal program (no status)
+                    $updateData['status'] = null;
+                }
+                // Note: If departure_date < current year, the database trigger will handle setting to 'ejecutado'
             }
             if (isset($programData['description']) || isset($programData['trip_description'])) {
                 $updateData['trip_description'] = $programData['description'] ?? $programData['trip_description'];
