@@ -4,12 +4,11 @@ namespace App\Services\Client\Integration;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
-use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class BsaleService
 {
-    use SystemLogging;
     private $baseUrl = 'https://api.bsale.io/v1';
     private $token;
     private $documentTypeId;
@@ -37,25 +36,13 @@ class BsaleService
 
             if ($response->successful()) {
                 $documentTypes = $response->json();
-                $this->logInfo('BsaleService: Tipos de documento obtenidos', [
-                    'document_types' => $documentTypes,
-                    'document_types_type' => gettype($documentTypes),
-                    'document_types_json' => json_encode($documentTypes, JSON_PRETTY_PRINT),
-                ]);
                 return $documentTypes;
             }
 
-            $this->logError('BsaleService: Error obteniendo tipos de documento', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
 
             return null;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error obteniendo tipos de documento', [
-                'error' => $e->getMessage(),
-            ], $e);
             return null;
         }
     }
@@ -92,23 +79,13 @@ class BsaleService
 
             if ($response->successful()) {
                 $priceLists = $response->json();
-                $this->logInfo('BsaleService: Listas de precios obtenidas', [
-                    'price_lists' => $priceLists,
-                ]);
                 return $priceLists;
             }
 
-            $this->logError('BsaleService: Error obteniendo listas de precios', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
 
             return null;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error obteniendo listas de precios', [
-                'error' => $e->getMessage(),
-            ], $e);
             return null;
         }
     }
@@ -126,21 +103,13 @@ class BsaleService
             ]);
 
             if ($response->successful()) {
-                $this->logInfo('BsaleService: Conexión exitosa con Bsale API');
                 return true;
             }
 
-            $this->logError('BsaleService: Error de conexión con Bsale API', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
 
             return false;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error de conectividad con Bsale API', [
-                'error' => $e->getMessage(),
-            ], $e);
             return false;
         }
     }
@@ -157,12 +126,6 @@ class BsaleService
             // Permitir invertir la lógica vía config para pruebas
             $shouldSkip = $this->invertSameYearLogic ? $isSameYear : !$isSameYear;
             if ($shouldSkip) {
-                $this->logInfo('BsaleService: Condición de "mismo año" no cumple generación (configurable)', [
-                    'program_id' => $program->id,
-                    'departure_date' => $program->departure_date,
-                    'is_same_year' => $isSameYear,
-                    'invert_logic' => $this->invertSameYearLogic,
-                ]);
                 return null;
             }
 
@@ -172,27 +135,14 @@ class BsaleService
                 throw new \Exception('No se pudo crear/obtener el cliente en Bsale');
             }
 
+
             // Crear documento (boleta) en Bsale
             $documentData = $this->createDocument($orderDetail, $payment, $customerId);
             
-            // Log completo de la respuesta de Bsale
-            $this->logInfo('BsaleService: Respuesta completa de Bsale', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'bsale_response' => $documentData,
-                'bsale_response_json' => json_encode($documentData, JSON_PRETTY_PRINT),
-                'bsale_response_keys' => is_array($documentData) ? array_keys($documentData) : 'No es array',
-                'bsale_response_type' => gettype($documentData),
-            ]);
 
             return $documentData;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error generando boleta', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ], $e);
 
             // No lanzar excepción para no interrumpir el flujo de pago
             return null;
@@ -220,57 +170,85 @@ class BsaleService
     private function createOrGetCustomer(OrderDetail $orderDetail): ?int
     {
         try {
+            // Ensure relationships are loaded including document type and convert to array
+            $data = $orderDetail->load(['country', 'region', 'city', 'documentType'])->toArray();
+            
+            // Construir dirección
+            $address = '';
+            if (isset($data['country']) && !empty($data['country']['name'])) {
+                $address .= $data['country']['name'];
+            }
+            if (isset($data['region']) && !empty($data['region']['name'])) {
+                $address .= ($address ? ', ' : '') . $data['region']['name'];
+            }
+            
+            // Comuna
+            $comuna = isset($data['city']) && !empty($data['city']['name']) ? $data['city']['name'] : '';
+            
+            // Handle passport document type - use fixed RUT 55.555.555-5
+            $documentNumber = $data['document_number'];
+            $documentTypeName = '';
+            
+            // Check document type from loaded relationship
+            if (isset($data['document_type']) && !empty($data['document_type']['name'])) {
+                $documentTypeName = $data['document_type']['name'];
+            } else {
+                // Fallback: query the document type directly
+                $documentType = \App\Models\Document::find($data['document_type']);
+                $documentTypeName = $documentType ? $documentType->name : '';
+            }
+
+            
+            if (strtoupper($documentTypeName) === 'PASAPORTE') {
+                $documentNumber = '55.555.555-5';
+            } else {
+                // For RUT, keep original formatting with dots and hyphens
+                // BSale expects RUT in format XX.XXX.XXX-X
+                $documentNumber = $documentNumber; // Keep as is: "25.808.242-7"
+            }
+
+            // For BSale document type 3, company field is required
+            // Use customer's full name as company to satisfy BSale requirement
+            $fullName = $this->extractFirstName($orderDetail->name) . ' ' . $this->extractLastName($orderDetail->name);
+            
             $customerData = [
                 'firstName' => $this->extractFirstName($orderDetail->name),
                 'lastName' => $this->extractLastName($orderDetail->name),
                 'email' => $orderDetail->email,
-                'phone' => $orderDetail->phone,
-                'documentNumber' => $orderDetail->document_number,
+                'code' => $documentNumber, // BSale uses 'code' field for RUT
+                'documentNumber' => $documentNumber,
                 'documentTypeId' => $this->getDocumentTypeId($orderDetail->document_type),
-                'company' => 'Experiencias Educativas y Capacitaciones SpA',
+                'company' => trim($fullName), // Use customer's name as company (required by document type 3)
+                'address' => $address ?: null, // Ensure it's not empty string
+                'city' => $comuna ?: null, // Ensure it's not empty string
+                'activity' => null, // Explicitly null to avoid "Sin Giro"
+                'municipality' => $comuna ?: null, // Comuna field
+                // Remove unwanted fields: phone, contacto, oc_referencia, total_abonado
             ];
 
-            // Log de datos del cliente
-            $this->logInfo('BsaleService: Datos del cliente para Bsale', [
-                'order_detail_id' => $orderDetail->id,
-                'customer_data' => $customerData,
-                'customer_data_json' => json_encode($customerData, JSON_PRETTY_PRINT),
-            ]);
+
 
             // Buscar cliente existente por email
             $existingCustomer = $this->findCustomerByEmail($orderDetail->email);
             if ($existingCustomer) {
-                $this->logInfo('BsaleService: Cliente existente encontrado', [
-                    'order_detail_id' => $orderDetail->id,
-                    'existing_customer' => $existingCustomer,
-                ]);
                 
-                // Si el cliente existente no tiene company, crear uno nuevo
-                if (empty($existingCustomer['company'])) {
-                    $this->logInfo('BsaleService: Cliente existente sin company, creando nuevo cliente', [
-                        'order_detail_id' => $orderDetail->id,
-                        'existing_customer_id' => $existingCustomer['id'],
-                    ]);
+                // Si el cliente existente no tiene company, RUT, o dirección, crear uno nuevo
+                if (empty($existingCustomer['company']) || empty($existingCustomer['code']) || empty($existingCustomer['address'])) {
                     
-                    // Crear nuevo cliente con company
+                    // Crear nuevo cliente con datos completos
                     $response = Http::withHeaders([
                         'access_token' => $this->token,
                         'Content-Type' => 'application/json',
                     ])->post($this->baseUrl . '/clients.json', $customerData);
 
+
                     if ($response->successful()) {
                         $customer = $response->json();
-                        $this->logInfo('BsaleService: Nuevo cliente creado exitosamente', [
-                            'order_detail_id' => $orderDetail->id,
-                            'new_customer' => $customer,
-                            'new_customer_json' => json_encode($customer, JSON_PRETTY_PRINT),
-                        ]);
                         return $customer['id'];
                     } else {
-                        $this->logError('BsaleService: Error creando nuevo cliente', [
-                            'response' => $response->json(),
+                        Log::error('BSale Customer Creation Failed:', [
                             'status' => $response->status(),
-                            'body' => $response->body(),
+                            'body' => $response->body()
                         ]);
                         return null;
                     }
@@ -285,29 +263,20 @@ class BsaleService
                 'Content-Type' => 'application/json',
             ])->post($this->baseUrl . '/clients.json', $customerData);
 
+
             if ($response->successful()) {
                 $customer = $response->json();
-                $this->logInfo('BsaleService: Cliente creado exitosamente', [
-                    'order_detail_id' => $orderDetail->id,
-                    'new_customer' => $customer,
-                    'new_customer_json' => json_encode($customer, JSON_PRETTY_PRINT),
-                ]);
                 return $customer['id'];
+            } else {
+                Log::error('BSale New Customer Creation Failed:', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
             }
-
-            $this->logError('BsaleService: Error creando cliente', [
-                'response' => $response->json(),
-                'status' => $response->status(),
-                'body' => $response->body(),
-                'headers' => $response->headers(),
-            ]);
 
             return null;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error en createOrGetCustomer', [
-                'error' => $e->getMessage(),
-            ], $e);
             return null;
         }
     }
@@ -327,21 +296,12 @@ class BsaleService
             if ($response->successful()) {
                 $data = $response->json();
                 $items = is_array($data) && isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
-                $this->logInfo('BsaleService: Respuesta búsqueda cliente por email', [
-                    'email' => $email,
-                    'items_count' => count($items),
-                    'raw' => $data,
-                ]);
                 return !empty($items) ? $items[0] : null;
             }
 
             return null;
 
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error buscando cliente por email', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ], $e);
             return null;
         }
     }
@@ -353,6 +313,21 @@ class BsaleService
     {
         $program = $orderDetail->order->program;
         $participant = $orderDetail->order->participant;
+        
+        // Build full participant name from individual fields in uppercase
+        $participantFullName = '';
+        if ($participant) {
+            $nameParts = array_filter([
+                $participant->first_name,
+                $participant->second_name,
+                $participant->first_last_name,
+                $participant->second_last_name
+            ]);
+            $participantFullName = ucwords(strtolower(implode(' ', $nameParts)));
+        }
+        
+        // Item description: "Programa de Estudio" + participant full name in uppercase
+        $itemDetail = "Programa de Estudio\n    " . ($participantFullName ?: 'PARTICIPANTE');
 
         $documentData = [
             'clientId' => $customerId,
@@ -363,7 +338,7 @@ class BsaleService
             'comment' => "Pago de cuota {$orderDetail->installment_number} - Programa: {$program->name}",
             'details' => [
                 [
-                    'comment' => $program->name, // Nombre del programa como descripción del producto
+                    'comment' => $itemDetail,
                     'quantity' => 1,
                     'netUnitValue' => $payment->amount,
                     'taxId' => 1, // IVA
@@ -371,42 +346,24 @@ class BsaleService
             ]
         ];
 
-        // Log de los datos que se envían a Bsale
-        $this->logInfo('BsaleService: Datos enviados a Bsale para crear documento', [
-            'order_detail_id' => $orderDetail->id,
-            'payment_id' => $payment->id,
-            'customer_id' => $customerId,
-            'document_data' => $documentData,
-            'document_data_json' => json_encode($documentData, JSON_PRETTY_PRINT),
-        ]);
 
         $response = Http::withHeaders([
             'access_token' => $this->token,
             'Content-Type' => 'application/json',
         ])->post($this->baseUrl . '/documents.json', $documentData);
 
+
         if (!$response->successful()) {
-            $this->logError('BsaleService: Error en respuesta de Bsale', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'response_status' => $response->status(),
-                'response_body' => $response->body(),
-                'response_json' => $response->json(),
+            Log::error('BSale Document Creation Failed:', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'documentData' => $documentData
             ]);
             throw new \Exception('Error creando documento en Bsale: ' . $response->body());
         }
 
         $responseData = $response->json();
         
-        // Log de la respuesta completa de Bsale
-        $this->logInfo('BsaleService: Respuesta completa de Bsale al crear documento', [
-            'order_detail_id' => $orderDetail->id,
-            'payment_id' => $payment->id,
-            'response_status' => $response->status(),
-            'response_data' => $responseData,
-            'response_data_json' => json_encode($responseData, JSON_PRETTY_PRINT),
-            'response_headers' => $response->headers(),
-        ]);
 
         // Guardar el token de Bsale en el pago para poder descargar el PDF
         if (isset($responseData['token'])) {
@@ -445,6 +402,7 @@ class BsaleService
     private function downloadAndStoreBsalePdf(Payment $payment, array $bsaleResponse): void
     {
         try {
+
             // Construir la URL del PDF de Bsale
             $bsaleUrl = "https://app2.bsale.cl/view/90370/" . $payment->bsale_token . ".pdf?sfd=99";
             
@@ -467,52 +425,38 @@ class BsaleService
             
             // Verificar si el archivo ya existe
             if (file_exists($filePath)) {
-                $this->logInfo('BsaleService: PDF de Bsale ya existe', [
-                    'payment_id' => $payment->id,
-                    'file_path' => $filePath,
-                    'file_size' => filesize($filePath),
-                ]);
                 return;
             }
             
             // Descargar el PDF
             $response = \Illuminate\Support\Facades\Http::timeout(30)->get($bsaleUrl);
             
+            
             if ($response->successful()) {
                 file_put_contents($filePath, $response->body());
-                
-                $this->logInfo('BsaleService: PDF de Bsale descargado y almacenado automáticamente', [
-                    'payment_id' => $payment->id,
-                    'bsale_document_id' => $payment->bsale_document_id,
-                    'bsale_number' => $bsaleNumber,
-                    'bsale_token' => $payment->bsale_token,
-                    'file_path' => $filePath,
-                    'file_size' => filesize($filePath),
-                    'stored_permanently' => true,
-                    'auto_downloaded' => true,
-                ]);
             } else {
-                $this->logError('BsaleService: Error descargando PDF de Bsale automáticamente', [
-                    'payment_id' => $payment->id,
-                    'bsale_url' => $bsaleUrl,
-                    'response_status' => $response->status(),
-                    'response_body' => $response->body(),
+                Log::error('BSale PDF Download Failed:', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
                 ]);
             }
             
         } catch (\Exception $e) {
-            $this->logError('BsaleService: Error descargando PDF de Bsale automáticamente', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ], $e);
+            Log::error('BSale PDF Download Exception:', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
         }
     }
 
     /**
      * Obtener ID del tipo de documento en Bsale
      */
-    private function getDocumentTypeId(string $documentType): int
+    private function getDocumentTypeId($documentType): int
     {
-        return strtolower($documentType) === 'rut' ? 1 : 2; // 1 = RUT, 2 = Otros
+        // Siempre retornar 1 (RUT) para BSale
+        // Cuando sea pasaporte, ya se maneja el número 55.555.555-5 en el documentNumber
+        return 1;
     }
 }

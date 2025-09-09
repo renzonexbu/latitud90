@@ -40,9 +40,14 @@ class SoftlandAuxiliaresService
      */
     public function generateAuxiliaresData(): Collection
     {
-        // Obtener compradores únicos de orders_detail agrupados por document_number normalizado
-        $orderDetails = OrderDetail::with(['documentType', 'country', 'region', 'city'])
-            ->select('name', 'email', 'phone', 'document_type', 'document_number', 'country', 'region', 'city')
+        // Obtener compradores únicos de orders_detail con joins a las tablas relacionadas
+        $orderDetails = OrderDetail::with([
+            'documentType', 
+            'country', 
+            'region', 
+            'city',
+            'order.participant' // Agregar relación con participant
+        ])
             ->get()
             ->groupBy(function ($item) {
                 // Normalizar el document_number para evitar duplicados por caracteres especiales
@@ -65,23 +70,44 @@ class SoftlandAuxiliaresService
     {
         $documentNumber = $this->formatDocumentNumber($orderDetail);
         $auxiliarCode = $this->generateAuxiliarCode($orderDetail);
-        $nombreAuxiliar = $this->truncateString($orderDetail->name, 60);
+        
+        // Usar el nombre del participante en lugar del comprador
+        $participantName = '';
+        if ($orderDetail->order && $orderDetail->order->participant) {
+            $participantName = $orderDetail->order->participant->name ?? '';
+        }
+        $nombreAuxiliar = $this->truncateString($participantName ?: $orderDetail->name, 60);
+        
+        // Construir dirección: "País, Región"
+        $direccion = '';
+        $countryName = ($orderDetail->country && is_object($orderDetail->country)) ? $orderDetail->country->name : '';
+        $regionName = ($orderDetail->region && is_object($orderDetail->region)) ? $orderDetail->region->name : '';
+        if ($countryName && $regionName) {
+            $direccion = "{$countryName}, {$regionName}";
+        } elseif ($countryName) {
+            $direccion = $countryName;
+        } elseif ($regionName) {
+            $direccion = $regionName;
+        }
+        
+        // Obtener nombre de comuna
+        $comunaName = ($orderDetail->city && is_object($orderDetail->city)) ? $orderDetail->city->name : '';
         
         return [
-            // Solo los 4 campos especificados
+            // Campos principales con datos reales
             'codigo_auxiliar' => $auxiliarCode,
-            'nombre_auxiliar' => $nombreAuxiliar,
+            'nombre_auxiliar' => $nombreAuxiliar, // Nombre del participante
             'nombre_fantasia' => $nombreAuxiliar, // Mismo valor que Nombre Auxiliar
-            'rut_auxiliar' => $documentNumber,
+            'rut_auxiliar' => $documentNumber, // RUT del comprador
             'activo' => 'S',
             
-            // Todas las demás columnas vacías
+            // Campos de ubicación con datos reales
             'codigo_giro_comercial' => '',
             'codigo_pais_auxiliar' => '',
             'codigo_region' => '',
             'codigo_ciudad_auxiliar' => '',
             'codigo_comuna_auxiliar' => '',
-            'direccion_auxiliar' => '',
+            'direccion_auxiliar' => $this->truncateString($direccion, 60), // País, Región
             'numero_dir_auxiliar' => '',
             'telefono_1_auxiliar' => '',
             'telefono_2_auxiliar' => '',
@@ -97,7 +123,7 @@ class SoftlandAuxiliaresService
             'casilla_auxiliar' => '',
             'email_auxiliar' => '',
             'sitio_web_auxiliar' => '',
-            'notas_auxiliar' => '',
+            'notas_auxiliar' => $this->truncateString($comunaName, 60), // Comuna name en notas
             'nombre_contacto' => '',
             'codigo_cargo_contacto' => '',
             'telefono_contacto' => '',
@@ -140,6 +166,7 @@ class SoftlandAuxiliaresService
 
     /**
      * Formatea el número de documento según el tipo
+     * Para pasaportes: usar RUT estándar 55.555.555-5 en campo RUT de Softland
      */
     private function formatDocumentNumber($orderDetail): string
     {
@@ -149,13 +176,13 @@ class SoftlandAuxiliaresService
         
         $documentNumber = $orderDetail->document_number;
         
-        // Si es pasaporte, convertir a mayúsculas
-        if ($orderDetail->documentType && $orderDetail->documentType->name === 'Pasaporte') {
-            $documentNumber = strtoupper($documentNumber);
+        // Si es pasaporte, usar RUT estándar para extranjeros en Softland
+        if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'PASAPORTE') {
+            return '55555555-5'; // RUT estándar para extranjeros en Softland con formato
         }
         
         // Si es RUT, formatear con guión (sin puntos)
-        if ($orderDetail->documentType && $orderDetail->documentType->name === 'RUT') {
+        if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'RUT') {
             // Limpiar puntos y guiones existentes
             $cleanNumber = preg_replace('/[^0-9kK]/', '', $documentNumber);
             if (strlen($cleanNumber) >= 8) {
@@ -193,12 +220,12 @@ class SoftlandAuxiliaresService
         $documentNumber = $orderDetail->document_number;
         
         // Si es pasaporte, usar tal como está
-        if ($orderDetail->documentType && $orderDetail->documentType->name === 'Pasaporte') {
+        if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'PASAPORTE') {
             return strtoupper($documentNumber);
         }
         
         // Si es RUT, quitar puntos y guiones
-        if ($orderDetail->documentType && $orderDetail->documentType->name === 'RUT') {
+        if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'RUT') {
             return preg_replace('/[^0-9kK]/', '', $documentNumber);
         }
         

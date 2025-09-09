@@ -64,6 +64,12 @@ class AuxiliaresExporter
                 foreach ($auxiliar as $value) {
                     $columnLetter = Coordinate::stringFromColumnIndex($colIndex);
                     $sheet->setCellValue($columnLetter . $rowIndex, $value);
+                    
+                    // Aplicar alineación a la derecha para la columna "Código auxiliar" (columna A)
+                    if ($colIndex === 1) {
+                        $sheet->getStyle($columnLetter . $rowIndex)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                    }
+                    
                     $colIndex++;
                 }
                 $rowIndex++;
