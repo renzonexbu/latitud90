@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Admin\ProgramController;
-use App\Http\Controllers\Admin\SalesExecutivesController;
+use App\Http\Controllers\Admin\Programs\ProgramController;   
+use App\Http\Controllers\Admin\Programs\SalesExecutivesController;
 use Illuminate\Support\Facades\Route;
 
 // Gestión de programas

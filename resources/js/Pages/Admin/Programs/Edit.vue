@@ -24,18 +24,28 @@
                         v-model="paymentData"
                         mode="edit"
                         :payment-status="paymentStatus"
-    :institutions="institutions"
-		:sales-executives="localSalesExecutives"
-                         :errors="page.props?.errors || {}"
+                        :institutions="institutions"
+                        :sales-executives="localSalesExecutives"
+                        :errors="page.props?.errors || {}"
                         :has-participants="program.course && program.course.participants && program.course.participants.length > 0"
                         :has-existing-course="hasExistingCourse"
                         @create-executive="openCreateExecutiveModal"
                         @edit-group="handleEditGroup"
+                        @navigate-to-course="navigateToCourse"
                     />
                 </div>
 
-                <!-- Botón de actualizar centrado debajo de ambos cards -->
-                <div class="flex justify-center mt-8">
+                <!-- Botones de acción -->
+                <div class="flex justify-center gap-4 mt-8">
+                    <Link
+                        :href="route('admin.programs.index')"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-full font-medium transition-colors inline-flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        Volver
+                    </Link>
                     <button
                         @click="submit"
                         :disabled="form.processing"
@@ -61,7 +71,7 @@
 </template>
 
 <script setup>
-import { Head, useForm, router, usePage } from "@inertiajs/vue3";
+import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
@@ -381,11 +391,25 @@ const toggleProgramStatus = () => {
     const confirmMsg = isActive.value
         ? '¿Seguro que desea desactivar este programa?'
         : '¿Seguro que desea activar este programa?';
-    if (!confirm(confirmMsg)) return;
-    router.patch(route('admin.programs.toggle-status', props.program.id), {}, {
-        replace: true,
-        preserveScroll: true,
-    });
+
+    if (confirm(confirmMsg)) {
+        const form = useForm({
+            _method: 'PATCH',
+            active: !isActive.value
+        });
+
+        form.post(route('admin.programs.toggle-status', props.program.id), {
+            onFinish: () => {
+                // Recargar la página para asegurar que todos los datos estén actualizados
+                window.location.reload();
+            },
+            onError: () => {
+                toast.error(
+                    `Error al ${isActive.value ? 'desactivar' : 'activar'} el programa`
+                );
+            },
+        });
+    }
 };
 
 // Función para procesar los pilares desde la base de datos
@@ -441,6 +465,15 @@ const handleEditGroup = () => {
     // Redirigir al edit de curso con parámetro para abrir modal
     if (props.program.course) {
         window.location.href = route('admin.courses.edit', props.program.course.id) + '?openModal=true';
+    } else {
+        console.log('No hay curso asociado a este programa');
+    }
+};
+
+// Función para navegar a la edición del curso
+const navigateToCourse = () => {
+    if (props.program.course) {
+        window.location.href = route('admin.courses.edit', props.program.course.id);
     } else {
         console.log('No hay curso asociado a este programa');
     }

@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\Programs\ProgramController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\PaymentController;
 use Illuminate\Support\Facades\Route;

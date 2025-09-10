@@ -1,17 +1,34 @@
 <?php
 
-use App\Http\Controllers\Admin\CoursesController;
+use App\Http\Controllers\Admin\Courses\CourseController;
 use App\Http\Controllers\Admin\InstitutionsController;
 use Illuminate\Support\Facades\Route;
 
-// Gestión de cursos
-Route::resource('courses', CoursesController::class);
-Route::patch('courses/{course}/toggle-status', [CoursesController::class, 'toggleStatus'])->name('courses.toggle-status');
-Route::post('courses/bulk-action', [CoursesController::class, 'bulkAction'])->name('courses.bulk-action');
-Route::get('courses/{course}/students', [CoursesController::class, 'students'])->name('courses.students');
-Route::get('courses/{course}/export', [CoursesController::class, 'export'])->name('courses.export');
+// Courses Management
+Route::prefix('courses')->name('courses.')->group(function () {
+    // Resource routes for courses
+    Route::get('/', [CourseController::class, 'index'])->name('index');
+    Route::get('/create', [CourseController::class, 'create'])->name('create');
+    Route::post('/', [CourseController::class, 'store'])->name('store');
+    Route::get('/{course}', [CourseController::class, 'show'])->name('show');
+    Route::get('/{course}/edit', [CourseController::class, 'edit'])->name('edit');
+    Route::put('/{course}', [CourseController::class, 'update'])->name('update');
+    Route::delete('/{course}', [CourseController::class, 'destroy'])->name('destroy');
+    
+    // Additional course actions
+    Route::patch('/{course}/toggle-status', [CourseController::class, 'toggleStatus'])
+        ->name('toggle-status');
+    
+    // Student management routes
+    Route::prefix('{course}/students')->name('students.')->group(function () {
+        Route::get('/', [CourseController::class, 'students'])->name('index');
+        Route::get('/export', [CourseController::class, 'export'])->name('export');
+    });
+});
 
-// Gestión de instituciones (dentro del contexto de cursos)
-Route::get('institutions', [InstitutionsController::class, 'index'])->name('institutions.index');
-Route::get('institutions/create', [InstitutionsController::class, 'create'])->name('institutions.create');
-Route::post('institutions', [InstitutionsController::class, 'store'])->name('institutions.store');
+// Institutions Management
+Route::prefix('institutions')->name('institutions.')->group(function () {
+    Route::get('/', [InstitutionsController::class, 'index'])->name('index');
+    Route::get('/create', [InstitutionsController::class, 'create'])->name('create');
+    Route::post('/', [InstitutionsController::class, 'store'])->name('store');
+});

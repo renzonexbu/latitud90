@@ -1266,8 +1266,8 @@ const formatPrice = (price) => {
 
 // Función para ver estados de pagos
 const viewPaymentStates = () => {
-    // TODO: Implementar vista de estados de pagos
-    alert('Función "Ver estados de pagos" - Por implementar');
+    // Obtener el ID del programa del padre (que ya tiene acceso al curso)
+    emit('navigate-to-course');
 };
 
 // Función para actualizar opciones de pago automáticamente
