@@ -114,7 +114,7 @@
                                     >Monto:</span
                                 >
                                 <p
-                                    class="text-gray-900 font-bold text-xl text-red-600"
+                                    class="font-bold text-xl text-red-600"
                                 >
                                     ${{ formatCurrency(paymentData.amount) }}
                                 </p>

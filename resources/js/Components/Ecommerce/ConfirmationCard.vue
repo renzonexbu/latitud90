@@ -7,12 +7,12 @@
             <!-- Person Info -->
                 <div class="flex flex-col gap-0">
                 <div
-                    class="text-[#5B5B5B] font-nexa text-[14px] md:text-[16px] leading-[20px] md:leading-[28px] font-normal md:text-xl md:leading-7"
+                    class="text-[#5B5B5B] font-nexa text-[14px] md:text-[16px] leading-[20px] font-normal md:text-xl md:leading-7"
                 >
                     Estás por pagar el viaje de
                 </div>
                 <div
-                    class="text-[#007E93] font-nexa text-[14px] md:text-[16px] leading-[20px] md:leading-[28px] font-bold md:text-xl md:leading-7"
+                    class="text-[#007E93] font-nexa text-[14px] md:text-[16px] leading-[20px] font-bold md:text-xl md:leading-7"
                 >
                     {{ participantName || "Usuario" }}
                 </div>
