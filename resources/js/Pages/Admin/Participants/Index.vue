@@ -172,19 +172,11 @@ export default {
         },
         // Lista plana de participantes repetidos por cada programa (inscripción)
         flattenedParticipantsData() {
-            console.log('🔍 Index.vue - Props recibidos:', {
-                participants: this.participants,
-                enrollments: this.enrollments,
-                allParticipants: this.allParticipants
-            });
+            // Debug logging removed for production
             
-            // Debug específico para el campo is_active
-            if (this.enrollments && this.enrollments.length > 0) {
-                console.log('🔍 Index.vue - Primer enrollment is_active:', {
-                    enrollment: this.enrollments[0],
-                    is_active: this.enrollments[0].is_active,
-                    is_active_type: typeof this.enrollments[0].is_active
-                });
+            // Error logging for enrollment issues
+            if (this.enrollments && this.enrollments.length > 0 && typeof this.enrollments[0].is_active === 'undefined') {
+                console.error('❌ Enrollment is_active is undefined for enrollment:', this.enrollments[0].id);
             }
             
             // Preferir inscripciones del backend si están presentes (array o paginado con data)
@@ -199,7 +191,7 @@ export default {
                 enrollments = [];
             }
             
-            console.log('🔍 Index.vue - Enrollments procesados:', enrollments);
+            // Debug logging removed for production
             
             // Mapear al formato que la tabla espera: un objeto de participante por fila
             const result = enrollments.map((enr) => ({
@@ -230,24 +222,9 @@ export default {
                 __total_due: enr.total_due ?? 0,
             }));
             
-            console.log('🔍 Index.vue - Resultado final mapeado:', result);
-            
-            // Debug específico para el campo is_active en el resultado
-            if (result.length > 0) {
-                console.log('🔍 Index.vue - Primer participante mapeado:', {
-                    participant: result[0],
-                    is_active: result[0].is_active,
-                    is_active_type: typeof result[0].is_active
-                });
-            }
-            
             return result;
         },
         filteredParticipants() {
-            console.log('🔍 Index.vue - Iniciando filtrado de participantes');
-            console.log('🔍 Index.vue - Filtros activos:', this.localFilters);
-            console.log('🔍 Index.vue - Total de participantes antes de filtrar:', this.flattenedParticipantsData.length);
-            
             let filtered = this.flattenedParticipantsData;
 
             // Filtro de búsqueda
@@ -293,8 +270,6 @@ export default {
                 });
             }
 
-            // (turno eliminado del esquema)
-
             // Filtro por estado de pago
             if (this.localFilters.paymentStatus) {
                 filtered = filtered.filter(participant => 
@@ -303,32 +278,7 @@ export default {
             }
 
             // Filtro por estado activo/inactivo
-            console.log('🔍 Verificando filtro activo:', {
-                filterValue: this.localFilters.active,
-                filterType: typeof this.localFilters.active,
-                filterValueStrict: this.localFilters.active,
-                isNull: this.localFilters.active === null,
-                isEmpty: this.localFilters.active === '',
-                shouldApplyFilter: this.localFilters.active !== ''
-            });
-            
             if (this.localFilters.active !== '') {
-                console.log('🔍 Filtro activo aplicado:', {
-                    filterValue: this.localFilters.active,
-                    filterType: typeof this.localFilters.active,
-                    filterValueStrict: this.localFilters.active,
-                    totalBeforeFilter: filtered.length
-                });
-                
-                // Debug: mostrar algunos participantes antes del filtro
-                console.log('🔍 Primeros 3 participantes antes del filtro:', 
-                    filtered.slice(0, 3).map(p => ({
-                        id: p.id,
-                        is_active: p.is_active,
-                        is_active_type: typeof p.is_active
-                    }))
-                );
-                
                 filtered = filtered.filter(participant => {
                     // Convertir el valor del participante a booleano
                     const participantActive = Boolean(participant.is_active);
@@ -345,33 +295,8 @@ export default {
                     
                     const matches = participantActive === filterActive;
                     
-                    console.log('🔍 Comparando participante:', {
-                        participantId: participant.id,
-                        participantActive: participantActive,
-                        participantActiveType: typeof participantActive,
-                        filterActive: filterActive,
-                        filterActiveType: typeof filterActive,
-                        matches: matches,
-                        filterOriginal: this.localFilters.active
-                    });
-                    
                     return matches;
                 });
-                
-                console.log('🔍 Total después del filtro activo:', filtered.length);
-                
-                // Debug: mostrar algunos participantes después del filtro
-                if (filtered.length > 0) {
-                    console.log('🔍 Primeros 3 participantes después del filtro:', 
-                        filtered.slice(0, 3).map(p => ({
-                            id: p.id,
-                            is_active: p.is_active,
-                            is_active_type: typeof p.is_active
-                        }))
-                    );
-                                }
-            } else {
-                console.log('🔍 Filtro activo NO aplicado - mostrando todos los participantes (valor del filtro:', this.localFilters.active, ')');
             }
             
             // Paginación
@@ -379,13 +304,6 @@ export default {
             const startIndex = (this.currentPage - 1) * perPage;
             const endIndex = startIndex + perPage;
             const paginatedData = filtered.slice(startIndex, endIndex);
-
-            console.log('🔍 Index.vue - Resultado del filtrado:', {
-                totalFiltrados: filtered.length,
-                totalPaginados: paginatedData.length,
-                paginaActual: this.currentPage,
-                filtrosAplicados: this.localFilters
-            });
 
             return {
                 data: paginatedData,
@@ -413,24 +331,8 @@ export default {
     },
     methods: {
         handleFiltersChanged(newFilters) {
-            console.log('🔍 Index.vue - Filtros recibidos:', {
-                newFilters: newFilters,
-                activeFilter: newFilters.active,
-                activeFilterType: typeof newFilters.active,
-                activeFilterStrict: newFilters.active
-            });
-            
             this.localFilters = newFilters;
             this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
-            
-            console.log('🔍 Index.vue - Filtros locales actualizados:', {
-                localFilters: this.localFilters,
-                activeFilters: this.localFilters,
-                activeFilter: this.localFilters.active,
-                activeFilterType: typeof this.localFilters.active
-            });
-            
-            // No hacemos router.get aquí para mantener todo interno
         },
         handlePageChanged(page) {
             this.currentPage = page;

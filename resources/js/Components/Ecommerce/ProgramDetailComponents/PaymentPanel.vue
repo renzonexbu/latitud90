@@ -316,13 +316,6 @@ export default {
     watch: {
         selectedInstallments: {
             handler(newValue, oldValue) {
-                // Debug log temporal
-                console.log('🔍 selectedInstallments watcher:', {
-                    oldValue,
-                    newValue,
-                    paymentType: this.paymentType,
-                    isConfirmation: this.isConfirmation
-                });
                 
                 // Solo guardar si ya hay un tipo de pago seleccionado
                 if (this.paymentType && oldValue !== undefined) {
@@ -335,12 +328,9 @@ export default {
     },
     
     mounted() {
-        // Debug log temporal
-        console.log('🔍 PaymentPanel mounted - isConfirmation:', this.isConfirmation);
         
         // Si está en modo confirmación, cargar datos desde localStorage
         if (this.isConfirmation) {
-            console.log('🔍 Cargando datos desde localStorage en modo confirmación');
             this.loadPaymentDataFromLocalStorage();
             this.$nextTick(() => this.reconcileSelection());
         } else {
@@ -591,16 +581,6 @@ export default {
             for (let i = 1; i <= max; i++) {
                 options.push(i);
             }
-            
-            // Debug log temporal
-            console.log('🔍 getAvailableInstallments:', {
-                programMax,
-                maxByDate,
-                max,
-                options,
-                final_payment_date: this.program.final_payment_date
-            });
-            
             return options;
         },
 
@@ -710,7 +690,6 @@ export default {
                     const parsed = JSON.parse(existingData);
                     existingTermsAccepted = parsed.termsAccepted || false;
                 } catch (error) {
-                    console.error("Error parsing existing payment data:", error);
                 }
             }
 
@@ -727,12 +706,6 @@ export default {
                 termsAccepted: existingTermsAccepted, // Preservar términos aceptados
             };
 
-            // Debug log temporal
-            console.log('🔍 savePaymentDataToLocalStorage:', {
-                paymentType: this.paymentType,
-                selectedInstallments: this.selectedInstallments,
-                paymentData: paymentData
-            });
 
             // Guardar en localStorage
             localStorage.setItem(
@@ -752,28 +725,16 @@ export default {
         loadPaymentDataFromLocalStorage() {
             const savedPaymentData = localStorage.getItem("selectedPaymentData");
             
-            // Debug log temporal
-            console.log('🔍 loadPaymentDataFromLocalStorage - inicio:', {
-                savedPaymentData,
-                currentSelectedInstallments: this.selectedInstallments
-            });
             
             if (savedPaymentData) {
                 try {
                     const paymentData = JSON.parse(savedPaymentData);
                     
-                    // Debug log temporal
-                    console.log('🔍 loadPaymentDataFromLocalStorage - parsed data:', paymentData);
                     
                     // Cargar los datos de pago
                     this.paymentType = paymentData.paymentType;
                     this.selectedInstallments = paymentData.installments || 1;
                     
-                    // Debug log temporal
-                    console.log('🔍 loadPaymentDataFromLocalStorage - después de cargar:', {
-                        paymentType: this.paymentType,
-                        selectedInstallments: this.selectedInstallments
-                    });
                     
                     // Configurar las opciones según el tipo de pago
                     if (paymentData.paymentType === 'total') {
@@ -784,12 +745,6 @@ export default {
                         this.accordionOpen = 'monthly';
                     }
                     
-                    // Debug log temporal
-                    console.log('🔍 loadPaymentDataFromLocalStorage - después de configurar opciones:', {
-                        totalPaymentOption: this.totalPaymentOption,
-                        monthlyPaymentOption: this.monthlyPaymentOption,
-                        accordionOpen: this.accordionOpen
-                    });
                     
                     // Emitir evento para actualizar términos aceptados en el componente padre
                     if (paymentData.termsAccepted !== undefined) {
@@ -802,20 +757,12 @@ export default {
                         installments: this.selectedInstallments,
                     });
                 } catch (error) {
-                    console.error('🔍 Error parsing payment data:', error);
                 }
             } else {
-                console.log('🔍 No hay datos de pago guardados en localStorage');
             }
         },
         // Asegurar que la opción guardada exista entre las opciones disponibles; si no, tomar la primera
         reconcileSelection() {
-            // Debug log temporal
-            console.log('🔍 reconcileSelection - inicio:', {
-                paymentType: this.paymentType,
-                selectedInstallments: this.selectedInstallments,
-                isConfirmation: this.isConfirmation
-            });
             
             if (this.paymentType === 'total') {
                 const options = this.getTotalPaymentOptions();
@@ -847,12 +794,6 @@ export default {
                 }
             }
             
-            // Debug log temporal
-            console.log('🔍 reconcileSelection - final:', {
-                paymentType: this.paymentType,
-                selectedInstallments: this.selectedInstallments,
-                monthlyPaymentOption: this.monthlyPaymentOption
-            });
         },
 
         initiatePayment() {
@@ -897,11 +838,6 @@ export default {
             const document = this.$page.props.document || this.$page.props.participant?.document_number || '';
             const documentType = this.$page.props.document_type || 'RUT';
             
-            console.log('PaymentPanel - initiatePayment params:', {
-                document,
-                documentType,
-                programId: this.programId
-            });
             
             // Construir URL con query parameters (solo document y document_type)
             const params = new URLSearchParams({
@@ -910,7 +846,6 @@ export default {
             });
             
             const url = `/programs/${this.programId}/payment?${params.toString()}`;
-            console.log('PaymentPanel - Generated URL:', url);
             
             // Usar window.location.href para navegación completa
             window.location.href = url;
@@ -921,7 +856,6 @@ export default {
             const sessionId = localStorage.getItem('analytics_session_id');
             
             if (!sessionId) {
-                console.warn('No se encontró session_id en localStorage');
                 return;
             }
             
@@ -933,7 +867,6 @@ export default {
                     const parsed = JSON.parse(storedData);
                     termsAccepted = parsed.termsAccepted || false;
                 } catch (e) {
-                    console.warn('Error parsing stored payment data:', e);
                 }
             }
             
@@ -955,7 +888,6 @@ export default {
                     terms_accepted: termsAccepted,
                 })
             }).catch(error => {
-                console.error('Error recording payment selection:', error);
             });
         },
         getPaymentButtonText() {

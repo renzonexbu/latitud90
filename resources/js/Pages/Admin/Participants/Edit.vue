@@ -615,8 +615,12 @@ const confirmToggleParticipantStatus = () => {
                 router.reload();
             },
             onError: (errors) => {
-                console.error('Error al cambiar estado del participante:', errors);
-                alert('Error al cambiar el estado del participante. Por favor, inténtalo de nuevo.');
+                console.error('❌ Error al cambiar estado del participante:', {
+                    participantId: props.participant.id,
+                    isActive: props.participant.is_active,
+                    errors: errors
+                });
+                alert('❌ Error al cambiar el estado del participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
             }
         });
     }

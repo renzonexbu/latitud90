@@ -197,13 +197,7 @@ export default {
         },
     },
     mounted() {
-        // Componente montado
-        console.log('🔍 ParticipantsTable - Datos recibidos:', this.participants);
-        console.log('🔍 ParticipantsTable - Primer participante:', this.participants[0]);
-        if (this.participants[0]) {
-            console.log('🔍 ParticipantsTable - Campo is_active del primer participante:', this.participants[0].is_active);
-            console.log('🔍 ParticipantsTable - Tipo de is_active:', typeof this.participants[0].is_active);
-        }
+        // Component mounted - debug logging removed for production
     },
     methods: {
         formatRut(rut) {

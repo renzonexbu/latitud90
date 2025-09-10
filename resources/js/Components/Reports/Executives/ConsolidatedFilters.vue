@@ -99,19 +99,14 @@ export default {
     },
     methods: {
         performSearch: _.debounce(function () {
-            console.log('🔍 ExecutivesConsolidatedFilters - Filtros enviados:', {
-                filters: this.filters
-            });
             this.$emit('filters-changed', this.filters);
         }, 300),
         
         onProgramChange() {
-            console.log('🔍 ExecutivesConsolidatedFilters - Programa seleccionado:', this.filters.programCode);
             this.performSearch();
         },
         
         clearFilters() {
-            console.log('🔍 ExecutivesConsolidatedFilters - Limpiando filtros');
             const today = new Date();
             const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
             
@@ -120,7 +115,6 @@ export default {
                 dateFrom: lastMonth.toISOString().split('T')[0],
                 dateTo: today.toISOString().split('T')[0],
             };
-            console.log('🔍 ExecutivesConsolidatedFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         }
     }

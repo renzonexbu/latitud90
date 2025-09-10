@@ -300,8 +300,6 @@ if (props.program.images && props.program.images.length > 0) {
     }));
 }
 
-console.log('Existing images:', existingImages.value);
-
 // Archivos existentes (desde la base de datos)
 const existingFiles = ref({
     itinerary_file: props.program.itinerary_file_url || null,
@@ -309,60 +307,13 @@ const existingFiles = ref({
     equipment_file: props.program.equipment_list_url || null,
 });
 
-// Debug para verificar datos cargados
-console.log('Programa cargado:', {
-    name: props.program.name,
-    description: props.program.trip_description,
-    itinerary: props.program.itinerary_description,
-    pillars: props.program.pillars,
-    images: props.program.images,
-    images_folder: props.program.images_folder,
-    itinerary_file: props.program.itinerary_file,
-    itinerary_file_url: props.program.itinerary_file_url,
-    coverage_file: props.program.travel_assistance_coverage,
-    coverage_file_url: props.program.travel_assistance_coverage_url,
-    equipment_file: props.program.equipment_list,
-    equipment_file_url: props.program.equipment_list_url
-});
+// Verificar si hay errores en los datos del programa
+if (!props.program || !props.program.course) {
+}
 
-console.log('Existing files:', existingFiles.value);
-
-// Debug para verificar datos de pago
-console.log('Datos de pago cargados:', {
-    total_price: props.program.trip_price,
-    final_payment_date: props.program.final_payment_date,
-    final_payment_date_formatted: props.program.final_payment_date ? new Date(props.program.final_payment_date).toISOString().split('T')[0] : null,
-    sales_person: props.program.seller_name,
-    education_level_original: props.program.course?.education_level,
-    education_level_mapped: mapEducationLevel(props.program.course?.education_level),
-    institution_name: props.program.course?.institution?.name,
-    shift: props.program.course?.shift,
-    payment_option_mapped: mapPaymentOption(props.program),
-    enable_total_payment: props.program.enable_total_payment,
-    total_payment_method_id: props.program.total_payment_method_id,
-    enable_lat90_payment: props.program.enable_lat90_payment,
-    lat90_payment_method: props.program.lat90_payment_method?.name,
-    lat90_max_installments: props.program.lat90_max_installments,
-    grade: props.program.course?.grade,
-    grade_loaded: paymentData.value.grade,
-    discount_type: props.program.discount_type
-});
-
-// Debug específico para el campo grade
-console.log('Debug del campo grade:', {
-    grade_from_props: props.program.course?.grade,
-    grade_from_paymentData: paymentData.value.grade,
-    grade_in_form: form.grade,
-    course_exists: !!props.program.course,
-    course_id: props.program.course?.id
-});
-
-// Debug adicional para verificar la inicialización de paymentData
-console.log('paymentData inicializado:', {
-    grade: paymentData.value.grade,
-    grade_type: typeof paymentData.value.grade,
-    grade_length: paymentData.value.grade ? paymentData.value.grade.length : 0
-});
+// Verificar si hay errores en los datos de pago
+if (!paymentData.value || !paymentData.value.grade) {
+}
 
 // Estado de pago (valores reales agregados del curso)
 const paymentStatus = ref({
@@ -465,17 +416,13 @@ const handleEditGroup = () => {
     // Redirigir al edit de curso con parámetro para abrir modal
     if (props.program.course) {
         window.location.href = route('admin.courses.edit', props.program.course.id) + '?openModal=true';
-    } else {
-        console.log('No hay curso asociado a este programa');
-    }
+    } 
 };
 
 // Función para navegar a la edición del curso
 const navigateToCourse = () => {
     if (props.program.course) {
         window.location.href = route('admin.courses.edit', props.program.course.id);
-    } else {
-        console.log('No hay curso asociado a este programa');
     }
 };
 
@@ -575,19 +522,15 @@ const submit = () => {
     // Campo grade: siempre enviar el valor correcto para mantener la sincronización
     if (paymentData.value.grade !== undefined && paymentData.value.grade !== null && paymentData.value.grade !== '') {
         form.grade = paymentData.value.grade;
-        console.log('Campo grade enviado desde paymentData:', form.grade);
     } else if (props.program.course?.grade) {
         // Si no hay valor nuevo pero hay uno existente, mantenerlo
         form.grade = props.program.course.grade;
-        console.log('Campo grade mantenido del valor existente:', form.grade);
     } else {
         // Si no hay valor, enviar cadena vacía para que el backend lo maneje
         form.grade = '';
-        console.log('Campo grade enviado como cadena vacía');
     }
     
     // Forzar el envío del campo grade para asegurar que se mantenga sincronizado
-    console.log('Campo grade final en el formulario:', form.grade);
     if (shouldSendField(paymentData.value.discount_type, props.program.discount_type, 'discount_type')) {
         form.discount_type = paymentData.value.discount_type;
     }
@@ -639,7 +582,6 @@ const submit = () => {
             
             // Si se filtraron opciones, mostrar advertencia en consola
             if (form.full_payment_options.length < paymentData.value.full_payment_options.length) {
-                console.warn(`⚠️ Algunas opciones de pago total fueron filtradas automáticamente debido a la fecha final de pago. Solo quedan ${availableMonths} meses disponibles.`);
             }
         }
     }
@@ -701,35 +643,20 @@ const submit = () => {
     
     // Verificar que el campo grade esté en el formulario antes del envío
     if (form.grade !== undefined) {
-        console.log('✅ Campo grade confirmado en el formulario antes del envío:', form.grade);
     } else {
-        console.log('❌ Campo grade NO está en el formulario antes del envío');
         // Forzar el campo grade si no está presente
         if (props.program.course?.grade) {
             form.grade = props.program.course.grade;
-            console.log('🔧 Campo grade forzado desde props:', form.grade);
         }
     }
 
     // Log de depuración en cliente (solo para ver que se construye el payload)
-    console.log('Payload del formulario:', JSON.parse(JSON.stringify(form.data())));
-    console.log('Form keys que se envían:', Object.keys(form.data()));
-    console.log('Form values:', Object.values(form.data()));
-    console.log('Ruta del formulario:', route("admin.programs.update", props.program.id));
-    console.log('¿Formulario vacío?', Object.keys(form.data()).length === 0);
     
     // Debug específico para el campo grade en el formulario
-    console.log('Campo grade en el formulario antes del envío:', {
-        grade_in_form: form.grade,
-        grade_in_form_data: form.data().grade,
-        grade_type: typeof form.grade
-    });
     
     // Verificar que el campo grade esté en el formulario
     if (form.grade !== undefined) {
-        console.log('✅ Campo grade está en el formulario:', form.grade);
     } else {
-        console.log('❌ Campo grade NO está en el formulario');
     }
     
     // Crear FormData y agregar _method para PUT request (como hacen los cursos)
@@ -756,63 +683,36 @@ const submit = () => {
     // Verificar específicamente que el campo grade se esté enviando
     const gradeValue = form.data().grade;
     if (gradeValue !== undefined && gradeValue !== null) {
-        console.log('✅ Campo grade incluido en FormData:', gradeValue);
     } else {
-        console.log('❌ Campo grade NO incluido en FormData');
     }
     
     // Agregar _method para PUT request
     formData.append('_method', 'PUT');
     
     // Debug del FormData antes del envío
-    console.log('FormData antes del envío:');
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
     
     // Verificar específicamente si el campo grade está en el FormData
     const gradeInFormData = formData.get('grade');
-    console.log('Campo grade en FormData:', {
-        grade: gradeInFormData,
-        grade_type: typeof gradeInFormData,
-        grade_exists: gradeInFormData !== null
-    });
     
     // Verificar que el campo grade se esté enviando correctamente
     if (gradeInFormData !== null) {
-        console.log('✅ Campo grade confirmado en FormData:', gradeInFormData);
     } else {
-        console.log('❌ Campo grade NO está en FormData');
         // Intentar agregar el campo grade manualmente si no está presente
         if (form.grade !== undefined && form.grade !== null) {
             formData.append('grade', form.grade);
-            console.log('🔧 Campo grade agregado manualmente al FormData:', form.grade);
         }
     }
     
     // Verificar todos los campos del FormData para debug
-    console.log('Todos los campos del FormData:');
     const formDataEntries = [];
     for (let [key, value] of formData.entries()) {
         formDataEntries.push({ key, value });
     }
-    console.table(formDataEntries);
     
-    // Verificar específicamente el campo grade en el FormData final
-    const finalGradeInFormData = formData.get('grade');
-    console.log('Campo grade en FormData final:', {
-        grade: finalGradeInFormData,
-        grade_type: typeof finalGradeInFormData,
-        grade_exists: finalGradeInFormData !== null,
-        grade_in_form: form.grade
-    });
-    
-    // Enviar usando router.post con _method: 'PUT'. Dejar que el backend redirija con Inertia (evita doble navegación/flicker)
     router.post(route("admin.programs.update", props.program.id), formData, {
         replace: true,
         onSuccess: () => {},
         onError: (errors) => {
-            console.error('Errores del formulario:', errors);
         }
     });
 };

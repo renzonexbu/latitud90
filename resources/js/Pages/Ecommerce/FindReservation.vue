@@ -556,8 +556,6 @@
             "¿Estás seguro de que deseas cancelar esta reserva? Esta acción no se puede deshacer."
           )
         ) {
-          // Handle cancellation
-          console.log("Canceling reservation:", reservation.id);
         }
       }
     }

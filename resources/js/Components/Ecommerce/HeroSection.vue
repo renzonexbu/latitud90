@@ -496,19 +496,10 @@ const performSearch = async () => {
                     document_type: selectedDocumentType.value
                 }
             );
-
-            console.log("Resultado de búsqueda:", response.data);
-
             if (response.data.found) {
-                console.log(
-                    "Participante encontrado:",
-                    response.data.participant
-                );
-                
                 // Guardar session_id en localStorage para mantener la sesión en todo el flujo
                 if (response.data.session_id) {
                     localStorage.setItem('analytics_session_id', response.data.session_id);
-                    console.log('Session ID guardado:', response.data.session_id);
                 }
                 
                 // Redirigir a la vista de programas
@@ -517,8 +508,6 @@ const performSearch = async () => {
                     document_type: selectedDocumentType.value 
                 });
             } else {
-                console.log("No se encontró el participante");
-                // Emitir evento para mostrar alerta personalizada
                 emit('participant-not-found');
             }
         } catch (error) {

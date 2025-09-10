@@ -210,16 +210,10 @@ watch(paymentData, (newValue) => {
         form.max_installments = 2;
     }
     
-    // Debug: Log de los datos de pago que se están sincronizando
-    console.log('Datos de pago sincronizados:', {
-        payment_options: newValue.payment_options,
-        full_payment_method: newValue.full_payment_method,
-        installments_payment_method: newValue.installments_payment_method,
-        max_installments: newValue.max_installments
-    });
-    
-    // Debug: Verificar que payment_options se esté asignando correctamente
-    console.log('Form payment_options después de sincronizar:', form.payment_options);
+    // Validar que los datos de pago requeridos estén presentes
+    if (!newValue.payment_options || newValue.payment_options.length === 0) {
+        console.warn('⚠️ No se han configurado opciones de pago');
+    }
 }, { deep: true });
 
 // Watcher específico para discount_type y discount_amount
@@ -243,12 +237,10 @@ watch(() => form.created_by, (newValue) => {
 // Watcher específico para discount_type y discount_amount
 watch(() => paymentData.value.discount_type, (newValue) => {
     form.discount_type = newValue;
-    console.log('discount_type actualizado:', newValue);
 });
 
 watch(() => paymentData.value.discount_amount, (newValue) => {
     form.discount_amount = newValue;
-    console.log('discount_amount actualizado:', newValue);
 });
 
 // Watcher para sincronizar las imágenes con el formulario
@@ -532,17 +524,6 @@ const submit = () => {
     if (!form.max_installments || form.max_installments === '') {
         form.max_installments = 2;
     }
-
-    // Debug: Log de los datos que se van a enviar
-    console.log('Datos que se van a enviar al backend:', {
-        payment_options: form.payment_options,
-        full_payment_options: form.full_payment_options,
-        lat90_payment_options: form.lat90_payment_options,
-        sales_executive_id: form.sales_executive_id,
-        form_data: form.data()
-    });
-
-    // Establecer created_by
     form.created_by = null; // Se establecerá en el backend con auth()->id()
 
     // Pilares fijos siempre

@@ -366,11 +366,6 @@ import { onMounted } from "vue";
 
 onMounted(() => {
     window.scrollTo(0, 0);
-    
-    // Debug: mostrar los datos recibidos
-    console.log('PaymentFailure - paymentData:', props.paymentData);
-    
-    // Registrar pago fallido en analytics
     recordPaymentFailed();
 });
 

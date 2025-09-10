@@ -709,7 +709,7 @@ const currentInstallmentPlan = computed(() => {
     // Primero encontrar el curso en participant.courses para obtener el program_id
     const course = props.participant?.courses?.find(c => c.id == form.value.pivot_course_id);
     if (!course || !course.program) {
-        console.log('❌ Curso no encontrado o sin programa');
+        console.error('❌ No se pudo encontrar el curso o el programa asociado');
         return null;
     }
     
@@ -718,11 +718,7 @@ const currentInstallmentPlan = computed(() => {
         pp => pp.program_id === course.program.id
     );
     
-    console.log('🔍 Curso seleccionado:', form.value.pivot_course_id);
-    console.log('🔍 Curso encontrado:', course);
-    console.log('🔍 Program ID del curso:', course.program?.id);
-    console.log('🔍 Programa encontrado:', participantProgram);
-    console.log('🔍 Plan de cuotas:', participantProgram?.installment_plan);
+    // Debug information removed for production
     
     return participantProgram?.installment_plan || null;
 });
@@ -845,9 +841,7 @@ watch(
             // Cargar descuentos existentes si los hay
             loadExistingDiscounts();
             
-            // Debug: Mostrar datos disponibles
-            console.log('👤 Participante cargado:', newParticipant);
-            console.log('📚 Programas con descuentos:', props.participantProgramsWithDiscounts);
+            // Data loaded - debug logging removed for production
         }
     },
     { immediate: true, deep: true }
@@ -870,30 +864,19 @@ watch(
     { immediate: true }
 );
 
-// Debug: Watcher para ver los datos de cuotas
+// Watcher para el plan de cuotas
 watch(
     () => currentInstallmentPlan.value,
     (newPlan) => {
-        if (newPlan) {
-            console.log('🔍 Plan de cuotas detectado:', newPlan);
-            console.log('📊 Cuotas totales:', newPlan.installments?.length || 0);
-            console.log('💰 Cuotas pagadas:', paidInstallmentsCount.value);
-            console.log('⏳ Cuotas pendientes:', pendingInstallmentsCount.value);
-            console.log('📋 Detalle de cuotas:', newPlan.installments);
-        } else {
-            console.log('❌ No se detectó plan de cuotas');
-            console.log('🔍 Datos disponibles:', props.participantProgramsWithDiscounts);
-        }
     },
     { immediate: true }
 );
 
-// Debug: Watcher para ver cuando cambia el curso seleccionado
+// Watcher para cambios en el curso seleccionado
 watch(
     () => form.value.pivot_course_id,
-    (newCourseId) => {
-        console.log('🔄 Curso seleccionado cambió a:', newCourseId);
-        console.log('🔄 Form completo:', form.value);
+    () => {
+        // Actualizaciones necesarias cuando cambia el curso
     }
 );
 

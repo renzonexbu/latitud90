@@ -13,7 +13,7 @@ use Exception;
 use App\Services\Admin\Installments\InstallmentRecalculationService;
 use App\Helpers\ParticipantPriceHelper;
 
-class UpdateParticipatService
+class UpdateParticipantService
 {
     use AdminLogging;
     /**

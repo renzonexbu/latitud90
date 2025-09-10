@@ -474,13 +474,7 @@ export default {
         },
     },
     mounted() {
-        // Debug: Verificar qué props están llegando
-        console.log('PaymentDetails props:', {
-            document: this.document,
-            document_type: this.document_type,
-            rut: this.rut,
-            programId: this.programId
-        });
+        // Verificar datos iniciales
         
         // Registrar vista de detalles de pago en analytics
         this.recordPaymentDetailsView();
@@ -495,12 +489,9 @@ export default {
                 const paymentData = JSON.parse(savedPaymentData);
                 this.selectedPaymentType = paymentData.paymentType;
                 this.selectedPaymentMethod = paymentData.paymentMethod;
-                console.log("Payment data loaded:", paymentData);
             } catch (error) {
-                console.error("Error parsing payment data:", error);
             }
         } else {
-            console.log("No payment data found in localStorage");
         }
 
         // Leer los datos del comprador del localStorage solo si viene del paso 4 (confirmation)
@@ -552,12 +543,6 @@ export default {
                         isFrequentClient: buyerData.isFrequentClient || false, // Cargar el nuevo campo
                     };
 
-                    console.log(
-                        "Buyer data loaded from localStorage (coming from confirmation):",
-                        buyerData
-                    );
-                    console.log("Form data after loading:", this.formData);
-
                     // Forzar actualización de los SearchableSelect después de cargar los datos
                     this.$nextTick(() => {
                         // Trigger validation para actualizar el estado del formulario
@@ -577,25 +562,13 @@ export default {
                         }, 100);
                     });
                 } catch (error) {
-                    console.error("Error parsing buyer data:", error);
                 }
             } else {
-                console.log("No buyer data found in localStorage");
             }
         } else {
-            console.log(
-                "Not coming from confirmation, starting with empty form"
-            );
             // Limpiar localStorage si no viene del paso 4
             localStorage.removeItem("buyerData");
         }
-
-        // Debug: Verificar datos de regiones y comunas
-        console.log("Datos de regiones recibidos:", {
-            regionsCount: this.regions.length,
-            regions: this.regions,
-            sampleRegion: this.regions[0],
-        });
 
         // No forzar validación; el computed isFormValid reacciona de inmediato
     },
@@ -611,7 +584,6 @@ export default {
 
         "formData.region": {
             handler(newRegionId, oldRegionId) {
-                console.log("Región cambiada:", { oldRegionId, newRegionId });
 
                 if (newRegionId && newRegionId !== oldRegionId) {
                     // Limpiar comuna cuando cambie la región
@@ -638,10 +610,6 @@ export default {
                                                     (c) => c.id == cityId
                                                 );
                                             if (city) {
-                                                console.log(
-                                                    "Cargando comuna desde localStorage:",
-                                                    city
-                                                );
                                                 this.handleCityChange(cityId);
                                             }
                                         }
@@ -649,10 +617,6 @@ export default {
                                 });
                             }
                         } catch (error) {
-                            console.error(
-                                "Error parsing buyer data for city:",
-                                error
-                            );
                         }
                     }
                 }
@@ -712,11 +676,6 @@ export default {
         // Watcher para las comunas filtradas
         filteredComunes: {
             handler(newComunes, oldComunes) {
-                console.log("Comunas filtradas actualizadas:", {
-                    oldCount: oldComunes?.length || 0,
-                    newCount: newComunes?.length || 0,
-                    comunas: newComunes,
-                });
 
                 // Si hay una ciudad seleccionada y las comunas están disponibles, actualizar
                 if (this.formData.city && newComunes.length > 0) {
@@ -724,7 +683,6 @@ export default {
                         (c) => c.id == this.formData.city
                     );
                     if (city) {
-                        console.log("Comuna encontrada en watcher:", city);
                         this.$nextTick(() => {
                             this.handleCityChange(this.formData.city);
                         });
@@ -781,7 +739,6 @@ export default {
         },
 
         handleRegionChange(regionId) {
-            console.log("Región seleccionada:", regionId);
             this.formData.region = regionId;
             this.formData.city = ""; // Limpiar comuna
 
@@ -790,20 +747,19 @@ export default {
                 const selectedRegion = this.regions.find(
                     (r) => r.id == regionId
                 );
-                console.log("Región encontrada:", selectedRegion);
-                if (selectedRegion && selectedRegion.comunes) {
-                    console.log("Comunas disponibles:", selectedRegion.comunes);
-                }
-            }
 
-            // Forzar la validación del formulario
-            this.$nextTick(() => {
-                this.validateForm();
-            });
+                if (!selectedRegion || !selectedRegion.comunes) {
+                    return;
+                }
+
+                // Forzar la validación del formulario
+                this.$nextTick(() => {
+                    this.validateForm();
+                });
+            }
         },
 
         handleCountryChange(countryId) {
-            console.log("País seleccionado:", countryId);
             this.formData.country = countryId;
 
             // Forzar la validación del formulario
@@ -813,7 +769,6 @@ export default {
         },
 
         handleCityChange(cityId) {
-            console.log("Comuna seleccionada:", cityId);
             this.formData.city = cityId;
 
             // Forzar la validación del formulario
@@ -869,7 +824,6 @@ export default {
                 
                 return false; // Cliente no encontrado
             } catch (error) {
-                console.error('Error buscando cliente frecuente:', error);
                 // Mostrar alerta de error genérico
                 this.showClientSearchErrorAlert();
                 return false; // Error en la búsqueda
@@ -901,21 +855,18 @@ export default {
                 setTimeout(() => {
                     if (this.filteredComunes.length > 0) {
                         this.formData.city = clientData.comune_id;
-                        console.log('Comuna establecida después de cargar:', clientData.comune_id);
+                        // Comuna establecida
                     } else {
-                        console.log('Comunas no disponibles aún, reintentando...');
                         // Reintentar si las comunas no están disponibles
                         setTimeout(() => {
                             if (this.filteredComunes.length > 0) {
                                 this.formData.city = clientData.comune_id;
-                                console.log('Comuna establecida en segundo intento:', clientData.comune_id);
                             }
                         }, 200);
                     }
                 }, 300);
             });
 
-            console.log('Formulario autocompletado con datos del cliente frecuente:', clientData);
         },
 
         validateDocument() {
@@ -1111,7 +1062,6 @@ export default {
                 submittedAt: new Date().toISOString(),
             };
 
-            console.log("Buyer data:", buyerData);
 
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
@@ -1123,9 +1073,6 @@ export default {
         },
 
         checkButtonState() {
-            console.log("=== ESTADO DEL BOTÓN ===");
-            console.log("isFormValid:", this.isFormValid);
-            console.log("formData completo:", this.formData);
             this.validateForm(); // Forzar validación
         },
 
@@ -1175,17 +1122,9 @@ export default {
 
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
-            console.log("LocalStorage updated:", buyerData);
         },
 
         forceUpdateSearchableSelects() {
-            console.log("Forzando actualización de SearchableSelect...");
-            console.log("Datos actuales:", {
-                country: this.formData.country,
-                region: this.formData.region,
-                city: this.formData.city,
-                documentType: this.formData.documentType,
-            });
 
             // Verificar que las opciones estén disponibles antes de forzar la actualización
             if (this.formData.country && this.countries.length > 0) {
@@ -1193,7 +1132,6 @@ export default {
                     (c) => c.id == this.formData.country
                 );
                 if (country) {
-                    console.log("País encontrado:", country);
                     this.handleCountryChange(this.formData.country);
                 }
             }
@@ -1203,7 +1141,6 @@ export default {
                     (r) => r.id == this.formData.region
                 );
                 if (region) {
-                    console.log("Región encontrada:", region);
                     this.handleRegionChange(this.formData.region);
                 }
             }
@@ -1216,7 +1153,6 @@ export default {
                             (c) => c.id == this.formData.city
                         );
                         if (city) {
-                            console.log("Ciudad encontrada:", city);
                             this.handleCityChange(this.formData.city);
                         }
                     }
@@ -1228,9 +1164,6 @@ export default {
                 const docType = this.documentTypes.find(
                     (d) => d.id == this.formData.documentType
                 );
-                if (docType) {
-                    console.log("Tipo de documento encontrado:", docType);
-                }
             }
         },
 

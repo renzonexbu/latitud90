@@ -191,17 +191,10 @@ export default {
     },
     methods: {
         performSearch: _.debounce(function () {
-            console.log('🔍 ParticipantsFilters - Filtros enviados:', {
-                filters: this.filters,
-                activeFilter: this.filters.active,
-                activeFilterType: typeof this.filters.active,
-                activeFilterStrict: this.filters.active
-            });
             this.$emit('filters-changed', this.filters);
         }, 300),
         
         clearFilters() {
-            console.log('🔍 ParticipantsFilters - Limpiando filtros');
             this.filters = {
                 search: "",
                 program: "",
@@ -211,7 +204,6 @@ export default {
                 paymentStatus: "",
                 active: "",
             };
-            console.log('🔍 ParticipantsFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         },
         

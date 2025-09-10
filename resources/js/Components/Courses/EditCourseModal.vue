@@ -304,7 +304,6 @@ export default {
     watch: {
         course: {
             handler(newCourse) {
-                console.log('Course prop changed:', newCourse);
                 if (newCourse) {
                     this.loadCourseData();
                 }
@@ -313,10 +312,8 @@ export default {
             deep: true
         },
         'form.institutionId': function(newInstitutionId) {
-            console.log('Institution ID changed to:', newInstitutionId);
             if (newInstitutionId) {
                 const selectedInstitution = this.institutions.find(inst => String(inst.id) === String(newInstitutionId));
-                console.log('Selected institution:', selectedInstitution);
                 if (selectedInstitution) {
                     // Solo llenar los campos si están vacíos o si el usuario no los ha modificado manualmente
                     if (!this.form.contactEmail || this.form.contactEmail === this.course?.contact_email) {
@@ -331,9 +328,6 @@ export default {
         }
     },
     mounted() {
-        console.log('EditCourseModal mounted');
-        console.log('Course prop:', this.course);
-        console.log('Institutions prop:', this.institutions);
         // Cargar datos iniciales si el curso ya está disponible
         if (this.course) {
             this.loadCourseData();
@@ -342,10 +336,6 @@ export default {
     methods: {
         loadCourseData() {
             if (this.course) {
-                console.log('Loading course data:', this.course);
-                console.log('Course institution_id:', this.course.institution_id);
-                console.log('Course end_date:', this.course.end_date);
-                console.log('Available institutions:', this.institutions);
                 
                 // Convertir institution_id a string para comparación correcta
                 const institutionId = this.course.institution_id ? String(this.course.institution_id) : "";
@@ -361,8 +351,6 @@ export default {
                     associatedProgram: this.course.program_id ? String(this.course.program_id) : "",
                     endDate: this.formatDateForInput(this.course.end_date) || ""
                 };
-                console.log('Form data loaded:', this.form);
-                console.log('Form institutionId:', this.form.institutionId);
             }
         },
         closeModal() {
@@ -385,17 +373,13 @@ export default {
         },
         formatDateForInput(dateString) {
             if (!dateString) {
-                console.log('No date string provided');
                 return "";
             }
-            console.log('Formatting date:', dateString);
             const date = new Date(dateString);
             if (isNaN(date.getTime())) {
-                console.log('Invalid date:', dateString);
                 return "";
             }
             const formattedDate = date.toISOString().split('T')[0];
-            console.log('Formatted date:', formattedDate);
             return formattedDate; // Formato YYYY-MM-DD para input type="date"
         },
         updateCourse() {

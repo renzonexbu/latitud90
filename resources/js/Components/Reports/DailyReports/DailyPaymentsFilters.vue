@@ -152,14 +152,10 @@ export default {
     },
     methods: {
         performSearch: _.debounce(function () {
-            console.log('🔍 DailyPaymentsFilters - Filtros enviados:', {
-                filters: this.filters
-            });
             this.$emit('filters-changed', this.filters);
         }, 300),
         
         clearFilters() {
-            console.log('🔍 DailyPaymentsFilters - Limpiando filtros');
             const today = new Date();
             const todayString = today.toISOString().split('T')[0];
             
@@ -171,7 +167,6 @@ export default {
                 dateFrom: todayString,
                 dateTo: todayString,
             };
-            console.log('🔍 DailyPaymentsFilters - Filtros después de limpiar:', this.filters);
             this.performSearch();
         }
     }

@@ -1,22 +1,29 @@
 <?php
 
-use App\Http\Controllers\Admin\ParticipantsController;
+use App\Http\Controllers\Admin\Participants\ParticipantsController;
+use App\Http\Controllers\Admin\Participants\ParticipantMedicalController;
+use App\Http\Controllers\Admin\Participants\ParticipantEmergencyContactsController;
+use App\Http\Controllers\Admin\Participants\ParticipantStatusController;
+use App\Http\Controllers\Admin\Participants\ParticipantPaymentsController;
 use Illuminate\Support\Facades\Route;
 
-// Participants management routes
-Route::resource('participants', ParticipantsController::class);
+// Main participants CRUD routes
+Route::resource('participants', ParticipantsController::class)->except(['destroy']);
 
-// Additional participants routes
-Route::get('participants/inactive', [ParticipantsController::class, 'inactive'])->name('participants.inactive');
-Route::post('participants/{participant}/toggle-status', [ParticipantsController::class, 'toggleStatus'])->name('participants.toggle-status');
-Route::post('participants/bulk-action', [ParticipantsController::class, 'bulkAction'])->name('participants.bulk-action');
-Route::get('participants/{participant}/payments', [ParticipantsController::class, 'payments'])->name('participants.payments');
-Route::get('participants/export', [ParticipantsController::class, 'export'])->name('participants.export');
+// Status management routes
+Route::delete('participants/{participant}', [ParticipantStatusController::class, 'destroy'])->name('participants.destroy');
+Route::get('participants/inactive', [ParticipantStatusController::class, 'inactive'])->name('participants.inactive');
+Route::post('participants/{participant}/toggle-status', [ParticipantStatusController::class, 'toggleStatus'])->name('participants.toggle-status');
+Route::post('participants/bulk-action', [ParticipantStatusController::class, 'bulkAction'])->name('participants.bulk-action');
+
+// Payments and exports routes
+Route::get('participants/{participant}/payments', [ParticipantPaymentsController::class, 'show'])->name('participants.payments');
+Route::get('participants/export', [ParticipantPaymentsController::class, 'export'])->name('participants.export');
 
 // Medical conditions route
-Route::put('participants/{participant}/medical-conditions', [ParticipantsController::class, 'updateMedicalConditions'])->name('participants.update-medical-conditions');
+Route::put('participants/{participant}/medical-conditions', [ParticipantMedicalController::class, 'update'])->name('participants.update-medical-conditions');
 
 // Emergency contacts routes
-Route::put('participants/{participant}/emergency-contacts', [ParticipantsController::class, 'updateEmergencyContacts'])->name('participants.update-emergency-contacts');
-Route::put('participants/{participant}/emergency-contact', [ParticipantsController::class, 'updateEmergencyContact'])->name('participants.update-emergency-contact');
-Route::delete('participants/{participant}/emergency-contact', [ParticipantsController::class, 'deleteEmergencyContact'])->name('participants.delete-emergency-contact');
+Route::put('participants/{participant}/emergency-contacts', [ParticipantEmergencyContactsController::class, 'store'])->name('participants.update-emergency-contacts');
+Route::put('participants/{participant}/emergency-contact', [ParticipantEmergencyContactsController::class, 'update'])->name('participants.update-emergency-contact');
+Route::delete('participants/{participant}/emergency-contact', [ParticipantEmergencyContactsController::class, 'destroy'])->name('participants.delete-emergency-contact');

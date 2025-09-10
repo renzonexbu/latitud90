@@ -249,17 +249,11 @@ export default {
                     parsedData.termsAccepted = newValue;
                     localStorage.setItem("selectedPaymentData", JSON.stringify(parsedData));
                 } catch (error) {
-                    console.error("Error updating payment data:", error);
                 }
             }
         }
     },
     mounted() {
-        // Debug: Verificar datos recibidos
-        console.log("=== CONFIRMATION CARD MOUNTED ===");
-        console.log("formData prop:", this.formData);
-        console.log("program prop:", this.program);
-        console.log("================================");
         
         // Cargar el estado de términos aceptados desde localStorage
         const paymentData = localStorage.getItem("selectedPaymentData");
@@ -269,7 +263,6 @@ export default {
                 this.termsAccepted = parsedData.termsAccepted || false;
                 this.currentInstallments = parsedData.installments || 1;
             } catch (error) {
-                console.error("Error loading payment data:", error);
             }
         }
     },
@@ -288,7 +281,6 @@ export default {
                     const parsedData = JSON.parse(paymentData);
                     hasPaymentMethod = parsedData.paymentType && parsedData.paymentMethod;
                 } catch (error) {
-                    console.error("Error parsing payment data:", error);
                 }
             }
             
@@ -373,16 +365,8 @@ export default {
                 // Obtener datos del localStorage
                 const paymentData = localStorage.getItem("selectedPaymentData");
                 
-                // Debug: Log de los datos del localStorage
-                console.log("=== DEBUG LOCALSTORAGE ===");
-                console.log("paymentData:", paymentData);
-                console.log("formData from props:", this.formData);
-                console.log("paymentData exists:", !!paymentData);
-                console.log("formData from props exists:", !!this.formData);
-                console.log("==========================");
                 
                 if (!paymentData) {
-                    console.error("Datos de pago no encontrados");
                     this.isProcessing = false;
                     this.errorMessage = "Datos de pago no encontrados. Por favor, completa todos los pasos.";
                     return;
@@ -397,7 +381,6 @@ export default {
                     try {
                         parsedFormData = JSON.parse(savedBuyerData);
                     } catch (e) {
-                        console.error("Error parsing buyerData from localStorage:", e);
                         parsedFormData = this.formData;
                     }
                 }
@@ -405,10 +388,6 @@ export default {
                 // Obtener session_id desde localStorage
                 const sessionId = localStorage.getItem('analytics_session_id');
                 
-                // Debug: Log de session_id
-                console.log('=== SESSION ID DEBUG ===');
-                console.log('sessionId from localStorage:', sessionId);
-                console.log('========================');
                 
                 // Preparar datos para enviar al backend
                 const requestData = {
@@ -419,7 +398,6 @@ export default {
                     session_id: sessionId
                 };
 
-                console.log("Enviando datos de pago:", requestData);
 
                 // Obtener el token CSRF de múltiples formas
                 let csrfToken = null;
@@ -448,7 +426,6 @@ export default {
                     }
                 }
                 
-                console.log('CSRF Token obtenido:', csrfToken ? 'SÍ' : 'NO');
                 
                 // Hacer la llamada al backend
                 const response = await fetch('/process-payment', {
@@ -463,7 +440,6 @@ export default {
 
                 // Verificar si hay error de CSRF
                 if (response.status === 419) {
-                    console.error("Error CSRF: Token expirado o inválido");
                     this.isProcessing = false;
                     this.errorMessage = "Error de seguridad. Por favor, recarga la página e intenta nuevamente.";
                     return;
@@ -474,18 +450,15 @@ export default {
                 try {
                     result = await response.json();
                 } catch (error) {
-                    console.error("Error parsing JSON response:", error);
                     this.isProcessing = false;
                     this.errorMessage = "Error en la respuesta del servidor. Por favor, intenta nuevamente.";
                     return;
                 }
 
                 if (result.success) {
-                    console.log("Pago procesado exitosamente:", result);
                     
                     // Redirigir a la pasarela de pago
                     if (result.gateway_url) {
-                        console.log("Redirigiendo a:", result.gateway_url);
                         
                         // Siempre que venga token, usar POST con token_ws (Transbank Mall exige POST a initTransaction)
                         if (result.gateway_token) {
@@ -515,18 +488,15 @@ export default {
                             window.location.href = result.gateway_url;
                         }
                     } else {
-                        console.error("URL de pasarela no recibida");
                         this.isProcessing = false;
                         this.errorMessage = "Error: No se recibió la URL de la pasarela de pago.";
                     }
                 } else {
-                    console.error("Error al procesar pago:", result.error);
                     this.isProcessing = false;
                     this.errorMessage = result.error || "Error al procesar el pago. Por favor, intenta nuevamente.";
                 }
 
             } catch (error) {
-                console.error("Error al procesar pago:", error);
                 this.isProcessing = false;
                 this.errorMessage = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.";
             }
@@ -546,7 +516,6 @@ export default {
             const sessionId = localStorage.getItem('analytics_session_id');
             
             if (!sessionId) {
-                console.warn('No se encontró session_id en localStorage');
                 return;
             }
             
@@ -558,7 +527,6 @@ export default {
                     const parsedData = JSON.parse(paymentData);
                     paymentMethod = parsedData.paymentMethod || 'unknown';
                 } catch (error) {
-                    console.error('Error parsing payment data:', error);
                 }
             }
             
@@ -586,7 +554,6 @@ export default {
                     }
                 })
             }).catch(error => {
-                console.error('Error recording payment initiated:', error);
             });
         },
         

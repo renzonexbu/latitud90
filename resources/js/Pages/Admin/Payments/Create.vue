@@ -963,30 +963,15 @@ const autocompleteForm = (clientData) => {
         setTimeout(() => {
             if (filteredComunes.value.length > 0) {
                 buyerForm.city = clientData.comune_id;
-                console.log(
-                    "Comuna establecida después de cargar:",
-                    clientData.comune_id
-                );
             } else {
-                console.log("Comunas no disponibles aún, reintentando...");
-                // Reintentar si las comunas no están disponibles
                 setTimeout(() => {
                     if (filteredComunes.value.length > 0) {
                         buyerForm.city = clientData.comune_id;
-                        console.log(
-                            "Comuna establecida en segundo intento:",
-                            clientData.comune_id
-                        );
                     }
                 }, 200);
             }
         }, 300);
     });
-
-    console.log(
-        "Formulario autocompletado con datos del cliente frecuente:",
-        clientData
-    );
 };
 
 const validateDocument = () => {
@@ -1076,27 +1061,20 @@ const calculateDv = (body) => {
 };
 
 const handleCountryChange = (countryId) => {
-    console.log("País seleccionado:", countryId);
     buyerForm.country = countryId;
 };
 
 const handleRegionChange = (regionId) => {
-    console.log("Región seleccionada:", regionId);
     buyerForm.region = regionId;
     buyerForm.city = ""; // Limpiar comuna
 
     // Verificar las comunas disponibles
     if (regionId) {
         const selectedRegion = props.regions.find((r) => r.id == regionId);
-        console.log("Región encontrada:", selectedRegion);
-        if (selectedRegion && selectedRegion.comunes) {
-            console.log("Comunas disponibles:", selectedRegion.comunes);
-        }
     }
 };
 
 const handleCityChange = (cityId) => {
-    console.log("Comuna seleccionada:", cityId);
     buyerForm.city = cityId;
 };
 
@@ -1111,7 +1089,6 @@ const loadParticipants = () => {
     const program = props.programs.find((p) => p.id == form.program_id);
     if (program && program.course && program.course.participants) {
         availableParticipants.value = program.course.participants;
-        console.log("Participantes cargados:", availableParticipants.value); // Debug
     } else {
         availableParticipants.value = [];
     }
@@ -1144,10 +1121,6 @@ const loadParticipantPaymentStatus = async () => {
             const result = await response.json();
             if (result.success) {
                 participantPaymentStatus.value = result.data;
-                console.log(
-                    "Estado de pago del participante cargado:",
-                    participantPaymentStatus.value
-                );
             } else {
                 console.error(
                     "Error al cargar el estado de pago:",
@@ -1227,8 +1200,6 @@ const getDetailedPaymentStatus = (paymentInfo) => {
 
 // Formatear nombre del participante (Primer Nombre Primer Apellido en Title Case)
 const formatParticipantName = (participant) => {
-    console.log("Participant data:", participant); // Debug
-
     const firstName = participant.first_name
         ? participant.first_name.charAt(0).toUpperCase() +
           participant.first_name.slice(1).toLowerCase()

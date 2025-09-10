@@ -783,12 +783,13 @@ export default {
                             this.closeModal();
                         },
                         onError: (errors) => {
-                            console.error("Errores de validación:", errors);
+                            // Error logging for validation errors
+                            console.error("❌ Validation errors while saving participant:", errors);
                         },
                     }
                 );
             } catch (error) {
-                console.error("Error al guardar participante:", error);
+                console.error("❌ Error saving participant:", error);
             } finally {
                 this.isSubmitting = false;
             }

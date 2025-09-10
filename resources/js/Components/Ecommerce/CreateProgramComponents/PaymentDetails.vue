@@ -1004,20 +1004,19 @@ watch(
     (newValue) => {
         if (props.mode === 'edit') {
             isSyncingFromProps.value = true;
-            // En modo edit, sincronizar los valores del modelValue con formData
+            
+            // Sincronizar valores del modelValue con formData
             Object.keys(newValue).forEach((key) => {
                 if (newValue[key] !== undefined) {
                     formData.value[key] = newValue[key];
                 }
             });
-            // Debug para verificar que el grade se esté cargando correctamente
-            if (props.mode === 'edit') {
-                console.log('PaymentDetails - Grade cargado:', {
-                    modelValue_grade: newValue.grade,
-                    formData_grade: formData.value.grade,
-                    mode: props.mode
-                });
+            
+            // Registrar advertencia si no se puede cargar el grado en modo edición
+            if (props.mode === 'edit' && !newValue.grade) {
+                console.warn('⚠️ No se pudo cargar el grado del participante');
             }
+            
             // Reinicializar los valores formateados después de sincronizar
             initializeFormattedPrice();
             initializeFormattedDiscountAmount();
@@ -1083,26 +1082,41 @@ watch(() => formData.value.installments_payment_method, (newValue) => {
     emit('update:modelValue', formData.value);
 }, { immediate: true });
 
-watch(() => formData.value.max_installments, (newValue) => {
-    emit('update:modelValue', formData.value);
-}, { immediate: true });
-
-// Watcher específico para el campo grade en modo edición
-watch(() => formData.value.grade, (newValue) => {
-    // Debug para verificar cambios en el campo grade
-    if (props.mode === 'edit') {
-        console.log('PaymentDetails - Grade cambiado:', {
-            newValue,
-            oldValue: formData.value.grade,
-            mode: props.mode
-        });
-    }
-    emit('update:modelValue', formData.value);
-}, { immediate: true });
-
 // Watcher para actualizar opciones de pago automáticamente cuando cambie la fecha final de pago
 watch(() => formData.value.final_payment_date, (newValue, oldValue) => {
     if (newValue && newValue !== oldValue) {
+        try {
+            const now = new Date();
+            const finalPaymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
+            
+            // Calcular meses disponibles
+            let months = (finalPaymentDate.getFullYear() - now.getFullYear()) * 12 + (finalPaymentDate.getMonth() - now.getMonth());
+            if (now.getDate() > finalPaymentDate.getDate()) months -= 1;
+            const availableMonths = Math.max(0, months);
+            
+            // Filtrar opciones de pago total según meses disponibles
+            const validFullOptions = fullPaymentChoicesBase.filter(option => {
+                if (option.installments === null || option.installments === 0) {
+                    return true;
+                }
+                return option.installments <= availableMonths;
+            });
+            
+            // Actualizar opciones disponibles
+            if (validFullOptions.length < fullPaymentChoicesBase.length) {
+                console.error(`Opciones de pago actualizadas automáticamente. Meses disponibles: ${availableMonths}`);
+                
+                // Filtrar opciones seleccionadas que ya no son válidas
+                if (formData.value.full_payment_options) {
+                    formData.value.full_payment_options = formData.value.full_payment_options.filter(option => 
+                        validFullOptions.some(valid => valid.code === option)
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('Error al actualizar opciones de pago automáticamente:', error);
+        }
+        
         // Esperar un momento para que se procese el cambio
         nextTick(() => {
             updatePaymentOptionsAutomatically();
@@ -1167,7 +1181,6 @@ const handleStudentsUpload = (event) => {
         if (validTypes.includes(file.type)) {
             formData.value.students_file = file;
             selectedStudentsFile.value = file;
-            console.log(`Archivo de estudiantes seleccionado:`, file.name);
         } else {
             alert("Por favor seleccione un archivo Excel (.xlsx, .xls) o CSV válido.");
             event.target.value = "";
@@ -1207,15 +1220,6 @@ const handlePaymentOptionChange = (option, event) => {
             formData.value.max_installments = "";
         }
     }
-    
-    // Debug: Log de los datos de pago
-    console.log('Datos de pago actualizados:', {
-        payment_options: formData.value.payment_options,
-        full_payment_method: formData.value.full_payment_method,
-        installments_payment_method: formData.value.installments_payment_method,
-        max_installments: formData.value.max_installments
-    });
-    
     // Emitir inmediatamente para asegurar que los datos se envíen
     emit('update:modelValue', formData.value);
 };
@@ -1291,8 +1295,6 @@ const updatePaymentOptionsAutomatically = () => {
         
         // Actualizar opciones disponibles
         if (validFullOptions.length < fullPaymentChoicesBase.length) {
-            console.log(`🔄 Opciones de pago actualizadas automáticamente. Meses disponibles: ${availableMonths}`);
-            
             // Filtrar opciones seleccionadas que ya no son válidas
             if (formData.value.full_payment_options) {
                 formData.value.full_payment_options = formData.value.full_payment_options.filter(option => 
