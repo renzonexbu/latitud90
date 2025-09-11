@@ -34,6 +34,7 @@ class BsaleZipDownloadService
                 mkdir(dirname($tempZipPath), 0755, true);
             }
 
+            // Crear ZIP usando el mismo método que SoftlandZipExporter (que funciona)
             $zip = new ZipArchive();
             $result = $zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
             
@@ -41,28 +42,49 @@ class BsaleZipDownloadService
                 throw new \Exception('No se pudo crear el archivo ZIP: ' . $result);
             }
 
-            // Add documents to zip
+            // Crear archivo de texto de prueba
+            $testContent = "Archivo de prueba BSale ZIP generado el " . now('America/Santiago')->format('Y-m-d H:i:s') . "\n";
+            $testContent .= "Documentos BSale encontrados: " . $documents->count() . "\n";
+            $testContent .= "Lista de documentos:\n";
+            foreach ($documents as $doc) {
+                $testContent .= "- {$doc['filename']} (Año: {$doc['year']})\n";
+            }
+            
+            // Agregar archivo de texto de prueba al ZIP (mismo método que SoftlandZipExporter)
+            $zip->addFromString('archivo_prueba_bsale_zip.txt', $testContent);
+
+            // Add documents to zip usando el mismo método que SoftlandZipExporter
             $addedCount = 0;
             foreach ($documents as $document) {
                 $filePath = Storage::path($document['path']);
                 
-                if (file_exists($filePath)) {
-                    // Organize files in folders by year within the zip
-                    $zipEntryName = $document['year'] ? 
-                        $document['year'] . '/' . $document['filename'] : 
-                        $document['filename'];
-                    
-                    $zip->addFile($filePath, $zipEntryName);
-                    $addedCount++;
+                if (file_exists($filePath) && is_readable($filePath)) {
+                    // Validate file integrity before adding to ZIP
+                    if ($this->validatePdfFile($filePath)) {
+                        // Read file content into memory (mismo método que SoftlandZipExporter)
+                        $fileContent = file_get_contents($filePath);
+                        
+                        if ($fileContent !== false && strlen($fileContent) > 0) {
+                            // Organize files in folders by year within the zip
+                            $zipEntryName = $document['year'] ? 
+                                $document['year'] . '/' . $document['filename'] : 
+                                $document['filename'];
+                            
+                            // Use addFromString igual que SoftlandZipExporter
+                            $zip->addFromString($zipEntryName, $fileContent);
+                            $addedCount++;
+                        } else {
+                            Log::warning("No se pudo leer el contenido del archivo BSale: {$document['filename']}");
+                        }
+                    } else {
+                        Log::warning("Archivo BSale corrupto o inválido: {$document['filename']}");
+                    }
+                } else {
+                    Log::warning("Archivo BSale no accesible: {$document['filename']}");
                 }
             }
 
             $zip->close();
-
-            if ($addedCount === 0) {
-                unlink($tempZipPath);
-                throw new \Exception('No se pudieron agregar archivos al ZIP');
-            }
 
             Log::info("BSale ZIP created successfully", [
                 'zip_file' => $zipFileName,
@@ -200,5 +222,71 @@ class BsaleZipDownloadService
         } catch (\Exception $e) {
             Log::error('Error cleaning up BSale ZIP temp files: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Validate PDF file integrity
+     */
+    private function validatePdfFile(string $filePath): bool
+    {
+        try {
+            // Check if file exists and is readable
+            if (!file_exists($filePath) || !is_readable($filePath)) {
+                return false;
+            }
+
+            // Check file size (should be at least 1KB for a valid PDF)
+            $fileSize = filesize($filePath);
+            if ($fileSize < 1024) {
+                return false;
+            }
+
+            // Read first few bytes to check PDF header
+            $handle = fopen($filePath, 'rb');
+            if (!$handle) {
+                return false;
+            }
+
+            $header = fread($handle, 4);
+            fclose($handle);
+
+            // Check if it starts with PDF header
+            if ($header !== '%PDF') {
+                return false;
+            }
+
+            // Additional check: try to read the file content
+            $content = file_get_contents($filePath);
+            if ($content === false || strlen($content) !== $fileSize) {
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::warning("Error validating PDF file {$filePath}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Delete directory recursively
+     */
+    private function deleteDirectory(string $dir): bool
+    {
+        if (!is_dir($dir)) {
+            return false;
+        }
+
+        $files = array_diff(scandir($dir), ['.', '..']);
+        foreach ($files as $file) {
+            $path = $dir . '/' . $file;
+            if (is_dir($path)) {
+                $this->deleteDirectory($path);
+            } else {
+                unlink($path);
+            }
+        }
+
+        return rmdir($dir);
     }
 }

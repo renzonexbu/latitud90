@@ -768,9 +768,9 @@ class ReportController extends Controller
     }
 
     /**
-     * Download all BSale documents as ZIP
+     * Download all BSale documents as ZIP using streaming directo
      */
-    public function downloadBsaleDocumentsZip(Request $request): BinaryFileResponse
+    public function downloadBsaleDocumentsZip(Request $request)
     {
         try {
             // Get filters from request
@@ -779,27 +779,58 @@ class ReportController extends Controller
                 'search' => $request->get('search')
             ];
 
-            // Create ZIP file
-            $result = $this->bsaleZipDownloadService->createZipDownload($filters);
-
-            if (!$result['success']) {
-                abort(500, $result['error']);
+            // Get all BSale documents based on filters
+            $documents = $this->getBsaleDocumentsForZip($filters);
+            
+            if ($documents->isEmpty()) {
+                return response()->json(['error' => 'No se encontraron documentos BSale para descargar'], 404);
             }
 
-            // Clean up old temp files
-            $this->bsaleZipDownloadService->cleanupTempFiles();
-
-            $zipPath = $result['zip_path'];
-            $zipFilename = $result['zip_filename'];
-
-            // Return the ZIP file for download and delete after sending
-            return response()->download($zipPath, $zipFilename, [
+            // Usar streaming directo como SoftlandZipExporter
+            $fileName = $this->generateBsaleZipFileName($filters);
+            
+            return response()->streamDownload(function () use ($documents, $filters) {
+                // Crear ZIP en memoria
+                $zip = new \ZipArchive();
+                $tempZipPath = tempnam(sys_get_temp_dir(), 'bsale_zip_') . '.zip';
+                
+                if ($zip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+                    throw new \Exception('No se pudo crear ZIP BSale');
+                }
+                
+                // Agregar archivos directamente desde storage (SIN COPIAR)
+                foreach ($documents as $document) {
+                    $filePath = \Illuminate\Support\Facades\Storage::path($document['path']);
+                    
+                    if (file_exists($filePath) && is_readable($filePath)) {
+                        $fileContent = file_get_contents($filePath);
+                        if ($fileContent !== false && strlen($fileContent) > 0) {
+                            // Organize files in folders by year within the zip
+                            $zipEntryName = $document['year'] ? 
+                                $document['year'] . '/' . $document['filename'] : 
+                                $document['filename'];
+                            
+                            $zip->addFromString($zipEntryName, $fileContent);
+                        }
+                    }
+                }
+                
+                $zip->close();
+                
+                // Leer y enviar el ZIP
+                if (file_exists($tempZipPath)) {
+                    readfile($tempZipPath);
+                    unlink($tempZipPath);
+                }
+                
+            }, $fileName, [
                 'Content-Type' => 'application/zip',
-            ])->deleteFileAfterSend(true);
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
+            ]);
 
         } catch (\Exception $e) {
             Log::error('Error downloading BSale documents ZIP: ' . $e->getMessage());
-            abort(500, 'Error al descargar los documentos en ZIP');
+            return response()->json(['error' => 'Error al descargar los documentos en ZIP: ' . $e->getMessage()], 500);
         }
     }
 
@@ -963,7 +994,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Descargar todos los comprobantes de pago como ZIP
+     * Descargar todos los comprobantes de pago como ZIP usando streaming directo
      */
     public function downloadAllPaymentReceipts($participantId, $programId)
     {
@@ -977,116 +1008,43 @@ class ReportController extends Controller
                 return response()->json(['error' => 'No se encontraron pagos completados'], 404);
             }
             
-            // Usar comando ZIP del sistema para crear archivo confiable
-            $zipFileName = 'comprobantes_' . $participantId . '_' . $programId . '_' . time() . '.zip';
-            $tempDir = storage_path('app/temp');
-            $zipPath = $tempDir . '/' . $zipFileName;
+            // Usar streaming directo como SoftlandZipExporter
+            $fileName = 'comprobantes_' . $participantId . '_' . $programId . '.zip';
             
-            // Crear directorio temporal
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-            
-            // Crear directorio temporal para archivos
-            $filesDir = $tempDir . '/files_' . time();
-            mkdir($filesDir, 0755, true);
-            
-            $copiedFiles = [];
-            
-            // Copiar archivos al directorio temporal
-            foreach ($payments as $payment) {
-                $year = $payment->created_at->year;
-                $originalFilename = 'comprobante_pago_' . $payment->id . '.pdf';
-                $sourcePath = storage_path("app/payment_receipts/{$year}/{$originalFilename}");
+            return response()->streamDownload(function () use ($payments, $participantId, $programId) {
+                // Crear ZIP en memoria
+                $zip = new \ZipArchive();
+                $tempZipPath = tempnam(sys_get_temp_dir(), 'comprobantes_') . '.zip';
                 
-                // DEBUG: Verificar archivo original
-                $debugInfo = [
-                    'payment_id' => $payment->id,
-                    'filename' => $originalFilename,
-                    'source_path' => $sourcePath,
-                    'file_exists' => file_exists($sourcePath),
-                    'is_readable' => is_readable($sourcePath),
-                    'file_size' => file_exists($sourcePath) ? filesize($sourcePath) : 0,
-                ];
+                if ($zip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+                    throw new \Exception('No se pudo crear ZIP');
+                }
                 
-                if (file_exists($sourcePath) && is_readable($sourcePath)) {
-                    $destPath = $filesDir . '/' . $originalFilename;
-                    if (copy($sourcePath, $destPath)) {
-                        $debugInfo['copied'] = true;
-                        $debugInfo['dest_size'] = filesize($destPath);
-                        $copiedFiles[] = $originalFilename;
-                    } else {
-                        $debugInfo['copied'] = false;
+                // Agregar archivos directamente desde storage (SIN COPIAR)
+                foreach ($payments as $payment) {
+                    $year = $payment->created_at->year;
+                    $filename = 'comprobante_pago_' . $payment->id . '.pdf';
+                    $sourcePath = storage_path("app/payment_receipts/{$year}/{$filename}");
+                    
+                    if (file_exists($sourcePath) && is_readable($sourcePath)) {
+                        $fileContent = file_get_contents($sourcePath);
+                        if ($fileContent !== false && strlen($fileContent) > 0) {
+                            $zip->addFromString($filename, $fileContent);
+                        }
                     }
                 }
                 
-                // dd($debugInfo); // DEBUG: Ver info del primer archivo
-            }
-            
-            if (empty($copiedFiles)) {
-                return response()->json(['error' => 'No se encontraron archivos válidos'], 404);
-            }
-            
-            // Crear ZIP usando ZipArchive con configuración específica
-            $zip = new \ZipArchive();
-            
-            // Eliminar ZIP existente si existe
-            if (file_exists($zipPath)) {
-                unlink($zipPath);
-            }
-            
-            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-            if ($result !== TRUE) {
-                return response()->json(['error' => 'No se pudo crear ZIP: ' . $result], 500);
-            }
-            
-            // Agregar archivos copiados al ZIP usando addFromString para mayor control
-            foreach ($copiedFiles as $filename) {
-                $filePath = $filesDir . '/' . $filename;
+                $zip->close();
                 
-                // Leer el archivo completo en memoria
-                $fileContent = file_get_contents($filePath);
+                // Leer y enviar el ZIP
+                if (file_exists($tempZipPath)) {
+                    readfile($tempZipPath);
+                    unlink($tempZipPath);
+                }
                 
-                if ($fileContent !== false) {
-                    // Usar addFromString en lugar de addFile para mayor control
-                    $zip->addFromString($filename, $fileContent);
-                    $zip->setCompressionName($filename, \ZipArchive::CM_STORE); // Sin compresión
-                } else {
-                    throw new \Exception("No se pudo leer el archivo: $filename");
-                }
-            }
-            
-            // Cerrar ZIP
-            $closeResult = $zip->close();
-            
-            // DEBUG: Verificar ZIP después de cerrar
-            $finalDebug = [
-                'copied_files' => $copiedFiles,
-                'zip_close_result' => $closeResult,
-                'zip_exists_after_close' => file_exists($zipPath),
-                'zip_size_after_close' => file_exists($zipPath) ? filesize($zipPath) : 0,
-                'zip_path' => $zipPath,
-            ];
-            
-            // Limpiar archivos temporales
-            foreach ($copiedFiles as $filename) {
-                $filePath = $filesDir . '/' . $filename;
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                }
-            }
-            rmdir($filesDir);
-            
-            // Verificar que el ZIP existe y no está vacío
-            if (!file_exists($zipPath) || filesize($zipPath) === 0) {
-                return response()->json(['error' => 'Error creando archivo ZIP'], 500);
-            }
-            
-            // Usar headers personalizados para forzar descarga correcta
-            return response()->download($zipPath, 'comprobantes_' . $participantId . '_' . $programId . '.zip', [
+            }, $fileName, [
                 'Content-Type' => 'application/zip',
-                'Content-Disposition' => 'attachment; filename="comprobantes_' . $participantId . '_' . $programId . '.zip"',
-                'Content-Length' => filesize($zipPath),
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
             ]);
             
         } catch (\Exception $e) {
@@ -1097,7 +1055,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Descargar todos los documentos BSale como ZIP
+     * Descargar todos los documentos BSale como ZIP usando streaming directo
      */
     public function downloadAllBsaleDocuments($participantId, $programId)
     {
@@ -1114,78 +1072,156 @@ class ReportController extends Controller
                 return response()->json(['error' => 'No se encontraron documentos BSale'], 404);
             }
             
-            $zipFileName = 'boletas_bsale_' . $participantId . '_' . $programId . '_' . time() . '.zip';
-            $tempDir = storage_path('app/temp');
-            $zipPath = $tempDir . '/' . $zipFileName;
+            // Usar streaming directo como SoftlandZipExporter
+            $fileName = 'boletas_bsale_' . $participantId . '_' . $programId . '.zip';
             
-            // Crear directorio temporal
-            if (!is_dir($tempDir)) {
-                mkdir($tempDir, 0755, true);
-            }
-            
-            // Crear directorio temporal para archivos BSale
-            $filesDir = $tempDir . '/bsale_files_' . time();
-            mkdir($filesDir, 0755, true);
-            
-            $copiedFiles = [];
-            
-            // Copiar archivos BSale al directorio temporal
-            foreach ($payments as $payment) {
-                $year = $payment->created_at->year;
-                $originalFilename = 'bsale_' . $payment->bsale_number . '_payment_' . $payment->id . '.pdf';
-                $sourcePath = storage_path("app/bsale_documents/{$year}/{$originalFilename}");
+            return response()->streamDownload(function () use ($payments, $participantId, $programId) {
+                // Crear ZIP en memoria
+                $zip = new \ZipArchive();
+                $tempZipPath = tempnam(sys_get_temp_dir(), 'bsale_') . '.zip';
                 
-                if (file_exists($sourcePath) && is_readable($sourcePath)) {
-                    $destFilename = 'boleta_' . $payment->bsale_number . '.pdf';
-                    $destPath = $filesDir . '/' . $destFilename;
-                    if (copy($sourcePath, $destPath)) {
-                        $copiedFiles[] = $destFilename;
+                if ($zip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+                    throw new \Exception('No se pudo crear ZIP BSale');
+                }
+                
+                // Agregar archivos directamente desde storage (SIN COPIAR)
+                foreach ($payments as $payment) {
+                    $year = $payment->created_at->year;
+                    $originalFilename = 'bsale_' . $payment->bsale_number . '_payment_' . $payment->id . '.pdf';
+                    $sourcePath = storage_path("app/bsale_documents/{$year}/{$originalFilename}");
+                    
+                    if (file_exists($sourcePath) && is_readable($sourcePath)) {
+                        $fileContent = file_get_contents($sourcePath);
+                        if ($fileContent !== false && strlen($fileContent) > 0) {
+                            $destFilename = 'boleta_' . $payment->bsale_number . '.pdf';
+                            $zip->addFromString($destFilename, $fileContent);
+                        }
                     }
                 }
-            }
-            
-            if (empty($copiedFiles)) {
-                return response()->json(['error' => 'No se encontraron documentos BSale válidos'], 404);
-            }
-            
-            // Crear ZIP
-            $zip = new \ZipArchive();
-            
-            if (file_exists($zipPath)) {
-                unlink($zipPath);
-            }
-            
-            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-            if ($result !== TRUE) {
-                return response()->json(['error' => 'No se pudo crear ZIP BSale: ' . $result], 500);
-            }
-            
-            // Agregar archivos copiados al ZIP
-            foreach ($copiedFiles as $filename) {
-                $filePath = $filesDir . '/' . $filename;
-                $zip->addFile($filePath, $filename);
-            }
-            
-            $zip->close();
-            
-            // Limpiar archivos temporales
-            foreach ($copiedFiles as $filename) {
-                $filePath = $filesDir . '/' . $filename;
-                if (file_exists($filePath)) {
-                    unlink($filePath);
+                
+                $zip->close();
+                
+                // Leer y enviar el ZIP
+                if (file_exists($tempZipPath)) {
+                    readfile($tempZipPath);
+                    unlink($tempZipPath);
                 }
-            }
-            rmdir($filesDir);
-            
-            // Verificar ZIP
-            if (!file_exists($zipPath) || filesize($zipPath) === 0) {
-                return response()->json(['error' => 'Error creando archivo ZIP BSale'], 500);
-            }
-            
-            return response()->download($zipPath)->deleteFileAfterSend(true);
+                
+            }, $fileName, [
+                'Content-Type' => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"'
+            ]);
             
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get BSale documents for ZIP (moved from BsaleZipDownloadService)
+     */
+    private function getBsaleDocumentsForZip(array $filters)
+    {
+        $documents = collect();
+        $basePath = 'bsale_documents';
+        $year = $filters['year'] ?? null;
+        $search = $filters['search'] ?? null;
+        
+        // If year is specified, look in that year's folder
+        if ($year) {
+            $yearPath = $basePath . '/' . $year;
+            if (\Illuminate\Support\Facades\Storage::exists($yearPath)) {
+                $files = \Illuminate\Support\Facades\Storage::files($yearPath);
+                foreach ($files as $file) {
+                    $documents->push($this->formatBsaleDocument($file));
+                }
+            }
+        } else {
+            // Get all years
+            $yearFolders = \Illuminate\Support\Facades\Storage::directories($basePath);
+            foreach ($yearFolders as $yearFolder) {
+                $files = \Illuminate\Support\Facades\Storage::files($yearFolder);
+                foreach ($files as $file) {
+                    $documents->push($this->formatBsaleDocument($file));
+                }
+            }
+        }
+
+        // Filter by search term if provided
+        if ($search) {
+            $documents = $documents->filter(function ($doc) use ($search) {
+                return stripos($doc['filename'], $search) !== false ||
+                       stripos($doc['bsale_number'], $search) !== false ||
+                       stripos($doc['payment_id'], $search) !== false;
+            });
+        }
+
+        return $documents->sortBy('filename');
+    }
+
+    /**
+     * Generate BSale ZIP filename (moved from BsaleZipDownloadService)
+     */
+    private function generateBsaleZipFileName(array $filters): string
+    {
+        $timestamp = now('America/Santiago')->format('Y-m-d_H-i-s');
+        $year = $filters['year'] ?? null;
+        $search = $filters['search'] ?? null;
+        
+        if ($year && $search) {
+            $searchSafe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $search);
+            return "bsale_documentos_{$year}_{$searchSafe}_{$timestamp}.zip";
+        } elseif ($year) {
+            return "bsale_documentos_{$year}_{$timestamp}.zip";
+        } elseif ($search) {
+            $searchSafe = preg_replace('/[^a-zA-Z0-9_-]/', '_', $search);
+            return "bsale_documentos_busqueda_{$searchSafe}_{$timestamp}.zip";
+        } else {
+            return "bsale_documentos_todos_{$timestamp}.zip";
+        }
+    }
+
+    /**
+     * Validate PDF file integrity
+     */
+    private function validatePdfFile(string $filePath): bool
+    {
+        try {
+            // Check if file exists and is readable
+            if (!file_exists($filePath) || !is_readable($filePath)) {
+                return false;
+            }
+
+            // Check file size (should be at least 1KB for a valid PDF)
+            $fileSize = filesize($filePath);
+            if ($fileSize < 1024) {
+                return false;
+            }
+
+            // Read first few bytes to check PDF header
+            $handle = fopen($filePath, 'rb');
+            if (!$handle) {
+                return false;
+            }
+
+            $header = fread($handle, 4);
+            fclose($handle);
+
+            // Check if it starts with PDF header
+            if ($header !== '%PDF') {
+                return false;
+            }
+
+            // Additional check: try to read the file content
+            $content = file_get_contents($filePath);
+            if ($content === false || strlen($content) !== $fileSize) {
+                return false;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            Log::warning("Error validating PDF file {$filePath}: " . $e->getMessage());
+            return false;
         }
     }
 }
