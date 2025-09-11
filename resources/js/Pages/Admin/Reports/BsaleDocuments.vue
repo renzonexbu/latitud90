@@ -104,27 +104,50 @@
                                     ({{ pagination.total }} documentos)
                                 </span>
                             </h3>
-                            <button
-                                @click="loadDocuments"
-                                :disabled="loading"
-                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center disabled:opacity-50"
-                            >
-                                <svg
-                                    class="w-4 h-4 mr-2"
-                                    :class="{ 'animate-spin': loading }"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
+                            <div class="flex space-x-2">
+                                <button
+                                    @click="downloadAllDocuments"
+                                    :disabled="loading || downloadingZip || documents.length === 0"
+                                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center disabled:opacity-50"
                                 >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                    ></path>
-                                </svg>
-                                Actualizar
-                            </button>
+                                    <svg
+                                        class="w-4 h-4 mr-2"
+                                        :class="{ 'animate-spin': downloadingZip }"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 10v6m0 0l-3-3m3 3l3-3M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                        ></path>
+                                    </svg>
+                                    {{ downloadingZip ? 'Generando ZIP...' : 'Descargar Todo (ZIP)' }}
+                                </button>
+                                <button
+                                    @click="loadDocuments"
+                                    :disabled="loading"
+                                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center disabled:opacity-50"
+                                >
+                                    <svg
+                                        class="w-4 h-4 mr-2"
+                                        :class="{ 'animate-spin': loading }"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                        ></path>
+                                    </svg>
+                                    Actualizar
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Loading State -->
@@ -289,6 +312,7 @@ import axios from 'axios'
 const documents = ref([])
 const availableYears = ref([])
 const loading = ref(false)
+const downloadingZip = ref(false)
 const error = ref(null)
 
 const filters = ref({
@@ -341,6 +365,40 @@ const loadDocuments = async (page = 1) => {
         console.error('Error loading BSale documents:', err)
     } finally {
         loading.value = false
+    }
+}
+
+// Download all documents as ZIP
+const downloadAllDocuments = async () => {
+    downloadingZip.value = true
+    
+    try {
+        // Build URL with query parameters
+        const baseUrl = route('admin.reports.bsale-documents.download-zip')
+        const params = new URLSearchParams()
+        
+        if (filters.value.year) {
+            params.append('year', filters.value.year)
+        }
+        if (filters.value.search) {
+            params.append('search', filters.value.search)
+        }
+        
+        const url = params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a')
+        link.href = url
+        link.download = ''
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        
+    } catch (err) {
+        error.value = err.response?.data?.error || 'Error al descargar los documentos en ZIP'
+        console.error('Error downloading BSale documents ZIP:', err)
+    } finally {
+        downloadingZip.value = false
     }
 }
 

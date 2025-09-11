@@ -32,6 +32,7 @@ use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
 use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
 use App\Services\Admin\Reports\Softland\SoftlandAuxiliaresService;
 use App\Services\Admin\Reports\Softland\SoftlandZipExporter;
+use App\Services\Admin\Reports\BsaleDocuments\BsaleZipDownloadService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -59,7 +60,8 @@ class ReportController extends Controller
         private SoftlandExcelExporter $softlandExcelExporter,
         private AuxiliaresExporter $auxiliaresExporter,
         private SoftlandAuxiliaresService $auxiliaresService,
-        private SoftlandZipExporter $softlandZipExporter
+        private SoftlandZipExporter $softlandZipExporter,
+        private BsaleZipDownloadService $bsaleZipDownloadService
     ) {}
 
     public function index(Request $request)
@@ -92,7 +94,9 @@ class ReportController extends Controller
             $data = $this->getSalesChartService->execute($request);
             return response()->json($data);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al obtener datos del gráfico: ' . $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'Error al obtener documentos BSale: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -101,10 +105,21 @@ class ReportController extends Controller
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'participantSearch', 'paymentStatus', 'page']);
             
+            Log::info('ReportController: partialAccount called', [
+                'filters' => $filters,
+                'request_all' => $request->all()
+            ]);
+            
             // Use the new PartialAccountService
             $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
             $partialAccounts = $partialAccountService->getPartialAccounts($filters);
             $filterData = $partialAccountService->getFilterData();
+            
+            Log::info('ReportController: partialAccounts data structure', [
+                'accounts_count' => is_array($partialAccounts) ? count($partialAccounts) : (isset($partialAccounts->data) ? count($partialAccounts->data) : 'unknown'),
+                'accounts_type' => gettype($partialAccounts),
+                'first_account_sample' => is_array($partialAccounts) && !empty($partialAccounts) ? $partialAccounts[0] : (isset($partialAccounts->data) && !empty($partialAccounts->data) ? $partialAccounts->data[0] : null)
+            ]);
             
             return Inertia::render('Admin/Reports/PartialAccount', [
                 'partialAccounts' => $partialAccounts,
@@ -113,6 +128,10 @@ class ReportController extends Controller
                 'filters' => $filters
             ]);
         } catch (\Exception $e) {
+            Log::error('ReportController: Error in partialAccount', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => 'Error al generar estado de cuenta parcial: ' . $e->getMessage()], 500);
         }
     }
@@ -441,11 +460,11 @@ class ReportController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('=== EXCEL EXPORT ERROR ===');
-            \Illuminate\Support\Facades\Log::error('Error message: ' . $e->getMessage());
-            \Illuminate\Support\Facades\Log::error('Error file: ' . $e->getFile());
-            \Illuminate\Support\Facades\Log::error('Error line: ' . $e->getLine());
-            \Illuminate\Support\Facades\Log::error('Stack trace: ' . $e->getTraceAsString());
+            Log::error('=== EXCEL EXPORT ERROR ===');
+            Log::error('Error message: ' . $e->getMessage());
+            Log::error('Error file: ' . $e->getFile());
+            Log::error('Error line: ' . $e->getLine());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json(['error' => 'Error generating Excel file: ' . $e->getMessage()], 500);
         }
     }
@@ -615,7 +634,7 @@ class ReportController extends Controller
         try {
             $year = $request->get('year');
             $search = $request->get('search');
-            $perPage = $request->get('per_page', 50);
+            $perPage = (int) $request->get('per_page', 50);
 
             // Get all BSale documents from storage
             $documents = collect();
@@ -663,7 +682,7 @@ class ReportController extends Controller
 
             // Paginate results
             $total = $documents->count();
-            $page = $request->get('page', 1);
+            $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $perPage;
             $paginatedDocs = $documents->slice($offset, $perPage)->values();
 
@@ -749,9 +768,45 @@ class ReportController extends Controller
     }
 
     /**
+     * Download all BSale documents as ZIP
+     */
+    public function downloadBsaleDocumentsZip(Request $request): BinaryFileResponse
+    {
+        try {
+            // Get filters from request
+            $filters = [
+                'year' => $request->get('year'),
+                'search' => $request->get('search')
+            ];
+
+            // Create ZIP file
+            $result = $this->bsaleZipDownloadService->createZipDownload($filters);
+
+            if (!$result['success']) {
+                abort(500, $result['error']);
+            }
+
+            // Clean up old temp files
+            $this->bsaleZipDownloadService->cleanupTempFiles();
+
+            $zipPath = $result['zip_path'];
+            $zipFilename = $result['zip_filename'];
+
+            // Return the ZIP file for download and delete after sending
+            return response()->download($zipPath, $zipFilename, [
+                'Content-Type' => 'application/zip',
+            ])->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading BSale documents ZIP: ' . $e->getMessage());
+            abort(500, 'Error al descargar los documentos en ZIP');
+        }
+    }
+
+    /**
      * Format bytes to human readable format
      */
-    private function formatBytes(int $bytes): string
+    private function formatBytes($bytes)
     {
         if ($bytes >= 1048576) {
             return number_format($bytes / 1048576, 2) . ' MB';
@@ -762,5 +817,375 @@ class ReportController extends Controller
         }
     }
 
+    /**
+     * Descargar comprobante de pago individual
+     */
+    public function downloadPaymentReceipt($paymentId)
+    {
+        try {
+            $payment = \App\Models\Payment::with(['orderDetail.order.program', 'orderDetail.order.participant'])->findOrFail($paymentId);
+            
+            // Buscar archivo de comprobante existente
+            $year = $payment->created_at->year;
+            $filename = 'comprobante_pago_' . $payment->id . '.pdf';
+            $filePath = storage_path("app/payment_receipts/{$year}/{$filename}");
+            
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Comprobante no encontrado'], 404);
+            }
+            
+            return response()->download($filePath);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al descargar comprobante: ' . $e->getMessage()], 500);
+        }
+    }
 
+    /**
+     * Descargar contrato de reserva
+     */
+    public function downloadReservationContract($participantId, $programId)
+    {
+        try {
+            $participant = \App\Models\Participant::findOrFail($participantId);
+            $program = \App\Models\Program::findOrFail($programId);
+            
+            // Buscar archivo de contrato existente
+            $filename = 'contrato_' . $participantId . '_' . $programId . '.pdf';
+            $filePath = storage_path("app/contracts/{$filename}");
+            
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Contrato no encontrado'], 404);
+            }
+            
+            return response()->download($filePath);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al descargar contrato: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Método de diagnóstico para comparar archivos individuales vs ZIP
+     */
+    public function debugZipCreation($participantId, $programId)
+    {
+        try {
+            $payments = \App\Models\Payment::whereHas('orderDetail.order', function($query) use ($participantId, $programId) {
+                $query->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+            })->where('status', 'completed')->first();
+            
+            if (!$payments) {
+                return response()->json(['error' => 'No se encontraron pagos'], 404);
+            }
+            
+            $year = $payments->created_at->year;
+            $filename = 'comprobante_pago_' . $payments->id . '.pdf';
+            $filePath = storage_path("app/payment_receipts/{$year}/{$filename}");
+            
+            if (!file_exists($filePath)) {
+                return response()->json(['error' => 'Archivo no encontrado'], 404);
+            }
+            
+            // Leer archivo original
+            $originalContent = file_get_contents($filePath);
+            $originalSize = strlen($originalContent);
+            $originalMd5 = md5($originalContent);
+            
+            // Crear ZIP simple con un solo archivo
+            $zipPath = storage_path('app/temp/debug_test.zip');
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE) !== TRUE) {
+                return response()->json(['error' => 'No se pudo crear ZIP'], 500);
+            }
+            
+            // Agregar archivo al ZIP
+            $zip->addFromString($filename, $originalContent);
+            $zip->close();
+            
+            // Verificar ZIP creado
+            $zipSize = filesize($zipPath);
+            
+            // Extraer archivo del ZIP para comparar
+            $extractZip = new \ZipArchive();
+            if ($extractZip->open($zipPath) === TRUE) {
+                $extractedContent = $extractZip->getFromName($filename);
+                $extractedSize = strlen($extractedContent);
+                $extractedMd5 = md5($extractedContent);
+                $extractZip->close();
+            } else {
+                return response()->json(['error' => 'No se pudo leer el ZIP'], 500);
+            }
+            
+            // Limpiar archivo temporal
+            unlink($zipPath);
+            
+            return response()->json([
+                'debug_info' => [
+                    'original_file' => [
+                        'path' => $filePath,
+                        'size' => $originalSize,
+                        'md5' => $originalMd5,
+                        'readable' => is_readable($filePath),
+                        'exists' => file_exists($filePath)
+                    ],
+                    'zip_process' => [
+                        'zip_size' => $zipSize,
+                        'zip_created' => file_exists($zipPath)
+                    ],
+                    'extracted_file' => [
+                        'size' => $extractedSize,
+                        'md5' => $extractedMd5,
+                        'content_matches' => ($originalMd5 === $extractedMd5),
+                        'size_matches' => ($originalSize === $extractedSize)
+                    ],
+                    'comparison' => [
+                        'files_identical' => ($originalMd5 === $extractedMd5 && $originalSize === $extractedSize),
+                        'size_difference' => $originalSize - $extractedSize,
+                        'first_100_chars_original' => substr($originalContent, 0, 100),
+                        'first_100_chars_extracted' => substr($extractedContent, 0, 100)
+                    ]
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error en diagnóstico: ' . $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => basename($e->getFile())
+            ], 500);
+        }
+    }
+
+    /**
+     * Descargar todos los comprobantes de pago como ZIP
+     */
+    public function downloadAllPaymentReceipts($participantId, $programId)
+    {
+        try {
+            $payments = \App\Models\Payment::whereHas('orderDetail.order', function($query) use ($participantId, $programId) {
+                $query->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+            })->where('status', 'completed')->get();
+            
+            if ($payments->isEmpty()) {
+                return response()->json(['error' => 'No se encontraron pagos completados'], 404);
+            }
+            
+            // Usar comando ZIP del sistema para crear archivo confiable
+            $zipFileName = 'comprobantes_' . $participantId . '_' . $programId . '_' . time() . '.zip';
+            $tempDir = storage_path('app/temp');
+            $zipPath = $tempDir . '/' . $zipFileName;
+            
+            // Crear directorio temporal
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            // Crear directorio temporal para archivos
+            $filesDir = $tempDir . '/files_' . time();
+            mkdir($filesDir, 0755, true);
+            
+            $copiedFiles = [];
+            
+            // Copiar archivos al directorio temporal
+            foreach ($payments as $payment) {
+                $year = $payment->created_at->year;
+                $originalFilename = 'comprobante_pago_' . $payment->id . '.pdf';
+                $sourcePath = storage_path("app/payment_receipts/{$year}/{$originalFilename}");
+                
+                // DEBUG: Verificar archivo original
+                $debugInfo = [
+                    'payment_id' => $payment->id,
+                    'filename' => $originalFilename,
+                    'source_path' => $sourcePath,
+                    'file_exists' => file_exists($sourcePath),
+                    'is_readable' => is_readable($sourcePath),
+                    'file_size' => file_exists($sourcePath) ? filesize($sourcePath) : 0,
+                ];
+                
+                if (file_exists($sourcePath) && is_readable($sourcePath)) {
+                    $destPath = $filesDir . '/' . $originalFilename;
+                    if (copy($sourcePath, $destPath)) {
+                        $debugInfo['copied'] = true;
+                        $debugInfo['dest_size'] = filesize($destPath);
+                        $copiedFiles[] = $originalFilename;
+                    } else {
+                        $debugInfo['copied'] = false;
+                    }
+                }
+                
+                // dd($debugInfo); // DEBUG: Ver info del primer archivo
+            }
+            
+            if (empty($copiedFiles)) {
+                return response()->json(['error' => 'No se encontraron archivos válidos'], 404);
+            }
+            
+            // Crear ZIP usando ZipArchive con configuración específica
+            $zip = new \ZipArchive();
+            
+            // Eliminar ZIP existente si existe
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            
+            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($result !== TRUE) {
+                return response()->json(['error' => 'No se pudo crear ZIP: ' . $result], 500);
+            }
+            
+            // Agregar archivos copiados al ZIP usando addFromString para mayor control
+            foreach ($copiedFiles as $filename) {
+                $filePath = $filesDir . '/' . $filename;
+                
+                // Leer el archivo completo en memoria
+                $fileContent = file_get_contents($filePath);
+                
+                if ($fileContent !== false) {
+                    // Usar addFromString en lugar de addFile para mayor control
+                    $zip->addFromString($filename, $fileContent);
+                    $zip->setCompressionName($filename, \ZipArchive::CM_STORE); // Sin compresión
+                } else {
+                    throw new \Exception("No se pudo leer el archivo: $filename");
+                }
+            }
+            
+            // Cerrar ZIP
+            $closeResult = $zip->close();
+            
+            // DEBUG: Verificar ZIP después de cerrar
+            $finalDebug = [
+                'copied_files' => $copiedFiles,
+                'zip_close_result' => $closeResult,
+                'zip_exists_after_close' => file_exists($zipPath),
+                'zip_size_after_close' => file_exists($zipPath) ? filesize($zipPath) : 0,
+                'zip_path' => $zipPath,
+            ];
+            
+            // Limpiar archivos temporales
+            foreach ($copiedFiles as $filename) {
+                $filePath = $filesDir . '/' . $filename;
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+            rmdir($filesDir);
+            
+            // Verificar que el ZIP existe y no está vacío
+            if (!file_exists($zipPath) || filesize($zipPath) === 0) {
+                return response()->json(['error' => 'Error creando archivo ZIP'], 500);
+            }
+            
+            // Usar headers personalizados para forzar descarga correcta
+            return response()->download($zipPath, 'comprobantes_' . $participantId . '_' . $programId . '.zip', [
+                'Content-Type' => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="comprobantes_' . $participantId . '_' . $programId . '.zip"',
+                'Content-Length' => filesize($zipPath),
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Descargar todos los documentos BSale como ZIP
+     */
+    public function downloadAllBsaleDocuments($participantId, $programId)
+    {
+        try {
+            $payments = \App\Models\Payment::whereHas('orderDetail.order', function($query) use ($participantId, $programId) {
+                $query->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+            })->where('status', 'completed')
+              ->whereNotNull('bsale_document_id')
+              ->whereNotNull('bsale_number')
+              ->get();
+            
+            if ($payments->isEmpty()) {
+                return response()->json(['error' => 'No se encontraron documentos BSale'], 404);
+            }
+            
+            $zipFileName = 'boletas_bsale_' . $participantId . '_' . $programId . '_' . time() . '.zip';
+            $tempDir = storage_path('app/temp');
+            $zipPath = $tempDir . '/' . $zipFileName;
+            
+            // Crear directorio temporal
+            if (!is_dir($tempDir)) {
+                mkdir($tempDir, 0755, true);
+            }
+            
+            // Crear directorio temporal para archivos BSale
+            $filesDir = $tempDir . '/bsale_files_' . time();
+            mkdir($filesDir, 0755, true);
+            
+            $copiedFiles = [];
+            
+            // Copiar archivos BSale al directorio temporal
+            foreach ($payments as $payment) {
+                $year = $payment->created_at->year;
+                $originalFilename = 'bsale_' . $payment->bsale_number . '_payment_' . $payment->id . '.pdf';
+                $sourcePath = storage_path("app/bsale_documents/{$year}/{$originalFilename}");
+                
+                if (file_exists($sourcePath) && is_readable($sourcePath)) {
+                    $destFilename = 'boleta_' . $payment->bsale_number . '.pdf';
+                    $destPath = $filesDir . '/' . $destFilename;
+                    if (copy($sourcePath, $destPath)) {
+                        $copiedFiles[] = $destFilename;
+                    }
+                }
+            }
+            
+            if (empty($copiedFiles)) {
+                return response()->json(['error' => 'No se encontraron documentos BSale válidos'], 404);
+            }
+            
+            // Crear ZIP
+            $zip = new \ZipArchive();
+            
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            
+            $result = $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($result !== TRUE) {
+                return response()->json(['error' => 'No se pudo crear ZIP BSale: ' . $result], 500);
+            }
+            
+            // Agregar archivos copiados al ZIP
+            foreach ($copiedFiles as $filename) {
+                $filePath = $filesDir . '/' . $filename;
+                $zip->addFile($filePath, $filename);
+            }
+            
+            $zip->close();
+            
+            // Limpiar archivos temporales
+            foreach ($copiedFiles as $filename) {
+                $filePath = $filesDir . '/' . $filename;
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+            rmdir($filesDir);
+            
+            // Verificar ZIP
+            if (!file_exists($zipPath) || filesize($zipPath) === 0) {
+                return response()->json(['error' => 'Error creando archivo ZIP BSale'], 500);
+            }
+            
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+            
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
 }

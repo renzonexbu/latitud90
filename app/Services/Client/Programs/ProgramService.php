@@ -154,9 +154,19 @@ class ProgramService
 
                         foreach ($orders as $order) {
                             if ($order->orderDetails) {
-                                // Solo contar order details que NO sean de pagos presenciales
+                                // Solo contar order details que NO sean de pagos presenciales NI de reembolsos
                                 $ecommerceOrderDetails = $order->orderDetails->filter(function($detail) {
-                                    return $detail->paymentOption && $detail->paymentOption->mode !== 'presential';
+                                    // Excluir pagos presenciales
+                                    if ($detail->paymentOption && $detail->paymentOption->mode === 'presential') {
+                                        return false;
+                                    }
+                                    
+                                    // Excluir reembolsos
+                                    if ($detail->paymentOption && $detail->paymentOption->code === 'refund_credit_note') {
+                                        return false;
+                                    }
+                                    
+                                    return true;
                                 });
                                 
                                 $totalInstallments = $ecommerceOrderDetails->count();

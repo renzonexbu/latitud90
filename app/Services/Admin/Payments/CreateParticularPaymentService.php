@@ -74,9 +74,8 @@ class CreateParticularPaymentService
             // Crear el pago
             $payment = $this->createPayment($order, $orderDetail, $paymentGateway, $paymentOption, $data);
 
-            // NOTA: Los pagos presenciales NO crean cuotas automáticamente
-            // Solo se registra el pago en la orden. Si se necesita un plan de cuotas,
-            // debe crearse manualmente desde la interfaz de administración.
+            // Reestructurar cuotas existentes si hay un plan de cuotas activo
+            $this->handleInstallmentRestructure($participant, $program, $data['amount']);
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -372,6 +371,109 @@ class CreateParticularPaymentService
     }
 
 
+
+    /**
+     * Reestructurar cuotas existentes después de un pago presencial
+     */
+    private function handleInstallmentRestructure(Participant $participant, Program $program, float $paymentAmount): void
+    {
+        // Buscar plan de cuotas existente
+        $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+                                         ->where('program_id', $program->id)
+                                         ->where('status', 'active')
+                                         ->first();
+
+        if (!$installmentPlan) {
+            // No hay plan de cuotas existente, no hay nada que reestructurar
+            Log::info('No se encontró plan de cuotas activo para reestructurar', [
+                'participant_id' => $participant->id,
+                'program_id' => $program->id,
+                'payment_amount' => $paymentAmount
+            ]);
+            return;
+        }
+
+        // Calcular montos actuales
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $totalAmount = $priceData['final_price'];
+        
+        // Calcular monto total ya pagado (incluyendo este pago)
+        $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
+        
+        // Calcular saldo restante
+        $remainingBalance = max($totalAmount - $paidAmount, 0);
+        
+        if ($remainingBalance <= 0) {
+            // Si ya está completamente pagado, marcar todas las cuotas como completadas
+            $installmentPlan->installments()
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'paid', 
+                    'paid_at' => now(),
+                    'notes' => 'Marcada como pagada por pago presencial completo'
+                ]);
+            
+            $installmentPlan->update([
+                'status' => 'completed', 
+                'end_date' => now()
+            ]);
+            
+            Log::info('Plan de cuotas completado por pago presencial', [
+                'installment_plan_id' => $installmentPlan->id,
+                'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount
+            ]);
+            return;
+        }
+
+        // Obtener cuotas pendientes
+        $pendingInstallments = $installmentPlan->installments()
+            ->where('status', 'pending')
+            ->orderBy('installment_number')
+            ->get();
+
+        if ($pendingInstallments->isEmpty()) {
+            Log::info('No hay cuotas pendientes para reestructurar', [
+                'installment_plan_id' => $installmentPlan->id
+            ]);
+            return;
+        }
+
+        // Reestructurar las cuotas pendientes
+        $this->redistributeAmountInPendingInstallments($pendingInstallments, $remainingBalance);
+        
+        Log::info('Cuotas reestructuradas exitosamente después de pago presencial', [
+            'installment_plan_id' => $installmentPlan->id,
+            'total_amount' => $totalAmount,
+            'paid_amount' => $paidAmount,
+            'remaining_balance' => $remainingBalance,
+            'pending_installments_count' => $pendingInstallments->count(),
+            'payment_amount' => $paymentAmount
+        ]);
+    }
+
+    /**
+     * Redistribuir el saldo restante entre las cuotas pendientes
+     */
+    private function redistributeAmountInPendingInstallments($pendingInstallments, float $remainingBalance): void
+    {
+        $installmentCount = $pendingInstallments->count();
+        
+        // Calcular monto base por cuota
+        $baseAmount = floor($remainingBalance / $installmentCount);
+        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
+        
+        foreach ($pendingInstallments as $index => $installment) {
+            // Distribuir centavos restantes en las primeras cuotas
+            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
+            
+            $installment->update([
+                'amount' => $newAmount,
+                'adjusted_at' => now(),
+                'adjustment_reason' => 'Reestructuración automática por pago presencial adicional'
+            ]);
+        }
+    }
 
     /**
      * Mapear el tipo de pago presencial a la opción de pago correspondiente

@@ -85,19 +85,87 @@ class SuccessPaymentEmailService
 
             return false;
         } finally {
-            // Limpiar archivos temporales
+            // Almacenar archivos permanentemente antes de limpiar temporales
             if ($pdfPath && file_exists($pdfPath)) {
+                $this->storePaymentReceipt($pdfPath, $payment);
                 $pdfService = new PaymentReceiptService();
                 $pdfService->cleanupTempFile($pdfPath);
             }
 
             if ($contractPdfPath && file_exists($contractPdfPath)) {
+                $this->storeContract($contractPdfPath, $orderDetail);
                 $contractService = new ContractService();
                 $contractService->cleanupTempFile($contractPdfPath);
             }
 
             // No eliminar archivos BSale ya que ahora se almacenan permanentemente
             // Los archivos BSale se mantienen en storage/app/bsale_documents/
+        }
+    }
+
+    /**
+     * Almacenar comprobante de pago permanentemente
+     */
+    private function storePaymentReceipt(string $tempPath, Payment $payment): void
+    {
+        try {
+            $year = $payment->created_at->year;
+            $storageDir = storage_path("app/payment_receipts/{$year}");
+            
+            if (!file_exists($storageDir)) {
+                mkdir($storageDir, 0755, true);
+            }
+            
+            $filename = 'comprobante_pago_' . $payment->id . '.pdf';
+            $permanentPath = $storageDir . '/' . $filename;
+            
+            copy($tempPath, $permanentPath);
+            
+            $this->logInfo('SuccessPaymentEmailService: Comprobante almacenado permanentemente', [
+                'payment_id' => $payment->id,
+                'temp_path' => $tempPath,
+                'permanent_path' => $permanentPath,
+                'year' => $year,
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('SuccessPaymentEmailService: Error almacenando comprobante', [
+                'payment_id' => $payment->id,
+                'temp_path' => $tempPath,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Almacenar contrato permanentemente
+     */
+    private function storeContract(string $tempPath, OrderDetail $orderDetail): void
+    {
+        try {
+            $storageDir = storage_path('app/contracts');
+            
+            if (!file_exists($storageDir)) {
+                mkdir($storageDir, 0755, true);
+            }
+            
+            $filename = 'contrato_' . $orderDetail->order->participant_id . '_' . $orderDetail->order->program_id . '.pdf';
+            $permanentPath = $storageDir . '/' . $filename;
+            
+            copy($tempPath, $permanentPath);
+            
+            $this->logInfo('SuccessPaymentEmailService: Contrato almacenado permanentemente', [
+                'order_detail_id' => $orderDetail->id,
+                'participant_id' => $orderDetail->order->participant_id,
+                'program_id' => $orderDetail->order->program_id,
+                'temp_path' => $tempPath,
+                'permanent_path' => $permanentPath,
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('SuccessPaymentEmailService: Error almacenando contrato', [
+                'order_detail_id' => $orderDetail->id,
+                'temp_path' => $tempPath,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

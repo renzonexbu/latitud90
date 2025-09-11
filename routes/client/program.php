@@ -31,10 +31,10 @@ Route::get('/payment/success/{orderDetailId}', [PaymentConfirmationController::c
 Route::get('/payment/failure/{orderDetailId}', [PaymentConfirmationController::class, 'showFailure'])->name('payment.failure');
 
 // Rutas de compatibilidad (redirigir a las nuevas con gateway explícito)
-Route::get('/khipu/callback/{orderDetailId}', function($orderDetailId) {
+Route::get('/khipu/callback/{orderDetailId}', function ($orderDetailId) {
     return redirect()->route('payment.callback', ['orderDetailId' => $orderDetailId, 'gateway' => 'khipu']);
 })->name('khipu.callback');
 
-Route::get('/khipu/view/{orderDetailId}', function($orderDetailId) {
+Route::get('/khipu/view/{orderDetailId}', function ($orderDetailId) {
     return redirect()->route('payment.callback', ['orderDetailId' => $orderDetailId, 'gateway' => 'khipu']);
 })->name('khipu.view');

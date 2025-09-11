@@ -123,8 +123,28 @@ class BsaleService
             // Verificar si el programa es de entrega el mismo año
             $program = $orderDetail->order->program;
             $isSameYear = $this->isSameYearDelivery($program);
-            // Permitir invertir la lógica vía config para pruebas
+            
+            // Log para debugging
+            Log::info('BsaleService: Verificando generación de boleta', [
+                'order_detail_id' => $orderDetail->id,
+                'program_id' => $program->id ?? null,
+                'program_name' => $program->name ?? null,
+                'departure_date' => $program->departure_date ?? null,
+                'current_year' => now()->year,
+                'departure_year' => $program->departure_date ? $program->departure_date->year : null,
+                'is_same_year' => $isSameYear,
+                'invert_same_year_logic' => $this->invertSameYearLogic,
+            ]);
+            
+            // BSale documents should be generated for same-year programs (not reservations)
+            // Different year programs get contracts instead of BSale documents
             $shouldSkip = $this->invertSameYearLogic ? $isSameYear : !$isSameYear;
+            
+            Log::info('BsaleService: Decisión de generación', [
+                'should_skip' => $shouldSkip,
+                'will_generate' => !$shouldSkip,
+            ]);
+            
             if ($shouldSkip) {
                 return null;
             }
@@ -228,32 +248,23 @@ class BsaleService
 
 
 
-            // Buscar cliente existente por email
+            // Buscar cliente existente por RUT/código primero
+            $existingCustomerByCode = $this->findCustomerByCode($documentNumber);
+            if ($existingCustomerByCode) {
+                Log::info('BsaleService: Cliente encontrado por código', [
+                    'customer_id' => $existingCustomerByCode['id'],
+                    'code' => $documentNumber,
+                ]);
+                return $existingCustomerByCode['id'];
+            }
+
+            // Buscar cliente existente por email como fallback
             $existingCustomer = $this->findCustomerByEmail($orderDetail->email);
             if ($existingCustomer) {
-                
-                // Si el cliente existente no tiene company, RUT, o dirección, crear uno nuevo
-                if (empty($existingCustomer['company']) || empty($existingCustomer['code']) || empty($existingCustomer['address'])) {
-                    
-                    // Crear nuevo cliente con datos completos
-                    $response = Http::withHeaders([
-                        'access_token' => $this->token,
-                        'Content-Type' => 'application/json',
-                    ])->post($this->baseUrl . '/clients.json', $customerData);
-
-
-                    if ($response->successful()) {
-                        $customer = $response->json();
-                        return $customer['id'];
-                    } else {
-                        Log::error('BSale Customer Creation Failed:', [
-                            'status' => $response->status(),
-                            'body' => $response->body()
-                        ]);
-                        return null;
-                    }
-                }
-                
+                Log::info('BsaleService: Cliente encontrado por email', [
+                    'customer_id' => $existingCustomer['id'],
+                    'email' => $orderDetail->email,
+                ]);
                 return $existingCustomer['id'];
             }
 
@@ -272,6 +283,31 @@ class BsaleService
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
+            }
+
+            return null;
+
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Buscar cliente por código/RUT
+     */
+    private function findCustomerByCode(string $code): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->token,
+            ])->get($this->baseUrl . '/clients.json', [
+                'code' => $code,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $items = is_array($data) && isset($data['items']) && is_array($data['items']) ? $data['items'] : [];
+                return !empty($items) ? $items[0] : null;
             }
 
             return null;

@@ -440,6 +440,11 @@
                                             >
                                                 Código
                                             </th>
+                                            <th
+                                                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                                            >
+                                                Documentos
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody
@@ -482,9 +487,81 @@
                                                     "N/A"
                                                 }}
                                             </td>
+                                            <td class="px-4 py-3 text-sm">
+                                                <div class="flex space-x-2">
+                                                    <!-- Comprobante de Pago -->
+                                                    <button
+                                                        @click="downloadPaymentReceipt(payment)"
+                                                        class="bg-blue-500 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
+                                                        title="Descargar Comprobante"
+                                                    >
+                                                        📄 Comprobante
+                                                    </button>
+                                                    
+                                                    <!-- Boleta BSale (si existe) -->
+                                                    <button
+                                                        v-if="payment.bsale_document_id"
+                                                        @click="downloadBsaleDocument(payment)"
+                                                        class="bg-green-500 hover:bg-green-700 text-white text-xs px-2 py-1 rounded"
+                                                        title="Descargar Boleta BSale"
+                                                    >
+                                                        📋 Boleta
+                                                    </button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Descarga de Documentos -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="text-lg font-semibold text-gray-900 mb-3">
+                                Documentos Disponibles
+                            </h4>
+                            <div class="flex flex-wrap gap-3">
+                                <!-- Contrato de Reserva -->
+                                <button
+                                    @click="downloadReservationContract(selectedAccount)"
+                                    :disabled="!hasPayments(selectedAccount)"
+                                    :class="[
+                                        'font-bold py-2 px-4 rounded-lg flex items-center transition-colors',
+                                        hasPayments(selectedAccount) 
+                                            ? 'bg-purple-500 hover:bg-purple-700 text-white cursor-pointer' 
+                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    ]"
+                                >
+                                    📋 Contrato de Reserva
+                                </button>
+                                
+                                <!-- Comprobantes de Pago -->
+                                <button
+                                    @click="downloadAllPaymentReceipts(selectedAccount)"
+                                    :disabled="!hasPayments(selectedAccount)"
+                                    :class="[
+                                        'font-bold py-2 px-4 rounded-lg flex items-center transition-colors',
+                                        hasPayments(selectedAccount) 
+                                            ? 'bg-blue-500 hover:bg-blue-700 text-white cursor-pointer' 
+                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    ]"
+                                >
+                                    📄 Todos los Comprobantes
+                                </button>
+                                
+                                <!-- Boletas BSale -->
+                                <button
+                                    @click="downloadAllBsaleDocuments(selectedAccount)"
+                                    :disabled="!hasBsaleDocuments(selectedAccount)"
+                                    :class="[
+                                        'font-bold py-2 px-4 rounded-lg flex items-center transition-colors',
+                                        hasBsaleDocuments(selectedAccount) 
+                                            ? 'bg-green-500 hover:bg-green-700 text-white cursor-pointer' 
+                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    ]"
+                                >
+                                    📋 Todas las Boletas
+                                </button>
                             </div>
                         </div>
 
@@ -1050,20 +1127,164 @@ const getStatusClass = (status) => {
 const getStatusLabel = (status) => {
     const labels = {
         paid: "Pagado",
-        pending: "Pendiente",
+        pending: "Pendiente", 
         overdue: "Vencido",
-        partial: "Pago Parcial",
+        partial: "Parcial",
     };
     return labels[status] || status;
 };
 
+const hasSelectedFields = computed(() => {
+    return Object.values(exportFields).some(section => 
+        Object.values(section).some(field => field)
+    );
+});
+
 const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("es-CL");
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('es-CL', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
 };
 
-const hasSelectedFields = computed(() => {
-    return Object.values(exportFields).some(fields => Object.values(fields).some(field => field));
-});
+// Verificar si el participante tiene pagos completados
+const hasPayments = (account) => {
+    console.log('hasPayments check:', {
+        account_id: account.id,
+        participant_name: account.participant_name,
+        payment_history: account.payment_history,
+        payment_count: account.payment_history?.length || 0,
+        payments_with_status: account.payment_history?.map(p => ({ id: p.id, status: p.status, amount: p.amount })) || []
+    });
+    
+    return account.payment_history && account.payment_history.some(payment => 
+        payment.status === 'completed' || payment.status === 'paid'
+    );
+};
+
+// Verificar si hay documentos BSale para pagos completados
+const hasBsaleDocuments = (account) => {
+    console.log('hasBsaleDocuments check:', {
+        account_id: account.id,
+        participant_name: account.participant_name,
+        payments_with_bsale: account.payment_history?.filter(p => p.bsale_document_id).map(p => ({ 
+            id: p.id, 
+            status: p.status, 
+            bsale_document_id: p.bsale_document_id,
+            bsale_number: p.bsale_number 
+        })) || []
+    });
+    
+    return account.payment_history && account.payment_history.some(payment => 
+        payment.bsale_document_id && (payment.status === 'completed' || payment.status === 'paid')
+    );
+};
+
+// Descargar comprobante de pago individual
+const downloadPaymentReceipt = async (payment) => {
+    try {
+        const response = await fetch(`/admin/reports/download-payment-receipt/${payment.id}`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `comprobante_pago_${payment.id}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Error al descargar el comprobante');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al descargar el comprobante');
+    }
+};
+
+// Descargar documento BSale individual
+const downloadBsaleDocument = async (payment) => {
+    try {
+        const response = await fetch(`/admin/reports/bsale-documents/download/bsale_${payment.bsale_number}_payment_${payment.id}.pdf`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `boleta_${payment.bsale_number}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Error al descargar la boleta BSale');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al descargar la boleta BSale');
+    }
+};
+
+// Descargar contrato de reserva
+const downloadReservationContract = async (account) => {
+    try {
+        const response = await fetch(`/admin/reports/download-reservation-contract/${account.participant_id}/${account.program_id}`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `contrato_reserva_${account.participant_name}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Error al descargar el contrato');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al descargar el contrato');
+    }
+};
+
+// Descargar todos los comprobantes como ZIP
+const downloadAllPaymentReceipts = async (account) => {
+    try {
+        const response = await fetch(`/admin/reports/download-all-payment-receipts/${account.participant_id}/${account.program_id}`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `comprobantes_${account.participant_name}.zip`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Error al descargar los comprobantes');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al descargar los comprobantes');
+    }
+};
+
+// Descargar todas las boletas BSale como ZIP
+const downloadAllBsaleDocuments = async (account) => {
+    try {
+        const response = await fetch(`/admin/reports/download-all-bsale-documents/${account.participant_id}/${account.program_id}`);
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `boletas_bsale_${account.participant_name}.zip`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            alert('Error al descargar las boletas BSale');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al descargar las boletas BSale');
+    }
+};
 
 </script>

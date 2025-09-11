@@ -785,6 +785,7 @@ class PaymentConfirmationService
                 $payment->update([
                     'bsale_document_id' => $bsaleResult['id'] ?? null,
                     'bsale_number' => $bsaleResult['number'] ?? null,
+                    'bsale_token' => $bsaleResult['token'] ?? null,
                 ]);
 
                 $this->logInfo('PaymentConfirmationService: Boleta Bsale generada exitosamente', [
@@ -809,76 +810,70 @@ class PaymentConfirmationService
      */
     private function sendSuccessEmail(OrderDetail $orderDetail, Payment $payment): void
     {
-        $payment->update(['email_sent' => true]);
-        // Verificar si ya se envió un email para este pago
-        // if ($payment->email_sent) {
-        //     $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'customer_email' => $orderDetail->email,
-        //         'payment_status' => $payment->status,
-        //         'email_sent_at' => $payment->updated_at,
-        //     ]);
-        //     return;
-        // }
+        try {
+            // Recargar el pago desde la base de datos para obtener el estado más reciente
+            $payment->refresh();
 
-        // // Verificación adicional: solo enviar email si el pago está realmente completado
-        // if ($payment->status !== 'completed') {
-        //     $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'payment_status' => $payment->status,
-        //         'customer_email' => $orderDetail->email,
-        //     ]);
-        //     return;
-        // }
+            // Verificar si ya se envió un email para este pago
+            if ($payment->email_sent) {
+                $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'customer_email' => $orderDetail->email,
+                ]);
+                return;
+            }
 
-        // // Verificar que el order detail esté pagado
-        // if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
-        //     $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'order_detail_status' => $orderDetail->status,
-        //         'order_detail_is_paid' => $orderDetail->is_paid,
-        //         'customer_email' => $orderDetail->email,
-        //     ]);
-        //     return;
-        // }
+            // Marcar inmediatamente que se está enviando el email para evitar duplicados
+            $payment->update(['email_sent' => true]);
 
-        // try {
-        //     $this->logInfo('PaymentConfirmationService: Enviando email de confirmación', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'customer_email' => $orderDetail->email,
-        //         'payment_status' => $payment->status,
-        //         'order_detail_status' => $orderDetail->status,
-        //     ]);
+            // Verificación adicional: solo enviar email si el pago está realmente completado
+            if ($payment->status !== 'completed') {
+                $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                ]);
+                return;
+            }
 
-        //     $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+            // Verificar que el order detail esté pagado
+            if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
+                $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'order_detail_status' => $orderDetail->status,
+                    'order_detail_is_paid' => $orderDetail->is_paid,
+                ]);
+                return;
+            }
 
-        //     if ($emailSent) {
-        //         // Marcar que se envió el email
-        //         $payment->update(['email_sent' => true]);
+            $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
 
-        //         $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
-        //             'order_detail_id' => $orderDetail->id,
-        //             'payment_id' => $payment->id,
-        //             'customer_email' => $orderDetail->email,
-        //         ]);
-        //     } else {
-        //         $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
-        //             'order_detail_id' => $orderDetail->id,
-        //             'payment_id' => $payment->id,
-        //             'customer_email' => $orderDetail->email,
-        //         ]);
-        //     }
-        // } catch (\Exception $e) {
-        //     $this->logError('PaymentConfirmationService: Excepción al enviar email de confirmación', [
-        //         'order_detail_id' => $orderDetail->id,
-        //         'payment_id' => $payment->id,
-        //         'error' => $e->getMessage(),
-        //     ]);
-        // }
+            if ($emailSent) {
+                $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'customer_email' => $orderDetail->email,
+                ]);
+            } else {
+                // Si falla el envío, revertir el flag de email_sent
+                $payment->update(['email_sent' => false]);
+                
+                $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'customer_email' => $orderDetail->email,
+                ]);
+            }
+        } catch (\Exception $e) {
+            $this->logError('PaymentConfirmationService: Excepción al enviar email', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'customer_email' => $orderDetail->email,
+                'error' => $e->getMessage(),
+            ], $e);
+        }
     }
 
     /**

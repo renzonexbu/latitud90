@@ -65,16 +65,9 @@ class PaymentConfirmationController extends Controller
                         return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
                             ->with('status', 'canceled');
                     }
-                    // Si está aprobado, usar el servicio centralizado para evitar duplicación
+                    // Si está aprobado, redirigir directamente al éxito
+                    // El webhook se encargará del procesamiento para evitar duplicación
                     elseif (in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES)) {
-                        // Usar el servicio centralizado para procesar el pago exitoso
-                        // Esto evitará duplicación de emails y asegurará consistencia
-                        $this->paymentConfirmationService->confirmPayment(
-                            $orderDetailId,
-                            'virtualpos',
-                            $confirmResult
-                        );
-                        
                         return redirect()->route('payment.success', ['orderDetailId' => $orderDetailId]);
                     }
                 }

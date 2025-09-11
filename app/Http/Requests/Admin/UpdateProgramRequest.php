@@ -22,7 +22,7 @@ class UpdateProgramRequest extends FormRequest
     {
         return [
             // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
-            'code' => ['sometimes','string','max:8','regex:/^\d{4}$/','unique:programs,code,' . $this->route('program')->id],
+            'code' => ['sometimes','string','max:8','regex:/^\d{1,8}$/','unique:programs,code,' . $this->route('program')->id],
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
             'departure_date' => 'nullable|date',
@@ -170,7 +170,7 @@ class UpdateProgramRequest extends FormRequest
             // Mensajes para campos obligatorios
             'code.string' => 'El código del programa debe ser texto.',
             'code.max' => 'El código del programa no puede exceder 8 caracteres.',
-            'code.regex' => 'El código del programa debe ser de 4 dígitos.',
+            'code.regex' => 'El código del programa debe contener solo dígitos (1-8 caracteres).',
             'code.unique' => 'El código del programa ya existe. Por favor, utiliza un código diferente.',
             'name.string' => 'El nombre del programa debe ser texto.',
             'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',

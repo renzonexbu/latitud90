@@ -48,6 +48,14 @@ Route::get('/reports/export/softland-zip', [ReportController::class, 'exportSoft
 Route::get('/reports/bsale-documents', [ReportController::class, 'bsaleDocuments'])->name('reports.bsale-documents');
 Route::get('/reports/bsale-documents/list', [ReportController::class, 'bsaleDocumentsList'])->name('reports.bsale-documents.list');
 Route::get('/reports/bsale-documents/download/{filename}', [ReportController::class, 'downloadBsaleDocument'])->name('reports.bsale-documents.download');
+Route::get('/reports/bsale-documents/download-zip', [ReportController::class, 'downloadBsaleDocumentsZip'])->name('reports.bsale-documents.download-zip');
+
+// Document Downloads for Partial Account Report
+Route::get('/reports/download-payment-receipt/{paymentId}', [ReportController::class, 'downloadPaymentReceipt'])->name('reports.download-payment-receipt');
+Route::get('/reports/download-reservation-contract/{participantId}/{programId}', [ReportController::class, 'downloadReservationContract'])->name('reports.download-reservation-contract');
+Route::get('/reports/download-all-payment-receipts/{participantId}/{programId}', [ReportController::class, 'downloadAllPaymentReceipts'])->name('reports.download-all-payment-receipts');
+Route::get('/debug-zip/{participantId}/{programId}', [ReportController::class, 'debugZipCreation'])->name('admin.reports.debug-zip');
+Route::get('/reports/download-all-bsale-documents/{participantId}/{programId}', [ReportController::class, 'downloadAllBsaleDocuments'])->name('reports.download-all-bsale-documents');
 
 // Ejecutivos: Consolidado de Área Ingresos y Estado de Cuenta Parcial
 use App\Http\Controllers\Admin\ExecutivesReportsController;

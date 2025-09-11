@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\SalesExecutive;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PartialAccountTransformer
 {
@@ -83,7 +84,7 @@ class PartialAccountTransformer
             'pending_amount' => $financialData['pending_amount'],
             'progress_percentage' => $financialData['progress_percentage'],
             'status' => $financialData['status'],
-            'payment_history' => [], // TODO: Implementar si es necesario
+            'payment_history' => $this->getPaymentHistory($enrollment->participant_id, $enrollment->program_id),
             'upcoming_payments' => [], // TODO: Implementar si es necesario
             'discounts_detail' => [], // TODO: Implementar si es necesario
             'apoderado_name' => $apoderadoInfo['name'],
@@ -370,5 +371,47 @@ class PartialAccountTransformer
         $string = trim($string);
         
         return $string;
+    }
+
+    /**
+     * Obtener historial de pagos del participante para un programa
+     */
+    private function getPaymentHistory(int $participantId, int $programId): array
+    {
+        Log::info('PartialAccountTransformer: getPaymentHistory called', [
+            'participant_id' => $participantId,
+            'program_id' => $programId
+        ]);
+
+        $payments = DB::table('payments')
+            ->join('orders_detail', 'payments.order_detail_id', '=', 'orders_detail.id')
+            ->join('orders', 'orders_detail.order_id', '=', 'orders.id')
+            ->where('orders.participant_id', $participantId)
+            ->where('orders.program_id', $programId)
+            ->select([
+                'payments.id',
+                'payments.amount',
+                'payments.status',
+                'payments.payment_method',
+                'payments.transaction_date',
+                'payments.authorization_code',
+                'payments.external_payment_id',
+                'payments.bsale_document_id',
+                'payments.bsale_number',
+                'payments.bsale_token',
+                'payments.created_at'
+            ])
+            ->orderBy('payments.created_at', 'desc')
+            ->get()
+            ->toArray();
+
+        Log::info('PartialAccountTransformer: payment history retrieved', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'payments_count' => count($payments),
+            'payments_sample' => array_slice($payments, 0, 2)
+        ]);
+
+        return $payments;
     }
 }
