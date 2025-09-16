@@ -105,21 +105,12 @@ class ReportController extends Controller
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'participantSearch', 'paymentStatus', 'page']);
             
-            Log::info('ReportController: partialAccount called', [
-                'filters' => $filters,
-                'request_all' => $request->all()
-            ]);
             
             // Use the new PartialAccountService
             $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
             $partialAccounts = $partialAccountService->getPartialAccounts($filters);
             $filterData = $partialAccountService->getFilterData();
             
-            Log::info('ReportController: partialAccounts data structure', [
-                'accounts_count' => is_array($partialAccounts) ? count($partialAccounts) : (isset($partialAccounts->data) ? count($partialAccounts->data) : 'unknown'),
-                'accounts_type' => gettype($partialAccounts),
-                'first_account_sample' => is_array($partialAccounts) && !empty($partialAccounts) ? $partialAccounts[0] : (isset($partialAccounts->data) && !empty($partialAccounts->data) ? $partialAccounts->data[0] : null)
-            ]);
             
             return Inertia::render('Admin/Reports/PartialAccount', [
                 'partialAccounts' => $partialAccounts,

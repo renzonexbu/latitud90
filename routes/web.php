@@ -13,6 +13,12 @@ Route::get('/payment/preview', [ContractPreviewController::class, 'paymentShow']
 // Ruta para descargar comprobante de pago
 Route::get('/payment/receipt/download', [PaymentReceiptController::class, 'download'])->name('payment.receipt.download');
 
+// Ruta temporal para preview del email de no payment
+Route::get('/test/no-payment-email', [App\Http\Controllers\Controller::class, 'previewNoPaymentEmail'])->name('test.no-payment-email');
+
+// Ruta temporal para preview del email de éxito de pago
+Route::get('/test/success-payment-email', [App\Http\Controllers\Controller::class, 'previewSuccessPaymentEmail'])->name('test.success-payment-email');
+
 // Rutas del Dashboard
 Route::prefix('dashboard')->name('dashboard.')->middleware(['auth'])->group(function () {
     Route::get('/', [App\Http\Controllers\DashboardController::class, 'index'])->name('index');

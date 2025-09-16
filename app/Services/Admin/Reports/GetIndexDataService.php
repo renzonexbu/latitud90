@@ -315,14 +315,6 @@ class GetIndexDataService
             $totalNegativePayments = \App\Models\Payment::where('amount', '<', 0)->count();
             $allPayments = \App\Models\Payment::count();
 
-            Log::info('Debug Refund Stats', [
-                'dateFrom' => $dateFrom,
-                'dateTo' => $dateTo,
-                'programId' => $programId,
-                'totalNegativePayments' => $totalNegativePayments,
-                'allPayments' => $allPayments,
-                'negativePaymentsPercentage' => $allPayments > 0 ? ($totalNegativePayments / $allPayments) * 100 : 0
-            ]);
 
             $query = \App\Models\Payment::query()
                 ->where('payments.amount', '<', 0) // Solo reembolsos (montos negativos)
@@ -335,22 +327,12 @@ class GetIndexDataService
                 });
             }
 
-            // Debug: Verificar la consulta SQL
-            Log::info('Refund Query SQL', [
-                'sql' => $query->toSql(),
-                'bindings' => $query->getBindings()
-            ]);
 
             // Estadísticas generales
             $totalRefunds = $query->count();
             $totalRefundAmount = abs($query->sum('amount'));
             $averageRefundAmount = $totalRefunds > 0 ? $totalRefundAmount / $totalRefunds : 0;
 
-            Log::info('Refund Stats Results', [
-                'totalRefunds' => $totalRefunds,
-                'totalRefundAmount' => $totalRefundAmount,
-                'averageRefundAmount' => $averageRefundAmount
-            ]);
 
             // Reembolsos por estado
             $refundsByStatus = $query->selectRaw('payments.status, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')

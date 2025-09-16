@@ -29,7 +29,7 @@ class InstallmentController extends Controller
     /**
      * Reestructurar un plan de cuotas
      */
-    public function restructure(Request $request): JsonResponse
+    public function restructure(Request $request)
     {
         try {
             $request->validate([
@@ -49,11 +49,17 @@ class InstallmentController extends Controller
                 $reason
             );
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Cuotas reestructuradas exitosamente',
-                'data' => $result
-            ]);
+            // Si es una petición AJAX, devolver JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cuotas reestructuradas exitosamente',
+                    'data' => $result
+                ]);
+            }
+
+            // Para Inertia.js, redirigir con mensaje de éxito
+            return redirect()->back()->with('success', 'Cuotas reestructuradas exitosamente');
 
         } catch (Exception $e) {
             Log::error('Error al reestructurar cuotas: ' . $e->getMessage(), [
@@ -61,10 +67,18 @@ class InstallmentController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al reestructurar las cuotas: ' . $e->getMessage()
-            ], 500);
+            // Si es una petición AJAX, devolver JSON con error
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al reestructurar las cuotas: ' . $e->getMessage()
+                ], 500);
+            }
+
+            // Para Inertia.js, redirigir con mensaje de error
+            return redirect()->back()->withErrors([
+                'restructure' => 'Error al reestructurar las cuotas: ' . $e->getMessage()
+            ]);
         }
     }
 

@@ -139,30 +139,38 @@
                                             >
                                                 {{ getDocumentLabel() }} *
                                             </label>
-                                            <input
-                                                type="text"
-                                                :placeholder="
-                                                    getDocumentPlaceholder()
-                                                "
-                                                :class="[
-                                                    'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                    isRutDocument &&
-                                                    rutValidation.isValid ===
-                                                        false
-                                                        ? 'border-red-500'
-                                                        : '',
-                                                    isRutDocument &&
-                                                    rutValidation.isValid ===
-                                                        true
-                                                        ? 'border-green-500'
-                                                        : 'border-[#5B5B5B]',
-                                                ]"
-                                                v-model="
-                                                    buyerForm.documentNumber
-                                                "
-                                                @input="handleDocumentInput"
-                                                @blur="handleDocumentBlur"
-                                            />
+                                            <div class="relative">
+                                                <input
+                                                    type="text"
+                                                    :placeholder="
+                                                        getDocumentPlaceholder()
+                                                    "
+                                                    :class="[
+                                                        'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                                        isRutDocument &&
+                                                        rutValidation.isValid ===
+                                                            false
+                                                            ? 'border-red-500'
+                                                            : '',
+                                                        isRutDocument &&
+                                                        rutValidation.isValid ===
+                                                            true
+                                                            ? 'border-green-500'
+                                                            : 'border-[#5B5B5B]',
+                                                    ]"
+                                                    v-model="
+                                                        buyerForm.documentNumber
+                                                    "
+                                                    @input="handleDocumentInput"
+                                                    @blur="handleDocumentBlur"
+                                                />
+                                                <div
+                                                    v-if="isLoadingFrequentClient"
+                                                    class="absolute right-3 top-1/2 transform -translate-y-1/2"
+                                                >
+                                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                                </div>
+                                            </div>
                                             <div
                                                 v-if="
                                                     isRutDocument &&
@@ -395,7 +403,17 @@
 
                                 <!-- Información del Estado de Pagos del Participante -->
                                 <div
-                                    v-if="participantPaymentStatus"
+                                    v-if="isLoadingParticipantStatus"
+                                    class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
+                                >
+                                    <div class="flex items-center justify-center">
+                                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                        <span class="ml-2 text-blue-600">Cargando estado de pagos...</span>
+                                    </div>
+                                </div>
+                                
+                                <div
+                                    v-else-if="participantPaymentStatus"
                                     class="mb-6 p-4 bg-gray-50 rounded-lg"
                                 >
                                     <h4
@@ -804,6 +822,8 @@ const form = useForm({
 
 const availableParticipants = ref([]);
 const participantPaymentStatus = ref(null);
+const isLoadingParticipantStatus = ref(false);
+const isLoadingFrequentClient = ref(false);
 
 const rutValidation = reactive({
     isValid: null,
@@ -865,6 +885,19 @@ const isBuyerFormValid = computed(() => {
     return basicValidation && rutOk && paymentValidation;
 });
 
+// Helper function para obtener el token CSRF
+const getCsrfToken = () => {
+    const token = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute("content");
+    
+    if (!token) {
+        console.error("Token CSRF no encontrado en el documento");
+    }
+    
+    return token;
+};
+
 // Methods
 const getDocumentLabel = () => {
     if (!buyerForm.documentType) return "Número de documento";
@@ -921,21 +954,39 @@ const handleDocumentBlur = () => {
 };
 
 const searchFrequentClient = async () => {
+    if (isLoadingFrequentClient.value) return;
+    
     try {
+        isLoadingFrequentClient.value = true;
+        const csrfToken = getCsrfToken();
+
+        if (!csrfToken) {
+            return;
+        }
+
         const response = await fetch("/frequent-clients/find-by-document", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN":
-                    document
-                        .querySelector('meta[name="csrf-token"]')
-                        ?.getAttribute("content") || "",
+                "X-CSRF-TOKEN": csrfToken,
+                "X-Requested-With": "XMLHttpRequest",
             },
             body: JSON.stringify({
                 document_id: buyerForm.documentType,
                 document: buyerForm.documentNumber.trim(),
             }),
         });
+
+        if (!response.ok) {
+            console.error(`Error en la petición: ${response.status} ${response.statusText}`);
+            return;
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.error("La respuesta no es JSON válido");
+            return;
+        }
 
         const result = await response.json();
 
@@ -945,6 +996,8 @@ const searchFrequentClient = async () => {
         }
     } catch (error) {
         console.error("Error buscando cliente frecuente:", error);
+    } finally {
+        isLoadingFrequentClient.value = false;
     }
 };
 
@@ -1101,15 +1154,23 @@ const loadParticipantPaymentStatus = async () => {
         return;
     }
 
+    if (isLoadingParticipantStatus.value) return;
+
     try {
+        isLoadingParticipantStatus.value = true;
+        const csrfToken = getCsrfToken();
+
+        if (!csrfToken) {
+            participantPaymentStatus.value = null;
+            return;
+        }
+
         const response = await fetch("/admin/payments/participant-status", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-CSRF-TOKEN":
-                    document
-                        .querySelector('meta[name="csrf-token"]')
-                        ?.getAttribute("content") || "",
+                "X-CSRF-TOKEN": csrfToken,
+                "X-Requested-With": "XMLHttpRequest",
             },
             body: JSON.stringify({
                 program_id: form.program_id,
@@ -1117,21 +1178,28 @@ const loadParticipantPaymentStatus = async () => {
             }),
         });
 
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-                participantPaymentStatus.value = result.data;
-            } else {
-                console.error(
-                    "Error al cargar el estado de pago:",
-                    result.message
-                );
-                participantPaymentStatus.value = null;
-            }
+        if (!response.ok) {
+            console.error(
+                `Error al cargar el estado de pago del participante: ${response.status} ${response.statusText}`
+            );
+            participantPaymentStatus.value = null;
+            return;
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.error("La respuesta no es JSON válido");
+            participantPaymentStatus.value = null;
+            return;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+            participantPaymentStatus.value = result.data;
         } else {
             console.error(
-                "Error al cargar el estado de pago del participante:",
-                response.status
+                "Error al cargar el estado de pago:",
+                result.message
             );
             participantPaymentStatus.value = null;
         }
@@ -1141,6 +1209,8 @@ const loadParticipantPaymentStatus = async () => {
             error
         );
         participantPaymentStatus.value = null;
+    } finally {
+        isLoadingParticipantStatus.value = false;
     }
 };
 

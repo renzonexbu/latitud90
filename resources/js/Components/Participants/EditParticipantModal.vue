@@ -1102,46 +1102,55 @@ const restructureInstallments = async () => {
     restructureErrors.value = {};
 
     try {
-        const formData = new FormData();
-        formData.append("installment_plan_id", currentInstallmentPlan.value.id);
-        formData.append("new_total_installments", restructureForm.value.newTotalInstallments);
-        formData.append("reason", finalReason);
-        formData.append("_method", "POST");
-
-        // Llamar al endpoint de reestructuración
-        const response = await fetch(route('admin.installments.restructure'), {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        // Usar Inertia.js para evitar problemas de CSRF
+        router.post(route('admin.installments.restructure'), {
+            installment_plan_id: currentInstallmentPlan.value.id,
+            new_total_installments: restructureForm.value.newTotalInstallments,
+            reason: finalReason
+        }, {
+            onSuccess: (page) => {
+                // Éxito - mostrar mensaje de éxito
+                alert(`✅ Cuotas reestructuradas exitosamente!\n\n` +
+                    `El plan ahora tiene ${restructureForm.value.newTotalInstallments} cuotas.\n` +
+                    `Se han eliminado ${pendingInstallmentsCount.value} cuotas pendientes y creado ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas.`);
+                
+                // Limpiar formulario
+                restructureForm.value = {
+                    newTotalInstallments: null,
+                    reason: "",
+                    customReason: ""
+                };
+                showRestructureForm.value = false;
+                
+                // Cerrar el modal completo
+                emit('close');
+                
+                // Recargar la página para mostrar los cambios
+                window.location.reload();
+            },
+            onError: (errors) => {
+                console.error('Error al reestructurar cuotas:', errors);
+                
+                // Manejar errores específicos
+                if (errors.installment_plan_id) {
+                    restructureErrors.value.general = 'Error: Plan de cuotas no válido';
+                } else if (errors.new_total_installments) {
+                    restructureErrors.value.newTotalInstallments = errors.new_total_installments;
+                } else if (errors.reason) {
+                    restructureErrors.value.reason = errors.reason;
+                } else if (errors.restructure) {
+                    restructureErrors.value.general = errors.restructure;
+                } else {
+                    restructureErrors.value.general = 'Error al reestructurar las cuotas. Por favor, inténtalo de nuevo.';
+                }
+                
+                // Mostrar error al usuario
+                alert(`❌ Error al reestructurar cuotas:\n\n${restructureErrors.value.general}`);
+            },
+            onFinish: () => {
+                isRestructuring.value = false;
             }
         });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-            // Éxito
-            alert(`✅ Cuotas reestructuradas exitosamente!\n\n` +
-                `El plan ahora tiene ${restructureForm.value.newTotalInstallments} cuotas.\n` +
-                `Se han eliminado ${pendingInstallmentsCount.value} cuotas pendientes y creado ${restructureForm.value.newTotalInstallments - paidInstallmentsCount.value} nuevas cuotas.`);
-            
-            // Limpiar formulario
-            restructureForm.value = {
-                newTotalInstallments: null,
-                reason: "",
-                customReason: ""
-            };
-            showRestructureForm.value = false;
-            
-            // Cerrar el modal completo
-            emit('close');
-            
-            // Recargar la página para mostrar los cambios
-            window.location.reload();
-        } else {
-            // Error del servidor
-            throw new Error(result.error || 'Error desconocido del servidor');
-        }
     } catch (error) {
         console.error('Error al reestructurar cuotas:', error);
         
@@ -1152,10 +1161,9 @@ const restructureInstallments = async () => {
         }
         
         alert(`❌ Error al reestructurar cuotas:\n\n${restructureErrors.value.general}`);
-            } finally {
-            isRestructuring.value = false;
-        }
-    };
+        isRestructuring.value = false;
+    }
+};
 
     // Método para recalcular cuotas después de aplicar descuento
     const recalculateInstallmentsAfterDiscount = async () => {

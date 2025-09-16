@@ -378,10 +378,6 @@ class PartialAccountTransformer
      */
     private function getPaymentHistory(int $participantId, int $programId): array
     {
-        Log::info('PartialAccountTransformer: getPaymentHistory called', [
-            'participant_id' => $participantId,
-            'program_id' => $programId
-        ]);
 
         $payments = DB::table('payments')
             ->join('orders_detail', 'payments.order_detail_id', '=', 'orders_detail.id')
@@ -405,12 +401,6 @@ class PartialAccountTransformer
             ->get()
             ->toArray();
 
-        Log::info('PartialAccountTransformer: payment history retrieved', [
-            'participant_id' => $participantId,
-            'program_id' => $programId,
-            'payments_count' => count($payments),
-            'payments_sample' => array_slice($payments, 0, 2)
-        ]);
 
         return $payments;
     }
