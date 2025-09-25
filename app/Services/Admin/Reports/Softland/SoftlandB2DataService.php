@@ -96,7 +96,7 @@ class SoftlandB2DataService
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-014', // Cuenta específica para B2
             'debe' => (int) abs($payment->amount), // Sin decimales
-            'haber' => '', // Vacío para DEBE
+            'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $buyerName, // Nombre del comprador
             'equivalencia_moneda' => '', // Columna 5
             'monto_debe_moneda_adicional' => '', // Columna 6
@@ -123,11 +123,11 @@ class SoftlandB2DataService
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 23
             'tipo_docto_referencia' => $paymentOption->report_code ?? '', // Columna 24 - payment_option.report_code
             'nro_docto_referencia' => $payment->order->order_number ?? ($payment->buy_order ?? $payment->id), // Columna 25 - order number
-            'fecha_docto_referencia' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 26
+            'fecha_docto_referencia' => '', // Columna 26 - Debe estar vacía
             
             // Montos detalle libro (columnas 27-36)
             'monto_1_detalle_libro' => '', // Columna 27
-            'monto_2_detalle_libro' => (int) abs($payment->amount), // Columna 28 - sin decimales
+            'monto_2_detalle_libro' => '', // Columna 28 - Debe estar vacía
             'monto_3_detalle_libro' => '', // Columna 29
             'monto_4_detalle_libro' => '', // Columna 30
             'monto_5_detalle_libro' => '', // Columna 31
@@ -135,7 +135,7 @@ class SoftlandB2DataService
             'monto_7_detalle_libro' => '', // Columna 33
             'monto_8_detalle_libro' => '', // Columna 34
             'monto_9_detalle_libro' => '', // Columna 35
-            'monto_suma_detalle_libro' => (int) abs($payment->amount), // Columna 36 - sin decimales
+            'monto_suma_detalle_libro' => '', // Columna 36 - Debe estar vacía
             
             // Configuración (columnas 37-38)
             'graba_detalle_libro' => 'S', // Columna 37
@@ -227,7 +227,7 @@ class SoftlandB2DataService
         return [
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-010', // Cuenta específica para B2 HABER
-            'debe' => '', // Vacío para HABER
+            'debe' => 0, // Vacío para HABER
             'haber' => (int) abs($payment->amount), // Sin decimales
             'descripcion_movimiento' => $description, // Formato específico
             'equivalencia_moneda' => '', // Columna 5
@@ -259,7 +259,7 @@ class SoftlandB2DataService
             
             // Montos detalle libro (columnas 27-36)
             'monto_1_detalle_libro' => '', // Columna 27
-            'monto_2_detalle_libro' => '', // Columna 28 - vacío para HABER
+            'monto_2_detalle_libro' => '', // Columna 28 - debe estar vacía
             'monto_3_detalle_libro' => '', // Columna 29
             'monto_4_detalle_libro' => '', // Columna 30
             'monto_5_detalle_libro' => '', // Columna 31
@@ -267,7 +267,7 @@ class SoftlandB2DataService
             'monto_7_detalle_libro' => '', // Columna 33
             'monto_8_detalle_libro' => '', // Columna 34
             'monto_9_detalle_libro' => '', // Columna 35
-            'monto_suma_detalle_libro' => '', // Columna 36 - vacío para HABER
+            'monto_suma_detalle_libro' => '', // Columna 36 - debe estar vacía
             
             // Configuración (columnas 37-38)
             'graba_detalle_libro' => 'S', // Columna 37

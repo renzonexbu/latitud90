@@ -100,7 +100,7 @@ class SoftlandDataService
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-010', // Cuenta de cobranzas
             'debe' => (int) abs($payment->amount), // Siempre usar valor absoluto sin decimales
-            'haber' => '', // Vacío para DEBE
+            'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $this->formatDescription($payment, $participant, $paymentOption),
             'equivalencia_moneda' => '', // Columna 5 - Equivalencia Moneda
             'monto_debe_moneda_adicional' => '', // Columna 6 - Monto al Debe Moneda Adicional
@@ -218,7 +218,7 @@ class SoftlandDataService
         return [
             // Información básica
             'codigo_plan_cuenta' => '3-1-01-021', // Cuenta de ingresos
-            'debe' => '', // Vacío para HABER
+            'debe' => 0, // Vacío para HABER
             'haber' => (int) abs($payment->amount), // Siempre usar valor absoluto sin decimales
             'descripcion_movimiento' => $this->formatCreditDescription($payment, $participant, $program, $paymentOption),
             'equivalencia_moneda' => '', // Columna E - vacía
@@ -399,7 +399,7 @@ class SoftlandDataService
             // Información básica
             'codigo_plan_cuenta' => '5-1-01-001', // Cuenta de gastos por servicios
             'debe' => (int) abs($payment->amount), // Usar valor absoluto sin decimales
-            'haber' => '', // Vacío para DEBE
+            'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $this->formatRefundDescription($payment, $participant),
             'equivalencia_moneda' => '', // Columna E - vacía
             'monto_debe_moneda_adicional' => '', // Columna F - vacía
@@ -517,7 +517,7 @@ class SoftlandDataService
         return [
             // Información básica
             'codigo_plan_cuenta' => '2-1-01-001', // Cuenta de pasivos corrientes
-            'debe' => '', // Vacío para HABER
+            'debe' => 0, // Vacío para HABER
             'haber' => (int) abs($payment->amount), // Usar valor absoluto sin decimales
             'descripcion_movimiento' => $this->formatRefundCreditDescription($payment, $participant, $program),
             'equivalencia_moneda' => '', // Columna E - vacía
@@ -701,7 +701,7 @@ class SoftlandDataService
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-014', // Cuenta específica para AC
             'debe' => (int) abs($payment->amount), // Mismo monto que haber sin decimales
-            'haber' => '', // Vacío para DEBE
+            'haber' => 0, // Vacío para DEBE
             'descripcion_movimiento' => $emergencyContactName, // Solo el nombre del contacto de emergencia
             'equivalencia_moneda' => '', // Columna 5 - vacía
             'monto_debe_moneda_adicional' => '', // Columna 6 - vacía
