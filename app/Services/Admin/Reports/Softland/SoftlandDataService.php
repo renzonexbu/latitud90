@@ -16,24 +16,24 @@ class SoftlandDataService
     {
         // Obtener SOLO pagos completados que generaron boleta (B2) o anticipo (AC) y NO son presenciales
         $payments = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails'])
-        ->where('status', 'completed')
-        ->whereIn('document_type', ['B2', 'AC'])
-        ->whereHas('paymentOption', function ($query) {
-            $query->where('mode', '!=', 'presential');
-        })
-        ->when(isset($filters['dateFrom']), function ($query) use ($filters) {
-            $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
-        })
-        ->when(isset($filters['dateTo']), function ($query) use ($filters) {
-            $query->whereDate('transaction_date', '<=', $filters['dateTo']);
-        })
-        ->when(isset($filters['programId']), function ($query) use ($filters) {
-            $query->whereHas('order', function ($q) use ($filters) {
-                $q->where('program_id', $filters['programId']);
-            });
-        })
-        ->orderBy('transaction_date')
-        ->get();
+            ->where('status', 'completed')
+            ->whereIn('document_type', ['B2', 'AC'])
+            ->whereHas('paymentOption', function ($query) {
+                $query->where('mode', '!=', 'presential');
+            })
+            ->when(isset($filters['dateFrom']), function ($query) use ($filters) {
+                $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
+            })
+            ->when(isset($filters['dateTo']), function ($query) use ($filters) {
+                $query->whereDate('transaction_date', '<=', $filters['dateTo']);
+            })
+            ->when(isset($filters['programId']), function ($query) use ($filters) {
+                $query->whereHas('order', function ($q) use ($filters) {
+                    $q->where('program_id', $filters['programId']);
+                });
+            })
+            ->orderBy('transaction_date')
+            ->get();
 
         $debitMovements = collect();  // Movimientos DEBE
         $creditMovements = collect(); // Movimientos HABER
@@ -44,10 +44,10 @@ class SoftlandDataService
                 Log::warning('SoftlandDataService: Pago sin orden - SALTANDO', ['payment_id' => $payment->id]);
                 continue;
             }
-            
+
             // Verificar si es un reembolso por payment_option_code
             $isRefund = ($payment->paymentOption && $payment->paymentOption->code === 'refund_credit_note');
-            
+
             Log::info('SoftlandDataService: Procesando pago', [
                 'payment_id' => $payment->id,
                 'amount' => $payment->amount,
@@ -55,7 +55,7 @@ class SoftlandDataService
                 'is_refund' => $isRefund,
                 'buy_order' => $payment->buy_order
             ]);
-            
+
             if ($isRefund) {
                 // Para reembolsos: separar DEBE y HABER
                 $debitMovements->push($this->createRefundDebitMovement($payment));
@@ -72,7 +72,7 @@ class SoftlandDataService
                 }
             }
         }
-        
+
         // Combinar movimientos: primero todos los DEBE, luego todos los HABER
         $movements = $debitMovements->concat($creditMovements);
 
@@ -95,7 +95,7 @@ class SoftlandDataService
         $participant = $payment->order->participant;
         $paymentOption = $payment->paymentOption;
         $participantProgram = $payment->order->participantProgram;
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-010', // Cuenta de cobranzas
@@ -105,7 +105,7 @@ class SoftlandDataService
             'equivalencia_moneda' => '', // Columna 5 - Equivalencia Moneda
             'monto_debe_moneda_adicional' => '', // Columna 6 - Monto al Debe Moneda Adicional
             'monto_haber_moneda_adicional' => '', // Columna 7 - Monto al Haber Moneda Adicional
-            
+
             // Códigos (columnas 8-16)
             'codigo_condicion_venta' => '', // Columna 8 - Código Condición de Venta
             'codigo_vendedor' => '', // Columna 9 - Código Vendedor
@@ -116,7 +116,7 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna 14 - Código Detalle de Gasto
             'cantidad_concepto_gasto' => '', // Columna 15 - Cantidad Concepto de Gasto
             'codigo_centro_costo' => '', // Columna 16 - Código Centro de Costo (vacía para DEBE)
-            
+
             // Documentación (columnas 17-26)
             'tipo_docto_conciliacion' => '', // Columna 17 - Tipo Docto. Conciliación
             'nro_docto_conciliacion' => '', // Columna 18 - Nro. Docto. Conciliación
@@ -128,7 +128,7 @@ class SoftlandDataService
             'tipo_docto_referencia' => $payment->document_type ?? 'B2', // Columna 24 - Tipo Docto. Referencia
             'nro_docto_referencia' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna 25 - Nro. Docto. Referencia
             'nro_correlativo_interno' => '', // Columna 26 - Nro. Correlativo Interno
-            
+
             // Montos detalle libro (columnas 27-36)
             'monto_1_detalle_libro' => '', // Columna 27 - Monto 1 Detalle Libro
             'monto_2_detalle_libro' => (int) abs($payment->amount), // Columna 28 - Monto 2 Detalle Libro (sin decimales)
@@ -140,11 +140,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna 34 - Monto 8 Detalle Libro
             'monto_9_detalle_libro' => '', // Columna 35 - Monto 9 Detalle Libro
             'monto_suma_detalle_libro' => (int) abs($payment->amount), // Columna 36 - Monto Suma Detalle Libro (sin decimales)
-            
+
             // Configuración (columnas 37-38)
             'graba_detalle_libro' => 'S', // Columna 37 - Graba el detalle de libro (S/N)
             'documento_nulo' => '', // Columna 38 - Documento Nulo (S/N)
-            
+
             // Flujos de efectivo (columnas 39-58)
             'codigo_flujo_efectivo_1' => '', // Columna 39 - Código flujo efectivo 1
             'monto_flujo_1' => '', // Columna 40 - Monto flujo 1
@@ -166,12 +166,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -214,7 +214,7 @@ class SoftlandDataService
         $participant = $payment->order->participant;
         $program = $payment->order->program;
         $paymentOption = $payment->paymentOption;
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '3-1-01-021', // Cuenta de ingresos
@@ -224,7 +224,7 @@ class SoftlandDataService
             'equivalencia_moneda' => '', // Columna E - vacía
             'monto_debe_moneda_adicional' => '', // Columna F - vacía
             'monto_haber_moneda_adicional' => '', // Columna G - vacía
-            
+
             // Códigos (columnas H-M vacías)
             'codigo_condicion_venta' => '', // Columna H - vacía
             'codigo_vendedor' => '', // Columna I - vacía
@@ -235,7 +235,7 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna N - vacía
             'cantidad_concepto_gasto' => '', // Columna O - vacía para HABER de boletas
             'codigo_centro_costo' => 'E2-02-01', // Columna P - código para HABER de boletas
-            
+
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna Q - vacía
             'nro_docto_conciliacion' => '', // Columna R - vacía
@@ -247,7 +247,7 @@ class SoftlandDataService
             'tipo_docto_referencia' => '', // Columna X - vacío para HABER
             'nro_docto_referencia' => '', // Columna Y - vacío para HABER
             'nro_correlativo_interno' => '', // Columna Z - vacía
-            
+
             // Montos detalle libro
             'monto_1_detalle_libro' => '', // Columna AA - vacía
             'monto_2_detalle_libro' => '', // Columna AB - vacía para HABER
@@ -259,11 +259,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna AH - vacía
             'monto_9_detalle_libro' => '', // Columna AI - vacía
             'monto_suma_detalle_libro' => '', // Columna AJ - vacía para HABER
-            
+
             // Configuración
             'graba_detalle_libro' => '', // Columna AK - vacía para HABER
             'documento_nulo' => '', // Columna AL - vacía
-            
+
             // Flujos de efectivo (todas vacías)
             'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
             'monto_flujo_1' => '', // Columna AN - vacía
@@ -285,12 +285,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -367,10 +367,10 @@ class SoftlandDataService
 
         // Obtener el número de documento del comprador
         $documentNumber = $orderDetail->document_number ?? '';
-        
+
         // Limpiar puntos y guiones y convertir a mayúsculas
         $cleanDocument = str_replace(['.', '-'], '', $documentNumber);
-        
+
         return strtoupper($cleanDocument);
     }
 
@@ -394,7 +394,7 @@ class SoftlandDataService
     {
         $participant = $payment->order->participant ?? null;
         $paymentOption = $payment->paymentOption;
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '5-1-01-001', // Cuenta de gastos por servicios
@@ -404,7 +404,7 @@ class SoftlandDataService
             'equivalencia_moneda' => '', // Columna E - vacía
             'monto_debe_moneda_adicional' => '', // Columna F - vacía
             'monto_haber_moneda_adicional' => '', // Columna G - vacía
-            
+
             // Códigos (columnas H-M vacías)
             'codigo_condicion_venta' => '', // Columna H - vacía
             'codigo_vendedor' => '', // Columna I - vacía
@@ -415,7 +415,7 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna N - vacía
             'cantidad_concepto_gasto' => '', // Columna O - vacía
             'codigo_centro_costo' => '', // Columna P - vacía para DEBE
-            
+
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna Q - vacía
             'nro_docto_conciliacion' => '', // Columna R - vacía
@@ -427,7 +427,7 @@ class SoftlandDataService
             'tipo_docto_referencia' => 'NC', // Columna X - NC para DEBE
             'nro_docto_referencia' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna Y - bsale_number
             'nro_correlativo_interno' => '', // Columna Z - vacía
-            
+
             // Montos detalle libro
             'monto_1_detalle_libro' => '', // Columna AA - vacía
             'monto_2_detalle_libro' => '', // Columna AB - vacía para AC
@@ -439,11 +439,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna AH - vacía
             'monto_9_detalle_libro' => '', // Columna AI - vacía
             'monto_suma_detalle_libro' => '', // Columna AJ - vacía para AC
-            
+
             // Configuración
             'graba_detalle_libro' => '', // Columna AK - vacía para AC
             'documento_nulo' => '', // Columna AL - vacía
-            
+
             // Flujos de efectivo (todas vacías)
             'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
             'monto_flujo_1' => '', // Columna AN - vacía
@@ -465,12 +465,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -513,7 +513,7 @@ class SoftlandDataService
         $participant = $payment->order->participant ?? null;
         $program = $payment->order->program ?? null;
         $paymentOption = $payment->paymentOption;
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '2-1-01-001', // Cuenta de pasivos corrientes
@@ -523,7 +523,7 @@ class SoftlandDataService
             'equivalencia_moneda' => '', // Columna E - vacía
             'monto_debe_moneda_adicional' => '', // Columna F - vacía
             'monto_haber_moneda_adicional' => '', // Columna G - vacía
-            
+
             // Códigos (columnas H-M vacías)
             'codigo_condicion_venta' => '', // Columna H - vacía
             'codigo_vendedor' => '', // Columna I - vacía
@@ -534,7 +534,7 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna N - vacía
             'cantidad_concepto_gasto' => '', // Columna O - vacía para HABER
             'codigo_centro_costo' => 'E2-02-01', // Columna P - código para HABER de reembolsos
-            
+
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna Q - vacía
             'nro_docto_conciliacion' => '', // Columna R - vacía
@@ -546,7 +546,7 @@ class SoftlandDataService
             'tipo_docto_referencia' => '', // Columna X - vacío para HABER
             'nro_docto_referencia' => '', // Columna Y - vacío para HABER
             'nro_correlativo_interno' => '', // Columna Z - vacía
-            
+
             // Montos detalle libro
             'monto_1_detalle_libro' => '', // Columna AA - vacía
             'monto_2_detalle_libro' => '', // Columna AB - vacía para HABER
@@ -558,11 +558,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna AH - vacía
             'monto_9_detalle_libro' => '', // Columna AI - vacía
             'monto_suma_detalle_libro' => '', // Columna AJ - vacía para HABER
-            
+
             // Configuración
             'graba_detalle_libro' => '', // Columna AK - vacía para HABER
             'documento_nulo' => '', // Columna AL - vacía
-            
+
             // Flujos de efectivo (todas vacías)
             'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
             'monto_flujo_1' => '', // Columna AN - vacía
@@ -584,12 +584,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -689,14 +689,14 @@ class SoftlandDataService
     {
         $participant = $payment->order->participant;
         $paymentOption = $payment->paymentOption;
-        
+
         // Obtener el nombre del contacto de emergencia
         $emergencyContactName = '';
         if ($participant && $participant->emergencyContacts()->exists()) {
             $emergencyContact = $participant->emergencyContacts()->first();
             $emergencyContactName = ucwords(strtolower($emergencyContact->name ?? ''));
         }
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '1-1-02-014', // Cuenta específica para AC
@@ -706,7 +706,7 @@ class SoftlandDataService
             'equivalencia_moneda' => '', // Columna 5 - vacía
             'monto_debe_moneda_adicional' => '', // Columna 6 - vacía
             'monto_haber_moneda_adicional' => '', // Columna 7 - vacía
-            
+
             // Códigos (columnas 8-16 vacías)
             'codigo_condicion_venta' => '', // Columna 8 - vacía
             'codigo_vendedor' => '', // Columna 9 - vacía
@@ -717,19 +717,19 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna 14 - vacía
             'cantidad_concepto_gasto' => '', // Columna 15 - vacía
             'codigo_centro_costo' => '', // Columna 16 - vacía para AC
-            
+
             // Documentación (columnas 17-26)
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $paymentOption->report_code ?? '', // Columna 20 - payment_option.report_code
-            'nro_documento' => $payment->authorization_code ?? ($payment->buy_order ?? $payment->id), // Columna 21 - mismo que haber
-            'fecha_emision_docto' => '', // Columna 22 - vacía
-            'fecha_vencimiento_docto' => '', // Columna 23 - vacía
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - mismo que haber
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
             'tipo_docto_referencia' => $paymentOption->report_code ?? '', // Columna 24 - payment_option.report_code
-            'nro_docto_referencia' => '', // Columna 25 - vacía
+            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - vacía
             'fecha_docto_referencia' => '', // Columna 26 - vacía
-            
+
             // Montos detalle libro (columnas 27-36 vacías)
             'monto_1_detalle_libro' => '', // Columna 27 - vacía
             'monto_2_detalle_libro' => '', // Columna 28 - vacía
@@ -741,11 +741,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna 34 - vacía
             'monto_9_detalle_libro' => '', // Columna 35 - vacía
             'monto_suma_detalle_libro' => '', // Columna 36 - vacía
-            
+
             // Configuración (columnas 37-38 vacías)
             'graba_detalle_libro' => '', // Columna 37 - vacía
             'codigo_moneda_adicional' => '', // Columna 38 - vacía
-            
+
             // Flujos de efectivo (todas vacías)
             'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
             'monto_flujo_1' => '', // Columna AN - vacía
@@ -767,12 +767,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -815,17 +815,17 @@ class SoftlandDataService
         $participant = $payment->order->participant;
         $program = $payment->order->program;
         $paymentOption = $payment->paymentOption;
-        
+
         return [
             // Información básica
             'codigo_plan_cuenta' => '2-1-04-060', // Cuenta de anticipos según especificación
-            'debe' => '', // Vacío para HABER
+            'debe' => 0, // Vacío para HABER
             'haber' => (int) abs($payment->amount), // Siempre usar valor absoluto sin decimales
             'descripcion_movimiento' => $this->formatACCreditDescription($payment, $participant, $program),
             'equivalencia_moneda' => '', // Columna E - vacía
             'monto_debe_moneda_adicional' => '', // Columna F - vacía
             'monto_haber_moneda_adicional' => '', // Columna G - vacía
-            
+
             // Códigos (columnas H-M vacías)
             'codigo_condicion_venta' => '', // Columna H - vacía
             'codigo_vendedor' => '', // Columna I - vacía
@@ -836,19 +836,19 @@ class SoftlandDataService
             'codigo_detalle_gasto' => '', // Columna N - vacía
             'cantidad_concepto_gasto' => '', // Columna O - vacía para HABER
             'codigo_centro_costo' => '', // Columna P - vacío para AC HABER
-            
+
             // Documentación
-            'tipo_docto_conciliacion' => '', // Columna Q - vacía
-            'nro_docto_conciliacion' => '', // Columna R - vacía
-            'codigo_auxiliar' => '', // Columna S - vacío para AC HABER
-            'tipo_documento' => '', // Columna T - vacío para HABER
-            'nro_documento' => '', // Columna U - vacío para HABER
-            'fecha_emision_docto' => '', // Columna V - vacío para AC HABER
-            'fecha_vencimiento_docto' => '', // Columna W - vacío para AC HABER
-            'tipo_docto_referencia' => '', // Columna X - vacío para HABER
-            'nro_docto_referencia' => '', // Columna Y - vacío para HABER
-            'nro_correlativo_interno' => '', // Columna Z - vacía
-            
+            'tipo_docto_conciliacion' => '', // Columna 17 - vacía
+            'nro_docto_conciliacion' => '', // Columna 18 - vacía
+            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
+            'tipo_documento' => 'AC', // Columna 20 - payment_option.report_code
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - mismo que haber
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'tipo_docto_referencia' => 'AC', // Columna 24 - payment_option.report_code
+            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - vacía
+            'fecha_docto_referencia' => '', // Columna 26 - vacía
+
             // Montos detalle libro
             'monto_1_detalle_libro' => '', // Columna AA - vacía
             'monto_2_detalle_libro' => '', // Columna AB - vacía para HABER
@@ -860,11 +860,11 @@ class SoftlandDataService
             'monto_8_detalle_libro' => '', // Columna AH - vacía
             'monto_9_detalle_libro' => '', // Columna AI - vacía
             'monto_suma_detalle_libro' => '', // Columna AJ - vacía para HABER
-            
+
             // Configuración
             'graba_detalle_libro' => '', // Columna AK - vacía para HABER
             'documento_nulo' => '', // Columna AL - vacía
-            
+
             // Flujos de efectivo (todas vacías)
             'codigo_flujo_efectivo_1' => '', // Columna AM - vacía
             'monto_flujo_1' => '', // Columna AN - vacía
@@ -886,12 +886,12 @@ class SoftlandDataService
             'monto_flujo_9' => '', // Columna 56 - Monto flujo 9
             'codigo_flujo_efectivo_10' => '', // Columna 57 - Código flujo efectivo 10
             'monto_flujo_10' => '', // Columna 58 - Monto flujo 10
-            
+
             // Información adicional (columnas 59-61)
             'numero_cuota_pago' => '', // Columna 59 - Número Cuota de Pago
             'numero_documento_desde' => '', // Columna 60 - Número Documento Desde
             'numero_documento_hasta' => '', // Columna 61 - Número Documento Hasta
-            
+
             // Centros de costo concepto presupuesto caja (columnas 62-91)
             'centro_costo_concepto_presupuesto_caja_1' => '', // Columna 62 - Centro Costo Concepto Presupuesto Caja 1
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '', // Columna 63 - Monto Moneda Base Centro Costo 1
@@ -946,13 +946,13 @@ class SoftlandDataService
     private function formatACCreditDescription(Payment $payment, $participant, $program): string
     {
         $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
-        
+
         // Obtener documento del participante limpio
         $participantDocument = '';
         if ($participant && $participant->document_number) {
             $participantDocument = str_replace(['.', '-'], '', $participant->document_number);
         }
-        
+
         // Obtener nombre del contacto de emergencia en capital case
         $emergencyContactName = '';
         if ($participant && $participant->emergencyContacts && $participant->emergencyContacts->count() > 0) {
@@ -960,5 +960,17 @@ class SoftlandDataService
         }
 
         return "{$programCode}-{$participantDocument}/{$emergencyContactName}/AC";
+    }
+
+
+    private function getDocumentNumber($payment): string
+    {
+        // Si es pago con Khipu, usar external_payment_id si existe
+        if ($payment->paymentOption && $payment->paymentOption->report_code === 'KP' && !empty($payment->external_payment_id)) {
+            return $payment->external_payment_id;
+        }
+
+        // Si no es Khipu o no tiene external_payment_id, usar authorization_code
+        return $payment->authorization_code ?? ($payment->buy_order ?? (string)$payment->id);
     }
 }
