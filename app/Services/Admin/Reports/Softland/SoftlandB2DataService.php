@@ -118,11 +118,11 @@ class SoftlandB2DataService
             'nro_docto_conciliacion' => '', // Columna 18
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que otros
             'tipo_documento' => $paymentOption->report_code ?? '', // Columna 20 - payment_option.report_code
-            'nro_documento' => $payment->order->order_number ?? ($payment->buy_order ?? $payment->id), // Columna 21 - order number
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - Número de autorización o external_payment_id para Khipu
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 22
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 23
             'tipo_docto_referencia' => $paymentOption->report_code ?? '', // Columna 24 - payment_option.report_code
-            'nro_docto_referencia' => $payment->order->order_number ?? ($payment->buy_order ?? $payment->id), // Columna 25 - order number
+            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - order number
             'fecha_docto_referencia' => '', // Columna 26 - Debe estar vacía
             
             // Montos detalle libro (columnas 27-36)
@@ -138,7 +138,7 @@ class SoftlandB2DataService
             'monto_suma_detalle_libro' => '', // Columna 36 - Debe estar vacía
             
             // Configuración (columnas 37-38)
-            'graba_detalle_libro' => 'S', // Columna 37
+            'graba_detalle_libro' => '', // Columna 37
             'codigo_moneda_adicional' => '', // Columna 38
             
             // Flujos de efectivo (columnas 39-58)
@@ -250,12 +250,12 @@ class SoftlandB2DataService
             'nro_docto_conciliacion' => '', // Columna 18
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que otros
             'tipo_documento' => $paymentOption->report_code ?? '', // Columna 20 - payment_option.report_code
-            'nro_documento' => $payment->order->order_number ?? ($payment->buy_order ?? $payment->id), // Columna 21 - order number
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - Número de autorización o external_payment_id para Khipu
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 22 - fecha pago
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 23 - fecha pago
             'tipo_docto_referencia' => 'B2', // Columna 24 - B2
             'nro_docto_referencia' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna 25 - bsale boleta number
-            'fecha_docto_referencia' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 26
+            'fecha_docto_referencia' => '', // Columna 26
             
             // Montos detalle libro (columnas 27-36)
             'monto_1_detalle_libro' => '', // Columna 27
@@ -270,7 +270,7 @@ class SoftlandB2DataService
             'monto_suma_detalle_libro' => '', // Columna 36 - debe estar vacía
             
             // Configuración (columnas 37-38)
-            'graba_detalle_libro' => 'S', // Columna 37
+            'graba_detalle_libro' => '', // Columna 37
             'codigo_moneda_adicional' => '', // Columna 38
             
             // Flujos de efectivo (columnas 39-58)
@@ -389,8 +389,23 @@ class SoftlandB2DataService
     }
 
     /**
-     * Formatea fecha en formato DD-MM-YYYY
+     * Obtiene el número de documento según el método de pago
+     * Para Khipu usa external_payment_id, de lo contrario usa authorization_code
+     * 
+     * @param Payment $payment
+     * @return string
      */
+    private function getDocumentNumber($payment): string
+    {
+        // Si es pago con Khipu, usar external_payment_id si existe
+        if ($payment->paymentOption && $payment->paymentOption->report_code === 'KP' && !empty($payment->external_payment_id)) {
+            return $payment->external_payment_id;
+        }
+        
+        // Si no es Khipu o no tiene external_payment_id, usar authorization_code
+        return $payment->authorization_code ?? ($payment->buy_order ?? (string)$payment->id);
+    }
+
     private function formatDateDDMMYYYY($date): string
     {
         if (!$date) {
