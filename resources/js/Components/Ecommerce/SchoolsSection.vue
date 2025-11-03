@@ -29,7 +29,7 @@
                   :alt="school.name"
                   class="h-12 w-12 lg:h-16 lg:w-16 object-contain school-logo" />
               </div>
-              <p class="text-xs text-gray-600 mt-2 text-center">
+              <p class="text-xs font-bold text-gray-600 mt-2 text-center">
                 {{ school.name }}
               </p>
             </div>
