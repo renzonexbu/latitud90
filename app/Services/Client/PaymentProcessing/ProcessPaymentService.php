@@ -14,6 +14,7 @@ use App\Services\Client\PaymentProcessing\UpdateBuyerDataService;
 use App\Services\Client\PaymentProcessing\StoreFrequentClientService;
 use App\Services\Client\PaymentProcessing\CreateGatewayTransactionService;
 use App\Services\Client\PaymentProcessing\RecordPendingPaymentService;
+use App\Modules\Installments\Contracts\InstallmentServiceInterface;
 use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 
@@ -23,6 +24,7 @@ class ProcessPaymentService
 
     public function __construct(
         private InstallmentService $installmentService,
+        private InstallmentServiceInterface $installmentManager,
         private PaymentOrderService $paymentOrderService,
         private VirtualPosService $virtualPosService,
         private KhipuService $khipuService,
@@ -195,20 +197,48 @@ class ProcessPaymentService
      */
     private function processMonthlyPayment(int $programId, string $rut, array $paymentData, array $formData): array
     {
-        // Crear o recuperar plan de cuotas
-        $installmentResult = $this->installmentService->createOrGetInstallmentPlan(
-            $programId,
-            $rut,
-            $paymentData,
-            $formData
-        );
+        // Usar el nuevo módulo de Installments si está habilitado
+        if ($this->installmentManager->isEnabled()) {
+            // Crear o recuperar plan de cuotas usando el nuevo módulo
+            $installmentPlan = $this->installmentManager->createOrGetPlan(
+                $programId,
+                $rut,
+                $paymentData,
+                $formData
+            );
 
-        if (!$installmentResult['success']) {
-            return $installmentResult;
+            if (!$installmentPlan) {
+                return [
+                    'success' => false,
+                    'error' => 'No se pudo crear o recuperar el plan de cuotas'
+                ];
+            }
+
+            // Obtener siguiente cuota pendiente
+            $nextInstallment = $this->installmentManager->getNextPendingInstallment($installmentPlan->id);
+
+            if (!$nextInstallment) {
+                return [
+                    'success' => false,
+                    'error' => 'No hay cuotas pendientes'
+                ];
+            }
+        } else {
+            // Fallback al servicio antiguo
+            $installmentResult = $this->installmentService->createOrGetInstallmentPlan(
+                $programId,
+                $rut,
+                $paymentData,
+                $formData
+            );
+
+            if (!$installmentResult['success']) {
+                return $installmentResult;
+            }
+
+            $installmentPlan = $installmentResult['installment_plan'];
+            $nextInstallment = $installmentResult['next_installment'];
         }
-
-        $installmentPlan = $installmentResult['installment_plan'];
-        $nextInstallment = $installmentResult['next_installment'];
 
         // Crear nueva orden de pago para esta cuota específica
         $paymentResult = $this->paymentOrderService->createPaymentOrder(

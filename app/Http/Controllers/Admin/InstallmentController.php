@@ -7,6 +7,7 @@ use App\Models\InstallmentPlan;
 use App\Models\Installment;
 use App\Services\Admin\Installments\InstallmentRepaymentService;
 use App\Services\Admin\Installments\InstallmentRecalculationService;
+use App\Modules\Installments\Contracts\InstallmentServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -17,13 +18,16 @@ class InstallmentController extends Controller
 {
     protected $installmentRepaymentService;
     protected $installmentRecalculationService;
+    protected InstallmentServiceInterface $installmentService;
 
     public function __construct(
         InstallmentRepaymentService $installmentRepaymentService,
-        InstallmentRecalculationService $installmentRecalculationService
+        InstallmentRecalculationService $installmentRecalculationService,
+        InstallmentServiceInterface $installmentService
     ) {
         $this->installmentRepaymentService = $installmentRepaymentService;
         $this->installmentRecalculationService = $installmentRecalculationService;
+        $this->installmentService = $installmentService;
     }
 
     /**
@@ -42,12 +46,27 @@ class InstallmentController extends Controller
             $newTotalInstallments = $request->input('new_total_installments');
             $reason = $request->input('reason');
 
-            // Ejecutar la reestructuración
-            $result = $this->installmentRepaymentService->repactInstallments(
-                $installmentPlanId,
-                $newTotalInstallments,
-                $reason
-            );
+            // Usar el nuevo módulo de Installments si está habilitado
+            if ($this->installmentService->isEnabled()) {
+                $success = $this->installmentService->restructurePlan(
+                    $installmentPlanId,
+                    $newTotalInstallments,
+                    $reason
+                );
+
+                if (!$success) {
+                    throw new Exception('No se pudo reestructurar el plan de cuotas');
+                }
+
+                $result = ['success' => true];
+            } else {
+                // Fallback al servicio antiguo si el módulo está deshabilitado
+                $result = $this->installmentRepaymentService->repactInstallments(
+                    $installmentPlanId,
+                    $newTotalInstallments,
+                    $reason
+                );
+            }
 
             // Si es una petición AJAX, devolver JSON
             if ($request->expectsJson()) {
@@ -94,9 +113,21 @@ class InstallmentController extends Controller
 
             $installmentPlanId = $request->input('installment_plan_id');
 
-            $result = $this->installmentRecalculationService->recalculateInstallmentsAfterDiscount(
-                $installmentPlanId
-            );
+            // Usar el nuevo módulo de Installments si está habilitado
+            if ($this->installmentService->isEnabled()) {
+                $success = $this->installmentService->recalculateAfterDiscount($installmentPlanId);
+
+                if (!$success) {
+                    throw new Exception('No se pudo recalcular el plan de cuotas');
+                }
+
+                $result = ['success' => true];
+            } else {
+                // Fallback al servicio antiguo si el módulo está deshabilitado
+                $result = $this->installmentRecalculationService->recalculateInstallmentsAfterDiscount(
+                    $installmentPlanId
+                );
+            }
 
             return response()->json([
                 'success' => true,
