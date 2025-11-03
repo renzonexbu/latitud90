@@ -182,10 +182,10 @@
                                 position: relative;
                             "
                         >
-                            Email general:
+                            Email contacto:
                         </div>
                         <a
-                            href="mailto:contacto@latitud90.com"
+                            :href="`mailto:${contactInfo.emails.educacion}`"
                             class="text-left underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -209,92 +209,12 @@
                                 position: relative;
                             "
                         >
-                            contacto@latitud90.com
+                            {{ contactInfo.emails.educacion }}
                         </a>
                     </div>
                 </div>
 
-                <div
-                    class="flex flex-row gap-4 items-center justify-start flex-shrink-0 relative"
-                >
-                    <div class="flex-shrink-0 w-9 h-9 relative">
-                        <div
-                            class="absolute left-0 top-0.5 w-9 h-9 rounded-[51px]"
-                            style="background: #006e80"
-                        ></div>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="19"
-                            viewBox="0 0 18 19"
-                            fill="none"
-                            class="absolute left-2.5 top-2.5"
-                            style="overflow: visible"
-                        >
-                            <path
-                                d="M15.0297 2.01284C15.7917 1.74659 16.5237 2.47859 16.2575 3.24059L11.8137 15.9381C11.525 16.7616 10.3775 16.8081 10.0235 16.0108L7.87921 11.1868L10.8972 8.16809C10.9966 8.06146 11.0507 7.92043 11.0481 7.7747C11.0455 7.62898 10.9865 7.48994 10.8834 7.38688C10.7804 7.28382 10.6413 7.22478 10.4956 7.22221C10.3499 7.21964 10.2088 7.27373 10.1022 7.37309L7.08346 10.3911L2.25946 8.24685C1.46221 7.8921 1.50946 6.74534 2.33221 6.45659L15.0297 2.01284Z"
-                                fill="#FEFEFF"
-                            />
-                        </svg>
-                    </div>
-                    <div
-                        class="flex flex-col gap-1 items-start justify-center flex-shrink-0 relative"
-                    >
-                        <div
-                            class="text-left"
-                            style="
-                                color: var(--blanco, #fefeff);
-                                font-family: var(
-                                    --cuerpo-de-texto-m-font-family,
-                                    'Nexa-Regular',
-                                    sans-serif
-                                );
-                                font-size: var(
-                                    --cuerpo-de-texto-m-font-size,
-                                    14px
-                                );
-                                line-height: var(
-                                    --cuerpo-de-texto-m-line-height,
-                                    18px
-                                );
-                                font-weight: var(
-                                    --cuerpo-de-texto-m-font-weight,
-                                    400
-                                );
-                                position: relative;
-                            "
-                        >
-                            Viajes de estudio y CEAL:
-                        </div>
-                        <a
-                            href="mailto:educacion@latitud90.com"
-                            class="text-left underline"
-                            style="
-                                color: var(--blanco, #fefeff);
-                                font-family: var(
-                                    --cuerpo-de-texto-m-font-family,
-                                    'Nexa-Bold',
-                                    sans-serif
-                                );
-                                font-size: var(
-                                    --cuerpo-de-texto-m-font-size,
-                                    14px
-                                );
-                                line-height: var(
-                                    --cuerpo-de-texto-m-line-height,
-                                    18px
-                                );
-                                font-weight: var(
-                                    --cuerpo-de-texto-m-font-weight,
-                                    700
-                                );
-                                position: relative;
-                            "
-                        >
-                            educacion@latitud90.com
-                        </a>
-                    </div>
-                </div>
+      
 
                 <div
                     class="flex flex-row gap-4 items-center justify-start flex-shrink-0 relative"
@@ -380,7 +300,7 @@
                                 position: relative;
                             "
                         >
-                            Av Carlos Antúnez 1941, Providencia
+                            {{ contactInfo.address.street }}
                         </div>
                     </div>
                 </div>
@@ -443,7 +363,7 @@
                             Tienes dudas?
                         </div>
                         <a
-                            href="#"
+                            :href="contactInfo.links.contactPage"
                             class="text-left underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -498,13 +418,15 @@
                     "
                 >
                     Copyright © 2025 Latiud90|
-                    <a href="/terminos-y-condiciones" class="underline"
+                    <a :href="contactInfo.links.termsAndConditions" class="underline"
                         >Términos y condiciones</a
                     >
                 </p>
                 <div class="flex space-x-4">
                     <a
-                        href="#"
+                        :href="contactInfo.socialMedia.facebook"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
                     >
                         <img
@@ -514,17 +436,9 @@
                         />
                     </a>
                     <a
-                        href="#"
-                        class="hover:text-white transition-colors duration-200"
-                    >
-                        <img
-                            :src="images['twitterIcon']"
-                            alt="Twitter"
-                            class="h-6 w-6"
-                        />
-                    </a>
-                    <a
-                        href="#"
+                        :href="contactInfo.socialMedia.instagram"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
                     >
                         <img
@@ -534,22 +448,14 @@
                         />
                     </a>
                     <a
-                        href="#"
+                        :href="contactInfo.socialMedia.linkedin"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
                     >
                         <img
                             :src="images['linkedin-icon']"
                             alt="LinkedIn"
-                            class="h-6 w-6"
-                        />
-                    </a>
-                    <a
-                        href="#"
-                        class="hover:text-white transition-colors duration-200"
-                    >
-                        <img
-                            :src="images['youtubeIcon']"
-                            alt="YouTube"
                             class="h-6 w-6"
                         />
                     </a>
@@ -839,10 +745,10 @@
                                 position: relative;
                             "
                         >
-                            Email general:
+                            Email contacto:
                         </div>
                         <a
-                            href="mailto:contacto@latitud90.com"
+                            :href="`mailto:${contactInfo.emails.educacion}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -867,7 +773,7 @@
                                 position: relative;
                             "
                         >
-                            contacto@latitud90.com
+                            {{ contactInfo.emails.educacion }}
                         </a>
                     </div>
                 </div>
@@ -962,7 +868,7 @@
                             Viajes de estudio y CEAL:
                         </div>
                         <a
-                            href="mailto:educacion@latitud90.com"
+                            :href="`mailto:${contactInfo.emails.educacion}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -987,7 +893,7 @@
                                 position: relative;
                             "
                         >
-                            educacion@latitud90.com
+                            {{ contactInfo.emails.educacion }}
                         </a>
                     </div>
                 </div>
@@ -1108,7 +1014,7 @@
                                 position: relative;
                             "
                         >
-                            Av Carlos Antúnez 1941, Providencia
+                            {{ contactInfo.address.street }}
                         </div>
                     </div>
                 </div>
@@ -1203,7 +1109,7 @@
                             Tienes dudas?
                         </div>
                         <a
-                            href="#"
+                            :href="contactInfo.links.contactPage"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -1288,7 +1194,9 @@
                             "
                         >
                             <a
-                                href="#"
+                                :href="contactInfo.socialMedia.facebook"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
                             >
                                 <img
@@ -1305,24 +1213,9 @@
                                 />
                             </a>
                             <a
-                                href="#"
-                                class="hover:opacity-80 transition-opacity"
-                            >
-                                <img
-                                    :src="images['twitterIcon']"
-                                    alt="Twitter"
-                                    style="
-                                        border-radius: 66px;
-                                        flex-shrink: 0;
-                                        width: 24px;
-                                        height: 24px;
-                                        position: relative;
-                                        overflow: visible;
-                                    "
-                                />
-                            </a>
-                            <a
-                                href="#"
+                                :href="contactInfo.socialMedia.instagram"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
                             >
                                 <img
@@ -1339,29 +1232,14 @@
                                 />
                             </a>
                             <a
-                                href="#"
+                                :href="contactInfo.socialMedia.linkedin"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
                             >
                                 <img
                                     :src="images['linkedin-icon']"
                                     alt="LinkedIn"
-                                    style="
-                                        border-radius: 66px;
-                                        flex-shrink: 0;
-                                        width: 24px;
-                                        height: 24px;
-                                        position: relative;
-                                        overflow: hidden;
-                                    "
-                                />
-                            </a>
-                            <a
-                                href="#"
-                                class="hover:opacity-80 transition-opacity"
-                            >
-                                <img
-                                    :src="images['youtubeIcon']"
-                                    alt="YouTube"
                                     style="
                                         border-radius: 66px;
                                         flex-shrink: 0;
@@ -1388,7 +1266,7 @@
                     >
                         Copyright © 2025 Latiud90
                         <br />
-                        <a href="/terminos-y-condiciones" class="underline"
+                        <a :href="contactInfo.links.termsAndConditions" class="underline"
                             >Términos y condiciones</a
                         >
                     </div>
@@ -1401,6 +1279,7 @@
 <script setup>
 import { ref } from 'vue';
 import images from "@images/index.js";
+import contactInfo from '@/config/contact.js';
 
 const newsletterEmail = ref('');
 const isSubscribing = ref(false);

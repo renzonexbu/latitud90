@@ -109,12 +109,15 @@
 
             <div class="frame-1085 hidden md:flex">
                 <div class="frame-1084">
-                    <a href="/#about" class="placeholder" @click.prevent="smoothScrollToSection('about')">Sobre nosotros</a>
-                    <a href="/#courses" class="placeholder" @click.prevent="smoothScrollToSection('courses')"
-                        >Nuestros programas</a
+                    <a
+                        v-for="link in navLinks"
+                        :key="link.label"
+                        :href="link.href"
+                        class="placeholder"
+                        @click="handleNavigation(link, $event)"
                     >
-                    <a href="/#faq" class="placeholder" @click.prevent="smoothScrollToSection('faq')">Preguntas frecuentes</a>
-                    <a href="/#contact" class="placeholder" @click.prevent="smoothScrollToSection('contact')">Contactanos</a>
+                        {{ link.label }}
+                    </a>
                 </div>
                 <div class="boton-l" @click="scrollToHero">
                     <div class="placeholder2">Pagar programa</div>
@@ -214,28 +217,14 @@
                 >
                     <div class="container mx-auto px-6 py-8">
                         <ul class="space-y-6">
-                            <li>
-                                <a href="/#about" class="mobile-menu-link" @click.prevent="smoothScrollToSection('about')"
-                                    >Sobre nosotros</a
-                                >
-                            </li>
-                            <li>
+                            <li v-for="link in navLinks" :key="link.label">
                                 <a
-                                    href="/#courses"
+                                    :href="link.href"
                                     class="mobile-menu-link"
-                                    @click.prevent="smoothScrollToSection('courses')"
-                                    >Nuestros programas</a
+                                    @click="handleNavigation(link, $event)"
                                 >
-                            </li>
-                            <li>
-                                <a href="/#faq" class="mobile-menu-link" @click.prevent="smoothScrollToSection('faq')"
-                                    >Preguntas frecuentes</a
-                                >
-                            </li>
-                            <li>
-                                <a href="/#contact" class="mobile-menu-link" @click.prevent="smoothScrollToSection('contact')"
-                                    >Contactanos</a
-                                >
+                                    {{ link.label }}
+                                </a>
                             </li>
                             <li class="pt-4">
                                 <button
@@ -258,6 +247,7 @@ import logoSrc from "@images/logo.svg";
 import logoColorSrc from "@images/logo-color.svg";
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { usePage } from "@inertiajs/vue3";
+import contactInfo from '@/config/contact.js';
 
 defineProps({
     logo: {
@@ -272,6 +262,32 @@ defineProps({
 const page = usePage();
 const mobileMenuOpen = ref(false);
 
+// Rutas centralizadas del menú
+const navLinks = [
+    {
+        label: 'Sobre nosotros',
+        href: contactInfo.links.aboutPage,
+        external: true
+    },
+    {
+        label: 'Nuestros programas',
+        href: '/#nuestrosProgramas',
+        section: 'nuestrosProgramas',
+        external: false
+    },
+    {
+        label: 'Preguntas frecuentes',
+        href: '/#faq',
+        section: 'faq',
+        external: false
+    },
+    {
+        label: 'Contactanos',
+        href: contactInfo.links.contactPage,
+        external: true
+    }
+];
+
 const isIndexPage = computed(() => {
     return page.url === "/" || page.url === "/index";
 });
@@ -280,28 +296,39 @@ const toggleMobileMenu = () => {
     mobileMenuOpen.value = !mobileMenuOpen.value;
 };
 
-// Función para navegar con scroll suave
-const smoothScrollToSection = (sectionId) => {
+// Función para manejar la navegación según el tipo de enlace
+const handleNavigation = (link, event) => {
     // Cerrar menú móvil si está abierto
     mobileMenuOpen.value = false;
-    
-    // Si estamos en la página de inicio, hacer scroll suave
-    if (isIndexPage.value) {
-        const element = document.getElementById(sectionId);
-        if (element) {
-            // Calcular offset para el header fijo
-            const headerHeight = 120; // Altura aproximada del header
-            const elementPosition = element.offsetTop - headerHeight;
-            
-            window.scrollTo({
-                top: elementPosition,
-                behavior: 'smooth'
-            });
+
+    // Si es un enlace externo, no prevenir comportamiento por defecto
+    if (link.external) {
+        // El navegador manejará la navegación normalmente
+        return;
+    }
+
+    // Para enlaces internos con sección, prevenir navegación por defecto
+    if (link.section) {
+        event.preventDefault();
+
+        // Si estamos en la página de inicio, hacer scroll suave
+        if (isIndexPage.value) {
+            const element = document.getElementById(link.section);
+            if (element) {
+                // Calcular offset para el header fijo
+                const headerHeight = 120; // Altura aproximada del header
+                const elementPosition = element.offsetTop - headerHeight;
+
+                window.scrollTo({
+                    top: elementPosition,
+                    behavior: 'smooth'
+                });
+            }
+        } else {
+            // Si no estamos en la página de inicio, guardar la sección objetivo y navegar al home
+            localStorage.setItem('scrollToSection', link.section);
+            window.location.href = '/';
         }
-    } else {
-        // Si no estamos en la página de inicio, guardar la sección objetivo y navegar al home
-        localStorage.setItem('scrollToSection', sectionId);
-        window.location.href = '/';
     }
 };
 

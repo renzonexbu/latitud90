@@ -27,7 +27,7 @@
                 <img
                   :src="school.logo"
                   :alt="school.name"
-                  class="h-12 w-12 lg:h-16 lg:w-16 object-contain" />
+                  class="h-12 w-12 lg:h-16 lg:w-16 object-contain school-logo" />
               </div>
               <p class="text-xs text-gray-600 mt-2 text-center">
                 {{ school.name }}
@@ -60,236 +60,252 @@
         interval: null,
         schools: [
           {
-            name: "Colegio Alemán",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_1.jpg"
+            name: "Alianza Francesa - Viña del Mar",
+            logo: "/images/schools/Alianza Francesa - Viña del Mar.png"
           },
           {
-            name: "Colegio Almenar",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_2.jpg"
+            name: "British High School",
+            logo: "/images/schools/British High School.png"
           },
           {
-            name: "Colegio American British",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_3.jpg"
+            name: "Colegio Aleman de Chicureo",
+            logo: "/images/schools/Colegio Aleman de Chicureo.png"
           },
           {
-            name: "Colegio Arrayanes",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_4.jpg"
+            name: "Colegio Aleman de Santiago",
+            logo: "/images/schools/Colegio Aleman de Santiago.png"
+          },
+          {
+            name: "colegio altamira",
+            logo: "/images/schools/colegio altamira.jpg"
+          },
+          {
+            name: "Colegio Arrayanes - San Fernando",
+            logo: "/images/schools/Colegio Arrayanes - San Fernando.png"
+          },
+          {
+            name: "Colegio Cahuala-Castro",
+            logo: "/images/schools/Colegio Cahuala-Castro.png"
+          },
+          {
+            name: "Colegio Cambridge College - Providencia",
+            logo: "/images/schools/Colegio Cambridge College - Providencia.jpg"
           },
           {
             name: "Colegio Campanario",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_5.jpg"
+            logo: "/images/schools/Colegio Campanario.png"
           },
           {
-            name: "Colegio Carampangue",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_6.jpg"
+            name: "colegio carampangue",
+            logo: "/images/schools/colegio carampangue.png"
           },
           {
-            name: "The International School",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_6q.jpg"
+            name: "Colegio Cordillera",
+            logo: "/images/schools/Colegio Cordillera.jpg"
           },
           {
             name: "Colegio Cumbres",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_8.jpg"
-          },
-          {
-            name: "Colegio La Cruz",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_9.jpg"
-          },
-          {
-            name: "Colegio Verbo Divino",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_10.jpg"
-          },
-          {
-            name: "Colegio Compañía de María",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_11.jpg"
+            logo: "/images/schools/Colegio Cumbres.png"
           },
           {
             name: "Colegio Dunalastair",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_12.jpg"
+            logo: "/images/schools/Colegio Dunalastair.jpeg"
           },
           {
             name: "Colegio Everest",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_14.jpg"
+            logo: "/images/schools/Colegio Everest.png"
           },
           {
-            name: "Colegio Itahue",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_16.jpg"
+            name: "Colegio Highlands",
+            logo: "/images/schools/Colegio Highlands.png"
+          },
+          {
+            name: "Colegio Ingles de Talca",
+            logo: "/images/schools/Colegio Ingles de Talca.png"
+          },
+          {
+            name: "Colegio Itahue - Concepción",
+            logo: "/images/schools/Colegio Itahue - Concepción.png"
           },
           {
             name: "Colegio Kilpatrick",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_17.jpg"
+            logo: "/images/schools/Colegio Kilpatrick.png"
           },
           {
-            name: "Colegio La Fontaine",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_18.jpg"
+            name: "Colegio Kimen Montessori",
+            logo: "/images/schools/Colegio Kimen Montessori.png"
           },
           {
-            name: "Colegio La Maisonnette",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_19.jpg"
+            name: "Colegio La Cruz-Rancagua",
+            logo: "/images/schools/Colegio La Cruz-Rancagua.png"
           },
           {
-            name: "Colegio Lincoln",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_20.jpg"
+            name: "Colegio La maisonnete",
+            logo: "/images/schools/Colegio La maisonnete.png"
           },
           {
             name: "Colegio Los Alerces",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_22.jpg"
+            logo: "/images/schools/Colegio Los Alerces.png"
           },
           {
-            name: "Colegio Los Ceibos",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_23.jpg"
+            name: "Colegio Mariano de Schoenstatt",
+            logo: "/images/schools/Colegio Mariano de Schoenstatt.jpg"
           },
           {
-            name: "Colegio Sagrados Corazones",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_24.jpg"
+            name: "Colegio Mayor de Peñalolén",
+            logo: "/images/schools/Colegio Mayor de Peñalolén.jpg"
           },
           {
-            name: "Colegio Mayflower",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_25.jpg"
+            name: "Colegio Nido de Aguilas",
+            logo: "/images/schools/Colegio Nido de Aguilas.png"
           },
           {
-            name: "Colegio Mayor",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_26.jpg"
-          },
-          {
-            name: "Colegio Newland",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_27.jpg"
-          },
-          {
-            name: "Colegio Nido de Águilas",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_28.jpg"
-          },
-          {
-            name: "Colegio Nuestra Señora del Camino",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_29.jpg"
-          },
-          {
-            name: "Colegio Orchard",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_30.jpg"
-          },
-          {
-            name: "Colegio Padre Hurtado y Juanita de Los Andes",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_31.jpg"
+            name: "Colegio Padre Hurtado y Juanita de los Andes",
+            logo: "/images/schools/Colegio Padre Hurtado y Juanita de los Andes.png"
           },
           {
             name: "Colegio Pedro de Valdivia",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_32.jpg"
+            logo: "/images/schools/Colegio Pedro de Valdivia.png"
           },
           {
-            name: "Colegio Pinares",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_35.jpg"
+            name: "Colegio Pinares - Concepción",
+            logo: "/images/schools/Colegio Pinares - Concepción.jpg"
           },
           {
-            name: "Colegio Pumahue",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_36.jpg"
+            name: "Colegio Pucalán Montessori",
+            logo: "/images/schools/Colegio Pucalán Montessori.jpg"
           },
           {
-            name: "Colegio Redland",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_37.jpg"
+            name: "colegio saint george",
+            logo: "/images/schools/colegio saint george.png"
           },
           {
-            name: "Colegio Saint Johns",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_39.jpg"
+            name: "Colegio San Esteban Diacono",
+            logo: "/images/schools/Colegio San Esteban Diacono.jpg"
           },
           {
-            name: "Colegio San Esteban",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_40.jpg"
+            name: "Colegio San Felipe Diacono",
+            logo: "/images/schools/Colegio San Felipe Diacono.png"
           },
           {
-            name: "Colegio San Felipe",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_41.jpg"
+            name: "COLEGIO SAN JUAN EVANGELISTA",
+            logo: "/images/schools/COLEGIO SAN JUAN EVANGELISTA.jpg"
           },
           {
-            name: "Colegio San Juan Evangelista",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_42.jpg"
+            name: "COLEGIO SAN LUIS DE ALBA - VALDIVIA",
+            logo: "/images/schools/COLEGIO SAN LUIS DE ALBA - VALDIVIA.jpg"
           },
           {
-            name: "Colegio San Luis del Alba",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_43.jpg"
+            name: "COLEGIO SAN MIGUEL ARCANGEL",
+            logo: "/images/schools/COLEGIO SAN MIGUEL ARCANGEL.png"
           },
           {
-            name: "Colegio San Miguel",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_44.jpg"
+            name: "Colegio san nicolas de myra",
+            logo: "/images/schools/Colegio san nicolas de myra.png"
           },
           {
-            name: "Colegio San Nicolás",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_45.jpg"
+            name: "Colegio San Pedro de Nolasco",
+            logo: "/images/schools/Colegio San Pedro de Nolasco.jpg"
           },
           {
-            name: "Colegio San Pedro Nolasco",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_47.jpg"
+            name: "COLEGIO SANTA URSULA DE VITACURA",
+            logo: "/images/schools/COLEGIO SANTA URSULA DE VITACURA.png"
           },
           {
-            name: "Colegio Santa Cruz",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_49.jpg"
+            name: "Colegio SSCC de Apoquindo",
+            logo: "/images/schools/Colegio SSCC de Apoquindo.png"
           },
           {
-            name: "Colegio Santiago College",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_50.jpg"
+            name: "Colegio St John's-Concepción",
+            logo: "/images/schools/Colegio St John's-Concepción.png"
           },
           {
-            name: "Colegio Santiago Evangelista",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_51.jpg"
+            name: "Colegio Suizo",
+            logo: "/images/schools/Colegio Suizo.png"
           },
           {
-            name: "Colegio Santo Domingo",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_52.jpg"
+            name: "Colegio TEO",
+            logo: "/images/schools/Colegio TEO.png"
           },
           {
-            name: "Colegio Southern Cross",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_53.jpg"
+            name: "Liceo Manuel de Salas",
+            logo: "/images/schools/Liceo Manuel de Salas.png"
           },
           {
-            name: "Colegio Southland",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_54.jpg"
+            name: "Lincoln International Academy",
+            logo: "/images/schools/Lincoln International Academy.png"
           },
           {
-            name: "Colegio Sagrados Corazones Monjas Francesas",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_55.jpg"
+            name: "Orchard College - Curicó",
+            logo: "/images/schools/Orchard College - Curicó.png"
           },
           {
-            name: "Colegio Sagrados Corazones Padres Franceses",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_56.jpg"
+            name: "Redland School",
+            logo: "/images/schools/Redland School.jpg"
           },
           {
-            name: "Colegio St Anne's",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_57.jpg"
+            name: "SAINT GABRIEL SCHOOL",
+            logo: "/images/schools/SAINT GABRIEL SCHOOL.jpg"
           },
           {
-            name: "Colegio St Gabriel San Gabriel",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_58.jpg"
+            name: "santiago college",
+            logo: "/images/schools/santiago college.png"
           },
           {
-            name: "Colegio Teresiano",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_59.jpg"
+            name: "Scuola Italiana",
+            logo: "/images/schools/Scuola Italiana.png"
           },
           {
-            name: "Colegio Grange",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_60.jpg"
+            name: "SOUTHERN CROSS SCHOOL",
+            logo: "/images/schools/SOUTHERN CROSS SCHOOL.jpg"
           },
           {
-            name: "Colegio Trebulco",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_62.jpg"
+            name: "St Gaspar College",
+            logo: "/images/schools/St Gaspar College.png"
           },
           {
-            name: "Colegio Trewhela",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_63.jpg"
+            name: "ST JOHNS VILLA ACADEMY",
+            logo: "/images/schools/ST JOHNS VILLA ACADEMY.jpg"
           },
           {
-            name: "Colegio Santa Úrsula Ursulinas",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_64.jpg"
+            name: "The Craighouse School",
+            logo: "/images/schools/The Craighouse School.png"
           },
           {
-            name: "Colegio Villa María Academy",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_65.jpg"
+            name: "The Grange School",
+            logo: "/images/schools/The Grange School.jpg"
           },
           {
-            name: "Colegio Wenlock",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_66.jpg"
+            name: "The Newland School",
+            logo: "/images/schools/The Newland School.jpg"
           },
           {
-            name: "Colegio Windsor",
-            logo: "https://sp-ao.shortpixel.ai/client/to_webp,q_lossy,ret_img/https://latitud90.com/wp-content/uploads/2024/05/Lat_90_Logo_Colegio_67.jpg"
+            name: "The Southland School",
+            logo: "/images/schools/The Southland School.png"
+          },
+          {
+            name: "The Trewhelas School-Chicureo",
+            logo: "/images/schools/The Trewhelas School-Chicureo.jpg"
+          },
+          {
+            name: "Trebulco School",
+            logo: "/images/schools/Trebulco School.jpg"
+          },
+          {
+            name: "Verbo Divino Chicureo",
+            logo: "/images/schools/Verbo Divino Chicureo.png"
+          },
+          {
+            name: "VERBO DIVINO",
+            logo: "/images/schools/VERBO DIVINO.jpg"
+          },
+          {
+            name: "VILLA MARIA",
+            logo: "/images/schools/VILLA MARIA.jpeg"
+          },
+          {
+            name: "WENLOCK",
+            logo: "/images/schools/WENLOCK.png"
           }
         ]
       };
@@ -352,6 +368,15 @@
   font-family: 'Nexa', sans-serif;
   font-weight: 700;
   line-height: 28px;
+}
+
+.school-logo {
+  filter: grayscale(100%);
+  transition: filter 0.3s ease;
+}
+
+.school-logo:hover {
+  filter: grayscale(0%);
 }
 
 @media (max-width: 1023px) {
