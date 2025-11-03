@@ -27,7 +27,7 @@
         Perfil
       </h2>
       <NavLink
-        :href="route('logout')"
+        :href="route('admin.logout')"
         method="post"
         as="button"
         class="block px-4 py-2 bg-red-700 text-white rounded-xl float-end">

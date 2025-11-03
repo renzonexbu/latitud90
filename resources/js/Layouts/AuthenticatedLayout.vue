@@ -93,7 +93,7 @@
             Perfil
           </NavLink>
           <NavLink
-            :href="route('logout')"
+            :href="route('admin.logout')"
             method="post"
             as="button"
             class="block px-4 py-2 w-full text-left hover:bg-gray-50">
@@ -182,7 +182,7 @@
                 Perfil
               </ResponsiveNavLink>
               <ResponsiveNavLink
-                :href="route('logout')"
+                :href="route('admin.logout')"
                 method="post"
                 as="button">
                 Cerrar Sesión

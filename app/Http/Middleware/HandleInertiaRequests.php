@@ -30,17 +30,28 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        
+
+        // Datos base del usuario
+        $userData = null;
+
+        if ($user) {
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ];
+
+            // Solo agregar roles y permisos si es un usuario del panel admin (tiene el trait HasRoles)
+            if (method_exists($user, 'getRoleNames')) {
+                $userData['roles'] = $user->getRoleNames()->toArray();
+                $userData['permissions'] = $user->getAllPermissions()->pluck('name')->toArray();
+            }
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'roles' => $user->getRoleNames()->toArray(),
-                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-                ] : null,
+                'user' => $userData,
             ],
             '_csrf' => csrf_token(),
         ];

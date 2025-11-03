@@ -27,7 +27,7 @@ const form = useForm({
 const showPassword = ref(false);
 
 const submit = () => {
-    form.post(route("login"), {
+    form.post(route("admin.login"), {
         onFinish: () => form.reset("password"),
     });
 };
@@ -106,7 +106,7 @@ const submit = () => {
                     Iniciar sesión
                 </PrimaryButton>
                 <Link
-                    :href="route('register')"
+                    :href="route('admin.register')"
                     class="text-sm text-turquesa hover:text-white rounded-3xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 px-4 py-2 bg-white hover:bg-turquesa border-turquesa border-solid-2 border-2 w-full text-center justify-center"
                 >
                     Crear cuenta

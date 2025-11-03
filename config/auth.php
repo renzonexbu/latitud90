@@ -40,6 +40,11 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'guardian' => [
+            'driver' => 'session',
+            'provider' => 'guardian_users',
+        ],
     ],
 
     /*
@@ -63,6 +68,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => App\Models\User::class,
+        ],
+
+        'guardian_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\GuardianUser::class,
         ],
 
         // 'users' => [
@@ -93,6 +103,13 @@ return [
     'passwords' => [
         'users' => [
             'provider' => 'users',
+            'table' => 'password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        'guardian_users' => [
+            'provider' => 'guardian_users',
             'table' => 'password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,

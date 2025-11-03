@@ -16,7 +16,7 @@ class CheckRole
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         if (!$request->user()) {
-            return redirect()->route('login');
+            return redirect()->route('admin.login');
         }
 
         // Verificar si el usuario tiene alguno de los roles especificados

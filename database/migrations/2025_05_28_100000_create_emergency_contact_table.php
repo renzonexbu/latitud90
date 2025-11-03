@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        //ESTOS SON LOS APODERADOS
         Schema::create('emergency_contact', function (Blueprint $table) {
             $table->id();
             // Información del apoderado

@@ -27,4 +27,5 @@ Route::post('/contact/send', [EcommerceController::class, 'sendContactMessage'])
 //Program Routes
 require __DIR__ . '/program.php';
 require __DIR__ . '/frequent_client.php';
+require __DIR__ . '/authentication/init.php';
 

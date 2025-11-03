@@ -53,5 +53,4 @@ Route::prefix('analytics')->name('analytics.')->middleware(['auth'])->group(func
 
 include __DIR__ . '/client/init.php';
 include __DIR__ . '/admin/init.php';
-
 require __DIR__ . '/auth.php';

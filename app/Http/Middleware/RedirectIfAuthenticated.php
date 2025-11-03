@@ -21,6 +21,12 @@ class RedirectIfAuthenticated
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                // Redirigir según el guard autenticado
+                if ($guard === 'guardian') {
+                    return redirect()->route('guardian.dashboard');
+                }
+
+                // Por defecto, usar el HOME definido en RouteServiceProvider (admin)
                 return redirect(RouteServiceProvider::HOME);
             }
         }
