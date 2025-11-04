@@ -48,6 +48,26 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        // Verificar si hay un guardian autenticado
+        $guardianUser = auth('guardian')->user();
+        if ($guardianUser) {
+            if (!$userData) {
+                $userData = [
+                    'id' => $guardianUser->id,
+                    'name' => $guardianUser->name,
+                    'email' => $guardianUser->email,
+                ];
+            }
+
+            // Agregar información del guardian
+            $userData['guardian_account'] = [
+                'id' => $guardianUser->id,
+                'name' => $guardianUser->name,
+                'email' => $guardianUser->email,
+                'status' => $guardianUser->status ?? 'active',
+            ];
+        }
+
         return [
             ...parent::share($request),
             'auth' => [

@@ -837,20 +837,95 @@ export default {
             // Obtener los parámetros de documento desde las props de la página
             const document = this.$page.props.document || this.$page.props.participant?.document_number || '';
             const documentType = this.$page.props.document_type || 'RUT';
-            
-            
+
+            // NUEVO: Verificar si es pago mensual y si está logeado como guardian
+            if (this.paymentType === 'monthly') {
+                // Verificar si está logeado como guardian
+                const isGuardianLoggedIn = this.$page.props.auth?.user?.guardian_account || false;
+
+                if (!isGuardianLoggedIn) {
+                    // Guardar datos para después del registro
+                    localStorage.setItem('pending_subscription', JSON.stringify({
+                        program_id: this.programId,
+                        document: document,
+                        document_type: documentType,
+                        payment_data: paymentData
+                    }));
+
+                    // Redirigir al registro de guardian
+                    window.location.href = '/guardian/register';
+                    return;
+                } else {
+                    // Guardian autenticado: Iniciar flujo de suscripción
+                    this.initiateSubscription(document, documentType, paymentData);
+                    return;
+                }
+            }
+
             // Construir URL con query parameters (solo document y document_type)
             const params = new URLSearchParams({
                 document: document,
                 document_type: documentType
             });
-            
+
             const url = `/programs/${this.programId}/payment?${params.toString()}`;
-            
+
             // Usar window.location.href para navegación completa
             window.location.href = url;
         },
-        
+
+        async initiateSubscription(document, documentType, paymentData) {
+            try {
+                // Mostrar indicador de carga si existe
+                if (this.isLoading !== undefined) {
+                    this.isLoading = true;
+                }
+
+                // Llamar al endpoint de suscripción
+                const response = await fetch('/subscription/initiate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        program_id: this.programId,
+                        document: document,
+                        document_type: documentType,
+                        installments: paymentData.installments || 1
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Redirigir a la página de detalles de suscripción
+                    if (data.data?.next_step) {
+                        window.location.href = data.data.next_step;
+                    } else {
+                        window.location.href = `/subscription/details/${this.programId}`;
+                    }
+                } else {
+                    // Mostrar error
+                    alert(data.error || 'Error al iniciar la suscripción');
+
+                    // Si requiere login, redirigir
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error al iniciar suscripción:', error);
+                alert('Error al procesar la suscripción. Por favor, intenta nuevamente.');
+            } finally {
+                if (this.isLoading !== undefined) {
+                    this.isLoading = false;
+                }
+            }
+        },
+
         recordPaymentSelection(paymentData) {
             // Obtener session_id desde localStorage
             const sessionId = localStorage.getItem('analytics_session_id');
