@@ -204,7 +204,7 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="../../../images/experiences/b1fe6a1f4721edf1d452962e8a1aeef6fe90828a.jpg"
+                                        src="\images\banners\OTRAS_EXPERIENCIAS.webp"
                                         alt="Experiencias personalizadas"
                                         class="w-full h-auto object-cover"
                                     />

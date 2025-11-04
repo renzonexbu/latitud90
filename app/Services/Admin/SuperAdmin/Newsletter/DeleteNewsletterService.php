@@ -13,14 +13,16 @@ class DeleteNewsletterService
     {
         $newsletter = Newsletter::findOrFail($id);
         $newsletterData = $newsletter->toArray();
-        
+
         $newsletter->delete();
 
         // Log the deletion
         $this->logDelete(
-            'newsletter',
-            "Newsletter eliminado: {$newsletterData['email']}",
-            $newsletterData
+            'newsletter',               // module
+            'newsletter',               // resourceType
+            $id,                        // resourceId (int)
+            "Newsletter eliminado: {$newsletterData['email']}", // description
+            $newsletterData             // oldValues
         );
 
         return $newsletterData;
