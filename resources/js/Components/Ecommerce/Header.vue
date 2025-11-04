@@ -268,6 +268,7 @@
                                     :href="link.href"
                                     class="mobile-menu-link"
                                     @click="handleNavigation(link, $event)"
+                                    :target="link.external ? '_blank' : null"
                                 >
                                     {{ link.label }}
                                 </a>

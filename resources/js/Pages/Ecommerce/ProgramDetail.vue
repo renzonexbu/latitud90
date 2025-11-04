@@ -67,9 +67,9 @@
                         <DecorativeLine />
 
                         <!-- Descripción del Itinerario -->
-                        <ItineraryDescription
+                        <!-- <ItineraryDescription
                             :description="program.itinerary_description"
-                        />
+                        /> -->
 
                         <!-- Archivos PDF -->
                         <ProgramDocuments
@@ -81,6 +81,12 @@
                         />
                         <!-- Sección de Advertencia -->
                         <WarningSection />
+
+                        <!-- Galería de Imágenes -->
+                        <ImageGallery
+                            :images="program.images"
+                            :program-name="program.name"
+                        />
                     </div>
 
                     <!-- Componente Derecho -->
@@ -206,6 +212,7 @@ import ProgramPillars from "@/Components/Ecommerce/ProgramDetailComponents/Progr
 import ProgramDocuments from "@/Components/Ecommerce/ProgramDetailComponents/ProgramDocuments.vue";
 import ItineraryDescription from "@/Components/Ecommerce/ProgramDetailComponents/ItineraryDescription.vue";
 import PaymentPanel from "@/Components/Ecommerce/ProgramDetailComponents/PaymentPanel.vue";
+import ImageGallery from "@/Components/Ecommerce/ProgramDetailComponents/ImageGallery.vue";
 import Alerts from "@/Components/Alerts.vue";
 import { getFirstInstallmentAmount, formatPrice } from "@/utils/paymentUtils";
 
@@ -226,6 +233,7 @@ export default {
         ProgramDocuments,
         ItineraryDescription,
         PaymentPanel,
+        ImageGallery,
         Alerts,
     },
     props: {
