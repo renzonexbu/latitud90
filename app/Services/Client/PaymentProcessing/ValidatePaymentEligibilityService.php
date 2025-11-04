@@ -58,16 +58,15 @@ class ValidatePaymentEligibilityService
             ];
         }
 
-        // Para pagos mensuales, verificar que el total de las cuotas no exceda el saldo
+        // Para pagos mensuales, validar número mínimo de cuotas
         if (($paymentData['paymentType'] ?? 'total') === 'monthly') {
             $installments = (int) ($paymentData['installments'] ?? 1);
-            $amountPerInstallment = $participantBalance / $installments;
-            $totalToPay = $amountPerInstallment * $installments;
 
-            if ($totalToPay > $participantBalance) {
+            // Validar que al menos se pueda dividir en 1 peso por cuota
+            if ($installments > $participantBalance) {
                 return [
                     'success' => false,
-                    'error' => 'El monto total de las cuotas excede el saldo pendiente. Por favor, selecciona un número menor de cuotas.'
+                    'error' => 'El número de cuotas es muy alto para el saldo pendiente. Por favor, selecciona un número menor de cuotas.'
                 ];
             }
         }

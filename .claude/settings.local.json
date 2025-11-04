@@ -5,7 +5,10 @@
       "Bash(php artisan:*)",
       "Bash(cat:*)",
       "Bash(npm run build:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRefactorización: Sistema de Cuotas LAT90 en Módulo Independiente\n\nNUEVO MÓDULO: app/Modules/Installments/\n\nArquitectura:\n- Patrón Repository + Service Layer\n- Interfaces para desacoplamiento\n- Null Object Pattern para desactivación fácil\n- Service Provider con binding condicional\n- Facade para acceso simplificado\n\nComponentes creados:\n✅ Contratos/Interfaces (4):\n  - InstallmentServiceInterface\n  - InstallmentRepositoryInterface\n  - InstallmentPlanRepositoryInterface\n  - InstallmentCalculatorInterface\n\n✅ Servicios (3):\n  - InstallmentManager (implementación principal)\n  - InstallmentCalculator (cálculos y fechas)\n  - NullInstallmentManager (desactivación)\n\n✅ Repositorios (2):\n  - InstallmentRepository\n  - InstallmentPlanRepository\n\n✅ Eventos (4):\n  - InstallmentCreated\n  - InstallmentPaid\n  - InstallmentPlanCompleted\n  - InstallmentPlanRestructured\n\n✅ Providers:\n  - InstallmentServiceProvider (auto-registro)\n\n✅ Facade:\n  - Installments (alias global)\n\nConfiguración:\n- Archivo: app/Modules/Installments/Config/installments.php\n- Variables .env agregadas en .env.example\n- INSTALLMENTS_ENABLED=true/false → switch principal\n\nMigración realizada:\n- InstallmentController → usa InstallmentServiceInterface\n- ProcessPaymentService → usa InstallmentManager con fallback\n\nCompatibilidad:\n- Convive con código antiguo\n- Fallback automático si módulo desactivado\n- Sistema legacy sigue funcionando\n\nCómo desactivar sistema de cuotas:\n1. En .env: INSTALLMENTS_ENABLED=false\n2. Todo el sistema se desactiva sin romper nada\n3. Para reactivar: INSTALLMENTS_ENABLED=true\n\nDocumentación:\n- README completo en app/Modules/Installments/README.md\n- Ejemplos de uso con Facade e inyección\n- Guía de configuración y troubleshooting\n\nBeneficios:\n✅ Código independiente y modular\n✅ Fácilmente desactivable con un switch\n✅ Testeable (interfaces permiten mocking)\n✅ Extensible sin modificar core\n✅ Documentado y auto-explicativo\n\n🤖 Generated with Claude Code (https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

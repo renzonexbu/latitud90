@@ -543,10 +543,25 @@ class InstallmentManager implements InstallmentServiceInterface
     }
 
     /**
-     * Calcular montos del participante (usa helper existente)
+     * Calcular montos del participante
      */
     protected function computeParticipantAmounts($program, $participant): array
     {
-        return ParticipantPriceHelper::computeParticipantAmounts($program, $participant);
+        // Usar el helper para calcular el precio final con descuentos
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $participantTotalAmount = $priceData['final_price'];
+
+        // Pagos aprobados y completados previos de este participante para este programa
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $program->id);
+            })
+            ->whereIn('status', ['approved', 'completed'])
+            ->sum('amount');
+
+        $paidAmount = round($paidAmount, 2);
+        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+
+        return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
 }
