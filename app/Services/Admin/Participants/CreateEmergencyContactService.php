@@ -27,6 +27,8 @@ class CreateEmergencyContactService
                     'participant_id' => $participant->id,
                     'name' => $contactData['name'],
                     'email' => $contactData['email'],
+                    'document_type' => $contactData['document_type'] ?? 1, // Default a RUT si no viene
+                    'document_number' => $contactData['document_number'] ?? '',
                     'code_phone' => $contactData['code_phone'],
                     'phone' => $contactData['phone'],
                     'country' => $contactData['country'],

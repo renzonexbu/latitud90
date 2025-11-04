@@ -67,7 +67,7 @@
                 <div class="grid grid-cols-2 gap-4">
                   <div class="col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
-                    <input 
+                    <input
                       v-model="contact.name"
                       type="text"
                       required
@@ -76,7 +76,7 @@
                   </div>
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                    <input 
+                    <input
                       v-model="contact.email"
                       type="email"
                       required
@@ -84,28 +84,41 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
-                    <input 
-                      :value="contact.document_number"
-                      type="text"
-                      placeholder="00.000.000-0"
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                    <select
+                      v-model="contact.document_type"
                       required
-                      @input="(event) => handleRutInput(event, contact)"
-                      @blur="validateRut(contact)"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
+                    >
+                      <option value="">Seleccionar tipo</option>
+                      <option value="1">RUT (Chile)</option>
+                      <option value="2">Pasaporte</option>
+                      <option value="3">DNI (Argentina)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Número de Documento *</label>
+                    <input
+                      v-model="contact.document_number"
+                      type="text"
+                      :placeholder="getDocumentPlaceholder(contact.document_type)"
+                      required
+                      @input="(event) => handleDocumentInput(event, contact)"
+                      @blur="validateDocument(contact)"
                       :class="[
                         'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent',
-                        contact.rutValidation && contact.rutValidation.isValid === false ? 'border-red-500' : '',
-                        contact.rutValidation && contact.rutValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+                        contact.documentValidation && contact.documentValidation.isValid === false ? 'border-red-500' : '',
+                        contact.documentValidation && contact.documentValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
                       ]"
                     />
                     <span
-                      v-if="contact.rutValidation && contact.rutValidation.message"
+                      v-if="contact.documentValidation && contact.documentValidation.message"
                       :class="[
                         'text-xs mt-1',
-                        contact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                        contact.documentValidation.isValid === true ? 'text-green-500' : 'text-red-500'
                       ]"
                     >
-                      {{ contact.rutValidation.message }}
+                      {{ contact.documentValidation.message }}
                     </span>
                   </div>
                   <div>
@@ -191,9 +204,10 @@
         </div>
 
         <!-- Add New Contact Button -->
-        <!-- <div class="mb-6">
-          <button 
+        <div class="mb-6">
+          <button
             @click="showNewContactForm = true"
+            v-if="!showNewContactForm"
             class="w-full px-4 py-3 bg-azul-oscuro text-white rounded-lg hover:bg-azul-oscuro-dark transition-colors flex items-center justify-center gap-2"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -201,7 +215,7 @@
             </svg>
             Agregar Nuevo Apoderado
           </button>
-        </div> -->
+        </div>
 
         <!-- New Contact Form -->
         <div v-if="showNewContactForm" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
@@ -211,7 +225,7 @@
             <div class="grid grid-cols-2 gap-4">
               <div class="col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
-                <input 
+                <input
                   v-model="newContact.name"
                   type="text"
                   required
@@ -220,7 +234,7 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input 
+                <input
                   v-model="newContact.email"
                   type="email"
                   required
@@ -228,28 +242,41 @@
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">RUT *</label>
-                <input 
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                <select
+                  v-model="newContact.document_type"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent"
+                >
+                  <option value="">Seleccionar tipo</option>
+                  <option value="1">RUT (Chile)</option>
+                  <option value="2">Pasaporte</option>
+                  <option value="3">DNI (Argentina)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Documento *</label>
+                <input
                   v-model="newContact.document_number"
                   type="text"
-                  placeholder="00.000.000-0"
+                  :placeholder="getDocumentPlaceholder(newContact.document_type)"
                   required
-                  @input="formatNewContactRut"
-                  @blur="validateNewContactRut"
+                  @input="formatNewContactDocument"
+                  @blur="validateNewContactDocument"
                   :class="[
                     'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-azul-oscuro focus:border-transparent',
-                    newContact.rutValidation && newContact.rutValidation.isValid === false ? 'border-red-500' : '',
-                    newContact.rutValidation && newContact.rutValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+                    newContact.documentValidation && newContact.documentValidation.isValid === false ? 'border-red-500' : '',
+                    newContact.documentValidation && newContact.documentValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
                   ]"
                 />
                 <span
-                  v-if="newContact.rutValidation && newContact.rutValidation.message"
+                  v-if="newContact.documentValidation && newContact.documentValidation.message"
                   :class="[
                     'text-xs mt-1',
-                    newContact.rutValidation.isValid === true ? 'text-green-500' : 'text-red-500'
+                    newContact.documentValidation.isValid === true ? 'text-green-500' : 'text-red-500'
                   ]"
                 >
-                  {{ newContact.rutValidation.message }}
+                  {{ newContact.documentValidation.message }}
                 </span>
               </div>
               <div>
@@ -366,13 +393,14 @@ const showNewContactForm = ref(false);
 const newContact = ref({
   name: '',
   email: '',
+  document_type: '1', // Default to RUT
   code_phone: '+56',
   phone: '',
   country: 'CL',
   birth_date: '',
   address: '',
   document_number: '',
-  rutValidation: null
+  documentValidation: null
 });
 
 const formatDate = (dateString) => {
@@ -381,21 +409,25 @@ const formatDate = (dateString) => {
   return date.toISOString().split('T')[0];
 };
 
-// Watcher para formatear las fechas y RUTs cuando se abra el modal
+// Watcher para formatear las fechas y documentos cuando se abra el modal
 watch(() => props.show, (newValue) => {
   if (newValue && props.participant.emergency_contacts) {
-    // Formatear las fechas y RUTs de los contactos existentes e inicializar validación de RUT
+    // Formatear las fechas y documentos de los contactos existentes e inicializar validación
     props.participant.emergency_contacts.forEach(contact => {
       if (contact.birth_date) {
         contact.birth_date = formatDate(contact.birth_date);
       }
-      // Formatear RUT existente si no está formateado
-      if (contact.document_number && !contact.document_number.includes('.')) {
+      // Inicializar document_type si no existe (default a RUT)
+      if (!contact.document_type) {
+        contact.document_type = '1';
+      }
+      // Formatear RUT existente si es tipo RUT y no está formateado
+      if (contact.document_type === '1' && contact.document_number && !contact.document_number.includes('.')) {
         formatExistingRut(contact);
       }
-      // Inicializar validación de RUT si no existe
-      if (!contact.rutValidation) {
-        contact.rutValidation = null;
+      // Inicializar validación de documento si no existe
+      if (!contact.documentValidation) {
+        contact.documentValidation = null;
       }
     });
   }
@@ -425,12 +457,13 @@ const saveNewContact = () => {
 
 const updateContact = (contactId, index) => {
   isSubmitting.value = true;
-  
+
   const contact = props.participant.emergency_contacts[index];
   const formData = new FormData();
   formData.append('contact_id', contactId);
   formData.append('name', contact.name);
   formData.append('email', contact.email);
+  formData.append('document_type', contact.document_type || '1');
   formData.append('document_number', contact.document_number || '');
   formData.append('code_phone', contact.code_phone);
   formData.append('phone', contact.phone);
@@ -485,25 +518,39 @@ const resetNewContactForm = () => {
   newContact.value = {
     name: '',
     email: '',
+    document_type: '1',
     code_phone: '+56',
     phone: '',
     country: 'CL',
     birth_date: '',
     address: '',
     document_number: '',
-    rutValidation: null
+    documentValidation: null
   };
 };
 
 const getFullName = (participant) => {
   if (!participant) return '';
-  
+
   const firstName = participant.first_name ? participant.first_name.charAt(0).toUpperCase() + participant.first_name.slice(1) : '';
   const secondName = participant.second_name ? participant.second_name.charAt(0).toUpperCase() + participant.second_name.slice(1) : '';
   const firstLastName = participant.first_last_name ? participant.first_last_name.charAt(0).toUpperCase() + participant.first_last_name.slice(1) : '';
   const secondLastName = participant.second_last_name ? participant.second_last_name.charAt(0).toUpperCase() + participant.second_last_name.slice(1) : '';
 
   return `${firstLastName} ${secondLastName} ${firstName} ${secondName}`.trim();
+};
+
+const getDocumentPlaceholder = (documentType) => {
+  switch (documentType) {
+    case '1':
+      return '00.000.000-0';
+    case '2':
+      return 'ABC123456';
+    case '3':
+      return '12345678';
+    default:
+      return 'Número de documento';
+  }
 };
 
 // Funciones para validar RUT de contactos existentes
@@ -534,37 +581,36 @@ const formatExistingRut = (contact) => {
   }
 };
 
-const handleRutInput = (event, contact) => {
+const handleDocumentInput = (event, contact) => {
   const inputValue = event.target.value;
-  
-  // Remover todos los caracteres no numéricos excepto K
-  let rut = inputValue.replace(/[^0-9kK]/g, '').toUpperCase();
-  
-  if (rut.length > 0) {
-    // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
-    if (rut.length > 1) {
-      const body = rut.slice(0, -1);
-      const dv = rut.slice(-1);
 
-      // Formatear el cuerpo con puntos
-      let formattedBody = '';
-      for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
-        if (j > 0 && j % 3 === 0) {
-          formattedBody = '.' + formattedBody;
+  // Si es RUT (tipo 1), formatear con puntos y guión
+  if (contact.document_type === '1') {
+    let rut = inputValue.replace(/[^0-9kK]/g, '').toUpperCase();
+
+    if (rut.length > 0) {
+      if (rut.length > 1) {
+        const body = rut.slice(0, -1);
+        const dv = rut.slice(-1);
+
+        let formattedBody = '';
+        for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+          if (j > 0 && j % 3 === 0) {
+            formattedBody = '.' + formattedBody;
+          }
+          formattedBody = body[i] + formattedBody;
         }
-        formattedBody = body[i] + formattedBody;
-      }
 
-      // Combinar cuerpo formateado con dígito verificador
-      const formattedRut = `${formattedBody}-${dv}`;
-      
-      // Actualizar el valor del contacto
-      contact.document_number = formattedRut;
+        contact.document_number = `${formattedBody}-${dv}`;
+      } else {
+        contact.document_number = rut;
+      }
     } else {
-      contact.document_number = rut;
+      contact.document_number = '';
     }
   } else {
-    contact.document_number = '';
+    // Para otros tipos de documentos, simplemente guardar el valor en mayúsculas
+    contact.document_number = inputValue.toUpperCase();
   }
 };
 
@@ -600,119 +646,141 @@ const formatRut = (contact) => {
   }
 };
 
-const validateRut = (contact) => {
-  if (!contact.document_number) return;
-  
-  const rut = contact.document_number.replace(/\./g, '').replace(/-/g, '');
-  if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-    contact.rutValidation = { isValid: false, message: 'Formato de RUT inválido' };
+const validateDocument = (contact) => {
+  if (!contact.document_number) {
+    contact.documentValidation = null;
     return;
   }
 
-  const body = rut.slice(0, -1);
-  const dv = rut.slice(-1).toUpperCase();
+  // Solo validar si es RUT (tipo 1)
+  if (contact.document_type === '1') {
+    const rut = contact.document_number.replace(/\./g, '').replace(/-/g, '');
+    if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+      contact.documentValidation = { isValid: false, message: 'Formato de RUT inválido' };
+      return;
+    }
 
-  if (body.length < 7) {
-    contact.rutValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
-    return;
-  }
+    const body = rut.slice(0, -1);
+    const dv = rut.slice(-1).toUpperCase();
 
-  let sum = 0;
-  let factor = 2;
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += body[i] * factor;
-    factor = factor === 7 ? 2 : factor + 1;
+    if (body.length < 7) {
+      contact.documentValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
+      return;
+    }
+
+    let sum = 0;
+    let factor = 2;
+    for (let i = body.length - 1; i >= 0; i--) {
+      sum += body[i] * factor;
+      factor = factor === 7 ? 2 : factor + 1;
+    }
+
+    const dvCalculado = 11 - (sum % 11);
+    const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
+
+    contact.documentValidation = {
+      isValid: dv === dvFinal,
+      message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
+    };
+  } else {
+    // Para otros tipos de documentos, simplemente validar que no esté vacío
+    contact.documentValidation = {
+      isValid: contact.document_number.length > 0,
+      message: contact.document_number.length > 0 ? 'Documento válido' : 'Documento requerido'
+    };
   }
-  
-  const dvCalculado = 11 - (sum % 11);
-  const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
-  
-  contact.rutValidation = {
-    isValid: dv === dvFinal,
-    message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
-  };
 };
 
-const formatNewContactRut = () => {
+const formatNewContactDocument = () => {
   if (!newContact.value.document_number) return;
-  
-  // Remover todos los caracteres no numéricos excepto K
-  let rut = newContact.value.document_number.replace(/[^0-9kK]/g, '').toUpperCase();
-  
-  if (rut.length > 0) {
-    // Si tiene más de 1 carácter, separar cuerpo y dígito verificador
-    if (rut.length > 1) {
-      const body = rut.slice(0, -1);
-      const dv = rut.slice(-1);
 
-      // Formatear el cuerpo con puntos
-      let formattedBody = '';
-      for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
-        if (j > 0 && j % 3 === 0) {
-          formattedBody = '.' + formattedBody;
+  // Si es RUT (tipo 1), formatear con puntos y guión
+  if (newContact.value.document_type === '1') {
+    let rut = newContact.value.document_number.replace(/[^0-9kK]/g, '').toUpperCase();
+
+    if (rut.length > 0) {
+      if (rut.length > 1) {
+        const body = rut.slice(0, -1);
+        const dv = rut.slice(-1);
+
+        let formattedBody = '';
+        for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
+          if (j > 0 && j % 3 === 0) {
+            formattedBody = '.' + formattedBody;
+          }
+          formattedBody = body[i] + formattedBody;
         }
-        formattedBody = body[i] + formattedBody;
-      }
 
-      // Combinar cuerpo formateado con dígito verificador
-      const formattedRut = `${formattedBody}-${dv}`;
-      
-      // Solo actualizar si el formato es diferente para evitar loops infinitos
-      if (newContact.value.document_number !== formattedRut) {
-        nextTick(() => {
-          newContact.value.document_number = formattedRut;
-        });
+        const formattedRut = `${formattedBody}-${dv}`;
+
+        if (newContact.value.document_number !== formattedRut) {
+          nextTick(() => {
+            newContact.value.document_number = formattedRut;
+          });
+        }
+      } else {
+        if (newContact.value.document_number !== rut) {
+          nextTick(() => {
+            newContact.value.document_number = rut;
+          });
+        }
       }
-    } else {
-      const formattedRut = rut;
-      if (newContact.value.document_number !== formattedRut) {
-        nextTick(() => {
-          newContact.value.document_number = formattedRut;
-        });
-      }
+    }
+  } else {
+    // Para otros tipos de documentos, convertir a mayúsculas
+    const upperDoc = newContact.value.document_number.toUpperCase();
+    if (newContact.value.document_number !== upperDoc) {
+      nextTick(() => {
+        newContact.value.document_number = upperDoc;
+      });
     }
   }
 };
 
-const validateNewContactRut = () => {
+const validateNewContactDocument = () => {
   if (!newContact.value.document_number) {
-    newContact.value.rutValidation = null;
-    return;
-  }
-  
-  const rut = newContact.value.document_number.replace(/\./g, '').replace(/-/g, '');
-  
-  // Validar formato básico
-  if (!/^[0-9]+[0-9kK]$/.test(rut)) {
-    newContact.value.rutValidation = { isValid: false, message: 'Formato de RUT inválido' };
+    newContact.value.documentValidation = null;
     return;
   }
 
-  // Separar cuerpo y dígito verificador
-  const body = rut.slice(0, -1);
-  const dv = rut.slice(-1).toUpperCase();
+  // Solo validar si es RUT (tipo 1)
+  if (newContact.value.document_type === '1') {
+    const rut = newContact.value.document_number.replace(/\./g, '').replace(/-/g, '');
 
-  // Validar que el cuerpo tenga al menos 7 dígitos
-  if (body.length < 7) {
-    newContact.value.rutValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
-    return;
-  }
+    if (!/^[0-9]+[0-9kK]$/.test(rut)) {
+      newContact.value.documentValidation = { isValid: false, message: 'Formato de RUT inválido' };
+      return;
+    }
 
-  // Calcular dígito verificador
-  let sum = 0;
-  let factor = 2;
-  for (let i = body.length - 1; i >= 0; i--) {
-    sum += body[i] * factor;
-    factor = factor === 7 ? 2 : factor + 1;
+    const body = rut.slice(0, -1);
+    const dv = rut.slice(-1).toUpperCase();
+
+    if (body.length < 7) {
+      newContact.value.documentValidation = { isValid: false, message: 'RUT debe tener al menos 7 dígitos' };
+      return;
+    }
+
+    let sum = 0;
+    let factor = 2;
+    for (let i = body.length - 1; i >= 0; i--) {
+      sum += body[i] * factor;
+      factor = factor === 7 ? 2 : factor + 1;
+    }
+
+    const dvCalculado = 11 - (sum % 11);
+    const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
+
+    newContact.value.documentValidation = {
+      isValid: dv === dvFinal,
+      message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
+    };
+  } else {
+    // Para otros tipos de documentos, simplemente validar que no esté vacío
+    newContact.value.documentValidation = {
+      isValid: newContact.value.document_number.length > 0,
+      message: newContact.value.document_number.length > 0 ? 'Documento válido' : 'Documento requerido'
+    };
   }
-  
-  const dvCalculado = 11 - (sum % 11);
-  const dvFinal = dvCalculado === 10 ? 'K' : dvCalculado === 11 ? '0' : dvCalculado.toString();
-  
-  newContact.value.rutValidation = {
-    isValid: dv === dvFinal,
-    message: dv === dvFinal ? 'RUT válido' : 'RUT inválido'
-  };
 };
 </script>
 

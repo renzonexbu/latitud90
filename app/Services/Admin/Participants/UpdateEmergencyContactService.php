@@ -17,6 +17,8 @@ class UpdateEmergencyContactService
         $contact->update([
             'name' => $data['name'],
             'email' => $data['email'],
+            'document_type' => $data['document_type'] ?? 1,
+            'document_number' => $data['document_number'] ?? '',
             'code_phone' => $data['code_phone'],
             'phone' => $data['phone'],
             'country' => $data['country'],
