@@ -834,41 +834,16 @@ export default {
             // Registrar selección de método de pago en analytics
             this.recordPaymentSelection(paymentData);
 
-            // Obtener los parámetros de documento desde las props de la página
-            const document = this.$page.props.document || this.$page.props.participant?.document_number || '';
-            const documentType = this.$page.props.document_type || 'RUT';
+            // Obtener token desde las props de la página
+            const token = this.$page.props.token || '';
 
-            // NUEVO: Verificar si es pago mensual y si está logeado como guardian
-            if (this.paymentType === 'monthly') {
-                // Verificar si está logeado como guardian
-                const isGuardianLoggedIn = this.$page.props.auth?.user?.guardian_account || false;
-
-                if (!isGuardianLoggedIn) {
-                    // Guardar datos para después del registro
-                    localStorage.setItem('pending_subscription', JSON.stringify({
-                        program_id: this.programId,
-                        document: document,
-                        document_type: documentType,
-                        payment_data: paymentData
-                    }));
-
-                    // Redirigir al registro de guardian
-                    window.location.href = '/guardian/register';
-                    return;
-                } else {
-                    // Guardian autenticado: Iniciar flujo de suscripción
-                    this.initiateSubscription(document, documentType, paymentData);
-                    return;
-                }
+            if (!token) {
+                console.error('No se encontró token en las props de la página');
+                return;
             }
 
-            // Construir URL con query parameters (solo document y document_type)
-            const params = new URLSearchParams({
-                document: document,
-                document_type: documentType
-            });
-
-            const url = `/programs/${this.programId}/payment?${params.toString()}`;
+            // Construir URL con token
+            const url = `/programs/${this.programId}/payment?token=${token}`;
 
             // Usar window.location.href para navegación completa
             window.location.href = url;

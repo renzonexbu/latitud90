@@ -330,6 +330,7 @@
 import { ref, reactive, watch } from "vue";
 import { router } from "@inertiajs/vue3";
 import axios from "axios";
+import { encodeParticipantToken } from "@/utils/tokenUtils";
 
 const emit = defineEmits(["participant-not-found"]);
 
@@ -529,10 +530,15 @@ const performSearch = async () => {
                     );
                 }
 
-                // Redirigir a la vista de programas
-                router.get(route("ecommerce.programs"), {
+                // Codificar datos en token
+                const token = encodeParticipantToken({
                     document: cleanDocument,
                     document_type: selectedDocumentType.value,
+                });
+
+                // Redirigir a la vista de programas con token
+                router.get(route("ecommerce.programs"), {
+                    token: token,
                 });
             } else {
                 emit("participant-not-found");

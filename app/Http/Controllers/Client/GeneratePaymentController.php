@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\Payment\GeneratePaymentService;
+use App\Helpers\TokenHelper;
 use App\Models\Region;
 use App\Models\Comune;
 use App\Models\Document;
@@ -23,56 +24,59 @@ class GeneratePaymentController extends Controller
 
     public function show(Request $request, $programId)
     {
-        // Debug: Log todos los query parameters
-        Log::info('GeneratePaymentController - Query parameters:', [
-            'all_query' => $request->all(),
-            'rut' => $request->query('rut'),
-            'document' => $request->query('document'),
-            'document_type' => $request->query('document_type'),
-            'programId' => $programId
-        ]);
-        
-        $rut = $request->query('rut', '');
-        $document = $request->query('document', '');
-        $documentType = $request->query('document_type', 'RUT');
-        
-        // Debug: Log la URL completa
-        Log::info('GeneratePaymentController - Full URL:', [
-            'url' => $request->fullUrl(),
-            'path' => $request->path(),
-            'query_string' => $request->getQueryString()
-        ]);
-        
-        // Si no hay document pero hay rut, usar rut como document
-        if (empty($document) && !empty($rut)) {
-            $document = $rut;
+        // Intentar obtener datos del token primero
+        $token = $request->query('token');
+
+        if ($token) {
+            $data = TokenHelper::decodeParticipantToken($token);
+            if ($data) {
+                $document = $data['document'];
+                $documentType = $data['document_type'];
+            } else {
+                $document = $request->query('document', '');
+                $documentType = $request->query('document_type', 'RUT');
+            }
+        } else {
+            // Backward compatibility
+            $rut = $request->query('rut', '');
+            $document = $request->query('document', '');
+            $documentType = $request->query('document_type', 'RUT');
+
+            if (empty($document) && !empty($rut)) {
+                $document = $rut;
+            }
+
+            // Intentar recuperar de sesión si no hay document
+            if (empty($document)) {
+                $document = session('current_document');
+                $documentType = session('current_document_type', 'RUT');
+            }
         }
-        
-        // Fallback: si aún no hay document, usar un valor por defecto para testing
+
         if (empty($document)) {
-            $document = '23515086'; // Valor por defecto para testing
-            Log::info('Using fallback document value:', ['document' => $document]);
+            return redirect()->route('ecommerce.index');
         }
-        
-        $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null, $rut);
-        
+
+        // Generar token para pasar al frontend
+        $token = TokenHelper::encodeParticipantToken($document, $documentType);
+
+        $paymentData = $this->generatePaymentService->getPaymentDetails($programId, $request->user()->id ?? null, $document);
+
         // Obtener países
         $countries = Country::where('name', 'Chile')->get();
-        
+
         // Obtener regiones y comunas
         $regions = Region::with('comunes')->get();
-        
+
         // Obtener tipos de documento
         $documentTypes = Document::all();
-        
+
         // NO registrar analytics aquí - se hará desde el frontend con session_id
-        
+
         return Inertia::render('Ecommerce/PaymentDetails', [
             'paymentData' => $paymentData,
             'programId' => $programId,
-            'rut' => $rut,
-            'document' => $document,
-            'document_type' => $documentType,
+            'token' => $token,
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes

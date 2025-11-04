@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\Payment\ConfirmPaymentService;
+use App\Helpers\TokenHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -19,43 +20,46 @@ class ConfirmPaymentController extends Controller
 
     public function show(Request $request, $programId)
     {
-        $documentFromQuery = $request->query('document');
-        $documentTypeFromQuery = $request->query('document_type');
-        
-        // Obtener de sesión si no vienen en la URL
-        $document = $documentFromQuery ?? session('current_document', '');
-        $documentType = $documentTypeFromQuery ?? session('current_document_type', '');
-        
-        if ($document && $documentType) {
-            // Persistir en sesión
-            session(['current_document' => $document, 'current_document_type' => $documentType]);
+        // Intentar obtener datos del token primero
+        $token = $request->query('token');
+
+        if ($token) {
+            $data = TokenHelper::decodeParticipantToken($token);
+            if ($data) {
+                $document = $data['document'];
+                $documentType = $data['document_type'];
+            } else {
+                $document = $request->query('document', '');
+                $documentType = $request->query('document_type', '');
+            }
+        } else {
+            // Backward compatibility
+            $document = $request->query('document', '');
+            $documentType = $request->query('document_type', '');
         }
 
-        // Si no vienen los parámetros en la URL pero existen en sesión, redirigir agregándolos para persistir en URL
-        if ((!$documentFromQuery || !$documentTypeFromQuery) && (!empty($document) && !empty($documentType))) {
-            Log::info('ConfirmPaymentController.show adding document params to URL', [
-                'program_id' => $programId,
-                'document' => $document,
-                'document_type' => $documentType,
-            ]);
-            $redirect = redirect()->route('payment.confirmation', [
-                'programId' => $programId, 
-                'document' => $document, 
-                'document_type' => $documentType
-            ]);
-            if (session()->has('error')) {
-                $redirect->with('error', session('error'));
-            }
-            return $redirect;
+        // Obtener de sesión si no hay datos
+        if (empty($document) || empty($documentType)) {
+            $document = $document ?: session('current_document', '');
+            $documentType = $documentType ?: session('current_document_type', '');
         }
-        
+
+        if (empty($document) || empty($documentType)) {
+            return redirect()->route('ecommerce.index');
+        }
+
+        // Persistir en sesión
+        session(['current_document' => $document, 'current_document_type' => $documentType]);
+
+        // Generar token para pasar al frontend
+        $token = TokenHelper::encodeParticipantToken($document, $documentType);
+
         $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null, $document);
-        
+
         return Inertia::render('Ecommerce/Confirmation', [
             'confirmationData' => $confirmationData,
             'programId' => $programId,
-            'document' => $document,
-            'document_type' => $documentType
+            'token' => $token
         ]);
     }
 }

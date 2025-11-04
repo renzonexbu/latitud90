@@ -288,10 +288,9 @@
                 <!-- Back Button -->
                 <div class="w-full md:w-auto">
                     <BackToHomeButton
-                        :document="document"
-                        :document_type="document_type"
+                        :token="token"
                         variant="programs"
-                        :route="`/programs/${programId}?document=${document}&document_type=${document_type}`"
+                        :route="`/programs/${programId}?token=${token}`"
                     />
                 </div>
 
@@ -336,6 +335,7 @@
 <script>
 import { Head } from "@inertiajs/vue3";
 import { router } from "@inertiajs/vue3";
+import { decodeParticipantToken } from "@/utils/tokenUtils";
 import Header from "@/Components/Ecommerce/Header.vue";
 import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
@@ -362,17 +362,9 @@ export default {
             type: [String, Number],
             required: true,
         },
-        rut: {
+        token: {
             type: String,
-            default: "",
-        },
-        document: {
-            type: String,
-            default: "",
-        },
-        document_type: {
-            type: String,
-            default: "RUT",
+            required: true,
         },
         countries: {
             type: Array,
@@ -389,6 +381,8 @@ export default {
     },
     data() {
         return {
+            document: null,
+            document_type: null,
             selectedPaymentType: "total",
             selectedPaymentMethod: "debit",
             formData: {
@@ -415,6 +409,14 @@ export default {
             alertTitle: "",
             alertMessage: "",
         };
+    },
+    created() {
+        // Decodificar token para obtener document y document_type
+        const data = decodeParticipantToken(this.token);
+        if (data) {
+            this.document = data.document;
+            this.document_type = data.document_type;
+        }
     },
     computed: {
         filteredComunes() {
@@ -1010,8 +1012,8 @@ export default {
         },
 
         goBackToProgram() {
-            // Usar el router directamente para ir a program detail con los parámetros correctos
-            router.visit(`/programs/${this.programId}?document=${this.document}&document_type=${this.document_type}`);
+            // Usar el router directamente para ir a program detail con token
+            router.visit(`/programs/${this.programId}?token=${this.token}`);
         },
         continueToPayment() {
             if (!this.isFormValid) {
@@ -1066,9 +1068,9 @@ export default {
             // Guardar datos del comprador en localStorage
             localStorage.setItem("buyerData", JSON.stringify(buyerData));
 
-            // Continuar a la página de confirmación con document y document_type
+            // Continuar a la página de confirmación con token
             router.visit(
-                `/programs/${this.programId}/confirmation?document=${this.document}&document_type=${this.document_type}`
+                `/programs/${this.programId}/confirmation?token=${this.token}`
             );
         },
 

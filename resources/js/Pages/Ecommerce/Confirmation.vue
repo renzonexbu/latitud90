@@ -105,11 +105,10 @@
             <!-- Botón Volver a Completar Datos -->
             <div class="mx-4 md:mx-[120px] mt-8">
                 <BackToHomeButton
-                    :document="document"
-                    :document_type="document_type"
+                    :token="token"
                     variant="programs"
                     text="Volver a completar datos"
-                    :route="`/programs/${programId}/payment?from=confirmation&document=${document}&document_type=${document_type}`"
+                    :route="`/programs/${programId}/payment?from=confirmation&token=${token}`"
                 />
             </div>
         </div>
@@ -131,6 +130,7 @@
 </template>
 
 <script>
+import { decodeParticipantToken } from "@/utils/tokenUtils";
 import Header from "@/Components/Ecommerce/Header.vue";
 import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProcessSteps from "@/Components/Ecommerce/ProcessSteps.vue";
@@ -159,14 +159,24 @@ export default {
             type: [String, Number],
             required: true,
         },
-        document: {
+        token: {
             type: String,
-            default: "",
+            required: true,
         },
-        document_type: {
-            type: String,
-            default: "",
-        },
+    },
+    data() {
+        return {
+            document: null,
+            document_type: null,
+        };
+    },
+    created() {
+        // Decodificar token para obtener document y document_type
+        const data = decodeParticipantToken(this.token);
+        if (data) {
+            this.document = data.document;
+            this.document_type = data.document_type;
+        }
     },
 
     computed: {
@@ -323,14 +333,13 @@ export default {
         
         retryPayment() {
             // Redirigir a la página de pago para intentar nuevamente
-            const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&document=${this.document}&document_type=${this.document_type}`;
+            const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&token=${this.token}`;
             window.location.href = paymentUrl;
         },
         
         goToHome() {
             // Redirigir al inicio
-            const homeUrl = this.document ? `/?document=${encodeURIComponent(this.document)}&document_type=${encodeURIComponent(this.document_type)}` : '/';
-            window.location.href = homeUrl;
+            window.location.href = '/';
         },
 
         showAlertMessage(type, title, message) {

@@ -110,7 +110,7 @@
 
             <!-- Botón Volver a Seleccionar Viaje -->
             <div class="mx-4 md:mx-[120px] mt-8">
-                <BackToHomeButton :document="document" :document_type="document_type" variant="programs" />
+                <BackToHomeButton :token="token" variant="programs" />
             </div>
         </div>
 
@@ -250,11 +250,7 @@ export default {
             required: false,
             default: null,
         },
-        document: {
-            type: String,
-            required: true,
-        },
-        document_type: {
+        token: {
             type: String,
             required: true,
         },
@@ -361,13 +357,9 @@ export default {
                 }
                 
                 // Construir la URL con solo los parámetros necesarios
-                const params = new URLSearchParams({
-                    document: this.document || '',
-                    document_type: this.document_type || 'RUT'
-                });
-                
-                const url = `/programs/${this.program.id}/payment?${params.toString()}`;
-                
+                // Navegar con token
+                const url = `/programs/${this.program.id}/payment?token=${this.token}`;
+
                 // Usar window.location para forzar la navegación
                 window.location.href = url;
             } catch (error) {

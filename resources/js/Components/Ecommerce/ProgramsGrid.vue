@@ -54,11 +54,7 @@ export default {
             type: Object,
             required: true,
         },
-        document: {
-            type: String,
-            required: true,
-        },
-        document_type: {
+        token: {
             type: String,
             required: true,
         },
@@ -111,10 +107,9 @@ export default {
             // Usar la paginación del backend
             router.get(
                 route("ecommerce.programs"),
-                { 
+                {
                     page,
-                    document: this.document,
-                    document_type: this.document_type
+                    token: this.token
                 },
                 {
                     preserveState: true,

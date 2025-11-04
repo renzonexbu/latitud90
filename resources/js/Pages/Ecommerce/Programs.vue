@@ -34,14 +34,13 @@
             <!-- Grid de Programas -->
             <ProgramsGrid
                 :programs="programs"
-                :document="document"
-                :document_type="document_type"
+                :token="token"
                 @program-click="handleProgramClick"
             />
 
             <!-- Botón Volver al Home -->
             <div class="mt-8">
-                <BackToHomeButton :document="document" :document_type="document_type" variant="home" />
+                <BackToHomeButton :token="token" variant="home" />
             </div>
         </div>
 
@@ -54,6 +53,7 @@
 import { Head } from "@inertiajs/vue3";
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { decodeParticipantToken } from "@/utils/tokenUtils";
 import Header from "@/Components/Ecommerce/Header.vue";
 import Footer from "@/Components/Ecommerce/Footer.vue";
 import ProgramsGrid from "@/Components/Ecommerce/ProgramsGrid.vue";
@@ -82,14 +82,24 @@ export default {
             type: [Array, Object],
             required: true,
         },
-        document: {
+        token: {
             type: String,
             required: true,
         },
-        document_type: {
-            type: String,
-            required: true,
-        },
+    },
+    data() {
+        return {
+            document: null,
+            document_type: null,
+        };
+    },
+    created() {
+        // Decodificar token para obtener document y document_type
+        const data = decodeParticipantToken(this.token);
+        if (data) {
+            this.document = data.document;
+            this.document_type = data.document_type;
+        }
     },
     setup() {
         const showErrorAlert = ref(false);
@@ -200,8 +210,7 @@ export default {
                 
                 // Navegar al detalle del programa
                 router.get(route("ecommerce.program-detail", program.id), {
-                    document: this.document,
-                    document_type: this.document_type,
+                    token: this.token,
                 });
             } catch (error) {
                 console.error('Error al procesar programa:', error);

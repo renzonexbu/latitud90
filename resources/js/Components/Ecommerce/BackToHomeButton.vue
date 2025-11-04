@@ -40,11 +40,7 @@ import { router } from "@inertiajs/vue3";
 
 export default {
     props: {
-        document: {
-            type: String,
-            required: true,
-        },
-        document_type: {
+        token: {
             type: String,
             required: true,
         },
@@ -89,19 +85,15 @@ export default {
 
             // Si no hay ruta personalizada, usar la lógica por defecto
             if (this.variant === "programs") {
-                // Verificar que los parámetros no estén vacíos
-                if (!this.document || !this.document_type) {
-                    console.error("Missing document or document_type:", {
-                        document: this.document,
-                        document_type: this.document_type,
-                    });
-                    alert("Error: Faltan parámetros de documento");
+                // Verificar que el token no esté vacío
+                if (!this.token) {
+                    console.error("Missing token");
+                    alert("Error: Falta el token de autenticación");
                     return;
                 }
                 // En PaymentDetails.vue o similar - volver a la lista de programas
                 router.get("/programs", {
-                    document: this.document,
-                    document_type: this.document_type,
+                    token: this.token,
                 });
             } else {
                 router.visit("/");
