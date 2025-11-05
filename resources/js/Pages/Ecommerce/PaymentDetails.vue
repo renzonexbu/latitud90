@@ -1020,7 +1020,6 @@ export default {
                 this.showFormValidationAlert();
                 return;
             }
-
             // Obtener el tipo de documento seleccionado
             const selectedDocType = this.documentTypes.find(
                 (doc) => doc.id == this.formData.documentType

@@ -420,6 +420,9 @@ watch(() => props.show, (newValue) => {
       // Inicializar document_type si no existe (default a RUT)
       if (!contact.document_type) {
         contact.document_type = '1';
+      } else {
+        // Convertir document_type a string para consistencia con el v-model del select
+        contact.document_type = contact.document_type.toString();
       }
       // Formatear RUT existente si es tipo RUT y no está formateado
       if (contact.document_type === '1' && contact.document_number && !contact.document_number.includes('.')) {
@@ -541,7 +544,8 @@ const getFullName = (participant) => {
 };
 
 const getDocumentPlaceholder = (documentType) => {
-  switch (documentType) {
+  // Convertir a string para comparación ya que puede venir como número desde la BD
+  switch (documentType?.toString()) {
     case '1':
       return '00.000.000-0';
     case '2':
@@ -585,7 +589,8 @@ const handleDocumentInput = (event, contact) => {
   const inputValue = event.target.value;
 
   // Si es RUT (tipo 1), formatear con puntos y guión
-  if (contact.document_type === '1') {
+  // Convertir a string para comparación ya que puede venir como número desde la BD
+  if (contact.document_type?.toString() === '1') {
     let rut = inputValue.replace(/[^0-9kK]/g, '').toUpperCase();
 
     if (rut.length > 0) {
@@ -653,7 +658,8 @@ const validateDocument = (contact) => {
   }
 
   // Solo validar si es RUT (tipo 1)
-  if (contact.document_type === '1') {
+  // Convertir a string para comparación ya que puede venir como número desde la BD
+  if (contact.document_type?.toString() === '1') {
     const rut = contact.document_number.replace(/\./g, '').replace(/-/g, '');
     if (!/^[0-9]+[0-9kK]$/.test(rut)) {
       contact.documentValidation = { isValid: false, message: 'Formato de RUT inválido' };

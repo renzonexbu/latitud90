@@ -231,6 +231,67 @@
                 </span>
             </button>
         </div>
+
+        <!-- Modal de Registro Guardian -->
+        <Teleport to="body">
+            <div
+                v-if="showGuardianModal"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+                @click.self="showGuardianModal = false"
+            >
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-nexa-bold text-[#1C4F4A]">
+                            Registro Requerido
+                        </h3>
+                        <button
+                            @click="showGuardianModal = false"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="mb-6">
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                            Para continuar con el pago en cuotas mensuales, necesitas estar registrado como apoderado.
+                        </p>
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                            Serás redirigido al formulario de registro. Una vez completado, podrás continuar con tu compra.
+                        </p>
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px]">
+                            ¿Ya tienes cuenta?
+                            <a
+                                :href="`/guardian/login?token=${this.$page.props.token}&program_id=${this.programId}`"
+                                class="text-[#1C4F4A] font-nexa-bold hover:underline"
+                            >
+                                Inicia sesión aquí
+                            </a>
+                        </p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                        <button
+                            @click="showGuardianModal = false"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-nexa transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            @click="proceedToGuardianRegister"
+                            class="px-4 py-2 bg-[#FBBD51] text-white rounded-md hover:bg-[#e5aa3d] font-nexa-bold transition-colors"
+                        >
+                            Ir a registro
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -382,6 +443,7 @@ export default {
             monthlyPaymentOption: null,
             accordionOpen: null,
             selectedInstallments: 1,
+            showGuardianModal: false,
             // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
@@ -812,6 +874,30 @@ export default {
                 return;
             }
 
+            // NUEVA VALIDACIÓN: Si es pago mensual, verificar autenticación de guardian
+            if (this.paymentType === 'monthly') {
+                const isGuardianLoggedIn = this.$page.props.auth?.guardian !== null;
+
+                if (!isGuardianLoggedIn) {
+                    // Guardar datos de pago antes de mostrar el modal
+                    const paymentData = {
+                        paymentType: this.paymentType,
+                        paymentMethod: this.monthlyPaymentOption,
+                        installments: this.selectedInstallments,
+                    };
+                    localStorage.setItem("selectedPaymentData", JSON.stringify(paymentData));
+
+                    // Mostrar modal de registro
+                    this.showGuardianModal = true;
+                    return;
+                }
+            }
+
+            // Si no es mensual o ya está autenticado, continuar con el flujo normal
+            this.processPaymentNavigation();
+        },
+
+        processPaymentNavigation() {
             // Guardar los datos de pago en la sesión o localStorage
             const paymentData = {
                 paymentType: this.paymentType,
@@ -847,6 +933,21 @@ export default {
 
             // Usar window.location.href para navegación completa
             window.location.href = url;
+        },
+
+        proceedToGuardianRegister() {
+            // Obtener token desde las props de la página
+            const token = this.$page.props.token || '';
+
+            // Guardar pending_subscription para recuperar después del registro
+            localStorage.setItem('pending_subscription', JSON.stringify({
+                program_id: this.programId,
+                token: token,
+                return_url: `/programs/${this.programId}?token=${token}`
+            }));
+
+            // Redirigir al registro de guardian con el token y program_id
+            window.location.href = `/guardian/register?token=${token}&program_id=${this.programId}`;
         },
 
         async initiateSubscription(document, documentType, paymentData) {

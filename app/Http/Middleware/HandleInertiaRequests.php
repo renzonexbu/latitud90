@@ -29,9 +29,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Usuario admin (guard 'web')
         $user = $request->user();
-
-        // Datos base del usuario
         $userData = null;
 
         if ($user) {
@@ -48,19 +47,12 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        // Verificar si hay un guardian autenticado
+        // Usuario guardian (guard 'guardian') - SEPARADO del usuario admin
         $guardianUser = auth('guardian')->user();
-        if ($guardianUser) {
-            if (!$userData) {
-                $userData = [
-                    'id' => $guardianUser->id,
-                    'name' => $guardianUser->name,
-                    'email' => $guardianUser->email,
-                ];
-            }
+        $guardianData = null;
 
-            // Agregar información del guardian
-            $userData['guardian_account'] = [
+        if ($guardianUser) {
+            $guardianData = [
                 'id' => $guardianUser->id,
                 'name' => $guardianUser->name,
                 'email' => $guardianUser->email,
@@ -71,7 +63,8 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $userData,
+                'user' => $userData,        // Solo usuarios admin (guard 'web')
+                'guardian' => $guardianData, // Solo usuarios guardian (guard 'guardian')
             ],
             '_csrf' => csrf_token(),
         ];

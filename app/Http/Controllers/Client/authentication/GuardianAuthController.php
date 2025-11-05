@@ -25,7 +25,7 @@ class GuardianAuthController extends Controller
     /**
      * Mostrar formulario de registro
      */
-    public function showRegisterForm()
+    public function showRegisterForm(Request $request)
     {
         // Obtener países (solo Chile)
         $countries = Country::where('name', 'Chile')->get();
@@ -36,10 +36,30 @@ class GuardianAuthController extends Controller
         // Obtener tipos de documento
         $documentTypes = Document::all();
 
+        // Si viene un token en la URL, guardarlo en sesión para recuperarlo después del login
+        $token = $request->query('token');
+        $programId = $request->query('program_id');
+
+        if ($token || $programId) {
+            $pendingData = $request->session()->get('pending_subscription', []);
+
+            if ($token) {
+                $pendingData['token'] = $token;
+            }
+
+            if ($programId) {
+                $pendingData['program_id'] = $programId;
+                $pendingData['return_url'] = "/programs/{$programId}?token={$token}";
+            }
+
+            $request->session()->put('pending_subscription', $pendingData);
+        }
+
         return Inertia::render('Guardian/Register', [
             'countries' => $countries,
             'regions' => $regions,
-            'documentTypes' => $documentTypes
+            'documentTypes' => $documentTypes,
+            'token' => $token
         ]);
     }
 
@@ -112,29 +132,48 @@ class GuardianAuthController extends Controller
     /**
      * Página de éxito de registro
      */
-    public function registerSuccess()
+    public function registerSuccess(Request $request)
     {
+        // Recuperar token del pending_subscription si existe
+        $pendingSubscription = session('pending_subscription');
+        $token = $pendingSubscription['token'] ?? null;
+
         return Inertia::render('Guardian/RegisterSuccess', [
-            'email' => session('email')
+            'email' => session('email'),
+            'token' => $token
         ]);
     }
 
     /**
      * Verificar email
      */
-    public function verifyEmail(int $userId, string $token)
+    public function verifyEmail(int $userId, string $token, Request $request)
     {
         $result = $this->registerService->verifyEmail($userId, $token);
 
+        // Recuperar token de programa si existe en sesión
+        $pendingSubscription = session('pending_subscription');
+        $programToken = $pendingSubscription['token'] ?? null;
+
         if (!$result['success']) {
-            return redirect()
-                ->route('guardian.login')
-                ->withErrors(['error' => $result['message']]);
+            $redirect = redirect()->route('guardian.login');
+
+            if ($programToken) {
+                $redirect->with('token', $programToken);
+            }
+
+            return $redirect->withErrors(['error' => $result['message']]);
         }
 
-        return redirect()
-            ->route('guardian.login')
-            ->with('success', $result['message']);
+        $redirect = redirect()->route('guardian.login');
+
+        if ($programToken) {
+            // Pasar el token como parámetro de URL al login
+            return redirect()->to(route('guardian.login') . '?token=' . $programToken)
+                ->with('success', $result['message']);
+        }
+
+        return $redirect->with('success', $result['message']);
     }
 
     /**
@@ -162,9 +201,30 @@ class GuardianAuthController extends Controller
     /**
      * Mostrar formulario de login
      */
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
-        return Inertia::render('Guardian/Login');
+        // Si viene un token en la URL, guardarlo en sesión para recuperarlo después del login
+        $token = $request->query('token');
+        $programId = $request->query('program_id');
+
+        if ($token || $programId) {
+            $pendingData = $request->session()->get('pending_subscription', []);
+
+            if ($token) {
+                $pendingData['token'] = $token;
+            }
+
+            if ($programId) {
+                $pendingData['program_id'] = $programId;
+                $pendingData['return_url'] = "/programs/{$programId}?token={$token}";
+            }
+
+            $request->session()->put('pending_subscription', $pendingData);
+        }
+
+        return Inertia::render('Guardian/Login', [
+            'token' => $token
+        ]);
     }
 
     /**
@@ -185,6 +245,61 @@ class GuardianAuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
+        // NUEVA VALIDACIÓN: Verificar si el email está asociado al participante del token
+        $pendingSubscription = session('pending_subscription');
+
+        \Log::info('=== INICIO VALIDACIÓN GUARDIAN ===');
+        \Log::info('Pending subscription:', ['data' => $pendingSubscription]);
+        \Log::info('Email del login:', ['email' => $request->email]);
+
+        if ($pendingSubscription && isset($pendingSubscription['token'])) {
+            $token = $pendingSubscription['token'];
+            \Log::info('Token encontrado:', ['token' => $token]);
+
+            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($token);
+            \Log::info('Token decodificado:', ['tokenData' => $tokenData]);
+
+            if ($tokenData) {
+                // Buscar el participante usando el mismo patrón que ProgramService
+                $participant = \App\Models\Participant::join('document', 'participants.document_type', '=', 'document.id')
+                    ->where('participants.document_number', $tokenData['document'])
+                    ->where('document.name', $tokenData['document_type'])
+                    ->select('participants.*')
+                    ->first();
+
+                \Log::info('Participante encontrado:', [
+                    'participant_id' => $participant ? $participant->id : null,
+                    'participant_name' => $participant ? $participant->first_name . ' ' . $participant->first_last_name : null
+                ]);
+
+                if ($participant) {
+                    // Buscar directamente si el email está en emergency_contact del participante
+                    $emergencyContact = \App\Models\EmergencyContact::where('participant_id', $participant->id)
+                        ->where('email', $request->email)
+                        ->first();
+
+                    \Log::info('Búsqueda en emergency_contact:', [
+                        'participant_id' => $participant->id,
+                        'email_buscado' => $request->email,
+                        'encontrado' => $emergencyContact ? 'SI' : 'NO',
+                        'emergency_contact_id' => $emergencyContact ? $emergencyContact->id : null,
+                        'emergency_contact_name' => $emergencyContact ? $emergencyContact->name : null
+                    ]);
+
+                    if (!$emergencyContact) {
+                        \Log::warning('Acceso denegado - Email no está en emergency_contact del participante');
+                        return back()
+                            ->withErrors(['error' => 'Este email no está registrado como apoderado del participante. Por favor, verifica que hayas usado el email correcto o contacta al administrador.'])
+                            ->withInput();
+                    }
+
+                    \Log::info('Validación exitosa - Email encontrado en emergency_contact');
+                }
+            }
+        }
+
+        \Log::info('=== FIN VALIDACIÓN GUARDIAN ===');
+
         $result = $this->loginService->login(
             $request->only(['email', 'password']),
             $request->boolean('remember')
@@ -203,6 +318,17 @@ class GuardianAuthController extends Controller
             return back()
                 ->withErrors(['error' => $result['message']])
                 ->withInput();
+        }
+
+        // Verificar si hay un pending_subscription en la sesión para redirigir al programa
+        $pendingSubscription = session('pending_subscription');
+
+        if ($pendingSubscription && isset($pendingSubscription['return_url'])) {
+            // Limpiar la sesión
+            session()->forget('pending_subscription');
+
+            return redirect($pendingSubscription['return_url'])
+                ->with('success', $result['message']);
         }
 
         return redirect()

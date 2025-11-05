@@ -405,7 +405,7 @@
                         <p class="link-text">
                             ¿Ya tienes una cuenta?
                             <Link
-                                :href="route('guardian.login')"
+                                :href="props.token ? `/guardian/login?token=${props.token}` : route('guardian.login')"
                                 class="action-link"
                             >
                                 Inicia sesión aquí
@@ -440,6 +440,10 @@ const props = defineProps({
     documentTypes: {
         type: Array,
         default: () => [],
+    },
+    token: {
+        type: String,
+        default: null,
     },
 });
 

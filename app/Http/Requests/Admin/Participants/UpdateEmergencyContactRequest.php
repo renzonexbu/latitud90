@@ -17,6 +17,8 @@ class UpdateEmergencyContactRequest extends FormRequest
             'contact_id' => 'required|exists:emergency_contact,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
+            'document_type' => 'required|exists:document,id',
+            'document_number' => 'required|string|max:50',
             'code_phone' => 'required|string|max:255',
             'phone' => 'required|string|max:255',
             'country' => 'required|string|max:255',

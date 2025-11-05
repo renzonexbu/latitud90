@@ -132,7 +132,7 @@
           <div class="divider"></div>
           <p class="link-text">
             ¿No tienes una cuenta?
-            <Link :href="route('guardian.register')" class="action-link">
+            <Link :href="props.token ? `/guardian/register?token=${props.token}` : route('guardian.register')" class="action-link">
               Regístrate aquí
             </Link>
           </p>
@@ -147,6 +147,13 @@
 
 <script setup>
 import { Head, Link, useForm, router } from '@inertiajs/vue3'
+
+const props = defineProps({
+  token: {
+    type: String,
+    default: null
+  }
+})
 
 const form = useForm({
   email: '',

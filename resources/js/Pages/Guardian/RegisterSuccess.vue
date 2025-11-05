@@ -68,6 +68,17 @@
         </form>
       </div>
 
+      <!-- Link a Login (si existe token) -->
+      <div v-if="props.token" class="login-link-section">
+        <p class="login-label">¿Ya verificaste tu correo?</p>
+        <Link
+          :href="`/guardian/login?token=${props.token}`"
+          class="login-link-button"
+        >
+          Iniciar sesión →
+        </Link>
+      </div>
+
       <!-- Link a Home -->
       <div class="home-link-section">
         <Link :href="route('ecommerce.index')" class="back-link">
@@ -83,7 +94,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
 const props = defineProps({
-  email: String
+  email: String,
+  token: String
 })
 
 const resendSuccess = ref(false)
@@ -312,6 +324,44 @@ const resendVerification = () => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Login Link Section */
+.login-link-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.login-label {
+  color: #434343;
+  font-family: 'Nexa-Regular', sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  margin-bottom: 12px;
+}
+
+.login-link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1C4F4A;
+  border-radius: 59px;
+  padding: 11px 24px;
+  color: white;
+  font-family: 'Nexa-Bold', sans-serif;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-link-button:hover {
+  background: #154039;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(28, 79, 74, 0.3);
 }
 
 /* Home Link Section */
