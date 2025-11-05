@@ -111,16 +111,16 @@ class SuccessPaymentEmailService
         try {
             $year = $payment->created_at->year;
             $storageDir = storage_path("app/payment_receipts/{$year}");
-            
+
             if (!file_exists($storageDir)) {
                 mkdir($storageDir, 0755, true);
             }
-            
+
             $filename = 'comprobante_pago_' . $payment->id . '.pdf';
             $permanentPath = $storageDir . '/' . $filename;
-            
+
             copy($tempPath, $permanentPath);
-            
+
             $this->logInfo('SuccessPaymentEmailService: Comprobante almacenado permanentemente', [
                 'payment_id' => $payment->id,
                 'temp_path' => $tempPath,
@@ -143,16 +143,16 @@ class SuccessPaymentEmailService
     {
         try {
             $storageDir = storage_path('app/contracts');
-            
+
             if (!file_exists($storageDir)) {
                 mkdir($storageDir, 0755, true);
             }
-            
+
             $filename = 'contrato_' . $orderDetail->order->participant_id . '_' . $orderDetail->order->program_id . '.pdf';
             $permanentPath = $storageDir . '/' . $filename;
-            
+
             copy($tempPath, $permanentPath);
-            
+
             $this->logInfo('SuccessPaymentEmailService: Contrato almacenado permanentemente', [
                 'order_detail_id' => $orderDetail->id,
                 'participant_id' => $orderDetail->order->participant_id,
@@ -169,7 +169,7 @@ class SuccessPaymentEmailService
         }
     }
 
-        /**
+    /**
      * Verificar si se debe enviar el contrato
      * Se envía solo en pago total o primera cuota del pago mensual
      * NO se envía contrato de reserva si el programa inicia en el mismo año
@@ -180,28 +180,28 @@ class SuccessPaymentEmailService
         $installment = \App\Models\Installment::where('payment_order_detail_id', $orderDetail->id)
             ->where('payment_id', $payment->id)
             ->first();
-        
+
         $totalInstallments = 1;
         $installmentPlanId = null;
-        
+
         if ($installment && $installment->installmentPlan) {
             $totalInstallments = $installment->installmentPlan->total_installments;
             $installmentPlanId = $installment->installmentPlan->id;
         }
-        
+
         $currentInstallment = $orderDetail->installment_number;
-        
+
         // Verificar si el programa inicia en el mismo año
         $program = $orderDetail->order->program;
         $currentYear = now()->year;
         $programStartYear = null;
-        
+
         if ($program && $program->departure_date) {
             $programStartYear = $program->departure_date->year;
         }
-        
+
         $isSameYear = ($programStartYear === $currentYear);
-        
+
         // Log para debugging
         $this->logInfo('SuccessPaymentEmailService: Verificando envío de contrato', [
             'order_detail_id' => $orderDetail->id,
@@ -216,7 +216,7 @@ class SuccessPaymentEmailService
             'current_year' => $currentYear,
             'is_same_year' => $isSameYear,
         ]);
-        
+
         // NO enviar contrato de reserva si el programa inicia en el mismo año
         if ($isSameYear) {
             $this->logInfo('SuccessPaymentEmailService: NO enviando contrato - Programa inicia en el mismo año', [
@@ -227,7 +227,7 @@ class SuccessPaymentEmailService
             ]);
             return false;
         }
-        
+
         // Si es pago total (una sola cuota)
         if ($totalInstallments == 1) {
             $this->logInfo('SuccessPaymentEmailService: Enviando contrato - Pago total', [
@@ -236,7 +236,7 @@ class SuccessPaymentEmailService
             ]);
             return true;
         }
-        
+
         // Si es pago mensual y es la primera cuota
         if ($currentInstallment == 1) {
             $this->logInfo('SuccessPaymentEmailService: Enviando contrato - Primera cuota', [
@@ -245,14 +245,14 @@ class SuccessPaymentEmailService
             ]);
             return true;
         }
-        
+
         $this->logInfo('SuccessPaymentEmailService: NO enviando contrato - No cumple condiciones', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'total_installments' => $totalInstallments,
             'current_installment' => $currentInstallment,
         ]);
-        
+
         return false;
     }
 
@@ -303,12 +303,12 @@ class SuccessPaymentEmailService
             // Buscar el archivo ya almacenado por BsaleService
             $bsaleDir = storage_path('app/bsale_documents');
             $yearDir = $bsaleDir . '/' . date('Y');
-            
+
             // Generar nombre de archivo (mismo formato que BsaleService)
             $bsaleNumber = $payment->bsale_number ?? $payment->id;
             $filename = 'bsale_' . $bsaleNumber . '_payment_' . $payment->id . '.pdf';
             $filePath = $yearDir . '/' . $filename;
-            
+
             // Verificar si el archivo ya existe (debería existir por BsaleService)
             if (file_exists($filePath)) {
                 $this->logInfo('SuccessPaymentEmailService: PDF de Bsale encontrado (almacenado por BsaleService)', [
@@ -319,13 +319,13 @@ class SuccessPaymentEmailService
                 ]);
                 return $filePath;
             }
-            
+
             // Si no existe, intentar descargarlo como fallback
             $this->logWarning('SuccessPaymentEmailService: PDF de Bsale no encontrado, descargando como fallback', [
                 'payment_id' => $payment->id,
                 'expected_path' => $filePath,
             ]);
-            
+
             // Crear directorios si no existen
             if (!file_exists($bsaleDir)) {
                 mkdir($bsaleDir, 0755, true);
@@ -333,16 +333,16 @@ class SuccessPaymentEmailService
             if (!file_exists($yearDir)) {
                 mkdir($yearDir, 0755, true);
             }
-            
+
             // Construir la URL del PDF de Bsale
             $bsaleUrl = "https://app2.bsale.cl/view/90370/" . $payment->bsale_token . ".pdf?sfd=99";
-            
+
             // Descargar el PDF como fallback
             $response = \Illuminate\Support\Facades\Http::timeout(30)->get($bsaleUrl);
-            
+
             if ($response->successful()) {
                 file_put_contents($filePath, $response->body());
-                
+
                 $this->logInfo('SuccessPaymentEmailService: PDF de Bsale descargado como fallback', [
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $payment->bsale_document_id,
@@ -352,7 +352,7 @@ class SuccessPaymentEmailService
                     'file_size' => filesize($filePath),
                     'fallback_download' => true,
                 ]);
-                
+
                 return $filePath;
             } else {
                 $this->logError('SuccessPaymentEmailService: Error descargando PDF de Bsale como fallback', [
@@ -361,16 +361,15 @@ class SuccessPaymentEmailService
                     'response_status' => $response->status(),
                     'response_body' => $response->body(),
                 ]);
-                
+
                 return null;
             }
-            
         } catch (\Exception $e) {
             $this->logError('SuccessPaymentEmailService: Error obteniendo PDF de Bsale', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ], $e);
-            
+
             return null;
         }
     }

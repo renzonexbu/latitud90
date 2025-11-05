@@ -16,30 +16,31 @@ class ContractService
     public function generateContract(OrderDetail $orderDetail, Payment $payment): string
     {
         try {
-            $data = $this->prepareContractData($orderDetail, $payment);
+            // Intentar usar plantillas de base de datos primero
+            try {
+                $templateService = app(DocumentTemplateService::class);
+                $tempPath = $templateService->generatePdfFromTemplate(
+                    \App\Models\DocumentTemplate::TYPE_CONTRACT,
+                    $orderDetail,
+                    $payment
+                );
 
-            $pdf = Pdf::loadView('PDF.contract', $data);
+                $this->logInfo('ContractService: PDF generado usando plantilla de BD', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                ]);
 
-            // Generar nombre único para el archivo
-            $filename = 'contrato_' . $orderDetail->order->order_number . '_' . time() . '.pdf';
+                return $tempPath;
+            } catch (\Exception $templateException) {
+                // Si falla la plantilla de BD, usar el método legacy (Blade)
+                $this->logWarning('ContractService: Fallback a plantilla Blade', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'error' => $templateException->getMessage(),
+                ]);
 
-            // Guardar temporalmente el PDF
-            $tempPath = storage_path('app/temp/' . $filename);
-
-            // Asegurar que el directorio existe
-            if (!file_exists(dirname($tempPath))) {
-                mkdir(dirname($tempPath), 0755, true);
+                return $this->generateContractLegacy($orderDetail, $payment);
             }
-
-            $pdf->save($tempPath);
-
-            $this->logInfo('ContractService: PDF del contrato generado exitosamente', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'filename' => $filename,
-            ]);
-
-            return $tempPath;
         } catch (\Exception $e) {
             $this->logError('ContractService: Error generando PDF del contrato', [
                 'order_detail_id' => $orderDetail->id,
@@ -49,6 +50,37 @@ class ContractService
 
             throw $e;
         }
+    }
+
+    /**
+     * Generar PDF del contrato usando método legacy (Blade)
+     */
+    private function generateContractLegacy(OrderDetail $orderDetail, Payment $payment): string
+    {
+        $data = $this->prepareContractData($orderDetail, $payment);
+
+        $pdf = Pdf::loadView('PDF.contract', $data);
+
+        // Generar nombre único para el archivo
+        $filename = 'contrato_' . $orderDetail->order->order_number . '_' . time() . '.pdf';
+
+        // Guardar temporalmente el PDF
+        $tempPath = storage_path('app/temp/' . $filename);
+
+        // Asegurar que el directorio existe
+        if (!file_exists(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0755, true);
+        }
+
+        $pdf->save($tempPath);
+
+        $this->logInfo('ContractService: PDF del contrato generado exitosamente (legacy)', [
+            'order_detail_id' => $orderDetail->id,
+            'payment_id' => $payment->id,
+            'filename' => $filename,
+        ]);
+
+        return $tempPath;
     }
 
     /**

@@ -121,7 +121,7 @@ class PaymentConfirmationController extends Controller
 
     /**
      * Manejar notificaciones webhook de VirtualPOS
-     */
+     */ 
     public function handleVirtualPosWebhook(Request $request, $orderDetailId = null)
     {
         try {

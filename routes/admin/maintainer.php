@@ -10,6 +10,7 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->group(function () {
         // Marketing Mails
         Route::prefix('marketing-mails')->name('marketing.mails.')->group(function () {
             Route::get('/', [MaintainerController::class, 'marketingMails'])->name('index');
+            Route::post('/sync', [MaintainerController::class, 'syncMarketingMails'])->name('sync');
             Route::post('/{id}/toggle-status', [MaintainerController::class, 'toggleMarketingMailStatus'])->name('toggle-status');
             Route::delete('/{id}', [MaintainerController::class, 'destroyMarketingMail'])->name('destroy');
             Route::post('/export', [MaintainerController::class, 'exportMarketingMails'])->name('export');

@@ -17,39 +17,71 @@ class PaymentReceiptService
     public function generatePaymentReceipt(OrderDetail $orderDetail, Payment $payment): string
     {
         try {
-            $data = $this->preparePdfData($orderDetail, $payment);
-            
-            $pdf = Pdf::loadView('PDF.payment', $data);
-            
-            // Generar nombre único para el archivo
-            $filename = 'comprobante_pago_' . $orderDetail->order->order_number . '_' . time() . '.pdf';
-            
-            // Guardar temporalmente el PDF
-            $tempPath = storage_path('app/temp/' . $filename);
-            
-            // Asegurar que el directorio existe
-            if (!file_exists(dirname($tempPath))) {
-                mkdir(dirname($tempPath), 0755, true);
+            // Intentar usar plantillas de base de datos primero
+            try {
+                $templateService = app(DocumentTemplateService::class);
+                $tempPath = $templateService->generatePdfFromTemplate(
+                    \App\Models\DocumentTemplate::TYPE_PAYMENT_RECEIPT,
+                    $orderDetail,
+                    $payment
+                );
+
+                $this->logInfo('PaymentReceiptService: PDF generado usando plantilla de BD', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                ]);
+
+                return $tempPath;
+            } catch (\Exception $templateException) {
+                // Si falla la plantilla de BD, usar el método legacy (Blade)
+                $this->logWarning('PaymentReceiptService: Fallback a plantilla Blade', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'error' => $templateException->getMessage(),
+                ]);
+
+                return $this->generatePaymentReceiptLegacy($orderDetail, $payment);
             }
-            
-            $pdf->save($tempPath);
-            
-            $this->logInfo('PaymentReceiptService: PDF generado exitosamente', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'filename' => $filename,
-            ]);
-            
-            return $tempPath;
         } catch (\Exception $e) {
             $this->logError('PaymentReceiptService: Error generando PDF', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ], $e);
-            
+
             throw $e;
         }
+    }
+
+    /**
+     * Generar PDF de comprobante de pago usando método legacy (Blade)
+     */
+    private function generatePaymentReceiptLegacy(OrderDetail $orderDetail, Payment $payment): string
+    {
+        $data = $this->preparePdfData($orderDetail, $payment);
+
+        $pdf = Pdf::loadView('PDF.payment', $data);
+
+        // Generar nombre único para el archivo
+        $filename = 'comprobante_pago_' . $orderDetail->order->order_number . '_' . time() . '.pdf';
+
+        // Guardar temporalmente el PDF
+        $tempPath = storage_path('app/temp/' . $filename);
+
+        // Asegurar que el directorio existe
+        if (!file_exists(dirname($tempPath))) {
+            mkdir(dirname($tempPath), 0755, true);
+        }
+
+        $pdf->save($tempPath);
+
+        $this->logInfo('PaymentReceiptService: PDF generado exitosamente (legacy)', [
+            'order_detail_id' => $orderDetail->id,
+            'payment_id' => $payment->id,
+            'filename' => $filename,
+        ]);
+
+        return $tempPath;
     }
     
     /**

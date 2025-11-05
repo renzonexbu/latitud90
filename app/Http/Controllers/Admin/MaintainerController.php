@@ -150,4 +150,23 @@ class MaintainerController extends Controller
             return back()->withErrors(['error' => 'Error al exportar marketing mails: ' . $e->getMessage()]);
         }
     }
+
+    public function syncMarketingMails()
+    {
+        try {
+            $service = new \App\Services\Commands\MarketingMailsService();
+            $results = $service->processMarketingEmails();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sincronización completada exitosamente.',
+                'results' => $results
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al sincronizar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

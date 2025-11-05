@@ -21,6 +21,12 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
+    "@tiptap/extension-color": "^3.10.2",
+    "@tiptap/extension-highlight": "^3.10.2",
+    "@tiptap/extension-text-align": "^3.10.2",
+    "@tiptap/extension-underline": "^3.10.2",
+    "@tiptap/starter-kit": "^3.10.2",
+    "@tiptap/vue-3": "^3.10.2",
     "@vue/server-renderer": "^3.5.15",
     "@vueup/vue-quill": "^1.2.0",
     "chart.js": "^4.5.0",
