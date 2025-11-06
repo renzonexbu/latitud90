@@ -16,15 +16,26 @@
         <span class="text-[#5b5b5b] font-nexa-regular text-xs">
           Como condiciones meteorológicas, pandemia, normas sanitarias, cortes de puentes, pasos fronterizos, catástrofe o estado de excepción. Para más información, descarga
         </span>
-        <span class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline">
+        <a
+          v-if="itineraryFile"
+          :href="itineraryFile"
+          target="_blank"
+          class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline hover:text-[#0d3352] transition-colors"
+        >
+          aquí
+        </a>
+        <span v-else class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline">
           aquí
         </span>
         <span class="text-[#5b5b5b] font-nexa-regular text-xs">
           el itinerario completo o consúltanos a nuestro correo eléctrico
         </span>
-        <span class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline">
+        <a
+          href="mailto:educacion@latitud90.com"
+          class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline hover:text-[#0d3352] transition-colors"
+        >
           educacion@latitud90.com
-        </span>
+        </a>
       </div>
     </div>
   </div>
@@ -32,6 +43,12 @@
 
 <script>
 export default {
-  name: 'WarningSection'
+  name: 'WarningSection',
+  props: {
+    itineraryFile: {
+      type: String,
+      default: null
+    }
+  }
 };
 </script> 

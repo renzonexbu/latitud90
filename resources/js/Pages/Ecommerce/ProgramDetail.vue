@@ -80,7 +80,7 @@
                             :equipment-list="program.equipment_list"
                         />
                         <!-- Sección de Advertencia -->
-                        <WarningSection />
+                        <WarningSection :itinerary-file="program.itinerary_file" />
 
                         <!-- Galería de Imágenes -->
                         <ImageGallery
