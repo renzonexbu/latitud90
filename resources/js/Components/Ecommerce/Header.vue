@@ -2,7 +2,7 @@
     <header
         :class="[
             isIndexPage
-                ? isScrolled
+                ? isScrolled && !isMobile
                     ? 'fixed top-0 left-0 right-0 z-50 px-4 py-2'
                     : 'absolute top-4 left-4 right-4 z-50'
                 : 'relative z-50',
@@ -308,6 +308,7 @@ defineProps({
 
 const page = usePage();
 const mobileMenuOpen = ref(false);
+const isMobile = ref(false);
 
 // Rutas centralizadas del menú
 const navLinks = [
@@ -396,14 +397,18 @@ const scrollToHero = () => {
     }
 };
 
-// Cerrar menú móvil cuando se cambie a desktop
+// Detectar si está en mobile y cerrar menú móvil cuando se cambie a desktop
 const handleResize = () => {
+    isMobile.value = window.innerWidth <= 768;
     if (window.innerWidth > 768 && mobileMenuOpen.value) {
         mobileMenuOpen.value = false;
     }
 };
 
 onMounted(() => {
+    // Inicializar detección de mobile
+    isMobile.value = window.innerWidth <= 768;
+
     window.addEventListener("resize", handleResize);
 
     // Manejar scroll automático si hay hash en la URL
@@ -452,41 +457,11 @@ onUnmounted(() => {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Cuando el header está en estado fixed después del scroll */
+/* Cuando el header está en estado fixed después del scroll (solo desktop) */
 header.fixed .header-white {
     margin: 0;
     border-radius: 0;
     width: 100%;
-}
-
-/* Estilos específicos para mobile cuando está sticky */
-@media (max-width: 768px) {
-    header.fixed .header-off.header-white {
-        margin: 8px 20px 0 20px !important;
-        padding: 10px 25px !important;
-        border-radius: 20px !important;
-        width: auto !important;
-        box-sizing: border-box;
-        background: var(--colores-neutro-blanco, #ffffff) !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    /* Logo ajustado para mobile sticky */
-    header.fixed .header-off.header-white .capa-1 {
-        margin-top: 0 !important;
-        width: 44px !important;
-        height: 30px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    /* Botón mobile ajustado para sticky */
-    header.fixed .header-off.header-white .md\:hidden {
-        margin-top: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-    }
 }
 
 .capa-1 {
