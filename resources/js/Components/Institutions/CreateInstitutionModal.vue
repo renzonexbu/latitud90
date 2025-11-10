@@ -10,7 +10,7 @@
             <!-- Header -->
             <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
                 <div class="flex flex-row gap-[20px] items-start justify-end w-full">
-                    <div class="text-[#434343] text-center font-nexa-bold text-[24px] leading-[28px] font-bold flex-1 text-center">
+                    <div class="text-[#434343] font-nexa-bold text-[24px] leading-[28px] font-bold flex-1 text-center">
                         Crear institución
                     </div>
                     <button 
