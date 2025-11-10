@@ -58,6 +58,13 @@ return [
     ],
 
     'virtualpos' => [
+        // Configuración para Subscriptions API v3 (módulo independiente)
+        'api_url' => env('VIRTUALPOS_API_URL', 'https://api.virtualpos.cl/v3'),
+        'api_key' => env('VIRTUALPOS_API_KEY'),
+        'secret_key' => env('VIRTUALPOS_SECRET_KEY'),
+        'merchant_code' => env('VIRTUALPOS_MERCHANT_CODE'),
+
+        // Configuración existente de cuotas (legacy)
         'no_cuotes' => [
             'api_key' => env('VP_API_KEY_SC', 'd0f282-9c0c9d-ab74f7-965013-03232e'),
             'secret_key' => env('VP_SECRET_SC', '13d86e16bbb4d2d05d83a82112b0d310'),

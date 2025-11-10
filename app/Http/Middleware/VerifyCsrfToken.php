@@ -14,5 +14,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'api/payment/notification/*',
         'payment/callback/*',
+        'test/subscriptions/callback', // VirtualPos webhook para suscripciones
+        'test/subscriptions/return', // VirtualPos return URL (puede ser POST)
     ];
 }

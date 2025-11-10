@@ -2,9 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(cat:*)",
+<<<<<<< Updated upstream
       "Bash(php artisan:*)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)"
+=======
+      "Bash(mkdir:*)",
+      "Bash(php artisan:*)"
+>>>>>>> Stashed changes
     ],
     "deny": [],
     "ask": []

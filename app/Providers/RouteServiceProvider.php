@@ -35,6 +35,12 @@ class RouteServiceProvider extends ServiceProvider
 
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
+
+            // Rutas de prueba de suscripciones (solo en desarrollo)
+            if (app()->environment(['local', 'development', 'testing'])) {
+                Route::middleware('web')
+                    ->group(base_path('routes/test-subscriptions.php'));
+            }
         });
     }
 }
