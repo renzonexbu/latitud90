@@ -2,6 +2,7 @@
 
 namespace App\Services\Client\Authentication;
 
+use App\Models\EmergencyContact;
 use App\Models\GuardianUser;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,18 +15,64 @@ class LoginGuardianService
     public function login(array $credentials, bool $remember = false): array
     {
         try {
+            \Log::info('=== LOGIN GUARDIAN SERVICE START ===', [
+                'email' => $credentials['email'],
+                'remember' => $remember,
+            ]);
+
+            // VALIDACIÓN CRÍTICA: Verificar que el email existe en emergency_contact
+            $emergencyContactExists = EmergencyContact::where('email', $credentials['email'])->exists();
+
+            \Log::info('Emergency contact check', [
+                'email' => $credentials['email'],
+                'exists' => $emergencyContactExists
+            ]);
+
+            if (!$emergencyContactExists) {
+                \Log::warning('Email not found in emergency_contact', [
+                    'email' => $credentials['email']
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'No se encontró ningún contacto de emergencia asociado a este email. Solo los apoderados registrados pueden iniciar sesión.'
+                ];
+            }
+
             // Buscar el usuario
             $guardianUser = GuardianUser::where('email', $credentials['email'])->first();
 
+            \Log::info('Guardian user lookup', [
+                'email' => $credentials['email'],
+                'found' => $guardianUser ? 'yes' : 'no',
+                'user_id' => $guardianUser ? $guardianUser->id : null,
+            ]);
+
             if (!$guardianUser) {
+                \Log::warning('Guardian user not found', [
+                    'email' => $credentials['email']
+                ]);
+
                 return [
                     'success' => false,
-                    'message' => 'Credenciales incorrectas.'
+                    'message' => 'Credenciales incorrectas. Si eres apoderado y no tienes cuenta, debes registrarte primero.'
                 ];
             }
 
             // Verificar contraseña
-            if (!Hash::check($credentials['password'], $guardianUser->password)) {
+            $passwordMatches = Hash::check($credentials['password'], $guardianUser->password);
+
+            \Log::info('Password verification', [
+                'user_id' => $guardianUser->id,
+                'matches' => $passwordMatches
+            ]);
+
+            if (!$passwordMatches) {
+                \Log::warning('Password mismatch', [
+                    'user_id' => $guardianUser->id,
+                    'email' => $credentials['email']
+                ]);
+
                 return [
                     'success' => false,
                     'message' => 'Credenciales incorrectas.'
@@ -33,7 +80,18 @@ class LoginGuardianService
             }
 
             // Verificar que el email esté verificado
+            \Log::info('Email verification check', [
+                'user_id' => $guardianUser->id,
+                'verified' => $guardianUser->email_verified_at ? 'yes' : 'no',
+                'verified_at' => $guardianUser->email_verified_at
+            ]);
+
             if (!$guardianUser->email_verified_at) {
+                \Log::warning('Email not verified', [
+                    'user_id' => $guardianUser->id,
+                    'email' => $guardianUser->email
+                ]);
+
                 return [
                     'success' => false,
                     'message' => 'Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
@@ -43,7 +101,17 @@ class LoginGuardianService
             }
 
             // Verificar que la cuenta no esté suspendida
+            \Log::info('Account status check', [
+                'user_id' => $guardianUser->id,
+                'status' => $guardianUser->status
+            ]);
+
             if ($guardianUser->status === 'suspended') {
+                \Log::warning('Account suspended', [
+                    'user_id' => $guardianUser->id,
+                    'email' => $guardianUser->email
+                ]);
+
                 return [
                     'success' => false,
                     'message' => 'Tu cuenta está suspendida. Contacta al administrador.'
@@ -51,10 +119,24 @@ class LoginGuardianService
             }
 
             // Autenticar con el guard 'guardian'
+            \Log::info('Attempting to authenticate with guardian guard', [
+                'user_id' => $guardianUser->id,
+                'remember' => $remember
+            ]);
+
             Auth::guard('guardian')->login($guardianUser, $remember);
+
+            \Log::info('Authentication successful', [
+                'user_id' => $guardianUser->id,
+                'session_id' => session()->getId(),
+                'guard_check' => Auth::guard('guardian')->check(),
+                'authenticated_user_id' => Auth::guard('guardian')->id()
+            ]);
 
             // Actualizar último login
             $guardianUser->updateLastLogin();
+
+            \Log::info('=== LOGIN GUARDIAN SERVICE END - SUCCESS ===');
 
             return [
                 'success' => true,
@@ -63,6 +145,12 @@ class LoginGuardianService
             ];
 
         } catch (\Exception $e) {
+            \Log::error('=== LOGIN GUARDIAN SERVICE ERROR ===', [
+                'email' => $credentials['email'] ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return [
                 'success' => false,
                 'message' => 'Error al iniciar sesión: ' . $e->getMessage()

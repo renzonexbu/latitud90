@@ -14,11 +14,19 @@ class UpdateEmergencyContactService
             throw new \Exception('El contacto no pertenece a este participante');
         }
 
+        $documentType = $data['document_type'] ?? 1;
+        $documentNumber = $data['document_number'] ?? '';
+
+        // Sanitizar RUT: remover puntos y guiones si el tipo de documento es RUT (ID = 1)
+        if ($documentType == 1) {
+            $documentNumber = $this->sanitizeRut($documentNumber);
+        }
+
         $contact->update([
             'name' => $data['name'],
             'email' => $data['email'],
-            'document_type' => $data['document_type'] ?? 1,
-            'document_number' => $data['document_number'] ?? '',
+            'document_type' => $documentType,
+            'document_number' => $documentNumber,
             'code_phone' => $data['code_phone'],
             'phone' => $data['phone'],
             'country' => $data['country'],
@@ -40,6 +48,18 @@ class UpdateEmergencyContactService
         }
 
         $contact->delete();
+    }
+
+    /**
+     * Sanitizar RUT removiendo puntos y guiones
+     * Ejemplo: "12.345.678-9" -> "123456789"
+     *
+     * @param string $rut
+     * @return string
+     */
+    private function sanitizeRut(string $rut): string
+    {
+        return str_replace(['.', '-'], '', $rut);
     }
 }
 

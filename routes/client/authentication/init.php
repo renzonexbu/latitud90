@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Client\authentication\GuardianAuthController;
+use App\Http\Controllers\Client\Guardian\GuardianDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,6 +14,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('guardian')->name('guardian.')->group(function () {
+
+    // Redirección raíz a dashboard (si está autenticado) o login (si no lo está)
+    Route::get('/', function () {
+        if (auth('guardian')->check()) {
+            return redirect()->route('guardian.dashboard');
+        }
+        return redirect()->route('guardian.login');
+    });
 
     // Rutas para invitados (no autenticados)
     Route::middleware('guest:guardian')->group(function () {
@@ -70,11 +79,16 @@ Route::prefix('guardian')->name('guardian.')->group(function () {
             ->name('change-password.post');
 
         // Dashboard
-        Route::get('/dashboard', function () {
-            return inertia('Guardian/Dashboard', [
-                'user' => auth('guardian')->user()->load('guardianLinks.emergencyContact.participant')
-            ]);
-        })->name('dashboard');
+        Route::get('/dashboard', [GuardianDashboardController::class, 'index'])
+            ->name('dashboard');
+
+        // Participantes
+        Route::get('/participants', [GuardianDashboardController::class, 'participants'])
+            ->name('participants');
+
+        // Programas de un participante
+        Route::get('/participant/{participant}/programs', [GuardianDashboardController::class, 'participantPrograms'])
+            ->name('participant.programs');
 
         // Vista de pruebas (solo para testing)
         Route::get('/test', function () {
