@@ -183,7 +183,6 @@
                                     as="button"
                                     class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
-                                    :data="{ redirect: 'http://latitud90.test/login' }"
                                 >
                                     Cerrar sesión
                                 </NavLink>
