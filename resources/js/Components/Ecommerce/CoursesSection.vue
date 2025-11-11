@@ -16,9 +16,10 @@
                         v-for="(banner, index) in banners"
                         :key="index"
                         v-show="currentBanner === index"
-                        class="absolute inset-0 bg-cover bg-center banner-image"
+                        class="absolute inset-0 bg-cover banner-image"
                         :style="{
-                            backgroundImage: `url(${banner})`,
+                            backgroundImage: `url(${banner.url})`,
+                            backgroundPosition: banner.position || 'center',
                         }"
                     ></div>
                 </transition-group>
@@ -115,14 +116,14 @@ export default {
         return {
             currentBanner: 0,
             banners: [
-                '/images/banners/NORTE_CHILE.webp',
-                '/images/banners/SUR_DE_CHILE.webp',
-                '/images/banners/PERÚ.webp',
-                '/images/banners/BRASIL.webp',
-                '/images/banners/USA.webp',
-                '/images/banners/EUROPA.webp',
-                '/images/banners/CAMPAMENTOS.webp',
-                '/images/banners/CEAL.webp'
+                { url: '/images/banners/NORTE_CHILE.webp', position: 'center 75%' },
+                { url: '/images/banners/SUR_DE_CHILE.webp', position: 'center' },
+                { url: '/images/banners/PERÚ.webp', position: 'center' },
+                { url: '/images/banners/BRASIL.webp', position: 'center' },
+                { url: '/images/banners/USA.webp', position: 'center' },
+                { url: '/images/banners/EUROPA.webp', position: 'center' },
+                { url: '/images/banners/CAMPAMENTOS.webp', position: 'center' },
+                { url: '/images/banners/CEAL.webp', position: 'center 75%' }
             ],
             autoPlayInterval: null,
         };
