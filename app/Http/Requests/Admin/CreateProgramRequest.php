@@ -53,10 +53,31 @@ class CreateProgramRequest extends FormRequest
                     if ($departureDate) {
                         $departure = \Carbon\Carbon::parse($departureDate);
                         $paymentDate = \Carbon\Carbon::parse($value);
-                        $daysDifference = $departure->diffInDays($paymentDate);
-                        
+
+                        // Calcular la diferencia correctamente: fecha_mayor - fecha_menor
+                        // Si paymentDate es antes que departure (correcto), la diferencia será positiva
+                        $daysDifference = $paymentDate->diffInDays($departure, false);
+
+                        // 🔍 LOG: Validación de fechas en el backend
+                        \Log::info('📅 BACKEND - Validación de fechas:', [
+                            'departure_date_input' => $departureDate,
+                            'final_payment_date_input' => $value,
+                            'departure_parsed' => $departure->toDateTimeString(),
+                            'payment_parsed' => $paymentDate->toDateTimeString(),
+                            'days_difference' => $daysDifference,
+                            'payment_is_before_departure' => $paymentDate->lt($departure),
+                            'is_valid' => $daysDifference >= 60
+                        ]);
+
+                        // Si la fecha de pago es después de la fecha de salida, fallar
+                        if ($paymentDate->gte($departure)) {
+                            $fail('La fecha final de pago debe ser anterior a la fecha de salida.');
+                            return;
+                        }
+
+                        // Verificar que haya al menos 60 días de diferencia
                         if ($daysDifference < 60) {
-                            $fail('La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.');
+                            $fail("La fecha final de pago debe ser al menos 60 días antes de la fecha de salida. (Actualmente hay {$daysDifference} días)");
                         }
                     }
                 }
@@ -76,16 +97,16 @@ class CreateProgramRequest extends FormRequest
             'discount_type' => 'nullable|string',
             'discount_amount' => 'nullable|numeric|min:0',
             'payment_options' => 'required|array|min:1',
-            'payment_options.*' => 'string|in:full_payment,installments',
+            'payment_options.*' => 'string|in:full_payment,subscription',
             // Nuevas selecciones por checkbox
             'full_payment_options' => 'required_if:payment_options,full_payment|array|min:1',
             'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12,full_international',
-            'lat90_payment_options' => 'required_if:payment_options,installments|array|min:1',
-            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0',
+            'subscription_payment_options' => 'required_if:payment_options,subscription|array|min:1',
+            'subscription_payment_options.*' => 'string|in:subscription_virtualpos',
             'created_by' => 'nullable|exists:users,id',
             'active' => 'boolean',
             'max_installments' => [
-                'required_if:payment_options,installments',
+                'required_if:payment_options,subscription',
                 'integer',
                 'min:1',
                 'max:12',
@@ -93,16 +114,16 @@ class CreateProgramRequest extends FormRequest
                     if ($value && $this->input('final_payment_date')) {
                         $finalPaymentDate = \Carbon\Carbon::parse($this->input('final_payment_date'));
                         $now = \Carbon\Carbon::now();
-                        
+
                         // Calcular meses disponibles hasta la fecha de pago
                         $monthsAvailable = $now->diffInMonths($finalPaymentDate);
                         if ($now->day > $finalPaymentDate->day) {
                             $monthsAvailable -= 1;
                         }
                         $monthsAvailable = max(0, $monthsAvailable);
-                        
+
                         if ($value > $monthsAvailable) {
-                            $fail("El número máximo de cuotas ({$value}) no puede exceder los meses disponibles hasta la fecha de pago ({$monthsAvailable} meses).");
+                            $fail("El número máximo de meses de suscripción ({$value}) no puede exceder los meses disponibles hasta la fecha de pago ({$monthsAvailable} meses).");
                         }
                     }
                 }
@@ -196,9 +217,9 @@ class CreateProgramRequest extends FormRequest
             'full_payment_options.required_if' => 'Debe seleccionar al menos una opción de pago total.',
             'full_payment_options.min' => 'Debe seleccionar al menos una opción de pago total.',
             'full_payment_options.*.in' => 'La opción de pago total seleccionada no es válida.',
-            'lat90_payment_options.required_if' => 'Debe seleccionar al menos una opción de pago mensual.',
-            'lat90_payment_options.min' => 'Debe seleccionar al menos una opción de pago mensual.',
-            'lat90_payment_options.*.in' => 'La opción de pago mensual seleccionada no es válida.',
+            'subscription_payment_options.required_if' => 'Debe seleccionar al menos una opción de suscripción.',
+            'subscription_payment_options.min' => 'Debe seleccionar al menos una opción de suscripción.',
+            'subscription_payment_options.*.in' => 'La opción de suscripción seleccionada no es válida.',
             
             // Mensajes para campos opcionales
             'education_level.in' => 'El nivel de educación seleccionado no es válido.',
@@ -216,19 +237,19 @@ class CreateProgramRequest extends FormRequest
             'payment_options.array' => 'Las opciones de pago deben ser enviadas como un array.',
             'payment_options.*.in' => 'La opción de pago seleccionada no es válida.',
             'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
-            'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
-            'max_installments.required_if' => 'El número máximo de cuotas es obligatorio cuando se selecciona pago en cuotas.',
-            'max_installments.integer' => 'El número máximo de cuotas debe ser un número entero.',
-            'max_installments.min' => 'El número máximo de cuotas debe ser al menos 1.',
-            'max_installments.max' => 'El número máximo de cuotas no puede ser mayor a 12.',
+            'subscription_payment_method.in' => 'El método de suscripción seleccionado no es válido.',
+            'max_installments.required_if' => 'El número máximo de meses de suscripción es obligatorio cuando se selecciona suscripción.',
+            'max_installments.integer' => 'El número máximo de meses de suscripción debe ser un número entero.',
+            'max_installments.min' => 'El número máximo de meses de suscripción debe ser al menos 1.',
+            'max_installments.max' => 'El número máximo de meses de suscripción no puede ser mayor a 12.',
             'created_by.exists' => 'El usuario creador no existe.',
             
             // Mensajes para validaciones básicas
             'institution_id.exists' => 'La institución seleccionada no existe.',
             
             // Mensajes para validaciones personalizadas
-            'final_payment_date.60_days_before_departure' => 'La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.',
-            'max_installments.months_available' => 'El número máximo de cuotas no puede exceder los meses disponibles hasta la fecha de pago.',
+            'final_payment_date.60_days_before_departure' => 'hola mundo',
+            'max_installments.months_available' => 'El número máximo de meses de suscripción no puede exceder los meses disponibles hasta la fecha de pago.',
         ];
     }
 } 

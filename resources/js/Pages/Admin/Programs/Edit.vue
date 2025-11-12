@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
+import { Head, Link, useForm, usePage, router } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import ProgramDescription from "@/Components/Ecommerce/CreateProgramComponents/ProgramDescription.vue";
@@ -90,7 +90,6 @@ const props = defineProps({
     }
 });
 
-// No necesitamos inicializar router, ya viene importado
 const page = usePage();
 // Estado para modal y lista local de ejecutivos
 const showCreateExecutiveModal = ref(false);

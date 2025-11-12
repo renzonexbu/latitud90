@@ -58,8 +58,18 @@ class UpdateProgramRequest extends FormRequest
                     if ($value && $departureDate) {
                         $departure = \Carbon\Carbon::parse($departureDate);
                         $paymentDate = \Carbon\Carbon::parse($value);
-                        $daysDifference = $departure->diffInDays($paymentDate);
-                        
+
+                        // Calcular correctamente la diferencia (paymentDate debe ser antes que departure)
+                        $daysDifference = $paymentDate->diffInDays($departure, false);
+
+                        \Log::info('📅 UPDATE - Validación de fechas:', [
+                            'departure_date_input' => $departureDate,
+                            'final_payment_date_input' => $value,
+                            'days_difference' => $daysDifference,
+                            'payment_is_before_departure' => $paymentDate->lt($departure),
+                            'is_valid' => $daysDifference >= 60
+                        ]);
+
                         if ($daysDifference < 60) {
                             $fail('La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.');
                         }
@@ -142,6 +152,29 @@ class UpdateProgramRequest extends FormRequest
 			$finalCount = max(0, $existingCount - $deleteCount) + $newCount;
 			if ($finalCount < 1) {
 				$validator->errors()->add('images', 'Debe adjuntar al menos una imagen del programa.');
+			}
+
+			// Validar que no se puede cambiar el precio si hay suscripciones activas
+			$newPrice = $this->input('total_price') ?? $this->input('trip_price');
+			if ($newPrice !== null && $program->virtualpos_plan_id) {
+				// El precio ha cambiado
+				$oldPrice = $program->trip_price;
+				if ((float)$newPrice != (float)$oldPrice) {
+					// Verificar si hay suscripciones activas
+					$virtualPosPlanService = app(\App\Services\Subscription\VirtualPosPlanService::class);
+					$hasActiveSubscriptions = $virtualPosPlanService->hasActiveSubscriptions($program->virtualpos_plan_id);
+
+					if ($hasActiveSubscriptions) {
+						$validator->errors()->add('total_price',
+							'No se puede modificar el precio porque hay estudiantes con suscripciones activas. ' .
+							'Las suscripciones activas deben completarse antes de cambiar el precio del programa.'
+						);
+						$validator->errors()->add('trip_price',
+							'No se puede modificar el precio porque hay estudiantes con suscripciones activas. ' .
+							'Las suscripciones activas deben completarse antes de cambiar el precio del programa.'
+						);
+					}
+				}
 			}
 		});
 	}

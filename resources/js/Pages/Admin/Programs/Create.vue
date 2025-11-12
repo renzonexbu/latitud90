@@ -519,12 +519,20 @@ const submit = () => {
     if (form.sales_executive_id && form.sales_executive_id !== '') {
         form.sales_executive_id = parseInt(form.sales_executive_id);
     }
-    
+
     // Establecer 2 cuotas como base si no se selecciona cuotas
     if (!form.max_installments || form.max_installments === '') {
         form.max_installments = 2;
     }
     form.created_by = null; // Se establecerá en el backend con auth()->id()
+
+    // 🔍 LOG: Fechas que se enviarán al backend
+    console.log('📅 FRONTEND - Fechas antes de enviar:', {
+        departure_date: form.departure_date,
+        final_payment_date: form.final_payment_date,
+        departure_date_type: typeof form.departure_date,
+        final_payment_date_type: typeof form.final_payment_date
+    });
 
     // Pilares fijos siempre
     form.pilar_1 = 'Aventura';

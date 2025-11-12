@@ -24,6 +24,12 @@ class PaymentGatewaySeeder extends Seeder
                 'active' => true
             ],
             [
+                'name' => 'VirtualPos',
+                'code' => 'virtualpos',
+                'description' => 'Suscripciones recurrentes mensuales a través de VirtualPos (Transbank)',
+                'active' => true
+            ],
+            [
                 'name' => 'Presencial',
                 'code' => 'presencial',
                 'description' => 'Pagos presenciales en efectivo o tarjeta',
@@ -38,15 +44,19 @@ class PaymentGatewaySeeder extends Seeder
         ];
 
         foreach ($paymentGateways as $gateway) {
-            DB::table('payment_gateways')->insert(array_merge($gateway, [
-                'created_at' => now(),
-                'updated_at' => now()
-            ]));
+            DB::table('payment_gateways')->updateOrInsert(
+                ['code' => $gateway['code']],
+                array_merge($gateway, [
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ])
+            );
         }
 
         $this->command->info('✅ Gateways de pago creados exitosamente:');
         $this->command->info('💳 Transbank (Débito/Crédito)');
         $this->command->info('🏦 Khipu (Transferencia)');
+        $this->command->info('🔄 VirtualPos (Suscripciones)');
         $this->command->info('🏪 Presencial (Efectivo/Tarjeta)');
         $this->command->info('💰 Reembolso (Manual)');
     }

@@ -127,20 +127,13 @@
                                             type="date"
                                             v-model="formData.final_payment_date"
                                             class="admin-input-text"
-                                            :class="{ 
-                                                'border-red-500': errors.final_payment_date || !paymentDateValidation.isValid,
-                                                'border-yellow-500': paymentDateValidation.isValid && paymentDateValidation.message
+                                            :class="{
+                                                'border-red-500': errors.final_payment_date
                                             }"
                                         />
                                         <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                             {{ errors.final_payment_date }}
                                         </span>
-                                                                <span v-if="!paymentDateValidation.isValid" class="text-red-500 text-sm mt-1">
-                            {{ paymentDateValidation.message }}
-                        </span>
-                        <span v-if="paymentDateValidation.isValid && paymentDateValidation.daysDiff >= 60" class="text-green-600 text-sm mt-1">
-                            ✅ Fecha válida ({{ paymentDateValidation.daysDiff }} días antes de la salida)
-                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -488,23 +481,23 @@
                                 </div>
                             </div>
 
-                            <!-- Opción Cuotas -->
+                            <!-- Opción Suscripciones -->
                             <div class="payment-option">
                                 <div class="payment-option-header">
                                     <div class="payment-checkbox">
                                         <input
                                             type="checkbox"
-                                            id="installments-payment"
-                                            value="installments"
-                                            :checked="isPaymentOptionSelected('installments')"
-                                            @change="handlePaymentOptionChange('installments', $event)"
+                                            id="subscription-payment"
+                                            value="subscription"
+                                            :checked="isPaymentOptionSelected('subscription')"
+                                            @change="handlePaymentOptionChange('subscription', $event)"
                                             class="checkbox-input"
                                         />
-                                        <label for="installments-payment" class="checkbox-label"></label>
+                                        <label for="subscription-payment" class="checkbox-label"></label>
                                     </div>
                                     <div class="payment-option-content">
                                         <div class="payment-option-title">
-                                            Mensual | Cuota Lat 90
+                                            Suscripciones
                                         </div>
                                         <div class="payment-option-info">
                                             <svg
@@ -531,25 +524,25 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="isPaymentOptionSelected('installments')" class="installments-options">
+                                <div v-if="isPaymentOptionSelected('subscription')" class="installments-options">
                                     <div class="payment-method-select">
                                         <div class="field-wrapper">
-                                            <div class="field-label">Opciones disponibles para Pago Mensual</div>
+                                            <div class="field-label">Opciones disponibles para Suscripciones</div>
                                             <div class="flex flex-col gap-2">
-                                                <label v-for="opt in lat90Choices" :key="opt.code" class="flex items-center gap-2">
-                                                    <input type="checkbox" :value="opt.code" @change="toggleLat90Option(opt.code, $event)" :checked="formData.lat90_payment_options?.includes(opt.code)" />
+                                                <label v-for="opt in subscriptionChoices" :key="opt.code" class="flex items-center gap-2">
+                                                    <input type="checkbox" :value="opt.code" @change="toggleSubscriptionOption(opt.code, $event)" :checked="formData.subscription_payment_options?.includes(opt.code)" />
                                                     <span>{{ opt.label }}</span>
                                                 </label>
                                             </div>
-                                            <span v-if="errors.lat90_payment_options" class="text-red-500 text-sm mt-1">
-                                                {{ errors.lat90_payment_options }}
+                                            <span v-if="errors.subscription_payment_options" class="text-red-500 text-sm mt-1">
+                                                {{ errors.subscription_payment_options }}
                                             </span>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Campo para seleccionar número de cuotas -->
                                     <div class="field-wrapper mt-4">
-                                        <div class="field-label">Número máximo de cuotas</div>
+                                        <div class="field-label">Número máximo de meses de suscripción</div>
                                         <div class="field-input-container">
                                             <select 
                                                 v-model="formData.max_installments"
@@ -608,7 +601,7 @@ const props = defineProps({
             // Opciones de pago múltiples
             payment_options: [], // Radio: seleccionar secciones activas
             full_payment_options: [], // Checkboxes: opciones específicas (mode=full)
-            lat90_payment_options: [], // Checkboxes: opciones específicas (mode=lat90)
+            subscription_payment_options: [], // Checkboxes: opciones específicas (mode=subscription)
             discount_type: "", // Por defecto vacío para mostrar "Selecciona el beneficio grupal"
             discount_amount: "",
             sales_executive_id: "",
@@ -702,9 +695,8 @@ const fullPaymentChoices = computed(() => {
         return option.installments <= availableMonths;
     });
 });
-const lat90Choices = [
-    { code: 'lat90_transfer_khipu', label: 'Transferencia (Khipu)' },
-    { code: 'lat90_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)' },
+const subscriptionChoices = [
+    { code: 'subscription_virtualpos', label: 'Suscripción mensual (VirtualPos)' },
 ];
 
 // Estado para el monto de descuento formateado
@@ -748,33 +740,6 @@ const maxInstallmentChoices = computed(() => {
     }
     return choices;
 });
-
-// Validación de fecha de pago (mínimo 60 días antes de la fecha de salida)
-const paymentDateValidation = computed(() => {
-    if (!formData.value.final_payment_date || !formData.value.departure_date) {
-        return { isValid: true, message: '', daysDiff: 0 };
-    }
-    
-    const paymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
-    const departureDate = new Date(formData.value.departure_date + 'T00:00:00');
-    
-    // Calcular diferencia en días
-    const timeDiff = departureDate.getTime() - paymentDate.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    
-    if (daysDiff < 60) {
-        return {
-            isValid: false,
-            message: `La fecha final de pago debe ser al menos 60 días antes de la fecha de salida. (${daysDiff} días de diferencia)`,
-            daysDiff
-        };
-    }
-    
-    return { isValid: true, message: '', daysDiff };
-});
-
-
-
 
 // Función para formatear precio como moneda
 const formatCurrency = (value) => {
@@ -967,8 +932,8 @@ onMounted(() => {
     if (!Array.isArray(formData.value.full_payment_options)) {
         formData.value.full_payment_options = [];
     }
-    if (!Array.isArray(formData.value.lat90_payment_options)) {
-        formData.value.lat90_payment_options = [];
+    if (!Array.isArray(formData.value.subscription_payment_options)) {
+        formData.value.subscription_payment_options = [];
     }
 });
 
@@ -980,11 +945,11 @@ const toggleFullOption = (code, event) => {
     formData.value.full_payment_options = Array.from(set);
     emit('update:modelValue', formData.value);
 };
-const toggleLat90Option = (code, event) => {
-    if (!Array.isArray(formData.value.lat90_payment_options)) formData.value.lat90_payment_options = [];
-    const set = new Set(formData.value.lat90_payment_options);
+const toggleSubscriptionOption = (code, event) => {
+    if (!Array.isArray(formData.value.subscription_payment_options)) formData.value.subscription_payment_options = [];
+    const set = new Set(formData.value.subscription_payment_options);
     if (event.target.checked) set.add(code); else set.delete(code);
-    formData.value.lat90_payment_options = Array.from(set);
+    formData.value.subscription_payment_options = Array.from(set);
     emit('update:modelValue', formData.value);
 };
 
@@ -1215,8 +1180,8 @@ const handlePaymentOptionChange = (option, event) => {
         // Limpiar los campos relacionados cuando se deselecciona
         if (option === 'full_payment') {
             formData.value.full_payment_method = "";
-        } else if (option === 'installments') {
-            formData.value.installments_payment_method = "";
+        } else if (option === 'subscription') {
+            formData.value.subscription_payment_method = "";
             formData.value.max_installments = "";
         }
     }
@@ -1224,26 +1189,26 @@ const handlePaymentOptionChange = (option, event) => {
     emit('update:modelValue', formData.value);
 };
 
-// Validación de campos requeridos para pago mensual
+// Validación de campos requeridos para suscripciones
 const installmentsValidation = computed(() => {
-    if (!formData.value.payment_options?.includes('installments')) {
+    if (!formData.value.payment_options?.includes('subscription')) {
         return { isValid: true, message: '' };
     }
-    
+
     if (!formData.value.max_installments) {
         return {
             isValid: false,
-            message: 'Debe seleccionar el número máximo de cuotas para pago mensual'
+            message: 'Debe seleccionar el número máximo de meses de suscripción'
         };
     }
-    
-    if (!formData.value.lat90_payment_options?.length) {
+
+    if (!formData.value.subscription_payment_options?.length) {
         return {
             isValid: false,
-            message: 'Debe seleccionar al menos un método de pago para cuotas'
+            message: 'Debe seleccionar al menos una opción de suscripción'
         };
     }
-    
+
     return { isValid: true, message: '' };
 });
 

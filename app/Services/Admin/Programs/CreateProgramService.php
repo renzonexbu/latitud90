@@ -15,6 +15,14 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class CreateProgramService
 {
     use AdminLogging;
+
+    protected $virtualPosPlanService;
+
+    public function __construct(\App\Services\Subscription\VirtualPosPlanService $virtualPosPlanService)
+    {
+        $this->virtualPosPlanService = $virtualPosPlanService;
+    }
+
     /**
      * Execute the program creation.
      */
@@ -27,11 +35,11 @@ class CreateProgramService
         
         // Guardar los arrays de opciones de pago antes de filtrar
         $fullPaymentOptions = $programData['full_payment_options'] ?? [];
-        $lat90PaymentOptions = $programData['lat90_payment_options'] ?? [];
-        
+        $subscriptionPaymentOptions = $programData['subscription_payment_options'] ?? [];
+
         // Filtrar campos que no deben guardarse directamente en el modelo Program
         $programData = array_filter($programData, function($key) {
-            return !in_array($key, ['full_payment_options', 'lat90_payment_options']);
+            return !in_array($key, ['full_payment_options', 'subscription_payment_options']);
         }, ARRAY_FILTER_USE_KEY);
         
         try {
@@ -75,8 +83,8 @@ class CreateProgramService
                 'seller_name' => null,
                 'sales_executive_id' => $programData['sales_executive_id'] ?? null,
                 'enable_total_payment' => $this->isTotalPaymentEnabled($programData),
-                'enable_lat90_payment' => $this->isLat90PaymentEnabled($programData),
-                'lat90_max_installments' => $this->getLat90MaxInstallments($programData),
+                'enable_subscription_payment' => $this->isSubscriptionPaymentEnabled($programData),
+                'subscription_max_months' => $this->getSubscriptionMaxMonths($programData),
                 'discount_type' => $programData['discount_type'] ?? $programData['group_benefit'] ?? null,
                 'discount_value' => $this->calculateDiscountValue($programData),
                 'created_by' => auth()->id(),
@@ -119,7 +127,7 @@ class CreateProgramService
             // Usar los arrays guardados anteriormente
             $paymentOptionsData = [
                 'full_payment_options' => $fullPaymentOptions,
-                'lat90_payment_options' => $lat90PaymentOptions
+                'subscription_payment_options' => $subscriptionPaymentOptions
             ];
             $this->syncProgramPaymentOptions($program, $paymentOptionsData);
 
@@ -132,6 +140,17 @@ class CreateProgramService
                 $participants = $program->course->participants;
                 foreach ($participants as $p) {
                     $this->ensureParticipantProgram($p, $program, $p->pivot->individual_price ?? ($p->individual_price ?? null));
+                }
+            }
+
+            // Si está habilitado el pago por suscripción, crear plan en VirtualPos
+            if ($this->isSubscriptionPaymentEnabled($programData)) {
+                $planResult = $this->createVirtualPosPlan($program, $programData);
+                if ($planResult && $planResult['success']) {
+                    // Guardar el plan_id en el programa
+                    $program->update([
+                        'virtualpos_plan_id' => $planResult['plan_id'] ?? null
+                    ]);
                 }
             }
 
@@ -166,12 +185,12 @@ class CreateProgramService
     {
         $codes = [];
         $full = $programData['full_payment_options'] ?? [];
-        $lat90 = $programData['lat90_payment_options'] ?? [];
+        $subscription = $programData['subscription_payment_options'] ?? [];
         if (is_array($full)) {
             $codes = array_merge($codes, $full);
         }
-        if (is_array($lat90)) {
-            $codes = array_merge($codes, $lat90);
+        if (is_array($subscription)) {
+            $codes = array_merge($codes, $subscription);
         }
         $codes = array_values(array_unique($codes));
 
@@ -365,8 +384,8 @@ class CreateProgramService
 
         if ($paymentOption === 'full_payment') {
             $paymentMethod = $programData['full_payment_method'] ?? 'todos_medios';
-        } elseif ($paymentOption === 'installments') {
-            $paymentMethod = $programData['installments_payment_method'] ?? 'todos_medios';
+        } elseif ($paymentOption === 'subscription') {
+            $paymentMethod = $programData['subscription_payment_method'] ?? 'virtualpos';
         }
 
         // Buscar o crear el payment mode
@@ -390,8 +409,8 @@ class CreateProgramService
 
         if ($paymentOption === 'full_payment') {
             return 'full_payment_' . $methodCode;
-        } elseif ($paymentOption === 'installments') {
-            return 'installments_' . $methodCode;
+        } elseif ($paymentOption === 'subscription') {
+            return 'subscription_' . $methodCode;
         }
 
         return 'standard_payment';
@@ -404,8 +423,8 @@ class CreateProgramService
     {
         if ($paymentOption === 'full_payment') {
             return 'Pago Total - ' . $this->getMethodDisplayName($paymentMethod);
-        } elseif ($paymentOption === 'installments') {
-            return 'Pago en Cuotas - ' . $this->getMethodDisplayName($paymentMethod);
+        } elseif ($paymentOption === 'subscription') {
+            return 'Suscripción - ' . $this->getMethodDisplayName($paymentMethod);
         }
 
         return 'Pago Estándar';
@@ -420,8 +439,8 @@ class CreateProgramService
 
         if ($paymentOption === 'full_payment') {
             return "Pago total del viaje. $methodDesc";
-        } elseif ($paymentOption === 'installments') {
-            return "Pago en cuotas mensuales. $methodDesc";
+        } elseif ($paymentOption === 'subscription') {
+            return "Pago mediante suscripción mensual. $methodDesc";
         }
 
         return "Método de pago estándar. $methodDesc";
@@ -1171,8 +1190,8 @@ class CreateProgramService
 
         if ($paymentOption === 'full_payment') {
             $paymentMethod = $programData['full_payment_method'] ?? '';
-        } elseif ($paymentOption === 'installments') {
-            $paymentMethod = $programData['installments_payment_method'] ?? '';
+        } elseif ($paymentOption === 'subscription') {
+            $paymentMethod = $programData['subscription_payment_method'] ?? '';
         }
 
         if (!$paymentMethod) {
@@ -1257,62 +1276,48 @@ class CreateProgramService
     }
 
     /**
-     * Check if Lat90 payment is enabled.
+     * Check if Subscription payment is enabled.
      */
-    public function isLat90PaymentEnabled(array $programData): bool
+    public function isSubscriptionPaymentEnabled(array $programData): bool
     {
-        // Verificar si el pago Lat90 está habilitado basado en la selección del usuario
+        // Verificar si el pago por suscripción está habilitado basado en la selección del usuario
         return isset($programData['payment_options']) &&
             is_array($programData['payment_options']) &&
-            in_array('installments', $programData['payment_options']);
+            in_array('subscription', $programData['payment_options']);
     }
 
     /**
-     * Get Lat90 payment method ID.
+     * Get Subscription payment method ID.
      */
-    public function getLat90PaymentMethodId(array $programData): ?int
+    public function getSubscriptionPaymentMethodId(array $programData): ?int
     {
-        if (!$this->isLat90PaymentEnabled($programData)) {
+        if (!$this->isSubscriptionPaymentEnabled($programData)) {
             return null;
         }
-        $paymentMethodKey = $programData['installments_payment_method'] ?? '';
+        $paymentMethodKey = $programData['subscription_payment_method'] ?? '';
         if (!$paymentMethodKey) {
             return null;
         }
 
-        // Aceptar mismas claves que en pago total
+        // Mapear métodos de suscripción
         $methodMapping = [
-            'todos_medios' => 1, // Todos los medios (Débito/Crédito/Transferencia)
-            'solo_tarjeta' => 2, // Solo pago con Tarjeta (Débito/Crédito)
-            'solo_transferencia' => 3, // Solo pago transferencia
-            'solo_contado' => 4, // Solo pago contado (Débito/Transferencia)
+            'virtualpos' => 1, // VirtualPos para suscripciones
         ];
         if (isset($methodMapping[$paymentMethodKey])) {
             return $methodMapping[$paymentMethodKey];
         }
 
-        // Fallback para claves antiguas
-        $nameByKey = [
-            'khipu'    => 'Transferencia bancaria (Khipu)',
-            'webpay_1' => 'Débito y crédito sin cuotas (Webpay)',
-            'webpay_3' => 'Débito y crédito 3 cuotas sin interés (Webpay)',
-            'webpay_6' => 'Débito y crédito 6 cuotas sin interés (Webpay)',
-            'webpay_12' => 'Débito y crédito 12 cuotas sin interés (Webpay)',
-        ];
-        $targetName = $nameByKey[$paymentMethodKey] ?? null;
-        if (!$targetName) {
-            return null;
-        }
-        $method = \App\Models\PaymentMethod::where('name', $targetName)->first();
+        // Buscar por nombre
+        $method = \App\Models\PaymentMethod::where('name', 'LIKE', '%VirtualPos%')->first();
         return $method?->id;
     }
 
     /**
-     * Get Lat90 max installments.
+     * Get Subscription max months.
      */
-    public function getLat90MaxInstallments(array $programData): ?int
+    public function getSubscriptionMaxMonths(array $programData): ?int
     {
-        if (!$this->isLat90PaymentEnabled($programData)) {
+        if (!$this->isSubscriptionPaymentEnabled($programData)) {
             return null;
         }
         return $programData['max_installments'] ?? null;
@@ -1405,5 +1410,62 @@ class CreateProgramService
 
         // Si no coincide con ningún formato, retornar null
         return null;
+    }
+
+    /**
+     * Crear plan en VirtualPos para suscripciones
+     *
+     * @param Program $program
+     * @param array $programData
+     * @return array|null
+     */
+    private function createVirtualPosPlan(Program $program, array $programData): ?array
+    {
+        try {
+            // Preparar datos del programa para el plan
+            $planData = [
+                'code' => $program->code,
+                'name' => $program->name,
+                'trip_description' => $program->trip_description,
+                'trip_price' => $program->trip_price,
+                'max_installments' => $programData['max_installments'] ?? $program->subscription_max_months,
+                'destination' => $program->destination,
+            ];
+
+            Log::info('🔧 Creando plan de VirtualPos para programa', [
+                'program_id' => $program->id,
+                'program_code' => $program->code,
+                'max_installments' => $planData['max_installments']
+            ]);
+
+            // Llamar al servicio de VirtualPos para crear el plan
+            $result = $this->virtualPosPlanService->createPlan($planData);
+
+            if ($result && $result['success']) {
+                Log::info('✅ Plan de VirtualPos creado exitosamente', [
+                    'program_id' => $program->id,
+                    'plan_id' => $result['plan_id'] ?? null
+                ]);
+            } else {
+                Log::error('❌ Error al crear plan de VirtualPos', [
+                    'program_id' => $program->id,
+                    'error' => $result['error'] ?? 'Error desconocido'
+                ]);
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error('❌ Excepción al crear plan de VirtualPos', [
+                'program_id' => $program->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
 }
