@@ -243,7 +243,7 @@ class ReportController extends Controller
             return Inertia::render('Admin/Reports/ConsolidatedPayments', [
                 'consolidatedPayments' => $data['consolidatedPayments'],
                 'paymentMethods' => $data['paymentMethods'],
-                'programs' => \App\Models\Program::select('id', 'code', 'name')->orderBy('code')->get(),
+                'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
                 'filters' => $filters,
                 'summary' => $data['summary']
             ]);
@@ -481,8 +481,8 @@ class ReportController extends Controller
 
     public function softland(Request $request)
     {
-        $programs = Program::select('id', 'name', 'code')->orderBy('name')->get();
-        
+        $programs = \App\Models\ProgramCourse::select('id', 'name', 'code')->where('active', true)->orderBy('name')->get();
+
         return Inertia::render('Admin/Reports/SoftlandReport', [
             'programs' => $programs
         ]);

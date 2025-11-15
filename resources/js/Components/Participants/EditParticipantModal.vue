@@ -708,14 +708,16 @@ const currentInstallmentPlan = computed(() => {
     // Buscar el plan de cuotas para el curso seleccionado
     // Primero encontrar el curso en participant.courses para obtener el program_id
     const course = props.participant?.courses?.find(c => c.id == form.value.pivot_course_id);
-    if (!course || !course.program) {
+    const program = course?.programCourses?.[0]?.program || course?.program_courses?.[0]?.program;
+
+    if (!course || !program) {
         console.error('❌ No se pudo encontrar el curso o el programa asociado');
         return null;
     }
-    
+
     // Ahora buscar en participantProgramsWithDiscounts usando el program_id
     const participantProgram = props.participantProgramsWithDiscounts.find(
-        pp => pp.program_id === course.program.id
+        pp => pp.program_id === program.id
     );
     
     // Debug information removed for production
@@ -782,14 +784,16 @@ const loadExistingDiscounts = () => {
     }
     
     const course = props.participant.courses.find((c) => c.id == courseId);
-    if (!course || !course.program) {
+    const program = course?.programCourses?.[0]?.program || course?.program_courses?.[0]?.program;
+
+    if (!course || !program) {
         discounts.value = [];
         return;
     }
 
     // Buscar el participant_program_id usando los datos del componente padre
     const participantProgram = props.participantProgramsWithDiscounts?.find(
-        pp => pp.program_id === course.program.id
+        pp => pp.program_id === program.id
     );
 
     if (participantProgram && participantProgram.discounts) {

@@ -104,6 +104,42 @@ class GuardianAuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
+        // VALIDACIÓN OBLIGATORIA: El email debe estar registrado como contacto de emergencia de algún participante
+        $pendingSubscription = session('pending_subscription');
+        $emailValidated = false;
+
+        if ($pendingSubscription && isset($pendingSubscription['token'])) {
+            $token = $pendingSubscription['token'];
+            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($token);
+
+            if ($tokenData) {
+                // Buscar el participante usando el mismo patrón que ProgramService
+                $participant = \App\Models\Participant::join('document', 'participants.document_type', '=', 'document.id')
+                    ->where('participants.document_number', $tokenData['document'])
+                    ->where('document.name', $tokenData['document_type'])
+                    ->select('participants.*')
+                    ->first();
+
+                if ($participant) {
+                    // Verificar si el email está en emergency_contact del participante
+                    $emergencyContact = \App\Models\EmergencyContact::where('participant_id', $participant->id)
+                        ->where('email', $request->email)
+                        ->first();
+
+                    if ($emergencyContact) {
+                        $emailValidated = true;
+                    }
+                }
+            }
+        }
+
+        // Si no se validó el email, rechazar el registro
+        if (!$emailValidated) {
+            return back()
+                ->withErrors(['email' => 'Este email no está registrado como apoderado del participante. Por favor, verifica que hayas usado el email correcto o contacta al administrador.'])
+                ->withInput();
+        }
+
         $result = $this->registerService->register($request->only([
             'document_type_id',
             'document_number',
@@ -165,15 +201,21 @@ class GuardianAuthController extends Controller
             return $redirect->withErrors(['error' => $result['message']]);
         }
 
-        $redirect = redirect()->route('guardian.login');
+        // ✅ LOGEAR AUTOMÁTICAMENTE después de verificar email exitosamente
+        auth('guardian')->login($result['user']);
 
+        // Si hay un token de programa pendiente, redirigir al programa
         if ($programToken) {
-            // Pasar el token como parámetro de URL al login
-            return redirect()->to(route('guardian.login') . '?token=' . $programToken)
-                ->with('success', $result['message']);
+            // Limpiar la sesión
+            session()->forget('pending_subscription');
+
+            return redirect("/programs/{$pendingSubscription['program_id']}?token={$programToken}")
+                ->with('success', '¡Email verificado! Ya puedes continuar con tu suscripción.');
         }
 
-        return $redirect->with('success', $result['message']);
+        // Si no hay programa pendiente, redirigir al dashboard
+        return redirect()->route('guardian.dashboard')
+            ->with('success', '¡Email verificado exitosamente!');
     }
 
     /**
@@ -181,20 +223,30 @@ class GuardianAuthController extends Controller
      */
     public function resendVerification(Request $request)
     {
+        \Log::info('=== INICIO REENVÍO VERIFICACIÓN (Controlador) ===');
+        \Log::info('Request data:', $request->all());
+
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
+            \Log::error('Validación falló:', $validator->errors()->toArray());
             return back()->withErrors($validator);
         }
 
+        \Log::info('Llamando a registerService->resendVerificationEmail con email: ' . $request->email);
         $result = $this->registerService->resendVerificationEmail($request->email);
 
+        \Log::info('Resultado del servicio:', $result);
+
         if (!$result['success']) {
+            \Log::error('Error al reenviar email: ' . $result['message']);
             return back()->withErrors(['error' => $result['message']]);
         }
 
+        \Log::info('Email reenviado exitosamente');
+        \Log::info('=== FIN REENVÍO VERIFICACIÓN (Controlador) ===');
         return back()->with('success', $result['message']);
     }
 

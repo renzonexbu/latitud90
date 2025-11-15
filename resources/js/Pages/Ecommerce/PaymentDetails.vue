@@ -237,13 +237,14 @@
                             <div class="flex flex-col gap-[7px] mt-[18px]">
                                 <!-- Terms and Conditions -->
                                 <div class="flex flex-col gap-[8px]">
-                                    <div class="flex items-center gap-[8px]">
+                                    <label class="flex items-center gap-[8px] cursor-pointer">
                                         <input
+                                            id="terms-checkbox"
                                             type="checkbox"
-                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px]"
+                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px] cursor-pointer"
                                             v-model="formData.termsAccepted"
                                         />
-                                        <div
+                                        <span
                                             class="text-[#434343] font-nexa text-[10px] leading-[16px] font-normal"
                                         >
                                             <span class="font-nexa"
@@ -253,29 +254,31 @@
                                                 href="/terminos-y-condiciones"
                                                 target="_blank"
                                                 class="font-nexa-bold font-bold underline hover:text-[#007E93] transition-colors"
+                                                @click.stop
                                             >
                                                 términos y condiciones*
                                             </a>
-                                        </div>
-                                    </div>
+                                        </span>
+                                    </label>
                                 </div>
 
                                 <!-- Marketing Agreement -->
                                 <div class="flex flex-col gap-[8px]">
-                                    <div class="flex items-center gap-[8px]">
+                                    <label class="flex items-center gap-[8px] cursor-pointer">
                                         <input
+                                            id="marketing-checkbox"
                                             type="checkbox"
-                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px]"
+                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px] cursor-pointer"
                                             v-model="formData.marketingAccepted"
                                         />
-                                        <div
+                                        <span
                                             class="text-[#434343] font-nexa text-[10px] leading-[16px] font-normal"
                                         >
                                             Acepto recibir información sobre
                                             programas educativos, viajes y
                                             ofertas
-                                        </div>
-                                    </div>
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -378,6 +381,10 @@ export default {
             type: Array,
             default: () => [],
         },
+        guardian: {
+            type: Object,
+            default: null,
+        },
     },
     data() {
         return {
@@ -477,12 +484,46 @@ export default {
     },
     mounted() {
         // Verificar datos iniciales
-        
+
         // Registrar vista de detalles de pago en analytics
         this.recordPaymentDetailsView();
-        
+
         // Establecer RUT como tipo de documento por defecto
         this.formData.documentType = this.getDocumentTypeId('RUT');
+
+        // ✅ AUTOCOMPLETAR con datos del guardian si está logeado
+        if (this.guardian) {
+            console.log('✅ Guardian logeado detectado, autocompletando formulario:', this.guardian);
+
+            this.formData.fullName = this.guardian.name || '';
+            this.formData.documentType = this.guardian.document_id || this.getDocumentTypeId('RUT');
+            this.formData.documentNumber = this.guardian.document || '';
+            this.formData.email = this.guardian.email || '';
+            this.formData.phone = this.guardian.phone || '';
+            this.formData.code_phone = this.guardian.phone_code || '+56';
+            this.formData.country = this.guardian.country_id || '';
+            this.formData.region = this.guardian.region_id || '';
+
+            // Para la comuna, esperar a que se carguen las comunas después de establecer la región
+            // Mismo patrón que autocompleteForm() para cliente frecuente
+            this.$nextTick(() => {
+                // Esperar un poco más para que las comunas se carguen completamente
+                setTimeout(() => {
+                    if (this.filteredComunes.length > 0 && this.guardian.comune_id) {
+                        this.formData.city = this.guardian.comune_id;
+                        console.log('✅ Comuna autocompletada:', this.guardian.comune_id);
+                    } else {
+                        // Reintentar si las comunas no están disponibles
+                        setTimeout(() => {
+                            if (this.filteredComunes.length > 0 && this.guardian.comune_id) {
+                                this.formData.city = this.guardian.comune_id;
+                                console.log('✅ Comuna autocompletada (reintento):', this.guardian.comune_id);
+                            }
+                        }, 200);
+                    }
+                }, 300);
+            });
+        }
 
         // Leer los datos de pago del localStorage
         const savedPaymentData = localStorage.getItem("selectedPaymentData");

@@ -15,7 +15,9 @@ class CourseServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(CourseService::class, function ($app) {
-            return new CourseService();
+            return new CourseService(
+                $app->make(\App\Services\Subscription\VirtualPosPlanService::class)
+            );
         });
 
         $this->app->bind(CourseDataService::class, function ($app) {

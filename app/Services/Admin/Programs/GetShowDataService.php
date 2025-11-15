@@ -9,27 +9,26 @@ class GetShowDataService
 {
     use AdminLogging;
     /**
-     * Obtener datos de un programa para mostrar
+     * Obtener datos de una plantilla de programa para mostrar
      *
      * @param Program $program
      * @return array
      */
     public function execute(Program $program): array
     {
-        $program->load(['course', 'course.participants']);
+        // Load images through accessor
+        $program->images = $program->images;
 
-        // Log the program view
+        // Log the template view
         $this->logView(
             'programs',
-            'Program',
+            'ProgramTemplate',
             $program->id,
-            "Programa consultado: {$program->name} ({$program->code})",
+            "Plantilla de programa consultada: {$program->name}",
             [
                 'program_name' => $program->name,
-                'program_code' => $program->code,
                 'destination' => $program->destination,
-                'has_course' => $program->course ? true : false,
-                'participants_count' => $program->course?->participants?->count() ?? 0,
+                'active' => $program->active,
             ]
         );
 

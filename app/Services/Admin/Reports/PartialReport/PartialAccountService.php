@@ -59,7 +59,7 @@ class PartialAccountService
     public function getFilterData(): array
     {
         return [
-            'programs' => Program::select('id', 'code', 'name')->orderBy('code')->get(),
+            'programs' => Program::select('id', 'name')->orderBy('name')->get(),
             'participants' => Participant::select('id', 'first_last_name', 'second_last_name', 'first_name', 'second_name')->get(),
         ];
     }

@@ -387,6 +387,7 @@
                                 v-for="program in formattedPrograms.data"
                                 :key="program.id"
                                 :program="program"
+                                mode="programCourse"
                                 @click="handleProgramCardClick(program)"
                             />
                         </div>

@@ -22,6 +22,7 @@
                     v-for="program in limitedPrograms"
                     :key="program.id"
                     :program="normalizeProgram(program)"
+                    mode="template"
                     @click="goToEdit(program)"
                 />
             </div>

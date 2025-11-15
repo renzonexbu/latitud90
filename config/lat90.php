@@ -22,7 +22,7 @@ return [
             'city' => 'Santiago',
             'region' => 'Región Metropolitana',
         ],
-        'phone' => '+56 9 7909 1738',
+        'phone' => '+56988071858',
         'email' => 'info@latitud90.cl',
         'website' => 'www.latitud90.com',
         'representative' => [

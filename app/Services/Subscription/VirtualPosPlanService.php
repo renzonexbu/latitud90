@@ -31,41 +31,57 @@ class VirtualPosPlanService
             // Preparar datos del plan
             $planData = $this->preparePlanData($programData);
 
+            // Generar UUID único para esta petición
+            $uuid = \Illuminate\Support\Str::uuid()->toString();
+
+            // Agregar UUID al cuerpo de la petición
+            $planData['uuid'] = $uuid;
+
             Log::info('Creando plan en VirtualPos', [
-                'program_code' => $programData['code'],
+                'program_code' => $programData['code'] ?? null,
+                'uuid' => $uuid,
                 'plan_data' => $planData
             ]);
 
-            // Hacer request a la API de VirtualPos
-            $response = Http::withHeaders($this->getHeaders($planData))
+            // JWT solo debe contener api_key y uuid (NO los datos del plan)
+            $response = Http::withHeaders($this->getHeaders($uuid))
                 ->post($this->apiUrl . '/plan', $planData);
 
-            if ($response->successful()) {
-                $result = $response->json();
+            $result = $response->json();
 
-                // VirtualPos puede retornar 'id' o 'plan_id'
-                $planId = $result['id'] ?? $result['plan_id'] ?? $planData['id'] ?? null;
+            // Verificar si hay error en la respuesta (VirtualPos puede devolver 200 con error)
+            if ($response->failed() || (isset($result['status']) && $result['status'] === 'NOK')) {
+                $errorMessage = $result['error']['message'] ?? $result['message'] ?? $response->body();
+                $errorCode = $result['error']['error_code'] ?? $result['code'] ?? 'UNKNOWN';
 
-                Log::info('Plan creado exitosamente en VirtualPos', [
-                    'plan_id' => $planId,
-                    'response' => $result
+                Log::error('Error al crear plan en VirtualPos', [
+                    'status' => $response->status(),
+                    'error_code' => $errorCode,
+                    'error_message' => $errorMessage,
+                    'full_response' => $result
                 ]);
 
                 return [
-                    'success' => true,
-                    'plan_id' => $planId,
-                    'data' => $result
+                    'success' => false,
+                    'error' => $errorMessage,
+                    'error_code' => $errorCode,
+                    'response' => $result
                 ];
             }
 
-            Log::error('Error al crear plan en VirtualPos', [
-                'status' => $response->status(),
-                'response' => $response->body()
+            // Si llegamos aquí, fue exitoso
+            // La respuesta de VirtualPos incluye el plan dentro de result['plan']
+            $planId = $result['plan']['id'] ?? $result['id'] ?? $result['plan_id'] ?? $planData['id'] ?? null;
+
+            Log::info('Plan creado exitosamente en VirtualPos', [
+                'plan_id' => $planId,
+                'full_response' => $result
             ]);
 
             return [
-                'success' => false,
-                'error' => $response->body()
+                'success' => true,
+                'plan_id' => $planId,
+                'data' => $result
             ];
 
         } catch (\Exception $e) {
@@ -94,38 +110,53 @@ class VirtualPosPlanService
             // Preparar datos actualizados del plan
             $planData = $this->preparePlanData($programData);
 
+            // Generar UUID único para esta petición
+            $uuid = \Illuminate\Support\Str::uuid()->toString();
+
+            // Agregar UUID al cuerpo de la petición
+            $planData['uuid'] = $uuid;
+
             Log::info('Actualizando plan en VirtualPos', [
                 'plan_id' => $planId,
+                'uuid' => $uuid,
                 'plan_data' => $planData
             ]);
 
-            // Hacer request a la API de VirtualPos
-            $response = Http::withHeaders($this->getHeaders($planData))
+            // JWT solo debe contener api_key y uuid (NO los datos del plan)
+            $response = Http::withHeaders($this->getHeaders($uuid))
                 ->put($this->apiUrl . '/plan/' . $planId, $planData);
 
-            if ($response->successful()) {
-                $result = $response->json();
+            $result = $response->json();
 
-                Log::info('Plan actualizado exitosamente en VirtualPos', [
+            // Verificar si hay error en la respuesta (VirtualPos puede devolver 200 con error)
+            if ($response->failed() || (isset($result['status']) && $result['status'] === 'NOK')) {
+                $errorMessage = $result['error']['message'] ?? $result['message'] ?? $response->body();
+                $errorCode = $result['error']['error_code'] ?? $result['code'] ?? 'UNKNOWN';
+
+                Log::error('Error al actualizar plan en VirtualPos', [
                     'plan_id' => $planId,
-                    'response' => $result
+                    'status' => $response->status(),
+                    'error_code' => $errorCode,
+                    'error_message' => $errorMessage,
+                    'full_response' => $result
                 ]);
 
                 return [
-                    'success' => true,
-                    'data' => $result
+                    'success' => false,
+                    'error' => $errorMessage,
+                    'error_code' => $errorCode,
+                    'response' => $result
                 ];
             }
 
-            Log::error('Error al actualizar plan en VirtualPos', [
+            Log::info('Plan actualizado exitosamente en VirtualPos', [
                 'plan_id' => $planId,
-                'status' => $response->status(),
-                'response' => $response->body()
+                'full_response' => $result
             ]);
 
             return [
-                'success' => false,
-                'error' => $response->body()
+                'success' => true,
+                'data' => $result
             ];
 
         } catch (\Exception $e) {
@@ -211,26 +242,27 @@ class VirtualPosPlanService
 
         // Calcular monto mensual (precio total dividido entre cuotas máximas)
         $maxInstallments = $programData['max_installments'] ?? 12;
-        $monthlyAmount = round(($programData['trip_price'] ?? 0) / $maxInstallments);
+        $monthlyAmount = ($programData['trip_price'] ?? 0) / $maxInstallments;
 
         // Generar return_url
         $returnUrl = config('app.url') . '/admin/programs';
 
         return [
-            'id' => 'PLAN_' . ($programData['code'] ?? uniqid()), // ID único del plan
+            'id' => $programData['code'] ?? 'PLAN_' . uniqid(), // ID único del plan (sin prefijo PLAN_)
             'name' => $planName,
             'description' => $programData['trip_description'] ?? 'Programa de viaje educativo Latitud90',
             'is_active' => 'T', // T = activo, F = inactivo
-            'amount' => (int) $monthlyAmount, // Monto mensual
+            'amount' => $monthlyAmount, // Monto mensual (Float según docs)
             'currency' => 'CLP',
             'trial_days' => 0, // Sin período de prueba
             'num_charges' => $maxInstallments, // Número de cobros (cuotas)
             'frequency_type' => 'Mensual', // Diario, Semanal, Mensual, Semestral, Anual
             'return_url' => base64_encode($returnUrl), // Codificar en base64 según docs VirtualPos
             'type' => 'MONTO_FIJO', // MONTO_FIJO, MONTO_VARIABLE, PROGRAMA_DE_PAGOS
-            'fixed_amount_day_charge' => '01', // Día del mes para cobro (01-30)
+            'fixed_amount_day_charge' => '01', // Día del mes para cobro (0,01,05,10,15,20,25,28,30)
             'show_in_terminal' => 'F', // No mostrar en SmartPOS
-            'automatic_renewal' => 'F', // Sin renovación automática (termina después de num_charges)
+            'automatic_renewal' => 'T', // Renovación automática por defecto (igual que buildPlanData)
+            'shipping_address' => '', // Opcional: igual que buildPlanData
         ];
     }
 
@@ -272,14 +304,14 @@ class VirtualPosPlanService
     }
 
     /**
-     * Generar headers de autenticación con JWT
+     * Obtener headers necesarios para la autenticación
      *
-     * @param array $payload Datos adicionales para el JWT
+     * @param string|null $uuid UUID de la petición (requerido para POST)
      * @return array
      */
-    private function getHeaders(array $payload = []): array
+    protected function getHeaders(?string $uuid = null): array
     {
-        $jwt = $this->generateJWT($payload);
+        $jwt = $this->generateJWT($uuid);
 
         return [
             'Content-Type' => 'application/json',
@@ -291,16 +323,21 @@ class VirtualPosPlanService
 
     /**
      * Generar JWT para autenticación
+     * Según documentación VirtualPos, el JWT solo debe contener api_key y uuid (no los datos del body)
      *
-     * @param array $additionalPayload Datos adicionales para el payload
+     * @param string|null $uuid UUID de la petición (requerido para POST)
      * @return string
      */
-    private function generateJWT(array $additionalPayload = []): string
+    protected function generateJWT(?string $uuid = null): string
     {
-        $payload = array_merge([
+        $payload = [
             'api_key' => $this->apiKey,
-            'iat' => time(),
-        ], $additionalPayload);
+        ];
+
+        // Agregar UUID si se proporciona (requerido para POST requests)
+        if ($uuid) {
+            $payload['uuid'] = $uuid;
+        }
 
         return JWT::encode($payload, $this->secretKey, 'HS256');
     }

@@ -135,14 +135,13 @@ class GetIndexDataService
         $data = \App\Models\EcommerceAnalytics::whereBetween('ecommerce_analytics.created_at', [$dateFrom, $dateTo])
             ->whereNotNull('program_detail_view_at')
             ->join('programs', 'ecommerce_analytics.program_id', '=', 'programs.id')
-            ->selectRaw('programs.code as program_code, COALESCE(ecommerce_analytics.program_name, CONCAT("Programa #", ecommerce_analytics.program_id)) as program_name, COUNT(*) as views, COUNT(ecommerce_analytics.payment_completed_at) as conversions')
-            ->groupBy('ecommerce_analytics.program_id', 'ecommerce_analytics.program_name', 'programs.code')
+            ->selectRaw('programs.name as program_name_from_template, COALESCE(ecommerce_analytics.program_name, programs.name, CONCAT("Programa #", ecommerce_analytics.program_id)) as program_name, COUNT(*) as views, COUNT(ecommerce_analytics.payment_completed_at) as conversions')
+            ->groupBy('ecommerce_analytics.program_id', 'ecommerce_analytics.program_name', 'programs.name')
             ->orderByDesc('views')
             ->limit(10)
             ->get()
             ->map(function ($item) {
                 return [
-                    'program_code' => $item->program_code,
                     'program_name' => $item->program_name,
                     'views' => $item->views,
                     'conversions' => $item->conversions,
@@ -365,14 +364,14 @@ class GetIndexDataService
             // Top programas con más reembolsos
             $topProgramsRefunds = $query->join('orders', 'payments.order_id', '=', 'orders.id')
                 ->join('programs', 'orders.program_id', '=', 'programs.id')
-                ->selectRaw('programs.code, programs.name, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
-                ->groupBy('programs.id', 'programs.code', 'programs.name')
+                ->selectRaw('programs.id, programs.name, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
+                ->groupBy('programs.id', 'programs.name')
                 ->orderByDesc('total_amount')
                 ->limit(5)
                 ->get()
                 ->map(function ($item) {
                     return [
-                        'code' => $item->code,
+                        'id' => $item->id,
                         'name' => $item->name,
                         'count' => $item->count,
                         'amount' => $item->total_amount

@@ -23,13 +23,13 @@ class GetParticipantsService
     public function execute(Request $request): array
     {
         // Obtener participantes paginados
-        $participants = Participant::with(['courses', 'courses.institution', 'courses.program'])
+        $participants = Participant::with(['courses', 'courses.institution', 'courses.programCourses.program'])
             ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
 
         // Obtener todos los participantes para los filtros (sin paginación)
-        $allParticipants = Participant::with(['courses', 'courses.institution', 'courses.program'])
+        $allParticipants = Participant::with(['courses', 'courses.institution', 'courses.programCourses.program'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -37,7 +37,7 @@ class GetParticipantsService
         $enrollments = $this->getEnrollmentsData();
 
         // Obtener cursos activos
-        $courses = Course::with(['program', 'institution'])
+        $courses = Course::with(['programCourses.program', 'institution'])
             ->where('status', 'active')
             ->orderBy('institution_id')
             ->get();
@@ -47,12 +47,9 @@ class GetParticipantsService
             ->orderBy('name')
             ->get();
 
-        // Obtener programas activos o con status 'reserva' (programas futuros)
-        $programs = Program::with(['course.institution'])
-            ->where(function($query) {
-                $query->where('active', true)
-                      ->orWhere('status', 'reserva');
-            })
+        // Obtener programas activos (plantillas)
+        $programs = Program::with(['programCourses.course.institution'])
+            ->where('active', true)
             ->orderBy('name')
             ->get();
 
@@ -78,11 +75,12 @@ class GetParticipantsService
      */
     private function getEnrollmentsData()
     {
-        // Obtener datos base de inscripciones
+        // Obtener datos base de inscripciones usando la nueva estructura
         $enrollmentsBase = DB::table('participants as p')
-            ->leftJoin('participant_program as pp', 'pp.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'pr.id', '=', 'pp.program_id')
-            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
+            ->leftJoin('participant_course as pc', 'pc.participant_id', '=', 'p.id')
+            ->leftJoin('courses as c', 'c.id', '=', 'pc.course_id')
+            ->leftJoin('program_courses as pgc', 'pgc.course_id', '=', 'c.id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
             ->leftJoin('orders as o', function ($join) {
                 $join->on('o.participant_id', '=', 'p.id')
@@ -101,15 +99,14 @@ class GetParticipantsService
                 'p.document_number',
                 'p.document_type',
                 'p.is_active',
-                'pp.id',
-                'pp.enrollment_code',
-                'pp.individual_price',
-                'pp.status',
+                'pc.id',
+                'pc.individual_price',
+                'pc.status',
                 'pr.id',
-                'pr.code',
-                'pr.name',
+                'pgc.code',
+                'pgc.name',
                 'pr.destination',
-                'pr.year',
+                'pgc.year',
                 'c.education_level',
                 'c.course_number',
                 'i.name',
@@ -123,21 +120,20 @@ class GetParticipantsService
                 'p.document_number',
                 'p.document_type',
                 'p.is_active',
-                'pp.id as participant_program_id',
-                'pp.enrollment_code',
-                'pp.individual_price',
-                'pp.status as enrollment_status',
+                'pc.id as participant_course_id',
+                'pc.individual_price',
+                'pc.status as enrollment_status',
                 'pr.id as program_id',
-                'pr.code as program_code',
-                'pr.name as program_name',
+                'pgc.code as program_code',
+                'pgc.name as program_name',
                 'pr.destination as program_destination',
-                'pr.year as program_year',
+                'pgc.year as program_year',
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
                 DB::raw('0 as paid_amount'),
             ])
-            ->orderByDesc('pp.created_at')
+            ->orderByDesc('pc.created_at')
             ->get();
 
         // Calcular precios finales con descuentos usando el helper

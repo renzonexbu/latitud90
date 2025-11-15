@@ -5,6 +5,7 @@ namespace App\Services\Client\Programs;
 use App\Models\Participant;
 use App\Models\Course;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Models\InstallmentPlan;
@@ -40,70 +41,30 @@ class ProgramService
 
     public function getAvailablePrograms(Participant $participant): array
     {
-        // Obtener solo los programas donde el participante esté inscrito
-        $programs = $participant->programs()
-            ->where('active', true)
-            ->with(['course.institution', 'features', 'requirements'])
+        // Obtener los cursos del participante con sus programCourses (planes específicos)
+        $courses = $participant->courses()
+            ->with(['institution', 'programCourses.program'])
             ->get();
 
         $availablePrograms = [];
 
-        foreach ($programs as $program) {
-            // Verificar si el participante ya está inscrito en este programa
-            $isEnrolled = $participant->courses()
-                ->where('course_id', $program->course_id)
-                ->exists();
-
-            // Contar participantes inscritos en este programa
-            $enrolledCount = 0;
-            if ($program->course) {
-                $enrolledCount = $program->course->participants()->count();
-            }
-
-            // Calcular montos pagados y adeudados por participante
-            $paymentPercentage = 0;
-            $paidAmount = 0;
-            $totalAmount = $program->trip_price; // total de referencia si no hay inscripción
-            $participantTotalAmount = $program->trip_price; // total a pagar por participante (base + ajuste)
-            $participantBalance = $program->trip_price; // saldo remanente por defecto
-
-            if (!$isEnrolled) {
-                $availablePrograms[] = [
-                    'id' => $program->id,
-                    'name' => $program->name,
-                    'trip_description' => $program->trip_description,
-                    'destination' => $program->destination,
-                    'departure_date' => $program->departure_date,
-                    'trip_price' => $program->trip_price,
-                    'course' => $program->course,
-                    'images' => $program->images,
-                    'paymentPercentage' => $paymentPercentage,
-                    'paidAmount' => $paidAmount,
-                    'totalAmount' => $participantTotalAmount,
-                    'participant_total_due' => $participantTotalAmount, // mantener mismo nombre que Admin/Edit.vue
-                    'participant_balance' => $participantBalance,
-                    'status' => 'available'
-                ];
-            } else {
-                // Si ya está inscrito, mostrar información del estado
-                $enrollment = $participant->courses()
-                    ->where('course_id', $program->course_id)
-                    ->first();
-                // Obtener enrollment_code real desde participant_program (programa-participante)
-                $pp = DB::table('participant_program')
-                    ->where('participant_id', $participant->id)
-                    ->where('program_id', $program->id)
-                    ->first();
-                $enrollmentCode = $pp->enrollment_code ?? null;
-                
-                // Si no hay enrollment_code, generarlo como fallback
-                if (!$enrollmentCode && $program->code && $participant->document_number) {
-                    $enrollmentCode = $program->code . $participant->document_number;
+        foreach ($courses as $course) {
+            // Para cada curso, obtener los program_courses (planes específicos)
+            foreach ($course->programCourses as $programCourse) {
+                if (!$programCourse->active) {
+                    continue; // Skip inactive program courses
                 }
-                
-                // Usar el helper para calcular el precio final con descuentos
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-                $totalAmount = $priceData['final_price'];
+
+                $program = $programCourse->program; // La plantilla del programa
+
+                // Obtener el pivot del participante con este curso
+                $pivot = $course->participants()->where('participant_id', $participant->id)->first()?->pivot;
+
+                // Calcular precio del participante para este program_course
+                $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
+                $adjustments = $pivot?->price_adjustments ?? 0;
+                $discounts = 0; // Por ahora no hay descuentos (participant_program ya no se usa)
+                $finalPrice = max(0, $basePrice + $adjustments - $discounts);
 
                 // Sumar pagos aprobados y completados del participante para este programa
                 $paidAmount = (float) Payment::whereHas('order', function($q) use ($participant, $program) {
@@ -114,106 +75,112 @@ class ProgramService
                     ->sum('amount');
 
                 $paidAmount = round($paidAmount, 2);
-                $participantBalance = max(round($totalAmount - $paidAmount, 2), 0);
-                $participantTotalAmount = $totalAmount;
-                $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0;
+                $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
+                $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
 
                 // Calcular cuotas
                 $totalInstallments = 0;
                 $paidInstallments = 0;
                 $installmentsSummary = null;
 
-                if ($enrollment) {
-                    $totalInstallments = $enrollment->pivot->total_installments ?? 0;
-                    $paidInstallments = $enrollment->pivot->paid_installments ?? 0;
-                    
-                    // Buscar planes de cuotas del participante para este programa
-                    $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
-                        ->where('program_id', $program->id)
-                        ->with(['installments'])
-                        ->get();
+                // Buscar planes de cuotas del participante para este programa
+                $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->with(['installments'])
+                    ->get();
 
-                    foreach ($installmentPlans as $plan) {
-                        $totalInstallments = $plan->installments->count();
-                        
-                        foreach ($plan->installments as $installment) {
-                            if ($installment->status === 'paid') {
-                                $paidInstallments++;
-                            }
+                foreach ($installmentPlans as $plan) {
+                    $totalInstallments = $plan->installments->count();
+
+                    foreach ($plan->installments as $installment) {
+                        if ($installment->status === 'paid') {
+                            $paidInstallments++;
                         }
                     }
+                }
 
-                    // Si no hay planes de cuotas, buscar en orders como fallback
-                    // Excluir órdenes de reembolsos y pagos presenciales del conteo de cuotas
-                    if ($totalInstallments == 0) {
-                        $orders = Order::where('participant_id', $participant->id)
-                            ->where('program_id', $program->id)
-                            ->where('notes', '!=', 'Orden creada desde reembolso') // Excluir órdenes de reembolso
-                            ->with(['orderDetails.paymentOption'])
-                            ->get();
+                // Si no hay planes de cuotas, buscar en orders como fallback
+                if ($totalInstallments == 0) {
+                    $orders = Order::where('participant_id', $participant->id)
+                        ->where('program_id', $program->id)
+                        ->where('notes', '!=', 'Orden creada desde reembolso')
+                        ->with(['orderDetails.paymentOption'])
+                        ->get();
 
-                        foreach ($orders as $order) {
-                            if ($order->orderDetails) {
-                                // Solo contar order details que NO sean de pagos presenciales NI de reembolsos
-                                $ecommerceOrderDetails = $order->orderDetails->filter(function($detail) {
-                                    // Excluir pagos presenciales
-                                    if ($detail->paymentOption && $detail->paymentOption->mode === 'presential') {
-                                        return false;
-                                    }
-                                    
-                                    // Excluir reembolsos
-                                    if ($detail->paymentOption && $detail->paymentOption->code === 'refund_credit_note') {
-                                        return false;
-                                    }
-                                    
-                                    return true;
-                                });
-                                
-                                $totalInstallments = $ecommerceOrderDetails->count();
-                                
-                                foreach ($ecommerceOrderDetails as $detail) {
-                                    // Verificar que el detalle no sea de un reembolso
-                                    $isRefundDetail = Payment::where('order_detail_id', $detail->id)
-                                        ->whereHas('paymentOption', function($q) {
-                                            $q->where('code', 'refund_credit_note');
-                                        })
-                                        ->exists();
-                                    
-                                    if ($detail->is_paid && !$isRefundDetail) {
-                                        $paidInstallments++;
-                                    }
+                    foreach ($orders as $order) {
+                        if ($order->orderDetails) {
+                            $ecommerceOrderDetails = $order->orderDetails->filter(function($detail) {
+                                if ($detail->paymentOption && $detail->paymentOption->mode === 'presential') {
+                                    return false;
+                                }
+                                if ($detail->paymentOption && $detail->paymentOption->code === 'refund_credit_note') {
+                                    return false;
+                                }
+                                return true;
+                            });
+
+                            $totalInstallments = $ecommerceOrderDetails->count();
+
+                            foreach ($ecommerceOrderDetails as $detail) {
+                                $isRefundDetail = Payment::where('order_detail_id', $detail->id)
+                                    ->whereHas('paymentOption', function($q) {
+                                        $q->where('code', 'refund_credit_note');
+                                    })
+                                    ->exists();
+
+                                if ($detail->is_paid && !$isRefundDetail) {
+                                    $paidInstallments++;
                                 }
                             }
                         }
                     }
+                }
 
-                    // Crear resumen de cuotas si hay cuotas
-                    if ($totalInstallments > 0) {
-                        $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
-                    }
+                // Crear resumen de cuotas si hay cuotas
+                if ($totalInstallments > 0) {
+                    $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
+                }
+
+                // Generar enrollment_code (ya no se usa participant_program)
+                $enrollmentCode = null;
+                if ($programCourse->code && $participant->document_number) {
+                    $enrollmentCode = $programCourse->code . $participant->document_number;
                 }
 
                 $availablePrograms[] = [
-                    'id' => $program->id,
-                    'name' => $program->name,
-                    'trip_description' => $program->trip_description,
-                    'destination' => $program->destination,
-                    'departure_date' => $program->departure_date,
-                    'trip_price' => $program->trip_price,
-                    'course' => $program->course,
-                    'images' => $program->images,
+                    'id' => $programCourse->id, // ID del program_course específico
+                    'name' => $programCourse->name, // Nombre del plan específico
+                    'code' => $programCourse->code, // Código del plan
+                    'trip_description' => $program->trip_description, // De la plantilla
+                    'destination' => $program->destination, // De la plantilla
+                    'departure_date' => $programCourse->departure_date, // Del plan específico
+                    'trip_price' => $programCourse->trip_price, // Del plan específico
+                    'course' => [
+                        'id' => $course->id,
+                        'institution' => $course->institution,
+                        'education_level' => $course->education_level,
+                        'grade' => $course->grade,
+                        'year' => $course->year,
+                    ],
+                    'program' => [ // Datos de la plantilla
+                        'id' => $program->id,
+                        'name' => $program->name,
+                        'destination' => $program->destination,
+                        'images' => $program->images, // Accessor de la plantilla
+                    ],
+                    'images' => $program->images, // Accessor de la plantilla
                     'paymentPercentage' => $paymentPercentage,
                     'paidAmount' => $paidAmount,
-                    'totalAmount' => $totalAmount,
-                    'participant_total_due' => $participantTotalAmount, // mismo uso que Admin/Edit.vue
+                    'totalAmount' => $finalPrice,
+                    'participant_total_due' => $finalPrice,
                     'participant_balance' => $participantBalance,
-                    'participant_amount' => $priceData['base_price'],
-                    'participant_adjustments' => $priceData['adjustments'],
+                    'participant_amount' => $basePrice,
+                    'participant_adjustments' => $adjustments,
                     'total_installments' => $totalInstallments,
                     'paid_installments' => $paidInstallments,
                     'installments_summary' => $installmentsSummary,
-                    'status' => $this->translateStatus($enrollment->pivot->status ?? 'enrolled'),
-                    'enrollment_date' => $enrollment->pivot->created_at ?? null,
+                    'status' => 'enrolled',
+                    'enrollment_date' => $pivot?->created_at ?? null,
                     'enrollment_code' => $enrollmentCode
                 ];
             }

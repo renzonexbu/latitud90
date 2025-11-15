@@ -43,15 +43,16 @@
                     <transition name="accordion-slide">
                         <div v-if="detailsOpen" class="accordion-content">
                             <div class="name-field-row">
-                                <div class="field-container" style="flex: 2;">
+                                <!-- Solo nombre del programa (sin código) para plantillas -->
+                                <div v-if="mode.includes('template')" class="field-container" style="flex: 1;">
                                     <div class="field-wrapper">
                                         <div class="nombre-del-programa">
-                                            Nombre del programa
+                                            Nombre de la plantilla *
                                         </div>
                                         <input
                                             type="text"
                                             v-model="formData.name"
-                                            placeholder="Nombre"
+                                            placeholder="Ej: Viaje al Norte de Chile"
                                             class="input-text"
                                             :class="{
                                                 'border-red-500': errors.name,
@@ -65,32 +66,58 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="field-container" style="flex: 1;">
-                                    <div class="field-wrapper">
-                                        <div class="nombre-del-programa">
-                                            Código del programa *
+
+                                <!-- Nombre y código para programas completos -->
+                                <template v-else>
+                                    <div class="field-container" style="flex: 2;">
+                                        <div class="field-wrapper">
+                                            <div class="nombre-del-programa">
+                                                Nombre del programa
+                                            </div>
+                                            <input
+                                                type="text"
+                                                v-model="formData.name"
+                                                placeholder="Nombre"
+                                                class="input-text"
+                                                :class="{
+                                                    'border-red-500': errors.name,
+                                                }"
+                                            />
+                                            <span
+                                                v-if="errors.name"
+                                                class="text-red-500 text-sm mt-1"
+                                            >
+                                                {{ errors.name }}
+                                            </span>
                                         </div>
-                                        <input
-                                            type="text"
-                                            v-model="formData.code"
-                                            maxlength="8"
-                                            placeholder="1234"
-                                            class="input-text"
-                                            :class="{
-                                                'border-red-500': errors.code,
-                                            }"
-                                        />
-                                        <span
-                                            v-if="errors.code"
-                                            class="text-red-500 text-sm mt-1"
-                                        >
-                                            {{ errors.code }}
-                                        </span>
                                     </div>
-                                </div>
+                                    <div class="field-container" style="flex: 1;">
+                                        <div class="field-wrapper">
+                                            <div class="nombre-del-programa">
+                                                Código del programa *
+                                            </div>
+                                            <input
+                                                type="text"
+                                                v-model="formData.code"
+                                                maxlength="8"
+                                                placeholder="1234"
+                                                class="input-text"
+                                                :class="{
+                                                    'border-red-500': errors.code,
+                                                }"
+                                            />
+                                            <span
+                                                v-if="errors.code"
+                                                class="text-red-500 text-sm mt-1"
+                                            >
+                                                {{ errors.code }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                             <div class="destination-date-row">
-                                <div class="field-container">
+                                <div class="field-container" :style="mode.includes('template') ? 'flex: 1;' : ''">
                                     <div class="field-wrapper">
                                         <div class="destino">Destino *</div>
                                         <input
@@ -111,7 +138,8 @@
                                         </span>
                                     </div>
                                 </div>
-                                <div class="field-container">
+                                <!-- Fecha de salida solo para programas completos, no para plantillas -->
+                                <div v-if="!mode.includes('template')" class="field-container">
                                     <div class="field-wrapper">
                                         <div class="fecha-de-salida">
                                             Fecha de salida *
@@ -848,7 +876,7 @@ const props = defineProps({
     mode: {
         type: String,
         default: "create",
-        validator: (value) => ["create", "edit"].includes(value),
+        validator: (value) => ["create", "edit", "create-template", "edit-template"].includes(value),
     },
     errors: {
         type: Object,

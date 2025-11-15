@@ -11,11 +11,8 @@ class Program extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',
         'name',
-        'institution_id',
         'destination',
-        'departure_date',
         'trip_description',
         'images_folder',
         'pillars',
@@ -23,35 +20,12 @@ class Program extends Model
         'itinerary_file',
         'travel_assistance_coverage',
         'equipment_list',
-        'trip_price',
-        'year',
-        'grade',
-        'final_payment_date',
-        'seller_name',
-        'sales_executive_id',
-        'enable_total_payment',
-        'enable_lat90_payment',
-        'lat90_max_installments',
-        'total_payment_method_id',
-        'lat90_payment_method_id',
-        // Campos de descuento
-        'discount_type',
-        'discount_value',
-        'course_id',
         'created_by',
         'active',
-        'status'
     ];
 
     protected $casts = [
-        'departure_date' => 'date',
-        'final_payment_date' => 'date',
-        'trip_price' => 'decimal:2',
-        'discount_value' => 'decimal:2',
-        'enable_total_payment' => 'boolean',
-        'enable_lat90_payment' => 'boolean',
         'active' => 'boolean',
-        'status' => 'string'
     ];
 
     protected $appends = [
@@ -61,51 +35,20 @@ class Program extends Model
         'images'
     ];
 
-    // Relaciones para métodos de pago
-    public function totalPaymentMethod()
+    /**
+     * Relación con ProgramCourse (planes específicos)
+     */
+    public function programCourses()
     {
-        return $this->belongsTo(PaymentMethod::class, 'total_payment_method_id');
+        return $this->hasMany(ProgramCourse::class);
     }
 
-    public function lat90PaymentMethod()
-    {
-        return $this->belongsTo(PaymentMethod::class, 'lat90_payment_method_id');
-    }
-
-    // Relaciones existentes (mantener compatibilidad)
-    public function paymentMode()
-    {
-        return $this->belongsTo(PaymentMode::class);
-    }
-
-    public function paymentMethod()
-    {
-        return $this->belongsTo(PaymentMethod::class);
-    }
-
-    public function course()
-    {
-        return $this->belongsTo(Course::class);
-    }
-
-    public function courses()
-    {
-        return $this->hasMany(Course::class);
-    }
-
+    /**
+     * Relación con el usuario que creó la plantilla
+     */
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function institution()
-    {
-        return $this->belongsTo(Institution::class);
-    }
-
-    public function salesExecutive()
-    {
-        return $this->belongsTo(SalesExecutive::class);
     }
 
     public function participants()
@@ -239,63 +182,4 @@ class Program extends Model
         return $images;
     }
 
-    /**
-     * Scope para filtrar por status
-     */
-    public function scopeByStatus($query, $status)
-    {
-        return $query->where('status', $status);
-    }
-
-    /**
-     * Scope para programas en reserva
-     */
-    public function scopeReserva($query)
-    {
-        return $query->where('status', 'reserva');
-    }
-
-    /**
-     * Scope para programas vigentes
-     */
-    public function scopeVigente($query)
-    {
-        return $query->where('status', 'vigente');
-    }
-
-    /**
-     * Scope para programas ejecutados
-     */
-    public function scopeEjecutado($query)
-    {
-        return $query->where('status', 'ejecutado');
-    }
-
-    /**
-     * Obtener el label del status
-     */
-    public function getStatusLabelAttribute()
-    {
-        $labels = [
-            'reserva' => 'Reserva',
-            'vigente' => 'Vigente',
-            'ejecutado' => 'Ejecutado'
-        ];
-
-        return $labels[$this->status] ?? null;
-    }
-
-    /**
-     * Obtener la clase CSS del status
-     */
-    public function getStatusClassAttribute()
-    {
-        $classes = [
-            'reserva' => 'bg-yellow-100 text-yellow-800',
-            'vigente' => 'bg-green-100 text-green-800',
-            'ejecutado' => 'bg-blue-100 text-blue-800'
-        ];
-
-        return $classes[$this->status] ?? null;
-    }
 }

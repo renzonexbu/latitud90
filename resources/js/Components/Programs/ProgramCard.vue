@@ -14,8 +14,9 @@
         <!-- Dark overlay for better text readability -->
         <div class="absolute inset-0 bg-black/30"></div>
 
-        <!-- Top Section with Program Info and SVG Icon -->
+        <!-- Top Section with Program Info (solo en modo programCourse) -->
         <div
+            v-if="mode === 'programCourse'"
             class="absolute top-4 left-4 right-4 flex items-start justify-between"
         >
             <!-- Program Info (Left side) -->
@@ -31,7 +32,7 @@
                         width: 250px;
                     "
                 >
-                    {{ program.destination }}
+                    {{ programDestination }}
                 </div>
 
                 <!-- Program Name -->
@@ -66,6 +67,45 @@
             <!-- SVG Icon and Status Badge (Right side) -->
             <div class="flex flex-col items-end gap-2">
                 <!-- Status Badge -->
+                <div
+                    v-if="showStatusBadge && program.status"
+                    class="px-2 py-1 rounded-full text-xs font-medium"
+                    :class="getStatusClass(program.status)"
+                >
+                    {{ getStatusLabel(program.status) }}
+                </div>
+
+                <!-- SVG Icon -->
+                <div
+                    class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 19 19"
+                        fill="none"
+                    >
+                        <path
+                            d="M2 17L17 2M17 2H4.72727M17 2V14.2727"
+                            stroke="white"
+                            stroke-width="2.187"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Section with SVG Icon (solo en modo template) -->
+        <div
+            v-else
+            class="absolute top-4 right-4 flex items-start justify-end"
+        >
+            <!-- SVG Icon and Status Badge -->
+            <div class="flex flex-col items-end gap-2">
+                <!-- Status Badge -->
                 <div 
                     v-if="showStatusBadge && program.status"
                     class="px-2 py-1 rounded-full text-xs font-medium"
@@ -97,31 +137,35 @@
             </div>
         </div>
 
-        <!-- Content Overlay with Progress Bar -->
+        <!-- Overlay para modo template (plantillas) -->
         <div
+            v-if="mode === 'template'"
+            class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4"
+        >
+            <!-- Destination Card -->
+            <div
+                class="bg-white rounded-[12px] p-3 sm:p-4 flex items-center justify-center self-stretch flex-shrink-0 relative"
+            >
+                <div
+                    class="text-[#4B8D7F] text-center font-outfit text-base sm:text-lg font-semibold leading-5 sm:leading-6"
+                >
+                    {{ programDestination }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Overlay para modo programCourse (con info completa) -->
+        <div
+            v-else-if="mode === 'programCourse'"
             class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4"
         >
             <!-- Course Info -->
             <div class="text-white mb-3">
-                <div
-                    class="flex items-center mt-2 text-[10px] sm:text-xs opacity-90 justify-end"
-                >
+                <div class="flex items-center mt-2 text-[10px] sm:text-xs opacity-90 justify-end">
                     <span v-if="program.course?.institution?.name">{{
                         capitalizeFirst(program.course.institution.name)
                     }}</span>
-                    <span
-                        v-if="program.course?.course_display && program.course?.institution?.name"
-                        class="mx-2"
-                        >|</span
-                    >
-                    <span v-if="program.course?.course_display">{{
-                        program.course.course_display
-                    }}</span>
-                    <span
-                        v-if="program.course?.education_level && (program.course?.course_display || program.course?.institution?.name)"
-                        class="mx-2"
-                        >|</span
-                    >
+                    <span v-if="program.course?.institution?.name && program.course?.education_level" class="mx-2">|</span>
                     <span v-if="program.course?.education_level">{{
                         capitalizeFirst(program.course.education_level)
                     }}</span>
@@ -132,87 +176,42 @@
             <div
                 class="bg-white rounded-[12px] p-3 sm:p-4 flex flex-col gap-2 items-start justify-start self-stretch flex-shrink-0 relative"
             >
-                <div
-                    class="flex flex-col gap-[11px] items-start justify-start self-stretch flex-shrink-0 relative"
-                >
-                    <div
-                        class="flex flex-row items-end justify-between self-stretch flex-shrink-0 relative"
-                    >
-                        <div
-                            class="flex flex-col gap-3 items-start justify-start flex-1 relative"
-                        >
-                            <div
-                                class="flex flex-row items-start justify-between self-stretch flex-shrink-0 relative"
-                            >
+                <div class="flex flex-col gap-[11px] items-start justify-start self-stretch flex-shrink-0 relative">
+                    <div class="flex flex-row items-end justify-between self-stretch flex-shrink-0 relative">
+                        <div class="flex flex-col gap-3 items-start justify-start flex-1 relative">
+                            <div class="flex flex-row items-start justify-between self-stretch flex-shrink-0 relative">
                                 <!-- Percentage or Installments -->
-                                <div
-                                    class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative"
-                                >
+                                <div class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative">
                                     <span v-if="program.installments_summary">{{ program.installments_summary }}</span>
-                                    <span v-else>{{ program.paymentPercentage }}%</span>
+                                    <span v-else>{{ program.paymentPercentage || 0 }}%</span>
                                 </div>
 
                                 <!-- Money Values -->
-                                <div
-                                    class="flex flex-row items-end justify-end flex-shrink-0 relative"
-                                >
-                                    <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative min-w-0"
-                                    >
-                                        {{ formatPrice(program.paidAmount) }}
+                                <div class="flex flex-row items-end justify-end flex-shrink-0 relative">
+                                    <div class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative min-w-0">
+                                        {{ formatPrice(program.paidAmount || 0) }}
                                     </div>
-                                     <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-[10px] sm:text-xs font-normal font-bold leading-3 sm:leading-4 relative ml-2"
-                                     >
-                                         /{{ formatPrice(getDisplayTotalAmount()) }}
-                                     </div>
+                                    <div class="text-[#4B8D7F] text-left font-nexa text-[10px] sm:text-xs font-normal font-bold leading-3 sm:leading-4 relative ml-2">
+                                        /{{ formatPrice(getDisplayTotalAmount()) }}
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Progress Bar -->
-                            <div
-                                class="rounded-[100px] border-[3px] border-gris-2 bg-white flex h-4 pr-[164px] items-center self-stretch relative overflow-hidden"
-                            >
+                            <div class="rounded-[100px] border-[3px] border-gris-2 bg-white flex h-4 pr-[164px] items-center self-stretch relative overflow-hidden">
                                 <div
                                     class="bg-[#4B8D7F] rounded-[100px] h-4 absolute left-0 top-1/2 translate-y-[-50%] overflow-hidden"
-                                    :style="{
-                                        width: `${program.paymentPercentage}%`,
-                                    }"
+                                    :style="{ width: `${program.paymentPercentage || 0}%` }"
                                 >
-                                    <div
-                                        class="flex flex-row items-center justify-start h-auto absolute left-[-3px] top-[-2px] overflow-visible"
-                                    >
+                                    <div class="flex flex-row items-center justify-start h-auto absolute left-[-3px] top-[-2px] overflow-visible">
                                         <!-- Diagonal stripes pattern -->
-                                        <svg
-                                            width="100%"
-                                            height="100%"
-                                            viewBox="0 0 100 16"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
+                                        <svg width="100%" height="100%" viewBox="0 0 100 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <defs>
-                                                <pattern
-                                                    id="diagonalHatch"
-                                                    patternUnits="userSpaceOnUse"
-                                                    width="8"
-                                                    height="8"
-                                                    patternTransform="rotate(45)"
-                                                >
-                                                    <line
-                                                        x1="0"
-                                                        y1="0"
-                                                        x2="0"
-                                                        y2="8"
-                                                        stroke="rgba(255,255,255,0.3)"
-                                                        stroke-width="1"
-                                                    />
+                                                <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                                                    <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
                                                 </pattern>
                                             </defs>
-                                            <rect
-                                                width="100%"
-                                                height="100%"
-                                                fill="url(#diagonalHatch)"
-                                            />
+                                            <rect width="100%" height="100%" fill="url(#diagonalHatch)" />
                                         </svg>
                                     </div>
                                 </div>
@@ -237,6 +236,11 @@ export default {
             type: Boolean,
             default: true,
         },
+        // Modo del card: 'template' para plantillas base, 'programCourse' para program_courses con datos completos
+        mode: {
+            type: String,
+            default: 'template', // 'template' | 'programCourse'
+        },
     },
     emits: ["click"],
     data() {
@@ -251,13 +255,21 @@ export default {
                 return "/images/programs/card-viaje-pruebas.png";
             }
 
+            // Intentar obtener imágenes de program.program (cuando viene de program_courses) o program.images directamente
+            const images = this.program.program?.images || this.program.images;
+
             // Si el programa tiene imágenes, usar la primera
-            if (this.program.images && this.program.images.length > 0) {
-                return this.program.images[0].url;
+            if (images && images.length > 0) {
+                return images[0].url;
             }
 
             // Si no hay imágenes, usar la imagen por defecto
             return "/images/programs/card-viaje-pruebas.png";
+        },
+        programDestination() {
+            // El destination puede estar en program.program.destination (cuando viene de program_courses)
+            // o directamente en program.destination (cuando es plantilla)
+            return this.program.program?.destination || this.program.destination || '';
         },
     },
     methods: {

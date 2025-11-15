@@ -55,52 +55,25 @@ class UpdateParticipantService
             // Actualizar el participante
             $participant->update($updateData);
 
-            // Si se especificó un curso, gestionar descuentos y precio individual
+            // Si se especificó un curso, actualizar el pivot del curso con el precio individual
             if (!empty($data['pivot_course_id'])) {
                 $course = Course::find((int) $data['pivot_course_id']);
-                if ($course && $course->program_id) {
-                    // Buscar o crear el participant_program
-                    $participantProgram = DB::table('participant_program')
-                        ->where('participant_id', $participant->id)
-                        ->where('program_id', $course->program_id)
-                        ->first();
 
-                    if (!$participantProgram) {
-                        // Crear el participant_program si no existe
-                        $participantProgramId = DB::table('participant_program')->insertGetId([
-                            'participant_id' => $participant->id,
-                            'program_id' => $course->program_id,
-                            'enrollment_code' => 'ENR-' . time(),
-                            'individual_price' => $data['individual_price'] ?? 0,
-                            'status' => 'active',
-                            'created_at' => now(),
-                            'updated_at' => now(),
+                if ($course) {
+                    // Actualizar el pivot del curso con el precio individual
+                    if (array_key_exists('individual_price', $data)) {
+                        $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
+                            'individual_price' => $data['individual_price']
                         ]);
-                    } else {
-                        $participantProgramId = $participantProgram->id;
-                        
-                        // Actualizar el precio individual si se proporciona
-                        if (array_key_exists('individual_price', $data)) {
-                            DB::table('participant_program')
-                                ->where('id', $participantProgramId)
-                                ->update([
-                                    'individual_price' => $data['individual_price'],
-                                    'updated_at' => now(),
-                                ]);
-                        }
                     }
 
-                    // Procesar descuentos si se proporcionan
-                    if (isset($data['discounts'])) {
-                        $this->processDiscounts($participantProgramId, $data['discounts']);
+                    // Actualizar ajustes de precio si se proporcionan
+                    if (array_key_exists('price_adjustments', $data)) {
+                        $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
+                            'price_adjustments' => $data['price_adjustments'],
+                            'adjustment_reason' => $data['adjustment_reason'] ?? null
+                        ]);
                     }
-                }
-
-                // Actualizar el pivot del curso con el precio individual
-                if (array_key_exists('individual_price', $data)) {
-                    $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
-                        'individual_price' => $data['individual_price']
-                    ]);
                 }
             }
 
@@ -131,6 +104,8 @@ class UpdateParticipantService
 
     /**
      * Procesa los descuentos para un participant_program
+     * DEPRECATED: Este método ya no se usa con la nueva estructura de base de datos
+     * Los descuentos ahora se manejan directamente en el pivot participant_course
      *
      * @param int $participantProgramId
      * @param string $discountsJson

@@ -221,14 +221,14 @@ class ExportService
             }
 
             // Exportar solo el programa seleccionado
-            /** @var \App\Models\Program|null $program */
-            $program = \App\Models\Program::with(['institution', 'salesExecutive'])->where('code', $programCode)->first();
-            if (!$program) {
+            /** @var \App\Models\ProgramCourse|null $programCourse */
+            $programCourse = \App\Models\ProgramCourse::with(['program'])->where('code', $programCode)->first();
+            if (!$programCourse) {
                 return response()->json(['error' => 'Programa no encontrado'], 404);
             }
 
-            $tmpPath = $this->generatePartialAccountXlsx($program, $filters);
-            $filename = 'apoderados_estado_cuenta_parcial_' . ($program->code ?: 'programa_' . $program->id) . '_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
+            $tmpPath = $this->generatePartialAccountXlsx($programCourse, $filters);
+            $filename = 'apoderados_estado_cuenta_parcial_' . ($programCourse->code ?: 'programa_' . $programCourse->id) . '_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
             while (ob_get_level() > 0) { ob_end_clean(); }
             return response()->download(
                 $tmpPath,

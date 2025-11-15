@@ -74,7 +74,7 @@ class PartialAccountTransformer
             'participant_document' => $this->formatDocument($enrollment->document_number, $participant),
             'participant_phone' => $enrollment->phone,
             'program_name' => $enrollment->program_name,
-            'program_departure_date' => $enrollment->departure_date,
+            'program_departure_date' => $enrollment->departure_date ?? null,
             'enrollment_code' => $enrollment->enrollment_code,
             'sales_executive_name' => $salesExecutiveName,
             'total_amount' => $financialData['total_amount'],
@@ -132,7 +132,7 @@ class PartialAccountTransformer
                 $row['Nombre del Programa'] = $this->cleanUtf8($enrollment->program_name ?? '');
             }
             if (in_array('departureDate', $selectedFields['program'])) {
-                $row['Fecha de Salida'] = $enrollment->departure_date ? date('d/m/Y', strtotime($enrollment->departure_date)) : '';
+                $row['Fecha de Salida'] = isset($enrollment->departure_date) && $enrollment->departure_date ? date('d/m/Y', strtotime($enrollment->departure_date)) : 'N/A';
             }
             if (in_array('enrollmentCode', $selectedFields['program'])) {
                 $row['Código de Inscripción'] = $this->cleanUtf8($enrollment->enrollment_code ?? '');
@@ -187,13 +187,13 @@ class PartialAccountTransformer
     private function getSalesExecutiveName($enrollment): ?string
     {
         $salesExecutiveName = $enrollment->sales_executive_name ?? null;
-        
-        if (!$salesExecutiveName && $enrollment->sales_executive_id) {
+
+        if (!$salesExecutiveName && isset($enrollment->sales_executive_id) && $enrollment->sales_executive_id) {
             $salesExecutive = SalesExecutive::find($enrollment->sales_executive_id);
             $salesExecutiveName = $salesExecutive ? $salesExecutive->name : null;
         }
-        
-        return $salesExecutiveName;
+
+        return $salesExecutiveName ?? 'N/A';
     }
 
     /**

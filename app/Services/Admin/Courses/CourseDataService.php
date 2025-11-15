@@ -13,7 +13,7 @@ class CourseDataService
 {
     public function getCourseList(array $filters = [])
     {
-        return Course::with(['program', 'createdBy', 'institution'])
+        return Course::with(['programCourses.program', 'createdBy', 'institution', 'participants'])
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->whereHas('institution', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%");
@@ -38,22 +38,26 @@ class CourseDataService
     public function calculateCourseMetrics($courses)
     {
         $transform = function ($course) {
-            if ($course->program) {
-                $course->program->makeVisible(['trip_price', 'name', 'destination']);
+            // Get primary program from first programCourse
+            $programCourse = $course->programCourses->first();
+            $program = $programCourse?->program;
+
+            if ($program) {
+                $program->makeVisible(['trip_price', 'name', 'destination']);
             }
 
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
-            
-            $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants);
-            $coursePaidAmount = $this->calculatePaidAmount($course);
+
+            $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants, $program);
+            $coursePaidAmount = $this->calculatePaidAmount($course, $program);
             $coursePaymentPercentage = $this->calculatePaymentPercentage($courseTotalAmount, $coursePaidAmount);
 
             $course->course_total_amount = $courseTotalAmount;
             $course->course_paid_amount = $coursePaidAmount;
             $course->course_payment_percentage = $coursePaymentPercentage;
-            $course->append(['payment_percentage', 'payment_percentage_text']);
-            
+            $course->total_students = $activeParticipants->count();
+
             return $course;
         };
 
@@ -66,11 +70,11 @@ class CourseDataService
         return $courses->map($transform);
     }
 
-    private function calculateTotalAmount($course, $activeParticipants): float
+    private function calculateTotalAmount($course, $activeParticipants, $program = null): float
     {
-        return $activeParticipants->reduce(function ($carry, $p) use ($course) {
-            if ($course->program) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $course->program);
+        return $activeParticipants->reduce(function ($carry, $p) use ($program) {
+            if ($program) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
                 return $carry + $priceData['final_price'];
             }
             $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
@@ -79,15 +83,15 @@ class CourseDataService
         }, 0.0);
     }
 
-    private function calculatePaidAmount($course): float
+    private function calculatePaidAmount($course, $program = null): float
     {
-        if (!$course->program) {
+        if (!$program) {
             return 0.0;
         }
 
         return (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
-            ->where('orders.program_id', $course->program->id)
+            ->where('orders.program_id', $program->id)
             ->whereIn('payments.status', ['approved', 'completed'])
             ->sum('payments.amount');
     }
@@ -99,19 +103,23 @@ class CourseDataService
 
     public function getCourseForEdit(Course $course): array
     {
-        $course->load(['institution', 'program', 'participants']);
-        
+        $course->load(['institution', 'programCourses.program', 'participants']);
+
+        // Get primary program from first programCourse
+        $programCourse = $course->programCourses->first();
+        $program = $programCourse?->program;
+
         // Calculate payment metrics if program exists
-        if ($course->program) {
-            $course->program->makeVisible(['trip_price', 'name', 'destination']);
-            
+        if ($program) {
+            $program->makeVisible(['trip_price', 'name', 'destination']);
+
             // Calculate total amount from active participants
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
-            
-            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($course) {
-                if ($course->program) {
-                    $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($p, $course->program);
+
+            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
+                if ($program) {
+                    $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($p, $program);
                     return $carry + $priceData['final_price'];
                 }
                 $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
@@ -120,31 +128,28 @@ class CourseDataService
             }, 0.0);
 
             // Calculate paid amount
-            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function($q) use ($course) {
-                $q->where('program_id', $course->program->id);
+            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function($q) use ($program) {
+                $q->where('program_id', $program->id);
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
             $coursePaidAmount = round($coursePaidAmount, 2);
 
             // Calculate payment percentage
-            $coursePaymentPercentage = $courseTotalAmount > 0 
+            $coursePaymentPercentage = $courseTotalAmount > 0
                 ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
                 : 0;
 
             // Attach metrics to program
-            $course->program->payment_percentage = $coursePaymentPercentage;
-            $course->program->paid_amount = $coursePaidAmount;
-            $course->program->total_amount = $courseTotalAmount > 0 ? $courseTotalAmount : ($course->program->trip_price ?? 0);
+            $program->payment_percentage = $coursePaymentPercentage;
+            $program->paid_amount = $coursePaidAmount;
+            $program->total_amount = $courseTotalAmount > 0 ? $courseTotalAmount : ($program->trip_price ?? 0);
         }
-        
-        // Add calculated accessors
-        $course->append(['payment_percentage', 'payment_percentage_text']);
-        
+
         return [
             'course' => $course,
             'institution' => $course->institution,
-            'program' => $course->program,
+            'program' => $program,
             'participants' => $course->participants
         ];
     }
@@ -165,6 +170,18 @@ class CourseDataService
 
     public function getFilteredPayments(Course $course, array $filters = [])
     {
+        // Ensure programCourses relationship is loaded
+        $course->loadMissing('programCourses');
+
+        // Get the program_id from the first programCourse
+        $programCourse = $course->programCourses->first();
+        $programId = $programCourse?->program_id;
+
+        if (!$programId) {
+            // Return empty paginator if no program is associated
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
+        }
+
         $query = \App\Models\Payment::query()
             ->with([
                 'order.program.course.institution',
@@ -175,8 +192,8 @@ class CourseDataService
                 'paymentGateway',
                 'paymentOption'
             ])
-            ->whereHas('order.program', function($query) use ($course) {
-                $query->where('id', $course->program_id);
+            ->whereHas('order', function($query) use ($programId) {
+                $query->where('program_id', $programId);
             });
 
         if (!empty($filters['participant_name'])) {

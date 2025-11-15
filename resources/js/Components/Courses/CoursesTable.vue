@@ -57,10 +57,10 @@
                     {{ course.year }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
-                    {{ capitalizeWords(course.program?.name || 'Sin programa') }}
+                    {{ capitalizeWords(getProgramName(course)) }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
-                    {{ capitalizeWords(course.program?.destination || 'N/A') }}
+                    {{ capitalizeWords(getProgramDestination(course)) }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
                     {{ course.total_students || 0 }}
@@ -117,6 +117,16 @@ export default {
         editCourse(courseId) {
             // Emit event to parent component or navigate to edit page
             this.$emit('edit-course', courseId);
+        },
+        getProgramName(course) {
+            // Laravel serializa las relaciones en snake_case
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.name || 'Sin Programa';
+        },
+        getProgramDestination(course) {
+            // Laravel serializa las relaciones en snake_case
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.program?.destination || 'N/a';
         },
         getStatusChipClass(course) {
             const percentage = course.payment_percentage;

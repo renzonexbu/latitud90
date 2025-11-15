@@ -3,8 +3,6 @@
 namespace App\Services\Admin\Programs;
 
 use App\Models\Program;
-use App\Models\Payment;
-use App\Helpers\ParticipantPriceHelper;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
@@ -47,15 +45,14 @@ class GetProgramsService
     }
 
     /**
-     * Obtener programas paginados con filtros
+     * Obtener programas (plantillas) paginados con filtros
      *
      * @param Request $request
      * @return \Illuminate\Pagination\LengthAwarePaginator
      */
     private function getPaginatedPrograms(Request $request)
     {
-        $programs = Program::with(['paymentMode', 'course.institution', 'course.participants'])
-            ->when($request->search, function ($query, $search) {
+        $programs = Program::when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('destination', 'like', "%{$search}%");
             })
@@ -69,73 +66,32 @@ class GetProgramsService
             ->paginate(10)
             ->withQueryString();
 
-        // Cargar imágenes y métricas de pagos
+        // Cargar imágenes para cada plantilla
         $programs->getCollection()->transform(function ($program) {
-            return $this->addProgramMetrics($program);
+            $program->images = $program->images;
+            return $program;
         });
 
         return $programs;
     }
 
     /**
-     * Obtener todos los programas para filtros
+     * Obtener todas las plantillas de programas para filtros
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
     private function getAllPrograms()
     {
-        $allPrograms = Program::with(['paymentMode', 'course.institution', 'course.participants'])
-            ->orderBy('created_at', 'desc')
+        $allPrograms = Program::orderBy('created_at', 'desc')
             ->get();
 
-        // Cargar imágenes y métricas de pagos
+        // Cargar imágenes para cada plantilla
         $allPrograms->transform(function ($program) {
-            return $this->addProgramMetrics($program);
+            $program->images = $program->images;
+            return $program;
         });
 
         return $allPrograms;
     }
 
-    /**
-     * Agregar métricas de pagos a un programa
-     *
-     * @param Program $program
-     * @return Program
-     */
-    private function addProgramMetrics(Program $program): Program
-    {
-        $program->images = $program->images;
-
-        // Obtener participantes activos
-        $participants = $program->course?->participants ?? collect();
-        $activeParticipants = $participants->filter(function ($p) {
-            return ($p->pivot->status ?? 'active') !== 'cancelled';
-        });
-
-        // Calcular monto total debido
-        $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
-            return $carry + $priceData['final_price'];
-        }, 0.0);
-
-        // Calcular monto pagado
-        $coursePaidAmount = (float) Payment::whereHas('order', function ($q) use ($program) {
-                $q->where('program_id', $program->id);
-            })
-            ->whereIn('status', ['approved', 'completed'])
-            ->sum('amount');
-        $coursePaidAmount = round($coursePaidAmount, 2);
-
-        // Calcular porcentaje de pago
-        $coursePaymentPercentage = $courseTotalAmount > 0
-            ? round(($coursePaidAmount / $courseTotalAmount) * 100, 0)
-            : 0;
-
-        // Asignar métricas al programa
-        $program->course_total_amount = $courseTotalAmount;
-        $program->course_paid_amount = $coursePaidAmount;
-        $program->course_payment_percentage = $coursePaymentPercentage;
-
-        return $program;
-    }
 }

@@ -13,15 +13,62 @@ class StoreCourseRequest extends CourseRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Transform payment_options arrays to boolean flags
+        $paymentOptions = $this->input('payment_options', []);
+        $fullPaymentOptions = $this->input('full_payment_options', []);
+        $subscriptionPaymentOptions = $this->input('subscription_payment_options', []);
+
+        // Determine if each payment type is enabled
+        $enableTotalPayment = in_array('full_payment', $paymentOptions) && !empty($fullPaymentOptions);
+        $enableSubscriptionPayment = in_array('subscription', $paymentOptions) && !empty($subscriptionPaymentOptions);
+
+        // Set default grade to 'A' if not provided or empty
+        $grade = $this->input('grade');
+        if (empty($grade) || $grade === '---') {
+            $grade = 'A';
+        }
+
+        $this->merge([
+            'enable_total_payment' => $enableTotalPayment,
+            'enable_subscription_payment' => $enableSubscriptionPayment,
+            'grade' => $grade,
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
     {
         return array_merge($this->commonRules(), [
+            // Campos del curso
             'institutionId' => ['required', 'exists:institutions,id'],
             'educationLevel' => ['required', 'string', 'max:255'],
             'year' => ['required', 'integer', 'min:2020', 'max:2100'],
             'studentsFile' => ['required', 'file', 'mimes:csv,xls,xlsx', 'max:10240'],
+
+            // Campos del plan de programa (ProgramCourse)
+            'program_id' => ['required', 'exists:programs,id'],
+            'code' => ['required', 'string', 'max:50'],
+            'departure_date' => ['required', 'date', 'after:today'],
+            'trip_price' => ['required', 'numeric', 'min:0'],
+            'final_payment_date' => ['required', 'date', 'before_or_equal:departure_date'],
+
+            // Opciones de pago
+            'enable_total_payment' => ['nullable', 'boolean'],
+            'enable_subscription_payment' => ['nullable', 'boolean'],
+            'subscription_max_months' => ['nullable', 'integer', 'min:1', 'max:12', 'required_if:enable_subscription_payment,true'],
+
+            // Descuentos
+            'discount_type' => ['nullable', 'in:percentage,fixed'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
+
+            // Ejecutivo de ventas
+            'sales_executive_id' => ['nullable', 'exists:sales_executives,id'],
         ]);
     }
 
@@ -31,9 +78,44 @@ class StoreCourseRequest extends CourseRequest
     public function messages(): array
     {
         return [
+            // Archivo de estudiantes
             'studentsFile.required' => 'El archivo de estudiantes es obligatorio',
             'studentsFile.mimes' => 'El archivo debe ser de tipo: csv, xls, xlsx',
             'studentsFile.max' => 'El archivo no debe ser mayor a 10MB',
+
+            // Programa
+            'program_id.required' => 'Debe seleccionar una plantilla de programa',
+            'program_id.exists' => 'La plantilla de programa seleccionada no existe',
+
+            // Código
+            'code.required' => 'El código del programa es obligatorio',
+            'code.max' => 'El código no puede exceder 50 caracteres',
+
+            // Fechas
+            'departure_date.required' => 'La fecha de salida es obligatoria',
+            'departure_date.date' => 'La fecha de salida debe ser una fecha válida',
+            'departure_date.after' => 'La fecha de salida debe ser posterior a hoy',
+            'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
+            'final_payment_date.date' => 'La fecha límite de pago debe ser una fecha válida',
+            'final_payment_date.before_or_equal' => 'La fecha límite de pago debe ser anterior o igual a la fecha de salida',
+
+            // Precio
+            'trip_price.required' => 'El precio del viaje es obligatorio',
+            'trip_price.numeric' => 'El precio debe ser un número válido',
+            'trip_price.min' => 'El precio debe ser mayor o igual a 0',
+
+            // Suscripción
+            'subscription_max_months.required_if' => 'Debe especificar el máximo de meses cuando el pago por suscripción está habilitado',
+            'subscription_max_months.min' => 'El máximo de meses debe ser al menos 1',
+            'subscription_max_months.max' => 'El máximo de meses no puede exceder 12',
+
+            // Descuentos
+            'discount_type.in' => 'El tipo de descuento debe ser porcentaje o monto fijo',
+            'discount_value.numeric' => 'El valor del descuento debe ser un número válido',
+            'discount_value.min' => 'El valor del descuento debe ser mayor o igual a 0',
+
+            // Ejecutivo de ventas
+            'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe',
         ];
     }
 }

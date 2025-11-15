@@ -30,9 +30,9 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
-                'pr.id', 'pr.name', 'pr.departure_date', 'pr.sales_executive_id',
+                'pr.id', 'pr.name',
                 'c.education_level', 'c.course_number',
-                'i.name', 'se.name',
+                'i.name',
             ])
             ->select([
                 'p.id as participant_id',
@@ -50,12 +50,9 @@ class PartialAccountDataProvider
                 'pp.created_at',
                 'pr.id as program_id',
                 'pr.name as program_name',
-                'pr.departure_date',
-                'pr.sales_executive_id',
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
-                'se.name as sales_executive_name',
                 DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
@@ -73,9 +70,9 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
-                'pr.id', 'pr.name', 'pr.departure_date', 'pr.sales_executive_id',
+                'pr.id', 'pr.name',
                 'c.education_level', 'c.course_number',
-                'i.name', 'se.name',
+                'i.name',
             ])
             ->select([
                 'p.id as participant_id',
@@ -93,12 +90,9 @@ class PartialAccountDataProvider
                 'pp.created_at',
                 'pr.id as program_id',
                 'pr.name as program_name',
-                'pr.departure_date',
-                'pr.sales_executive_id',
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
-                'se.name as sales_executive_name',
                 DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
             ->orderByDesc('pp.created_at')
@@ -119,7 +113,6 @@ class PartialAccountDataProvider
             ->join('programs as pr', 'pr.id', '=', 'pp.program_id')
             ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'pr.sales_executive_id')
             ->leftJoin('orders as o', function($join) {
                 $join->on('o.participant_id', '=', 'p.id')
                      ->on('o.program_id', '=', 'pr.id')

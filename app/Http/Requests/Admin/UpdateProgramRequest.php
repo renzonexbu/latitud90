@@ -17,115 +17,45 @@ class UpdateProgramRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     * Programs are now templates - only validate template fields.
      */
     public function rules(): array
     {
         return [
-            // Campos del programa (todos opcionales en edición, solo validar tipo si se envían)
-            'code' => ['sometimes','string','max:8','regex:/^\d{1,8}$/','unique:programs,code,' . $this->route('program')->id],
+            // Campos básicos de la plantilla (todos opcionales en edición)
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
-            'departure_date' => 'nullable|date',
             'trip_description' => 'nullable|string|max:2000',
             'description' => 'nullable|string|max:2000', // Campo del frontend
-            'images_folder' => 'nullable|string|max:255',
-            'images' => 'nullable|array', // Las imágenes son opcionales en edición
+
+            // Imágenes (opcionales en edición, solo validar tipo si se envían)
+            'images' => 'nullable|array',
             'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
+
             // Eliminación de imágenes/archivos existentes
             'imagesToDelete' => 'nullable|array',
             'imagesToDelete.*' => 'integer|min:0',
             'filesToDelete' => 'nullable|array',
             'filesToDelete.*' => 'in:itinerary,coverage,equipment',
-            'pillars' => 'nullable|string|max:500',
+
+            // Pilares educativos
             'pilar_1' => 'nullable|string|max:255',
             'pilar_2' => 'nullable|string|max:255',
             'pilar_3' => 'nullable|string|max:255',
             'pilar_4' => 'nullable|string|max:255',
-            'itinerary' => 'nullable|string|max:1000', // Campo del frontend
+
+            // Itinerario
+            'itinerary' => 'nullable|string|max:1000',
+            'itinerary_description' => 'nullable|string|max:1000',
+
+            // Archivos PDF (opcionales)
             'itinerary_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
-            'coverage_file' => 'nullable|file|mimes:pdf|max:10240', // Campo del frontend
-            'equipment_file' => 'nullable|file|mimes:pdf|max:10240', // Campo del frontend
+            'coverage_file' => 'nullable|file|mimes:pdf|max:10240',
+            'equipment_file' => 'nullable|file|mimes:pdf|max:10240',
             'travel_assistance_coverage' => 'nullable|file|mimes:pdf|max:10240',
             'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
-            'trip_price' => 'nullable|numeric|min:0',
-            'total_price' => 'nullable|numeric|min:0', // Campo del frontend
-            'final_payment_date' => [
-                'nullable',
-                'date',
-                'before_or_equal:departure_date',
-                function ($attribute, $value, $fail) {
-                    $departureDate = $this->input('departure_date');
-                    if ($value && $departureDate) {
-                        $departure = \Carbon\Carbon::parse($departureDate);
-                        $paymentDate = \Carbon\Carbon::parse($value);
 
-                        // Calcular correctamente la diferencia (paymentDate debe ser antes que departure)
-                        $daysDifference = $paymentDate->diffInDays($departure, false);
-
-                        \Log::info('📅 UPDATE - Validación de fechas:', [
-                            'departure_date_input' => $departureDate,
-                            'final_payment_date_input' => $value,
-                            'days_difference' => $daysDifference,
-                            'payment_is_before_departure' => $paymentDate->lt($departure),
-                            'is_valid' => $daysDifference >= 60
-                        ]);
-
-                        if ($daysDifference < 60) {
-                            $fail('La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.');
-                        }
-                    }
-                }
-            ],
-            'seller_name' => 'nullable|string|max:255',
-            'sales_executive_id' => 'nullable|integer|exists:sales_executives,id',
-            'sales_person' => 'nullable|string|max:255', // Campo del frontend
-            
-            // Campos del detalle administrativo (todos opcionales)
-            'institution_id' => 'nullable|exists:institutions,id',
-            'institution_name' => 'nullable|string|max:255',
-            'education_level' => 'nullable|string|in:preescolar,basica,media,universitaria',
-            'grade' => 'nullable|string|in:A,B,C,D,E',
-            'course_number' => 'nullable|integer|min:1|max:12',
-            'students_file' => 'nullable|file|mimes:xlsx,xls,csv|max:10240',
-            'group_benefit' => 'nullable|string|in:descuento_10,descuento_15,descuento_20',
-            'discount_type' => 'nullable|string|in:porcentaje_10,porcentaje_15,porcentaje_20,monto_fijo',
-            'discount_amount' => 'nullable|numeric|min:0',
-            // Aceptar múltiples opciones en edición, manteniendo compatibilidad con el campo singular
-            'payment_options' => 'nullable|array',
-            'payment_options.*' => 'string|in:full_payment,installments',
-            'payment_option' => 'nullable|string|in:full_payment,installments',
-            'full_payment_options' => 'nullable|array',
-            'full_payment_options.*' => 'string|in:full_transfer_khipu,full_debit_credit_0,full_debit_credit_3,full_debit_credit_6,full_debit_credit_9,full_debit_credit_12,full_international',
-            'lat90_payment_options' => 'nullable|array',
-            'lat90_payment_options.*' => 'string|in:lat90_transfer_khipu,lat90_debit_credit_0',
-            'full_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado',
-            // Aceptar claves antiguas y nuevas para mantener compatibilidad
-            'installments_payment_method' => 'nullable|string|in:todos_medios,solo_tarjeta,solo_transferencia,solo_contado,khipu,webpay_1,webpay_3,webpay_6,webpay_12',
-            'max_installments' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:12',
-                function ($attribute, $value, $fail) {
-                    if ($value && $this->input('final_payment_date')) {
-                        $finalPaymentDate = \Carbon\Carbon::parse($this->input('final_payment_date'));
-                        $now = \Carbon\Carbon::now();
-                        
-                        // Calcular meses disponibles hasta la fecha de pago
-                        $monthsAvailable = $now->diffInMonths($finalPaymentDate);
-                        if ($now->day > $finalPaymentDate->day) {
-                            $monthsAvailable -= 1;
-                        }
-                        $monthsAvailable = max(0, $monthsAvailable);
-                        
-                        if ($value > $monthsAvailable) {
-                            $fail("El número máximo de cuotas ({$value}) no puede exceder los meses disponibles hasta la fecha de pago ({$monthsAvailable} meses).");
-                        }
-                    }
-                }
-            ],
-            'payment_mode_id' => 'nullable|exists:payment_modes,id',
-            'payment_method_id' => 'nullable|exists:payment_methods,id',
+            // Estado
             'active' => 'boolean',
         ];
     }
@@ -151,30 +81,7 @@ class UpdateProgramRequest extends FormRequest
 
 			$finalCount = max(0, $existingCount - $deleteCount) + $newCount;
 			if ($finalCount < 1) {
-				$validator->errors()->add('images', 'Debe adjuntar al menos una imagen del programa.');
-			}
-
-			// Validar que no se puede cambiar el precio si hay suscripciones activas
-			$newPrice = $this->input('total_price') ?? $this->input('trip_price');
-			if ($newPrice !== null && $program->virtualpos_plan_id) {
-				// El precio ha cambiado
-				$oldPrice = $program->trip_price;
-				if ((float)$newPrice != (float)$oldPrice) {
-					// Verificar si hay suscripciones activas
-					$virtualPosPlanService = app(\App\Services\Subscription\VirtualPosPlanService::class);
-					$hasActiveSubscriptions = $virtualPosPlanService->hasActiveSubscriptions($program->virtualpos_plan_id);
-
-					if ($hasActiveSubscriptions) {
-						$validator->errors()->add('total_price',
-							'No se puede modificar el precio porque hay estudiantes con suscripciones activas. ' .
-							'Las suscripciones activas deben completarse antes de cambiar el precio del programa.'
-						);
-						$validator->errors()->add('trip_price',
-							'No se puede modificar el precio porque hay estudiantes con suscripciones activas. ' .
-							'Las suscripciones activas deben completarse antes de cambiar el precio del programa.'
-						);
-					}
-				}
+				$validator->errors()->add('images', 'Debe tener al menos una imagen en la plantilla.');
 			}
 		});
 	}
@@ -200,101 +107,35 @@ class UpdateProgramRequest extends FormRequest
     public function messages(): array
     {
         return [
-            // Mensajes para campos obligatorios
-            'code.string' => 'El código del programa debe ser texto.',
-            'code.max' => 'El código del programa no puede exceder 8 caracteres.',
-            'code.regex' => 'El código del programa debe contener solo dígitos (1-8 caracteres).',
-            'code.unique' => 'El código del programa ya existe. Por favor, utiliza un código diferente.',
-            'name.string' => 'El nombre del programa debe ser texto.',
-            'name.max' => 'El nombre del programa no puede exceder 255 caracteres.',
-            
-            'destination.required' => 'El destino es obligatorio.',
+            'name.string' => 'El nombre debe ser texto.',
+            'name.max' => 'El nombre no puede exceder 255 caracteres.',
+
             'destination.string' => 'El destino debe ser texto.',
             'destination.max' => 'El destino no puede exceder 255 caracteres.',
-            
-            'departure_date.required' => 'La fecha de salida es obligatoria.',
-            'departure_date.date' => 'La fecha de salida debe tener un formato válido.',
-            'departure_date.after' => 'La fecha de salida debe ser posterior a hoy.',
-            
-            'trip_description.required_without' => 'La descripción del viaje es obligatoria.',
-            'description.required_without' => 'La descripción del viaje es obligatoria.',
-            'trip_description.string' => 'La descripción del viaje debe ser texto.',
-            'description.string' => 'La descripción del viaje debe ser texto.',
-            'trip_description.max' => 'La descripción del viaje no puede exceder 2000 caracteres.',
-            'description.max' => 'La descripción del viaje no puede exceder 2000 caracteres.',
-            
-            'itinerary.string' => 'La descripción del itinerario debe ser texto.',
-            'itinerary.max' => 'La descripción del itinerario no puede exceder 1000 caracteres.',
-            
-            'trip_price.required_without' => 'El precio del viaje es obligatorio.',
-            'total_price.required_without' => 'El precio del viaje es obligatorio.',
-            'trip_price.numeric' => 'El precio del viaje debe ser un número.',
-            'total_price.numeric' => 'El precio del viaje debe ser un número.',
-            'trip_price.min' => 'El precio del viaje debe ser mayor o igual a 0.',
-            'total_price.min' => 'El precio del viaje debe ser mayor o igual a 0.',
-            
-            'final_payment_date.required' => 'La fecha final de pago es obligatoria.',
-            'final_payment_date.date' => 'La fecha final de pago debe tener un formato válido.',
-            'final_payment_date.after' => 'La fecha final de pago debe ser posterior a hoy.',
-            'final_payment_date.before_or_equal' => 'La fecha final de pago no puede ser posterior a la fecha de salida.',
-            
-            'sales_executive_id.integer' => 'El ejecutivo de ventas debe ser un número válido.',
-            'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe.',
-            
-            'seller_name.required_without' => 'El nombre del vendedor es obligatorio.',
-            'sales_person.required_without' => 'El nombre del vendedor es obligatorio.',
-            'seller_name.string' => 'El nombre del vendedor debe ser texto.',
-            'sales_person.string' => 'El nombre del vendedor debe ser texto.',
-            'seller_name.max' => 'El nombre del vendedor no puede exceder 255 caracteres.',
-            'sales_person.max' => 'El nombre del vendedor no puede exceder 255 caracteres.',
-            
-            // Mensajes para imágenes (opcionales en edición)
+
+            'description.string' => 'La descripción debe ser texto.',
+            'description.max' => 'La descripción no puede exceder 2000 caracteres.',
+            'trip_description.string' => 'La descripción debe ser texto.',
+            'trip_description.max' => 'La descripción no puede exceder 2000 caracteres.',
+
+            // Mensajes para imágenes
             'images.array' => 'Las imágenes deben ser enviadas como un array.',
             'images.*.file' => 'Cada imagen debe ser un archivo válido.',
             'images.*.mimes' => 'Las imágenes deben ser en formato JPEG, JPG, PNG, GIF o WEBP.',
             'images.*.max' => 'Cada imagen no puede exceder 5MB.',
-            
+
             // Mensajes para archivos
             'itinerary_file.file' => 'El archivo de itinerario debe ser un archivo válido.',
             'itinerary_file.mimes' => 'El archivo de itinerario debe ser un PDF.',
             'itinerary_file.max' => 'El archivo de itinerario no puede exceder 10MB.',
-            
+
             'travel_assistance_coverage.file' => 'El archivo de cobertura debe ser un archivo válido.',
             'travel_assistance_coverage.mimes' => 'El archivo de cobertura debe ser un PDF.',
             'travel_assistance_coverage.max' => 'El archivo de cobertura no puede exceder 10MB.',
-            
+
             'equipment_list.file' => 'El archivo de lista de equipo debe ser un archivo válido.',
             'equipment_list.mimes' => 'El archivo de lista de equipo debe ser un PDF.',
             'equipment_list.max' => 'El archivo de lista de equipo no puede exceder 10MB.',
-            
-            'students_file.file' => 'El archivo de estudiantes debe ser un archivo válido.',
-            'students_file.mimes' => 'El archivo de estudiantes debe ser Excel (.xlsx, .xls) o CSV.',
-            'students_file.max' => 'El archivo de estudiantes no puede exceder 10MB.',
-            
-            // Mensajes para opciones de pago
-            'full_payment_options.*.in' => 'La opción de pago total seleccionada no es válida.',
-            'lat90_payment_options.*.in' => 'La opción de pago mensual seleccionada no es válida.',
-            
-            // Mensajes para campos opcionales
-            'education_level.in' => 'El nivel de educación seleccionado no es válido.',
-            'shift.in' => 'El turno seleccionado no es válido.',
-            'group_benefit.in' => 'El beneficio grupal seleccionado no es válido.',
-            'discount_type.in' => 'El tipo de descuento seleccionado no es válido.',
-            'discount_amount.numeric' => 'El monto de descuento debe ser un número.',
-            'discount_amount.min' => 'El monto de descuento debe ser mayor o igual a 0.',
-            'payment_option.in' => 'La opción de pago seleccionada no es válida.',
-            'full_payment_method.in' => 'El método de pago total seleccionado no es válido.',
-            'installments_payment_method.in' => 'El método de pago en cuotas seleccionado no es válido.',
-            'max_installments.integer' => 'El número máximo de cuotas debe ser un número entero.',
-            'max_installments.min' => 'El número máximo de cuotas debe ser al menos 1.',
-            'max_installments.max' => 'El número máximo de cuotas no puede ser mayor a 12.',
-            
-            // Mensajes para validaciones básicas
-            'institution_id.exists' => 'La institución seleccionada no existe.',
-            
-            // Mensajes para validaciones personalizadas
-            'final_payment_date.60_days_before_departure' => 'La fecha final de pago debe ser al menos 60 días antes de la fecha de salida.',
-            'max_installments.months_available' => 'El número máximo de cuotas no puede exceder los meses disponibles hasta la fecha de pago.',
         ];
     }
-} 
+}

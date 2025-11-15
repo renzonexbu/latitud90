@@ -17,8 +17,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="../../../images/experiences/patagonia.png"
-                                        alt="Patagonia"
+                                        src="/images/banners/VIAJE_DE_ESTUDIO.webp"
+                                        alt="Viajes de estudio"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -78,8 +78,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="../../../images/experiences/waterfall.png"
-                                        alt="Cascada"
+                                        src="/images/banners/CEAL.webp"
+                                        alt="Cursos de Educación al aire libre"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -142,8 +142,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="../../../images/experiences/mountain.png"
-                                        alt="Montaña"
+                                        src="/images/banners/GIRAS_DEPORTIVAS.webp"
+                                        alt="Giras Deportivas"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -158,9 +158,9 @@
                                             >Giras</span
                                         >
                                         <span class="flip-title-text">
-                                            Deportivas:<span
+                                            Deportivas<span
                                                 class="flip-title-dot"
-                                            ></span
+                                                >.</span
                                         ></span>
                                     </div>
 
@@ -204,7 +204,7 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="\images\banners\OTRAS_EXPERIENCIAS.webp"
+                                        src="/images/banners/OTRAS_EXPERIENCIAS.webp"
                                         alt="Experiencias personalizadas"
                                         class="w-full h-auto object-cover"
                                     />
@@ -389,6 +389,10 @@ const flipCard = (index) => {
     border-radius: 37px;
 }
 
+.card-image-scaled {
+    object-fit: contain !important;
+}
+
 .flip-card-back {
     transform: rotateY(180deg);
     background: #007e93;
@@ -430,6 +434,7 @@ const flipCard = (index) => {
     align-items: flex-start;
     margin-bottom: 15px;
     margin-top: 80px;
+    margin-left: 20px;
 }
 
 .flip-title-text {
@@ -449,6 +454,10 @@ const flipCard = (index) => {
     font-style: normal;
     font-weight: 400;
     line-height: 18px;
-    text-align: left;
+    text-align: justify;
+    hyphens: auto;
+    max-width: 85%;
+    text-justify: inter-word;
+    margin: 0 auto;
 }
 </style>

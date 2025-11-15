@@ -22,6 +22,7 @@
                 v-for="program in paginatedPrograms"
                 :key="program.id"
                 :program="program"
+                :mode="preferParticipantMetrics ? 'programCourse' : 'template'"
                 @click="handleProgramClick(program)"
             />
         </div>

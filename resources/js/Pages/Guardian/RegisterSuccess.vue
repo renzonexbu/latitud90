@@ -24,7 +24,7 @@
       <!-- Email info -->
       <div class="email-info-box">
         <p class="email-info-label">Hemos enviado un correo de verificación a:</p>
-        <p class="email-info-address">{{ email }}</p>
+        <p class="email-info-address">{{ currentEmail }}</p>
       </div>
 
       <p class="success-message">
@@ -91,7 +91,7 @@
 
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const props = defineProps({
   email: String,
@@ -99,12 +99,32 @@ const props = defineProps({
 })
 
 const resendSuccess = ref(false)
+const currentEmail = ref(props.email)
+
+// Guardar email en localStorage cuando se monta el componente
+onMounted(() => {
+  if (props.email) {
+    localStorage.setItem('guardian_pending_email', props.email)
+    currentEmail.value = props.email
+  } else {
+    // Recuperar de localStorage si no viene en props
+    const savedEmail = localStorage.getItem('guardian_pending_email')
+    if (savedEmail) {
+      currentEmail.value = savedEmail
+    }
+  }
+})
 
 const form = useForm({
-  email: props.email
+  email: currentEmail.value
 })
 
 const resendVerification = () => {
+  // Asegurarse de usar el email actual
+  form.email = currentEmail.value
+
+  console.log('Enviando email:', form.email)
+
   form.post(route('guardian.resend-verification'), {
     preserveScroll: true,
     onSuccess: () => {
@@ -112,6 +132,9 @@ const resendVerification = () => {
       setTimeout(() => {
         resendSuccess.value = false
       }, 3000)
+    },
+    onError: (errors) => {
+      console.error('Error al reenviar:', errors)
     }
   })
 }

@@ -80,7 +80,7 @@ class ConsolidatedPaymentsDataProvider
             ->select([
                 // Identificación
                 'pr.id as program_id',
-                'pr.code as program_code',
+                'pr.name as program_name',
                 'p.document_number as participant_rut',
                 'p.first_name',
                 'p.second_name',
@@ -113,7 +113,7 @@ class ConsolidatedPaymentsDataProvider
                 DB::raw('COALESCE(ins_stats.total_installments_ins, od_stats.total_installments_od, iplan.plan_total_installments, o.total_installments, 0) as total_installments'),
                 DB::raw('COALESCE(sch.scholarship_amount, 0) as scholarship_amount'),
                 DB::raw('CASE WHEN COALESCE(rel.released_count, 0) > 0 THEN 1 ELSE 0 END as released'),
-                DB::raw('CASE WHEN pp.individual_price IS NULL OR pp.individual_price = 0 THEN pr.trip_price ELSE pp.individual_price END as program_total_value'),
+                DB::raw('COALESCE(pp.individual_price, 0) as program_total_value'),
                 DB::raw('CASE WHEN o.payment_type = "total" THEN "Pago Total" ELSE "Pago en Cuotas" END as payment_type_label'),
 
                 // Campos adicionales para filtros

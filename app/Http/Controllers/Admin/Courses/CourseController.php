@@ -38,8 +38,25 @@ class CourseController extends Controller
 
     public function create()
     {
+        // Obtener plantillas de programas activas
+        $programs = Program::where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'destination', 'images_folder']);
+
+        // Obtener instituciones activas
+        $institutions = Institution::active()
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'phone']);
+
+        // Obtener ejecutivos de ventas
+        $salesExecutives = \App\Models\SalesExecutive::where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
         return Inertia::render('Admin/Courses/Create', [
-            'programs' => Program::where('active', true)->get(),
+            'programs' => $programs,
+            'institutions' => $institutions,
+            'salesExecutives' => $salesExecutives,
         ]);
     }
 
@@ -60,8 +77,8 @@ class CourseController extends Controller
 
     public function show(Course $course)
     {
-        $course->load(['program', 'createdBy', 'participants']);
-        
+        $course->load(['institution', 'createdBy', 'participants', 'programCourses.program']);
+
         return Inertia::render('Admin/Courses/Show', [
             'course' => $course,
             'paymentSummary' => $this->paymentService->getPaymentSummary($course),
@@ -72,17 +89,14 @@ class CourseController extends Controller
 
     public function edit(Course $course, Request $request)
     {
-        $courseData = $this->dataService->getCourseForEdit($course);
-        
+        // Load course with necessary relationships
+        $course->load(['institution', 'programCourses.program']);
+
         return Inertia::render('Admin/Courses/Edit', [
-            'course' => $courseData['course'],
-            'institution' => $courseData['institution'],
-            'program' => $courseData['program'],
-            'participants' => $courseData['participants'],
+            'course' => $course,
             'programs' => Program::where('active', true)->get(),
             'institutions' => Institution::active()->orderBy('name')->get(),
-            'payments' => $this->dataService->getFilteredPayments($course, $request->all()),
-            'headerInfo' => $this->dataService->getCourseHeaderInfo($course),
+            'salesExecutives' => \App\Models\SalesExecutive::orderBy('name')->get(),
         ]);
     }
 
@@ -90,15 +104,11 @@ class CourseController extends Controller
     {
         try {
             $this->courseService->updateCourse($course, $request->validated());
-            
-            if ($course->program_id) {
-                $this->courseService->regenerateProgramName($course);
-            }
-            
+
             return redirect()
                 ->route('admin.courses.edit', $course)
                 ->with('success', 'Curso actualizado exitosamente');
-                
+
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al actualizar el curso: ' . $e->getMessage()]);

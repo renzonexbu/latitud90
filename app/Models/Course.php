@@ -18,22 +18,16 @@ class Course extends Model
         'course_name',
         'contact_email',
         'contact_phone',
-        'program_id',
-        'end_date',
         'status',
         'students_file_path',
         'students_file_name',
         'total_students',
-        'collected_amount',
-        'target_amount',
         'created_by'
     ];
 
     protected $casts = [
-        'end_date' => 'date',
         'course_number' => 'integer',
-        'collected_amount' => 'decimal:2',
-        'target_amount' => 'decimal:2'
+        'total_students' => 'integer',
     ];
 
     protected $appends = [
@@ -45,9 +39,12 @@ class Course extends Model
         return $this->belongsTo(Institution::class);
     }
 
-    public function program()
+    /**
+     * Relación con ProgramCourse (planes específicos)
+     */
+    public function programCourses()
     {
-        return $this->belongsTo(Program::class);
+        return $this->hasMany(ProgramCourse::class);
     }
 
     public function participants()
@@ -141,30 +138,4 @@ class Course extends Model
         return $label;
     }
 
-    public function getPaymentPercentageAttribute()
-    {
-        if (!$this->program || !$this->program->trip_price) {
-            return null; // Retorna null para mostrar "---"
-        }
-        
-        $collectedAmount = $this->collected_amount ?? 0;
-        $totalPrice = $this->program->trip_price;
-        
-        if ($totalPrice <= 0) {
-            return null; // Retorna null para mostrar "---"
-        }
-        
-        return round(($collectedAmount / $totalPrice) * 100, 0);
-    }
-
-    public function getPaymentPercentageTextAttribute()
-    {
-        $percentage = $this->payment_percentage;
-        
-        if ($percentage === null) {
-            return '---'; // Solo cuando no hay programa asociado
-        }
-        
-        return $percentage . '%'; // Incluye 0% cuando hay programa pero no hay monto recolectado
-    }
 } 

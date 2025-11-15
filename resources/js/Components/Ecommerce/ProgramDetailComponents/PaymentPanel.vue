@@ -68,13 +68,13 @@
                     v-if="program.enable_lat90_payment && shouldShowMonthlyOption"
                     :is-selected="paymentType === 'monthly'"
                     :is-accordion-open="accordionOpen === 'monthly'"
-                    title="Mensual | Cuota Lat 90"
+                    title="Suscripción"
                     @select="selectPaymentType('monthly')"
                 >
                     <template #accordion-content>
                         <div class="flex flex-col gap-[9px]">
                             <!-- Warning Message -->
-                            <MonthlyWarningMessage v-if="showWarning" />
+                            <!-- <MonthlyWarningMessage v-if="showWarning" /> -->
 
                             <!-- Monthly Payment Options -->
                             <PaymentSubOption
@@ -353,35 +353,21 @@ export default {
         },
     },
     watch: {
-        selectedInstallments(newValue, oldValue) {
-            if (newValue !== oldValue && this.paymentType === 'monthly') {
-                // Validar que las cuotas seleccionadas estén disponibles
-                const allowed = this.getAvailableInstallments();
-                if (!allowed.includes(newValue)) {
-                    this.selectedInstallments = allowed[0] || 1;
-                }
-                
-                // Si es Khipu, forzar 1 cuota SOLO si NO estamos en modo confirmación
-                if (this.monthlyPaymentOption === 'khipu' && newValue !== 1 && !this.isConfirmation) {
-                    this.selectedInstallments = 1;
-                }
-                
-                // Guardar y emitir cambios
-                this.savePaymentDataToLocalStorage();
-                this.emitSelection();
-            }
-        }
-    },
-    
-    // Watcher para guardar automáticamente en localStorage cuando cambien las cuotas
-    watch: {
         selectedInstallments: {
             handler(newValue, oldValue) {
-                
-                // Solo guardar si ya hay un tipo de pago seleccionado
-                if (this.paymentType && oldValue !== undefined) {
-                    this.savePaymentDataToLocalStorage();
-                    this.emitSelection();
+                if (newValue !== oldValue && this.paymentType === 'monthly') {
+                    // Validar que las cuotas seleccionadas estén disponibles
+                    const allowed = this.getAvailableInstallments();
+                    if (!allowed.includes(newValue)) {
+                        this.selectedInstallments = allowed[0] || 1;
+                        return;
+                    }
+
+                    // Guardar y emitir cambios
+                    if (this.paymentType && oldValue !== undefined) {
+                        this.savePaymentDataToLocalStorage();
+                        this.emitSelection();
+                    }
                 }
             },
             immediate: false
@@ -538,40 +524,15 @@ export default {
 
         // Obtener opciones de pago mensual (Latitud 90), basadas en códigos (nueva estructura)
         getMonthlyPaymentOptions() {
-            // Nueva estructura
-            if (Array.isArray(this.program.lat90_payment_options)) {
-                const codes = this.getLat90OptionCodes().map(c => String(c).toLowerCase());
-                const result = [];
-                const pushUnique = (value, label, description = null, warning = null) => {
-                    if (!result.some(o => o.value === value)) {
-                        const obj = { value, label };
-                        if (description) obj.description = description;
-                        if (warning) obj.warning = warning;
-                        result.push(obj);
-                    }
-                };
-                if (codes.some(c => c.includes('khipu'))) {
-                    pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.');
+            // Solo retornar la opción de Suscripción VirtualPos
+            return [
+                {
+                    value: 'subscription_virtualpos',
+                    label: 'Suscripción VirtualPos',
+                    description: null,
+                    warning: null
                 }
-                if (codes.some(c => c.includes('debit_credit'))) {
-                    pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, 'Solo se efectuará 1 cuota');
-                }
-                if (codes.some(c => c.includes('international'))) {
-                    pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales');
-                }
-                return result;
-            }
-            // Legacy fallback
-            if (!this.program.enable_lat90_payment || !this.program.lat90_payment_method_id) return [];
-            const base = this.filterPaymentOptionsByMethod(this.program.lat90_payment_method_id);
-            return base.map(opt => {
-                if (opt.value === 'khipu') {
-                    return { ...opt, warning: '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.' };
-                } else if (opt.value === 'credit') {
-                    return { ...opt, description: null };
-                }
-                return opt;
-            });
+            ];
         },
 
         // Filtrar opciones según el método de pago configurado
@@ -658,22 +619,17 @@ export default {
 
                 if (type === "monthly") {
                     this.totalPaymentOption = null;
-                    
+
                     // Obtener cuotas disponibles
                     const availableInstallments = this.getAvailableInstallments();
                     this.selectedInstallments = availableInstallments[0] || 1;
-                    
+
                     // Seleccionar la primera opción disponible por defecto
                     const availableOptions = this.getMonthlyPaymentOptions();
                     if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
                         this.monthlyPaymentOption = availableOptions[0].value;
-                        
-                        // Si la primera opción es Khipu, forzar 1 cuota SOLO si NO estamos en modo confirmación
-                        if (this.monthlyPaymentOption === 'khipu' && !this.isConfirmation) {
-                            this.selectedInstallments = 1;
-                        }
                     }
-                    
+
 
                 } else if (type === "total") {
                     this.monthlyPaymentOption = null;
@@ -702,27 +658,20 @@ export default {
             this.paymentType = "monthly";
             this.accordionOpen = "monthly";
             this.monthlyPaymentOption = option;
-            
+
             // Ajustar cuotas disponibles al cambiar el método
             const allowed = this.getAvailableInstallments();
-            
-            if (option === 'debit_credit_0') {
-                // Webpay: permitir múltiples cuotas según configuración del programa
+
+            // Para suscripción VirtualPos, permitir múltiples cuotas según configuración del programa
+            if (option === 'subscription_virtualpos') {
                 if (!allowed.includes(this.selectedInstallments)) {
                     this.selectedInstallments = allowed[0] || 1;
-                }
-            } else if (option === 'khipu') {
-                // Khipu: solo forzar a 1 cuota si no hay cuotas activas o si el usuario no ha seleccionado cuotas específicas
-                if (!this.program.active_installment || !this.program.payment_plan_locked) {
-                    this.selectedInstallments = 1;
                 }
             } else {
                 // Otros métodos: usar la primera opción disponible
                 this.selectedInstallments = allowed[0] || 1;
             }
-            
-            
-            
+
             // Guardar en localStorage en tiempo real
             this.savePaymentDataToLocalStorage();
             this.emitSelection();
@@ -825,7 +774,7 @@ export default {
         },
         // Asegurar que la opción guardada exista entre las opciones disponibles; si no, tomar la primera
         reconcileSelection() {
-            
+
             if (this.paymentType === 'total') {
                 const options = this.getTotalPaymentOptions();
                 const values = options.map(o => o.value);
@@ -838,24 +787,14 @@ export default {
                 if (!values.includes(this.monthlyPaymentOption) && values.length > 0) {
                     this.monthlyPaymentOption = values[0];
                 }
-                
+
                 // Validar cuotas disponibles
                 const allowed = this.getAvailableInstallments();
                 if (!allowed.includes(this.selectedInstallments)) {
                     this.selectedInstallments = allowed[0] || 1;
                 }
-                
-                // Ajustar cuotas según el método de pago seleccionado
-                // IMPORTANTE: En modo confirmación, respetar la selección del usuario
-                if (this.monthlyPaymentOption === 'khipu' && !this.isConfirmation) {
-                    // Solo forzar a 1 cuota si no hay cuotas activas o si el usuario no ha seleccionado cuotas específicas
-                    // Y NO estamos en modo confirmación
-                    if (!this.program.active_installment || !this.program.payment_plan_locked) {
-                        this.selectedInstallments = 1; // Khipu siempre 1 cuota
-                    }
-                }
             }
-            
+
         },
 
         initiatePayment() {

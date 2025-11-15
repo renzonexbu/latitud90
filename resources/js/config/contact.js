@@ -31,8 +31,8 @@ export const contactInfo = {
 
     // WhatsApp
     whatsapp: {
-        number: '56979091738',
-        numberFormatted: '+56 9 7909 1738'
+        number: '56988071858',
+        numberFormatted: '+56 9 8807 1858'
     }
 };
 

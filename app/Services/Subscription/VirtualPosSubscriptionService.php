@@ -43,10 +43,17 @@ class VirtualPosSubscriptionService
         try {
             $endpoint = '/suscription';
 
+            // Generar UUID único para esta petición
+            $uuid = \Illuminate\Support\Str::uuid()->toString();
+
+            // Agregar UUID al cuerpo de la petición
+            $data['uuid'] = $uuid;
+
             Log::info('VirtualPos: Creando suscripción', [
                 'plan_id' => $data['plan_id'] ?? null,
                 'service_id' => $data['service_id'] ?? null,
                 'email' => $data['email'] ?? null,
+                'uuid' => $uuid,
                 'return_url_base64' => $data['return_url'] ?? null,
                 'return_url_decoded' => isset($data['return_url']) ? base64_decode($data['return_url']) : null,
                 'callback_url_base64' => $data['callback_url'] ?? null,
@@ -54,18 +61,8 @@ class VirtualPosSubscriptionService
                 'full_data' => $data  // Ver todos los datos que se envían
             ]);
 
-            // Para suscripciones, incluir campos básicos en el JWT
-            $jwtPayload = [
-                'plan_id' => $data['plan_id'],
-                'email' => $data['email'],
-            ];
-
-            // Agregar service_id al JWT solo si está presente
-            if (!empty($data['service_id'])) {
-                $jwtPayload['service_id'] = $data['service_id'];
-            }
-
-            $headers = $this->getHeaders($jwtPayload);
+            // JWT solo debe contener api_key y uuid (NO los datos del body)
+            $headers = $this->getHeaders($uuid);
 
             $response = Http::withHeaders($headers)
                 ->post($this->apiUrl . $endpoint, $data);
@@ -271,12 +268,12 @@ class VirtualPosSubscriptionService
     /**
      * Obtener headers necesarios para la autenticación
      *
-     * @param array $payload Datos para incluir en el JWT
+     * @param string|null $uuid UUID de la petición (requerido para POST)
      * @return array
      */
-    protected function getHeaders(array $payload = []): array
+    protected function getHeaders($uuid = null): array
     {
-        $jwt = $this->generateJWT($payload);
+        $jwt = $this->generateJWT($uuid);
 
         return [
             'Content-Type' => 'application/json',
@@ -288,16 +285,21 @@ class VirtualPosSubscriptionService
 
     /**
      * Generar JWT para autenticación
+     * Según documentación VirtualPos, el JWT solo debe contener api_key y uuid (no los datos del body)
      *
-     * @param array $additionalPayload Datos adicionales para el payload
+     * @param string|null $uuid UUID de la petición (requerido para POST)
      * @return string
      */
-    protected function generateJWT(array $additionalPayload = []): string
+    protected function generateJWT($uuid = null): string
     {
-        $payload = array_merge([
+        $payload = [
             'api_key' => $this->apiKey,
-            'iat' => time(),
-        ], $additionalPayload);
+        ];
+
+        // Agregar UUID si se proporciona (requerido para POST requests)
+        if ($uuid) {
+            $payload['uuid'] = $uuid;
+        }
 
         return JWT::encode($payload, $this->secretKey, 'HS256');
     }
@@ -314,12 +316,20 @@ class VirtualPosSubscriptionService
         try {
             $endpoint = '/plan';
 
+            // Generar UUID único para esta petición
+            $uuid = \Illuminate\Support\Str::uuid()->toString();
+
+            // Agregar UUID al cuerpo de la petición
+            $data['uuid'] = $uuid;
+
             Log::info('VirtualPos: Creando plan', [
                 'plan_id' => $data['plan_id'] ?? null,
+                'uuid' => $uuid,
                 'full_data' => $data
             ]);
 
-            $headers = $this->getHeaders($data);
+            // JWT solo debe contener api_key y uuid (NO los datos del plan)
+            $headers = $this->getHeaders($uuid);
 
             $response = Http::withHeaders($headers)
                 ->post($this->apiUrl . $endpoint, $data);

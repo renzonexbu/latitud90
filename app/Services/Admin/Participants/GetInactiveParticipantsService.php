@@ -15,7 +15,7 @@ class GetInactiveParticipantsService
      */
     public function execute(Request $request): array
     {
-        $participants = Participant::with(['courses', 'courses.institution', 'courses.program'])
+        $participants = Participant::with(['courses', 'courses.institution', 'courses.programCourses.program'])
             ->where('is_active', false)
             ->orderBy('created_at', 'desc')
             ->paginate(10);

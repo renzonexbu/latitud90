@@ -1300,7 +1300,7 @@ const createProgramViewsChart = () => {
             data: {
                 labels: data.map(
                     (item) =>
-                        item.program_code || `Programa #${item.program_id}`
+                        item.program_name || `Programa #${item.program_id || ''}`
                 ),
                 datasets: [
                     {

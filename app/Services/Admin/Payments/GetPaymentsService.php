@@ -37,10 +37,19 @@ class GetPaymentsService
         // Obtener estadísticas
         $stats = $this->getStats();
 
-        // Obtener programas para los filtros
-        $programs = Program::where('active', true)
+        // Obtener program_courses (planes específicos) para los filtros
+        $programs = \App\Models\ProgramCourse::where('active', true)
+            ->with('program:id,destination')
             ->orderBy('name')
-            ->get(['id', 'name', 'code']);
+            ->get(['id', 'name', 'code', 'program_id'])
+            ->map(function ($programCourse) {
+                return [
+                    'id' => $programCourse->id,
+                    'name' => $programCourse->name,
+                    'code' => $programCourse->code,
+                    'destination' => $programCourse->program->destination ?? ''
+                ];
+            });
 
         // Log the payments list view
         $this->logView(

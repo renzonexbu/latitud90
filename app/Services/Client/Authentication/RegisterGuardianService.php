@@ -54,10 +54,24 @@ class RegisterGuardianService
                 now()->addHours(24)
             );
 
-            // Enviar email de verificación
-            Mail::to($guardianUser->email)->send(
-                new GuardianEmailVerification($guardianUser, $verificationToken)
-            );
+            // Enviar email de verificación de manera inmediata
+            \Log::info('=== INICIO ENVÍO EMAIL VERIFICACIÓN ===');
+            \Log::info('Guardian User ID: ' . $guardianUser->id);
+            \Log::info('Email destino: ' . $guardianUser->email);
+            \Log::info('Token generado: ' . $verificationToken);
+
+            try {
+                Mail::to($guardianUser->email)->sendNow(
+                    new GuardianEmailVerification($guardianUser, $verificationToken)
+                );
+                \Log::info('Email enviado exitosamente');
+            } catch (\Exception $e) {
+                \Log::error('Error al enviar email de verificación: ' . $e->getMessage());
+                \Log::error('Stack trace: ' . $e->getTraceAsString());
+                throw $e;
+            }
+
+            \Log::info('=== FIN ENVÍO EMAIL VERIFICACIÓN ===');
 
             DB::commit();
 
@@ -173,10 +187,24 @@ class RegisterGuardianService
                 now()->addHours(24)
             );
 
-            // Reenviar email
-            Mail::to($guardianUser->email)->send(
-                new GuardianEmailVerification($guardianUser, $verificationToken)
-            );
+            // Reenviar email de manera inmediata
+            \Log::info('=== INICIO REENVÍO EMAIL VERIFICACIÓN ===');
+            \Log::info('Guardian User ID: ' . $guardianUser->id);
+            \Log::info('Email destino: ' . $guardianUser->email);
+            \Log::info('Nuevo token generado: ' . $verificationToken);
+
+            try {
+                Mail::to($guardianUser->email)->sendNow(
+                    new GuardianEmailVerification($guardianUser, $verificationToken)
+                );
+                \Log::info('Email reenviado exitosamente');
+            } catch (\Exception $e) {
+                \Log::error('Error al reenviar email de verificación: ' . $e->getMessage());
+                \Log::error('Stack trace: ' . $e->getTraceAsString());
+                throw $e;
+            }
+
+            \Log::info('=== FIN REENVÍO EMAIL VERIFICACIÓN ===');
 
             return [
                 'success' => true,

@@ -26,9 +26,9 @@ class ExecutivesPartialAccountService
         $items = collect([]);
 
         if ($programCode) {
-            // Buscar el programa por su código
-            $program = \App\Models\Program::where('code', $programCode)->first();
-            if (!$program) {
+            // Buscar el program_course por su código
+            $programCourse = \App\Models\ProgramCourse::where('code', $programCode)->first();
+            if (!$programCourse) {
                 return [
                     'partialAccounts' => new LengthAwarePaginator([], 0, $perPage, $page),
                     'filters' => [
@@ -36,9 +36,12 @@ class ExecutivesPartialAccountService
                         'dateTo' => $dateTo,
                         'programCode' => $programCode,
                     ],
-                    'programs' => \App\Models\Program::select('id', 'code', 'name')->orderBy('code')->get(),
+                    'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
                 ];
             }
+
+            // Obtener el program_id del program_course
+            $program = $programCourse->program;
 
             $programId = $program->id;
 
@@ -66,13 +69,12 @@ class ExecutivesPartialAccountService
                     'p.first_last_name',
                     'p.second_last_name',
                     'pp.individual_price',
-                    'pr.trip_price',
-                    DB::raw('COALESCE(pp.individual_price, pr.trip_price, 0) as price'),
+                    DB::raw('COALESCE(pp.individual_price, 0) as price'),
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
                     DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN po.report_code END) as payment_method'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type != "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, pr.trip_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, pr.trip_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
+                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type != "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
+                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
                 ]);
 
             $results = $query->get();
@@ -156,7 +158,7 @@ class ExecutivesPartialAccountService
                 'dateTo' => $dateTo,
                 'programCode' => $programCode,
             ],
-            'programs' => \App\Models\Program::select('id', 'code', 'name')->orderBy('code')->get(),
+            'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
         ];
     }
 

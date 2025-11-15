@@ -339,7 +339,10 @@ export default {
                 
                 // Convertir institution_id a string para comparación correcta
                 const institutionId = this.course.institution_id ? String(this.course.institution_id) : "";
-                
+
+                // Get program_id from first programCourse
+                const programId = this.course.programCourses?.[0]?.program_id || this.course.program_courses?.[0]?.program_id;
+
                 this.form = {
                     institutionId: institutionId,
                     educationLevel: this.course.education_level || "",
@@ -348,7 +351,7 @@ export default {
                     grade: this.course.grade || "",
                     contactEmail: this.course.contact_email || "",
                     contactPhone: this.course.contact_phone || "",
-                    associatedProgram: this.course.program_id ? String(this.course.program_id) : "",
+                    associatedProgram: programId ? String(programId) : "",
                     endDate: this.formatDateForInput(this.course.end_date) || ""
                 };
             }

@@ -40,45 +40,49 @@ class AdminController extends Controller
 
         // Programas activos (máximo 3) con relaciones necesarias
         // Nota: 'images' es un accessor (no relación), no se usa en with()
-        $activePrograms = Program::with(['course.institution', 'course.participants'])
+        $activePrograms = Program::with(['programCourses.course.institution', 'programCourses.course.participants'])
             ->where('active', true)
             ->orderBy('created_at', 'desc')
             ->take(3)
             ->get();
 
         // Tabla de estado de pago por institución/programa basada en datos reales
-        $institutionsPayments = $activePrograms->map(function ($program) {
-            $course = $program->course;
-            $participants = $course?->participants ?? collect();
+        $institutionsPayments = $activePrograms->flatMap(function ($program) {
+            // Iterar sobre cada ProgramCourse del programa
+            return $program->programCourses->map(function ($programCourse) use ($program) {
+                $course = $programCourse->course;
+                $participants = $course?->participants ?? collect();
 
-            // Objetivo: suma de (precio individual + ajuste) por participante
-            $target = $participants->sum(function ($p) {
-                $individual = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
-                $adjust = (float) ($p->pivot->price_adjustments ?? 0);
-                return $individual + $adjust;
+                // Objetivo: suma de (precio individual + ajuste) por participante
+                $target = $participants->sum(function ($p) {
+                    $individual = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
+                    $adjust = (float) ($p->pivot->price_adjustments ?? 0);
+                    return $individual + $adjust;
+                });
+
+                // Recaudado: suma de pagos aprobados/completados del programa
+                // Nota: No podemos filtrar por course_id ya que orders solo tiene program_id
+                $collected = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
+                        $q->where('program_id', $program->id);
+                    })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->sum('amount');
+
+                $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
+
+                return [
+                    'institutionName' => optional($course->institution)->name ?? '—',
+                    'educationLevel' => $course->education_level ?? '—',
+                    'course' => $course->course_number ?? '—',
+                    'year' => optional($course)->year ?? Carbon::now()->year,
+                    'programName' => $program->name,
+                    'destination' => $program->destination,
+                    'students' => $course->total_students ?? ($participants->count() ?? 0),
+                    'percent' => $percent,
+                    'totalCollected' => round($collected, 2),
+                    'targetAmount' => round((float) $target, 2),
+                ];
             });
-
-            // Recaudado: suma de pagos aprobados/completados del programa
-            $collected = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                    $q->where('program_id', $program->id);
-                })
-                ->whereIn('status', ['approved', 'completed'])
-                ->sum('amount');
-
-            $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
-
-            return [
-                'institutionName' => optional($course->institution)->name ?? '—',
-                'educationLevel' => $course->education_level ?? '—',
-                'course' => $course->course_number ?? '—',
-                'year' => optional($course)->year ?? Carbon::now()->year,
-                'programName' => $program->name,
-                'destination' => $program->destination,
-                'students' => $course->total_students ?? ($participants->count() ?? 0),
-                'percent' => $percent,
-                'totalCollected' => round($collected, 2),
-                'targetAmount' => round((float) $target, 2),
-            ];
         });
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,

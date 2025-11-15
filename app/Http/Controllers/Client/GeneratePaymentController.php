@@ -73,13 +73,20 @@ class GeneratePaymentController extends Controller
 
         // NO registrar analytics aquí - se hará desde el frontend con session_id
 
+        // Obtener guardian autenticado si existe
+        $guardian = auth('guardian')->user();
+        if ($guardian) {
+            $guardian->load(['documentType', 'country', 'region', 'comune']);
+        }
+
         return Inertia::render('Ecommerce/PaymentDetails', [
             'paymentData' => $paymentData,
             'programId' => $programId,
             'token' => $token,
             'countries' => $countries,
             'regions' => $regions,
-            'documentTypes' => $documentTypes
+            'documentTypes' => $documentTypes,
+            'guardian' => $guardian
         ]);
     }
 

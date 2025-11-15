@@ -3,6 +3,7 @@
 namespace App\Services\Client\Programs;
 
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Participant;
 use App\Models\Institution;
 use App\Models\Course;
@@ -19,14 +20,21 @@ use Illuminate\Support\Facades\DB;
 class ProgramDetailService
 {
     use SystemLogging;
-    public function getProgramDetails($programId, $participantId)
+    public function getProgramDetails($programCourseId, $participantId)
     {
-        $program = Program::with([
-            'features',
-            'requirements',
-            // Relaciones legacy (pueden no existir según migraciones actuales)
+        // Cargar el program_course (plan específico) con su plantilla y relaciones
+        $programCourse = ProgramCourse::with([
+            'program.features',
+            'program.requirements',
             'course.participants'
-        ])->find($programId);
+        ])->find($programCourseId);
+
+        if (!$programCourse) {
+            return null;
+        }
+
+        // Obtener la plantilla del programa
+        $program = $programCourse->program;
 
         if (!$program) {
             return null;
@@ -39,22 +47,28 @@ class ProgramDetailService
         $isEnrolled = false;
         $participantAmount = null;
         $participantAdjustments = 0.0;
-        $participantTotalAmount = (float) $program->trip_price;
+        $participantTotalAmount = (float) $programCourse->trip_price;
         $paidAmount = 0.0;
-        $participantBalance = (float) $program->trip_price;
+        $participantBalance = (float) $programCourse->trip_price;
         $paymentPercentage = 0.0;
 
-        if ($participant && $program->course) {
-            $pivotParticipant = $program->course->participants
+        if ($participant && $programCourse->course) {
+            $pivotParticipant = $programCourse->course->participants
                 ->firstWhere('id', $participant->id);
             if ($pivotParticipant) {
                 $isEnrolled = true;
-                
-                // Usar el helper para calcular el precio final con descuentos
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-                $participantTotalAmount = $priceData['final_price'];
 
-                // Sumar pagos aprobados y completados del participante para este programa
+                // Calcular precio usando la nueva arquitectura (igual que ProgramService)
+                $basePrice = $pivotParticipant->pivot->individual_price ?? $programCourse->trip_price ?? 0;
+                $adjustments = $pivotParticipant->pivot->price_adjustments ?? 0;
+                $discounts = 0; // Por ahora no hay descuentos (participant_program ya no se usa)
+                $finalPrice = max(0, $basePrice + $adjustments - $discounts);
+
+                $participantAmount = $basePrice;
+                $participantAdjustments = $adjustments;
+                $participantTotalAmount = $finalPrice;
+
+                // Sumar pagos aprobados y completados del participante para este programa (template)
                 $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
                         $q->where('participant_id', $participant->id)
                           ->where('program_id', $program->id);
@@ -77,19 +91,19 @@ class ProgramDetailService
                 ->where('program_id', $program->id)
                 ->where('status', 'active')
                 ->first();
-                
+
             if ($installmentPlan) {
                 // Verificar si hay cuotas pagadas
                 $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
                 $paymentPlanLocked = $paidInstallments > 0;
-                
+
                 if ($paymentPlanLocked) {
                     // Obtener la próxima cuota pendiente
                     $nextInstallment = $installmentPlan->installments()
                         ->where('status', 'pending')
                         ->orderBy('due_date')
                         ->first();
-                        
+
                     if ($nextInstallment) {
                         $activeInstallment = [
                             'number' => (int) $nextInstallment->installment_number,
@@ -102,7 +116,7 @@ class ProgramDetailService
             }
         }
 
-        // Cargar opciones de pago habilitadas (nuevo esquema payment_options + pivote)
+        // Cargar opciones de pago habilitadas (configuradas en la plantilla del programa)
         $fullPaymentOptionCodes = DB::table('program_payment_option as ppo')
             ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
             ->where('ppo.program_id', $program->id)
@@ -111,7 +125,8 @@ class ProgramDetailService
             ->pluck('po.code')
             ->toArray();
 
-        $lat90PaymentOptionCodes = DB::table('program_payment_option as ppo')
+        // Opciones de pago en cuotas (lat90 -> subscription)
+        $subscriptionPaymentOptionCodes = DB::table('program_payment_option as ppo')
             ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
             ->select(['po.code', 'po.label'])
             ->where('ppo.program_id', $program->id)
@@ -123,17 +138,17 @@ class ProgramDetailService
             })
             ->toArray();
 
-        // Obtener información completa del programa
+        // Obtener información completa del programa combinando programCourse y program
         $programData = [
-            'id' => $program->id,
-            'name' => $program->name,
-            'destination' => $program->destination,
-            'trip_description' => $program->trip_description,
-            'trip_price' => $program->trip_price,
-            'departure_date' => $program->departure_date,
-            'final_payment_date' => $program->final_payment_date,
-            'seller_name' => $program->seller_name,
-            'active' => $program->active,
+            'id' => $programCourse->id, // ID del plan específico
+            'name' => $programCourse->name, // Nombre del plan específico
+            'destination' => $program->destination, // De la plantilla
+            'trip_description' => $program->trip_description, // De la plantilla
+            'trip_price' => $programCourse->trip_price, // Del plan específico
+            'departure_date' => $programCourse->departure_date, // Del plan específico
+            'final_payment_date' => $programCourse->final_payment_date, // Del plan específico
+            'seller_name' => $programCourse->seller_name, // Del plan específico
+            'active' => $programCourse->active, // Del plan específico
             'is_enrolled' => $isEnrolled,
             // Montos por participante
             'participant_amount' => $participantAmount,
@@ -145,31 +160,34 @@ class ProgramDetailService
             'payment_plan_locked' => $paymentPlanLocked,
             'active_installment' => $activeInstallment,
 
-            // Archivos PDF
+            // Archivos PDF (de la plantilla)
             'itinerary_file' => $program->itinerary_file_url,
             'travel_assistance_coverage' => $program->travel_assistance_coverage_url,
             'equipment_list' => $program->equipment_list_url,
 
-            // Información adicional
+            // Información adicional (de la plantilla)
             'itinerary_description' => $program->itinerary_description,
             'pillars' => $program->pillars,
-            'images' => $program->images,
+            'images' => $program->images, // Accessor de la plantilla
             'images_folder' => $program->images_folder,
 
-            // Información de pago (nuevo)
-            'enable_total_payment' => $program->enable_total_payment,
+            // Información de pago (del plan específico, con campos renombrados)
+            'enable_total_payment' => $programCourse->enable_total_payment,
             'full_payment_options' => $fullPaymentOptionCodes,
-            'enable_lat90_payment' => $program->enable_lat90_payment,
-            'lat90_payment_options' => $lat90PaymentOptionCodes,
-            'lat90_max_installments' => $program->lat90_max_installments,
-            'discount_type' => $program->discount_type,
-            'discount_value' => $program->discount_value,
+            'enable_lat90_payment' => $programCourse->enable_subscription_payment, // Renombrado
+            'lat90_payment_options' => $subscriptionPaymentOptionCodes,
+            'lat90_max_installments' => $programCourse->subscription_max_months, // Renombrado
+            'discount_type' => $programCourse->discount_type,
+            'discount_value' => $programCourse->discount_value,
 
+            // Datos de la plantilla del programa (para referencias)
+            'program' => [
+                'id' => $program->id,
+                'name' => $program->name,
+                'destination' => $program->destination,
+            ],
 
-
-
-
-            // Características
+            // Características (de la plantilla)
             'features' => $program->features->map(function ($feature) {
                 return [
                     'id' => $feature->id,
@@ -179,7 +197,7 @@ class ProgramDetailService
                 ];
             }),
 
-            // Requisitos
+            // Requisitos (de la plantilla)
             'requirements' => $program->requirements->map(function ($requirement) {
                 return [
                     'id' => $requirement->id,

@@ -169,7 +169,7 @@ class ExecutivesConsolidatedService
                 'salesExecutiveId' => $filters['salesExecutiveId'] ?? null,
             ],
             'summary' => $summary,
-            'programs' => \App\Models\Program::select('id', 'code', 'name', 'destination')->orderBy('code')->get(),
+            'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->with('program:id,destination')->orderBy('code')->get(),
             'salesExecutives' => \App\Models\SalesExecutive::select('id', 'name')->orderBy('name')->get(),
         ];
     }

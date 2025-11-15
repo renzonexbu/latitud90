@@ -66,16 +66,6 @@
             </div>
         </div>
 
-        <!-- Create Course Modal -->
-        <CreateCourseModal 
-            :show="showCreateModal" 
-            :programs="programs"
-            :institutions="institutions"
-            :errors="errors"
-            @close="closeCreateModal"
-            @create-institution="openCreateInstitutionModal"
-        />
-
         <!-- Create Institution Modal -->
         <CreateInstitutionModal 
             :show="showCreateInstitutionModal" 
@@ -108,7 +98,6 @@ import CoursesHeader from "@/Components/Courses/CoursesHeader.vue";
 import CoursesFilters from "@/Components/Courses/CoursesFilters.vue";
 import CoursesPagination from "@/Components/Courses/CoursesPagination.vue";
 import CoursesTable from "@/Components/Courses/CoursesTable.vue";
-import CreateCourseModal from "./Create.vue";
 import CreateInstitutionModal from "@/Components/Institutions/CreateInstitutionModal.vue";
 import { BackpackIcon, CourseIcon } from "@/Components/Icons";
 import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
@@ -128,7 +117,6 @@ export default {
         CoursesFilters,
         CoursesPagination,
         CoursesTable,
-        CreateCourseModal,
         CreateInstitutionModal,
         BackpackIcon,
         CourseIcon,
@@ -162,7 +150,6 @@ export default {
     },
     data() {
         return {
-            showCreateModal: false,
             showCreateInstitutionModal: false,
             currentPage: 1,
             localFilters: {
@@ -232,7 +219,7 @@ export default {
         },
     },
     mounted() {
-        // Abrir modal de creación si viene desde acceso rápido del header
+        // Auto-redirect to create page if openCreate parameter is present
         try {
             const search = typeof window !== 'undefined' ? window.location.search : '';
             const params = new URLSearchParams(search);
@@ -256,10 +243,8 @@ export default {
             router.visit(route("admin.courses.edit", courseId));
         },
         openCreateModal() {
-            this.showCreateModal = true;
-        },
-        closeCreateModal() {
-            this.showCreateModal = false;
+            // Navigate to create course page
+            router.visit(route("admin.courses.create"));
         },
         closeSuccessMessage() {
             // Clear the flash message
