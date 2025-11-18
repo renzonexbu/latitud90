@@ -40,10 +40,10 @@ class CreateProgramService
             $program = Program::create([
                 'name' => $programData['name'],
                 'destination' => $programData['destination'],
-                'trip_description' => $programData['description'] ?? $programData['trip_description'] ?? null,
+                'trip_description' => null, // Campo eliminado del frontend
                 'images_folder' => null, // Se actualizará después
                 'pillars' => $programData['pillars'] ?? null,
-                'itinerary_description' => $programData['itinerary'] ?? null,
+                'itinerary_description' => null, // Campo eliminado del frontend
                 'itinerary_file' => null, // Se actualizará después
                 'travel_assistance_coverage' => null, // Se actualizará después
                 'equipment_list' => null, // Se actualizará después

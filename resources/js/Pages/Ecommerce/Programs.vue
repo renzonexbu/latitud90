@@ -182,12 +182,31 @@ export default {
             return rut;
         },
 
-        handleProgramClick(program) {
+        async handleProgramClick(program) {
             try {
-                // Guardar enrollment_code en localStorage para identificar pagos
                 const participant = this.participant || {};
+
+                // PASO 1: Verificar si el participante tiene suscripción activa o pago completado
+                const hasSubscriptionOrPayment = await this.checkSubscriptionStatus(participant.id, program.id);
+
+                if (hasSubscriptionOrPayment) {
+                    // Si tiene suscripción/pago, guardar info y redirigir al login
+                    localStorage.setItem('pendingProgramAccess', JSON.stringify({
+                        program_id: program.id,
+                        participant_id: participant.id,
+                        has_subscription: true,
+                    }));
+
+                    // Redirigir al login de guardian con parámetros en la URL
+                    const loginUrl = `/guardian/login?redirect_reason=subscription_access&program_id=${program.id}&participant_id=${participant.id}`;
+                    window.location.href = loginUrl;
+                    return;
+                }
+
+                // PASO 2: Si NO tiene suscripción, continuar con flujo normal
+                // Guardar enrollment_code en localStorage para identificar pagos
                 let enrollmentCode = program.enrollment_code;
-                
+
                 if (!enrollmentCode && program.code && participant.document_number) {
                     if (this.document_type === 'RUT') {
                         // Para RUT: usar código del programa + RUT completo sin dígito verificador
@@ -204,10 +223,10 @@ export default {
                     participant_id: participant.id || null,
                 };
                 localStorage.setItem('selectedEnrollment', JSON.stringify(payload));
-                
+
                 // Registrar selección de programa en analytics
                 this.recordProgramSelection(program, enrollmentCode);
-                
+
                 // Navegar al detalle del programa
                 router.get(route("ecommerce.program-detail", program.id), {
                     token: this.token,
@@ -216,6 +235,34 @@ export default {
                 console.error('Error al procesar programa:', error);
                 // Mostrar error genérico sin detalles técnicos
                 this.showGenericError();
+            }
+        },
+
+        async checkSubscriptionStatus(participantId, programId) {
+            try {
+                const response = await fetch('/api/subscription/check-status', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    },
+                    body: JSON.stringify({
+                        participant_id: participantId,
+                        program_id: programId,
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error('Error al verificar suscripción');
+                    return false;
+                }
+
+                const data = await response.json();
+                return data.requires_login || false;
+            } catch (error) {
+                console.error('Error al verificar suscripción:', error);
+                return false;
             }
         },
         

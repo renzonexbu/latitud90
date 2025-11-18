@@ -275,7 +275,7 @@ export default {
             // Verificar si hay un método de pago seleccionado
             const paymentData = localStorage.getItem("selectedPaymentData");
             let hasPaymentMethod = false;
-            
+
             if (paymentData) {
                 try {
                     const parsedData = JSON.parse(paymentData);
@@ -283,18 +283,20 @@ export default {
                 } catch (error) {
                 }
             }
-            
-            // Verificar que no se haya pagado todo
-            const isPaymentComplete = Number(this.program.participant_balance ?? 0) <= 0;
-            
+
+            // Verificar que no se haya pagado todo (solo si hay pagos realizados)
+            const participantBalance = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
+            const paidAmount = Number(this.program.paidAmount ?? 0);
+            const isPaymentComplete = participantBalance <= 0 && paidAmount > 0;
+
             // Verificar que el monto a pagar sea válido
             const hasValidAmount = this.displayPayAmount > 0;
-            
+
             // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando Y no se pagó todo Y hay monto válido
-            return hasPaymentMethod && 
-                   this.termsAccepted && 
-                   !this.isProcessing && 
-                   !isPaymentComplete && 
+            return hasPaymentMethod &&
+                   this.termsAccepted &&
+                   !this.isProcessing &&
+                   !isPaymentComplete &&
                    hasValidAmount;
         },
         displayPayAmount() {
@@ -345,8 +347,11 @@ export default {
         async handlePayment() {
             try {
                 // Validaciones previas
-                const isPaymentComplete = Number(this.program.participant_balance ?? 0) <= 0;
-                if (isPaymentComplete) {
+                const participantBalance = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
+                const paidAmount = Number(this.program.paidAmount ?? 0);
+
+                // Solo mostrar error de "ya pagado" si realmente hay pagos realizados
+                if (participantBalance <= 0 && paidAmount > 0) {
                     this.errorMessage = "Ya has pagado el monto total del programa. No hay pagos pendientes.";
                     return;
                 }
@@ -358,14 +363,14 @@ export default {
 
                 // Limpiar errores anteriores
                 this.errorMessage = null;
-                
+
                 // Activar estado de procesamiento
                 this.isProcessing = true;
-                
+
                 // Obtener datos del localStorage
                 const paymentData = localStorage.getItem("selectedPaymentData");
-                
-                
+
+
                 if (!paymentData) {
                     this.isProcessing = false;
                     this.errorMessage = "Datos de pago no encontrados. Por favor, completa todos los pasos.";
@@ -374,6 +379,12 @@ export default {
 
                 const parsedPaymentData = JSON.parse(paymentData);
                 this.currentInstallments = parsedPaymentData.installments || 1;
+
+                // NUEVO: Si es suscripción (monthly), redirigir a endpoint de suscripción
+                if (parsedPaymentData.paymentType === 'monthly') {
+                    this.handleSubscriptionPayment(parsedPaymentData);
+                    return;
+                }
                 // Cargar datos del comprador desde localStorage (paso Detalles de Pago)
                 let parsedFormData = this.formData;
                 const savedBuyerData = localStorage.getItem("buyerData");
@@ -499,6 +510,134 @@ export default {
             } catch (error) {
                 this.isProcessing = false;
                 this.errorMessage = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente.";
+            }
+        },
+        handleSubscriptionPayment(parsedPaymentData) {
+            try {
+                // Verificar que el método de pago sea suscripción
+                if (parsedPaymentData.paymentMethod !== 'subscription_virtualpos') {
+                    this.isProcessing = false;
+                    this.errorMessage = 'Método de pago no válido para suscripciones';
+                    return;
+                }
+
+                // Cargar datos del COMPRADOR desde localStorage (paso Detalles de Pago)
+                const savedBuyerData = localStorage.getItem("buyerData");
+                if (!savedBuyerData) {
+                    this.isProcessing = false;
+                    this.errorMessage = 'No se encontraron datos del comprador. Por favor, vuelve al paso anterior.';
+                    return;
+                }
+
+                let buyerData;
+                try {
+                    buyerData = JSON.parse(savedBuyerData);
+                } catch (e) {
+                    this.isProcessing = false;
+                    this.errorMessage = 'Error al cargar datos del comprador. Por favor, vuelve al paso anterior.';
+                    return;
+                }
+
+                // Preparar datos del COMPRADOR (guardian) para VirtualPos
+                // IMPORTANTE: Si el documentType NO es RUT, usar "11111111-1" como RUT genérico para VirtualPos
+                const documentNumber = buyerData.documentNumber || buyerData.document_number;
+                const rutForVirtualPos = (buyerData.documentType === 'RUT')
+                    ? documentNumber
+                    : '11111111-1';
+
+                const buyerDataForPayment = {
+                    document_number: rutForVirtualPos,
+                    document_type: buyerData.documentType,
+                    original_document_number: documentNumber, // Guardar el documento real
+                    first_name: buyerData.name?.split(' ')[0] || buyerData.first_name || 'Usuario',
+                    first_last_name: buyerData.name?.split(' ').slice(1).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario',
+                    email: buyerData.email || '',
+                    phone: buyerData.phone || '',
+                    code_phone: buyerData.code_phone || '+56',
+                    city: buyerData.cityName || buyerData.city || 'Santiago',
+                };
+
+                // Datos del PARTICIPANTE (estudiante) - solo para asociación en BD
+                const participantData = {
+                    document_number: this.formData.document_number,
+                    name: this.formData.name
+                };
+
+                // Log para debug
+                console.log('Datos preparados para enviar:', {
+                    buyerData_original: buyerData,
+                    buyerDataForPayment: buyerDataForPayment,
+                    participantData: participantData,
+                    rutForVirtualPos: rutForVirtualPos,
+                    documentType: buyerData.documentType
+                });
+
+                // Validar que tenemos los documentos del comprador y participante
+                if (!buyerDataForPayment.document_number || buyerDataForPayment.document_number === 'undefined') {
+                    console.error('Datos del comprador inválidos:', {
+                        buyerData: buyerData,
+                        buyerDataForPayment: buyerDataForPayment
+                    });
+                    this.isProcessing = false;
+                    this.errorMessage = 'No se pudo obtener el RUT del comprador. Por favor, vuelve al paso anterior.';
+                    return;
+                }
+
+                if (!participantData.document_number || participantData.document_number === 'undefined') {
+                    console.error('Datos del participante inválidos:', {
+                        formData: this.formData,
+                        participantData: participantData
+                    });
+                    this.isProcessing = false;
+                    this.errorMessage = 'No se pudo obtener el RUT del participante. Por favor, vuelve al paso anterior.';
+                    return;
+                }
+
+                // Crear formulario para enviar datos
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/subscription/create-from-confirmation';
+
+                // Agregar CSRF token
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken;
+                    form.appendChild(csrfInput);
+                }
+
+                // Agregar datos al formulario
+                const addField = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                };
+
+                addField('program_course_id', this.program.id);
+                addField('installments', parsedPaymentData.installments);
+
+                // Agregar datos del COMPRADOR (buyer) - para VirtualPos
+                Object.keys(buyerDataForPayment).forEach(key => {
+                    addField(`buyer[${key}]`, buyerDataForPayment[key]);
+                });
+
+                // Agregar datos del PARTICIPANTE - solo para asociación en BD
+                Object.keys(participantData).forEach(key => {
+                    addField(`participant[${key}]`, participantData[key]);
+                });
+
+                // Enviar formulario
+                document.body.appendChild(form);
+                form.submit();
+
+            } catch (error) {
+                console.error('Error al crear suscripción:', error);
+                this.errorMessage = 'Error al procesar la suscripción. Por favor intenta nuevamente.';
+                this.isProcessing = false;
             }
         },
         changeProgram() {

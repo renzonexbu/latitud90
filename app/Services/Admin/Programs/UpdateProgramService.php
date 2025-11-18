@@ -63,14 +63,8 @@ class UpdateProgramService
             if (isset($programData['destination'])) {
                 $updateData['destination'] = $programData['destination'];
             }
-            if (isset($programData['description']) || isset($programData['trip_description'])) {
-                $updateData['trip_description'] = $programData['description'] ?? $programData['trip_description'];
-            }
             if (isset($programData['pillars'])) {
                 $updateData['pillars'] = $programData['pillars'];
-            }
-            if (isset($programData['itinerary']) || isset($programData['itinerary_description'])) {
-                $updateData['itinerary_description'] = $programData['itinerary'] ?? $programData['itinerary_description'];
             }
             if (isset($programData['active'])) {
                 $updateData['active'] = $programData['active'];

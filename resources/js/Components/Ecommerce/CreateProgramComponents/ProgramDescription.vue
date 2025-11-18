@@ -163,37 +163,12 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="description-field-row">
-                                <div class="field-wrapper">
-                                    <div class="descripcion-del-viaje">
-                                        Descripción del viaje
-                                    </div>
-                                    <div
-                                        class="wysiwyg-wrapper"
-                                        :class="{ 'has-error': errors.description }"
-                                    >
-                                        <QuillEditor
-                                            v-model:content="formData.description"
-                                            contentType="html"
-                                            theme="snow"
-                                            :toolbar="editorToolbar"
-                                            placeholder="Escriba aquí la descripción del viaje."
-                                        />
-                                    </div>
-                                    <span
-                                        v-if="errors.description"
-                                        class="text-red-500 text-sm mt-1"
-                                    >
-                                        {{ errors.description }}
-                                    </span>
-                                </div>
-                            </div>
                             <div class="images-section-row">
                                 <div class="images-section-wrapper">
                                     <div class="images-header">
                                         <div class="imagenes">Imagenes *</div>
                                         <div class="maximo-2-mb-por-foto">
-                                            Maximo 2MB por foto
+                                            Maximo 15MB por foto
                                         </div>
                                     </div>
 
@@ -236,7 +211,7 @@
                                                     programa
                                                 </div>
                                                 <div class="upload-sub-text">
-                                                    PNG, JPG hasta 2MB cada una
+                                                    PNG, JPG hasta 15MB cada una
                                                 </div>
                                             </div>
                                         </div>
@@ -409,16 +384,16 @@
                 <!-- Separador -->
                 <AccordionSeparator />
 
-                <!-- Acordeón 3: Que vamos a hacer -->
+                <!-- Acordeón 3: Archivos PDF -->
                 <div class="accordion-section">
                     <div
                         class="accordion-header"
-                        @click="itineraryOpen = !itineraryOpen"
+                        @click="filesOpen = !filesOpen"
                     >
-                        <div class="accordion-title">Que vamos a hacer</div>
+                        <div class="accordion-title">Archivos del programa</div>
                         <svg
                             class="accordion-arrow"
-                            :class="{ rotated: itineraryOpen }"
+                            :class="{ rotated: filesOpen }"
                             xmlns="http://www.w3.org/2000/svg"
                             width="26"
                             height="14"
@@ -444,24 +419,7 @@
                         </svg>
                     </div>
                     <transition name="accordion-slide">
-                        <div v-if="itineraryOpen" class="accordion-content">
-                            <div class="itinerary-description-field">
-                                <div class="field-wrapper">
-                                    <div class="escribe-descripcion-itinerario">
-                                        Escribe una breve descripción del
-                                        itinerario.
-                                    </div>
-                                    <div class="wysiwyg-wrapper" :class="{ 'has-error': errors.itinerary }">
-                                        <QuillEditor
-                                            v-model:content="formData.itinerary"
-                                            contentType="html"
-                                            theme="snow"
-                                            :toolbar="editorToolbar"
-                                            placeholder="Escriba aquí la descripción del itinerario."
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                        <div v-if="filesOpen" class="accordion-content">
                             <div class="pdf-upload-grid">
                                 <div class="pdf-upload-item">
                                     <div class="itinerario">Itinerario</div>
@@ -849,8 +807,6 @@
 <script setup>
 import { ref, watch, defineEmits, onMounted, nextTick } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
-import { QuillEditor } from "@vueup/vue-quill";
-import "@vueup/vue-quill/dist/vue-quill.snow.css";
 
 // Props
 const props = defineProps({
@@ -861,16 +817,13 @@ const props = defineProps({
             name: "",
             destination: "",
             departure_date: "",
-            description: "",
             pilar_1: "",
             pilar_2: "",
             pilar_3: "",
             pilar_4: "",
-            itinerary: "",
             itinerary_file: null,
             coverage_file: null,
             equipment_file: null,
-            code: "",
         }),
     },
     mode: {
@@ -900,8 +853,6 @@ const props = defineProps({
     }
 });
 
-//
-
 // Emits
 const emit = defineEmits([
     "update:modelValue",
@@ -914,19 +865,11 @@ const emit = defineEmits([
 // Reactive data
 const formData = ref({ ...props.modelValue });
 const isSyncingFromProps = ref(false);
-const editorToolbar = [
-    [{ header: [1, 2, 3, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ list: "ordered" }, { list: "bullet" }],
-    [{ align: [] }],
-    ["link"],
-    ["clean"],
-];
 
 // Estados para los acordeones
 const detailsOpen = ref(true); // Abierto por defecto
 const pillarsOpen = ref(false);
-const itineraryOpen = ref(false);
+const filesOpen = ref(false);
 
 // Estado para las imágenes
 const selectedImages = ref([]);
@@ -1033,9 +976,9 @@ const handleImageUpload = (event) => {
             return;
         }
 
-        // Validar tamaño (2MB = 2 * 1024 * 1024 bytes)
-        if (file.size > 2 * 1024 * 1024) {
-            alert(`${file.name} es demasiado grande. El tamaño máximo es 2MB.`);
+        // Validar tamaño (15MB = 15 * 1024 * 1024 bytes)
+        if (file.size > 15 * 1024 * 1024) {
+            alert(`${file.name} es demasiado grande. El tamaño máximo es 15MB.`);
             return;
         }
 
@@ -1369,59 +1312,6 @@ const formatFileSize = (bytes) => {
     align-self: stretch;
 }
 
-/* Description Field Row */
-.description-field-row {
-    display: flex;
-    flex-direction: row;
-    gap: 18px;
-    align-items: flex-end;
-    justify-content: center;
-    align-self: stretch;
-    flex-shrink: 0;
-    position: relative;
-}
-
-.descripcion-del-viaje {
-    color: var(--colores-neutro-gris-4, #5b5b5b);
-    text-align: left;
-    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
-    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
-    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
-    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
-    position: relative;
-    align-self: stretch;
-}
-
-.input-text2 {
-    background: #ffffff;
-    border-radius: 8px;
-    border-style: solid;
-    border-color: var(--colores-neutro-gris-4, #5b5b5b);
-    border-width: 1px;
-    padding: 8px 16px 8px 16px;
-    flex-shrink: 0;
-    width: 611px;
-    height: 134px;
-    position: relative;
-    color: var(--colores-op2-turquesa, #007e93);
-    text-align: left;
-    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
-    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
-    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
-    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
-    resize: none;
-    outline: none;
-}
-
-.input-text2::placeholder {
-    color: var(--colores-neutro-gris-3, #c7c7c7);
-}
-
-.input-text2:focus {
-    border-color: var(--colores-op2-turquesa, #007e93);
-    color: var(--colores-op2-turquesa, #007e93);
-}
-
 /* Images Section Row */
 .images-section-row {
     display: flex;
@@ -1717,60 +1607,6 @@ const formatFileSize = (bytes) => {
     position: relative;
 }
 
-/* Itinerary Section Row */
-
-.itinerary-description-field {
-    display: flex;
-    flex-direction: row;
-    gap: 18px;
-    align-items: flex-end;
-    justify-content: center;
-    align-self: stretch;
-    flex-shrink: 0;
-    position: relative;
-}
-
-.escribe-descripcion-itinerario {
-    color: var(--colores-neutro-gris-4, #5b5b5b);
-    text-align: left;
-    font-family: var(--cuerpo-de-texto-s-font-family, "Nexa-Bold", sans-serif);
-    font-size: var(--cuerpo-de-texto-s-font-size, 12px);
-    line-height: var(--cuerpo-de-texto-s-line-height, 13px);
-    font-weight: var(--cuerpo-de-texto-s-font-weight, 700);
-    position: relative;
-    align-self: stretch;
-}
-
-.input-text5 {
-    background: #ffffff;
-    border-radius: 8px;
-    border-style: solid;
-    border-color: var(--colores-neutro-gris-4, #5b5b5b);
-    border-width: 1px;
-    padding: 8px 16px 8px 16px;
-    align-self: stretch;
-    flex-shrink: 0;
-    height: 134px;
-    position: relative;
-    color: var(--colores-op2-turquesa, #007e93);
-    text-align: left;
-    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
-    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
-    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
-    font-weight: var(--cuerpo-de-texto-m-font-weight, 700);
-    resize: none;
-    outline: none;
-}
-
-.input-text5::placeholder {
-    color: var(--colores-neutro-gris-3, #c7c7c7);
-}
-
-.input-text5:focus {
-    border-color: var(--colores-op2-turquesa, #007e93);
-    color: var(--colores-op2-turquesa, #007e93);
-}
-
 .pdf-upload-grid {
     display: flex;
     flex-direction: row;
@@ -1970,34 +1806,5 @@ const formatFileSize = (bytes) => {
 
 .remove-pdf-btn:hover {
     background-color: rgba(255, 0, 0, 0.1);
-}
-
-/* WYSIWYG (Quill) Styles */
-.wysiwyg-wrapper {
-    width: 100%;
-}
-
-.wysiwyg-wrapper :deep(.ql-toolbar.ql-snow) {
-    border-color: var(--colores-neutro-gris-4, #5b5b5b);
-    border-radius: 8px 8px 0 0;
-}
-
-.wysiwyg-wrapper :deep(.ql-container.ql-snow) {
-    border-color: var(--colores-neutro-gris-4, #5b5b5b);
-    border-radius: 0 0 8px 8px;
-    min-height: 134px;
-}
-
-.wysiwyg-wrapper :deep(.ql-editor) {
-    min-height: 100px;
-    color: var(--colores-op2-turquesa, #007e93);
-    font-family: var(--cuerpo-de-texto-m-font-family, "Nexa-Bold", sans-serif);
-    font-size: var(--cuerpo-de-texto-m-font-size, 12px);
-    line-height: var(--cuerpo-de-texto-m-line-height, 18px);
-}
-
-.wysiwyg-wrapper.has-error :deep(.ql-toolbar.ql-snow),
-.wysiwyg-wrapper.has-error :deep(.ql-container.ql-snow) {
-    border-color: #ef4444;
 }
 </style>

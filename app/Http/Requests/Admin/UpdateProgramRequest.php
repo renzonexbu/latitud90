@@ -25,12 +25,10 @@ class UpdateProgramRequest extends FormRequest
             // Campos básicos de la plantilla (todos opcionales en edición)
             'name' => 'nullable|string|max:255',
             'destination' => 'nullable|string|max:255',
-            'trip_description' => 'nullable|string|max:2000',
-            'description' => 'nullable|string|max:2000', // Campo del frontend
 
             // Imágenes (opcionales en edición, solo validar tipo si se envían)
             'images' => 'nullable|array',
-            'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
+            'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:15360', // 15MB max por imagen
 
             // Eliminación de imágenes/archivos existentes
             'imagesToDelete' => 'nullable|array',
@@ -44,16 +42,10 @@ class UpdateProgramRequest extends FormRequest
             'pilar_3' => 'nullable|string|max:255',
             'pilar_4' => 'nullable|string|max:255',
 
-            // Itinerario
-            'itinerary' => 'nullable|string|max:1000',
-            'itinerary_description' => 'nullable|string|max:1000',
-
             // Archivos PDF (opcionales)
             'itinerary_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
             'coverage_file' => 'nullable|file|mimes:pdf|max:10240',
             'equipment_file' => 'nullable|file|mimes:pdf|max:10240',
-            'travel_assistance_coverage' => 'nullable|file|mimes:pdf|max:10240',
-            'equipment_list' => 'nullable|file|mimes:pdf|max:10240',
 
             // Estado
             'active' => 'boolean',
@@ -113,29 +105,24 @@ class UpdateProgramRequest extends FormRequest
             'destination.string' => 'El destino debe ser texto.',
             'destination.max' => 'El destino no puede exceder 255 caracteres.',
 
-            'description.string' => 'La descripción debe ser texto.',
-            'description.max' => 'La descripción no puede exceder 2000 caracteres.',
-            'trip_description.string' => 'La descripción debe ser texto.',
-            'trip_description.max' => 'La descripción no puede exceder 2000 caracteres.',
-
             // Mensajes para imágenes
             'images.array' => 'Las imágenes deben ser enviadas como un array.',
             'images.*.file' => 'Cada imagen debe ser un archivo válido.',
             'images.*.mimes' => 'Las imágenes deben ser en formato JPEG, JPG, PNG, GIF o WEBP.',
-            'images.*.max' => 'Cada imagen no puede exceder 5MB.',
+            'images.*.max' => 'Cada imagen no puede exceder 15MB.',
 
             // Mensajes para archivos
             'itinerary_file.file' => 'El archivo de itinerario debe ser un archivo válido.',
             'itinerary_file.mimes' => 'El archivo de itinerario debe ser un PDF.',
             'itinerary_file.max' => 'El archivo de itinerario no puede exceder 10MB.',
 
-            'travel_assistance_coverage.file' => 'El archivo de cobertura debe ser un archivo válido.',
-            'travel_assistance_coverage.mimes' => 'El archivo de cobertura debe ser un PDF.',
-            'travel_assistance_coverage.max' => 'El archivo de cobertura no puede exceder 10MB.',
+            'coverage_file.file' => 'El archivo de cobertura debe ser un archivo válido.',
+            'coverage_file.mimes' => 'El archivo de cobertura debe ser un PDF.',
+            'coverage_file.max' => 'El archivo de cobertura no puede exceder 10MB.',
 
-            'equipment_list.file' => 'El archivo de lista de equipo debe ser un archivo válido.',
-            'equipment_list.mimes' => 'El archivo de lista de equipo debe ser un PDF.',
-            'equipment_list.max' => 'El archivo de lista de equipo no puede exceder 10MB.',
+            'equipment_file.file' => 'El archivo de lista de equipo debe ser un archivo válido.',
+            'equipment_file.mimes' => 'El archivo de lista de equipo debe ser un PDF.',
+            'equipment_file.max' => 'El archivo de lista de equipo no puede exceder 10MB.',
         ];
     }
 }

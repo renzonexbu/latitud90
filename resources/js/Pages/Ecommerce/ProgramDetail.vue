@@ -54,9 +54,9 @@
                         />
 
                         <!-- Descripción del Viaje -->
-                        <TripDescription
+                        <!-- <TripDescription
                             :description="program.trip_description"
-                        />
+                        /> -->
 
                         <!-- Línea Decorativa -->
                         <DecorativeLine />
@@ -83,10 +83,10 @@
                         <WarningSection :itinerary-file="program.itinerary_file" />
 
                         <!-- Galería de Imágenes -->
-                        <ImageGallery
+                        <!-- <ImageGallery
                             :images="program.images"
                             :program-name="program.name"
-                        />
+                        /> -->
                     </div>
 
                     <!-- Componente Derecho -->
@@ -97,11 +97,12 @@
                             <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
                             <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
                         </div>
-                        <PaymentPanel 
-                            :final-payment-date="program.final_payment_date" 
+                        <PaymentPanel
+                            :final-payment-date="program.final_payment_date"
                             :program-id="program.id"
                             :program="program"
                             :show-remaining-amount="!program.active_installment"
+                            :participant-document="participant?.document_number || rut"
                             @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
@@ -177,8 +178,8 @@
                         <span class="font-nexa text-[12px]">Fecha límite de pago de la próxima cuota:</span>
                         <span class="font-nexa-bold text-[12px] ml-1">{{ formatDueDate(program.active_installment.due_date) }}</span>
                     </div>
-                    <PaymentPanel 
-                        :final-payment-date="program.final_payment_date" 
+                    <PaymentPanel
+                        :final-payment-date="program.final_payment_date"
                         :program-id="program.id"
                         :program="program"
                         :is-mobile-overlay="true"
@@ -186,6 +187,7 @@
                         :show-warning="true"
                         :show-remaining-amount="true"
                         :show-payment-button="true"
+                        :participant-document="participant?.document_number || rut"
                         @payment-selection-updated="handlePaymentSelection"
                     />
                 </div>

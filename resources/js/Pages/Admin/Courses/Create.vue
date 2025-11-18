@@ -189,11 +189,16 @@
 
                                                 <div class="staff-field-row">
                                                     <div class="field-wrapper">
-                                                        <div class="flex justify-between items-center">
-                                                            <div class="field-label">
-                                                                Ejecutivo comercial
-                                                            </div>
+                                                        <div class="field-label">
+                                                            Ejecutivo comercial
                                                         </div>
+                                                        <button
+                                                            type="button"
+                                                            @click="showExecutiveModal = true"
+                                                            class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors mb-2 self-start"
+                                                        >
+                                                            Crear nuevo
+                                                        </button>
                                                         <select
                                                             v-model="form.sales_executive_id"
                                                             class="admin-input-text"
@@ -251,6 +256,13 @@
                                                         <div class="field-label">
                                                             Nombre de institución *
                                                         </div>
+                                                        <button
+                                                            type="button"
+                                                            @click="showInstitutionModal = true"
+                                                            class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors mb-2 self-start"
+                                                        >
+                                                            Crear nueva
+                                                        </button>
                                                         <select
                                                             v-model="form.institutionId"
                                                             class="admin-input-text"
@@ -637,6 +649,18 @@
                 </form>
             </div>
         </div>
+
+        <!-- Modals -->
+        <CreateExecutiveModal
+            :show="showExecutiveModal"
+            @close="showExecutiveModal = false"
+            @executive-created="handleExecutiveCreated"
+        />
+        <CreateInstitutionModal
+            :show="showInstitutionModal"
+            @close="showInstitutionModal = false"
+            @institution-created="handleInstitutionCreated"
+        />
     </AdminLayout>
 </template>
 
@@ -644,6 +668,8 @@
 import { Head, useForm, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CreateExecutiveModal from '@/Components/Sales/CreateExecutiveModal.vue';
+import CreateInstitutionModal from '@/Components/Institutions/CreateInstitutionModal.vue';
 
 // Props
 const props = defineProps({
@@ -670,9 +696,17 @@ const priceOpen = ref(true);
 const travelersOpen = ref(true);
 const paymentOpen = ref(true);
 
+// Modal states
+const showExecutiveModal = ref(false);
+const showInstitutionModal = ref(false);
+
 // Form state
 const isSubmitting = ref(false);
 const fileInput = ref(null);
+
+// Reactive arrays for institutions and executives
+const institutions = ref(props.institutions);
+const salesExecutives = ref(props.salesExecutives);
 
 // Form data
 const form = ref({
@@ -723,7 +757,7 @@ watch(
     () => form.value.institutionId,
     (newInstitutionId) => {
         if (newInstitutionId) {
-            const selectedInstitution = props.institutions.find(
+            const selectedInstitution = institutions.value.find(
                 (inst) => inst.id == newInstitutionId
             );
             if (selectedInstitution) {
@@ -915,6 +949,18 @@ const saveCourse = () => {
             isSubmitting.value = false;
         },
     });
+};
+
+// Handle executive created
+const handleExecutiveCreated = (newExecutive) => {
+    salesExecutives.value.push(newExecutive);
+    form.value.sales_executive_id = newExecutive.id;
+};
+
+// Handle institution created
+const handleInstitutionCreated = (newInstitution) => {
+    institutions.value.push(newInstitution);
+    form.value.institutionId = newInstitution.id;
 };
 </script>
 

@@ -66,21 +66,10 @@ class ProgramService
                 $discounts = 0; // Por ahora no hay descuentos (participant_program ya no se usa)
                 $finalPrice = max(0, $basePrice + $adjustments - $discounts);
 
-                // Sumar pagos aprobados y completados del participante para este programa
-                $paidAmount = (float) Payment::whereHas('order', function($q) use ($participant, $program) {
-                        $q->where('participant_id', $participant->id)
-                          ->where('program_id', $program->id);
-                    })
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->sum('amount');
-
-                $paidAmount = round($paidAmount, 2);
-                $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
-                $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
-
-                // Calcular cuotas
+                // Calcular cuotas y monto pagado
                 $totalInstallments = 0;
                 $paidInstallments = 0;
+                $paidAmount = 0;
                 $installmentsSummary = null;
 
                 // Buscar planes de cuotas del participante para este programa
@@ -93,17 +82,25 @@ class ProgramService
                     $totalInstallments = $plan->installments->count();
 
                     foreach ($plan->installments as $installment) {
-                        if ($installment->status === 'paid') {
+                        // Contar cuotas pagadas y sumar sus montos
+                        if ($installment->status === 'paid' && $installment->is_paid) {
                             $paidInstallments++;
+                            $paidAmount += (float) $installment->amount;
                         }
                     }
                 }
+
+                $paidAmount = round($paidAmount, 2);
+                $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
+                $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
 
                 // Si no hay planes de cuotas, buscar en orders como fallback
                 if ($totalInstallments == 0) {
                     $orders = Order::where('participant_id', $participant->id)
                         ->where('program_id', $program->id)
                         ->where('notes', '!=', 'Orden creada desde reembolso')
+                        // Excluir órdenes de suscripción ya que no representan pagos inmediatos
+                        ->where('order_number', 'NOT LIKE', 'SUB-%')
                         ->with(['orderDetails.paymentOption'])
                         ->get();
 
@@ -130,9 +127,17 @@ class ProgramService
 
                                 if ($detail->is_paid && !$isRefundDetail) {
                                     $paidInstallments++;
+                                    $paidAmount += (float) $detail->price;
                                 }
                             }
                         }
+                    }
+
+                    // Recalcular porcentaje y balance si se encontraron pagos en orders
+                    if ($paidAmount > 0) {
+                        $paidAmount = round($paidAmount, 2);
+                        $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
+                        $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
                     }
                 }
 

@@ -80,7 +80,7 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>Salida: {{ formatDate(program.start_date) }}</span>
+                <span>Salida: {{ formatDate(program.departure_date) }}</span>
               </div>
 
               <div v-if="program.location" class="flex items-center text-sm text-gray-600">
@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { Head } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import GuardianLayout from '@/Layouts/GuardianLayout.vue'
 
 const props = defineProps({
@@ -179,7 +179,9 @@ const getStatusLabel = (status) => {
 }
 
 const viewProgramDetail = (programId) => {
-  // TODO: Implementar vista de detalle del programa
-  console.log('Ver detalle del programa:', programId)
+  router.visit(route('guardian.participant.program.detail', {
+    participant: props.participant.id,
+    programCourse: programId
+  }))
 }
 </script>

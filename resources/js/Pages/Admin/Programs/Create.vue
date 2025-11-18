@@ -49,12 +49,10 @@ const props = defineProps({
 const form = useForm({
     name: "",
     destination: "",
-    description: "",
     pilar_1: "Aventura",  // Valor fijo
     pilar_2: "Entretenimiento",  // Valor fijo
     pilar_3: "Educación",  // Valor fijo
     pilar_4: "Seguridad",  // Valor fijo
-    itinerary: "",
     itinerary_file: null,
     coverage_file: null,
     equipment_file: null,
@@ -66,12 +64,10 @@ const form = useForm({
 const programData = ref({
     name: "",
     destination: "",
-    description: "",
     pilar_1: "Aventura",  // Valor fijo
     pilar_2: "Entretenimiento",  // Valor fijo
     pilar_3: "Educación",  // Valor fijo
     pilar_4: "Seguridad",  // Valor fijo
-    itinerary: "",
     itinerary_file: null,
     coverage_file: null,
     equipment_file: null,

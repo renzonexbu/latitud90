@@ -79,7 +79,10 @@ class CourseService
 
             $programCourse->save();
 
-            // 3. Crear plan en VirtualPos si el pago por suscripción está habilitado
+            // 4. Crear registros en participant_program para cada participante del curso
+            $this->createParticipantProgramRecords($course, $programCourse);
+
+            // 5. Crear plan en VirtualPos si el pago por suscripción está habilitado
             if ($programCourse->enable_subscription_payment && $programCourse->subscription_max_months > 0) {
                 $this->createVirtualPosPlan($programCourse, $program, $institution, $course);
             }
@@ -134,6 +137,9 @@ class CourseService
                 // Crear nuevo ProgramCourse
                 $programCourse = $this->createProgramCourseForUpdate($course, $program, $institution, $data);
             }
+
+            // Crear/actualizar registros en participant_program
+            $this->createParticipantProgramRecords($course, $programCourse);
 
             // Recargar el curso con sus relaciones
             return $course->fresh(['institution', 'programCourses']);
@@ -867,5 +873,73 @@ class CourseService
 
         // Si no coincide con ningún formato, retornar null
         return null;
+    }
+
+    /**
+     * Crear registros en participant_program para cada participante del curso
+     */
+    private function createParticipantProgramRecords(Course $course, ProgramCourse $programCourse): void
+    {
+        try {
+            // Obtener todos los participantes del curso
+            $participants = $course->participants;
+
+            if ($participants->isEmpty()) {
+                Log::info('No hay participantes para asociar al program_course', [
+                    'course_id' => $course->id,
+                    'program_course_id' => $programCourse->id,
+                ]);
+                return;
+            }
+
+            $createdCount = 0;
+
+            foreach ($participants as $participant) {
+                // Verificar si ya existe el registro (evitar duplicados)
+                $exists = DB::table('participant_program')
+                    ->where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id) // program_id ahora apunta a program_courses
+                    ->exists();
+
+                if ($exists) {
+                    continue; // Ya existe, saltar
+                }
+
+                // Generar enrollment_code: documento_participante + program_course.code
+                $enrollmentCode = $participant->document_number . '-' . $programCourse->code;
+
+                // Obtener el precio individual del participante (del pivot o del program_course)
+                $individualPrice = $participant->pivot->individual_price ?? $programCourse->trip_price;
+
+                // Crear el registro en participant_program
+                DB::table('participant_program')->insert([
+                    'participant_id' => $participant->id,
+                    'program_id' => $programCourse->id, // program_id ahora apunta a program_courses
+                    'enrollment_code' => $enrollmentCode,
+                    'individual_price' => $individualPrice,
+                    'status' => 'pending_payment',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $createdCount++;
+            }
+
+            Log::info('Registros en participant_program creados exitosamente', [
+                'course_id' => $course->id,
+                'program_course_id' => $programCourse->id,
+                'participants_count' => $participants->count(),
+                'created_count' => $createdCount,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al crear registros en participant_program', [
+                'course_id' => $course->id,
+                'program_course_id' => $programCourse->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // No lanzar excepción para no interrumpir la creación del curso
+        }
     }
 }

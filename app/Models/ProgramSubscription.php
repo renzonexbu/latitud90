@@ -54,11 +54,19 @@ class ProgramSubscription extends Model
     }
 
     /**
-     * Relación con el programa
+     * Relación con el programa (program_id apunta a program_courses)
      */
     public function program()
     {
-        return $this->belongsTo(Program::class);
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
+    }
+
+    /**
+     * Alias para la relación con el programa
+     */
+    public function programCourse()
+    {
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
     }
 
     /**

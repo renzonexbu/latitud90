@@ -14,9 +14,11 @@ class Installment extends Model
     protected $fillable = [
         'installment_plan_id',
         'installment_number',
+        'virtualpos_charge_id',
         'amount',
         'due_date',
         'status',
+        'is_paid',
         'paid_at',
         'payment_order_id',
         'payment_order_detail_id',

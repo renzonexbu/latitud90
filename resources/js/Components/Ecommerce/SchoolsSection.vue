@@ -27,7 +27,8 @@
                 <img
                   :src="school.logo"
                   :alt="school.name"
-                  class="h-12 w-12 lg:h-16 lg:w-16 object-contain school-logo" />
+                  class="h-12 w-12 lg:h-16 lg:w-16 object-contain school-logo"
+                  :class="{ 'grayscale-logo': school.name === 'Colegio Dunalastair' || school.name === 'Colegio Everest' }" />
               </div>
               <p class="text-xs font-bold text-gray-600 mt-2 text-center">
                 {{ school.name }}
@@ -77,7 +78,7 @@
           },
           {
             name: "colegio altamira",
-            logo: "/images/schools/colegio altamira.jpg"
+            logo: "/images/schools/colegio altamira.png"
           },
           {
             name: "Colegio Arrayanes - San Fernando",
@@ -89,7 +90,7 @@
           },
           {
             name: "Colegio Cambridge College - Providencia",
-            logo: "/images/schools/Colegio Cambridge College - Providencia.jpg"
+            logo: "/images/schools/Colegio Cambridge College - Providencia.png"
           },
           {
             name: "Colegio Campanario",
@@ -101,7 +102,7 @@
           },
           {
             name: "Colegio Cordillera",
-            logo: "/images/schools/Colegio Cordillera.jpg"
+            logo: "/images/schools/Colegio Cordillera.png"
           },
           {
             name: "Colegio Cumbres",
@@ -149,11 +150,11 @@
           },
           {
             name: "Colegio Mariano de Schoenstatt",
-            logo: "/images/schools/Colegio Mariano de Schoenstatt.jpg"
+            logo: "/images/schools/Colegio Mariano de Schoenstatt.png"
           },
           {
             name: "Colegio Mayor de Peñalolén",
-            logo: "/images/schools/Colegio Mayor de Peñalolén.jpg"
+            logo: "/images/schools/Colegio Mayor de Peñalolén.png"
           },
           {
             name: "Colegio Nido de Aguilas",
@@ -169,11 +170,11 @@
           },
           {
             name: "Colegio Pinares - Concepción",
-            logo: "/images/schools/Colegio Pinares - Concepción.jpg"
+            logo: "/images/schools/Colegio Pinares - Concepción.png"
           },
           {
             name: "Colegio Pucalán Montessori",
-            logo: "/images/schools/Colegio Pucalán Montessori.jpg"
+            logo: "/images/schools/Colegio Pucalán Montessori.png"
           },
           {
             name: "colegio saint george",
@@ -181,7 +182,7 @@
           },
           {
             name: "Colegio San Esteban Diacono",
-            logo: "/images/schools/Colegio San Esteban Diacono.jpg"
+            logo: "/images/schools/Colegio San Esteban Diacono.png"
           },
           {
             name: "Colegio San Felipe Diacono",
@@ -189,11 +190,11 @@
           },
           {
             name: "COLEGIO SAN JUAN EVANGELISTA",
-            logo: "/images/schools/COLEGIO SAN JUAN EVANGELISTA.jpg"
+            logo: "/images/schools/COLEGIO SAN JUAN EVANGELISTA.png"
           },
           {
             name: "COLEGIO SAN LUIS DE ALBA - VALDIVIA",
-            logo: "/images/schools/COLEGIO SAN LUIS DE ALBA - VALDIVIA.jpg"
+            logo: "/images/schools/COLEGIO SAN LUIS DE ALBA - VALDIVIA.png"
           },
           {
             name: "COLEGIO SAN MIGUEL ARCANGEL",
@@ -205,7 +206,7 @@
           },
           {
             name: "Colegio San Pedro de Nolasco",
-            logo: "/images/schools/Colegio San Pedro de Nolasco.jpg"
+            logo: "/images/schools/Colegio San Pedro de Nolasco.png"
           },
           {
             name: "COLEGIO SANTA URSULA DE VITACURA",
@@ -241,11 +242,11 @@
           },
           {
             name: "Redland School",
-            logo: "/images/schools/Redland School.jpg"
+            logo: "/images/schools/Redland School.png"
           },
           {
             name: "SAINT GABRIEL SCHOOL",
-            logo: "/images/schools/SAINT GABRIEL SCHOOL.jpg"
+            logo: "/images/schools/SAINT GABRIEL SCHOOL.png"
           },
           {
             name: "santiago college",
@@ -257,7 +258,7 @@
           },
           {
             name: "SOUTHERN CROSS SCHOOL",
-            logo: "/images/schools/SOUTHERN CROSS SCHOOL.jpg"
+            logo: "/images/schools/SOUTHERN CROSS SCHOOL.png"
           },
           {
             name: "St Gaspar College",
@@ -265,7 +266,7 @@
           },
           {
             name: "ST JOHNS VILLA ACADEMY",
-            logo: "/images/schools/ST JOHNS VILLA ACADEMY.jpg"
+            logo: "/images/schools/ST JOHNS VILLA ACADEMY.png"
           },
           {
             name: "The Craighouse School",
@@ -273,11 +274,11 @@
           },
           {
             name: "The Grange School",
-            logo: "/images/schools/The Grange School.jpg"
+            logo: "/images/schools/The Grange School.png"
           },
           {
             name: "The Newland School",
-            logo: "/images/schools/The Newland School.jpg"
+            logo: "/images/schools/The Newland School.png"
           },
           {
             name: "The Southland School",
@@ -285,11 +286,11 @@
           },
           {
             name: "The Trewhelas School-Chicureo",
-            logo: "/images/schools/The Trewhelas School-Chicureo.jpg"
+            logo: "/images/schools/The Trewhelas School-Chicureo.png"
           },
           {
             name: "Trebulco School",
-            logo: "/images/schools/Trebulco School.jpg"
+            logo: "/images/schools/Trebulco School.png"
           },
           {
             name: "Verbo Divino Chicureo",
@@ -297,11 +298,11 @@
           },
           {
             name: "VERBO DIVINO",
-            logo: "/images/schools/VERBO DIVINO.jpg"
+            logo: "/images/schools/VERBO DIVINO.png"
           },
           {
             name: "VILLA MARIA",
-            logo: "/images/schools/VILLA MARIA.jpeg"
+            logo: "/images/schools/VILLA MARIA.png"
           },
           {
             name: "WENLOCK",
@@ -371,12 +372,24 @@
 }
 
 .school-logo {
-  filter: grayscale(100%);
-  transition: filter 0.3s ease;
+  opacity: 0.7;
+  transition: opacity 0.3s ease, filter 0.3s ease, transform 0.3s ease;
 }
 
 .school-logo:hover {
+  opacity: 1;
+}
+
+.grayscale-logo {
+  filter: grayscale(100%);
+  opacity: 0.7;
+  transform: scale(0.8);
+}
+
+.grayscale-logo:hover {
   filter: grayscale(0%);
+  opacity: 1;
+  transform: scale(1);
 }
 
 @media (max-width: 1023px) {

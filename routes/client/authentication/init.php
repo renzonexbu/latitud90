@@ -90,6 +90,10 @@ Route::prefix('guardian')->name('guardian.')->group(function () {
         Route::get('/participant/{participant}/programs', [GuardianDashboardController::class, 'participantPrograms'])
             ->name('participant.programs');
 
+        // Detalle de un programa específico
+        Route::get('/participant/{participant}/program/{programCourse}', [GuardianDashboardController::class, 'programDetail'])
+            ->name('participant.program.detail');
+
         // Vista de pruebas (solo para testing)
         Route::get('/test', function () {
             return inertia('Guardian/TestView', [

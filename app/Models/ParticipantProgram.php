@@ -28,9 +28,15 @@ class ParticipantProgram extends Model
         return $this->belongsTo(Participant::class);
     }
 
+    public function programCourse()
+    {
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
+    }
+
+    // Alias para compatibilidad (program_id ahora apunta a program_courses)
     public function program()
     {
-        return $this->belongsTo(Program::class);
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
     }
 
     public function discounts()

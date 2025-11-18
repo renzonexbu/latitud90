@@ -24,12 +24,10 @@ class CreateProgramRequest extends FormRequest
             // Campos básicos de la plantilla
             'name' => 'required|string|max:255',
             'destination' => 'required|string|max:255',
-            'trip_description' => 'nullable|string|max:2000',
-            'description' => 'nullable|string|max:2000', // Campo del frontend (alternativa a trip_description)
 
             // Imágenes (obligatorias)
             'images' => 'required|array|min:1', // Al menos una imagen es obligatoria
-            'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:5120', // 5MB max por imagen
+            'images.*' => 'file|mimes:jpeg,jpg,png,gif,webp|max:15360', // 15MB max por imagen
 
             // Pilares educativos (fijos, opcionales porque se envían disabled)
             'pilar_1' => 'nullable|string|max:255',
@@ -37,16 +35,10 @@ class CreateProgramRequest extends FormRequest
             'pilar_3' => 'nullable|string|max:255',
             'pilar_4' => 'nullable|string|max:255',
 
-            // Itinerario
-            'itinerary' => 'nullable|string|max:1000',
-            'itinerary_description' => 'nullable|string|max:1000', // Campo alternativo
-
             // Archivos PDF (opcionales)
             'itinerary_file' => 'nullable|file|mimes:pdf|max:10240', // 10MB max
             'coverage_file' => 'nullable|file|mimes:pdf|max:10240',
             'equipment_file' => 'nullable|file|mimes:pdf|max:10240',
-            'travel_assistance_coverage' => 'nullable|file|mimes:pdf|max:10240', // Campo alternativo
-            'equipment_list' => 'nullable|file|mimes:pdf|max:10240', // Campo alternativo
 
             // Estado
             'active' => 'nullable|boolean',
@@ -67,17 +59,12 @@ class CreateProgramRequest extends FormRequest
             'destination.string' => 'El destino debe ser texto.',
             'destination.max' => 'El destino no puede exceder 255 caracteres.',
 
-            'description.string' => 'La descripción debe ser texto.',
-            'description.max' => 'La descripción no puede exceder 2000 caracteres.',
-            'trip_description.string' => 'La descripción debe ser texto.',
-            'trip_description.max' => 'La descripción no puede exceder 2000 caracteres.',
-
             'images.required' => 'Debe adjuntar al menos una imagen.',
             'images.array' => 'Las imágenes deben ser enviadas como un array.',
             'images.min' => 'Debe adjuntar al menos una imagen.',
             'images.*.file' => 'Cada imagen debe ser un archivo válido.',
             'images.*.mimes' => 'Las imágenes deben ser en formato JPEG, JPG, PNG, GIF o WEBP.',
-            'images.*.max' => 'Cada imagen no puede exceder 5MB.',
+            'images.*.max' => 'Cada imagen no puede exceder 15MB.',
 
             'itinerary_file.file' => 'El archivo de itinerario debe ser un archivo válido.',
             'itinerary_file.mimes' => 'El archivo de itinerario debe ser un PDF.',

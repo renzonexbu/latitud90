@@ -249,22 +249,22 @@ class UpdateParticipantService
                 'program_id' => $participantProgram->program_id
             ]);
 
-            // Obtener el participante y programa
+            // Obtener el participante y program_course (program_id ahora apunta a program_courses)
             $participant = Participant::find($participantProgram->participant_id);
-            $program = Program::find($participantProgram->program_id);
+            $programCourse = \App\Models\ProgramCourse::find($participantProgram->program_id);
 
-            if (!$participant || !$program) {
-                Log::info('AutoRecalculationService: No se encontró participante o programa', [
+            if (!$participant || !$programCourse) {
+                Log::info('AutoRecalculationService: No se encontró participante o program_course', [
                     'participant_id' => $participantProgram->participant_id,
                     'program_id' => $participantProgram->program_id,
                     'participant_found' => $participant ? 'yes' : 'no',
-                    'program_found' => $program ? 'yes' : 'no'
+                    'program_course_found' => $programCourse ? 'yes' : 'no'
                 ]);
                 return;
             }
 
             // Calcular el nuevo precio final con descuentos aplicados
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
             $newTotalAmount = $priceData['final_price'];
 
             Log::info('AutoRecalculationService: Precio calculado', [

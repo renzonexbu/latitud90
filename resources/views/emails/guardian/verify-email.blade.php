@@ -3,102 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verifica tu cuenta - Latitud90</title>
+    <title>Verifica tu cuenta - Latitud 90</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .email-wrapper {
+            width: 100%;
+            background-color: #f8f9fa;
+            padding: 20px 0;
+        }
+        .email-container {
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
             background-color: #ffffff;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 126, 147, 0.1);
         }
         .header {
+            background: linear-gradient(135deg, #007E93 0%, #005f6b 100%);
+            padding: 30px 20px;
             text-align: center;
-            margin-bottom: 30px;
         }
         .logo {
-            max-width: 200px;
+            max-width: 180px;
             height: auto;
+            margin-bottom: 15px;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        h1 {
-            color: #2563eb;
-            font-size: 24px;
+        .subject {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .content {
+            padding: 30px;
+        }
+        .greeting {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007E93;
             margin-bottom: 20px;
         }
-        .button {
+        .message {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+        .cta-button {
             display: inline-block;
-            padding: 15px 30px;
-            background-color: #2563eb;
-            color: #ffffff !important;
+            background: linear-gradient(135deg, #FFB232 0%, #ff9f00 100%);
+            color: #ffffff;
+            padding: 15px 35px;
             text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
+            border-radius: 25px;
+            font-weight: 600;
             margin: 20px 0;
+            box-shadow: 0 3px 10px rgba(255, 178, 50, 0.3);
+            transition: all 0.3s ease;
         }
-        .button:hover {
-            background-color: #1d4ed8;
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 178, 50, 0.4);
         }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e5e5;
-            font-size: 12px;
-            color: #666;
+        .url-box {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #007E93;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+        .url-box a {
+            color: #007E93;
+            text-decoration: none;
         }
         .warning {
-            background-color: #fef3c7;
-            border-left: 4px solid #f59e0b;
-            padding: 15px;
+            background-color: #fff3cd;
+            border-left: 4px solid #FFB232;
+            border-radius: 0 8px 8px 0;
+            padding: 15px 20px;
             margin: 20px 0;
-            border-radius: 4px;
+        }
+        .warning strong {
+            color: #ff9f00;
+        }
+        .footer {
+            background-color: #007E93;
+            color: #ffffff;
+            text-align: center;
+            padding: 25px 20px;
+            font-size: 13px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .footer a {
+            color: #ffffff;
+            text-decoration: none;
+            opacity: 0.9;
+        }
+        .footer a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            .header, .content, .footer {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎒 Latitud90</h1>
-        </div>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <!-- Header -->
+            <div class="header">
+                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
+                <div class="subject">Verifica tu cuenta</div>
+            </div>
 
-        <h1>¡Hola {{ $user->name }}!</h1>
+            <!-- Content -->
+            <div class="content">
+                <!-- Greeting -->
+                <div class="greeting">
+                    ¡Hola {{ $user->name }}!
+                </div>
 
-        <p>Gracias por registrarte en Latitud90. Para completar tu registro y activar tu cuenta, necesitamos que verifiques tu dirección de correo electrónico.</p>
+                <!-- Message -->
+                <div class="message">
+                    <p>Gracias por registrarte en Latitud 90. Para completar tu registro y activar tu cuenta, necesitamos que verifiques tu dirección de correo electrónico.</p>
+                </div>
 
-        <div style="text-align: center;">
-            <a href="{{ $verificationUrl }}" class="button">
-                Verificar mi correo electrónico
-            </a>
-        </div>
+                <!-- CTA Button -->
+                <div style="text-align: center;">
+                    <a href="{{ $verificationUrl }}" class="cta-button">
+                        Verificar mi correo electrónico
+                    </a>
+                </div>
 
-        <p>Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
-        <p style="background-color: #f3f4f6; padding: 10px; border-radius: 4px; word-break: break-all;">
-            <a href="{{ $verificationUrl }}" style="color: #2563eb;">{{ $verificationUrl }}</a>
-        </p>
+                <!-- Alternative URL -->
+                <div class="message">
+                    <p style="font-size: 14px; color: #555;">Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
+                    <div class="url-box">
+                        <a href="{{ $verificationUrl }}">{{ $verificationUrl }}</a>
+                    </div>
+                </div>
 
-        <div class="warning">
-            <strong>⏰ Importante:</strong> Este enlace expirará en 24 horas por razones de seguridad.
-        </div>
+                <!-- Warning -->
+                <div class="warning">
+                    <strong>⏰ Importante:</strong> Este enlace expirará en 24 horas por razones de seguridad.
+                </div>
 
-        <p>Si no creaste esta cuenta, puedes ignorar este correo de forma segura.</p>
+                <!-- Additional Message -->
+                <div class="message">
+                    <p style="font-size: 14px; color: #555;">Si no creaste esta cuenta, puedes ignorar este correo de forma segura.</p>
+                </div>
+            </div>
 
-        <div class="footer">
-            <p>
-                <strong>Latitud90</strong><br>
-                Experiencias educativas inolvidables<br>
-                <a href="{{ url('/') }}" style="color: #2563eb;">www.latitud90.com</a>
-            </p>
-            <p style="margin-top: 10px;">
-                Este es un correo automático, por favor no respondas a este mensaje.
-            </p>
+            <!-- Footer -->
+            <div class="footer">
+                <p><strong>Latitud 90</strong></p>
+                <p>Experiencias educativas inolvidables</p>
+                <p style="margin-top: 10px;">
+                    <a href="{{ url('/') }}">www.latitud90.com</a>
+                </p>
+                <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                    Este es un correo automático, por favor no respondas a este mensaje.
+                </p>
+            </div>
         </div>
     </div>
 </body>

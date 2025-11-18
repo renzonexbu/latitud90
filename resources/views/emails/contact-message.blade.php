@@ -6,85 +6,141 @@
     <title>Nuevo mensaje de contacto - Latitud 90</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .email-wrapper {
+            width: 100%;
+            background-color: #f8f9fa;
+            padding: 20px 0;
+        }
+        .email-container {
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 126, 147, 0.1);
         }
         .header {
-            background-color: #007e93;
-            color: white;
-            padding: 20px;
+            background: linear-gradient(135deg, #007E93 0%, #005f6b 100%);
+            padding: 30px 20px;
             text-align: center;
-            border-radius: 8px 8px 0 0;
+        }
+        .logo {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 15px;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .subject {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         .content {
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 0 0 8px 8px;
+            padding: 30px;
         }
         .field {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .field-label {
-            font-weight: bold;
-            color: #007e93;
-            margin-bottom: 5px;
+            font-weight: 600;
+            color: #007E93;
+            margin-bottom: 8px;
+            font-size: 14px;
         }
         .field-value {
-            background-color: white;
-            padding: 10px;
-            border-radius: 4px;
-            border-left: 4px solid #ffb232;
+            background-color: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #FFB232;
+            color: #333;
         }
         .message-content {
-            background-color: white;
+            background-color: #f8f9fa;
             padding: 15px;
-            border-radius: 4px;
-            border-left: 4px solid #ffb232;
+            border-radius: 8px;
+            border-left: 4px solid #FFB232;
             white-space: pre-wrap;
+            line-height: 1.6;
         }
         .footer {
-            margin-top: 20px;
+            background-color: #007E93;
+            color: #ffffff;
             text-align: center;
-            color: #666;
-            font-size: 12px;
+            padding: 25px 20px;
+            font-size: 13px;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                box-shadow: none;
+            }
+            .header, .content, .footer {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Nuevo mensaje de contacto</h1>
-        <p>Has recibido un nuevo mensaje desde el formulario de contacto de Latitud 90</p>
-    </div>
-    
-    <div class="content">
-        <div class="field">
-            <div class="field-label">Nombre completo:</div>
-            <div class="field-value">{{ $name ?? '' }}</div>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <!-- Header -->
+            <div class="header">
+                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
+                <div class="subject">Nuevo mensaje de contacto</div>
+            </div>
+
+            <!-- Content -->
+            <div class="content">
+                <p style="margin-bottom: 25px; color: #555;">Has recibido un nuevo mensaje desde el formulario de contacto de Latitud 90:</p>
+
+                <div class="field">
+                    <div class="field-label">Nombre completo:</div>
+                    <div class="field-value">{{ $name ?? '' }}</div>
+                </div>
+
+                <div class="field">
+                    <div class="field-label">Email:</div>
+                    <div class="field-value">{{ $email ?? '' }}</div>
+                </div>
+
+                <div class="field">
+                    <div class="field-label">Teléfono:</div>
+                    <div class="field-value">{{ $phone ?? '' }}</div>
+                </div>
+
+                <div class="field">
+                    <div class="field-label">Mensaje:</div>
+                    <div class="message-content">{{ $contactMessage ?? '' }}</div>
+                </div>
+
+                <p style="margin-top: 25px; color: #555; font-size: 14px;">
+                    Para responder, simplemente responde a este email y llegará directamente a {{ $email ?? '' }}
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p><strong>Latitud 90</strong></p>
+                <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+                    Este mensaje fue enviado desde el formulario de contacto de Latitud 90
+                </p>
+            </div>
         </div>
-        
-        <div class="field">
-            <div class="field-label">Email:</div>
-            <div class="field-value">{{ $email ?? '' }}</div>
-        </div>
-        
-        <div class="field">
-            <div class="field-label">Teléfono:</div>
-            <div class="field-value">{{ $phone ?? '' }}</div>
-        </div>
-        
-        <div class="field">
-            <div class="field-label">Mensaje:</div>
-            <div class="message-content">{{ $contactMessage ?? '' }}</div>
-        </div>
-    </div>
-    
-    <div class="footer">
-        <p>Este mensaje fue enviado desde el formulario de contacto de Latitud 90</p>
-        <p>Para responder, simplemente responde a este email y llegará directamente a {{ $email ?? '' }}</p>
     </div>
 </body>
 </html>

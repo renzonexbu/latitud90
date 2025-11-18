@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Client\ProcessPaymentController;
 use App\Http\Controllers\Client\PaymentConfirmationController;
+use App\Http\Controllers\Client\GuardianPermissionController;
 use App\Http\Controllers\AnalyticsController;
 
 /*
@@ -26,6 +27,14 @@ Route::post('/payment/notification/transbank', [ProcessPaymentController::class,
 Route::post('/payment/notification/virtualpos', [PaymentConfirmationController::class, 'handleVirtualPosWebhook'])->name('api.payment.notification.virtualpos');
 Route::post('/payment/notification/khipu', [ProcessPaymentController::class, 'khipuNotification'])->name('api.payment.notification.khipu');
 
+// Subscription VirtualPos Callbacks (sin CSRF, sin sesión)
+Route::match(['get', 'post'], '/subscription/return', [\App\Http\Controllers\Client\SubscriptionController::class, 'returnUrl'])->name('api.subscription.return');
+Route::post('/subscription/callback', [\App\Http\Controllers\Client\SubscriptionController::class, 'callback'])->name('api.subscription.callback');
+Route::post('/subscription/webhook', [\App\Http\Controllers\Client\SubscriptionController::class, 'webhook'])->name('api.subscription.webhook');
+
+// Verificar estado de suscripción
+Route::post('/subscription/check-status', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkSubscriptionStatus'])->name('api.subscription.check-status');
+
 // Analytics Routes
 Route::post('/analytics/program-list-view', [AnalyticsController::class, 'recordProgramListView']);
 Route::post('/analytics/program-selection', [AnalyticsController::class, 'recordProgramSelection']);
@@ -38,4 +47,3 @@ Route::post('/analytics/payment-initiated', [AnalyticsController::class, 'record
 Route::post('/analytics/payment-completed', [AnalyticsController::class, 'recordPaymentCompleted']);
 Route::post('/analytics/payment-failed', [AnalyticsController::class, 'recordPaymentFailed']);
 Route::post('/analytics/confirmation-changes', [AnalyticsController::class, 'recordConfirmationChanges']);
-

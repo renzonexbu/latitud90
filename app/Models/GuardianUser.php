@@ -152,13 +152,33 @@ class GuardianUser extends Authenticatable
      */
     public function canPayFor(int $participantId): bool
     {
-        return $this->guardianLinks()
-            ->whereHas('emergencyContact', function ($query) use ($participantId) {
-                $query->where('participant_id', $participantId);
-            })
-            ->where('invitation_status', 'accepted')
-            ->where('can_pay', true)
-            ->exists();
+        // Buscar emergency_contacts del participante
+        $emergencyContacts = \App\Models\EmergencyContact::where('participant_id', $participantId)->get();
+
+        // Log completo de comparación
+        \Illuminate\Support\Facades\Log::info('🔍 DIAGNÓSTICO canPayFor()', [
+            'guardian_email' => $this->email,
+            'guardian_id' => $this->id,
+            'participant_id_buscado' => $participantId,
+            'total_emergency_contacts' => $emergencyContacts->count(),
+            'emergency_contacts_detalle' => $emergencyContacts->map(function($contact) {
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->name,
+                    'email' => $contact->email,
+                    'coincide_con_guardian' => $contact->email === $this->email ? 'SÍ ✅' : 'NO ❌'
+                ];
+            })->toArray()
+        ]);
+
+        // Verificar si el email del guardian coincide con algún emergency_contact del participante
+        $result = $emergencyContacts->contains('email', $this->email);
+
+        \Illuminate\Support\Facades\Log::info('🔍 RESULTADO canPayFor()', [
+            'resultado' => $result ? 'TRUE ✅' : 'FALSE ❌'
+        ]);
+
+        return $result;
     }
 
     /**

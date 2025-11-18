@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\InstallmentPlan;
+use App\Models\ProgramSubscription;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
@@ -68,13 +69,33 @@ class ProgramDetailService
                 $participantAdjustments = $adjustments;
                 $participantTotalAmount = $finalPrice;
 
-                // Sumar pagos aprobados y completados del participante para este programa (template)
-                $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
-                        $q->where('participant_id', $participant->id)
-                          ->where('program_id', $program->id);
-                    })
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->sum('amount');
+                // Calcular monto pagado desde las cuotas del installment_plan
+                $paidAmount = 0.0;
+                $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->with(['installments'])
+                    ->get();
+
+                foreach ($installmentPlans as $plan) {
+                    foreach ($plan->installments as $installment) {
+                        // Sumar solo cuotas realmente pagadas
+                        if ($installment->status === 'paid' && $installment->is_paid) {
+                            $paidAmount += (float) $installment->amount;
+                        }
+                    }
+                }
+
+                // Si no hay installment plans, buscar pagos en orders (excluyendo suscripciones)
+                if ($installmentPlans->isEmpty()) {
+                    $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                            $q->where('participant_id', $participant->id)
+                              ->where('program_id', $programCourse->id)
+                              ->where('order_number', 'NOT LIKE', 'SUB-%'); // Excluir órdenes de suscripción
+                        })
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->sum('amount');
+                }
+
                 $paidAmount = round($paidAmount, 2);
                 $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
                 $paymentPercentage = $participantTotalAmount > 0
@@ -83,12 +104,33 @@ class ProgramDetailService
             }
         }
 
+        // Verificar si existe una suscripción activa
+        $activeSubscription = null;
+        $hasActiveSubscription = false;
+        if ($participant) {
+            $subscription = ProgramSubscription::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+                ->first();
+
+            if ($subscription) {
+                $hasActiveSubscription = true;
+                $activeSubscription = [
+                    'id' => $subscription->id,
+                    'status' => $subscription->status,
+                    'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+                    'payment_method' => $subscription->payment_method,
+                    'created_at' => $subscription->created_at->toDateString(),
+                ];
+            }
+        }
+
         // Buscar plan de cuotas activo usando la nueva arquitectura
         $activeInstallment = null;
         $paymentPlanLocked = false;
         if ($participant) {
             $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-                ->where('program_id', $program->id)
+                ->where('program_id', $programCourse->id) // program_id ahora apunta a program_courses
                 ->where('status', 'active')
                 ->first();
 
@@ -138,6 +180,23 @@ class ProgramDetailService
             })
             ->toArray();
 
+        // FALLBACK: Si no hay opciones en la BD, usar opciones por defecto
+        if (empty($fullPaymentOptionCodes) && $programCourse->enable_total_payment) {
+            $fullPaymentOptionCodes = [
+                'khipu',
+                'debit_credit_0',
+                'debit_credit_3',
+                'debit_credit_6',
+                'international'
+            ];
+        }
+
+        if (empty($subscriptionPaymentOptionCodes) && $programCourse->enable_subscription_payment) {
+            $subscriptionPaymentOptionCodes = [
+                ['code' => 'subscription_virtualpos', 'label' => 'Suscripción VirtualPos']
+            ];
+        }
+
         // Obtener información completa del programa combinando programCourse y program
         $programData = [
             'id' => $programCourse->id, // ID del plan específico
@@ -159,6 +218,9 @@ class ProgramDetailService
             'paymentPercentage' => $paymentPercentage,
             'payment_plan_locked' => $paymentPlanLocked,
             'active_installment' => $activeInstallment,
+            // Suscripción
+            'has_active_subscription' => $hasActiveSubscription,
+            'active_subscription' => $activeSubscription,
 
             // Archivos PDF (de la plantilla)
             'itinerary_file' => $program->itinerary_file_url,

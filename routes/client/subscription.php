@@ -15,7 +15,24 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('subscription')->name('subscription.')->group(function () {
 
-    // Rutas protegidas - requieren autenticación de guardian
+    // ========================================
+    // RUTAS PÚBLICAS (sin autenticación)
+    // ========================================
+
+    // Crear suscripción desde confirmación (sin requerir guardian auth)
+    Route::post('/create-from-confirmation', [SubscriptionController::class, 'createFromConfirmation'])
+        ->name('create-from-confirmation');
+
+    // Páginas de resultado
+    Route::get('/success/{subscriptionId}', [SubscriptionController::class, 'success'])
+        ->name('success');
+
+    Route::get('/failure/{subscriptionId}', [SubscriptionController::class, 'failure'])
+        ->name('failure');
+
+    // ========================================
+    // RUTAS PROTEGIDAS (requieren autenticación)
+    // ========================================
     Route::middleware('guardian.auth')->group(function () {
 
         // Iniciar proceso de suscripción
@@ -38,21 +55,8 @@ Route::prefix('subscription')->name('subscription.')->group(function () {
         Route::post('/cancel/{subscriptionId}', [SubscriptionController::class, 'cancel'])
             ->name('cancel');
 
-        // Ver detalles de una suscripción específica
+        // Ver detalles de una suscripción específica (DEBE IR AL FINAL)
         Route::get('/{subscriptionId}', [SubscriptionController::class, 'show'])
             ->name('show');
     });
-
-    // Rutas públicas (no requieren autenticación)
-
-    // Páginas de resultado
-    Route::get('/success/{subscriptionId}', [SubscriptionController::class, 'success'])
-        ->name('success');
-
-    Route::get('/failure/{subscriptionId}', [SubscriptionController::class, 'failure'])
-        ->name('failure');
-
-    // Webhook para notificaciones de VirtualPOS (cargos automáticos)
-    Route::post('/webhook', [SubscriptionController::class, 'webhook'])
-        ->name('webhook');
 });

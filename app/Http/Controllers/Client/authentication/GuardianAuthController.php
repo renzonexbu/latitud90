@@ -258,8 +258,10 @@ class GuardianAuthController extends Controller
         // Si viene un token en la URL, guardarlo en sesión para recuperarlo después del login
         $token = $request->query('token');
         $programId = $request->query('program_id');
+        $participantId = $request->query('participant_id');
+        $redirectReason = $request->query('redirect_reason');
 
-        if ($token || $programId) {
+        if ($token || $programId || $redirectReason) {
             $pendingData = $request->session()->get('pending_subscription', []);
 
             if ($token) {
@@ -268,7 +270,18 @@ class GuardianAuthController extends Controller
 
             if ($programId) {
                 $pendingData['program_id'] = $programId;
-                $pendingData['return_url'] = "/programs/{$programId}?token={$token}";
+
+                if ($token) {
+                    $pendingData['return_url'] = "/programs/{$programId}?token={$token}";
+                }
+            }
+
+            if ($participantId) {
+                $pendingData['participant_id'] = $participantId;
+            }
+
+            if ($redirectReason) {
+                $pendingData['redirect_reason'] = $redirectReason;
             }
 
             $request->session()->put('pending_subscription', $pendingData);
@@ -381,6 +394,47 @@ class GuardianAuthController extends Controller
 
             return redirect($pendingSubscription['return_url'])
                 ->with('success', $result['message']);
+        }
+
+        // NUEVA LÓGICA: Verificar si viene de un programa con suscripción activa
+        $pendingData = session('pending_subscription');
+        $redirectReason = $pendingData['redirect_reason'] ?? null;
+        $programId = $pendingData['program_id'] ?? null;
+        $participantId = $pendingData['participant_id'] ?? null;
+
+        if ($redirectReason === 'subscription_access' && $programId && $participantId) {
+            // Limpiar la sesión
+            session()->forget('pending_subscription');
+
+            // Verificar que el guardian logeado tenga permiso para este participante
+            $guardian = auth('guardian')->user();
+
+            if ($guardian && $guardian->canPayFor($participantId)) {
+                // Verificar si hay suscripción activa
+                $subscription = \App\Models\ProgramSubscription::where('participant_id', $participantId)
+                    ->where('program_id', $programId)
+                    ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+                    ->first();
+
+                $paidOrder = \App\Models\Order::where('participant_id', $participantId)
+                    ->where('program_id', $programId)
+                    ->whereIn('status', ['paid', 'completed'])
+                    ->first();
+
+                // Si tiene suscripción o pago completado, redirigir al dashboard
+                if ($subscription || $paidOrder) {
+                    return redirect()
+                        ->route('guardian.dashboard')
+                        ->with('success', 'Bienvenido! Aquí puedes gestionar tus suscripciones.')
+                        ->with('highlight_participant', $participantId);
+                }
+            }
+
+            // Si no tiene permiso o no tiene suscripción, redirigir al ecommerce
+            // Para continuar el flujo de compra normal
+            return redirect()
+                ->route('ecommerce.programs')
+                ->with('info', 'Continúa con el proceso de inscripción.');
         }
 
         return redirect()

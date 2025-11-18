@@ -18,7 +18,7 @@ class ConfirmPaymentController extends Controller
         $this->confirmPaymentService = $confirmPaymentService;
     }
 
-    public function show(Request $request, $programId)
+    public function show(Request $request, $programCourseId)
     {
         // Intentar obtener datos del token primero
         $token = $request->query('token');
@@ -54,11 +54,17 @@ class ConfirmPaymentController extends Controller
         // Generar token para pasar al frontend
         $token = TokenHelper::encodeParticipantToken($document, $documentType);
 
-        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programId, $request->user()->id ?? null, $document);
+        $confirmationData = $this->confirmPaymentService->getConfirmationDetails($programCourseId, $request->user()->id ?? null, $document);
+
+        // Verificar si hay un error (por ejemplo, guardian sin permiso)
+        if (isset($confirmationData['error']) && $confirmationData['error'] === true) {
+            return redirect()->route('ecommerce.programs')
+                ->with('error', $confirmationData['message'] ?? 'No tienes permiso para acceder a esta página.');
+        }
 
         return Inertia::render('Ecommerce/Confirmation', [
             'confirmationData' => $confirmationData,
-            'programId' => $programId,
+            'programCourseId' => $programCourseId,
             'token' => $token
         ]);
     }

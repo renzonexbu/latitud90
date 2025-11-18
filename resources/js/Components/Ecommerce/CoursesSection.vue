@@ -27,43 +27,109 @@
         </div>
 
         <!-- Títulos específicos para cada banner -->
-        <div class="absolute z-10 top-56 left-36 mobile-svg">
-            <transition-group
-                name="fade"
-                tag="div"
-                class="relative"
-            >
+        <div class="absolute z-10 top-20 left-36 mobile-svg">
+            <transition-group name="fade" tag="div" class="relative">
                 <!-- Banner 0: Norte de Chile -->
-                <div v-show="currentBanner === 0" key="0" class="absolute">
-                    <h1 class="banner-title">Norte de Chile</h1>
+                <div v-show="currentBanner === 0" key="0" class="absolute banner-0">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Norte de Chile<span class="title-dot"
+                                >.</span
+                            ></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 1: Sur de Chile -->
-                <div v-show="currentBanner === 1" key="1" class="absolute">
-                    <h1 class="banner-title">Sur de Chile</h1>
+                <div v-show="currentBanner === 1" key="1" class="absolute banner-1">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Sur de Chile<span class="title-dot">.</span></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 2: Perú -->
-                <div v-show="currentBanner === 2" key="2" class="absolute">
-                    <h1 class="banner-title">Perú</h1>
+                <div v-show="currentBanner === 2" key="2" class="absolute banner-2">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Perú<span class="title-dot">.</span></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 3: Brasil -->
-                <div v-show="currentBanner === 3" key="3" class="absolute">
-                    <h1 class="banner-title">Brasil</h1>
+                <div v-show="currentBanner === 3" key="3" class="absolute banner-3">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Brasil<span class="title-dot">.</span></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 4: Estados Unidos -->
-                <div v-show="currentBanner === 4" key="4" class="absolute">
-                    <h1 class="banner-title">Estados Unidos</h1>
+                <div v-show="currentBanner === 4" key="4" class="absolute banner-4">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Estados Unidos<span class="title-dot"
+                                >.</span
+                            ></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 5: Europa -->
-                <div v-show="currentBanner === 5" key="5" class="absolute">
-                    <h1 class="banner-title">Europa</h1>
+                <div v-show="currentBanner === 5" key="5" class="absolute banner-5">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Europa<span class="title-dot">.</span></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 6: Campamentos -->
-                <div v-show="currentBanner === 6" key="6" class="absolute">
-                    <h1 class="banner-title">Campamentos</h1>
+                <div v-show="currentBanner === 6" key="6" class="absolute banner-6">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Campamentos<span class="title-dot">.</span></span
+                        >
+                    </h1>
                 </div>
                 <!-- Banner 7: Centro de Desafíos Lat90 -->
-                <div v-show="currentBanner === 7" key="7" class="absolute">
-                    <h1 class="banner-title">Centro de Desafíos Lat90</h1>
+                <div v-show="currentBanner === 7" key="7" class="absolute banner-7">
+                    <h1 class="banner-title">
+                        <span class="title-main"
+                            >Viaja <span class="title-a">a</span></span
+                        >
+                        <br />
+                        <span class="title-main-2"
+                            >Centro de Desafíos Lat90<span class="title-dot"
+                                >.</span
+                            ></span
+                        >
+                    </h1>
                 </div>
             </transition-group>
         </div>
@@ -116,14 +182,20 @@ export default {
         return {
             currentBanner: 0,
             banners: [
-                { url: '/images/banners/NORTE_CHILE.webp', position: 'center 75%' },
-                { url: '/images/banners/SUR_DE_CHILE.webp', position: 'center' },
-                { url: '/images/banners/PERÚ.webp', position: 'center' },
-                { url: '/images/banners/BRASIL.webp', position: 'center' },
-                { url: '/images/banners/USA.webp', position: 'center' },
-                { url: '/images/banners/EUROPA.webp', position: 'center' },
-                { url: '/images/banners/CAMPAMENTOS.webp', position: 'center' },
-                { url: '/images/banners/CEAL.webp', position: 'center 75%' }
+                {
+                    url: "/images/banners/NORTE_CHILE.webp",
+                    position: "center 75%",
+                },
+                {
+                    url: "/images/banners/SUR_DE_CHILE.webp",
+                    position: "center",
+                },
+                { url: "/images/banners/PERÚ.webp", position: "center" },
+                { url: "/images/banners/BRASIL.webp", position: "center" },
+                { url: "/images/banners/USA.webp", position: "center" },
+                { url: "/images/banners/EUROPA.webp", position: "center" },
+                { url: "/images/banners/CAMPAMENTOS.webp", position: "center" },
+                { url: "/images/banners/CEAL.webp", position: "center 75%" },
             ],
             autoPlayInterval: null,
         };
@@ -165,7 +237,7 @@ export default {
 }
 
 .boton-m {
-    background: var(--colores-op2-rojo, #d54a42);
+    background: rgb(0, 126, 147);
     border-radius: 51px;
     padding: 18px 28px 18px 28px;
     display: flex;
@@ -184,7 +256,9 @@ export default {
 @media (max-width: 767px) {
     .mobile-svg {
         top: 7rem !important;
-        left: 1rem !important;
+        left: 0.5rem !important;
+        right: 0.5rem !important;
+        max-width: calc(100vw - 1rem) !important;
     }
 
     .mobile-svg svg {
@@ -210,6 +284,11 @@ export default {
         margin: 0 auto !important;
     }
 
+    .mobile-button .placeholder {
+        font-size: 14px !important;
+        line-height: 18px !important;
+    }
+
     .mobile-indicators {
         display: none !important;
     }
@@ -217,6 +296,11 @@ export default {
 
 /* Estilos para desktop */
 @media (min-width: 768px) {
+    .mobile-svg {
+        top: 37% !important;
+        transform: translateY(-50%) !important;
+    }
+
     .mobile-button {
         top: 65% !important;
         right: 10rem !important;
@@ -235,7 +319,7 @@ export default {
 }
 
 .boton-m:hover {
-    background: #c23e37;
+    background: #01788d;
 }
 
 .placeholder {
@@ -269,30 +353,128 @@ section {
 
 /* Oscurecer las imágenes del banner */
 .banner-image::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.25);
+    background-color: rgba(0, 0, 0, 0.45);
     pointer-events: none;
 }
 
 /* Estilos para el título del banner */
 .banner-title {
-    color: #FFB232;
-    font-family: "Nexa-Bold", sans-serif;
-    font-size: 48px;
-    font-weight: 900;
-    line-height: 1.2;
-    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+    display: block;
     margin: 0;
 }
 
+.title-main {
+    color: #fff;
+    font-family: "Nexa", sans-serif;
+    font-size: 70px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 150%;
+    display: inline;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+.title-main-2 {
+    color: #fff;
+    font-family: "Nexa", sans-serif;
+    font-size: 70px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 150%;
+    display: inline-block;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    position: relative;
+    transform: translate(20px, -20px);
+    z-index: 9;
+}
+
+.title-a {
+    color: #d54a42;
+    font-family: "FONTSPRING DEMO - Quincy CF Text", sans-serif;
+    font-size: 65px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 150%;
+    display: inline-block;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+    position: relative;
+    transform: translate(-40px, 35px);
+    z-index: 10;
+}
+
+.title-dot {
+    color: #d54a42;
+    font-family: "Nexa", sans-serif;
+    font-size: 70px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 150%;
+    display: inline;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+}
+
 @media (max-width: 767px) {
-    .banner-title {
-        font-size: 32px;
+    .title-main {
+        font-size: 52px;
+    }
+    .title-main-2 {
+        display: inline-block;
+        position: relative;
+        transform: translate(15px, -5px);
+        font-size: 52px;
+        white-space: normal !important;
+        max-width: calc(100vw - 3rem) !important;
+    }
+
+    .title-a {
+        font-size: 50px;
+        transform: translate(-25px, 25px);
+        z-index: 10;
+    }
+
+    .title-dot {
+        font-size: 52px;
+    }
+
+    /* Tamaños específicos para títulos largos */
+    .banner-4 .title-main-2,  /* Estados Unidos */
+    .banner-7 .title-main-2   /* Centro de Desafíos Lat90 */
+    {
+        font-size: 38px !important;
+    }
+
+    /* Estilos para Campamentos - todos los elementos proporcionales */
+    .banner-6 .title-main {
+        font-size: 42px !important;
+    }
+
+    .banner-6 .title-a {
+        font-size: 40px !important;
+        transform: translate(-20px, 20px) !important;
+    }
+
+    .banner-6 .title-main-2 {
+        font-size: 42px !important;
+        transform: translate(8px, -5px) !important;
+        max-width: calc(100vw - 2rem) !important;
+        white-space: normal !important;
+        word-break: normal !important;
+    }
+
+    .banner-6 .title-dot {
+        font-size: 42px !important;
+    }
+
+    .banner-4 .title-dot,
+    .banner-7 .title-dot {
+        font-size: 38px !important;
     }
 }
 </style>

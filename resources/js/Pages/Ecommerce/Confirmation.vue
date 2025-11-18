@@ -168,6 +168,8 @@ export default {
         return {
             document: null,
             document_type: null,
+            selectedPayment: null, // {paymentType, paymentMethod, installments}
+            isProcessingPayment: false,
         };
     },
     created() {
@@ -297,6 +299,86 @@ export default {
             const card = this.$refs.confirmCard;
             if (card && selection) {
                 card.currentInstallments = selection.installments || 1;
+            }
+            // Guardar selección de pago
+            this.selectedPayment = selection;
+        },
+
+        async handlePaymentButtonClick() {
+            // Verificar que hay una selección de pago
+            if (!this.selectedPayment) {
+                this.showAlertMessage('error', 'Error', 'Por favor selecciona un método de pago');
+                return;
+            }
+
+            // Solo manejar suscripciones aquí
+            if (this.selectedPayment.paymentType !== 'monthly') {
+                // Para pagos totales, redirigir a la página de pago normal
+                const paymentUrl = `/programs/${this.programId}/payment?from=confirmation&token=${this.token}`;
+                window.location.href = paymentUrl;
+                return;
+            }
+
+            // Verificar que el método de pago sea suscripción
+            if (this.selectedPayment.paymentMethod !== 'subscription_virtualpos') {
+                this.showAlertMessage('error', 'Error', 'Método de pago no válido para suscripciones');
+                return;
+            }
+
+            try {
+                this.isProcessingPayment = true;
+
+                // Preparar datos del participante desde confirmationData
+                const participantData = {
+                    document_number: this.confirmationData.form_data.document_number,
+                    first_name: this.confirmationData.form_data.name.split(' ')[0],
+                    first_last_name: this.confirmationData.form_data.name.split(' ').slice(1).join(' ') || this.confirmationData.form_data.name,
+                    email: this.confirmationData.form_data.email,
+                    phone: this.confirmationData.form_data.phone,
+                    code_phone: this.confirmationData.form_data.code_phone || '+56',
+                    city: this.confirmationData.form_data.city,
+                };
+
+                // Crear formulario para enviar datos
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/subscription/create-from-confirmation';
+
+                // Agregar CSRF token
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                if (csrfToken) {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = '_token';
+                    csrfInput.value = csrfToken;
+                    form.appendChild(csrfInput);
+                }
+
+                // Agregar datos al formulario
+                const addField = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value;
+                    form.appendChild(input);
+                };
+
+                addField('program_course_id', this.programId);
+                addField('installments', this.selectedPayment.installments);
+
+                // Agregar datos del participante
+                Object.keys(participantData).forEach(key => {
+                    addField(`participant[${key}]`, participantData[key]);
+                });
+
+                // Enviar formulario
+                document.body.appendChild(form);
+                form.submit();
+
+            } catch (error) {
+                console.error('Error al crear suscripción:', error);
+                this.showAlertMessage('error', 'Error', 'Error al procesar la suscripción. Por favor intenta nuevamente.');
+                this.isProcessingPayment = false;
             }
         },
         handleTermsAcceptedUpdate(termsAccepted) {

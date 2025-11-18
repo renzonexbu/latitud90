@@ -351,6 +351,11 @@ export default {
             type: Boolean,
             default: true
         },
+        participantDocument: {
+            type: String,
+            required: false,
+            default: null
+        },
     },
     watch: {
         selectedInstallments: {
@@ -620,16 +625,34 @@ export default {
                 if (type === "monthly") {
                     this.totalPaymentOption = null;
 
-                    // Obtener cuotas disponibles
-                    const availableInstallments = this.getAvailableInstallments();
-                    this.selectedInstallments = availableInstallments[0] || 1;
+                    // VALIDACIÓN: Verificar que el guardian logeado tenga permiso para pagar por este participante
+                    this.validateGuardianPermission()
+                        .then((hasPermission) => {
+                            if (!hasPermission) {
+                                // Guardian no tiene permiso: resetear selección y no continuar
+                                this.paymentType = null;
+                                this.accordionOpen = null;
+                                return;
+                            }
 
-                    // Seleccionar la primera opción disponible por defecto
-                    const availableOptions = this.getMonthlyPaymentOptions();
-                    if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
-                        this.monthlyPaymentOption = availableOptions[0].value;
-                    }
+                            // Guardian tiene permiso o no hay guardian: continuar normalmente
+                            // Obtener cuotas disponibles
+                            const availableInstallments = this.getAvailableInstallments();
+                            this.selectedInstallments = availableInstallments[0] || 1;
 
+                            // Seleccionar la primera opción disponible por defecto
+                            const availableOptions = this.getMonthlyPaymentOptions();
+                            if (availableOptions.length > 0 && !this.monthlyPaymentOption) {
+                                this.monthlyPaymentOption = availableOptions[0].value;
+                            }
+
+                            // Guardar en localStorage en tiempo real
+                            this.savePaymentDataToLocalStorage();
+                            this.emitSelection();
+                        });
+
+                    // Retornar temprano para evitar guardar datos antes de validar
+                    return;
 
                 } else if (type === "total") {
                     this.monthlyPaymentOption = null;
@@ -813,6 +836,16 @@ export default {
                 return;
             }
 
+            // Si está en modo confirmación, emitir evento al padre
+            if (this.isConfirmation) {
+                this.$emit('payment-button-clicked', {
+                    paymentType: this.paymentType,
+                    paymentMethod: this.paymentType === 'total' ? this.totalPaymentOption : this.monthlyPaymentOption,
+                    installments: this.paymentType === 'monthly' ? this.selectedInstallments : 1,
+                });
+                return;
+            }
+
             // NUEVA VALIDACIÓN: Si es pago mensual, verificar autenticación de guardian
             if (this.paymentType === 'monthly') {
                 const isGuardianLoggedIn = this.$page.props.auth?.guardian !== null;
@@ -830,6 +863,20 @@ export default {
                     this.showGuardianModal = true;
                     return;
                 }
+
+                // VALIDACIÓN CRÍTICA: Verificar que el guardian tenga permiso para pagar por este participante
+                this.validateGuardianPermission()
+                    .then((hasPermission) => {
+                        if (!hasPermission) {
+                            // Guardian no tiene permiso: NO continuar (ya se manejó en validateGuardianPermission)
+                            return;
+                        }
+
+                        // Guardian tiene permiso: continuar con el pago
+                        this.processPaymentNavigation();
+                    });
+
+                return; // No continuar hasta validar permisos
             }
 
             // Si no es mensual o ya está autenticado, continuar con el flujo normal
@@ -991,6 +1038,60 @@ export default {
                 return 'Selecciona método de pago';
             }
             return 'Iniciar pago';
+        },
+        async validateGuardianPermission() {
+            try {
+                // Obtener el RUT del participante desde props
+                const participantDocument = this.participantDocument;
+
+                if (!participantDocument) {
+                    return true; // Permitir continuar si no hay documento
+                }
+
+                // Hacer petición al backend para validar permisos
+                const response = await fetch('/guardian/validate-payment-permission', {
+                    method: 'POST',
+                    credentials: 'same-origin', // ⚠️ CRÍTICO: Enviar cookies de sesión
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        participant_document: participantDocument
+                    })
+                });
+
+                const data = await response.json();
+
+                // Si no tiene permiso, cerrar sesión y mostrar modal de login
+                if (!data.has_permission) {
+                    // Cerrar sesión del guardian
+                    await fetch('/guardian/logout', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                        }
+                    });
+
+                    // Mostrar mensaje al usuario
+                    alert('Para realizar pagos de suscripción por este participante, debes iniciar sesión con la cuenta correcta.');
+
+                    // Emitir evento para mostrar modal de login (si existe)
+                    this.$emit('show-login-modal');
+
+                    // Reload la página para refrescar el estado de auth
+                    window.location.reload();
+
+                    return false;
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error('Error validando permisos de guardian:', error);
+                // En caso de error, permitir continuar (fail-open para no bloquear flujo)
+                return true;
+            }
         },
     },
     computed: {

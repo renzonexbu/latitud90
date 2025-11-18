@@ -8,7 +8,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Participant;
+use App\Models\ProgramSubscription;
+use App\Models\InstallmentPlan;
+use App\Models\Order;
+use App\Services\Subscription\VirtualPosSubscriptionService;
+use App\Helpers\ParticipantPriceHelper;
 use Exception;
 
 class SubscriptionController extends Controller
@@ -183,6 +189,535 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Crear suscripción desde la página de confirmación
+     * Este método maneja el flujo completo de creación de suscripción con VirtualPos
+     */
+    public function createFromConfirmation(Request $request)
+    {
+        try {
+            // Validar datos de entrada
+            $request->validate([
+                'program_course_id' => 'required|exists:program_courses,id',
+                // Datos del COMPRADOR (buyer/guardian) - para VirtualPos
+                'buyer' => 'required|array',
+                'buyer.document_number' => 'required|string',
+                'buyer.document_type' => 'nullable|string',
+                'buyer.original_document_number' => 'nullable|string',
+                'buyer.first_name' => 'required|string',
+                'buyer.first_last_name' => 'required|string',
+                'buyer.email' => 'required|email',
+                'buyer.phone' => 'required|string',
+                'buyer.code_phone' => 'required|string',
+                // Datos del PARTICIPANTE - para asociación en BD
+                'participant' => 'required|array',
+                'participant.document_number' => 'required|string',
+                'participant.name' => 'required|string',
+                'installments' => 'required|integer|min:1|max:12',
+            ]);
+
+            $programCourseId = $request->input('program_course_id');
+            $buyerData = $request->input('buyer');
+            $participantData = $request->input('participant');
+            $installments = $request->input('installments');
+
+            // Cargar program_course con sus relaciones
+            $programCourse = ProgramCourse::with(['program', 'course'])->findOrFail($programCourseId);
+
+            // Verificar que el program_course tiene un plan de VirtualPos
+            if (!$programCourse->virtualpos_plan_id) {
+                throw new Exception('Este programa no tiene un plan de suscripción configurado.');
+            }
+
+            // Buscar participante usando los datos recibidos
+            $cleanParticipantDocument = preg_replace('/[.-]/', '', $participantData['document_number']);
+            $cleanBuyerDocument = preg_replace('/[.-]/', '', $buyerData['document_number']);
+
+            Log::info('Buscando participante y datos del comprador', [
+                'participant_document_original' => $participantData['document_number'],
+                'participant_document_clean' => $cleanParticipantDocument,
+                'participant_name' => $participantData['name'],
+                'buyer_document_type' => $buyerData['document_type'] ?? 'RUT',
+                'buyer_document_for_virtualpos' => $buyerData['document_number'], // Este es el RUT que va a VirtualPos (11111111-1 si no es RUT chileno)
+                'buyer_original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
+                'buyer_document_clean' => $cleanBuyerDocument,
+                'buyer_name' => $buyerData['first_name'] . ' ' . $buyerData['first_last_name'],
+                'buyer_email' => $buyerData['email']
+            ]);
+
+            $participant = Participant::where('document_number', $cleanParticipantDocument)->first();
+
+            if (!$participant) {
+                throw new Exception('Participante no encontrado. Debe estar inscrito en el programa primero.');
+            }
+
+            // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso para pagar por este participante
+            if (auth('guardian')->check()) {
+                $guardian = auth('guardian')->user();
+
+                if (!$guardian->canPayFor($participant->id)) {
+                    Log::warning('Guardian sin permiso intenta pagar por participante', [
+                        'guardian_id' => $guardian->id,
+                        'guardian_email' => $guardian->email,
+                        'participant_id' => $participant->id,
+                        'participant_document' => $participant->document_number,
+                        'participant_name' => $participant->full_name
+                    ]);
+
+                    throw new Exception('No tienes permiso para realizar pagos por este participante. Por favor contacta a soporte si crees que esto es un error.');
+                }
+
+                Log::info('Guardian autorizado confirmado', [
+                    'guardian_id' => $guardian->id,
+                    'guardian_email' => $guardian->email,
+                    'participant_id' => $participant->id
+                ]);
+            }
+
+            Log::info('Participante encontrado', [
+                'participant_id' => $participant->id,
+                'participant_document' => $participant->document_number,
+                'participant_name' => $participant->full_name
+            ]);
+
+            // Calcular el monto total y el monto de la primera cuota
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $totalAmount = $priceData['final_price'];
+            $firstInstallmentAmount = ceil($totalAmount / $installments);
+
+            // Construir datos del COMPRADOR para VirtualPos (no del participante)
+            // NOTA: Si el documento no es RUT chileno, el frontend ya envió "11111111-1" como document_number
+            $clientData = [
+                'email' => $buyerData['email'],
+                'name' => $buyerData['first_name'],
+                'surname' => $buyerData['first_last_name'],
+                'rut' => $buyerData['document_number'], // Ya viene como "11111111-1" si no es RUT chileno
+                'document_type' => $buyerData['document_type'] ?? 'RUT',
+                'original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
+                'phone' => str_replace('+', '', $buyerData['code_phone']) . $buyerData['phone'], // Quitar el '+'
+                'address' => [
+                    'street' => '',
+                    'city' => $buyerData['city'] ?? 'Santiago',
+                    'country' => 'CL'
+                ]
+            ];
+
+            // Generar service_id único
+            $serviceId = 'SUB_' . $programCourse->id . '_' . $participant->id . '_' . time();
+
+            // Inicializar servicio de VirtualPos
+            $virtualPosService = new VirtualPosSubscriptionService();
+
+            // Construir URLs de callback y retorno
+            $returnUrl = route('api.subscription.return');
+            $callbackUrl = route('api.subscription.callback');
+
+            // Construir datos de la suscripción
+            $subscriptionData = $virtualPosService->buildSubscriptionData([
+                'plan_id' => $programCourse->virtualpos_plan_id,
+                'service_id' => $serviceId,
+                'amount' => $firstInstallmentAmount,
+                'currency' => 'CLP',
+                'automatic_renewal' => 'F', // Sin renovación automática
+                'channel' => 'WEB',
+                'client' => $clientData,
+                'return_url' => $returnUrl,
+                'callback_url' => $callbackUrl,
+            ]);
+
+            Log::info('Creando suscripción desde confirmación', [
+                'program_course_id' => $programCourse->id,
+                'participant_id' => $participant->id,
+                'participant_document' => $participant->document_number,
+                'participant_name' => $participant->full_name,
+                'buyer_document_type' => $buyerData['document_type'] ?? 'RUT',
+                'buyer_rut_for_virtualpos' => $buyerData['document_number'], // Este va a VirtualPos (11111111-1 si no es chileno)
+                'buyer_original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
+                'buyer_name' => $buyerData['first_name'] . ' ' . $buyerData['first_last_name'],
+                'buyer_email' => $buyerData['email'],
+                'plan_id' => $programCourse->virtualpos_plan_id,
+                'service_id' => $serviceId,
+                'amount' => $firstInstallmentAmount,
+                'installments' => $installments,
+                'total_amount' => $totalAmount,
+                'client_data_for_virtualpos' => $clientData
+            ]);
+
+            DB::beginTransaction();
+
+            // Crear suscripción en VirtualPos
+            $response = $virtualPosService->createSubscription($subscriptionData);
+
+            // Mapear estado de VirtualPos
+            $status = match($response['suscription']['status'] ?? $response['status'] ?? null) {
+                'ACTIVA', 'SUSCRIBIENDO', 'CANCELADA', 'FINALIZADA' => $response['suscription']['status'] ?? $response['status'],
+                'SUSCRIPCION_FALLIDA', 'NOK', 'ERROR' => 'SUSCRIPCION_FALLIDA',
+                default => 'SUSCRIBIENDO'
+            };
+
+            // Guardar suscripción en la base de datos
+            $subscription = ProgramSubscription::create([
+                'participant_id' => $participant->id,
+                'program_id' => $programCourse->id, // Almacenamos el program_course_id
+                'virtualpos_subscription_id' => $response['suscription']['id'] ?? $response['id'] ?? null,
+                'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
+                'plan_name' => $response['suscription']['plan_name'] ?? $response['plan_name'] ?? $programCourse->name,
+                'status' => $status,
+                'amount' => $firstInstallmentAmount,
+                'currency' => 'CLP',
+                'automatic_renewal' => 'F', // Sin renovación automática
+                'subscription_date' => $response['suscription']['suscription_date'] ?? $response['suscription_date'] ?? now(),
+                'channel' => 'WEB',
+                'service_id' => $serviceId,
+                'payment_method' => $response['suscription']['payment_method'] ?? $response['payment_method'] ?? null,
+                'charge_program' => $response['suscription']['charge_program'] ?? $response['charge_program'] ?? null,
+                'client_data' => $clientData,
+                'api_response' => $response,
+            ]);
+
+            // Crear orden asociada a la suscripción
+            $order = Order::create([
+                'participant_id' => $participant->id,
+                'program_id' => $programCourse->id, // program_id ahora apunta a program_courses
+                'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
+                'total_amount' => $totalAmount,
+                'final_amount' => $totalAmount,
+                'total_installments' => $installments,
+                'status' => 'pending',
+                'payment_type' => 'monthly', // Usar 'monthly' en lugar de 'subscription'
+            ]);
+
+            // Crear OrderDetail asociado a la orden
+            $orderDetail = \App\Models\OrderDetail::create([
+                'order_id' => $order->id,
+                'program_id' => $programCourse->id,
+                'participant_id' => $participant->id,
+                'name' => $programCourse->name ?? 'Programa de suscripción',
+                'email' => $buyerData['email'],
+                'quantity' => 1,
+                'unit_price' => $totalAmount,
+                'total_price' => $totalAmount,
+                'discount' => 0,
+                'discount_type' => null,
+            ]);
+
+            // Crear plan de cuotas en la base de datos local
+            $installmentPlan = InstallmentPlan::create([
+                'order_id' => $order->id,
+                'program_id' => $programCourse->id, // program_id ahora apunta a program_courses
+                'participant_id' => $participant->id,
+                'total_amount' => $totalAmount,
+                'total_installments' => $installments,
+                'payment_type' => 'monthly',
+                'status' => 'active',
+                'start_date' => now(),
+                'notes' => 'Plan de suscripción VirtualPos - ' . $installments . ' cuotas',
+            ]);
+
+            // Crear las cuotas individuales usando el charge_program de VirtualPos
+            $chargeProgram = $response['suscription']['charge_program'] ?? $response['charge_program'] ?? [];
+
+            if (empty($chargeProgram)) {
+                throw new Exception('No se recibió charge_program de VirtualPos');
+            }
+
+            foreach ($chargeProgram as $index => $charge) {
+                // Convertir el status de VirtualPos a nuestro formato
+                $status = 'pending';
+                $isPaid = false;
+                if (isset($charge['status'])) {
+                    if ($charge['status'] === 'pagado') {
+                        $status = 'paid';
+                        $isPaid = true;
+                    }
+                }
+
+                $installmentPlan->installments()->create([
+                    'installment_number' => $index + 1,
+                    'virtualpos_charge_id' => $charge['id'],
+                    'amount' => $charge['amount'],
+                    'due_date' => $charge['charge_date'],
+                    'status' => $status,
+                    'is_paid' => $isPaid,
+                    'paid_at' => $isPaid ? now() : null,
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Suscripción creada exitosamente', [
+                'subscription_id' => $subscription->id,
+                'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+                'order_id' => $order->id,
+                'installment_plan_id' => $installmentPlan->id,
+                'url_redirect' => $response['url_redirect'] ?? null
+            ]);
+
+            // Redirigir a VirtualPos para completar el pago
+            if (!empty($response['url_redirect'])) {
+                return redirect()->away($response['url_redirect']);
+            }
+
+            // Fallback: si no hay URL de redirect, mostrar error
+            throw new Exception('No se recibió URL de redirección de VirtualPos');
+
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            Log::error('Error al crear suscripción desde confirmación', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['error' => 'Error al crear la suscripción: ' . $e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    /**
+     * URL de retorno después de pagar en VirtualPos
+     * Este método verifica el estado de la suscripción y redirige a success o failure
+     */
+    public function returnUrl(Request $request)
+    {
+        try {
+            Log::info('VirtualPos Return URL recibido', [
+                'method' => $request->method(),
+                'all_params' => $request->all(),
+                'query' => $request->query(),
+                'input' => $request->input()
+            ]);
+
+            // VirtualPos puede enviar el service_id, subscription_id o uuid
+            $serviceId = $request->input('service_id') ?? $request->query('service_id');
+            $subscriptionId = $request->input('subscription_id') ?? $request->query('subscription_id');
+            $uuid = $request->input('uuid') ?? $request->query('uuid');
+
+            if (!$serviceId && !$subscriptionId && !$uuid) {
+                throw new Exception('No se recibió service_id, subscription_id ni uuid desde VirtualPos');
+            }
+
+            // Buscar la suscripción en nuestra base de datos
+            $subscription = null;
+            if ($subscriptionId) {
+                $subscription = ProgramSubscription::where('virtualpos_subscription_id', $subscriptionId)->first();
+            } elseif ($uuid) {
+                $subscription = ProgramSubscription::where('virtualpos_subscription_id', $uuid)->first();
+            } elseif ($serviceId) {
+                $subscription = ProgramSubscription::where('service_id', $serviceId)->first();
+            }
+
+            if (!$subscription) {
+                throw new Exception('Suscripción no encontrada en la base de datos');
+            }
+
+            Log::info('Suscripción encontrada en BD', [
+                'subscription_id' => $subscription->id,
+                'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+                'service_id' => $subscription->service_id,
+                'current_status' => $subscription->status
+            ]);
+
+            // Consultar el estado actual en VirtualPos
+            $virtualPosService = new VirtualPosSubscriptionService();
+            $virtualPosResponse = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
+
+            Log::info('Estado de suscripción en VirtualPos', [
+                'virtualpos_response' => $virtualPosResponse,
+                'status' => $virtualPosResponse['suscription']['status'] ?? 'unknown'
+            ]);
+
+            $virtualPosStatus = $virtualPosResponse['suscription']['status'] ?? null;
+
+            // Actualizar estado de la suscripción en nuestra BD
+            $subscription->update([
+                'status' => $virtualPosStatus,
+                'payment_method' => $virtualPosResponse['suscription']['payment_method'] ?? null,
+                'charge_program' => $virtualPosResponse['suscription']['charge_program'] ?? null,
+                'api_response' => $virtualPosResponse,
+            ]);
+
+            // SINCRONIZAR CUOTAS CON VIRTUALPOS
+            // Buscar la orden y el plan de cuotas asociado a esta suscripción
+            $order = Order::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->where('order_number', 'LIKE', 'SUB-%')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($order) {
+                $installmentPlan = InstallmentPlan::where('order_id', $order->id)
+                    ->where('participant_id', $subscription->participant_id)
+                    ->first();
+
+                if ($installmentPlan) {
+                    // Obtener el charge_program de VirtualPos
+                    $chargeProgram = $virtualPosResponse['suscription']['charge_program'] ?? [];
+
+                    if (!empty($chargeProgram)) {
+                        Log::info('Sincronizando cuotas con VirtualPos', [
+                            'subscription_id' => $subscription->id,
+                            'total_charges' => count($chargeProgram)
+                        ]);
+
+                        foreach ($chargeProgram as $index => $charge) {
+                            // Buscar si ya existe una cuota con este virtualpos_charge_id
+                            $installment = $installmentPlan->installments()
+                                ->where('virtualpos_charge_id', $charge['id'])
+                                ->first();
+
+                            // Convertir el status de VirtualPos a nuestro formato
+                            $status = 'pending';
+                            $isPaid = false;
+                            if (isset($charge['status'])) {
+                                if ($charge['status'] === 'pagado') {
+                                    $status = 'paid';
+                                    $isPaid = true;
+                                }
+                            }
+
+                            if ($installment) {
+                                // Actualizar cuota existente
+                                $installment->update([
+                                    'amount' => $charge['amount'],
+                                    'due_date' => $charge['charge_date'],
+                                    'status' => $status,
+                                    'is_paid' => $isPaid,
+                                    'paid_at' => $isPaid ? ($installment->paid_at ?? now()) : null,
+                                ]);
+
+                                Log::info('Cuota actualizada', [
+                                    'installment_id' => $installment->id,
+                                    'virtualpos_charge_id' => $charge['id'],
+                                    'status' => $status
+                                ]);
+                            } else {
+                                // Crear nueva cuota si no existe
+                                $installmentPlan->installments()->create([
+                                    'installment_number' => $index + 1,
+                                    'virtualpos_charge_id' => $charge['id'],
+                                    'amount' => $charge['amount'],
+                                    'due_date' => $charge['charge_date'],
+                                    'status' => $status,
+                                    'is_paid' => $isPaid,
+                                    'paid_at' => $isPaid ? now() : null,
+                                ]);
+
+                                Log::info('Cuota creada', [
+                                    'installment_number' => $index + 1,
+                                    'virtualpos_charge_id' => $charge['id'],
+                                    'status' => $status
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Si la suscripción está ACTIVA, redirigir a éxito
+            if ($virtualPosStatus === 'ACTIVA') {
+                Log::info('Suscripción ACTIVA, redirigiendo a success');
+
+                // Generar token firmado para seguridad
+                $token = encrypt([
+                    'subscription_id' => $subscription->id,
+                    'participant_id' => $subscription->participant_id,
+                    'timestamp' => now()->timestamp
+                ]);
+
+                return redirect()->route('subscription.success', ['subscriptionId' => $subscription->id])
+                    ->with('subscription_token', $token);
+            }
+
+            // Si no está activa, redirigir a failure
+            Log::info('Suscripción NO activa, redirigiendo a failure', [
+                'status' => $virtualPosStatus
+            ]);
+
+            $token = encrypt([
+                'subscription_id' => $subscription->id,
+                'participant_id' => $subscription->participant_id,
+                'timestamp' => now()->timestamp
+            ]);
+
+            return redirect()->route('subscription.failure', ['subscriptionId' => $subscription->id])
+                ->with('subscription_token', $token);
+
+        } catch (Exception $e) {
+            Log::error('Error en returnUrl', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return redirect()->route('ecommerce.programs')
+                ->with('error', 'Hubo un problema al procesar tu suscripción. Por favor contacta a soporte.');
+        }
+    }
+
+    /**
+     * Callback para notificaciones asíncronas de VirtualPos
+     * VirtualPos llama este endpoint cuando hay cambios en la suscripción
+     */
+    public function callback(Request $request)
+    {
+        try {
+            Log::info('VirtualPos Callback recibido', [
+                'all_params' => $request->all(),
+                'headers' => $request->headers->all()
+            ]);
+
+            $serviceId = $request->input('service_id');
+            $subscriptionId = $request->input('subscription_id');
+            $status = $request->input('status');
+
+            if (!$serviceId && !$subscriptionId) {
+                Log::warning('Callback sin service_id ni subscription_id');
+                return response()->json(['status' => 'error', 'message' => 'Missing identifiers'], 400);
+            }
+
+            // Buscar la suscripción
+            $subscription = null;
+            if ($subscriptionId) {
+                $subscription = ProgramSubscription::where('virtualpos_subscription_id', $subscriptionId)->first();
+            } elseif ($serviceId) {
+                $subscription = ProgramSubscription::where('service_id', $serviceId)->first();
+            }
+
+            if (!$subscription) {
+                Log::warning('Callback para suscripción no encontrada', [
+                    'service_id' => $serviceId,
+                    'subscription_id' => $subscriptionId
+                ]);
+                return response()->json(['status' => 'error', 'message' => 'Subscription not found'], 404);
+            }
+
+            // Actualizar estado
+            $subscription->update([
+                'status' => $status,
+                'api_response' => $request->all(),
+            ]);
+
+            Log::info('Suscripción actualizada desde callback', [
+                'subscription_id' => $subscription->id,
+                'new_status' => $status
+            ]);
+
+            return response()->json(['status' => 'OK', 'message' => 'Callback processed successfully']);
+
+        } catch (Exception $e) {
+            Log::error('Error en callback', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json(['status' => 'error', 'message' => 'Internal server error'], 500);
+        }
+    }
+
+    /**
      * Listar suscripciones del guardian
      */
     public function mySubscriptions(Request $request)
@@ -256,21 +791,196 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Página de éxito después de crear suscripción
+     * Página de éxito después de procesar pago (suscripción o pago total)
      */
     public function success(Request $request, int $subscriptionId)
     {
         try {
-            // TODO: Cargar suscripción desde BD cuando esté implementado
+            // Validar token de seguridad (opcional si viene de session)
+            $sessionToken = session('subscription_token');
+            if ($sessionToken) {
+                try {
+                    $tokenData = decrypt($sessionToken);
 
-            return inertia('Subscription/Success', [
-                'subscription_id' => $subscriptionId
+                    // Verificar que el token corresponde a esta suscripción
+                    if ($tokenData['subscription_id'] != $subscriptionId) {
+                        throw new Exception('Token no válido para esta suscripción');
+                    }
+
+                    // Validar que no sea muy antiguo (máximo 1 hora)
+                    if (now()->timestamp - $tokenData['timestamp'] > 3600) {
+                        throw new Exception('Token expirado');
+                    }
+                } catch (Exception $e) {
+                    Log::warning('Token de suscripción inválido', [
+                        'error' => $e->getMessage(),
+                        'subscription_id' => $subscriptionId
+                    ]);
+
+                    return redirect()->route('ecommerce.programs')
+                        ->with('error', 'Sesión expirada. Por favor intenta nuevamente.');
+                }
+            }
+
+            // Intentar cargar suscripción primero
+            $subscription = ProgramSubscription::with(['participant', 'programCourse'])
+                ->find($subscriptionId);
+
+            // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso
+            if ($subscription && auth('guardian')->check()) {
+                $guardian = auth('guardian')->user();
+
+                if (!$guardian->canPayFor($subscription->participant_id)) {
+                    Log::warning('Guardian sin permiso intenta ver página de éxito', [
+                        'guardian_id' => $guardian->id,
+                        'subscription_id' => $subscriptionId,
+                        'participant_id' => $subscription->participant_id
+                    ]);
+
+                    return redirect()->route('ecommerce.programs')
+                        ->with('error', 'No tienes permiso para ver esta página.');
+                }
+            }
+
+            // Buscar la orden asociada
+            $order = null;
+            if ($subscription) {
+                $order = Order::where('participant_id', $subscription->participant_id)
+                    ->where('program_id', $subscription->program_id)
+                    ->where('order_number', 'LIKE', 'SUB-%')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+            } else {
+                // Si no hay suscripción, buscar orden por ID
+                $order = Order::find($subscriptionId);
+            }
+
+            if (!$order) {
+                throw new Exception('No se encontró la orden o suscripción');
+            }
+
+            $paymentType = $order->payment_type; // 'total' o 'monthly'
+
+            Log::info('Procesando éxito de pago', [
+                'order_id' => $order->id,
+                'payment_type' => $paymentType,
+                'subscription_id' => $subscription ? $subscription->id : null,
+                'order_status' => $order->status
             ]);
+
+            DB::beginTransaction();
+
+            try {
+                // CASO 1: SUSCRIPCIÓN (monthly)
+                if ($paymentType === 'monthly' && $subscription && $subscription->status === 'ACTIVA') {
+
+                    if ($order->status === 'pending') {
+                        // Actualizar estado de la orden a "active" (suscripción activa)
+                        $order->update([
+                            'status' => 'processing'
+                        ]);
+
+                        Log::info('Orden de suscripción actualizada a processing', [
+                            'order_id' => $order->id,
+                            'subscription_id' => $subscription->id,
+                            'note' => 'La suscripción está activa. Los cobros se procesarán según el charge_program de VirtualPos.'
+                        ]);
+
+                        // NOTA: NO marcamos cuotas como pagadas aquí porque VirtualPos no cobra inmediatamente
+                        // Los cobros se realizarán en las fechas programadas según el charge_program
+                        // Los webhooks de VirtualPos nos notificarán cuando se realicen los cobros
+                    }
+
+                    DB::commit();
+
+                    return inertia('Subscription/Success', [
+                        'payment_type' => 'monthly',
+                        'subscription' => [
+                            'id' => $subscription->id,
+                            'status' => $subscription->status,
+                            'amount' => $subscription->amount,
+                            'participant_name' => $subscription->participant->full_name ?? 'Usuario',
+                            'program_name' => $subscription->plan_name,
+                        ],
+                        'order' => [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'total_amount' => $order->total_amount,
+                            'status' => $order->status,
+                        ]
+                    ]);
+                }
+
+                // CASO 2: PAGO TOTAL (total)
+                else if ($paymentType === 'total') {
+
+                    if ($order->status === 'pending') {
+                        // Actualizar estado de la orden a "paid"
+                        $order->update([
+                            'status' => 'paid'
+                        ]);
+
+                        Log::info('Orden de pago total actualizada a paid', ['order_id' => $order->id]);
+
+                        // Buscar si hay algún payment pendiente
+                        $existingPayment = \App\Models\Payment::where('order_id', $order->id)
+                            ->where('status', 'pending')
+                            ->first();
+
+                        if ($existingPayment) {
+                            // Actualizar el payment existente
+                            $existingPayment->update([
+                                'status' => 'approved',
+                                'paid_at' => now(),
+                            ]);
+
+                            Log::info('Payment de pago total actualizado a approved', [
+                                'payment_id' => $existingPayment->id
+                            ]);
+                        }
+
+                        // TODO: Enviar correo de confirmación de pago total
+                        // Mail::to($order->participant->email)->send(new PaymentConfirmationMail($order));
+                    }
+
+                    DB::commit();
+
+                    return inertia('Subscription/Success', [
+                        'payment_type' => 'total',
+                        'order' => [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'total_amount' => $order->total_amount,
+                            'final_amount' => $order->final_amount,
+                            'status' => $order->status,
+                            'participant_name' => $order->participant->full_name ?? 'Usuario',
+                        ]
+                    ]);
+                }
+
+                // Caso por defecto: orden no procesable
+                DB::commit();
+
+                return inertia('Subscription/Success', [
+                    'payment_type' => $paymentType,
+                    'message' => 'Tu pago está siendo procesado'
+                ]);
+
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error('Error al procesar orden después de pago exitoso', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $order->id,
+                    'payment_type' => $paymentType
+                ]);
+                throw $e;
+            }
 
         } catch (Exception $e) {
             Log::error('Error en página de éxito: ' . $e->getMessage());
 
-            return redirect()->route('ecommerce.programs');
+            return redirect()->route('ecommerce.programs')
+                ->with('error', 'Hubo un problema al cargar la información de tu pago.');
         }
     }
 
@@ -325,6 +1035,63 @@ class SubscriptionController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al procesar webhook'
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar si un participante tiene suscripción activa para un programa
+     * Endpoint público para verificar antes de permitir continuar con el flujo
+     */
+    public function checkSubscriptionStatus(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'participant_id' => 'required|integer',
+                'program_id' => 'required|integer',
+            ]);
+
+            $participantId = $request->input('participant_id');
+            $programId = $request->input('program_id');
+
+            // Buscar suscripción activa o pagos completados para este participante y programa
+            $subscription = ProgramSubscription::where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+                ->first();
+
+            // También verificar si hay órdenes pagadas (pago total)
+            $paidOrder = Order::where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->whereIn('status', ['paid', 'completed'])
+                ->first();
+
+            $hasActiveSubscription = $subscription !== null;
+            $hasPaidOrder = $paidOrder !== null;
+
+            return response()->json([
+                'success' => true,
+                'has_subscription' => $hasActiveSubscription,
+                'has_paid_order' => $hasPaidOrder,
+                'requires_login' => $hasActiveSubscription || $hasPaidOrder,
+                'subscription' => $subscription ? [
+                    'id' => $subscription->id,
+                    'status' => $subscription->status,
+                    'plan_name' => $subscription->plan_name,
+                ] : null,
+                'order' => $paidOrder ? [
+                    'id' => $paidOrder->id,
+                    'order_number' => $paidOrder->order_number,
+                    'status' => $paidOrder->status,
+                ] : null,
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error al verificar estado de suscripción: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar el estado de la suscripción'
             ], 500);
         }
     }
