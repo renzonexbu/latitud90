@@ -18,21 +18,6 @@
         <div v-if="showCreateButton" class="flex flex-row items-center justify-end flex-shrink-0 relative gap-4">
             <!-- Create Refund Button Container -->
             <div class="relative">
-                <!-- Plus icon positioned above the button -->
-                <div class="absolute top-[0.8rem] -right-[200px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] overflow-visible">
-                    <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="21.289" 
-                        height="21.289" 
-                        viewBox="0 0 22 22" 
-                        fill="none"
-                        class="flex-shrink-0"
-                    >
-                        <circle cx="11.3553" cy="10.6447" r="10.6447" fill="#FBBD51"/>
-                        <path d="M4.58154 9.49167H9.74326V4.36182H12.2923V9.49167H17.5177V11.9451H12.2923V17.2024H9.74326V11.9451H4.58154V9.49167Z" fill="#F9F9F9"/>
-                    </svg>
-                </div>
-                
                 <!-- Create Refund Button -->
                 <button
                     @click="handleCreateRefund"
@@ -61,21 +46,6 @@
 
             <!-- Create Payment Button Container -->
             <div class="relative">
-                <!-- Plus icon positioned above the button -->
-                <div class="absolute top-[0.8rem] -right-[230px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] overflow-visible">
-                    <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        width="21.289" 
-                        height="21.289" 
-                        viewBox="0 0 22 22" 
-                        fill="none"
-                        class="flex-shrink-0"
-                    >
-                        <circle cx="11.3553" cy="10.6447" r="10.6447" fill="#FBBD51"/>
-                        <path d="M4.58154 9.49167H9.74326V4.36182H12.2923V9.49167H17.5177V11.9451H12.2923V17.2024H9.74326V11.9451H4.58154V9.49167Z" fill="#F9F9F9"/>
-                    </svg>
-                </div>
-                
                 <!-- Create Payment Button -->
                 <button
                     @click="handleCreatePayment"
