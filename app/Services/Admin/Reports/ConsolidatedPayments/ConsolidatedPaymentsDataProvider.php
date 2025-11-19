@@ -53,7 +53,8 @@ class ConsolidatedPaymentsDataProvider
         return DB::table('payments as pay')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
             ->leftJoin('payment_gateways as pg', function($join) {
                 $join->on('pg.id', '=', 'pay.payment_gateway_id')
                      ->orOn('pg.id', '=', DB::raw('(SELECT payment_gateway_id FROM orders_detail WHERE id = pay.order_detail_id)'));
@@ -80,7 +81,9 @@ class ConsolidatedPaymentsDataProvider
             ->select([
                 // Identificación
                 'pr.id as program_id',
+                'pgc.id as program_course_id',
                 'pr.name as program_name',
+                'pgc.code as program_code',
                 'p.document_number as participant_rut',
                 'p.first_name',
                 'p.second_name',

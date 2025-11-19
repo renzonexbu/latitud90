@@ -181,16 +181,17 @@ class ExportService
 
             // Si no hay programa => crear un ZIP con un Excel por cada programa
             if (!$programCode) {
-                $programs = \App\Models\Program::with(['institution', 'salesExecutive'])
+                $programCourses = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])
+                    ->where('active', true)
                     ->orderBy('code')
                     ->get();
 
-                if ($programs->isEmpty()) {
+                if ($programCourses->isEmpty()) {
                     return response()->json(['error' => 'No hay programas disponibles para exportar'], 400);
                 }
 
                 $tempFiles = [];
-                foreach ($programs as $prog) {
+                foreach ($programCourses as $prog) {
                     $tempFiles[] = [
                         'path' => $this->generatePartialAccountXlsx($prog, $filters),
                         'name' => 'apoderados_estado_cuenta_parcial_' . ($prog->code ?: 'programa_' . $prog->id) . '.xlsx',
@@ -222,7 +223,7 @@ class ExportService
 
             // Exportar solo el programa seleccionado
             /** @var \App\Models\ProgramCourse|null $programCourse */
-            $programCourse = \App\Models\ProgramCourse::with(['program'])->where('code', $programCode)->first();
+            $programCourse = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])->where('code', $programCode)->first();
             if (!$programCourse) {
                 return response()->json(['error' => 'Programa no encontrado'], 404);
             }
@@ -252,7 +253,7 @@ class ExportService
         }
     }
 
-    private function generatePartialAccountXlsx(\App\Models\Program $program, array $filters): string
+    private function generatePartialAccountXlsx(\App\Models\ProgramCourse $programCourse, array $filters): string
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -293,15 +294,16 @@ class ExportService
         ]);
 
         // Encabezado info
-        $collegeName = optional($program->institution)->name ?: 'N/A';
+        $program = $programCourse->program;
+        $collegeName = optional($programCourse->course->institution)->name ?: 'N/A';
         $programLine = trim(($program->destination ? $program->destination : 'Programa') . (isset($program->year) ? ', ' . $program->year : ''));
         $departureDateStr = '';
-        if ($program->departure_date) {
-            $departureDateStr = Carbon::parse($program->departure_date, 'America/Santiago')
+        if ($programCourse->departure_date) {
+            $departureDateStr = Carbon::parse($programCourse->departure_date, 'America/Santiago')
                 ->locale('es')
                 ->translatedFormat('d \d\e F, Y');
         }
-        $executive = optional($program->salesExecutive)->name ?: 'N/A';
+        $executive = optional($programCourse->salesExecutive)->name ?: 'N/A';
 
         // Etiqueta en negrita y valor normal (14px)
         $rt2 = new RichText();
@@ -398,19 +400,19 @@ class ExportService
                 'orders.payments',
                 'discounts'
             ])
-            ->where('program_id', $program->id)
+            ->where('program_id', $programCourse->id)
             ->get();
 
         foreach ($participantPrograms as $pp) {
             $participantName = $pp->participant ? $pp->participant->full_name : 'N/A';
             // Capital Case
             $participantName = ucwords(strtolower($participantName));
-            $price = (float) ($pp->individual_price ?: ($program->trip_price ?? 0));
+            $price = (float) ($pp->individual_price ?: ($programCourse->trip_price ?? 0));
 
             // Obtener órdenes del participante para este programa
             $orders = \App\Models\Order::with(['installmentPlan.installments'])
                 ->where('participant_id', $pp->participant_id)
-                ->where('program_id', $program->id)
+                ->where('program_id', $programCourse->id)
                 ->get();
             $orderIds = $orders->pluck('id')->all();
 
@@ -453,21 +455,17 @@ class ExportService
                 }
             }
 
-            // Forma de pago: último pago COMPLETED (sin filtro de fecha) y su payment_options.report_code
-            $paymentMethod = '';
+            // Forma de pago: último pago COMPLETED y su payment_gateway.name
+            $paymentMethod = 'N/A';
             if (!empty($orderIds)) {
-                $lastPayment = \App\Models\Payment::whereIn('order_id', $orderIds)
+                $lastPayment = \App\Models\Payment::with('paymentGateway')
+                    ->whereIn('order_id', $orderIds)
                     ->where('status', 'completed')
                     ->where('amount', '>', 0)
                     ->orderByRaw('COALESCE(transaction_date, created_at) DESC')
                     ->first();
-                if ($lastPayment) {
-                    $orderDetail = \App\Models\OrderDetail::find($lastPayment->order_detail_id);
-                    if ($orderDetail) {
-                        $paymentOption = \App\Models\PaymentOption::find($orderDetail->payment_option_id);
-                        $paymentMethodCode = $paymentOption->report_code ?? '';
-                        $paymentMethod = $this->mapPaymentMethodCode($paymentMethodCode);
-                    }
+                if ($lastPayment && $lastPayment->paymentGateway) {
+                    $paymentMethod = $lastPayment->paymentGateway->name ?? 'N/A';
                 }
             }
 

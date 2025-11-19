@@ -110,21 +110,22 @@ class InstallmentManager implements InstallmentServiceInterface
                 throw new \Exception('Participante no encontrado');
             }
 
-            // Buscar programa
-            $program = Program::with(['course.participants'])->findOrFail($programId);
+            // Buscar ProgramCourse (no Program)
+            // IMPORTANTE: $programId es en realidad un ProgramCourse ID
+            $programCourse = \App\Models\ProgramCourse::with(['course.participants'])->findOrFail($programId);
 
             // Calcular montos
-            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($program, $participant);
+            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($programCourse, $participant);
             $finalAmount = $participantBalance;
 
             // Número de cuotas
-            $totalInstallments = (int) ($paymentData['installments'] ?? ($program->lat90_max_installments ?? 1));
+            $totalInstallments = (int) ($paymentData['installments'] ?? ($programCourse->subscription_max_months ?? 1));
             if ($totalInstallments < 1) {
                 $totalInstallments = 1;
             }
 
             $this->logInfo('InstallmentManager: createOrGetPlan - Montos calculados', [
-                'program_id' => $programId,
+                'program_course_id' => $programId,
                 'participant_rut' => $rut,
                 'participant_total_amount' => $participantTotalAmount,
                 'paid_amount' => $paidAmount,
@@ -134,7 +135,7 @@ class InstallmentManager implements InstallmentServiceInterface
             ]);
 
             // Buscar plan existente
-            $existingPlan = $this->planRepo->findActiveByProgramAndParticipant($program->id, $participant->id);
+            $existingPlan = $this->planRepo->findActiveByProgramAndParticipant($programCourse->id, $participant->id);
 
             if ($existingPlan) {
                 // Verificar si hay cuotas pagadas
@@ -174,7 +175,7 @@ class InstallmentManager implements InstallmentServiceInterface
             // Crear nueva orden
             $order = Order::create([
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_id' => $programCourse->id, // program_id en orders apunta a program_courses
                 'total_amount' => $participantTotalAmount,
                 'discount' => 0,
                 'final_amount' => $finalAmount,
@@ -189,7 +190,7 @@ class InstallmentManager implements InstallmentServiceInterface
             // Crear plan de cuotas
             $installmentPlan = $this->planRepo->create([
                 'order_id' => $order->id,
-                'program_id' => $program->id,
+                'program_id' => $programCourse->id, // program_id en installment_plans apunta a program_courses
                 'participant_id' => $participant->id,
                 'total_amount' => $finalAmount,
                 'total_installments' => $totalInstallments,
@@ -545,16 +546,16 @@ class InstallmentManager implements InstallmentServiceInterface
     /**
      * Calcular montos del participante
      */
-    protected function computeParticipantAmounts($program, $participant): array
+    protected function computeParticipantAmounts($programCourse, $participant): array
     {
         // Usar el helper para calcular el precio final con descuentos
-        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $participantTotalAmount = $priceData['final_price'];
 
         // Pagos aprobados y completados previos de este participante para este programa
-        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                 $q->where('participant_id', $participant->id)
-                  ->where('program_id', $program->id);
+                  ->where('program_id', $programCourse->id); // program_id en orders apunta a program_courses
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');

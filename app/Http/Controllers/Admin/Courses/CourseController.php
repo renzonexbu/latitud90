@@ -134,18 +134,122 @@ class CourseController extends Controller
     {
         try {
             $success = $this->courseService->toggleStatus($course);
-            
+
             if (!$success) {
                 throw new \Exception('No se pudo cambiar el estado del curso');
             }
-            
+
             return redirect()
                 ->route('admin.courses.index')
                 ->with('success', 'Estado del curso actualizado exitosamente');
-                
+
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al actualizar el estado del curso: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Verificar breakdown de pagos para un curso (API endpoint para debugging)
+     */
+    public function verifyPaymentBreakdown(Course $course)
+    {
+        $course->load(['programCourses']);
+
+        $programCourse = $course->programCourses->first();
+        $programId = $programCourse?->program_id;
+
+        if (!$programId) {
+            return response()->json([
+                'error' => 'No se encontró programa asociado al curso',
+                'course_id' => $course->id,
+                'course_name' => $course->course_display,
+            ]);
+        }
+
+        // Obtener pagos normales completados
+        $normalPayments = \App\Models\Payment::with(['order.participant'])
+            ->whereHas('order', function($q) use ($programId) {
+                $q->where('program_id', $programId);
+            })
+            ->whereIn('status', ['approved', 'completed'])
+            ->get()
+            ->map(function($payment) {
+                return [
+                    'id' => $payment->id,
+                    'amount' => $payment->amount,
+                    'status' => $payment->status,
+                    'participant' => $payment->order->participant->full_name ?? 'N/A',
+                    'created_at' => $payment->created_at->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        $normalPaymentsTotal = $normalPayments->sum('amount');
+
+        // Obtener cuotas de suscripciones pagadas
+        $subscriptionInstallments = \App\Models\Installment::with(['installmentPlan.participant'])
+            ->whereHas('installmentPlan', function($q) use ($programId) {
+                $q->where('program_id', $programId);
+            })
+            ->where('is_paid', true)
+            ->get()
+            ->map(function($installment) {
+                return [
+                    'id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'amount' => $installment->amount,
+                    'is_paid' => $installment->is_paid,
+                    'participant' => $installment->installmentPlan->participant->full_name ?? 'N/A',
+                    'due_date' => $installment->due_date,
+                    'paid_at' => $installment->paid_at?->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        $subscriptionPaymentsTotal = $subscriptionInstallments->sum('amount');
+
+        // Obtener totales de suscripciones
+        $subscriptionPlans = \App\Models\InstallmentPlan::with(['participant'])
+            ->where('program_id', $programId)
+            ->whereIn('status', ['active', 'pending', 'completed'])
+            ->get()
+            ->map(function($plan) {
+                return [
+                    'id' => $plan->id,
+                    'participant' => $plan->participant->full_name ?? 'N/A',
+                    'total_amount' => $plan->total_amount,
+                    'status' => $plan->status,
+                    'total_installments' => $plan->total_installments,
+                ];
+            });
+
+        $subscriptionPlansTotal = $subscriptionPlans->sum('total_amount');
+
+        return response()->json([
+            'course' => [
+                'id' => $course->id,
+                'name' => $course->course_display,
+                'institution' => $course->institution->name ?? 'N/A',
+                'program_id' => $programId,
+            ],
+            'normal_payments' => [
+                'count' => $normalPayments->count(),
+                'total' => $normalPaymentsTotal,
+                'details' => $normalPayments,
+            ],
+            'subscription_installments_paid' => [
+                'count' => $subscriptionInstallments->count(),
+                'total' => $subscriptionPaymentsTotal,
+                'details' => $subscriptionInstallments,
+            ],
+            'subscription_plans' => [
+                'count' => $subscriptionPlans->count(),
+                'total' => $subscriptionPlansTotal,
+                'details' => $subscriptionPlans,
+            ],
+            'summary' => [
+                'total_paid' => $normalPaymentsTotal + $subscriptionPaymentsTotal,
+                'total_expected' => $subscriptionPlansTotal, // + participants total (not included here)
+            ],
+        ]);
     }
 }

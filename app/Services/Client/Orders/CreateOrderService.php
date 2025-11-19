@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Country;
 use App\Models\Region;
 use App\Models\Comune;
@@ -29,23 +30,24 @@ class CreateOrderService
                 throw new \Exception('Participante no encontrado');
             }
 
-            // Buscar el programa
-            $program = Program::with(['course.participants'])->findOrFail($programId);
+            // Buscar el ProgramCourse (no Program)
+            // IMPORTANTE: $programId es en realidad un ProgramCourse ID
+            $programCourse = \App\Models\ProgramCourse::with(['course.participants'])->findOrFail($programId);
 
             // Calcular montos por participante desde pivote y pagos previos
-            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($program, $participant);
+            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($programCourse, $participant);
             $finalAmount = $participantBalance; // Base para este plan de pago
 
             // Determinar número total de cuotas
             $totalInstallments = $paymentData['paymentType'] === 'monthly'
-                ? (int) ($paymentData['installments'] ?? ($program->lat90_max_installments ?? 1))
+                ? (int) ($paymentData['installments'] ?? ($programCourse->subscription_max_months ?? 1))
                 : 1;
             if ($totalInstallments < 1) { $totalInstallments = 1; }
 
             // Si ya existe una orden mensual pendiente con cuotas impagas, devolver esa orden (no crear otra)
             if ($paymentData['paymentType'] === 'monthly') {
                 $existing = Order::where('participant_id', $participant->id)
-                    ->where('program_id', $program->id)
+                    ->where('program_id', $programCourse->id) // program_id en orders apunta a program_courses
                     ->where('payment_type', 'monthly')
                     ->whereHas('orderDetails', function ($q) {
                         $q->where('is_paid', false);
@@ -76,7 +78,7 @@ class CreateOrderService
             // Crear la orden principal
             $order = Order::create([
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_id' => $programCourse->id, // program_id en orders apunta a program_courses
                 'total_amount' => $participantTotalAmount,
                 'discount' => 0,
                 'final_amount' => $finalAmount,
@@ -91,14 +93,14 @@ class CreateOrderService
             // Crear cuotas según tipo de pago
             if ($paymentData['paymentType'] === 'monthly' && $totalInstallments > 1) {
                 $amounts = $this->splitAmountInInstallments($finalAmount, $totalInstallments);
-                $dueDates = $this->generateMonthlyDueDates($program, $totalInstallments);
+                $dueDates = $this->generateMonthlyDueDates($programCourse, $totalInstallments);
                 for ($i = 1; $i <= $totalInstallments; $i++) {
                     $this->createOrderDetail($order, $paymentData, $formData, $i, $amounts[$i - 1], $dueDates[$i - 1]);
                 }
             } else {
                 // Pago total: una sola cuota por el monto final
-                $singleDueDate = $program->final_payment_date
-                    ? Carbon::parse($program->final_payment_date)
+                $singleDueDate = $programCourse->final_payment_date
+                    ? Carbon::parse($programCourse->final_payment_date)
                     : now();
                 $this->createOrderDetail($order, $paymentData, $formData, 1, $finalAmount, $singleDueDate);
             }
@@ -165,16 +167,16 @@ class CreateOrderService
     /**
      * Obtiene total por participante (base+ajuste), total pagado y saldo pendiente.
      */
-    private function computeParticipantAmounts(Program $program, Participant $participant): array
+    private function computeParticipantAmounts(\App\Models\ProgramCourse $programCourse, Participant $participant): array
     {
         // Usar el helper para calcular el precio final con descuentos
-        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $participantTotalAmount = $priceData['final_price'];
 
         // Pagos aprobados y completados previos de este participante para este programa
-        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                 $q->where('participant_id', $participant->id)
-                  ->where('program_id', $program->id);
+                  ->where('program_id', $programCourse->id); // program_id en orders apunta a program_courses
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
@@ -206,14 +208,14 @@ class CreateOrderService
 
     /**
      * Genera fechas de vencimiento mensuales.
-     * - Si el programa tiene final_payment_date, la última cuota vence ese día y las anteriores se van restando meses.
+     * - Si el program_course tiene final_payment_date, la última cuota vence ese día y las anteriores se van restando meses.
      * - Si no, usa el día actual como día base y genera hacia adelante.
      */
-    private function generateMonthlyDueDates(Program $program, int $installments): array
+    private function generateMonthlyDueDates(\App\Models\ProgramCourse $programCourse, int $installments): array
     {
         $dates = [];
-        if ($program->final_payment_date) {
-            $last = Carbon::parse($program->final_payment_date);
+        if ($programCourse->final_payment_date) {
+            $last = Carbon::parse($programCourse->final_payment_date);
             for ($i = $installments - 1; $i >= 0; $i--) {
                 $dates[$i] = $last->copy()->subMonthsNoOverflow(($installments - 1) - $i);
             }

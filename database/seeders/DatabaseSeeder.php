@@ -16,13 +16,14 @@ class DatabaseSeeder extends Seeder
             DocumentSeeder::class,
             PaymentGatewaySeeder::class,
             PaymentOptionSeeder::class,
-			SalesExecutiveSeeder::class,
-			// ProgramsSeeder::class,
+            SalesExecutiveSeeder::class,
+            // ProgramsSeeder::class,
             InstitutionSeeder::class,
             RegionsSeeder::class,
             ComunesSeeder::class,
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
+            DocumentTemplateSeeder::class
         ]);
     }
 }

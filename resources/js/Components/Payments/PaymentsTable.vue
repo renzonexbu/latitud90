@@ -70,7 +70,7 @@
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
                     >
-                        #{{ payment.id }}
+                        {{ payment.id }}
                     </div>
 
                     <!-- Participante -->
@@ -91,7 +91,7 @@
                     <div
                         class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
                     >
-                        {{ payment.order?.program?.name || "N/A" }}
+                        {{ payment.order?.program_course?.name || "N/A" }}
                     </div>
 
                     <!-- Institución -->
@@ -116,7 +116,7 @@
                                 getStatusClass(payment.status),
                             ]"
                         >
-                            {{ getStatusLabel(payment.status) }}
+                            {{ getStatusLabel(payment.status, payment) }}
                         </div>
                     </div>
 
@@ -184,11 +184,20 @@ export default {
 
     methods: {
         getParticipantName(payment) {
+            // Si es un installment
+            if (payment.is_installment && payment.order?.participant) {
+                const p = payment.order.participant;
+                return `${p.first_name} ${p.first_last_name}`;
+            }
             // Usar el atributo del modelo Payment que ya está construido correctamente
             return payment.participant_name || "N/A";
         },
 
         getBuyerName(payment) {
+            // Si es un installment
+            if (payment.is_installment && payment.order) {
+                return `${payment.order.buyer_first_name || ''} ${payment.order.buyer_first_last_name || ''}`.trim() || "N/A";
+            }
             // Los datos del comprador están en order_detail
             if (payment.order_detail?.name) {
                 return payment.order_detail.name;
@@ -201,31 +210,41 @@ export default {
         },
 
         getInstitutionName(payment) {
-            return payment.order?.program?.course?.institution?.name || "N/A";
+            return payment.order?.program_course?.course?.institution?.name || "N/A";
         },
 
         getPaymentMethodDisplay(payment) {
+            // Si es un installment (cuota de suscripción)
+            if (payment.is_installment) {
+                return `VirtualPos - Cuota ${payment.installment_number}`;
+            }
+
+            // Si es una orden de suscripción (empieza con SUB-)
+            if (payment.order?.order_number?.startsWith('SUB-')) {
+                return 'Suscripción';
+            }
+
             // Si tiene payment_option_id, mostrar información del paymentOption
             if (payment.payment_option_id && payment.payment_option) {
                 let displayText = payment.payment_option.gateway_code || payment.payment_option.label || "N/A";
-                
+
                 // Convertir a Title Case y manejar casos especiales
                 if (displayText === 'refund') {
                     return 'Reembolso';
                 }
-                
+
                 // Convertir a Title Case para todos los demás
                 return displayText
                     .split('_')
                     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                     .join(' ');
             }
-            
+
             // Si no tiene payment_option_id, es un pago presencial
             if (!payment.payment_option_id) {
                 return "Presencial";
             }
-            
+
             // Fallback al gateway del pago
             return payment.payment_gateway?.name || "N/A";
         },
@@ -236,16 +255,40 @@ export default {
                 completed: "bg-[#4b8d7f]", // Verde
                 failed: "bg-[#d54b44]", // Rojo
                 authorized: "bg-[#1c4f4a]", // Verde oscuro
+                approved: "bg-[#4b8d7f]", // Verde (aprobado = completado)
+                cancelled: "bg-[#6b7280]", // Gris
+                refunded: "bg-[#f59e0b]", // Naranja
+                processing: "bg-[#3b82f6]", // Azul
             };
             return classes[status] || "bg-[#ffb232]";
         },
 
-        getStatusLabel(status) {
+        getStatusLabel(status, payment = null) {
+            // Si es un installment, usar etiquetas específicas
+            if (payment?.is_installment) {
+                if (status === 'completed') {
+                    return 'Pagado';
+                } else if (status === 'pending') {
+                    return 'Pendiente';
+                } else if (status === 'failed') {
+                    return 'No Pagado';
+                }
+            }
+
+            // Si es una suscripción aprobada, mostrar un mensaje más claro
+            if (payment?.order?.order_number?.startsWith('SUB-') && status === 'approved') {
+                return 'Suscripción Activa';
+            }
+
             const labels = {
                 pending: "Pendiente",
                 completed: "Completado",
                 failed: "Fallido",
                 authorized: "Autorizado",
+                approved: "Aprobado",
+                cancelled: "Cancelado",
+                refunded: "Reembolsado",
+                processing: "Procesando",
             };
             return labels[status] || status;
         },

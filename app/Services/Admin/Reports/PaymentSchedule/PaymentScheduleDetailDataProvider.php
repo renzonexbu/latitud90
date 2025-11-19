@@ -14,14 +14,18 @@ class PaymentScheduleDetailDataProvider
         return DB::table('orders as o')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
-            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as prog', 'prog.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->leftJoin('installment_plans as ip', 'ip.order_id', '=', 'o.id')
             ->leftJoin('installments as i', 'i.installment_plan_id', '=', 'ip.id')
+            ->leftJoin('payments as pay', 'i.payment_id', '=', 'pay.id')
+            ->leftJoin('payment_gateways as pg', 'pay.payment_gateway_id', '=', 'pg.id')
             ->select([
                 // Identificadores base
                 'o.id as order_id',
                 'p.id as participant_id',
+                'pgc.id as program_course_id',
                 'prog.id as program_id',
 
                 // Participante
@@ -36,13 +40,13 @@ class PaymentScheduleDetailDataProvider
                 'doc.name as participant_document_type',
 
                 // Programa
-                'prog.code as program_code',
-                'prog.name as program_name',
-                'prog.departure_date as program_departure_date',
+                'pgc.code as program_code',
+                'pgc.name as program_name',
+                'pgc.departure_date as program_departure_date',
                 'prog.destination as program_destination',
 
                 // Ejecutivo
-                'prog.sales_executive_id',
+                'pgc.sales_executive_id',
                 'se.name as sales_executive_name',
                 'se.email as sales_executive_email',
                 'se.phone as sales_executive_phone',
@@ -57,7 +61,13 @@ class PaymentScheduleDetailDataProvider
                 'i.due_date',
                 'i.status as installment_status',
                 'i.paid_at as installment_paid_at',
-                
+
+                // Datos del pago (para exportación)
+                'pay.id as payment_id',
+                'pay.amount as payment_amount',
+                'pay.transaction_date',
+                'pg.code as gateway_code',
+
                 // Estado calculado del participante
                 DB::raw('CASE 
                     WHEN o.status = "paid" THEN "liberado"
@@ -91,12 +101,14 @@ class PaymentScheduleDetailDataProvider
         $query = DB::table('participant_program_discounts as ppd')
             ->join('participant_program as pp', 'ppd.participant_program_id', '=', 'pp.id')
             ->join('participants as p', 'pp.participant_id', '=', 'p.id')
-            ->join('programs as prog', 'pp.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->join('program_courses as pgc', 'pgc.id', '=', 'pp.program_id')
+            ->join('programs as prog', 'prog.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
             ->select([
                 DB::raw('NULL as order_id'),
                 'p.id as participant_id',
+                'pgc.id as program_course_id',
                 'prog.id as program_id',
                 'p.first_last_name',
                 'p.second_last_name',
@@ -107,11 +119,11 @@ class PaymentScheduleDetailDataProvider
                 'p.phone',
                 DB::raw('TRIM(CONCAT(p.first_name, " ", COALESCE(p.second_name, ""), " ", p.first_last_name, " ", COALESCE(p.second_last_name, ""))) as participant_name'),
                 'doc.name as participant_document_type',
-                'prog.code as program_code',
-                'prog.name as program_name',
-                'prog.departure_date as program_departure_date',
+                'pgc.code as program_code',
+                'pgc.name as program_name',
+                'pgc.departure_date as program_departure_date',
                 'prog.destination as program_destination',
-                'prog.sales_executive_id',
+                'pgc.sales_executive_id',
                 'se.name as sales_executive_name',
                 'se.email as sales_executive_email',
                 'se.phone as sales_executive_phone',
@@ -132,7 +144,7 @@ class PaymentScheduleDetailDataProvider
 
         // Filtros
         if (!empty($filters['programId'])) {
-            $query->where('prog.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']);
         }
         if (!empty($filters['salesExecutiveId'])) {
             $query->where('se.id', $filters['salesExecutiveId']);

@@ -125,6 +125,41 @@
                 </div>
             </div>
 
+            <!-- Gráficos de Análisis -->
+            <div class="px-8 py-6 bg-gray-50">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Distribución por Tipo de Pago -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">
+                                Distribución por Tipo de Pago
+                            </h3>
+                            <p class="text-sm text-gray-600 mb-4">
+                                Comparación de pagos totales, suscripciones, pagos presenciales y devoluciones.
+                            </p>
+                            <div class="h-64">
+                                <canvas ref="paymentTypesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Métodos de Pago Detallados -->
+                    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">
+                                Métodos de Pago Detallados
+                            </h3>
+                            <p class="text-sm text-gray-600 mb-4">
+                                Desglose detallado por método de pago y cantidad de cuotas.
+                            </p>
+                            <div class="h-64">
+                                <canvas ref="paymentMethodsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Filtros -->
             <div class="px-8 py-4">
                 <PaymentsFilters
@@ -159,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted, nextTick } from "vue";
 import { Head, Link, router } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import PaymentsHeader from "@/Components/Payments/PaymentsHeader.vue";
@@ -168,6 +203,9 @@ import PaymentsTable from "@/Components/Payments/PaymentsTable.vue";
 import Pagination from "@/Components/Pagination.vue";
 import PaymentDetailModal from "@/Components/Payments/PaymentDetailModal.vue";
 import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 const props = defineProps({
     payments: {
@@ -197,10 +235,18 @@ const props = defineProps({
 const selectedPayment = ref(null);
 const showModal = ref(false);
 
+// Referencias a los canvas para los gráficos
+const paymentTypesChart = ref(null);
+const paymentMethodsChart = ref(null);
+
+// Instancias de los gráficos
+let paymentTypesChartInstance = null;
+let paymentMethodsChartInstance = null;
+
 const formatPrice = (amount) => {
-    return new Intl.NumberFormat("es-CL", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 0 
+    return new Intl.NumberFormat("es-CL", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
     }).format(Math.round(amount || 0));
 };
 
@@ -227,5 +273,126 @@ const handleFiltersChanged = (newFilters) => {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+// Crear gráficos cuando el componente se monta
+onMounted(() => {
+    nextTick(() => {
+        createPaymentTypesChart();
+        createPaymentMethodsChart();
+    });
+});
+
+const createPaymentTypesChart = () => {
+    if (paymentTypesChart.value && props.stats.payment_type_distribution) {
+        if (paymentTypesChartInstance) {
+            paymentTypesChartInstance.destroy();
+        }
+
+        const ctx = paymentTypesChart.value.getContext('2d');
+        const data = props.stats.payment_type_distribution;
+
+        paymentTypesChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(item => item.label),
+                datasets: [{
+                    data: data.map(item => item.total),
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',   // Azul para Pago Total
+                        'rgba(34, 197, 94, 0.8)',    // Verde para Suscripciones
+                        'rgba(168, 85, 247, 0.8)',   // Púrpura para Pagos Presenciales
+                        'rgba(239, 68, 68, 0.8)',    // Rojo para Devoluciones
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = data[context.dataIndex];
+                                const total = data.reduce((sum, i) => sum + i.total, 0);
+                                const percentage = total > 0 ? ((item.total / total) * 100).toFixed(1) : 0;
+                                return [
+                                    `${context.label}`,
+                                    `Cantidad: ${item.count}`,
+                                    `Total: $${formatPrice(item.total)}`,
+                                    `Porcentaje: ${percentage}%`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+};
+
+const createPaymentMethodsChart = () => {
+    if (paymentMethodsChart.value && props.stats.payment_methods_detailed) {
+        if (paymentMethodsChartInstance) {
+            paymentMethodsChartInstance.destroy();
+        }
+
+        const ctx = paymentMethodsChart.value.getContext('2d');
+        const data = props.stats.payment_methods_detailed;
+
+        paymentMethodsChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.label),
+                datasets: [{
+                    label: 'Monto Total',
+                    data: data.map(item => item.total),
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Monto ($)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + formatPrice(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = data[context.dataIndex];
+                                return [
+                                    `Cantidad: ${item.count}`,
+                                    `Total: $${formatPrice(item.total)}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
 };
 </script>

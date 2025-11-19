@@ -38,7 +38,7 @@ class GetIndexDataService
         ]);
 
         // Lista de programas para el filtro
-        $programs = Program::select('id', 'name')->get();
+        $programs = \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get();
 
         // Obtener datos del ecommerce
         $ecommerceData = $this->getEcommerceData($request);
@@ -192,28 +192,79 @@ class GetIndexDataService
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        // Datos de ecommerce analytics
-        $ecommerceData = \App\Models\EcommerceAnalytics::whereBetween('created_at', [$dateFrom, $dateTo])
-            ->whereNotNull('payment_method')
-            ->selectRaw('payment_method, COUNT(*) as total, COUNT(CASE WHEN payment_status = "completed" THEN 1 END) as successful')
-            ->groupBy('payment_method')
-            ->orderByDesc('total')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'payment_method' => $item->payment_method,
-                    'total' => $item->total,
-                    'successful' => $item->successful,
-                    'success_rate' => $item->total > 0 ? ($item->successful / $item->total) * 100 : 0,
-                ];
-            })
-            ->toArray();
+        $methods = [];
 
-        // Datos de reembolsos/devoluciones desde la tabla payments
+        // Obtener pagos completados agrupados por gateway
+        $paymentsByGateway = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
+            ->where('payments.status', 'completed')
+            ->with('paymentGateway', 'paymentOption')
+            ->get()
+            ->groupBy(function ($payment) {
+                return $payment->paymentGateway?->name ?? 'N/A';
+            });
+
+        foreach ($paymentsByGateway as $gatewayName => $payments) {
+            $total = $payments->count();
+            $totalAmount = $payments->sum('amount');
+
+            // Para Transbank, agregar detalles de cuotas
+            if (strtolower($gatewayName) === 'transbank') {
+                $byInstallments = $payments->groupBy(function ($payment) {
+                    // Intentar obtener de payment_option primero, luego de installments_number
+                    $installments = $payment->paymentOption?->installments ?? $payment->installments_number ?? 0;
+                    if ($installments == 0 || $installments == 1) {
+                        return 'Débito/Pago al Contado';
+                    }
+                    return "{$installments} cuotas";
+                });
+
+                foreach ($byInstallments as $label => $installmentPayments) {
+                    $methods[] = [
+                        'payment_method' => "Transbank - {$label}",
+                        'total' => $installmentPayments->count(),
+                        'successful' => $installmentPayments->count(), // Ya están filtrados por completed
+                        'success_rate' => 100,
+                        'total_amount' => $installmentPayments->sum('amount'),
+                    ];
+                }
+            } else {
+                // Excluir refunds/devoluciones (se agregan después)
+                if ($totalAmount >= 0) {
+                    $methods[] = [
+                        'payment_method' => $gatewayName,
+                        'total' => $total,
+                        'successful' => $total,
+                        'success_rate' => 100,
+                        'total_amount' => $totalAmount,
+                    ];
+                }
+            }
+        }
+
+        // Agregar cuotas de suscripciones (VirtualPos)
+        $subscriptionInstallments = \App\Models\Installment::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('is_paid', true)
+            ->count();
+        $subscriptionTotal = \App\Models\Installment::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('is_paid', true)
+            ->sum('amount');
+
+        if ($subscriptionInstallments > 0) {
+            $methods[] = [
+                'payment_method' => 'VirtualPos - Suscripciones',
+                'total' => $subscriptionInstallments,
+                'successful' => $subscriptionInstallments,
+                'success_rate' => 100,
+                'total_amount' => $subscriptionTotal,
+            ];
+        }
+
+        // Datos de reembolsos/devoluciones
         $refundsData = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
-            ->where('payments.amount', '<', 0) // Solo reembolsos (montos negativos)
+            ->where('payments.amount', '<', 0)
+            ->where('payments.status', 'completed')
             ->join('payment_gateways', 'payments.payment_gateway_id', '=', 'payment_gateways.id')
-            ->selectRaw('payment_gateways.name as payment_method, COUNT(*) as total, COUNT(CASE WHEN payments.status = "completed" THEN 1 END) as successful, SUM(ABS(payments.amount)) as total_amount')
+            ->selectRaw('payment_gateways.name as payment_method, COUNT(*) as total, SUM(ABS(payments.amount)) as total_amount')
             ->groupBy('payment_gateways.id', 'payment_gateways.name')
             ->orderByDesc('total')
             ->get()
@@ -221,16 +272,16 @@ class GetIndexDataService
                 return [
                     'payment_method' => $item->payment_method . ' (Devolución)',
                     'total' => $item->total,
-                    'successful' => $item->successful,
-                    'success_rate' => $item->total > 0 ? ($item->successful / $item->total) * 100 : 0,
+                    'successful' => $item->total,
+                    'success_rate' => 100,
                     'total_amount' => $item->total_amount,
                     'is_refund' => true
                 ];
             })
             ->toArray();
 
-        // Combinar ambos conjuntos de datos
-        $combinedData = array_merge($ecommerceData, $refundsData);
+        // Combinar todos los métodos
+        $combinedData = array_merge($methods, $refundsData);
 
         return $combinedData;
     }
@@ -248,29 +299,32 @@ class GetIndexDataService
         $dateFrom = $request->dateFrom ?? Carbon::now()->subDays(30)->format('Y-m-d');
         $dateTo = $request->dateTo ?? Carbon::now()->addDays(7)->format('Y-m-d');
 
-        // Contar pagos por modo de payment_option (por order_id único para evitar duplicados)
+        // 1. Pagos Totales (Full) - órdenes con payment_type = 'total'
         $fullPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
             ->where('payments.status', 'completed')
-            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
-            ->where('payment_options.mode', 'full')
+            ->whereHas('order', function ($q) {
+                $q->where('payment_type', 'total')
+                  ->where('order_number', 'NOT LIKE', 'SUB-%');
+            })
             ->count();
 
-        $lat90Payments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
-            ->where('payments.status', 'completed')
-            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
-            ->where('payment_options.mode', 'lat90')
+        // 2. Suscripciones (program_subscriptions activas)
+        $subscriptionPayments = \App\Models\ProgramSubscription::whereBetween('created_at', [$dateFrom, $dateTo])
+            ->where('status', 'ACTIVA')
             ->count();
 
+        // 3. Pagos Presenciales
         $presentialPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
             ->where('payments.status', 'completed')
-            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
-            ->where('payment_options.mode', 'presential')
+            ->whereHas('paymentGateway', function ($q) {
+                $q->where('code', 'presencial');
+            })
             ->count();
 
+        // 4. Devoluciones (montos negativos)
         $refundPayments = \App\Models\Payment::whereBetween('payments.created_at', [$dateFrom, $dateTo])
             ->where('payments.status', 'completed')
-            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
-            ->where('payment_options.mode', 'refund')
+            ->where('payments.amount', '<', 0)
             ->count();
 
         $data = [
@@ -280,9 +334,9 @@ class GetIndexDataService
                 'label' => 'Pago Total (Full)'
             ],
             [
-                'payment_type' => 'lat90',
-                'count' => $lat90Payments,
-                'label' => 'Pago en Mensualidades (Lat90)'
+                'payment_type' => 'subscription',
+                'count' => $subscriptionPayments,
+                'label' => 'Suscripciones'
             ],
             [
                 'payment_type' => 'presential',
@@ -363,15 +417,16 @@ class GetIndexDataService
 
             // Top programas con más reembolsos
             $topProgramsRefunds = $query->join('orders', 'payments.order_id', '=', 'orders.id')
-                ->join('programs', 'orders.program_id', '=', 'programs.id')
-                ->selectRaw('programs.id, programs.name, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
-                ->groupBy('programs.id', 'programs.name')
+                ->join('program_courses as pgc', 'orders.program_id', '=', 'pgc.id')
+                ->selectRaw('pgc.id, pgc.code, pgc.name, COUNT(*) as count, SUM(ABS(payments.amount)) as total_amount')
+                ->groupBy('pgc.id', 'pgc.code', 'pgc.name')
                 ->orderByDesc('total_amount')
                 ->limit(5)
                 ->get()
                 ->map(function ($item) {
                     return [
                         'id' => $item->id,
+                        'code' => $item->code,
                         'name' => $item->name,
                         'count' => $item->count,
                         'amount' => $item->total_amount

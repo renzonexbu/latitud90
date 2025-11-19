@@ -5,6 +5,7 @@ namespace App\Services\Admin\Reports\PartialReport;
 use App\Helpers\ParticipantPriceHelper;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\SalesExecutive;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -50,13 +51,14 @@ class PartialAccountTransformer
     {
         // Obtener datos relacionados
         $participant = Participant::find($enrollment->participant_id);
-        $program = Program::find($enrollment->program_id);
-        
+        // IMPORTANTE: program_course_id apunta a program_courses, NO a programs
+        $programCourse = ProgramCourse::find($enrollment->program_course_id);
+
         // Obtener ejecutivo de ventas
         $salesExecutiveName = $this->getSalesExecutiveName($enrollment);
-        
+
         // Calcular datos financieros
-        $financialData = $this->calculateFinancialData($participant, $program, $enrollment);
+        $financialData = $this->calculateFinancialData($participant, $programCourse, $enrollment);
         
         // Construir nombre del participante con CapitalCase
         $participantName = $this->buildParticipantName($enrollment);
@@ -68,6 +70,7 @@ class PartialAccountTransformer
             'id' => $enrollment->participant_program_id,
             'participant_id' => $enrollment->participant_id,
             'program_id' => $enrollment->program_id,
+            'program_course_id' => $enrollment->program_course_id,
             'created_at' => $enrollment->created_at,
             'participant_name' => $participantName,
             'participant_email' => $enrollment->email,
@@ -84,7 +87,7 @@ class PartialAccountTransformer
             'pending_amount' => $financialData['pending_amount'],
             'progress_percentage' => $financialData['progress_percentage'],
             'status' => $financialData['status'],
-            'payment_history' => $this->getPaymentHistory($enrollment->participant_id, $enrollment->program_id),
+            'payment_history' => $this->getPaymentHistory($enrollment->participant_id, $enrollment->program_course_id),
             'upcoming_payments' => [], // TODO: Implementar si es necesario
             'discounts_detail' => [], // TODO: Implementar si es necesario
             'apoderado_name' => $apoderadoInfo['name'],
@@ -99,14 +102,15 @@ class PartialAccountTransformer
     private function transformForExportRow($enrollment, array $selectedFields): ?array
     {
         // Validar datos básicos
-        if (!$enrollment || !isset($enrollment->participant_id) || !isset($enrollment->program_id)) {
+        if (!$enrollment || !isset($enrollment->participant_id) || !isset($enrollment->program_course_id)) {
             return null;
         }
-        
+
         $participant = Participant::find($enrollment->participant_id);
-        $program = Program::find($enrollment->program_id);
+        // IMPORTANTE: program_course_id apunta a program_courses, NO a programs
+        $programCourse = ProgramCourse::find($enrollment->program_course_id);
         $salesExecutiveName = $this->getSalesExecutiveName($enrollment);
-        $financialData = $this->calculateFinancialData($participant, $program, $enrollment);
+        $financialData = $this->calculateFinancialData($participant, $programCourse, $enrollment);
         
         $row = [];
         
@@ -199,15 +203,15 @@ class PartialAccountTransformer
     /**
      * Calcula los datos financieros del participante
      */
-    private function calculateFinancialData($participant, $program, $enrollment): array
+    private function calculateFinancialData($participant, $programCourse, $enrollment): array
     {
         $priceData = null;
-        if ($participant && $program) {
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        if ($participant && $programCourse) {
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         }
-        
+
         // Use individual_price from participant_program as base price
-        $totalAmount = (float) ($enrollment->individual_price ?? ($program->trip_price ?? 0));
+        $totalAmount = (float) ($enrollment->individual_price ?? ($programCourse->trip_price ?? 0));
         
         // Calculate discounts properly
         $totalDiscounts = 0;

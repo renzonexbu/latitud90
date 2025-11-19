@@ -431,9 +431,9 @@ class DailyPaymentsTransformer
     {
         try {
             $participant = \App\Models\Participant::find($participantId);
-            $program = \App\Models\Program::find($programId);
-            
-            if (!$participant || !$program) {
+            $programCourse = \App\Models\ProgramCourse::find($programId);
+
+            if (!$participant || !$programCourse) {
                 return [
                     'base_price' => 0,
                     'adjustments' => 0,
@@ -441,8 +441,8 @@ class DailyPaymentsTransformer
                     'final_price' => 0
                 ];
             }
-            
-            return \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+
+            return \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         } catch (\Exception $e) {
             return [
                 'base_price' => 0,
@@ -525,16 +525,16 @@ class DailyPaymentsTransformer
             ->where('participant_id', $participantId)
             ->where('program_id', $programId)
             ->first();
-            
+
         if ($pp && $pp->individual_price) {
             return (float) $pp->individual_price;
         }
-        
-        // Fallback al precio del programa
-        $programPrice = DB::table('programs')
+
+        // Fallback al precio del programa específico (program_course)
+        $programPrice = DB::table('program_courses')
             ->where('id', $programId)
             ->value('trip_price');
-            
+
         return (float) ($programPrice ?? 0);
     }
 

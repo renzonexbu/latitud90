@@ -20,6 +20,7 @@ Route::get('/reports/payment-schedule/details', [ReportController::class, 'payme
 
 // Participantes sin pagos iniciados
 Route::get('/reports/no-payment', [ReportController::class, 'noPayment'])->name('reports.no-payment');
+Route::get('/reports/export/no-payment', [ReportController::class, 'exportNoPayment'])->name('reports.export.no-payment');
 
 // Reporte de pagos diarios
 Route::get('/reports/daily-payments', [ReportController::class, 'dailyPayments'])->name('reports.daily-payments');

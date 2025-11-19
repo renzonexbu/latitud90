@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirmación de Pago - {{ $company_name }}</title>
+    <title>Suscripción Exitosa - {{ $company_name }}</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -97,14 +97,14 @@
             font-size: 14px;
             opacity: 0.9;
         }
-        .payment-details {
+        .subscription-details {
             background-color: #f8f9fa;
             border-left: 4px solid #007E93;
             border-radius: 0 8px 8px 0;
             padding: 25px;
             margin: 25px 0;
         }
-        .payment-details h3 {
+        .subscription-details h3 {
             color: #007E93;
             margin-top: 0;
             margin-bottom: 20px;
@@ -134,6 +134,26 @@
             font-weight: bold;
             color: #28a745;
         }
+        .highlight-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+        }
+        .highlight-box h4 {
+            color: #007E93;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .highlight-box .date {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0277bd;
+            margin: 10px 0;
+        }
         .footer {
             background-color: #007E93;
             color: #ffffff;
@@ -156,21 +176,17 @@
             opacity: 1;
             text-decoration: underline;
         }
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #FFB232 0%, #ff9f00 100%);
-            color: #ffffff;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: 600;
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
             margin: 20px 0;
-            box-shadow: 0 3px 10px rgba(255, 178, 50, 0.3);
-            transition: all 0.3s ease;
+            border-radius: 0 8px 8px 0;
         }
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 178, 50, 0.4);
+        .note p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #856404;
         }
         @media only screen and (max-width: 600px) {
             .email-container {
@@ -196,7 +212,7 @@
             <!-- Header -->
             <div class="header">
                 <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
-                <div class="subject">¡Pago Confirmado!</div>
+                <div class="subject">¡Suscripción Exitosa!</div>
             </div>
 
             <!-- Content -->
@@ -213,29 +229,34 @@
 
                 <!-- Message -->
                 <div class="message">
-                    <p>¡Excelente! Tu pago ha sido procesado exitosamente. A continuación encontrarás los detalles de tu transacción.</p>
+                    <p>¡Felicitaciones! Tu suscripción ha sido activada exitosamente. {{ ucwords(strtolower($participant_name)) }} ya forma parte del programa <strong>{{ $program_name }}</strong>.</p>
                 </div>
 
                 <!-- Program Info -->
                 <div class="program-info">
                     <h3>{{ $program_name }}</h3>
-                    @if($program_description)
-                        <p>{{ $program_description }}</p>
-                    @endif
+                    <p>Participante: {{ ucwords(strtolower($participant_name)) }}</p>
                 </div>
 
-                <!-- Payment Details -->
-                <div class="payment-details">
-                    <h3>Detalles del Pago</h3>
-                    
+                <!-- First Charge Date Highlight -->
+                <div class="highlight-box">
+                    <h4>📅 Fecha de Primer Cobro</h4>
+                    <div class="date">{{ $first_charge_date }}</div>
+                    <p style="margin: 5px 0; color: #555;">Tu primera cuota será procesada automáticamente</p>
+                </div>
+
+                <!-- Subscription Details -->
+                <div class="subscription-details">
+                    <h3>Detalles de la Suscripción</h3>
+
                     <div class="detail-row">
-                        <span class="detail-label">Número de Orden:</span>
-                        <span class="detail-value">{{ $order_number }}</span>
+                        <span class="detail-label">Monto Mensual:</span>
+                        <span class="detail-value amount">${{ $subscription_amount }} CLP</span>
                     </div>
 
                     <div class="detail-row">
-                        <span class="detail-label">Monto Pagado:</span>
-                        <span class="detail-value amount">${{ $payment_amount }} {{ $payment_currency }}</span>
+                        <span class="detail-label">Total de Cuotas:</span>
+                        <span class="detail-value">{{ $total_installments }} cuotas</span>
                     </div>
 
                     <div class="detail-row">
@@ -244,27 +265,23 @@
                     </div>
 
                     <div class="detail-row">
-                        <span class="detail-label">Fecha de Pago:</span>
-                        <span class="detail-value">{{ $payment_date }}</span>
+                        <span class="detail-label">ID de Suscripción:</span>
+                        <span class="detail-value">{{ $subscription_id }}</span>
                     </div>
+                </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">ID de Transacción:</span>
-                        <span class="detail-value">{{ $transaction_id }}</span>
-                    </div>
-
-                    @if($total_installments > 1)
-                    <div class="detail-row">
-                        <span class="detail-label">Cuota:</span>
-                        <span class="detail-value">{{ $installment_number }} de {{ $total_installments }}</span>
-                    </div>
-                    @endif
+                <!-- Important Note -->
+                <div class="note">
+                    <p><strong>📌 Importante:</strong></p>
+                    <p>• Los cobros se realizarán automáticamente cada mes en tu tarjeta registrada</p>
+                    <p>• Recibirás una confirmación por cada pago procesado</p>
+                    <p>• Puedes gestionar tu suscripción desde tu panel de guardian</p>
                 </div>
 
                 <!-- Additional Message -->
                 <div class="message">
-                    <p>Gracias por confiar en {{ $company_name }}. Pronto recibirás más información sobre tu programa.</p>
-                    <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+                    <p>Gracias por confiar en {{ $company_name }}. Pronto recibirás más información sobre el programa y los próximos pasos.</p>
+                    <p>Si tienes alguna pregunta sobre tu suscripción, no dudes en contactarnos.</p>
                 </div>
             </div>
 

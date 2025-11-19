@@ -162,6 +162,36 @@ class EcommerceAnalyticsService
     }
 
     /**
+     * Registrar registro de guardian (apoderado)
+     */
+    public function recordGuardianRegister(Request $request, $guardianEmail, $participantRut = null): void
+    {
+        $analytics = $this->getOrCreateAnalyticsRecord($request);
+        if ($analytics) {
+            $analytics->update([
+                'guardian_register_at' => now(),
+                'guardian_email' => $guardianEmail,
+                'participant_rut' => $participantRut,
+            ]);
+        }
+    }
+
+    /**
+     * Registrar login de guardian (apoderado)
+     */
+    public function recordGuardianLogin(Request $request, $guardianEmail, $participantRut = null): void
+    {
+        $analytics = $this->getOrCreateAnalyticsRecord($request);
+        if ($analytics) {
+            $analytics->update([
+                'guardian_login_at' => now(),
+                'guardian_email' => $guardianEmail,
+                'participant_rut' => $participantRut,
+            ]);
+        }
+    }
+
+    /**
      * Registrar inicio de pago
      */
     public function recordPaymentInitiated(Request $request, $programId, $participantRut, $paymentData, $orderData = []): void
@@ -442,6 +472,8 @@ class EcommerceAnalyticsService
             'program_detail_view' => $query->whereNotNull('program_detail_view_at')->count(),
             'payment_details_view' => $query->whereNotNull('payment_details_view_at')->count(),
             'confirmation_view' => $query->whereNotNull('confirmation_view_at')->count(),
+            'guardian_register' => $query->whereNotNull('guardian_register_at')->count(),
+            'guardian_login' => $query->whereNotNull('guardian_login_at')->count(),
             'payment_initiated' => $query->whereNotNull('payment_initiated_at')->count(),
             'payment_completed' => $query->whereNotNull('payment_completed_at')->count(),
             'payment_failed' => $query->whereNotNull('payment_failed_at')->count(),

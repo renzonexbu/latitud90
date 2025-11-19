@@ -3,11 +3,42 @@
         <Head title="Participantes Sin Pagos" />
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
-                <!-- Header -->
-                <ReportsHeader
-                    title="Participantes Sin Pagos Iniciados"
-                    subtitle="Participantes que no han iniciado el proceso de pago por ecommerce"
-                />
+                <!-- Header con botones de acción -->
+                <div class="flex items-center justify-between">
+                    <ReportsHeader
+                        title="Participantes Sin Pagos Iniciados"
+                        subtitle="Participantes que no han iniciado el proceso de pago por ecommerce"
+                    />
+
+                    <div class="flex gap-3">
+                        <!-- Botón Volver -->
+                        <button
+                            @click="goBack"
+                            class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            Volver al Cronograma
+                        </button>
+
+                        <!-- Botón Exportar -->
+                        <button
+                            @click="exportToExcel"
+                            :disabled="isExporting"
+                            class="h-[46px] px-6 bg-[#1c4f4a] hover:bg-[#163d39] text-white rounded-[50px] border-none font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <svg v-if="!isExporting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {{ isExporting ? 'Exportando...' : 'Exportar a Excel' }}
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Filtros -->
                 <div class="flex flex-col gap-[18px] items-start justify-start relative bg-white rounded-lg shadow p-6">
@@ -219,6 +250,7 @@ const filters = reactive({
     search: props.filters?.search || ''
 })
 
+const isExporting = ref(false)
 let searchTimeout = null
 
 // Methods
@@ -304,6 +336,32 @@ const clearFilters = () => {
     filters.sales_executive_id = ''
     filters.search = ''
     applyFilters()
+}
+
+const goBack = () => {
+    router.get(route('admin.reports.payment-schedule'))
+}
+
+const exportToExcel = () => {
+    isExporting.value = true
+
+    // Crear parámetros de query
+    const params = new URLSearchParams()
+
+    if (filters.program_id) params.append('program_id', filters.program_id)
+    if (filters.sales_executive_id) params.append('sales_executive_id', filters.sales_executive_id)
+    if (filters.search) params.append('search', filters.search)
+
+    // Crear la URL con los parámetros
+    const url = route('admin.reports.export.no-payment') + (params.toString() ? '?' + params.toString() : '')
+
+    // Abrir la URL en una nueva ventana para descargar
+    window.open(url, '_blank')
+
+    // Resetear el estado después de un segundo
+    setTimeout(() => {
+        isExporting.value = false
+    }, 1000)
 }
 </script>
 

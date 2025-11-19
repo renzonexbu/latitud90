@@ -36,7 +36,7 @@
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Orden:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.buy_order || 'N/A' }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? payment.order?.order_number : (payment.buy_order || 'N/A') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Monto:</span>
@@ -45,7 +45,7 @@
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Estado:</span>
                                     <span :class="getStatusClass(payment.status)" class="px-3 py-1 text-sm font-semibold rounded-full">
-                                        {{ getStatusLabel(payment.status) }}
+                                        {{ getStatusLabel(payment.status, payment) }}
                                     </span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
@@ -54,11 +54,11 @@
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Método de Pago:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.payment_option?.label || 'N/A' }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? `VirtualPos - Cuota ${payment.installment_number}` : (payment.payment_option?.label || 'N/A') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Fecha de Transacción:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDate(payment.transaction_date) }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? formatDate(payment.paid_at || payment.due_date) : formatDate(payment.transaction_date) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Fecha de Creación:</span>
@@ -120,11 +120,11 @@
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Programa:</span>
-                                    <span class="font-semibold text-gray-900 text-right max-w-xs">{{ payment.order?.program?.name || 'N/A' }}</span>
+                                    <span class="font-semibold text-gray-900 text-right max-w-xs">{{ payment.is_installment ? payment.order?.program_course?.name : payment.order?.program?.name || 'N/A' }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Destino:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order?.program?.destination || 'N/A' }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? 'Suscripción' : (payment.order?.program?.destination || 'N/A') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Institución:</span>
@@ -132,7 +132,7 @@
                                 </div>
                                 <div class="flex justify-between items-center py-2">
                                     <span class="text-gray-600 font-medium">Fecha de Salida:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDate(payment.order?.program?.departure_date) }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? 'N/A' : formatDate(payment.order?.program?.departure_date) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -191,7 +191,7 @@
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Cuota Actual:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order_detail?.installment_number || 'N/A' }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? payment.installment_number : (payment.order_detail?.installment_number || 'N/A') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Total de Cuotas:</span>
@@ -199,25 +199,25 @@
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Monto Base:</span>
-                                    <span class="font-semibold text-gray-900">${{ formatPrice(payment.order_detail?.base_amount) }}</span>
+                                    <span class="font-semibold text-gray-900">${{ formatPrice(payment.is_installment ? payment.amount : payment.order_detail?.base_amount) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Descuento:</span>
-                                    <span class="font-semibold text-gray-900">${{ formatPrice(payment.order_detail?.discount_amount) }}</span>
+                                    <span class="font-semibold text-gray-900">${{ formatPrice(payment.is_installment ? 0 : payment.order_detail?.discount_amount) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Fecha de Vencimiento:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDate(payment.order_detail?.due_date) }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? formatDate(payment.due_date) : formatDate(payment.order_detail?.due_date) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Pagado:</span>
-                                    <span class="font-semibold" :class="payment.order_detail?.is_paid ? 'text-green-600' : 'text-red-600'">
-                                        {{ payment.order_detail?.is_paid ? 'Sí' : 'No' }}
+                                    <span class="font-semibold" :class="(payment.is_installment ? (payment.status === 'completed') : payment.order_detail?.is_paid) ? 'text-green-600' : 'text-red-600'">
+                                        {{ (payment.is_installment ? (payment.status === 'completed') : payment.order_detail?.is_paid) ? 'Sí' : 'No' }}
                                     </span>
                                 </div>
                                 <div class="flex justify-between items-center py-2">
                                     <span class="text-gray-600 font-medium">Fecha de Pago:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDate(payment.order_detail?.paid_at) }}</span>
+                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? formatDate(payment.paid_at) : formatDate(payment.order_detail?.paid_at) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -283,29 +283,59 @@ const props = defineProps({
 defineEmits(['close']);
 
 const getParticipantName = (payment) => {
+    // Si es un installment
+    if (payment.is_installment && payment.order?.participant) {
+        const p = payment.order.participant;
+        return `${p.first_name} ${p.first_last_name}`;
+    }
     // Usar el atributo del modelo Payment que ya está construido correctamente
     return payment.participant_name || 'N/A';
 };
 
 const getBuyerName = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data) {
+        const name = payment.client_data.name || '';
+        const surname = payment.client_data.surname || '';
+        return `${name} ${surname}`.trim() || 'N/A';
+    }
     return payment.order_detail?.name || 'N/A';
 };
 
 const getBuyerEmail = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data) {
+        return payment.client_data.email || 'N/A';
+    }
     return payment.order_detail?.email || 'N/A';
 };
 
 const getBuyerPhone = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data) {
+        return payment.client_data.phone || 'N/A';
+    }
     const code = payment.order_detail?.code_phone || '+56';
     const phone = payment.order_detail?.phone || '';
     return phone ? `${code} ${phone}` : 'N/A';
 };
 
 const getBuyerDocument = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data) {
+        // client_data.rut ya viene formateado desde VirtualPos
+        return payment.client_data.rut || payment.client_data.original_document || 'N/A';
+    }
     return payment.order_detail?.document_number || 'N/A';
 };
 
 const getBuyerCountry = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data?.address) {
+        const country = payment.client_data.address.country;
+        // Convertir código de país a nombre
+        return country === 'CL' ? 'Chile' : (country || 'N/A');
+    }
     // Si es un objeto con name (relación cargada)
     if (payment.order_detail?.country?.name) {
         return payment.order_detail.country.name;
@@ -322,34 +352,47 @@ const getBuyerCountry = (payment) => {
 };
 
 const getBuyerRegion = (payment) => {
+    // Si es un installment, no hay región en client_data de VirtualPos
+    if (payment.is_installment) {
+        return 'N/A';
+    }
     // Si es un objeto con name (relación cargada)
     if (payment.order_detail?.region?.name) {
         return payment.order_detail.region.name;
     }
     // Si es un string o número (ID de la región)
     if (payment.order_detail?.region) {
-        return typeof payment.order_detail.region === 'number' 
-            ? `ID: ${payment.order_detail.region}` 
+        return typeof payment.order_detail.region === 'number'
+            ? `ID: ${payment.order_detail.region}`
             : payment.order_detail.region;
     }
     return 'N/A';
 };
 
 const getBuyerCity = (payment) => {
+    // Si es un installment, usar client_data de VirtualPos
+    if (payment.is_installment && payment.client_data?.address) {
+        return payment.client_data.address.city || 'N/A';
+    }
     // Si es un objeto con name (relación cargada)
     if (payment.order_detail?.city?.name) {
         return payment.order_detail.city.name;
     }
     // Si es un string o número (ID de la ciudad)
     if (payment.order_detail?.city) {
-        return typeof payment.order_detail.city === 'number' 
-            ? `ID: ${payment.order_detail.city}` 
+        return typeof payment.order_detail.city === 'number'
+            ? `ID: ${payment.order_detail.city}`
             : payment.order_detail.city;
     }
     return 'N/A';
 };
 
 const getTotalInstallments = (payment) => {
+    // Si es un installment de suscripción, obtener desde installmentPlan
+    if (payment.is_installment) {
+        // Para installments de suscripción, siempre retornar 'N/A' ya que no tiene cuotas tradicionales
+        return 'Suscripción';
+    }
     // Obtener desde order que es donde está el total de cuotas
     if (payment.order?.total_installments) {
         return payment.order.total_installments;
@@ -362,6 +405,10 @@ const getTotalInstallments = (payment) => {
 };
 
 const getInstitutionName = (payment) => {
+    // Si es un installment, usar program_course
+    if (payment.is_installment && payment.order?.program_course) {
+        return payment.order.program_course.course?.institution?.name || 'N/A';
+    }
     return payment.order?.program?.course?.institution?.name || 'N/A';
 };
 
@@ -375,7 +422,18 @@ const getStatusClass = (status) => {
     return classes[status] || 'bg-gray-100 text-gray-800';
 };
 
-const getStatusLabel = (status) => {
+const getStatusLabel = (status, payment = null) => {
+    // Si es un installment, usar etiquetas específicas
+    if (payment?.is_installment) {
+        if (status === 'completed') {
+            return 'Pagado';
+        } else if (status === 'pending') {
+            return 'Pendiente';
+        } else if (status === 'failed') {
+            return 'No Pagado';
+        }
+    }
+
     const labels = {
         'pending': 'Pendiente',
         'completed': 'Completado',

@@ -11,7 +11,7 @@ class PaymentScheduleSummaryFilters
     {
         // Filtro por programa
         if (!empty($filters['programId'])) {
-            $query->where('prog.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']);
         }
 
         // Filtro por ejecutivo de ventas

@@ -14,13 +14,14 @@ class PaymentScheduleSummaryTransformer
             return collect();
         }
 
-        // Agrupar por ejecutivo -> programa -> mes
+        // Agrupar por ejecutivo -> program_course -> mes
         $grouped = $data->groupBy([
             function ($item) {
                 return $item->sales_executive_id ?? 'sin_ejecutivo';
             },
             function ($item) {
-                return $item->program_id ?? 'sin_programa';
+                // IMPORTANTE: Agrupar por program_course_id (plan específico), NO por program_id (plantilla)
+                return $item->program_course_id ?? 'sin_programa';
             },
             function ($item) {
                 return $item->year_month ?? 'sin_fecha';
@@ -30,15 +31,16 @@ class PaymentScheduleSummaryTransformer
         $result = collect();
 
         foreach ($grouped as $executiveId => $executiveData) {
-            foreach ($executiveData as $programId => $programData) {
+            foreach ($executiveData as $programCourseId => $programData) {
                 $executiveInfo = $data->where('sales_executive_id', $executiveId)->first();
-                $programInfo = $data->where('program_id', $programId)->first();
+                $programInfo = $data->where('program_course_id', $programCourseId)->first();
 
                 // Datos base del ejecutivo y programa
                 $executiveProgramData = [
                     'sales_executive_id' => $executiveId,
                     'sales_executive_name' => $executiveInfo->sales_executive_name ?? 'Sin Asignar',
-                    'program_id' => $programId,
+                    'program_course_id' => $programCourseId,
+                    'program_id' => $programInfo->program_id ?? null,
                     'program_code' => $programInfo->program_code ?? '',
                     'program_name' => $programInfo->program_name ?? 'Sin Programa',
                     'program_destination' => $programInfo->program_destination ?? '',

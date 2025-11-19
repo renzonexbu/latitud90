@@ -12,14 +12,15 @@ class RecoveryScheduleDataProvider
     public function buildBaseQuery(): Builder
     {
         // Usar installments como base para las cuotas individuales
-        // Según las migraciones: installments -> installment_plans -> orders -> participants -> programs
+        // Según las migraciones: installments -> installment_plans -> orders -> participants -> program_courses -> programs
         // MOSTRAR TODOS los installments sin filtrar por estado
         return DB::table('installments as i')
             ->leftJoin('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
             ->leftJoin('orders as o', 'ip.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as prog', 'prog.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->select([
                 'i.id',
                 'p.id as participant_id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
@@ -85,8 +86,9 @@ class RecoveryScheduleDataProvider
             ->leftJoin('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
             ->leftJoin('orders as o', 'ip.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as prog', 'prog.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->where('o.status', '!=', 'cancelled'); // Solo excluir órdenes canceladas
         
         $summary = $summaryQuery->select([

@@ -61,7 +61,7 @@ const props = defineProps({
 const localFilters = reactive({
     dateFrom: props.filters.dateFrom || '',
     dateTo: props.filters.dateTo || '',
-    programId: props.filters.programId || '',
+    programCode: props.filters.programCode || '',
 });
 
 const exportData = () => {

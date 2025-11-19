@@ -6,6 +6,7 @@ use App\Models\Participant;
 use App\Models\Course;
 use App\Models\Institution;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Document;
 use App\Helpers\ParticipantPriceHelper;
 use App\Models\Payment;
@@ -84,7 +85,7 @@ class GetParticipantsService
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
             ->leftJoin('orders as o', function ($join) {
                 $join->on('o.participant_id', '=', 'p.id')
-                    ->on('o.program_id', '=', 'pr.id');
+                    ->on('o.program_id', '=', 'pgc.id');
             })
             ->leftJoin('orders_detail as od', function ($join) {
                 $join->on('od.order_id', '=', 'o.id')
@@ -102,6 +103,7 @@ class GetParticipantsService
                 'pc.id',
                 'pc.individual_price',
                 'pc.status',
+                'pgc.id',
                 'pr.id',
                 'pgc.code',
                 'pgc.name',
@@ -123,6 +125,7 @@ class GetParticipantsService
                 'pc.id as participant_course_id',
                 'pc.individual_price',
                 'pc.status as enrollment_status',
+                'pgc.id as program_course_id',
                 'pr.id as program_id',
                 'pgc.code as program_code',
                 'pgc.name as program_name',
@@ -139,20 +142,20 @@ class GetParticipantsService
         // Calcular precios finales con descuentos usando el helper
         return $enrollmentsBase->map(function ($enrollment) {
             $participant = Participant::find($enrollment->participant_id);
-            $program = Program::find($enrollment->program_id);
+            $programCourse = ProgramCourse::find($enrollment->program_course_id);
 
-            if ($participant && $program) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            if ($participant && $programCourse) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
                 $enrollment->total_due = $priceData['final_price'];
-                
+
                 // Calcular monto pagado correctamente (incluyendo reembolsos como negativos)
                 $paidAmount = Payment::whereHas('order', function($q) use ($enrollment) {
                         $q->where('participant_id', $enrollment->participant_id)
-                          ->where('program_id', $enrollment->program_id);
+                          ->where('program_id', $enrollment->program_course_id);
                     })
                     ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
-                
+
                 $enrollment->paid_amount = round($paidAmount, 2);
             } else {
                 $enrollment->total_due = $enrollment->individual_price ?? 0;

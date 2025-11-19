@@ -30,6 +30,7 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
+                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id',
                 'pr.id', 'pr.name',
                 'c.education_level', 'c.course_number',
                 'i.name',
@@ -48,6 +49,9 @@ class PartialAccountDataProvider
                 'pp.individual_price',
                 'pp.status as enrollment_status',
                 'pp.created_at',
+                'pgc.id as program_course_id',
+                'pgc.departure_date',
+                'pgc.sales_executive_id',
                 'pr.id as program_id',
                 'pr.name as program_name',
                 'c.education_level',
@@ -70,6 +74,7 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
+                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id',
                 'pr.id', 'pr.name',
                 'c.education_level', 'c.course_number',
                 'i.name',
@@ -88,6 +93,9 @@ class PartialAccountDataProvider
                 'pp.individual_price',
                 'pp.status as enrollment_status',
                 'pp.created_at',
+                'pgc.id as program_course_id',
+                'pgc.departure_date',
+                'pgc.sales_executive_id',
                 'pr.id as program_id',
                 'pr.name as program_name',
                 'c.education_level',
@@ -110,12 +118,13 @@ class PartialAccountDataProvider
     {
         return DB::table('participant_program as pp')
             ->join('participants as p', 'p.id', '=', 'pp.participant_id')
-            ->join('programs as pr', 'pr.id', '=', 'pp.program_id')
-            ->leftJoin('courses as c', 'c.program_id', '=', 'pr.id')
+            ->join('program_courses as pgc', 'pgc.id', '=', 'pp.program_id')
+            ->join('programs as pr', 'pr.id', '=', 'pgc.program_id')
+            ->leftJoin('courses as c', 'c.id', '=', 'pgc.course_id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
             ->leftJoin('orders as o', function($join) {
                 $join->on('o.participant_id', '=', 'p.id')
-                     ->on('o.program_id', '=', 'pr.id')
+                     ->on('o.program_id', '=', 'pgc.id')
                      ->whereIn('o.status', ['completed', 'paid', 'approved']);
             })
             ->leftJoin('payments as pay', function($join) {

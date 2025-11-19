@@ -10,6 +10,7 @@ use App\Models\Region;
 use App\Services\Client\Authentication\LoginGuardianService;
 use App\Services\Client\Authentication\PasswordResetService;
 use App\Services\Client\Authentication\RegisterGuardianService;
+use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -19,7 +20,8 @@ class GuardianAuthController extends Controller
     public function __construct(
         private RegisterGuardianService $registerService,
         private LoginGuardianService $loginService,
-        private PasswordResetService $passwordResetService
+        private PasswordResetService $passwordResetService,
+        private EcommerceAnalyticsService $analyticsService
     ) {}
 
     /**
@@ -158,6 +160,13 @@ class GuardianAuthController extends Controller
                 ->withErrors(['error' => $result['message']])
                 ->withInput();
         }
+
+        // Registrar tracking de registro de guardian
+        $participantRut = null;
+        if (isset($tokenData) && isset($tokenData['document'])) {
+            $participantRut = $tokenData['document'];
+        }
+        $this->analyticsService->recordGuardianRegister($request, $request->email, $participantRut);
 
         return redirect()
             ->route('guardian.register.success')
@@ -384,6 +393,13 @@ class GuardianAuthController extends Controller
                 ->withErrors(['error' => $result['message']])
                 ->withInput();
         }
+
+        // Registrar tracking de login de guardian
+        $participantRut = null;
+        if (isset($tokenData) && isset($tokenData['document'])) {
+            $participantRut = $tokenData['document'];
+        }
+        $this->analyticsService->recordGuardianLogin($request, $request->email, $participantRut);
 
         // Verificar si hay un pending_subscription en la sesión para redirigir al programa
         $pendingSubscription = session('pending_subscription');

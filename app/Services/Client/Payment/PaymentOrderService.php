@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Installment;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
@@ -89,17 +90,18 @@ class PaymentOrderService
                 throw new \Exception('Participante no encontrado');
             }
 
-            // Buscar el programa
-            $program = Program::with(['course.participants'])->findOrFail($programId);
+            // Buscar el ProgramCourse (no Program)
+            // IMPORTANTE: $programId es en realidad un ProgramCourse ID
+            $programCourse = \App\Models\ProgramCourse::with(['course.participants'])->findOrFail($programId);
 
             // Calcular montos por participante
-            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($program, $participant);
+            [$participantTotalAmount, $paidAmount, $participantBalance] = $this->computeParticipantAmounts($programCourse, $participant);
             $finalAmount = $participantBalance;
 
             // Crear nueva orden para pago total
             $order = Order::create([
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_id' => $programCourse->id, // program_id en orders apunta a program_courses
                 'total_amount' => $participantTotalAmount,
                 'discount' => 0,
                 'final_amount' => $finalAmount,
@@ -377,22 +379,22 @@ class PaymentOrderService
     /**
      * Calcular montos por participante
      */
-    private function computeParticipantAmounts(Program $program, Participant $participant): array
+    private function computeParticipantAmounts(\App\Models\ProgramCourse $programCourse, Participant $participant): array
     {
         // Calcular el precio del participante usando el helper
-        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $participantTotalAmount = $priceData['final_price'];
 
         // Calcular pagos aprobados y completados previos
-        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                 $q->where('participant_id', $participant->id)
-                  ->where('program_id', $program->id);
+                  ->where('program_id', $programCourse->id); // program_id en orders apunta a program_courses
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
         $paidAmount = round($paidAmount, 2);
         $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
-        
+
         return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
 

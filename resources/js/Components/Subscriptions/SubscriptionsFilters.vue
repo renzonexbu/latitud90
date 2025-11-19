@@ -3,7 +3,7 @@
         <!-- Header Row -->
         <div class="flex flex-row items-start justify-between flex-shrink-0 w-full relative">
             <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
-                Filtros de Pagos
+                Filtros de Suscripciones
             </div>
         </div>
 
@@ -18,7 +18,7 @@
                     class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
-                <button 
+                <button
                     class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-turquesa rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                     @click="performSearch"
                 >
@@ -28,19 +28,19 @@
                 </button>
             </div>
 
-            <!-- Estado del Pago Dropdown -->
+            <!-- Estado de la Suscripción Dropdown -->
             <div class="relative w-[180px]">
                 <select
-                    v-model="filters.payment_status"
+                    v-model="filters.subscription_status"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
                     <option value="all">Todos los Estados</option>
-                    <option value="pending">Pendiente</option>
-                    <option value="completed">Completado</option>
-                    <option value="failed">Fallido</option>
-                    <option value="cancelled">Cancelado</option>
-                    <option value="refunded">Reembolsado</option>
+                    <option value="ACTIVA">Activa</option>
+                    <option value="SUSCRIBIENDO">Suscribiendo</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="CANCELADA">Cancelada</option>
+                    <option value="RECHAZADA">Rechazada</option>
                 </select>
             </div>
 
@@ -55,22 +55,6 @@
                     <option v-for="program in programs" :key="program.id" :value="program.id">
                         {{ capitalizeWords(program.name) }}
                     </option>
-                </select>
-            </div>
-
-            <!-- Método de Pago Dropdown -->
-            <div class="relative w-[180px]">
-                <select
-                    v-model="filters.payment_method"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
-                    @change="performSearch"
-                >
-                    <option value="all">Todos los Métodos</option>
-                    <option value="transbank">Webpay (Tarjeta)</option>
-                    <option value="khipu">Transferencia Khipu</option>
-                    <option value="presencial">Pago Presencial</option>
-                    <option value="virtualpos">VirtualPos (Suscripciones)</option>
-                    <option value="refund">Devoluciones</option>
                 </select>
             </div>
 
@@ -112,7 +96,7 @@
 import _ from "lodash";
 
 export default {
-    name: "PaymentsFilters",
+    name: "SubscriptionsFilters",
     props: {
         initialFilters: {
             type: Object,
@@ -127,9 +111,8 @@ export default {
         return {
             filters: {
                 participant_name: this.initialFilters.participant_name || "",
-                payment_status: this.initialFilters.payment_status || "all",
+                subscription_status: this.initialFilters.subscription_status || "all",
                 program_id: this.initialFilters.program_id || "",
-                payment_method: this.initialFilters.payment_method || "all",
                 date_from: this.initialFilters.date_from || "",
                 date_to: this.initialFilters.date_to || "",
             }
@@ -141,9 +124,8 @@ export default {
             handler(newFilters) {
                 this.filters = {
                     participant_name: newFilters.participant_name || "",
-                    payment_status: newFilters.payment_status || "all",
+                    subscription_status: newFilters.subscription_status || "all",
                     program_id: newFilters.program_id || "",
-                    payment_method: newFilters.payment_method || "all",
                     date_from: newFilters.date_from || "",
                     date_to: newFilters.date_to || "",
                 };
@@ -156,22 +138,21 @@ export default {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
         }, 300),
-        
+
         clearFilters() {
             this.filters = {
                 participant_name: "",
-                payment_status: "all",
+                subscription_status: "all",
                 program_id: "",
-                payment_method: "all",
                 date_from: "",
                 date_to: "",
             };
             this.performSearch();
         },
-        
+
         capitalizeWords(string) {
             if (!string) return '';
-            return string.split(' ').map(word => 
+            return string.split(' ').map(word =>
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
         }

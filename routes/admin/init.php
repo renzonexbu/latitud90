@@ -33,6 +33,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de pagos
     include __DIR__ . '/payments.php';
 
+    // Gestión de suscripciones
+    include __DIR__ . '/subscriptions.php';
+
     // Gestión de reportes
     include __DIR__ . '/reports.php';
 

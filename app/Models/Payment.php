@@ -116,7 +116,7 @@ class Payment extends Model
     }
 
     /**
-     * Relación para acceder al programa
+     * Relación para acceder al programa (legacy - apunta a Programs)
      */
     public function program()
     {
@@ -127,6 +127,22 @@ class Payment extends Model
             'id', // Clave foránea en programs
             'order_id', // Clave local en payments
             'program_id' // Clave local en orders
+        );
+    }
+
+    /**
+     * Relación para acceder al program_course (arquitectura nueva)
+     * En la nueva arquitectura, orders.program_id apunta a program_courses
+     */
+    public function programCourse()
+    {
+        return $this->hasOneThrough(
+            ProgramCourse::class,
+            Order::class,
+            'id', // Clave foránea en orders
+            'id', // Clave foránea en program_courses
+            'order_id', // Clave local en payments
+            'program_id' // Clave local en orders (ahora apunta a program_courses)
         );
     }
 
@@ -183,8 +199,8 @@ class Payment extends Model
      */
     public function getProgramNameAttribute()
     {
-        if ($this->order && $this->order->program) {
-            return $this->order->program->name;
+        if ($this->order && $this->order->programCourse) {
+            return $this->order->programCourse->name;
         }
         return 'N/A';
     }
@@ -194,8 +210,8 @@ class Payment extends Model
      */
     public function getInstitutionNameAttribute()
     {
-        if ($this->order && $this->order->program && $this->order->program->course && $this->order->program->course->institution) {
-            return $this->order->program->course->institution->name;
+        if ($this->order && $this->order->programCourse && $this->order->programCourse->course && $this->order->programCourse->course->institution) {
+            return $this->order->programCourse->course->institution->name;
         }
         return 'N/A';
     }
@@ -220,17 +236,18 @@ class Payment extends Model
                 }
             }
 
-            // Cargar la relación program si no está cargada
-            if (!$this->relationLoaded('program')) {
-                $this->load('program');
+            // Cargar la relación programCourse si no está cargada (arquitectura nueva)
+            if (!$this->relationLoaded('programCourse')) {
+                $this->load('programCourse.program');
             }
 
             // Si no hay programa directamente, intentar obtenerlo a través de order
-            if (!$this->program && !$this->relationLoaded('order')) {
-                $this->load('order.program');
+            if (!$this->programCourse && !$this->relationLoaded('order')) {
+                $this->load('order.programCourse.program');
             }
 
-            $program = $this->program ?? $this->order?->program;
+            $programCourse = $this->programCourse ?? $this->order?->programCourse;
+            $program = $programCourse?->program;
 
             // Si no hay programa, por defecto B2 (Boleta)
             if (!$program) {

@@ -13,28 +13,12 @@
                 {{ subtitle }}
             </div>
         </div>
-
-        <!-- Right side - Action buttons -->
-        <div class="flex flex-row items-center justify-end flex-shrink-0 relative">
-            <!-- Back to Reports Button -->
-            <Link
-                :href="route('admin.reports.index')"
-                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-            >
-                Volver a Reportes
-            </Link>
-        </div>
     </div>
 </template>
 
 <script>
-import { Link } from "@inertiajs/vue3";
-
 export default {
     name: "ReportsHeader",
-    components: {
-        Link,
-    },
     props: {
         title: {
             type: String,

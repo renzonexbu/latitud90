@@ -31,6 +31,8 @@ class ProgramSubscription extends Model
         'card_change_link',
         'card_change_link_generated_at',
         'api_response',
+        'email_sent',
+        'email_sent_at',
     ];
 
     protected $casts = [
@@ -43,6 +45,8 @@ class ProgramSubscription extends Model
         'cancelled_at' => 'datetime',
         'finished_at' => 'datetime',
         'card_change_link_generated_at' => 'datetime',
+        'email_sent' => 'boolean',
+        'email_sent_at' => 'datetime',
     ];
 
     /**
@@ -67,6 +71,29 @@ class ProgramSubscription extends Model
     public function programCourse()
     {
         return $this->belongsTo(ProgramCourse::class, 'program_id');
+    }
+
+    /**
+     * Relación con el plan de cuotas
+     * Nota: Esta relación usa participant_id y program_id para encontrar el plan correcto
+     */
+    public function installmentPlan()
+    {
+        return $this->hasOne(InstallmentPlan::class, 'participant_id', 'participant_id')
+            ->where('program_id', $this->program_id);
+    }
+
+    /**
+     * Método auxiliar para obtener el plan de cuotas con eager loading
+     */
+    public function getInstallmentPlanAttribute()
+    {
+        if (!$this->relationLoaded('installmentPlanRelation')) {
+            return InstallmentPlan::where('participant_id', $this->participant_id)
+                ->where('program_id', $this->program_id)
+                ->first();
+        }
+        return $this->getRelation('installmentPlanRelation');
     }
 
     /**

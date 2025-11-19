@@ -45,7 +45,7 @@ class ReportsSummaryService
 
     private function getDailyPaymentsSummary($dateFrom, $dateTo, $programId)
     {
-        $query = Payment::with(['order.program', 'order.participant'])
+        $query = Payment::with(['order.program', 'order.participant', 'paymentGateway', 'paymentOption'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('status', 'completed');
 
@@ -97,27 +97,49 @@ class ReportsSummaryService
 
     private function getPaymentScheduleSummary($dateFrom, $dateTo, $programId)
     {
-        $query = Order::with(['program', 'participant'])
-            ->whereBetween('created_at', [$dateFrom, $dateTo]);
+        // Contar todas las cuotas de suscripciones activas (no filtrar por created_at de las cuotas,
+        // ya que todas se crean al inicio pero tienen diferentes fechas de vencimiento)
+        $installmentsQuery = \App\Models\Installment::query();
 
         if ($programId) {
-            $query->where('program_id', $programId);
+            $installmentsQuery->whereHas('programSubscription.order', function ($q) use ($programId) {
+                $q->where('program_id', $programId);
+            });
         }
 
-        $orders = $query->get();
-
-        // Simular cuotas (en un sistema real esto vendría de una tabla de cuotas)
-        $totalScheduled = $orders->count() * 3; // Asumiendo 3 cuotas por orden
-        $totalPaid = $orders->where('status', 'completed')->count() * 3;
+        $totalScheduled = $installmentsQuery->count();
+        $totalPaid = (clone $installmentsQuery)->where('is_paid', true)->count();
         $totalPending = $totalScheduled - $totalPaid;
+
+        // Obtener cuotas vencidas (due_date pasado y no pagadas)
+        $overdueCount = \App\Models\Installment::query()
+            ->where('is_paid', false)
+            ->where('due_date', '<', Carbon::now())
+            ->when($programId, function ($q) use ($programId) {
+                $q->whereHas('programSubscription.order', function ($q2) use ($programId) {
+                    $q2->where('program_id', $programId);
+                });
+            })
+            ->count();
+
+        // Obtener próximas cuotas (próximos 30 días)
+        $upcomingCount = \App\Models\Installment::query()
+            ->where('is_paid', false)
+            ->whereBetween('due_date', [Carbon::now(), Carbon::now()->addDays(30)])
+            ->when($programId, function ($q) use ($programId) {
+                $q->whereHas('programSubscription.order', function ($q2) use ($programId) {
+                    $q2->where('program_id', $programId);
+                });
+            })
+            ->count();
 
         return [
             'totalScheduled' => $totalScheduled,
             'totalPaid' => $totalPaid,
             'totalPending' => $totalPending,
             'completionRate' => $totalScheduled > 0 ? round(($totalPaid / $totalScheduled) * 100, 2) : 0,
-            'overduePayments' => $this->getOverduePayments($orders),
-            'upcomingPayments' => $this->getUpcomingPayments($orders)
+            'overduePayments' => $overdueCount,
+            'upcomingPayments' => $upcomingCount
         ];
     }
 
@@ -174,24 +196,46 @@ class ReportsSummaryService
 
     private function getTopPaymentMethods($payments)
     {
-        return $payments->groupBy('payment_gateway_id')
-            ->map(function ($group) {
-                $firstPayment = $group->first();
-                $gatewayName = 'Desconocido';
-                
-                if ($firstPayment->paymentGateway) {
-                    $gatewayName = $firstPayment->paymentGateway->name ?? $firstPayment->paymentGateway->code ?? 'Desconocido';
+        $methods = collect();
+
+        $paymentsByGateway = $payments->groupBy('payment_gateway_id');
+
+        foreach ($paymentsByGateway as $gatewayId => $gatewayPayments) {
+            $firstPayment = $gatewayPayments->first();
+            $gatewayName = 'Desconocido';
+
+            if ($firstPayment->paymentGateway) {
+                $gatewayName = $firstPayment->paymentGateway->name ?? $firstPayment->paymentGateway->code ?? 'Desconocido';
+            }
+
+            // Para Transbank, agregar detalles de cuotas
+            if (strtolower($gatewayName) === 'transbank') {
+                $byInstallments = $gatewayPayments->groupBy(function ($payment) {
+                    // Intentar obtener de payment_option primero, luego de installments_number
+                    $installments = $payment->paymentOption?->installments ?? $payment->installments_number ?? 0;
+                    if ($installments == 0 || $installments == 1) {
+                        return 'Débito/Pago al Contado';
+                    }
+                    return "{$installments} cuotas";
+                });
+
+                foreach ($byInstallments as $label => $installmentPayments) {
+                    $methods->push([
+                        'gateway' => "Transbank - {$label}",
+                        'count' => $installmentPayments->count(),
+                        'amount' => $installmentPayments->sum('amount')
+                    ]);
                 }
-                
-                return [
+            } else {
+                $methods->push([
                     'gateway' => $gatewayName,
-                    'count' => $group->count(),
-                    'amount' => $group->sum('amount')
-                ];
-            })
-            ->sortByDesc('amount')
-            ->take(3)
-            ->values();
+                    'count' => $gatewayPayments->count(),
+                    'amount' => $gatewayPayments->sum('amount')
+                ]);
+            }
+        }
+
+        return $methods->sortByDesc('amount')->take(5)->values();
     }
 
     private function getDailyTrend($payments)

@@ -1012,7 +1012,7 @@
                             Distribución por Tipo de Pago
                         </h3>
                         <p class="text-sm text-gray-600 mb-4">
-                            Compara la cantidad de pagos por tipo: Totales (Full), Mensualidades (Lat90), Presenciales y Devoluciones.
+                            Compara la cantidad de pagos por tipo: Totales (Full), Suscripciones, Presenciales y Devoluciones.
                         </p>
                         <div class="h-64">
                             <canvas ref="paymentTypesChart"></canvas>
@@ -1271,6 +1271,12 @@ onMounted(() => {
 
     filters.dateTo = today.toISOString().split("T")[0];
     filters.dateFrom = lastMonth.toISOString().split("T")[0];
+
+    // DEBUG: Ver datos de métodos de pago
+    console.log('=== DEBUG: Datos del Card Métodos de Pago ===');
+    console.log('summary completo:', props.summary);
+    console.log('dailyPayments completo:', props.summary?.dailyPayments);
+    console.log('topPaymentMethods:', props.summary?.dailyPayments?.topPaymentMethods);
 
     // Crear gráficos después de que el DOM esté listo
     nextTick(() => {

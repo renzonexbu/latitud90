@@ -47,7 +47,8 @@ class ParticipantPriceHelper
         // Determinar si es ProgramCourse o Program
         $isProgramCourse = $programCourse instanceof ProgramCourse;
         $programCourseId = $isProgramCourse ? $programCourse->id : null;
-        $course = $isProgramCourse ? $programCourse->course : ($programCourse->course ?? null);
+        // IMPORTANTE: Program NO tiene relación course, solo ProgramCourse
+        $course = $isProgramCourse ? $programCourse->course : null;
 
         // 1. Intentar obtener desde participant_program (program_id apunta a program_courses)
         if ($programCourseId) {
@@ -87,7 +88,8 @@ class ParticipantPriceHelper
     {
         // Determinar si es ProgramCourse o Program
         $isProgramCourse = $programCourse instanceof ProgramCourse;
-        $course = $isProgramCourse ? $programCourse->course : ($programCourse->course ?? null);
+        // IMPORTANTE: Program NO tiene relación course, solo ProgramCourse
+        $course = $isProgramCourse ? $programCourse->course : null;
 
         // Solo considerar ajustes del pivote participant_course (sistema antiguo)
         if ($course) {

@@ -44,6 +44,15 @@ class Order extends Model
         return $this->belongsTo(Program::class);
     }
 
+    /**
+     * Relación con ProgramCourse (arquitectura nueva)
+     * En la nueva arquitectura, program_id apunta a program_courses
+     */
+    public function programCourse()
+    {
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
+    }
+
     public function course()
     {
         return $this->belongsTo(Course::class);

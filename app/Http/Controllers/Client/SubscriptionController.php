@@ -7,12 +7,15 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Participant;
 use App\Models\ProgramSubscription;
 use App\Models\InstallmentPlan;
 use App\Models\Order;
+use App\Models\EmergencyContact;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Helpers\ParticipantPriceHelper;
 use Exception;
@@ -619,6 +622,11 @@ class SubscriptionController extends Controller
             if ($virtualPosStatus === 'ACTIVA') {
                 Log::info('Suscripción ACTIVA, redirigiendo a success');
 
+                // Verificar si la primera cuota está pagada y enviar email
+                if ($installmentPlan) {
+                    $this->sendSubscriptionSuccessEmail($subscription, $order, $installmentPlan);
+                }
+
                 // Generar token firmado para seguridad
                 $token = encrypt([
                     'subscription_id' => $subscription->id,
@@ -1093,6 +1101,85 @@ class SubscriptionController extends Controller
                 'success' => false,
                 'error' => 'Error al verificar el estado de la suscripción'
             ], 500);
+        }
+    }
+
+    /**
+     * Enviar email de suscripción exitosa (sin PDFs, solo confirmación y fecha de primer cobro)
+     */
+    private function sendSubscriptionSuccessEmail(ProgramSubscription $subscription, Order $order, InstallmentPlan $installmentPlan): void
+    {
+        try {
+            // Verificar si ya se envió el email (evitar duplicados)
+            if ($subscription->email_sent) {
+                Log::info('Email de suscripción ya fue enviado', [
+                    'subscription_id' => $subscription->id,
+                    'order_id' => $order->id
+                ]);
+                return;
+            }
+
+            // Obtener datos del participante y programa
+            $participant = $subscription->participant;
+            $programCourse = $subscription->programCourse;
+
+            // Buscar el contacto de emergencia para obtener el email del apoderado
+            $emergencyContact = \App\Models\EmergencyContact::where('participant_id', $participant->id)->first();
+
+            // Obtener información del primer cobro desde el charge_program de VirtualPos
+            $chargeProgram = $subscription->charge_program ?? [];
+            $firstCharge = !empty($chargeProgram) ? $chargeProgram[0] : null;
+
+            $firstChargeDate = null;
+            $firstChargeAmount = $subscription->amount ?? 0;
+
+            if ($firstCharge) {
+                $firstChargeDate = isset($firstCharge['charge_date']) ? \Carbon\Carbon::parse($firstCharge['charge_date']) : null;
+                $firstChargeAmount = $firstCharge['amount'] ?? $firstChargeAmount;
+            }
+
+            // Preparar datos para el email
+            $emailData = [
+                'customer_name' => ucwords(strtolower($emergencyContact ? $emergencyContact->name : ($participant->first_name . ' ' . $participant->first_last_name))),
+                'customer_email' => $emergencyContact ? $emergencyContact->email : $participant->email,
+                'participant_name' => ucwords(strtolower($participant->first_name . ' ' . $participant->first_last_name)),
+                'program_name' => $programCourse->name ?? 'Programa',
+                'subscription_amount' => number_format($firstChargeAmount, 0, ',', '.'),
+                'first_charge_date' => $firstChargeDate ? $firstChargeDate->format('d/m/Y') : 'Próximamente',
+                'total_installments' => $installmentPlan->total_installments,
+                'payment_method' => is_array($subscription->payment_method) ? ($subscription->payment_method['type'] ?? 'Tarjeta') : 'Tarjeta',
+                'subscription_id' => $subscription->virtualpos_subscription_id,
+                'subject' => 'Suscripción Exitosa - ' . ($programCourse->name ?? 'Programa'),
+                'company_name' => config('lat90.company.name'),
+                'company_email' => config('lat90.company.email'),
+                'company_phone' => config('lat90.email.support.phone'),
+            ];
+
+            // Enviar el email simple sin adjuntos
+            Mail::send('Mails.subscription_success', $emailData, function ($message) use ($emailData) {
+                $message->to($emailData['customer_email'], $emailData['customer_name'])
+                    ->subject($emailData['subject']);
+            });
+
+            // Marcar que el email fue enviado
+            $subscription->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+
+            Log::info('Email de suscripción exitosa enviado', [
+                'subscription_id' => $subscription->id,
+                'customer_email' => $emailData['customer_email'],
+                'first_charge_date' => $firstChargeDate ? $firstChargeDate->toDateTimeString() : null,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error enviando email de suscripción exitosa', [
+                'subscription_id' => $subscription->id,
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 }

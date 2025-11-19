@@ -92,6 +92,21 @@
                     />
                 </NavLink>
                 <NavLink
+                    :href="route('admin.subscriptions.index')"
+                    :active="route().current('admin.subscriptions.*')"
+                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                >
+                    <SubscriptionIcon
+                        class="w-8 h-8 transition-colors"
+                        :class="
+                            route().current('admin.subscriptions.*')
+                                ? 'text-turquesa'
+                                : 'text-gray-400 group-hover:text-turquesa'
+                        "
+                        stroke-color="currentColor"
+                    />
+                </NavLink>
+                <NavLink
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
                     class="flex justify-center w-full p-1 group transition-colors mt-8"
@@ -237,6 +252,7 @@ import {
     ReportIcon,
     SettingsIcon,
 } from "@/Components/Icons";
+import SubscriptionIcon from "@/Components/Icons/SubscriptionIcon.vue";
 
 import images from "../../images/index.js";
 import backgroundImage from "../../images/admin/background.png";
@@ -256,6 +272,7 @@ export default {
         SchoolIcon,
         PersonsIcon,
         PaymentsIcon,
+        SubscriptionIcon,
         EditIcon,
         AyudaIcon,
         UserIcon,

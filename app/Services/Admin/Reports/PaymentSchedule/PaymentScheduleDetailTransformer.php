@@ -13,19 +13,19 @@ class PaymentScheduleDetailTransformer
         // 1) Cada fila es una cuota por vencer; no deduplicar por participante para no perder cuotas de meses distintos
         $mapped = $data->map(function ($item) {
             // Calcular precio real del participante (base - descuentos + ajustes)
-            $participantPrice = $this->calculateParticipantPrice($item->participant_id, $item->program_id);
+            $participantPrice = $this->calculateParticipantPrice($item->participant_id, $item->program_course_id);
             $finalPrice = (float) ($participantPrice['final_price'] ?? 0);
 
             // Desglose de descuentos (becas) y liberados
-            $discountBreakdown = $this->calculateDiscountBreakdown($item->participant_id, $item->program_id);
+            $discountBreakdown = $this->calculateDiscountBreakdown($item->participant_id, $item->program_course_id);
             $scholarshipsAmount = (float) ($discountBreakdown['normal_discounts'] ?? 0);
             $releasedAmount = (float) ($discountBreakdown['released_amount'] ?? 0);
 
             // Total pagado por la orden (pagos aprobados)
-            $totalPaidAmount = $this->calculateTotalPaid($item->participant_id, $item->program_id);
+            $totalPaidAmount = $this->calculateTotalPaid($item->participant_id, $item->program_course_id);
 
             // Estadísticas de cuotas (todos los planes)
-            $installmentStats = $this->calculateInstallmentStats($item->participant_id, $item->program_id);
+            $installmentStats = $this->calculateInstallmentStats($item->participant_id, $item->program_course_id);
             $totalInstallments = $installmentStats['total_installments'];
             $paidInstallments = $installmentStats['paid_installments'];
 
@@ -61,9 +61,16 @@ class PaymentScheduleDetailTransformer
 
                 // Cuota por vencer (esta fila)
                 'next_due_date' => $item->due_date ?? null,
+                'due_date' => $item->due_date ?? null, // Alias para exportación
                 'next_due_year_month' => ($item->due_date ? (new \DateTime($item->due_date))->format('Y-m') : null),
                 'installment_number' => $item->installment_number ?? null,
                 'installment_amount' => (float) ($item->installment_amount ?? 0),
+                'installment_status' => $item->installment_status ?? null, // Para exportación
+
+                // Datos de pago (para exportación)
+                'gateway_code' => $item->gateway_code ?? null,
+                'transaction_date' => $item->transaction_date ?? null,
+                'payment_amount' => (float) ($item->payment_amount ?? 0),
 
                 // Montos
                 'program_price' => $finalPrice,
@@ -85,21 +92,21 @@ class PaymentScheduleDetailTransformer
         })->values();
     }
 
-    private function calculateTotalPaid(int $participantId, int $programId): float
+    private function calculateTotalPaid(int $participantId, int $programCourseId): float
     {
         return (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
             ->where('orders.participant_id', $participantId)
-            ->where('orders.program_id', $programId)
+            ->where('orders.program_id', $programCourseId)
             ->whereIn('payments.status', ['completed', 'approved'])
             ->sum('payments.amount');
     }
 
-    private function calculateInstallmentStats(int $participantId, int $programId): array
+    private function calculateInstallmentStats(int $participantId, int $programCourseId): array
     {
         $planIds = DB::table('installment_plans')
             ->where('participant_id', $participantId)
-            ->where('program_id', $programId)
+            ->where('program_id', $programCourseId)
             ->pluck('id');
 
         if ($planIds->isEmpty()) {
@@ -120,13 +127,13 @@ class PaymentScheduleDetailTransformer
         ];
     }
 
-    private function calculateParticipantPrice(int $participantId, int $programId): array
+    private function calculateParticipantPrice(int $participantId, int $programCourseId): array
     {
         try {
             $participant = \App\Models\Participant::find($participantId);
-            $program = \App\Models\Program::find($programId);
+            $programCourse = \App\Models\ProgramCourse::find($programCourseId);
 
-            if (!$participant || !$program) {
+            if (!$participant || !$programCourse) {
                 return [
                     'base_price' => 0,
                     'adjustments' => 0,
@@ -135,7 +142,7 @@ class PaymentScheduleDetailTransformer
                 ];
             }
 
-            return \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+            return \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         } catch (\Exception $e) {
             return [
                 'base_price' => 0,
@@ -146,12 +153,12 @@ class PaymentScheduleDetailTransformer
         }
     }
 
-    private function calculateDiscountBreakdown(int $participantId, int $programId): array
+    private function calculateDiscountBreakdown(int $participantId, int $programCourseId): array
     {
         try {
             $pp = DB::table('participant_program')
                 ->where('participant_id', $participantId)
-                ->where('program_id', $programId)
+                ->where('program_id', $programCourseId)
                 ->first();
 
             if (!$pp) {
@@ -171,14 +178,14 @@ class PaymentScheduleDetailTransformer
             foreach ($discounts as $discount) {
                 if ($discount->discount_type === 'released') {
                     if ($discount->percent == 100) {
-                        $basePrice = $this->getBasePrice($participantId, $programId);
+                        $basePrice = $this->getBasePrice($participantId, $programCourseId);
                         $releasedAmount += $basePrice;
                     } else {
                         $releasedAmount += (float) ($discount->amount ?? 0);
                     }
                 } else {
                     if ($discount->percent && $discount->percent > 0) {
-                        $basePrice = $this->getBasePrice($participantId, $programId);
+                        $basePrice = $this->getBasePrice($participantId, $programCourseId);
                         $normalDiscounts += ($basePrice * $discount->percent) / 100;
                     }
                     if ($discount->amount && $discount->amount > 0) {
@@ -199,19 +206,19 @@ class PaymentScheduleDetailTransformer
         }
     }
 
-    private function getBasePrice(int $participantId, int $programId): float
+    private function getBasePrice(int $participantId, int $programCourseId): float
     {
         $pp = DB::table('participant_program')
             ->where('participant_id', $participantId)
-            ->where('program_id', $programId)
+            ->where('program_id', $programCourseId)
             ->first();
 
         if ($pp && $pp->individual_price) {
             return (float) $pp->individual_price;
         }
 
-        $programPrice = DB::table('programs')
-            ->where('id', $programId)
+        $programPrice = DB::table('program_courses')
+            ->where('id', $programCourseId)
             ->value('trip_price');
 
         return (float) ($programPrice ?? 0);

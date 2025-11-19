@@ -16,16 +16,15 @@ class DailyPaymentsFilters
               ->where('od.status', 'paid');
         });
 
-        // Filtro por número de programa
+        // Filtro por número de programa (program_course específico)
         if (!empty($filters['programId'])) {
-            $query->where('pr.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']);
         }
 
-        // Filtro por ejecutivo comercial - DESHABILITADO: sales_executive_id no existe en programs (templates)
-        // Este filtro requiere vincular con program_courses para acceder a sales_executive_id
-        // if (!empty($filters['salesExecutiveId'])) {
-        //     $query->where('pr.sales_executive_id', $filters['salesExecutiveId']);
-        // }
+        // Filtro por ejecutivo comercial
+        if (!empty($filters['salesExecutiveId'])) {
+            $query->where('pgc.sales_executive_id', $filters['salesExecutiveId']);
+        }
 
         // Filtro por forma de financiamiento (payment_type)
         if (!empty($filters['financingType'])) {

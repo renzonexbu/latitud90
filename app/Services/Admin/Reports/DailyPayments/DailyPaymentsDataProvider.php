@@ -16,7 +16,9 @@ class DailyPaymentsDataProvider
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'pgc.sales_executive_id', '=', 'se.id')
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
@@ -52,6 +54,14 @@ class DailyPaymentsDataProvider
                 'pr.id as program_id',
                 'pr.name as program_name',
                 'pr.destination',
+                // Datos del programa específico (program_course)
+                'pgc.code as program_code',
+                'pgc.departure_date as departure_date',
+                'pgc.sales_executive_id',
+                // Datos del ejecutivo de ventas
+                'se.name as sales_executive_name',
+                'se.email as sales_executive_email',
+                'se.phone as sales_executive_phone',
                 // Datos del gateway y método de pago (desde orders_detail)
                 'od.payment_gateway_id',
                 'pg.name as payment_gateway_name',
@@ -100,7 +110,9 @@ class DailyPaymentsDataProvider
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'pgc.sales_executive_id', '=', 'se.id')
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
@@ -119,7 +131,9 @@ class DailyPaymentsDataProvider
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as pr', 'o.program_id', '=', 'pr.id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'pgc.sales_executive_id', '=', 'se.id')
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
@@ -142,8 +156,9 @@ class DailyPaymentsDataProvider
 
     public function getPrograms(): Collection
     {
-        return DB::table('programs')
-            ->select(['id', 'name', 'destination'])
+        return DB::table('program_courses')
+            ->select(['id', 'code', 'name'])
+            ->where('active', true)
             ->orderBy('name')
             ->get();
     }

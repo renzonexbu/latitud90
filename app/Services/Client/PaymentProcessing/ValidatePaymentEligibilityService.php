@@ -11,7 +11,7 @@ class ValidatePaymentEligibilityService
     /**
      * Validar el saldo pendiente del participante para el pago
      *
-     * @param int $programId
+     * @param int $programId - En realidad es el ID de ProgramCourse
      * @param string $rut
      * @param array $paymentData
      * @return array
@@ -27,9 +27,11 @@ class ValidatePaymentEligibilityService
             ];
         }
 
-        // Buscar el programa
-        $program = \App\Models\Program::find($programId);
-        if (!$program) {
+        // Buscar el ProgramCourse (no Program)
+        // IMPORTANTE: $programId es en realidad un ProgramCourse ID
+        // Cargar la relación 'course' con sus participantes para que ParticipantPriceHelper funcione
+        $programCourse = \App\Models\ProgramCourse::with(['course.participants'])->find($programId);
+        if (!$programCourse) {
             return [
                 'success' => false,
                 'error' => 'Programa no encontrado'
@@ -37,21 +39,37 @@ class ValidatePaymentEligibilityService
         }
 
         // Calcular el saldo pendiente del participante
-        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $participantTotalAmount = $priceData['final_price'];
 
         // Pagos aprobados y completados previos
-        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+        $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
             $q->where('participant_id', $participant->id)
-                ->where('program_id', $program->id);
+                ->where('program_id', $programCourse->id); // program_id en orders apunta a program_courses
         })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
         $paidAmount = round($paidAmount, 2);
         $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
 
+        // ====================================
+        // DEBUG: Log de valores calculados
+        // ====================================
+        \Log::info('=== ValidatePaymentEligibility DEBUG ===', [
+            'participant_id' => $participant->id,
+            'program_course_id' => $programId,
+            'program_course_trip_price' => $programCourse->trip_price,
+            'priceData' => $priceData,
+            'participantTotalAmount' => $participantTotalAmount,
+            'paidAmount' => $paidAmount,
+            'participantBalance' => $participantBalance,
+            'participantBalance_is_zero' => $participantBalance <= 0,
+            'paymentData' => $paymentData
+        ]);
+
         // Verificar si ya se pagó todo
-        if ($participantBalance <= 0) {
+        // IMPORTANTE: Solo validar si paidAmount > 0 (hay pagos previos)
+        if ($participantBalance <= 0 && $paidAmount > 0) {
             return [
                 'success' => false,
                 'error' => 'Ya has pagado el monto total del programa. No hay pagos pendientes.'
@@ -73,7 +91,7 @@ class ValidatePaymentEligibilityService
 
         $this->logInfo('Payment eligibility validated', [
             'participant_id' => $participant->id,
-            'program_id' => $programId,
+            'program_course_id' => $programId,
             'participant_total_amount' => $participantTotalAmount,
             'paid_amount' => $paidAmount,
             'participant_balance' => $participantBalance,
@@ -84,7 +102,7 @@ class ValidatePaymentEligibilityService
         return [
             'success' => true,
             'participant' => $participant,
-            'program' => $program,
+            'program' => $programCourse, // Retorna ProgramCourse, no Program
             'participant_balance' => $participantBalance
         ];
     }

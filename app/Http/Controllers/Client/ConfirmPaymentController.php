@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Services\Client\Payment\ConfirmPaymentService;
+use App\Services\EcommerceAnalyticsService;
 use App\Helpers\TokenHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -12,10 +13,14 @@ use Inertia\Inertia;
 class ConfirmPaymentController extends Controller
 {
     protected $confirmPaymentService;
+    protected $analyticsService;
 
-    public function __construct(ConfirmPaymentService $confirmPaymentService)
-    {
+    public function __construct(
+        ConfirmPaymentService $confirmPaymentService,
+        EcommerceAnalyticsService $analyticsService
+    ) {
         $this->confirmPaymentService = $confirmPaymentService;
+        $this->analyticsService = $analyticsService;
     }
 
     public function show(Request $request, $programCourseId)
@@ -61,6 +66,9 @@ class ConfirmPaymentController extends Controller
             return redirect()->route('ecommerce.programs')
                 ->with('error', $confirmationData['message'] ?? 'No tienes permiso para acceder a esta página.');
         }
+
+        // Registrar vista de confirmación en analytics
+        $this->analyticsService->recordConfirmationView($request, $programCourseId, $document);
 
         return Inertia::render('Ecommerce/Confirmation', [
             'confirmationData' => $confirmationData,

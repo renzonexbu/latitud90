@@ -18,7 +18,11 @@ Route::prefix('courses')->name('courses.')->group(function () {
     // Additional course actions
     Route::patch('/{course}/toggle-status', [CourseController::class, 'toggleStatus'])
         ->name('toggle-status');
-    
+
+    // Debug/verification endpoint
+    Route::get('/{course}/verify-payment-breakdown', [CourseController::class, 'verifyPaymentBreakdown'])
+        ->name('verify-payment-breakdown');
+
     // Student management routes
     Route::prefix('{course}/students')->name('students.')->group(function () {
         Route::get('/', [CourseController::class, 'students'])->name('index');

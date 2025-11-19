@@ -194,6 +194,165 @@ class ReportController extends Controller
         ]);
     }
 
+    public function exportNoPayment(Request $request)
+    {
+        try {
+            $filters = $request->only(['program_id', 'sales_executive_id', 'search']);
+
+            // Obtener todos los participantes sin pagos (sin paginación)
+            $dataProvider = new PaymentScheduleSummaryDataProvider();
+            $participants = $dataProvider->getParticipantsWithoutPayments($filters);
+
+            // Crear el Excel
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Participantes Sin Pagos');
+
+            // Headers
+            $headers = [
+                'Participante',
+                'Documento',
+                'Email Participante',
+                'Contacto de Emergencia',
+                'Email Contacto',
+                'Teléfono Contacto',
+                'Relación',
+                'Fecha Inscripción',
+                'Precio Individual',
+                'Descuento',
+                'Monto Final',
+                'Programa',
+                'Código Programa',
+                'Ejecutivo Comercial'
+            ];
+
+            // Estilo para headers
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '1c4f4a'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ];
+
+            // Escribir headers
+            $colIndex = 0;
+            foreach ($headers as $header) {
+                $col = chr(65 + $colIndex);
+                $sheet->setCellValue($col . '1', $header);
+                $colIndex++;
+            }
+
+            // Aplicar estilo a headers
+            $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . '1')->applyFromArray($headerStyle);
+
+            // Escribir datos
+            $rowIndex = 2;
+            foreach ($participants as $participant) {
+                $fullName = trim(
+                    ($participant->first_name ?? '') . ' ' .
+                    ($participant->first_last_name ?? '') . ' ' .
+                    ($participant->second_last_name ?? '')
+                );
+
+                $incorporationDate = isset($participant->incorporation_date)
+                    ? date('d/m/Y', strtotime($participant->incorporation_date))
+                    : 'N/A';
+
+                $sheet->setCellValue('A' . $rowIndex, $fullName);
+                $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participant->document_number ?? ''));
+                $sheet->setCellValue('C' . $rowIndex, $participant->participant_email ?? 'N/A');
+                $sheet->setCellValue('D' . $rowIndex, $participant->emergency_contact_name ?? 'Sin contacto');
+                $sheet->setCellValue('E' . $rowIndex, $participant->emergency_contact_email ?? 'Sin email');
+                $sheet->setCellValue('F' . $rowIndex, $participant->emergency_contact_phone ?? 'N/A');
+                $sheet->setCellValue('G' . $rowIndex, $participant->emergency_contact_relationship ?? 'N/A');
+                $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
+                $sheet->setCellValue('I' . $rowIndex, (int)($participant->individual_price ?? 0));
+                $sheet->setCellValue('J' . $rowIndex, (int)($participant->discount_amount ?? 0));
+                $sheet->setCellValue('K' . $rowIndex, (int)($participant->final_amount ?? 0));
+                $sheet->setCellValue('L' . $rowIndex, $participant->program_name ?? 'N/A');
+                $sheet->setCellValue('M' . $rowIndex, $participant->program_code ?? 'N/A');
+                $sheet->setCellValue('N' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
+
+                $rowIndex++;
+            }
+
+            // Auto-ajustar columnas
+            foreach (range('A', chr(65 + count($headers) - 1)) as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Bordes para toda la tabla
+            $borderStyle = [
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ];
+
+            if ($rowIndex > 2) {
+                $sheet->getStyle('A1:' . chr(65 + count($headers) - 1) . ($rowIndex - 1))->applyFromArray($borderStyle);
+            }
+
+            // Generar nombre de archivo
+            $filename = 'participantes_sin_pagos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+
+            // Limpiar buffers
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
+            // Crear respuesta streaming
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->setPreCalculateFormulas(false);
+            $writer->setIncludeCharts(false);
+
+            $response = new \Symfony\Component\HttpFoundation\StreamedResponse(function () use ($writer) {
+                $writer->save('php://output');
+            });
+
+            $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '.xlsx"');
+            $response->headers->set('Cache-Control', 'no-cache, must-revalidate');
+            $response->headers->set('Expires', '0');
+            $response->headers->set('Pragma', 'public');
+
+            return $response;
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    private function formatRut($rut): string
+    {
+        if (!$rut) return 'N/A';
+
+        // Limpiar el RUT de puntos y guiones
+        $rutLimpio = preg_replace('/[^0-9kK]/', '', (string)$rut);
+
+        if (strlen($rutLimpio) < 2) return (string)$rut;
+
+        // Separar número y dígito verificador
+        $dv = substr($rutLimpio, -1);
+        $numero = substr($rutLimpio, 0, -1);
+
+        // Formatear número con puntos
+        $numeroFormateado = number_format((int)$numero, 0, '', '.');
+
+        // Retornar RUT formateado
+        return $numeroFormateado . '-' . strtoupper($dv);
+    }
+
     public function paymentScheduleDetails(Request $request)
     {
         try {
@@ -465,13 +624,19 @@ class ReportController extends Controller
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'salesExecutiveId', 'yearMonth']);
             $format = $request->get('format', 'xlsx');
-            
+
             // Obtener los datos para exportar
             $data = $this->paymentScheduleSummaryService->getSummaryData($filters);
-            
+
+            // Obtener datos detallados con información de participantes para la hoja de detalles
+            $detailData = $this->paymentScheduleDetailService->getScheduleDetails($filters);
+
+            // Agregar los datos detallados al array de datos
+            $data['paymentSchedules'] = $detailData;
+
             // Generar nombre de archivo
             $filename = 'cronograma_pagos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
-            
+
             // Usar el exportador específico para cronograma de pagos
             return $this->paymentScheduleExportService->export($data, $filename, $format);
         } catch (\Exception $e) {

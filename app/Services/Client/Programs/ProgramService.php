@@ -196,32 +196,36 @@ class ProgramService
 
     public function getProgramById(int $programId): ?array
     {
-        $program = Program::with(['course.institution', 'features', 'requirements'])
+        // IMPORTANTE: $programId es en realidad un ProgramCourse ID
+        $programCourse = \App\Models\ProgramCourse::with(['program.features', 'program.requirements', 'course.institution'])
             ->find($programId);
 
-        if (!$program) {
+        if (!$programCourse) {
             return null;
         }
 
-        // Contar participantes inscritos en este programa
+        $program = $programCourse->program;
+        $course = $programCourse->course;
+
+        // Contar participantes inscritos en este curso
         $enrolledCount = 0;
-        if ($program->course) {
-            $enrolledCount = $program->course->participants()->count();
+        if ($course) {
+            $enrolledCount = $course->participants()->count();
         }
 
         return [
-            'id' => $program->id,
-            'name' => $program->name,
+            'id' => $programCourse->id,
+            'name' => $programCourse->name ?: $program->name,
             'description' => $program->trip_description,
-            'institution' => $program->course->institution->name ?? 'N/A',
-            'base_price' => $program->trip_price,
-            'duration_days' => $this->calculateDurationDays($program->departure_date),
-            'start_date' => $program->departure_date,
-            'end_date' => $program->departure_date,
+            'institution' => $course->institution->name ?? 'N/A',
+            'base_price' => $programCourse->trip_price,
+            'duration_days' => $this->calculateDurationDays($programCourse->departure_date),
+            'start_date' => $programCourse->departure_date,
+            'end_date' => $programCourse->departure_date,
             'destination' => $program->destination,
             'capacity' => 50,
             'available_spots' => 50 - $enrolledCount,
-            'image_url' => $program->images[0] ?? '/images/default-program.jpg',
+            'image_url' => $program->images[0]['url'] ?? '/images/default-program.jpg',
             'itinerary' => $program->itinerary_description ?? '',
             'included_services' => $program->features->where('pivot.type', 'included')->pluck('name')->toArray(),
             'not_included_services' => $program->features->where('pivot.type', 'not_included')->pluck('name')->toArray(),

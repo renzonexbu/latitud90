@@ -49,8 +49,8 @@ class CourseDataService
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
 
-            $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants, $program);
-            $coursePaidAmount = $this->calculatePaidAmount($course, $program);
+            $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants, $program, $programCourse);
+            $coursePaidAmount = $this->calculatePaidAmount($course, $program, $programCourse);
             $coursePaymentPercentage = $this->calculatePaymentPercentage($courseTotalAmount, $coursePaidAmount);
 
             $course->course_total_amount = $courseTotalAmount;
@@ -70,9 +70,10 @@ class CourseDataService
         return $courses->map($transform);
     }
 
-    private function calculateTotalAmount($course, $activeParticipants, $program = null): float
+    private function calculateTotalAmount($course, $activeParticipants, $program = null, $programCourse = null): float
     {
-        return $activeParticipants->reduce(function ($carry, $p) use ($program) {
+        // Sumar precios de participantes con pagos normales
+        $participantsTotal = $activeParticipants->reduce(function ($carry, $p) use ($program) {
             if ($program) {
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
                 return $carry + $priceData['final_price'];
@@ -81,19 +82,43 @@ class CourseDataService
             $adj = (float) ($p->pivot->price_adjustments ?? 0);
             return $carry + round($base + $adj, 2);
         }, 0.0);
+
+        // Sumar total de suscripciones (installment_plans)
+        // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+        $subscriptionsTotal = 0.0;
+        if ($programCourse) {
+            $subscriptionsTotal = (float) DB::table('installment_plans')
+                ->where('program_id', $programCourse->id)
+                ->whereIn('status', ['active', 'pending', 'completed'])
+                ->sum('total_amount');
+        }
+
+        return $participantsTotal + $subscriptionsTotal;
     }
 
-    private function calculatePaidAmount($course, $program = null): float
+    private function calculatePaidAmount($course, $program = null, $programCourse = null): float
     {
-        if (!$program) {
+        if (!$programCourse) {
             return 0.0;
         }
 
-        return (float) DB::table('payments')
+        // Sumar pagos normales completados
+        // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
+        $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
-            ->where('orders.program_id', $program->id)
+            ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
             ->sum('payments.amount');
+
+        // Sumar cuotas de suscripciones pagadas (installments)
+        // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+        $subscriptionPayments = (float) DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.program_id', $programCourse->id)
+            ->where('installments.is_paid', true)
+            ->sum('installments.amount');
+
+        return $normalPayments + $subscriptionPayments;
     }
 
     private function calculatePaymentPercentage(float $total, float $paid): int
@@ -110,14 +135,14 @@ class CourseDataService
         $program = $programCourse?->program;
 
         // Calculate payment metrics if program exists
-        if ($program) {
+        if ($program && $programCourse) {
             $program->makeVisible(['trip_price', 'name', 'destination']);
 
             // Calculate total amount from active participants
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
 
-            $courseTotalAmount = $activeParticipants->reduce(function ($carry, $p) use ($program) {
+            $participantsTotal = $activeParticipants->reduce(function ($carry, $p) use ($program) {
                 if ($program) {
                     $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($p, $program);
                     return $carry + $priceData['final_price'];
@@ -127,13 +152,32 @@ class CourseDataService
                 return $carry + round($base + $adj, 2);
             }, 0.0);
 
-            // Calculate paid amount
-            $coursePaidAmount = (float) \App\Models\Payment::whereHas('order', function($q) use ($program) {
-                $q->where('program_id', $program->id);
+            // Sumar total de suscripciones
+            // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+            $subscriptionsTotal = (float) DB::table('installment_plans')
+                ->where('program_id', $programCourse->id)
+                ->whereIn('status', ['active', 'pending', 'completed'])
+                ->sum('total_amount');
+
+            $courseTotalAmount = $participantsTotal + $subscriptionsTotal;
+
+            // Calculate paid amount (pagos normales + cuotas de suscripciones)
+            // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
+            $normalPayments = (float) \App\Models\Payment::whereHas('order', function($q) use ($programCourse) {
+                $q->where('program_id', $programCourse->id);
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
-            $coursePaidAmount = round($coursePaidAmount, 2);
+
+            // Sumar cuotas de suscripciones pagadas
+            // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+            $subscriptionPayments = (float) DB::table('installments')
+                ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                ->where('installment_plans.program_id', $programCourse->id)
+                ->where('installments.is_paid', true)
+                ->sum('installments.amount');
+
+            $coursePaidAmount = round($normalPayments + $subscriptionPayments, 2);
 
             // Calculate payment percentage
             $coursePaymentPercentage = $courseTotalAmount > 0

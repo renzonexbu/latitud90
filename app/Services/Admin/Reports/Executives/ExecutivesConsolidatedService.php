@@ -21,7 +21,7 @@ class ExecutivesConsolidatedService
         $query = Payment::with([
             'paymentOption',
             'order.participant',
-            'order.program.salesExecutive',
+            'order.programCourse.salesExecutive',
             'order.orderDetails',
             'order.participantProgram',
             'order.participantProgram.discounts',
@@ -41,7 +41,7 @@ class ExecutivesConsolidatedService
             });
         }
         if (!empty($filters['salesExecutiveId'])) {
-            $query->whereHas('order.program', function ($q) use ($filters) {
+            $query->whereHas('order.programCourse', function ($q) use ($filters) {
                 $q->where('sales_executive_id', $filters['salesExecutiveId']);
             });
         }
@@ -62,7 +62,7 @@ class ExecutivesConsolidatedService
             $payments = Payment::with([
                 'paymentOption',
                 'order.participant',
-                'order.program.salesExecutive',
+                'order.programCourse.salesExecutive',
                 'order.orderDetails',
                 'order.participantProgram',
                 'order.participantProgram.discounts',
@@ -92,7 +92,7 @@ class ExecutivesConsolidatedService
         $items = collect($payments->items())->map(function ($payment) {
             $order = $payment->order;
             $participant = $order?->participant;
-            $program = $order?->program;
+            $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
             // Totales para liberado
@@ -191,7 +191,7 @@ class ExecutivesConsolidatedService
         $query = Payment::with([
             'paymentOption',
             'order.participant',
-            'order.program.salesExecutive',
+            'order.programCourse.salesExecutive',
             'order.orderDetails',
             'order.participantProgram',
             'order.participantProgram.discounts',
@@ -211,7 +211,7 @@ class ExecutivesConsolidatedService
             });
         }
         if (!empty($normalizedFilters['salesExecutiveId'])) {
-            $query->whereHas('order.program', function ($q) use ($normalizedFilters) {
+            $query->whereHas('order.programCourse', function ($q) use ($normalizedFilters) {
                 $q->where('sales_executive_id', $normalizedFilters['salesExecutiveId']);
             });
         }
@@ -232,7 +232,7 @@ class ExecutivesConsolidatedService
             $payments = Payment::with([
                 'paymentOption',
                 'order.participant',
-                'order.program.salesExecutive',
+                'order.programCourse.salesExecutive',
                 'order.orderDetails',
                 'order.participantProgram',
                 'order.participantProgram.discounts',
@@ -251,7 +251,7 @@ class ExecutivesConsolidatedService
         $items = $payments->map(function ($payment) {
             $order = $payment->order;
             $participant = $order?->participant;
-            $program = $order?->program;
+            $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
             // Totales para liberado

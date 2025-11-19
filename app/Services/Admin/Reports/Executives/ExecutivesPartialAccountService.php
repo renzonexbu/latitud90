@@ -42,24 +42,24 @@ class ExecutivesPartialAccountService
 
             // Obtener el program_id del program_course
             $program = $programCourse->program;
-
-            $programId = $program->id;
+            $programCourseId = $programCourse->id;
 
             // Usar la misma lógica de consulta que ConsolidatedPayments
             $query = DB::table('participant_program as pp')
                 ->leftJoin('participants as p', 'pp.participant_id', '=', 'p.id')
-                ->leftJoin('programs as pr', 'pp.program_id', '=', 'pr.id')
+                ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'pp.program_id')
+                ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
                 ->leftJoin('orders as o', function($join) {
                     $join->on('o.participant_id', '=', 'p.id')
-                         ->on('o.program_id', '=', 'pr.id');
+                         ->on('o.program_id', '=', 'pgc.id');
                 })
                 ->leftJoin('orders_detail as od', 'o.id', '=', 'od.order_id')
                 ->leftJoin('payments as pay', 'o.id', '=', 'pay.order_id')
-                ->leftJoin('payment_options as po', 'od.payment_option_id', '=', 'po.id')
+                ->leftJoin('payment_gateways as pg', 'pay.payment_gateway_id', '=', 'pg.id')
                 ->leftJoin('installment_plans as ip', 'o.id', '=', 'ip.order_id')
                 ->leftJoin('installments as inst', 'ip.id', '=', 'inst.installment_plan_id')
                 ->leftJoin('participant_program_discounts as ppd', 'pp.id', '=', 'ppd.participant_program_id')
-                ->where('pp.program_id', $programId)
+                ->where('pp.program_id', $programCourseId)
                 ->groupBy('pp.id', 'p.id', 'pr.id')
                 ->select([
                     'pp.id as participant_program_id',
@@ -72,7 +72,7 @@ class ExecutivesPartialAccountService
                     DB::raw('COALESCE(pp.individual_price, 0) as price'),
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
-                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN po.report_code END) as payment_method'),
+                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pg.name END) as payment_method'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type != "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
                 ]);
@@ -98,7 +98,7 @@ class ExecutivesPartialAccountService
 
                 // Calcular cuotas pagadas y vencidas solo para pagos completed
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
-                    ->where('program_id', $programId)
+                    ->where('program_id', $programCourseId)
                     ->pluck('id')->all();
                 
                 $paidInstallments = 0;
@@ -135,7 +135,7 @@ class ExecutivesPartialAccountService
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
                     'overdue_installments' => $overdueInstallments,
-                    'payment_method' => $this->mapPaymentMethodCode($row->payment_method ?: ''),
+                    'payment_method' => $row->payment_method ?: 'N/A',
                     'scholarship' => $scholarship,
                     'released' => $released,
                     'balance' => $porPagar,

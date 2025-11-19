@@ -212,6 +212,66 @@
         </div>
     </div>
 
+    <!-- Modal de Registro Guardian -->
+    <Teleport to="body">
+        <div
+            v-if="showGuardianModal"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+            @click.self="showGuardianModal = false"
+        >
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-nexa-bold text-[#1C4F4A]">
+                        Registro Requerido
+                    </h3>
+                    <button
+                        @click="showGuardianModal = false"
+                        class="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="mb-6">
+                    <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                        Para continuar con el pago en cuotas mensuales, necesitas estar registrado como apoderado.
+                    </p>
+                    <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                        Serás redirigido al formulario de registro. Una vez completado, podrás continuar con tu compra.
+                    </p>
+                    <p class="text-[#434343] font-nexa text-[14px] leading-[22px]">
+                        ¿Ya tienes cuenta?
+                        <a
+                            :href="`/guardian/login?token=${this.$page.props.token}&program_id=${this.program.id}`"
+                            class="text-[#1C4F4A] font-nexa-bold hover:underline"
+                        >
+                            Inicia sesión aquí
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                    <button
+                        @click="showGuardianModal = false"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-nexa transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        @click="proceedToGuardianRegister"
+                        class="px-4 py-2 bg-[#FBBD51] text-white rounded-md hover:bg-[#e5aa3d] font-nexa-bold transition-colors"
+                    >
+                        Ir a registro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 
 </template>
 
@@ -237,6 +297,7 @@ export default {
             isProcessing: false,
             errorMessage: null,
             currentInstallments: 1,
+            showGuardianModal: false,
         };
     },
     watch: {
@@ -254,7 +315,20 @@ export default {
         }
     },
     mounted() {
-        
+        // ========================================
+        // DEBUG: Mostrar datos del programa
+        // ========================================
+        console.log('=====================================');
+        console.log('CONFIRMATION CARD - DATOS DEL PROGRAMA:');
+        console.log('=====================================');
+        console.log('program:', this.program);
+        console.log('participant_balance:', this.program?.participant_balance);
+        console.log('participant_total_due:', this.program?.participant_total_due);
+        console.log('trip_price:', this.program?.trip_price);
+        console.log('paidAmount:', this.program?.paidAmount);
+        console.log('active_installment:', this.program?.active_installment);
+        console.log('=====================================');
+
         // Cargar el estado de términos aceptados desde localStorage
         const paymentData = localStorage.getItem("selectedPaymentData");
         if (paymentData) {
@@ -285,29 +359,85 @@ export default {
             }
 
             // Verificar que no se haya pagado todo (solo si hay pagos realizados)
-            const participantBalance = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
             const paidAmount = Number(this.program.paidAmount ?? 0);
+
+            // Determinar el balance correcto según si hay pagos o no
+            let participantBalance;
+            if (paidAmount > 0) {
+                // Ya hay pagos: usar el balance restante
+                participantBalance = Number(this.program.participant_balance ?? 0);
+            } else {
+                // Sin pagos previos: usar el total del programa
+                participantBalance = Number(this.program.participant_total_due ?? this.program.trip_price ?? 0);
+            }
+
+            // Solo considerar "pago completo" si el balance es 0 Y hay pagos realizados
             const isPaymentComplete = participantBalance <= 0 && paidAmount > 0;
 
             // Verificar que el monto a pagar sea válido
             const hasValidAmount = this.displayPayAmount > 0;
 
-            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando Y no se pagó todo Y hay monto válido
-            return hasPaymentMethod &&
+            const result = hasPaymentMethod &&
                    this.termsAccepted &&
                    !this.isProcessing &&
                    !isPaymentComplete &&
                    hasValidAmount;
+
+            // LOG DE DEBUGGING
+            console.log('isPaymentButtonEnabled - Debug:', {
+                hasPaymentMethod,
+                termsAccepted: this.termsAccepted,
+                isProcessing: this.isProcessing,
+                isPaymentComplete,
+                hasValidAmount,
+                displayPayAmount: this.displayPayAmount,
+                participantBalance,
+                paidAmount,
+                RESULTADO: result,
+                MOTIVO_DESHABILITADO: !result ? {
+                    sinMetodoPago: !hasPaymentMethod,
+                    sinTerminos: !this.termsAccepted,
+                    estaProcesando: this.isProcessing,
+                    pagoCompleto: isPaymentComplete,
+                    montoInvalido: !hasValidAmount
+                } : 'Botón habilitado'
+            });
+
+            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando Y no se pagó todo Y hay monto válido
+            return result;
         },
         displayPayAmount() {
             // Si hay plan mensual activo, siempre se paga SOLO la próxima cuota
             if (this.program && this.program.active_installment) {
                 return Number(this.program.active_installment.amount) || 0;
             }
+
             // Caso pago total (o mensual sin plan creado): dividir según selección
-            const base = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
+            // LÓGICA CORRECTA:
+            // - Si NO hay pagos realizados (paidAmount === 0), usar participant_total_due o trip_price
+            // - Si hay pagos realizados (paidAmount > 0), usar participant_balance
+            const paidAmount = Number(this.program.paidAmount ?? 0);
+
+            let base;
+            if (paidAmount > 0) {
+                // Ya hay pagos: usar el balance restante
+                base = Number(this.program.participant_balance ?? 0);
+            } else {
+                // Sin pagos previos: usar el total del programa
+                base = Number(this.program.participant_total_due ?? this.program.trip_price ?? 0);
+            }
+
+            console.log('displayPayAmount - Debug:', {
+                paidAmount,
+                participant_balance: this.program.participant_balance,
+                participant_total_due: this.program.participant_total_due,
+                trip_price: this.program.trip_price,
+                base,
+                currentInstallments: this.currentInstallments
+            });
+
             const installments = Math.max(1, Number(this.currentInstallments || 1));
-            
+
             // Usar el método estandarizado de redondeo
             const result = getFirstInstallmentAmount(base, installments);
             return result;
@@ -347,15 +477,36 @@ export default {
         async handlePayment() {
             try {
                 // Validaciones previas
-                const participantBalance = Number(this.program.participant_balance ?? this.program.participant_total_due ?? this.program.trip_price);
                 const paidAmount = Number(this.program.paidAmount ?? 0);
 
-                // Solo mostrar error de "ya pagado" si realmente hay pagos realizados
+                // Determinar el balance correcto según si hay pagos o no
+                let participantBalance;
+                if (paidAmount > 0) {
+                    // Ya hay pagos: usar el balance restante
+                    participantBalance = Number(this.program.participant_balance ?? 0);
+                } else {
+                    // Sin pagos previos: usar el total del programa
+                    participantBalance = Number(this.program.participant_total_due ?? this.program.trip_price ?? 0);
+                }
+
+                console.log('handlePayment - Debug:', {
+                    paidAmount,
+                    participant_balance: this.program.participant_balance,
+                    participant_total_due: this.program.participant_total_due,
+                    trip_price: this.program.trip_price,
+                    participantBalance,
+                    displayPayAmount: this.displayPayAmount
+                });
+
+                // Solo mostrar error de "ya pagado" si:
+                // 1. El balance es 0 o negativo Y
+                // 2. Hay pagos realizados (paidAmount > 0)
                 if (participantBalance <= 0 && paidAmount > 0) {
                     this.errorMessage = "Ya has pagado el monto total del programa. No hay pagos pendientes.";
                     return;
                 }
 
+                // Validar que el monto a pagar sea válido
                 if (this.displayPayAmount <= 0) {
                     this.errorMessage = "El monto a pagar no es válido. Verifica tu selección de cuotas.";
                     return;
@@ -380,8 +531,26 @@ export default {
                 const parsedPaymentData = JSON.parse(paymentData);
                 this.currentInstallments = parsedPaymentData.installments || 1;
 
-                // NUEVO: Si es suscripción (monthly), redirigir a endpoint de suscripción
+                // NUEVO: Si es suscripción (monthly), validar autenticación de guardian
                 if (parsedPaymentData.paymentType === 'monthly') {
+                    // Validar que el usuario esté logeado como guardian
+                    const isGuardianLoggedIn = this.$page.props.auth?.guardian !== null;
+
+                    if (!isGuardianLoggedIn) {
+                        // Usuario NO está logeado: mostrar modal de registro
+                        this.isProcessing = false;
+                        this.showGuardianModal = true;
+                        return;
+                    }
+
+                    // Validar que el guardian tenga permiso para pagar por este participante
+                    const hasPermission = await this.validateGuardianPermission();
+                    if (!hasPermission) {
+                        this.isProcessing = false;
+                        return;
+                    }
+
+                    // Guardian autenticado y con permisos: continuar con el pago
                     this.handleSubscriptionPayment(parsedPaymentData);
                     return;
                 }
@@ -699,6 +868,75 @@ export default {
         reloadPage() {
             // Recargar la página para obtener un nuevo token CSRF
             window.location.reload();
+        },
+
+        async validateGuardianPermission() {
+            try {
+                // Obtener el RUT del participante desde formData
+                const participantDocument = this.formData.document_number;
+
+                if (!participantDocument) {
+                    return true; // Permitir continuar si no hay documento
+                }
+
+                // Hacer petición al backend para validar permisos
+                const response = await fetch('/guardian/validate-payment-permission', {
+                    method: 'POST',
+                    credentials: 'same-origin', // ⚠️ CRÍTICO: Enviar cookies de sesión
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        participant_document: participantDocument
+                    })
+                });
+
+                const data = await response.json();
+
+                // Si no tiene permiso, cerrar sesión y mostrar mensaje
+                if (!data.has_permission) {
+                    // Cerrar sesión del guardian
+                    await fetch('/guardian/logout', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                        }
+                    });
+
+                    // Mostrar mensaje al usuario
+                    this.errorMessage = 'Para realizar pagos de suscripción por este participante, debes iniciar sesión con la cuenta correcta.';
+
+                    // Reload la página para refrescar el estado de auth
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+
+                    return false;
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error('Error validando permisos de guardian:', error);
+                // En caso de error, permitir continuar (fail-open para no bloquear flujo)
+                return true;
+            }
+        },
+
+        proceedToGuardianRegister() {
+            // Obtener token desde las props de la página
+            const token = this.$page.props.token || '';
+
+            // Guardar pending_subscription para recuperar después del registro
+            localStorage.setItem('pending_subscription', JSON.stringify({
+                program_id: this.program.id,
+                token: token,
+                return_url: `/programs/${this.program.id}/confirmation?token=${token}`
+            }));
+
+            // Redirigir al registro de guardian con el token y program_id
+            window.location.href = `/guardian/register?token=${token}&program_id=${this.program.id}`;
         },
     },
 };

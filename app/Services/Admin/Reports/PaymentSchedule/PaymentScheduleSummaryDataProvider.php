@@ -16,19 +16,21 @@ class PaymentScheduleSummaryDataProvider
             ->leftJoin('installment_plans as ip', 'i.installment_plan_id', '=', 'ip.id')
             ->leftJoin('orders as o', 'ip.order_id', '=', 'o.id')
             ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
-            ->leftJoin('programs as prog', 'o.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'se.id', '=', 'prog.sales_executive_id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as prog', 'prog.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->leftJoin('payments as pay', 'i.payment_id', '=', 'pay.id')
             ->leftJoin('payment_gateways as pg', 'pay.payment_gateway_id', '=', 'pg.id')
             ->select([
                 // Datos del ejecutivo
                 'se.id as sales_executive_id',
                 'se.name as sales_executive_name',
-                
-                // Datos del programa  
+
+                // Datos del programa (de program_courses + programs)
+                'pgc.id as program_course_id',
+                'pgc.code as program_code',
+                'pgc.name as program_name',
                 'prog.id as program_id',
-                'prog.code as program_code',
-                'prog.name as program_name',
                 'prog.destination as program_destination',
                 
                 // Fecha para agrupación mensual
@@ -67,7 +69,7 @@ class PaymentScheduleSummaryDataProvider
             ])
             ->where('o.status', '!=', 'cancelled')
             ->orderBy('se.name')
-            ->orderBy('prog.name') 
+            ->orderBy('pgc.name')
             ->orderBy('i.due_date', 'asc');
     }
 
@@ -78,8 +80,10 @@ class PaymentScheduleSummaryDataProvider
 
     public function getPrograms(): Collection
     {
-        return DB::table('programs')
-            ->select(['id', 'code', 'name', 'destination'])
+        // Devuelve program_courses porque eso es lo que se usa en filtros
+        return DB::table('program_courses')
+            ->select(['id', 'code', 'name'])
+            ->where('active', true)
             ->orderBy('name')
             ->get();
     }
@@ -95,50 +99,50 @@ class PaymentScheduleSummaryDataProvider
     public function getPaymentSchedules(array $filters): Collection
     {
         $query = $this->buildExecutiveSummaryQuery();
-        
+
         // Aplicar filtros básicos
         if (!empty($filters['programId'])) {
-            $query->where('prog.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']); // Filtrar por program_course
         }
-        
+
         if (!empty($filters['salesExecutiveId'])) {
             $query->where('se.id', $filters['salesExecutiveId']);
         }
-        
+
         if (!empty($filters['dateFrom'])) {
             $query->where('i.due_date', '>=', $filters['dateFrom']);
         }
-        
+
         if (!empty($filters['dateTo'])) {
             $query->where('i.due_date', '<=', $filters['dateTo']);
         }
-        
+
         return $query->get();
     }
 
     public function getGeneralSummary(array $filters): array
     {
         $query = $this->buildExecutiveSummaryQuery();
-        
+
         // Aplicar filtros básicos
         if (!empty($filters['programId'])) {
-            $query->where('prog.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']); // Filtrar por program_course
         }
-        
+
         if (!empty($filters['salesExecutiveId'])) {
             $query->where('se.id', $filters['salesExecutiveId']);
         }
-        
+
         if (!empty($filters['dateFrom'])) {
             $query->where('i.due_date', '>=', $filters['dateFrom']);
         }
-        
+
         if (!empty($filters['dateTo'])) {
             $query->where('i.due_date', '<=', $filters['dateTo']);
         }
-        
+
         $data = $query->get();
-        
+
         return [
             'total_installments' => $data->count(),
             'total_amount' => $data->sum('installment_amount'),
@@ -155,8 +159,10 @@ class PaymentScheduleSummaryDataProvider
     {
         $query = DB::table('participants as p')
             ->join('participant_program as pp', 'p.id', '=', 'pp.participant_id')
-            ->join('programs as prog', 'pp.program_id', '=', 'prog.id')
-            ->leftJoin('sales_executives as se', 'prog.sales_executive_id', '=', 'se.id')
+            // IMPORTANTE: pp.program_id apunta a program_courses, NO a programs
+            ->join('program_courses as pgc', 'pp.program_id', '=', 'pgc.id')
+            ->join('programs as prog', 'pgc.program_id', '=', 'prog.id')
+            ->leftJoin('sales_executives as se', 'pgc.sales_executive_id', '=', 'se.id')
             ->leftJoin('emergency_contact as ec', 'p.id', '=', 'ec.participant_id')
             ->leftJoin('orders as o', function($join) {
                 $join->on('p.id', '=', 'o.participant_id')
@@ -173,9 +179,10 @@ class PaymentScheduleSummaryDataProvider
                 'p.email as participant_email',
                 'pp.created_at as incorporation_date',
                 'pp.individual_price',
+                'pgc.id as program_course_id',
+                'pgc.name as program_name',
+                'pgc.code as program_code',
                 'prog.id as program_id',
-                'prog.name as program_name',
-                'prog.code as program_code',
                 'se.name as sales_executive_name',
                 'ec.name as emergency_contact_name',
                 'ec.email as emergency_contact_email',
@@ -183,7 +190,7 @@ class PaymentScheduleSummaryDataProvider
                 'ec.relationship as emergency_contact_relationship',
                 DB::raw('COALESCE(ppd.amount, 0) as discount_amount'),
                 DB::raw('COALESCE(ppd.percent, 0) as discount_percent'),
-                DB::raw('CASE 
+                DB::raw('CASE
                     WHEN ppd.percent IS NOT NULL THEN pp.individual_price - (pp.individual_price * ppd.percent / 100)
                     WHEN ppd.amount IS NOT NULL THEN pp.individual_price - ppd.amount
                     ELSE pp.individual_price
@@ -197,7 +204,7 @@ class PaymentScheduleSummaryDataProvider
             ->groupBy(
                 'p.id', 'p.first_name', 'p.first_last_name', 'p.second_last_name',
                 'p.document_number', 'p.email', 'pp.created_at', 'pp.individual_price',
-                'prog.id', 'prog.name', 'prog.code', 'se.name',
+                'pgc.id', 'pgc.name', 'pgc.code', 'prog.id', 'se.name',
                 'ec.name', 'ec.email', 'ec.phone', 'ec.relationship',
                 'ppd.amount', 'ppd.percent'
             )
@@ -205,9 +212,9 @@ class PaymentScheduleSummaryDataProvider
 
         // Aplicar filtros
         if (!empty($filters['program_id'])) {
-            $query->where('prog.id', $filters['program_id']);
+            $query->where('pgc.id', $filters['program_id']); // Filtrar por program_course
         }
-        
+
         if (!empty($filters['sales_executive_id'])) {
             $query->where('se.id', $filters['sales_executive_id']);
         }
