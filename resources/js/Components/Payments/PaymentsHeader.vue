@@ -19,7 +19,7 @@
             <!-- Create Refund Button Container -->
             <div class="relative">
                 <!-- Plus icon positioned above the button -->
-                <div class="absolute top-[0.8rem] -right-[200px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] relative overflow-visible">
+                <div class="absolute top-[0.8rem] -right-[200px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] overflow-visible">
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
                         width="21.289" 
@@ -62,7 +62,7 @@
             <!-- Create Payment Button Container -->
             <div class="relative">
                 <!-- Plus icon positioned above the button -->
-                <div class="absolute top-[0.8rem] -right-[230px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] relative overflow-visible">
+                <div class="absolute top-[0.8rem] -right-[230px] z-10 flex-shrink-0 w-[21.289px] h-[21.289px] overflow-visible">
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
                         width="21.289" 
