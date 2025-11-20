@@ -72,9 +72,20 @@ class ProgramService
                 $paidAmount = 0;
                 $installmentsSummary = null;
 
+                // IMPORTANTE: Calcular monto pagado directamente desde la tabla payments
+                // Esto asegura que funcione tanto para suscripciones como para pagos totales
+                // NOTA: La tabla orders guarda program_id como el ID del ProgramCourse, no del Program template
+                $paidAmountFromPayments = Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $programCourse->id); // Usar programCourse->id, no program->id
+                    })
+                    ->whereIn('status', ['completed', 'approved'])
+                    ->sum('amount');
+
                 // Buscar planes de cuotas del participante para este programa
+                // NOTA: InstallmentPlan también debe usar programCourse->id
                 $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
-                    ->where('program_id', $program->id)
+                    ->where('program_id', $programCourse->id)
                     ->with(['installments'])
                     ->get();
 
@@ -96,8 +107,9 @@ class ProgramService
 
                 // Si no hay planes de cuotas, buscar en orders como fallback
                 if ($totalInstallments == 0) {
+                    // NOTA: orders.program_id es el ID del ProgramCourse
                     $orders = Order::where('participant_id', $participant->id)
-                        ->where('program_id', $program->id)
+                        ->where('program_id', $programCourse->id)
                         ->where('notes', '!=', 'Orden creada desde reembolso')
                         // Excluir órdenes de suscripción ya que no representan pagos inmediatos
                         ->where('order_number', 'NOT LIKE', 'SUB-%')
@@ -127,7 +139,8 @@ class ProgramService
 
                                 if ($detail->is_paid && !$isRefundDetail) {
                                     $paidInstallments++;
-                                    $paidAmount += (float) $detail->price;
+                                    // Usar amount en lugar de price (price puede estar vacío en pagos totales)
+                                    $paidAmount += (float) ($detail->price ?: $detail->amount);
                                 }
                             }
                         }
@@ -139,6 +152,14 @@ class ProgramService
                         $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
                         $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
                     }
+                }
+
+                // IMPORTANTE: Si hay pagos registrados en la tabla payments, usar ese monto
+                // Esto es la fuente de verdad y funciona para todos los tipos de pago
+                if ($paidAmountFromPayments > 0) {
+                    $paidAmount = round($paidAmountFromPayments, 2);
+                    $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
+                    $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
                 }
 
                 // Crear resumen de cuotas si hay cuotas

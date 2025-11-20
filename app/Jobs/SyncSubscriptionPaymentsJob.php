@@ -164,6 +164,26 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             }
         }
 
+        // Detectar y procesar charges rechazados
+        $failedCharges = $this->detectFailedCharges($currentCharges, $subscription);
+
+        Log::info('SyncSubscriptionPayments: Charges rechazados detectados', [
+            'subscription_id' => $subscription->id,
+            'count' => count($failedCharges)
+        ]);
+
+        foreach ($failedCharges as $failedCharge) {
+            try {
+                $this->processFailedCharge($subscription, $failedCharge);
+            } catch (Exception $e) {
+                Log::error('SyncSubscriptionPayments: Error procesando charge rechazado', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $failedCharge['id'] ?? 'unknown',
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         // Actualizar charge_program guardado
         $subscription->update([
             'charge_program' => $currentCharges
@@ -597,5 +617,145 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             ]);
             // No lanzar excepción, continuar con el proceso
         }
+    }
+
+    /**
+     * Detectar charges rechazados que no han sido procesados
+     *
+     * @return array Charges rechazados que aún no se han notificado
+     */
+    protected function detectFailedCharges(array $currentCharges, ProgramSubscription $subscription): array
+    {
+        $failedCharges = [];
+        $processedIds = $subscription->processed_failed_charge_ids ?? [];
+
+        foreach ($currentCharges as $charge) {
+            $chargeId = $charge['id'] ?? null;
+            $status = strtolower($charge['status'] ?? '');
+
+            // Verificar si el charge está rechazado y no ha sido procesado
+            if ($chargeId && $status === 'rechazado' && !in_array($chargeId, $processedIds)) {
+                $failedCharges[] = $charge;
+            }
+        }
+
+        return $failedCharges;
+    }
+
+    /**
+     * Procesar un charge rechazado
+     */
+    protected function processFailedCharge(ProgramSubscription $subscription, array $charge): void
+    {
+        $chargeId = $charge['id'];
+
+        Log::info('SyncSubscriptionPayments: Procesando charge rechazado', [
+            'subscription_id' => $subscription->id,
+            'charge_id' => $chargeId,
+            'amount' => $charge['amount'] ?? 0,
+            'charge_date' => $charge['charge_date'] ?? null
+        ]);
+
+        // 1. Generar link de actualización de tarjeta si no existe o está vencido
+        $cardUpdateLink = $this->generateCardUpdateLink($subscription);
+
+        // 2. Obtener datos del participante y apoderados
+        $participant = $subscription->participant;
+        $emergencyContacts = $participant->emergencyContacts ?? collect();
+
+        if ($emergencyContacts->isEmpty()) {
+            Log::warning('SyncSubscriptionPayments: No hay contactos de emergencia para notificar', [
+                'subscription_id' => $subscription->id,
+                'participant_id' => $participant->id
+            ]);
+            return;
+        }
+
+        // 3. Preparar datos para el email
+        $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+        $amount = number_format($charge['amount'] ?? 0, 0, ',', '.');
+        $chargeDate = $charge['charge_date'] ?? 'N/A';
+
+        // 4. Enviar email a todos los contactos de emergencia
+        foreach ($emergencyContacts as $contact) {
+            if (empty($contact->email)) {
+                continue;
+            }
+
+            try {
+                \Illuminate\Support\Facades\Mail::to($contact->email)->send(
+                    new \App\Mail\FailedPaymentMail(
+                        $participant->full_name,
+                        $installmentNumber,
+                        $amount,
+                        $chargeDate,
+                        $cardUpdateLink,
+                        $subscription->program->name ?? 'Programa'
+                    )
+                );
+
+                Log::info('SyncSubscriptionPayments: Email de cobro rechazado enviado', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'contact_email' => $contact->email
+                ]);
+            } catch (Exception $e) {
+                Log::error('SyncSubscriptionPayments: Error enviando email de cobro rechazado', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'contact_email' => $contact->email,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // 5. Marcar el charge como procesado
+        $processedIds = $subscription->processed_failed_charge_ids ?? [];
+        $processedIds[] = $chargeId;
+
+        $subscription->update([
+            'processed_failed_charge_ids' => $processedIds
+        ]);
+
+        Log::info('SyncSubscriptionPayments: Charge rechazado procesado exitosamente', [
+            'subscription_id' => $subscription->id,
+            'charge_id' => $chargeId
+        ]);
+    }
+
+    /**
+     * Generar link de actualización de tarjeta
+     */
+    protected function generateCardUpdateLink(ProgramSubscription $subscription): string
+    {
+        // Verificar si ya existe un link válido (generado en las últimas 24 horas)
+        if ($subscription->card_change_link && $subscription->card_change_link_generated_at) {
+            $linkAge = Carbon::now()->diffInHours($subscription->card_change_link_generated_at);
+            if ($linkAge < 24) {
+                return $subscription->card_change_link;
+            }
+        }
+
+        // Generar nuevo link vía API de VirtualPOS
+        try {
+            $response = $this->virtualPosService->generateCardChangeLink($subscription->virtualpos_subscription_id);
+
+            if ($response && isset($response['change_card_url'])) {
+                $subscription->update([
+                    'card_change_link' => $response['change_card_url'],
+                    'card_change_link_generated_at' => Carbon::now()
+                ]);
+
+                return $response['change_card_url'];
+            }
+        } catch (Exception $e) {
+            Log::error('SyncSubscriptionPayments: Error generando link de cambio de tarjeta', [
+                'subscription_id' => $subscription->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // Fallback: retornar URL genérica al portal
+        return route('guardian.dashboard');
     }
 }

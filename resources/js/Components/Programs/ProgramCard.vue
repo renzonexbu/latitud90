@@ -1,7 +1,12 @@
 <template>
     <div
-        class="relative w-full max-w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-        @click="$emit('click', program)"
+        class="relative w-full max-w-[376px] h-[262px] rounded-[20px] overflow-hidden shadow-lg transition-all duration-300"
+        :class="[
+            isFullyPaid
+                ? 'opacity-75 cursor-not-allowed'
+                : 'cursor-pointer hover:shadow-xl transform hover:scale-105'
+        ]"
+        @click="handleCardClick"
     >
         <!-- Background Image -->
         <img
@@ -182,7 +187,8 @@
                             <div class="flex flex-row items-start justify-between self-stretch flex-shrink-0 relative">
                                 <!-- Percentage or Installments -->
                                 <div class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative">
-                                    <span v-if="program.installments_summary">{{ program.installments_summary }}</span>
+                                    <span v-if="isFullyPaid" class="text-green-600 font-extrabold">PAGADO</span>
+                                    <span v-else-if="program.installments_summary">{{ program.installments_summary }}</span>
                                     <span v-else>{{ program.paymentPercentage || 0 }}%</span>
                                 </div>
 
@@ -271,8 +277,20 @@ export default {
             // o directamente en program.destination (cuando es plantilla)
             return this.program.program?.destination || this.program.destination || '';
         },
+        isFullyPaid() {
+            // Verificar si el programa está completamente pagado
+            return (this.program.paymentPercentage || 0) >= 100;
+        },
     },
     methods: {
+        handleCardClick() {
+            // Si el programa está completamente pagado, no emitir el click
+            if (this.isFullyPaid) {
+                return;
+            }
+            // Emitir el click si no está pagado
+            this.$emit('click', this.program);
+        },
         getDisplayTotalAmount() {
             // Siempre mostrar el total a pagar por el participante (base + ajuste)
             const p = this.program;

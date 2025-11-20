@@ -9,6 +9,7 @@ use App\Models\Participant;
 use App\Models\InstallmentPlan;
 use App\Models\OrderDetail;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Region;
 use App\Services\Admin\Payments\CreateParticularPaymentService;
 use Illuminate\Http\Request;
@@ -26,14 +27,37 @@ class CreateParticularPaymentController extends Controller
      */
     public function create()
     {
-        // Obtener datos necesarios para el formulario
-        $programs = Program::with(['course.participants'])->where('active', true)->get();
+        // Obtener programas activos (ProgramCourses) con sus relaciones
+        // NOTA: En el nuevo diseño, ProgramCourse es la instancia específica del programa para un curso
+        $programCourses = ProgramCourse::with(['program', 'course.participants'])
+            ->where('active', true)
+            ->get()
+            ->map(function ($programCourse) {
+                return [
+                    'id' => $programCourse->id,
+                    'name' => $programCourse->name,
+                    'code' => $programCourse->code,
+                    'destination' => $programCourse->program->destination ?? null,
+                    'trip_price' => $programCourse->trip_price,
+                    'departure_date' => $programCourse->departure_date,
+                    'course' => [
+                        'id' => $programCourse->course->id ?? null,
+                        'institution_name' => $programCourse->course->institution->name ?? null,
+                        'education_level' => $programCourse->course->education_level ?? null,
+                        'grade' => $programCourse->course->grade ?? null,
+                        // Incluir lista de participantes para el selector
+                        'participants' => $programCourse->course->participants ?? [],
+                    ],
+                    'participants_count' => $programCourse->course->participants->count() ?? 0,
+                ];
+            });
+
         $countries = Country::where('name', 'Chile')->get();
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
 
         return Inertia::render('Admin/Payments/Create', [
-            'programs' => $programs,
+            'programs' => $programCourses,
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes
@@ -46,8 +70,9 @@ class CreateParticularPaymentController extends Controller
     public function store(Request $request)
     {
         // Validar datos del formulario
+        // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
         $validator = Validator::make($request->all(), [
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'transaction_date' => 'required|date',
@@ -115,8 +140,9 @@ class CreateParticularPaymentController extends Controller
      */
     public function getParticipantPaymentStatus(Request $request)
     {
+        // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
         $request->validate([
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
         ]);
 
@@ -124,20 +150,19 @@ class CreateParticularPaymentController extends Controller
         $participantId = $request->participant_id;
 
         try {
-            // Obtener el participante
+            // Obtener el participante y el ProgramCourse
             $participant = Participant::find($participantId);
-            $program = Program::find($programId);
+            $programCourse = ProgramCourse::with('program')->find($programId);
 
-            if (!$participant || !$program) {
+            if (!$participant || !$programCourse) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Participante o programa no encontrado'
                 ], 404);
             }
 
-            // Calcular montos usando el helper
-            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            $totalAmount = $priceData['final_price'];
+            // Calcular montos usando el precio del ProgramCourse directamente
+            $totalAmount = (float) $programCourse->trip_price;
 
             // Buscar planes de cuotas del participante para este programa
             $installmentPlans = InstallmentPlan::where('participant_id', $participantId)

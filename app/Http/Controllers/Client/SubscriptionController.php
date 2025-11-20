@@ -1099,35 +1099,27 @@ class SubscriptionController extends Controller
             $participantId = $request->input('participant_id');
             $programId = $request->input('program_id');
 
-            // Buscar suscripción activa o pagos completados para este participante y programa
+            // Buscar SOLO suscripción activa para este participante y programa
+            // NOTA: Ya NO verificamos órdenes pagadas porque un participante puede tener:
+            // - Pagos manuales previos (incluso completos)
+            // - Un reembolso parcial que genera saldo pendiente
+            // - Y querer continuar pagando sin suscripción (flujo normal del ecommerce)
             $subscription = ProgramSubscription::where('participant_id', $participantId)
                 ->where('program_id', $programId)
                 ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
                 ->first();
 
-            // También verificar si hay órdenes pagadas (pago total)
-            $paidOrder = Order::where('participant_id', $participantId)
-                ->where('program_id', $programId)
-                ->whereIn('status', ['paid', 'completed'])
-                ->first();
-
             $hasActiveSubscription = $subscription !== null;
-            $hasPaidOrder = $paidOrder !== null;
 
             return response()->json([
                 'success' => true,
                 'has_subscription' => $hasActiveSubscription,
-                'has_paid_order' => $hasPaidOrder,
-                'requires_login' => $hasActiveSubscription || $hasPaidOrder,
+                // SOLO requiere login si tiene suscripción activa (no por pagos manuales)
+                'requires_login' => $hasActiveSubscription,
                 'subscription' => $subscription ? [
                     'id' => $subscription->id,
                     'status' => $subscription->status,
                     'plan_name' => $subscription->plan_name,
-                ] : null,
-                'order' => $paidOrder ? [
-                    'id' => $paidOrder->id,
-                    'order_number' => $paidOrder->order_number,
-                    'status' => $paidOrder->status,
                 ] : null,
             ]);
 

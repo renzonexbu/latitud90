@@ -184,6 +184,12 @@ export default {
 
         async handleProgramClick(program) {
             try {
+                // Verificar si el programa está completamente pagado
+                if ((program.paymentPercentage || 0) >= 100) {
+                    // No hacer nada - el programa ya está completamente pagado
+                    return;
+                }
+
                 const participant = this.participant || {};
 
                 // PASO 1: Verificar si el participante tiene suscripción activa o pago completado

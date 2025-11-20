@@ -10,6 +10,7 @@ use App\Models\PaymentOption;
 use App\Models\Participant;
 use App\Models\ParticipantProgram;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Traits\AdminLogging;
 use App\Helpers\RutHelper;
 use Illuminate\Support\Facades\DB;
@@ -267,10 +268,10 @@ class ImportRefundsService
                 return $result;
             }
 
-            // Buscar la relación participant_program por enrollment_code
+            // Buscar la relación participant_program por enrollment_code (tabla antigua)
             $enrollmentCode = trim($rowData['Negocio Afiliado']);
             Log::info("Buscando enrollment_code: '{$enrollmentCode}'");
-            
+
             $participantProgram = ParticipantProgram::where('enrollment_code', $enrollmentCode)->first();
 
             if (!$participantProgram) {
@@ -278,17 +279,35 @@ class ImportRefundsService
                 $result['error'] = "Código de inscripción '{$enrollmentCode}' no encontrado";
                 return $result;
             }
-            
-            Log::info("Enrollment code encontrado: participant_id={$participantProgram->participant_id}, program_id={$participantProgram->program_id}");
+
+            Log::info("Enrollment code encontrado: participant_id={$participantProgram->participant_id}, program_template_id={$participantProgram->program_id}");
+
+            // Encontrar el ProgramCourse correspondiente
+            // Buscar en Orders para ver qué ProgramCourse tiene este participante para este programa
+            $order = Order::where('participant_id', $participantProgram->participant_id)
+                ->whereHas('programCourse', function($q) use ($participantProgram) {
+                    $q->where('program_id', $participantProgram->program_id);
+                })
+                ->first();
+
+            if (!$order) {
+                Log::error("No se encontró una orden para participant_id={$participantProgram->participant_id} con program_template_id={$participantProgram->program_id}");
+                $result['error'] = "No se encontró una orden asociada a este código de inscripción";
+                return $result;
+            }
+
+            // Obtener el ProgramCourse de la orden (program_id en orders es el ID de ProgramCourse)
+            $programCourseId = $order->program_id;
+            Log::info("ProgramCourse encontrado: program_course_id={$programCourseId}");
 
             // Obtener participante para validaciones
             $participant = Participant::find($participantProgram->participant_id);
             $cleanRut = RutHelper::clean(trim($rowData['RUT']));
-            
+
             Log::info("RUT del comprador (Excel): '{$cleanRut}'");
 
-            // Calcular monto pagado para validación
-            $paidAmount = $this->calculatePaidAmount($participant->id, $participantProgram->program_id);
+            // Calcular monto pagado para validación (usando ProgramCourse ID)
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourseId);
             $refundAmount = abs(floatval($rowData['Total'])); // Convertir negativo a positivo
 
             Log::info("Validando montos - Pagado: {$paidAmount}, Devolución: {$refundAmount}");
@@ -307,8 +326,9 @@ class ImportRefundsService
             }
 
             // Preparar datos para el servicio de devolución individual
+            // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
             $refundData = [
-                'program_id' => $participantProgram->program_id,
+                'program_id' => $programCourseId,
                 'participant_id' => $participantProgram->participant_id,
                 'amount' => $refundAmount, // Siempre positivo para el servicio
                 'transaction_date' => $this->parseDate($rowData['Fecha']),

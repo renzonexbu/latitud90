@@ -9,6 +9,7 @@ use App\Models\InstallmentPlan;
 use App\Models\Installment;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
@@ -34,16 +35,17 @@ class CreateParticularPaymentService
             $this->validateData($data);
 
             // Buscar entidades
+            // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
             $participant = Participant::findOrFail($data['participant_id']);
-            $program = Program::findOrFail($data['program_id']);
-            
+            $programCourse = ProgramCourse::with('program')->findOrFail($data['program_id']);
+
             // Para pagos presenciales, usar gateway presencial y mapear la opción según el tipo
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
-            
+
             // Mapear el tipo de pago presencial a la opción correspondiente
             $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($data['presential_payment_type'] ?? 'BX');
             $paymentOption = PaymentOption::where('code', $paymentOptionCode)->firstOrFail();
-            
+
             // Log temporal para diagnosticar
             Log::info('Pago presencial - Mapeo:', [
                 'presential_payment_type' => $data['presential_payment_type'] ?? 'BX',
@@ -54,21 +56,21 @@ class CreateParticularPaymentService
             ]);
 
             // Calcular montos del participante
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            $totalAmount = $priceData['final_price'];
+            // Usar el precio del ProgramCourse directamente
+            $totalAmount = (float) $programCourse->trip_price;
 
-            // Calcular monto ya pagado
-            $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
+            // Calcular monto ya pagado (program_id en orders es el ID de ProgramCourse)
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
             $previousBalance = max($totalAmount - $paidAmount, 0);
 
             // Validar monto del pago considerando suscripciones activas
-            $validationResult = $this->validatePaymentAmount($participant->id, $program->id, $data['amount'], $previousBalance);
+            $validationResult = $this->validatePaymentAmount($participant->id, $programCourse->id, $data['amount'], $previousBalance);
             if (!$validationResult['valid']) {
                 throw new \Exception($validationResult['error']);
             }
 
             // Buscar o crear la orden
-            $order = $this->findOrCreateOrder($participant, $program, $totalAmount, $data['amount']);
+            $order = $this->findOrCreateOrder($participant, $programCourse, $totalAmount, $data['amount']);
 
             // Crear el detalle de la orden
             $orderDetail = $this->createOrderDetail($order, $paymentOption, $paymentGateway, $data);
@@ -77,12 +79,12 @@ class CreateParticularPaymentService
             $payment = $this->createPayment($order, $orderDetail, $paymentGateway, $paymentOption, $data);
 
             // Reestructurar cuotas existentes si hay un plan de cuotas activo
-            $this->handleInstallmentRestructure($participant, $program, $data['amount']);
+            $this->handleInstallmentRestructure($participant, $programCourse, $data['amount']);
 
             // Manejar suscripciones activas (cancelar y recrear si es necesario)
             $subscriptionResult = $this->handleSubscriptionAdjustment(
                 $participant->id,
-                $program->id,
+                $programCourse->id,
                 $data['amount']
             );
 
@@ -101,7 +103,8 @@ class CreateParticularPaymentService
                 [
                     'order_id' => $order->id,
                     'participant_id' => $participant->id,
-                    'program_id' => $program->id,
+                    'program_course_id' => $programCourse->id,
+                    'program_id' => $programCourse->program->id ?? null,
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount + $data['amount'],
                     'remaining_balance' => $previousBalance - $data['amount'],
@@ -113,7 +116,8 @@ class CreateParticularPaymentService
                 'payment_id' => $payment->id,
                 'order_id' => $order->id,
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_course_id' => $programCourse->id,
+                'program_id' => $programCourse->program->id ?? null,
                 'amount' => $data['amount'],
                 'payment_code' => $data['payment_code'] ?? null
             ]);
@@ -254,13 +258,14 @@ class CreateParticularPaymentService
 
     /**
      * Buscar o crear orden
+     * NOTA: $programCourse->id se guarda en program_id, no el ID del template Program
      */
-    private function findOrCreateOrder(Participant $participant, Program $program, float $totalAmount, float $paymentAmount): Order
+    private function findOrCreateOrder(Participant $participant, ProgramCourse $programCourse, float $totalAmount, float $paymentAmount): Order
     {
         // Siempre crear una nueva orden para pagos presenciales
         $order = Order::create([
             'participant_id' => $participant->id,
-            'program_id' => $program->id,
+            'program_id' => $programCourse->id, // program_id guarda el ID de ProgramCourse
             'total_amount' => $totalAmount,
             'discount' => 0,
             'final_amount' => $totalAmount,
@@ -349,16 +354,16 @@ class CreateParticularPaymentService
      * NOTA: Este método NO se usa para pagos presenciales
      * Los pagos presenciales no crean cuotas automáticamente
      */
-    private function handleInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount, float $newPaidAmount): void
+    private function handleInstallmentPlan(Order $order, Participant $participant, ProgramCourse $programCourse, float $totalAmount, float $newPaidAmount): void
     {
         // Buscar plan de cuotas existente
         $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-                                         ->where('program_id', $program->id)
+                                         ->where('program_id', $programCourse->id)
                                          ->first();
 
         if (!$installmentPlan) {
             // Crear nuevo plan de cuotas si no existe
-            $installmentPlan = $this->createInstallmentPlan($order, $participant, $program, $totalAmount);
+            $installmentPlan = $this->createInstallmentPlan($order, $participant, $programCourse, $totalAmount);
         }
 
         // Reestructurar cuotas pendientes
@@ -368,11 +373,11 @@ class CreateParticularPaymentService
     /**
      * Crear nuevo plan de cuotas
      */
-    private function createInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount): InstallmentPlan
+    private function createInstallmentPlan(Order $order, Participant $participant, ProgramCourse $programCourse, float $totalAmount): InstallmentPlan
     {
         $installmentPlan = InstallmentPlan::create([
             'order_id' => $order->id,
-            'program_id' => $program->id,
+            'program_id' => $programCourse->id,
             'participant_id' => $participant->id,
             'total_amount' => $totalAmount,
             'total_installments' => 1, // Se ajustará en la reestructuración
@@ -461,11 +466,11 @@ class CreateParticularPaymentService
     /**
      * Reestructurar cuotas existentes después de un pago presencial
      */
-    private function handleInstallmentRestructure(Participant $participant, Program $program, float $paymentAmount): void
+    private function handleInstallmentRestructure(Participant $participant, ProgramCourse $programCourse, float $paymentAmount): void
     {
         // Buscar plan de cuotas existente
         $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-                                         ->where('program_id', $program->id)
+                                         ->where('program_id', $programCourse->id)
                                          ->where('status', 'active')
                                          ->first();
 
@@ -473,18 +478,18 @@ class CreateParticularPaymentService
             // No hay plan de cuotas existente, no hay nada que reestructurar
             Log::info('No se encontró plan de cuotas activo para reestructurar', [
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_course_id' => $programCourse->id,
                 'payment_amount' => $paymentAmount
             ]);
             return;
         }
 
         // Calcular montos actuales
-        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-        $totalAmount = $priceData['final_price'];
-        
+        // Usar el precio del ProgramCourse directamente
+        $totalAmount = (float) $programCourse->trip_price;
+
         // Calcular monto total ya pagado (incluyendo este pago)
-        $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
+        $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
         
         // Calcular saldo restante
         $remainingBalance = max($totalAmount - $paidAmount, 0);

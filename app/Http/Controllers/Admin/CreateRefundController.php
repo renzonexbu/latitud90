@@ -7,6 +7,7 @@ use App\Models\Country;
 use App\Models\Document;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Region;
 use App\Services\Admin\Payments\CreateRefundService;
 use App\Services\Admin\Payments\ImportRefundsService;
@@ -78,14 +79,37 @@ class CreateRefundController extends Controller
      */
     public function create()
     {
-        // Obtener datos necesarios para el formulario
-        $programs = Program::with(['course.participants'])->where('active', true)->get();
+        // Obtener programas activos (ProgramCourses) con sus relaciones
+        // NOTA: En el nuevo diseño, ProgramCourse es la instancia específica del programa para un curso
+        $programCourses = ProgramCourse::with(['program', 'course.participants'])
+            ->where('active', true)
+            ->get()
+            ->map(function ($programCourse) {
+                return [
+                    'id' => $programCourse->id,
+                    'name' => $programCourse->name,
+                    'code' => $programCourse->code,
+                    'destination' => $programCourse->program->destination ?? null,
+                    'trip_price' => $programCourse->trip_price,
+                    'departure_date' => $programCourse->departure_date,
+                    'course' => [
+                        'id' => $programCourse->course->id ?? null,
+                        'institution_name' => $programCourse->course->institution->name ?? null,
+                        'education_level' => $programCourse->course->education_level ?? null,
+                        'grade' => $programCourse->course->grade ?? null,
+                        // Incluir lista de participantes para el selector
+                        'participants' => $programCourse->course->participants ?? [],
+                    ],
+                    'participants_count' => $programCourse->course->participants->count() ?? 0,
+                ];
+            });
+
         $countries = Country::where('name', 'Chile')->get();
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
-        
+
         return Inertia::render('Admin/Payments/Refunds', [
-            'programs' => $programs,
+            'programs' => $programCourses,
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes
@@ -98,14 +122,15 @@ class CreateRefundController extends Controller
     public function store(Request $request)
     {
         // Validar datos requeridos
+        // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
         $validator = Validator::make($request->all(), [
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
             'sii_code' => 'required|string|max:255',
             'document_number' => 'required|string|max:255',
             'transaction_date' => 'required|date',
             'total_amount' => 'required|numeric|min:1',
-            
+
             // Validar datos del cliente
             'client_rut' => 'required|string|max:255',
             'client_name' => 'required|string|max:255',
@@ -154,8 +179,9 @@ class CreateRefundController extends Controller
      */
     public function getParticipantStatus(Request $request)
     {
+        // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
         $validator = Validator::make($request->all(), [
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
         ]);
 
@@ -169,30 +195,36 @@ class CreateRefundController extends Controller
 
         try {
             $participant = Participant::findOrFail($request->participant_id);
-            $program = Program::findOrFail($request->program_id);
-            
+            $programCourse = ProgramCourse::with('program')->findOrFail($request->program_id);
+
             // Calcular montos del participante
-            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            $totalAmount = $priceData['final_price'];
-            
-            // Calcular monto ya pagado
-            $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
+            // Usar el precio del ProgramCourse directamente
+            $totalAmount = (float) $programCourse->trip_price;
+
+            // Calcular monto ya pagado (usando programCourse->id que se guarda en orders.program_id)
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
             $balance = max($totalAmount - $paidAmount, 0);
-            
+
             // Calcular porcentaje de pago
             $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0;
-            
+
             // Determinar estado de pago
             $paymentStatus = $this->determinePaymentStatus($paidAmount, $balance, $totalAmount);
-            
+
             // Obtener resumen de cuotas
-            $installmentsSummary = $this->getInstallmentsSummary($participant->id, $program->id);
+            $installmentsSummary = $this->getInstallmentsSummary($participant->id, $programCourse->id);
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'participant' => $participant,
-                    'program' => $program,
+                    'program' => [
+                        'id' => $programCourse->id,
+                        'name' => $programCourse->name,
+                        'code' => $programCourse->code,
+                        'trip_price' => $programCourse->trip_price,
+                        'destination' => $programCourse->program->destination ?? null,
+                    ],
                     'payment_info' => [
                         'total_amount' => $totalAmount,
                         'paid_amount' => $paidAmount,

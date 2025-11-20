@@ -9,6 +9,7 @@ use App\Models\InstallmentPlan;
 use App\Models\Installment;
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
@@ -34,29 +35,30 @@ class CreateRefundService
             $this->validateData($data);
 
             // Buscar entidades
+            // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
             $participant = Participant::findOrFail($data['participant_id']);
-            $program = Program::findOrFail($data['program_id']);
-            
+            $programCourse = ProgramCourse::with('program')->findOrFail($data['program_id']);
+
             // Para reembolsos, buscar por código en lugar de ID hardcodeado
             $paymentGateway = PaymentGateway::where('code', 'refund')->firstOrFail();
             $paymentOption = PaymentOption::where('code', 'refund_credit_note')->firstOrFail();
 
             // Calcular montos del participante
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
-            $totalAmount = $priceData['final_price'];
+            // Usar el precio del ProgramCourse directamente
+            $totalAmount = (float) $programCourse->trip_price;
 
-            // Calcular monto ya pagado
-            $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
+            // Calcular monto ya pagado (program_id en orders es el ID de ProgramCourse)
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
             $previousBalance = max($totalAmount - $paidAmount, 0);
 
             // Validar monto del reembolso
-            $validationResult = $this->validateRefundAmount($participant->id, $program->id, $data['amount'], $paidAmount);
+            $validationResult = $this->validateRefundAmount($participant->id, $programCourse->id, $data['amount'], $paidAmount);
             if (!$validationResult['valid']) {
                 throw new \Exception($validationResult['error']);
             }
 
             // Buscar o crear la orden
-            $order = $this->findOrCreateOrder($participant, $program, $totalAmount, $data['amount'], $data);
+            $order = $this->findOrCreateOrder($participant, $programCourse, $totalAmount, $data['amount'], $data);
 
             // Crear el detalle de la orden
             $orderDetail = $this->createOrderDetail($order, $paymentOption, $paymentGateway, $data);
@@ -75,7 +77,7 @@ class CreateRefundService
             // Manejar suscripciones activas (cancelar y recrear con monto ajustado)
             $subscriptionResult = $this->handleSubscriptionAdjustmentForRefund(
                 $participant->id,
-                $program->id,
+                $programCourse->id,
                 $data['amount']
             );
 
@@ -94,7 +96,7 @@ class CreateRefundService
                 [
                     'order_id' => $order->id,
                     'participant_id' => $participant->id,
-                    'program_id' => $program->id,
+                    'program_course_id' => $programCourse->id,
                     'total_amount' => $totalAmount,
                     'previous_paid_amount' => $paidAmount,
                     'new_paid_amount' => $newPaidAmount,
@@ -108,7 +110,7 @@ class CreateRefundService
                 'refund_id' => $refund->id,
                 'order_id' => $order->id,
                 'participant_id' => $participant->id,
-                'program_id' => $program->id,
+                'program_course_id' => $programCourse->id,
                 'refund_amount' => $data['amount'],
                 'payment_code' => $data['payment_code'] ?? null,
                 'previous_paid_amount' => $paidAmount,
@@ -261,12 +263,13 @@ class CreateRefundService
     /**
      * Buscar o crear orden
      */
-    private function findOrCreateOrder(Participant $participant, Program $program, float $totalAmount, float $refundAmount, array $data): Order
+    private function findOrCreateOrder(Participant $participant, ProgramCourse $programCourse, float $totalAmount, float $refundAmount, array $data): Order
     {
         // Siempre crear una nueva orden para reembolsos
+        // NOTA: program_id en orders guarda el ID de ProgramCourse
         $order = Order::create([
             'participant_id' => $participant->id,
-            'program_id' => $program->id,
+            'program_id' => $programCourse->id,
             'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
             'total_amount' => $totalAmount,
             'final_amount' => $totalAmount,
@@ -275,12 +278,12 @@ class CreateRefundService
             'payment_type' => 'total',
             'status' => 'pending',
             'notes' => 'Orden creada desde reembolso',
-            
+
             // Campos fiscales
             'sii_code' => $data['sii_code'],
             'document_number' => $data['document_number'],
             'total_amount_fiscal' => $data['total_amount'],
-            
+
             'created_at' => now(),
             'updated_at' => now()
         ]);
@@ -385,18 +388,19 @@ class CreateRefundService
      * NOTA: Este método NO se usa para reembolsos
      * Los reembolsos no crean cuotas automáticamente
      */
-    private function handleInstallmentPlan(Order $order, Participant $participant, Program $program, float $totalAmount, float $newPaidAmount): void
+    private function handleInstallmentPlan(Order $order, Participant $participant, ProgramCourse $programCourse, float $totalAmount, float $newPaidAmount): void
     {
         // Buscar plan de cuotas existente del participante/programa
+        // NOTA: program_id en installment_plans guarda el ID de ProgramCourse
         $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-            ->where('program_id', $program->id)
+            ->where('program_id', $programCourse->id)
             ->first();
 
         if (!$installmentPlan) {
             // Crear nuevo plan de cuotas si no existe
             $installmentPlan = InstallmentPlan::create([
                 'order_id' => $order->id,
-                'program_id' => $program->id,
+                'program_id' => $programCourse->id,
                 'participant_id' => $participant->id,
                 'total_amount' => $totalAmount,
                 'total_installments' => 1, // Se ajustará en la redistribución
