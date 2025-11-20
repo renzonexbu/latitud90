@@ -192,12 +192,12 @@ class SuccessPaymentEmailService
         $currentInstallment = $orderDetail->installment_number;
 
         // Verificar si el programa inicia en el mismo año
-        $program = $orderDetail->order->program;
+        $programCourse = $orderDetail->order->programCourse;
         $currentYear = now()->year;
         $programStartYear = null;
 
-        if ($program && $program->departure_date) {
-            $programStartYear = $program->departure_date->year;
+        if ($programCourse && $programCourse->departure_date) {
+            $programStartYear = $programCourse->departure_date->year;
         }
 
         $isSameYear = ($programStartYear === $currentYear);
@@ -261,27 +261,86 @@ class SuccessPaymentEmailService
      */
     private function prepareEmailData(OrderDetail $orderDetail, Payment $payment): array
     {
-        $program = $orderDetail->order->program;
-        $paymentGateway = $orderDetail->paymentGateway;
+        $programCourse = $orderDetail->order->programCourse;
+        $paymentGateway = $payment->paymentGateway;
+        $order = $orderDetail->order;
 
-        return [
+        // Detectar si es un pago de suscripción
+        $isSubscription = ($paymentGateway->code ?? '') === 'virtualpos' && !empty($payment->external_payment_id);
+
+        // Preparar datos base
+        $data = [
             'customer_name' => $orderDetail->name,
             'customer_email' => $orderDetail->email,
-            'program_name' => $program->name ?? 'Programa',
-            'program_description' => $program->description ?? '',
+            'program_name' => $programCourse->name ?? 'Programa',
+            'program_description' => $programCourse->description ?? '',
             'payment_amount' => number_format($payment->amount, 0, ',', '.'),
             'payment_currency' => 'CLP',
             'payment_date' => $payment->created_at->format('d/m/Y H:i'),
             'transaction_id' => $payment->external_payment_id ?? $payment->id,
-            'payment_method' => $paymentGateway->name ?? 'Método de pago',
+            'payment_method' => $isSubscription ? 'Suscripción' : ($paymentGateway->name ?? 'Método de pago'),
             'installment_number' => $orderDetail->installment_number,
             'total_installments' => $orderDetail->installments_number ?? 1,
-            'subject' => 'Confirmación de Pago - ' . ($program->name ?? 'Programa'),
+            'subject' => 'Confirmación de Pago - ' . ($programCourse->name ?? 'Programa'),
             'order_number' => $orderDetail->order->order_number ?? '',
             'company_name' => config('lat90.company.name'),
             'company_email' => config('lat90.company.email'),
             'company_phone' => config('lat90.email.support.phone'),
+            'is_subscription' => $isSubscription,
         ];
+
+        // Si es suscripción, agregar información de próxima cuota
+        if ($isSubscription) {
+            $subscriptionData = $this->getSubscriptionData($order);
+            $data = array_merge($data, $subscriptionData);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Obtener datos adicionales de la suscripción
+     */
+    private function getSubscriptionData(\App\Models\Order $order): array
+    {
+        $data = [
+            'next_payment_date' => null,
+            'next_payment_amount' => null,
+            'total_installments' => 1,
+        ];
+
+        try {
+            // Buscar el plan de cuotas
+            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $order->participant_id)
+                ->where('program_id', $order->program_id)
+                ->first();
+
+            if ($installmentPlan) {
+                // Contar total de cuotas
+                $totalInstallments = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)->count();
+                $data['total_installments'] = $totalInstallments;
+
+                // Buscar próxima cuota pendiente
+                $nextInstallment = \App\Models\Installment::where('installment_plan_id', $installmentPlan->id)
+                    ->whereIn('status', ['pending', 'overdue'])
+                    ->orderBy('due_date', 'asc')
+                    ->first();
+
+                if ($nextInstallment) {
+                    $data['next_payment_date'] = $nextInstallment->due_date
+                        ? \Carbon\Carbon::parse($nextInstallment->due_date)->format('d/m/Y')
+                        : null;
+                    $data['next_payment_amount'] = number_format($nextInstallment->amount, 0, ',', '.');
+                }
+            }
+        } catch (\Exception $e) {
+            $this->logError('SuccessPaymentEmailService: Error obteniendo datos de suscripción', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ], $e);
+        }
+
+        return $data;
     }
 
     /**

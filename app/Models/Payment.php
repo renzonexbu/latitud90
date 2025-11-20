@@ -38,6 +38,7 @@ class Payment extends Model
         'balance',
         'error_message',
         'email_sent',
+        'email_sent_at',
         'bsale_document_id',
         'bsale_number',
         'bsale_token',
@@ -53,7 +54,8 @@ class Payment extends Model
         'accounting_date' => 'datetime:America/Santiago',
         'installments_number' => 'integer',
         'installment_amount' => 'decimal:2',
-        'email_sent' => 'boolean'
+        'email_sent' => 'boolean',
+        'email_sent_at' => 'datetime:America/Santiago'
     ];
 
     protected $appends = [

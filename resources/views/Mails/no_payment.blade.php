@@ -175,10 +175,13 @@
 
                 <div class="program-details">
                     <div class="detail-item">
-                        Fecha de incorporación al portal Pago del alumno: "{{ $incorporation_date ?? 'xx' }}"
+                        <strong>Participante:</strong> {{ $participant_name ?? 'N/A' }}
                     </div>
                     <div class="detail-item">
-                        Monto Programa educativo presupuestado: "{{ $program_amount ?? 'xx' }}"
+                        <strong>Fecha de incorporación al portal Pago:</strong> {{ $incorporation_date ?? 'N/A' }}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Monto Programa educativo presupuestado:</strong> ${{ $program_amount ?? 'N/A' }}
                     </div>
                 </div>
 
@@ -194,8 +197,10 @@
 
             <div class="footer">
                 <p><strong>Latitud 90</strong></p>
-                <p>Este es un correo automático, por favor no responder.</p>
-                <p>&copy; {{ date('Y') }} Latitud 90. Todos los derechos reservados.</p>
+                <div style="margin-top: 15px;">
+                    <p>📧 <a href="mailto:contacto@latitud90.com" style="color: #ffffff; text-decoration: none; opacity: 0.9;">contacto@latitud90.com</a></p>
+                </div>
+                <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">Este es un correo automático, por favor no responder.</p>
             </div>
         </div>
     </div>

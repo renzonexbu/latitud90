@@ -227,37 +227,75 @@
                 <!-- Payment Details -->
                 <div class="payment-details">
                     <h3>Detalles del Pago</h3>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Número de Orden:</span>
-                        <span class="detail-value">{{ $order_number }}</span>
-                    </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">Monto Pagado:</span>
-                        <span class="detail-value amount">${{ $payment_amount }} {{ $payment_currency }}</span>
-                    </div>
+                    @if($is_subscription ?? false)
+                        <!-- Información específica de suscripción -->
+                        <div class="detail-row">
+                            <span class="detail-label">Cuota Pagada:</span>
+                            <span class="detail-value" style="font-weight: bold; font-size: 18px; color: #007E93;">
+                                {{ $installment_number }} de {{ $total_installments }}
+                            </span>
+                        </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">Método de Pago:</span>
-                        <span class="detail-value">{{ $payment_method }}</span>
-                    </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Método de Pago:</span>
+                            <span class="detail-value">{{ $payment_method }}</span>
+                        </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">Fecha de Pago:</span>
-                        <span class="detail-value">{{ $payment_date }}</span>
-                    </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Monto Pagado:</span>
+                            <span class="detail-value amount">${{ $payment_amount }} {{ $payment_currency }}</span>
+                        </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">ID de Transacción:</span>
-                        <span class="detail-value">{{ $transaction_id }}</span>
-                    </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fecha de Pago:</span>
+                            <span class="detail-value">{{ $payment_date }}</span>
+                        </div>
 
-                    @if($total_installments > 1)
-                    <div class="detail-row">
-                        <span class="detail-label">Cuota:</span>
-                        <span class="detail-value">{{ $installment_number }} de {{ $total_installments }}</span>
-                    </div>
+                        @if($next_payment_date ?? null)
+                        <div class="detail-row" style="background-color: #fff3cd; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                            <span class="detail-label" style="color: #856404;">📅 Próximo Pago:</span>
+                            <span class="detail-value" style="font-weight: bold; color: #856404;">
+                                {{ $next_payment_date }}
+                                @if($next_payment_amount ?? null)
+                                    - ${{ $next_payment_amount }} {{ $payment_currency }}
+                                @endif
+                            </span>
+                        </div>
+                        @endif
+                    @else
+                        <!-- Información tradicional para pagos no suscritos -->
+                        <div class="detail-row">
+                            <span class="detail-label">Número de Orden:</span>
+                            <span class="detail-value">{{ $order_number }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="detail-label">Monto Pagado:</span>
+                            <span class="detail-value amount">${{ $payment_amount }} {{ $payment_currency }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="detail-label">Método de Pago:</span>
+                            <span class="detail-value">{{ $payment_method }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="detail-label">Fecha de Pago:</span>
+                            <span class="detail-value">{{ $payment_date }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="detail-label">ID de Transacción:</span>
+                            <span class="detail-value">{{ $transaction_id }}</span>
+                        </div>
+
+                        @if($total_installments > 1)
+                        <div class="detail-row">
+                            <span class="detail-label">Cuota:</span>
+                            <span class="detail-value">{{ $installment_number }} de {{ $total_installments }}</span>
+                        </div>
+                        @endif
                     @endif
                 </div>
 
@@ -272,8 +310,7 @@
             <div class="footer">
                 <p><strong>{{ $company_name }}</strong></p>
                 <div class="contact-info">
-                    <p>📧 <a href="mailto:{{ $company_email }}">{{ $company_email }}</a></p>
-                    <p>📞 <a href="tel:{{ $company_phone }}">{{ $company_phone }}</a></p>
+                    <p>📧 <a href="mailto:contacto@latitud90.com">contacto@latitud90.com</a></p>
                 </div>
                 <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
                     Este es un email automático, por favor no respondas a este mensaje.

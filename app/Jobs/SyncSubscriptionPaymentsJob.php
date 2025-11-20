@@ -378,6 +378,9 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $amount = $charge['amount'] ?? 0;
 
+        // Obtener gateway de VirtualPos
+        $gateway = \App\Models\PaymentGateway::where('code', 'virtualpos')->first();
+
         $orderDetail = OrderDetail::create([
             'order_id' => $order->id,
             'base_amount' => $amount,
@@ -388,6 +391,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'status' => 'paid',
             'is_paid' => true,
             'paid_at' => now(),
+            'payment_gateway_id' => $gateway ? $gateway->id : null,
         ]);
 
         // Actualizar total de la orden
@@ -486,7 +490,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 $query->where('participant_id', $subscription->participant_id)
                     ->where('program_id', $subscription->program_id);
             })
-            ->where('status', 'pending')
+            ->whereIn('status', ['pending', 'overdue']) // Incluir 'overdue' para casos donde check-overdue ya corrió
             ->get();
 
         foreach ($installments as $installment) {

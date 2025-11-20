@@ -76,7 +76,7 @@ class DocumentTemplateService
      */
     private function prepareData(string $type, OrderDetail $orderDetail, Payment $payment): array
     {
-        $program = $orderDetail->order->program;
+        $program = $orderDetail->order->programCourse;  // Usar programCourse en lugar de program
         $participant = $orderDetail->order->participant;
 
         // Datos comunes a todos los tipos de documentos

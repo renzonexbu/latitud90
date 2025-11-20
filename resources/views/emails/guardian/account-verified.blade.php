@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verifica tu cuenta - Latitud 90</title>
+    <title>Bienvenido al Portal de Pago Latitud 90</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -50,6 +50,22 @@
         .content {
             padding: 30px;
         }
+        .success-icon {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .success-icon .circle {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
         .greeting {
             font-size: 20px;
             font-weight: bold;
@@ -61,43 +77,47 @@
             line-height: 1.8;
             margin-bottom: 25px;
         }
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #FFB232 0%, #ff9f00 100%);
-            color: #ffffff;
-            padding: 15px 35px;
-            text-decoration: none;
-            border-radius: 25px;
-            font-weight: 600;
-            margin: 20px 0;
-            box-shadow: 0 3px 10px rgba(255, 178, 50, 0.3);
-            transition: all 0.3s ease;
-        }
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 178, 50, 0.4);
-        }
-        .url-box {
+        .account-details {
             background-color: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
             border-left: 4px solid #007E93;
-            word-break: break-all;
-            margin: 15px 0;
-        }
-        .url-box a {
-            color: #007E93;
-            text-decoration: none;
-        }
-        .warning {
-            background-color: #fff3cd;
-            border-left: 4px solid #FFB232;
             border-radius: 0 8px 8px 0;
-            padding: 15px 20px;
-            margin: 20px 0;
+            padding: 25px;
+            margin: 25px 0;
         }
-        .warning strong {
-            color: #ff9f00;
+        .account-details h3 {
+            color: #007E93;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .account-item {
+            margin: 12px 0;
+            font-size: 15px;
+        }
+        .account-item strong {
+            color: #007E93;
+            display: inline-block;
+            min-width: 160px;
+        }
+        .security-section {
+            background-color: #f0f8ff;
+            border-left: 4px solid #007E93;
+            border-radius: 0 8px 8px 0;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .security-section h3 {
+            color: #007E93;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .security-section ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #333;
+            line-height: 1.8;
         }
         .footer {
             background-color: #007E93;
@@ -135,40 +155,45 @@
             <!-- Header -->
             <div class="header">
                 <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
-                <div class="subject">Confirmación de correo – Portal de pago Latitud 90</div>
+                <div class="subject">Bienvenido al Portal de Pago Latitud 90</div>
             </div>
 
             <!-- Content -->
             <div class="content">
+                <!-- Success Icon -->
+                <div class="success-icon">
+                    <div class="circle">✓</div>
+                </div>
+
                 <!-- Greeting -->
                 <div class="greeting">
-                    ¡Hola {{ $user->name }}!
+                    Estimado(a) {{ ucwords(strtolower($user->name)) }},
                 </div>
 
                 <!-- Message -->
                 <div class="message">
-                    <p>Bienvenido al Portal de Pago Latitud 90, para acceder es necesario validar su correo electrónico haciendo click en el siguiente enlace:</p>
+                    <p>Muchas gracias por registrarte en el portal de pago de Latitud90.</p>
+                    <p>Hemos creado una cuenta en nuestro sistema con los siguientes datos:</p>
                 </div>
 
-                <!-- CTA Button -->
-                <div style="text-align: center;">
-                    <a href="{{ $verificationUrl }}" class="cta-button">
-                        Verificar mi correo electrónico
-                    </a>
-                </div>
-
-                <!-- Alternative URL -->
-                <div class="message">
-                    <p style="font-size: 14px; color: #555;">Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
-                    <div class="url-box">
-                        <a href="{{ $verificationUrl }}">{{ $verificationUrl }}</a>
+                <!-- Account Details -->
+                <div class="account-details">
+                    <h3>Datos de tu cuenta</h3>
+                    <div class="account-item">
+                        <strong>Nombre de usuario:</strong> {{ $user->email }}
                     </div>
                 </div>
 
-                <!-- Correo Seguro -->
-                <div style="background-color: #f0f8ff; border-left: 4px solid #007E93; border-radius: 0 8px 8px 0; padding: 20px; margin: 25px 0;">
-                    <h3 style="color: #007E93; margin-top: 0; margin-bottom: 15px; font-size: 18px;">🔒 Correo seguro</h3>
-                    <ul style="margin: 0; padding-left: 20px; color: #333; line-height: 1.8;">
+                <!-- Additional Message -->
+                <div class="message">
+                    <p>Esperamos que disfrutes la experiencia con Lat. 90.</p>
+                    <p>Podrás ver todos los registros de pago con tu usuario en nuestro portal.</p>
+                </div>
+
+                <!-- Security Section -->
+                <div class="security-section">
+                    <h3>🔒 Correo seguro</h3>
+                    <ul>
                         <li>Nunca solicitaremos tus claves, números de tarjeta, por teléfono o correo electrónico</li>
                         <li>No debes abrir o descargar archivos de remitentes desconocidos</li>
                         <li>Nunca te solicitaremos pagar directamente por un email</li>

@@ -213,6 +213,17 @@ class GuardianAuthController extends Controller
         // ✅ LOGEAR AUTOMÁTICAMENTE después de verificar email exitosamente
         auth('guardian')->login($result['user']);
 
+        // Enviar email de bienvenida con cuenta verificada
+        try {
+            \Illuminate\Support\Facades\Mail::to($result['user']->email)
+                ->send(new \App\Mail\GuardianAccountVerified($result['user']));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error enviando email de cuenta verificada', [
+                'user_id' => $result['user']->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Si hay un token de programa pendiente, redirigir al programa
         if ($programToken) {
             // Limpiar la sesión

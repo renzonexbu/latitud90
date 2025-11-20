@@ -289,8 +289,7 @@
             <div class="footer">
                 <p><strong>{{ $company_name }}</strong></p>
                 <div class="contact-info">
-                    <p>📧 <a href="mailto:{{ $company_email }}">{{ $company_email }}</a></p>
-                    <p>📞 <a href="tel:{{ $company_phone }}">{{ $company_phone }}</a></p>
+                    <p>📧 <a href="mailto:contacto@latitud90.com">contacto@latitud90.com</a></p>
                 </div>
                 <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
                     Este es un email automático, por favor no respondas a este mensaje.

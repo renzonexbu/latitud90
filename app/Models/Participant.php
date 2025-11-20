@@ -29,13 +29,15 @@ class Participant extends Model
         'allergies',
         'status',
         'registration_date',
-        'is_active'
+        'is_active',
+        'last_no_payment_reminder_sent_at'
     ];
 
     protected $casts = [
         'birth_date' => 'date',
         'registration_date' => 'datetime',
         'is_active' => 'boolean',
+        'last_no_payment_reminder_sent_at' => 'datetime',
     ];
 
     protected $attributes = [

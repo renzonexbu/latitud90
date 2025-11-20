@@ -70,6 +70,20 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/monthly-participants-without-payments.log'));
+
+        // Enviar emails pendientes de pagos exitosos - cada día a las 8:00 AM
+        $schedule->command('payments:send-pending-emails')
+            ->dailyAt('08:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/pending-payment-emails.log'));
+
+        // Enviar recordatorios a participantes sin pagos iniciados - cada día a las 9:00 AM
+        $schedule->job(new \App\Jobs\SendNoPaymentReminders)
+            ->dailyAt('09:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/no-payment-reminders.log'));
     }
 
     /**
