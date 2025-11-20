@@ -528,6 +528,11 @@ class VirtualPosSubscriptionService
         $data['return_url'] = base64_encode($returnUrl);
         $data['callback_url'] = base64_encode($callbackUrl);
 
+        // Agregar charges_program si está presente (requerido para planes tipo PROGRAMA_DE_PAGOS)
+        if (!empty($params['charges_program'])) {
+            $data['charges_program'] = $params['charges_program']; // Ya debe venir codificado en Base64
+        }
+
         return $data;
     }
 }

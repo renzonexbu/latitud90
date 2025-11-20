@@ -62,6 +62,7 @@ class UpdateCourseRequest extends CourseRequest
             'enable_total_payment' => ['nullable', 'boolean'],
             'enable_subscription_payment' => ['nullable', 'boolean'],
             'subscription_max_months' => ['nullable', 'integer', 'min:1', 'max:12', 'required_if:enable_subscription_payment,true'],
+            'immediate_first_charge' => ['nullable', 'boolean'],
 
             // Descuentos
             'discount_type' => ['nullable', 'in:percentage,fixed'],

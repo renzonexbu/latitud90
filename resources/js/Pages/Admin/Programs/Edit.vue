@@ -7,7 +7,7 @@
                 <!-- Componente reutilizado de ProgramDescription -->
                 <ProgramDescription
                     v-model="programData"
-                    mode="edit"
+                    mode="template-edit"
                     :existing-images="program.images || []"
                     :existing-files="{
                         itinerary_file: program.itinerary_file_url,
@@ -69,6 +69,7 @@ const pillars = props.program.pillars ? props.program.pillars.split(', ') : [];
 
 // Formulario simplificado - solo campos de plantilla
 const form = useForm({
+    _method: 'put',
     name: props.program.name || "",
     destination: props.program.destination || "",
     description: props.program.trip_description || "",
@@ -119,7 +120,7 @@ watch(
 watch(newImages, (newImages) => {
     const imageFiles = newImages.map((img) => img.file).filter(Boolean);
     form.images = imageFiles;
-});
+}, { deep: true });
 
 // Función para actualizar imágenes
 const updateImages = (images) => {
@@ -167,6 +168,7 @@ const toggleStatus = () => {
 // Enviar formulario
 const submit = () => {
     form.post(route("admin.programs.update", props.program.id), {
+        forceFormData: true,
         onSuccess: () => {
             console.log("✅ Plantilla actualizada exitosamente");
         },

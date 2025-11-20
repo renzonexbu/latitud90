@@ -13,6 +13,7 @@ use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\AdminLogging;
+use App\Services\Subscription\SubscriptionRecalculationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -43,14 +44,15 @@ class CreateRefundService
             // Calcular montos del participante
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
             $totalAmount = $priceData['final_price'];
-            
+
             // Calcular monto ya pagado
             $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
             $previousBalance = max($totalAmount - $paidAmount, 0);
-            
-            // Para reembolsos, no validamos límites superiores ya que se SUMA a la deuda
-            if ($data['amount'] <= 0) {
-                throw new \Exception("El monto del reembolso debe ser mayor a 0");
+
+            // Validar monto del reembolso
+            $validationResult = $this->validateRefundAmount($participant->id, $program->id, $data['amount'], $paidAmount);
+            if (!$validationResult['valid']) {
+                throw new \Exception($validationResult['error']);
             }
 
             // Buscar o crear la orden
@@ -69,6 +71,13 @@ class CreateRefundService
             // NOTA: Los reembolsos NO crean cuotas automáticamente
             // Solo se registra el reembolso en la orden. Si se necesita un plan de cuotas,
             // debe crearse manualmente desde la interfaz de administración.
+
+            // Manejar suscripciones activas (cancelar y recrear con monto ajustado)
+            $subscriptionResult = $this->handleSubscriptionAdjustmentForRefund(
+                $participant->id,
+                $program->id,
+                $data['amount']
+            );
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -162,6 +171,91 @@ class CreateRefundService
         })
         ->where('status', 'completed')
         ->sum('amount');
+    }
+
+    /**
+     * Validar el monto del reembolso considerando suscripciones activas
+     */
+    private function validateRefundAmount(int $participantId, int $programId, float $refundAmount, float $paidAmount): array
+    {
+        // Validación básica: monto debe ser mayor a 0
+        if ($refundAmount <= 0) {
+            return [
+                'valid' => false,
+                'error' => "El monto del reembolso debe ser mayor a 0"
+            ];
+        }
+
+        // Verificar si existe una suscripción activa
+        $subscription = \App\Models\ProgramSubscription::where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->where('status', 'ACTIVA')
+            ->whereNotNull('virtualpos_subscription_id')
+            ->first();
+
+        if ($subscription) {
+            // Si hay suscripción activa, validar que el reembolso no exceda el monto pagado de la suscripción
+            try {
+                $virtualPosService = app(\App\Services\Subscription\VirtualPosSubscriptionService::class);
+                $virtualPosData = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
+
+                // Usar datos de VirtualPos, o como fallback los datos locales
+                $chargeProgram = $virtualPosData['charge_program'] ?? $subscription->charge_program ?? [];
+
+                $paidAmountFromSubscription = 0;
+                foreach ($chargeProgram as $charge) {
+                    $status = strtolower($charge['status'] ?? '');
+                    if ($status === 'pagado') {
+                        $paidAmountFromSubscription += $charge['amount'] ?? 0;
+                    }
+                }
+
+                Log::info('Reembolso: Validación contra suscripción activa', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'subscription_id' => $subscription->id,
+                    'subscription_paid_amount' => $paidAmountFromSubscription,
+                    'refund_amount' => $refundAmount,
+                    'using_local_data' => empty($virtualPosData['charge_program'])
+                ]);
+
+                // Validar que el reembolso no exceda lo pagado en la suscripción
+                if ($refundAmount > $paidAmountFromSubscription) {
+                    return [
+                        'valid' => false,
+                        'error' => "El monto del reembolso ({$refundAmount}) excede el monto pagado de la suscripción ({$paidAmountFromSubscription})"
+                    ];
+                }
+
+                return ['valid' => true];
+
+            } catch (\Exception $e) {
+                Log::error('Reembolso: Error validando contra suscripción', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'error' => $e->getMessage()
+                ]);
+                // Continuar con validación normal si falla la consulta a VirtualPos
+            }
+        }
+
+        // Si no hay suscripción activa, validar contra el monto total pagado
+        Log::info('Reembolso: Validación contra monto total pagado', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'paid_amount' => $paidAmount,
+            'refund_amount' => $refundAmount
+        ]);
+
+        // Para reembolsos sin suscripción, validar que no se reembolse más de lo pagado
+        if ($refundAmount > $paidAmount) {
+            return [
+                'valid' => false,
+                'error' => "El monto del reembolso ({$refundAmount}) excede el monto total pagado ({$paidAmount})"
+            ];
+        }
+
+        return ['valid' => true];
     }
 
     /**
@@ -367,5 +461,74 @@ class CreateRefundService
             'new_balance' => $newBalance,
             'pending_installments_count' => $pendingInstallments->count()
         ]);
+    }
+
+    /**
+     * Manejar ajuste de suscripción activa cuando se hace un reembolso
+     * Los reembolsos AUMENTAN la deuda pendiente
+     */
+    private function handleSubscriptionAdjustmentForRefund(int $participantId, int $programId, float $refundAmount): ?array
+    {
+        try {
+            $recalculationService = app(SubscriptionRecalculationService::class);
+
+            // Procesar ajuste de suscripción (tipo 'refund' aumenta la deuda)
+            $result = $recalculationService->processPaymentWithSubscriptionAdjustment(
+                $participantId,
+                $programId,
+                $refundAmount,
+                'refund'
+            );
+
+            if (!$result['has_subscription']) {
+                Log::info('Reembolso: No hay suscripción activa para ajustar', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId
+                ]);
+                return null;
+            }
+
+            if ($result['subscription_cancelled']) {
+                Log::info('Reembolso: Suscripción cancelada por ajuste', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'old_subscription_id' => $result['old_subscription_id'],
+                    'new_amount' => $result['new_amount'],
+                    'new_installments' => $result['new_installments']
+                ]);
+
+                // Crear nueva suscripción con el monto ajustado (aumentado por el reembolso)
+                $newSubscriptionResult = $recalculationService->createNewSubscription(
+                    $participantId,
+                    $programId,
+                    $result['new_amount'],
+                    $result['new_installments'],
+                    $result['old_plan_id'] ?? null // Usar el mismo plan de la suscripción original
+                );
+
+                if ($newSubscriptionResult['success']) {
+                    Log::info('Reembolso: Nueva suscripción creada exitosamente', [
+                        'new_subscription_id' => $newSubscriptionResult['subscription']->id,
+                        'virtualpos_id' => $newSubscriptionResult['subscription']->virtualpos_subscription_id
+                    ]);
+                }
+
+                return $newSubscriptionResult;
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error('Reembolso: Error manejando ajuste de suscripción', [
+                'participant_id' => $participantId,
+                'program_id' => $programId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // No lanzar excepción - el reembolso ya se procesó correctamente
+            // Solo logear el error para revisión
+            return null;
+        }
     }
 }

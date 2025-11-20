@@ -14,6 +14,7 @@ use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
 use App\Helpers\RutHelper;
 use App\Traits\AdminLogging;
+use App\Services\Subscription\SubscriptionRecalculationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -55,14 +56,15 @@ class CreateParticularPaymentService
             // Calcular montos del participante
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
             $totalAmount = $priceData['final_price'];
-            
+
             // Calcular monto ya pagado
             $paidAmount = $this->calculatePaidAmount($participant->id, $program->id);
             $previousBalance = max($totalAmount - $paidAmount, 0);
-            
-            // Validar que el monto del pago no exceda el saldo pendiente
-            if ($data['amount'] > $previousBalance) {
-                throw new \Exception("El monto del pago ({$data['amount']}) excede el saldo pendiente ({$previousBalance})");
+
+            // Validar monto del pago considerando suscripciones activas
+            $validationResult = $this->validatePaymentAmount($participant->id, $program->id, $data['amount'], $previousBalance);
+            if (!$validationResult['valid']) {
+                throw new \Exception($validationResult['error']);
             }
 
             // Buscar o crear la orden
@@ -76,6 +78,13 @@ class CreateParticularPaymentService
 
             // Reestructurar cuotas existentes si hay un plan de cuotas activo
             $this->handleInstallmentRestructure($participant, $program, $data['amount']);
+
+            // Manejar suscripciones activas (cancelar y recrear si es necesario)
+            $subscriptionResult = $this->handleSubscriptionAdjustment(
+                $participant->id,
+                $program->id,
+                $data['amount']
+            );
 
             // Actualizar estado de la orden
             $order->refreshStatus();
@@ -164,6 +173,83 @@ class CreateParticularPaymentService
             })
             ->whereIn('status', ['completed', 'approved'])
             ->sum('amount');
+    }
+
+    /**
+     * Validar el monto del pago considerando suscripciones activas
+     */
+    private function validatePaymentAmount(int $participantId, int $programId, float $paymentAmount, float $orderBalance): array
+    {
+        // Verificar si existe una suscripción activa
+        $subscription = \App\Models\ProgramSubscription::where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->where('status', 'ACTIVA')
+            ->whereNotNull('virtualpos_subscription_id')
+            ->first();
+
+        if ($subscription) {
+            // Si hay suscripción activa, validar contra el monto pendiente de la suscripción
+            try {
+                $virtualPosService = app(\App\Services\Subscription\VirtualPosSubscriptionService::class);
+                $virtualPosData = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
+
+                // Usar datos de VirtualPos, o como fallback los datos locales
+                $chargeProgram = $virtualPosData['charge_program'] ?? $subscription->charge_program ?? [];
+
+                $pendingAmount = 0;
+                foreach ($chargeProgram as $charge) {
+                    $status = strtolower($charge['status'] ?? '');
+                    if (in_array($status, ['pendiente', 'procesando'])) {
+                        $pendingAmount += $charge['amount'] ?? 0;
+                    }
+                }
+
+                Log::info('Pago presencial: Validación contra suscripción activa', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'subscription_id' => $subscription->id,
+                    'subscription_pending_amount' => $pendingAmount,
+                    'payment_amount' => $paymentAmount,
+                    'using_local_data' => empty($virtualPosData['charge_program'])
+                ]);
+
+                // Si el pago excede el monto pendiente de la suscripción
+                if ($paymentAmount > $pendingAmount) {
+                    return [
+                        'valid' => false,
+                        'error' => "El monto del pago ({$paymentAmount}) excede el saldo pendiente de la suscripción ({$pendingAmount})"
+                    ];
+                }
+
+                return ['valid' => true];
+
+            } catch (\Exception $e) {
+                Log::error('Pago presencial: Error validando contra suscripción', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'error' => $e->getMessage()
+                ]);
+                // Continuar con validación normal si falla la consulta a VirtualPos
+            }
+        }
+
+        // Si no hay suscripción activa o falló la validación de suscripción,
+        // usar validación tradicional contra el balance de órdenes
+        Log::info('Pago presencial: Validación contra balance de órdenes', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'order_balance' => $orderBalance,
+            'payment_amount' => $paymentAmount
+        ]);
+
+        if ($paymentAmount > $orderBalance) {
+            return [
+                'valid' => false,
+                'error' => "El monto del pago ({$paymentAmount}) excede el saldo pendiente ({$orderBalance})"
+            ];
+        }
+
+        return ['valid' => true];
     }
 
     /**
@@ -472,6 +558,66 @@ class CreateParticularPaymentService
                 'adjusted_at' => now(),
                 'adjustment_reason' => 'Reestructuración automática por pago presencial adicional'
             ]);
+        }
+    }
+
+    /**
+     * Manejar ajuste de suscripción activa cuando se hace un pago presencial
+     */
+    private function handleSubscriptionAdjustment(int $participantId, int $programId, float $paymentAmount): ?array
+    {
+        try {
+            $recalculationService = app(SubscriptionRecalculationService::class);
+
+            // Procesar ajuste de suscripción
+            $result = $recalculationService->processPaymentWithSubscriptionAdjustment(
+                $participantId,
+                $programId,
+                $paymentAmount,
+                'payment'
+            );
+
+            if (!$result['has_subscription']) {
+                Log::info('Pago presencial: No hay suscripción activa para ajustar', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId
+                ]);
+                return null;
+            }
+
+            if ($result['subscription_cancelled']) {
+                // Suscripción fue cancelada y recreada con nuevo plan
+                Log::info('Pago presencial: Suscripción cancelada y recreada', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'old_subscription_id' => $result['old_subscription_id'] ?? null,
+                    'new_subscription_id' => $result['new_subscription_id'] ?? null,
+                    'new_plan_id' => $result['new_plan_id'] ?? null,
+                    'new_installments' => $result['new_installments'] ?? null,
+                    'new_pending_amount' => $result['new_pending_amount'] ?? null
+                ]);
+            } else {
+                // Suscripción se mantiene activa (no debería llegar aquí con la lógica actual)
+                Log::info('Pago presencial: Suscripción mantenida activa', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'subscription_id' => $result['subscription_id'] ?? null
+                ]);
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            Log::error('Pago presencial: Error manejando ajuste de suscripción', [
+                'participant_id' => $participantId,
+                'program_id' => $programId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // No lanzar excepción - el pago ya se procesó correctamente
+            // Solo logear el error para revisión
+            return null;
         }
     }
 

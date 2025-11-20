@@ -307,6 +307,42 @@ class SubscriptionController extends Controller
             // Generar service_id único
             $serviceId = 'SUB_' . $programCourse->id . '_' . $participant->id . '_' . time();
 
+            // Generar programa de cobros (charges_program) para PROGRAMA_DE_PAGOS
+            $now = now();
+            $chargesProgram = [];
+            $monthlyAmount = $totalAmount / $installments;
+
+            for ($i = 0; $i < $installments; $i++) {
+                if ($i === 0) {
+                    // Primera cuota: inmediata o diferida según configuración
+                    if ($programCourse->immediate_first_charge) {
+                        $chargeDate = $now->copy();
+                    } else {
+                        $chargeDate = $now->copy()->addMonth()->startOfMonth();
+                    }
+                } else {
+                    // Cuotas siguientes: sumar meses desde la primera cuota
+                    $chargeDate = $chargesProgram[0]['charge_date_obj']->copy()->addMonths($i);
+                }
+
+                $chargesProgram[] = [
+                    'charge_date_obj' => $chargeDate,
+                    'charge_date' => $chargeDate->format('Y-m-d'),
+                    'amount' => $monthlyAmount,
+                    'description' => 'Cargo ' . ($i + 1) . ' de ' . $installments,
+                    'internal_code' => $programCourse->code . '-CUOTA-' . ($i + 1)
+                ];
+            }
+
+            // Remover objeto Carbon antes de codificar
+            $chargesProgramForApi = array_map(function($charge) {
+                unset($charge['charge_date_obj']);
+                return $charge;
+            }, $chargesProgram);
+
+            // Codificar charges_program en Base64
+            $chargesProgramBase64 = base64_encode(json_encode($chargesProgramForApi));
+
             // Inicializar servicio de VirtualPos
             $virtualPosService = new VirtualPosSubscriptionService();
 
@@ -325,6 +361,7 @@ class SubscriptionController extends Controller
                 'client' => $clientData,
                 'return_url' => $returnUrl,
                 'callback_url' => $callbackUrl,
+                'charges_program' => $chargesProgramBase64, // Agregar charges_program
             ]);
 
             Log::info('Creando suscripción desde confirmación', [

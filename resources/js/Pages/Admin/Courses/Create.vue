@@ -178,10 +178,13 @@
                                                                 type="date"
                                                                 v-model="form.final_payment_date"
                                                                 class="admin-input-text"
-                                                                :class="{ 'border-red-500': errors.final_payment_date }"
+                                                                :class="{ 'border-red-500': errors.final_payment_date || !finalPaymentDateValidation.isValid }"
                                                             />
                                                             <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.final_payment_date }}
+                                                            </span>
+                                                            <span v-if="!finalPaymentDateValidation.isValid" class="text-red-500 text-sm mt-1 block">
+                                                                {{ finalPaymentDateValidation.message }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -616,6 +619,25 @@
                                                                 El plan de VirtualPos se creará automáticamente al guardar.
                                                             </div>
                                                         </div>
+
+                                                        <!-- Nuevo: Primer cobro inmediato -->
+                                                        <div class="field-wrapper mt-4">
+                                                            <label class="flex items-start gap-3 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    v-model="form.immediate_first_charge"
+                                                                    class="mt-1 h-4 w-4 text-[#007e93] border-gray-300 rounded focus:ring-[#007e93]"
+                                                                />
+                                                                <div class="flex-1">
+                                                                    <div class="field-label mb-1">
+                                                                        Primer cobro inmediato
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-500">
+                                                                        Si está activado, el primer cobro se realizará inmediatamente al suscribirse. Si está desactivado, el primer cobro se diferirá aproximadamente 30 días.
+                                                                    </div>
+                                                                </div>
+                                                            </label>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -732,6 +754,7 @@ const form = ref({
     full_payment_options: [], // ['full_transfer_khipu', 'full_debit_credit_0', etc.]
     subscription_payment_options: [], // ['subscription_virtualpos']
     subscription_max_months: '',
+    immediate_first_charge: true,
 
     // Sales executive
     sales_executive_id: '',
@@ -795,6 +818,8 @@ const fullPaymentChoices = computed(() => {
 const maxInstallmentChoices = computed(() => {
     const choices = [];
     let maxByDate = 12;
+
+    // Usar la fecha final de pago como límite para calcular cuotas
     if (form.value.final_payment_date) {
         const now = new Date();
         const end = new Date(form.value.final_payment_date + 'T00:00:00');
@@ -802,6 +827,7 @@ const maxInstallmentChoices = computed(() => {
         if (now.getDate() > end.getDate()) months -= 1;
         maxByDate = Math.max(0, months);
     }
+
     const hardMax = 12;
     const max = Math.min(hardMax, maxByDate);
     for (let i = 1; i <= max; i++) {
@@ -811,6 +837,26 @@ const maxInstallmentChoices = computed(() => {
         choices.push({ value: '1', label: '1' });
     }
     return choices;
+});
+
+// Validación de fecha final de pago
+const finalPaymentDateValidation = computed(() => {
+    if (!form.value.departure_date || !form.value.final_payment_date) {
+        return { isValid: true, message: '' };
+    }
+
+    const departureDate = new Date(form.value.departure_date + 'T00:00:00');
+    const finalPaymentDate = new Date(form.value.final_payment_date + 'T00:00:00');
+
+    // Validar que la fecha final de pago sea anterior a la fecha de salida
+    if (finalPaymentDate >= departureDate) {
+        return {
+            isValid: false,
+            message: 'La fecha final de pago debe ser anterior a la fecha de salida del viaje.'
+        };
+    }
+
+    return { isValid: true, message: '' };
 });
 
 // Payment option functions
@@ -931,6 +977,13 @@ const saveCourse = () => {
     if (form.value.subscription_max_months) {
         formData.append('subscription_max_months', form.value.subscription_max_months);
     }
+
+    // Immediate first charge - siempre enviar el valor (true o false)
+    formData.append('immediate_first_charge', form.value.immediate_first_charge ? '1' : '0');
+
+    // Enable payment options - siempre enviar los valores
+    formData.append('enable_total_payment', form.value.payment_options?.includes('full_payment') ? '1' : '0');
+    formData.append('enable_subscription_payment', form.value.payment_options?.includes('subscription') ? '1' : '0');
 
     // Sales executive
     if (form.value.sales_executive_id)

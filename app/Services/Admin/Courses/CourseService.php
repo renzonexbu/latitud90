@@ -48,7 +48,13 @@ class CourseService
                 $this->processParticipants($data['studentsFile'], $course);
             }
 
-            // 3. Crear el plan de programa (ProgramCourse)
+            // 3. Calcular días mínimos antes de la salida basándose en las fechas
+            $this->calculateMinDaysBeforeDeparture($data);
+
+            // 4. Validar que las cuotas no excedan el límite permitido
+            $this->validateSubscriptionMonths($data);
+
+            // 4. Crear el plan de programa (ProgramCourse)
             // Nota: El status se asigna automáticamente por el trigger según la departure_date
             $programCourse = new ProgramCourse([
                 'program_id' => $data['program_id'],
@@ -62,6 +68,8 @@ class CourseService
                 'enable_total_payment' => $data['enable_total_payment'] ?? true,
                 'enable_subscription_payment' => $data['enable_subscription_payment'] ?? false,
                 'subscription_max_months' => $data['subscription_max_months'] ?? null,
+                'min_days_before_departure' => $data['min_days_before_departure'] ?? 30,
+                'immediate_first_charge' => $data['immediate_first_charge'] ?? true,
                 'virtualpos_plan_id' => $data['virtualpos_plan_id'] ?? null,
                 'discount_type' => $data['discount_type'] ?? null,
                 'discount_value' => $data['discount_value'] ?? null,
@@ -152,14 +160,14 @@ class CourseService
             if ($course->students_file_path) {
                 Storage::disk('public')->delete($course->students_file_path);
             }
-            
+
             return $course->delete();
         } catch (\Exception $e) {
             Log::error('Error deleting course', [
                 'course_id' => $course->id,
                 'error' => $e->getMessage()
             ]);
-            
+
             return false;
         }
     }
@@ -170,14 +178,14 @@ class CourseService
             $course->update([
                 'status' => $course->status === 'active' ? 'inactive' : 'active'
             ]);
-            
+
             return true;
         } catch (\Exception $e) {
             Log::error('Error toggling course status', [
                 'course_id' => $course->id,
                 'error' => $e->getMessage()
             ]);
-            
+
             return false;
         }
     }
@@ -213,7 +221,8 @@ class CourseService
             $year = $departureDate ? date('Y', strtotime($departureDate)) : ($data['year'] ?? date('Y'));
 
             if ($institutionName && $coursePart && $destination && $year) {
-                return sprintf('%s - %s - %s - %d',
+                return sprintf(
+                    '%s - %s - %s - %d',
                     $institutionName,
                     $coursePart,
                     $destination,
@@ -257,6 +266,7 @@ class CourseService
                 'name' => $programCourse->name,
                 'trip_price' => $programCourse->trip_price,
                 'max_installments' => $programCourse->subscription_max_months,
+                'immediate_first_charge' => $programCourse->immediate_first_charge,
                 'trip_description' => $program->trip_description ??
                     "Programa {$program->name} - {$institution->name} - {$course->education_level} {$course->year}",
             ];
@@ -316,10 +326,16 @@ class CourseService
                 if ($hasActiveSubscriptions) {
                     throw new \Exception(
                         'No se puede cambiar el precio o el número de cuotas porque ya existen suscripciones activas para este plan. ' .
-                        'Por favor, contacte a soporte para modificar el plan.'
+                            'Por favor, contacte a soporte para modificar el plan.'
                     );
                 }
             }
+
+            // Calcular días mínimos antes de la salida basándose en las fechas
+            $this->calculateMinDaysBeforeDeparture($data);
+
+            // Validar que las cuotas no excedan el límite permitido
+            $this->validateSubscriptionMonths($data, $programCourse);
 
             // Actualizar datos básicos del ProgramCourse
             $programCourse->update([
@@ -333,6 +349,8 @@ class CourseService
                 'enable_total_payment' => $data['enable_total_payment'] ?? true,
                 'enable_subscription_payment' => $data['enable_subscription_payment'] ?? false,
                 'subscription_max_months' => $data['subscription_max_months'] ?? null,
+                'min_days_before_departure' => $data['min_days_before_departure'] ?? $programCourse->min_days_before_departure ?? 30,
+                'immediate_first_charge' => $data['immediate_first_charge'] ?? $programCourse->immediate_first_charge ?? true,
                 'discount_type' => $data['discount_type'] ?? null,
                 'discount_value' => $data['discount_value'] ?? null,
             ]);
@@ -344,12 +362,44 @@ class CourseService
             // Manejar plan de VirtualPos
             if ($data['enable_subscription_payment'] && $data['subscription_max_months'] > 0) {
                 if ($programCourse->virtualpos_plan_id) {
-                    // Ya existe un plan - VirtualPos NO permite actualizar planes existentes
-                    // Solo se actualizan los datos locales en la base de datos
-                    Log::info('Plan de VirtualPos ya existe, solo se actualizaron datos locales', [
-                        'program_course_id' => $programCourse->id,
-                        'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
-                    ]);
+                    // Ya existe un plan - verificar si cambió immediate_first_charge y actualizar si es necesario
+                    $immediateFirstChargeChanged = isset($data['immediate_first_charge']) &&
+                        $data['immediate_first_charge'] != $programCourse->getOriginal('immediate_first_charge');
+
+                    if ($priceChanged || $monthsChanged || $immediateFirstChargeChanged) {
+                        // Preparar datos actualizados para el plan
+                        $planData = [
+                            'code' => $data['code'],
+                            'name' => $this->generateProgramCourseName($institution, $course, $program, $data),
+                            'trip_price' => $data['trip_price'],
+                            'max_installments' => $data['subscription_max_months'],
+                            'immediate_first_charge' => $data['immediate_first_charge'] ?? true,
+                            'trip_description' => $program->trip_description ??
+                                "Programa {$program->name} - {$institution->name} - {$course->education_level} {$course->year}",
+                        ];
+
+                        // Actualizar plan en VirtualPos
+                        $result = $this->virtualPosPlanService->updatePlan($programCourse->virtualpos_plan_id, $planData);
+
+                        if ($result && !$result['success']) {
+                            Log::warning('No se pudo actualizar el plan en VirtualPos, pero se actualizaron los datos locales', [
+                                'program_course_id' => $programCourse->id,
+                                'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
+                                'error' => $result['error'] ?? 'Unknown error'
+                            ]);
+                        } else {
+                            Log::info('Plan de VirtualPos actualizado exitosamente', [
+                                'program_course_id' => $programCourse->id,
+                                'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
+                                'immediate_first_charge' => $data['immediate_first_charge'] ?? true
+                            ]);
+                        }
+                    } else {
+                        Log::info('Plan de VirtualPos ya existe, sin cambios que actualizar', [
+                            'program_course_id' => $programCourse->id,
+                            'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
+                        ]);
+                    }
                 } else {
                     // No existe plan - crearlo
                     $this->createVirtualPosPlan($programCourse, $program, $institution, $course);
@@ -389,6 +439,12 @@ class CourseService
         Institution $institution,
         array $data
     ): ProgramCourse {
+        // Calcular días mínimos antes de la salida basándose en las fechas
+        $this->calculateMinDaysBeforeDeparture($data);
+
+        // Validar que las cuotas no excedan el límite permitido
+        $this->validateSubscriptionMonths($data);
+
         $programCourse = new ProgramCourse([
             'program_id' => $data['program_id'],
             'course_id' => $course->id,
@@ -401,6 +457,8 @@ class CourseService
             'enable_total_payment' => $data['enable_total_payment'] ?? true,
             'enable_subscription_payment' => $data['enable_subscription_payment'] ?? false,
             'subscription_max_months' => $data['subscription_max_months'] ?? null,
+            'min_days_before_departure' => $data['min_days_before_departure'] ?? 30,
+            'immediate_first_charge' => $data['immediate_first_charge'] ?? true,
             'discount_type' => $data['discount_type'] ?? null,
             'discount_value' => $data['discount_value'] ?? null,
             'active' => true,
@@ -428,6 +486,97 @@ class CourseService
             'universitaria', 'universitario' => 'universitaria',
             default => $level,
         };
+    }
+
+    /**
+     * Calcula automáticamente los días mínimos antes de la salida
+     * basándose en la diferencia entre departure_date y final_payment_date
+     */
+    private function calculateMinDaysBeforeDeparture(array &$data): void
+    {
+        if (isset($data['departure_date']) && isset($data['final_payment_date'])) {
+            $departureDate = new \DateTime($data['departure_date']);
+            $finalPaymentDate = new \DateTime($data['final_payment_date']);
+
+            $interval = $finalPaymentDate->diff($departureDate);
+            $data['min_days_before_departure'] = $interval->days;
+        } else {
+            // Si no hay ambas fechas, usar el default de 30 días
+            $data['min_days_before_departure'] = $data['min_days_before_departure'] ?? 30;
+        }
+    }
+
+    /**
+     * Valida que el número de cuotas no exceda el máximo permitido
+     * basado en la fecha de salida y los días mínimos antes de la salida
+     */
+    private function validateSubscriptionMonths(array $data, ?ProgramCourse $existingProgramCourse = null): void
+    {
+        // Solo validar si el pago por suscripción está habilitado y hay cuotas configuradas
+        $enableSubscription = $data['enable_subscription_payment'] ?? ($existingProgramCourse?->enable_subscription_payment ?? false);
+        if (!$enableSubscription) {
+            return;
+        }
+
+        $subscriptionMaxMonths = $data['subscription_max_months'] ?? ($existingProgramCourse?->subscription_max_months ?? null);
+        if (!$subscriptionMaxMonths || $subscriptionMaxMonths <= 0) {
+            return;
+        }
+
+        // Obtener valores de $data o del ProgramCourse existente
+        $departureDate = $data['departure_date'] ?? ($existingProgramCourse?->departure_date?->format('Y-m-d') ?? null);
+        $minDaysBeforeDeparture = $data['min_days_before_departure'] ?? ($existingProgramCourse?->min_days_before_departure ?? 30);
+
+        // Validar que existan los datos necesarios
+        if (!$departureDate) {
+            throw new \Exception('Se requiere la fecha de salida para configurar pagos por suscripción.');
+        }
+
+        $subscriptionMaxMonths = (int) $subscriptionMaxMonths;
+        $minDaysBeforeDeparture = (int) $minDaysBeforeDeparture;
+        $departureDate = new \DateTime($departureDate);
+        $now = new \DateTime();
+
+        // Calcular la fecha límite del último pago
+        $lastPaymentDeadline = clone $departureDate;
+        $lastPaymentDeadline->modify("-{$minDaysBeforeDeparture} days");
+
+        // Calcular los meses disponibles desde ahora hasta la fecha límite
+        $yearsDiff = $lastPaymentDeadline->format('Y') - $now->format('Y');
+        $monthsDiff = $lastPaymentDeadline->format('m') - $now->format('m');
+        $availableMonths = ($yearsDiff * 12) + $monthsDiff;
+
+        // Ajustar si el día actual es mayor que el día de la fecha límite
+        if ($now->format('d') > $lastPaymentDeadline->format('d')) {
+            $availableMonths -= 1;
+        }
+
+        // Asegurar que no sea negativo
+        $availableMonths = max(0, $availableMonths);
+
+        // Validar que las cuotas solicitadas no excedan el máximo disponible
+        if ($subscriptionMaxMonths > $availableMonths) {
+            throw new \Exception(
+                "El número máximo de cuotas ({$subscriptionMaxMonths}) excede el límite permitido ({$availableMonths} meses). " .
+                    "Esto se debe a que el último pago debe realizarse al menos {$minDaysBeforeDeparture} días antes de la fecha de salida " .
+                    "({$departureDate->format('d/m/Y')}). Por favor, reduce el número de cuotas o ajusta la fecha de salida."
+            );
+        }
+
+        // Validar que la fecha final de pago respete los días mínimos antes de la salida
+        $finalPaymentDate = $data['final_payment_date'] ?? ($existingProgramCourse?->final_payment_date?->format('Y-m-d') ?? null);
+
+        if ($finalPaymentDate && $departureDate) {
+            $finalPaymentDateTime = new \DateTime($finalPaymentDate);
+            $departureDateClone = clone $departureDate;
+
+            // Verificar que la fecha final de pago sea anterior a la fecha de salida
+            if ($finalPaymentDateTime >= $departureDateClone) {
+                throw new \Exception(
+                    "La fecha final de pago ({$finalPaymentDateTime->format('d/m/Y')}) debe ser anterior a la fecha de salida ({$departureDateClone->format('d/m/Y')})."
+                );
+            }
+        }
     }
 
     /**
@@ -477,7 +626,7 @@ class CourseService
                 $participantData = array_combine($headers, $row);
 
                 // Función helper para obtener valor de múltiples nombres de columna
-                $getFieldValue = function($possibleNames) use ($participantData) {
+                $getFieldValue = function ($possibleNames) use ($participantData) {
                     foreach ($possibleNames as $name) {
                         if (isset($participantData[$name]) && !empty($participantData[$name])) {
                             return $participantData[$name];
@@ -487,7 +636,14 @@ class CourseService
                 };
 
                 $cleanRut = $this->cleanRut($getFieldValue([
-                    'N° de documento', 'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento', 'Documento del participante', 'documento del participante'
+                    'N° de documento',
+                    'Rut del participante',
+                    'RUT',
+                    'Rut',
+                    'rut',
+                    'Documento',
+                    'Documento del participante',
+                    'documento del participante'
                 ]));
 
                 if (empty($cleanRut)) {
@@ -496,7 +652,10 @@ class CourseService
 
                 // Obtener tipo de documento del participante
                 $documentType = $getFieldValue([
-                    'rut/pasaporte', 'tipo documento', 'tipo de documento', 'documento tipo'
+                    'rut/pasaporte',
+                    'tipo documento',
+                    'tipo de documento',
+                    'documento tipo'
                 ]);
                 $documentTypeId = $this->getDocumentTypeId($documentType);
 
@@ -519,43 +678,74 @@ class CourseService
                         // Actualizar datos del participante
                         $existingParticipant->update([
                             'first_last_name' => $this->toLowercase($getFieldValue([
-                                'Primer apellido', 'primer apellido', 'apellido paterno'
+                                'Primer apellido',
+                                'primer apellido',
+                                'apellido paterno'
                             ])) ?? $existingParticipant->first_last_name,
                             'second_last_name' => $this->toLowercase($getFieldValue([
-                                'Segundo apellido', 'segundo apellido', 'apellido materno'
+                                'Segundo apellido',
+                                'segundo apellido',
+                                'apellido materno'
                             ])) ?? $existingParticipant->second_last_name,
                             'first_name' => $this->toLowercase($getFieldValue([
-                                'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                                'Primer Nombre',
+                                'primer nombre',
+                                'nombre',
+                                'Nombre'
                             ])) ?? $existingParticipant->first_name,
                             'second_name' => $this->toLowercase($getFieldValue([
-                                'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                                'Segundo Nombre',
+                                'segundo nombre',
+                                'nombre segundo'
                             ])) ?? $existingParticipant->second_name,
                             'email' => $this->toLowercase($getFieldValue([
-                                'Email', 'email', 'correo', 'correo electronico'
+                                'Email',
+                                'email',
+                                'correo',
+                                'correo electronico'
                             ])) ?? $existingParticipant->email,
                             'phone' => $getFieldValue([
-                                'Teléfono', 'telefono', 'fono', 'celular'
+                                'Teléfono',
+                                'telefono',
+                                'fono',
+                                'celular'
                             ]) ?? $existingParticipant->phone,
                             'birth_date' => $this->parseBirthDate($getFieldValue([
-                                'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                                'fecha de nacimiento',
+                                'fecha nacimiento',
+                                'nacimiento',
+                                'Fecha de nacimiento'
                             ])) ?? $existingParticipant->birth_date,
                             'nationality' => $this->toLowercase($getFieldValue([
-                                'nacionalidad', 'pais', 'origen'
+                                'nacionalidad',
+                                'pais',
+                                'origen'
                             ])) ?? $existingParticipant->nationality,
                             'gender' => $this->normalizeGender($getFieldValue([
-                                'sexo', 'genero', 'género'
+                                'sexo',
+                                'genero',
+                                'género'
                             ])) ?? $existingParticipant->gender,
                             'address' => $getFieldValue([
-                                'Dirección', 'direccion', 'domicilio', 'domicilio'
+                                'Dirección',
+                                'direccion',
+                                'domicilio',
+                                'domicilio'
                             ]) ?? $existingParticipant->address,
                             'dietary_restrictions' => $getFieldValue([
-                                'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                                'restricción alimenticia',
+                                'restriccion alimenticia',
+                                'restricción dietaria',
+                                'restriccion dietaria',
+                                'Restricción dietaria'
                             ]) ?? $existingParticipant->dietary_restrictions, // NO convertir a lowercase
                             'intolerances' => $getFieldValue([
-                                'intolerancia', 'intolerancias'
+                                'intolerancia',
+                                'intolerancias'
                             ]) ?? $existingParticipant->intolerances, // NO convertir a lowercase
                             'allergies' => $getFieldValue([
-                                'alergias', 'alergia'
+                                'alergias',
+                                'alergia'
                             ]) ?? $existingParticipant->allergies, // NO convertir a lowercase
                         ]);
 
@@ -572,9 +762,8 @@ class CourseService
 
                         $existingParticipant->courses()->updateExistingPivot($course->id, $pivotData);
                         $updatedCount++;
-                         // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
-                         $participant = $existingParticipant;
-
+                        // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
+                        $participant = $existingParticipant;
                     } else {
                         // CREATE: Agregar nueva relación con el curso
 
@@ -592,57 +781,87 @@ class CourseService
 
                         $existingParticipant->courses()->attach($course->id, $pivotData);
                         $createdCount++;
-                         // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
-                         $participant = $existingParticipant;
+                        // Asegurar referencia consistente para secciones posteriores (contacto de emergencia)
+                        $participant = $existingParticipant;
                     }
-
                 } else {
                     // CREATE: Crear nuevo participante y asociarlo al curso
 
 
                     $participant = Participant::create([
                         'first_last_name' => $this->toLowercase($getFieldValue([
-                            'Primer apellido', 'primer apellido', 'apellido paterno'
+                            'Primer apellido',
+                            'primer apellido',
+                            'apellido paterno'
                         ])) ?? '',
                         'second_last_name' => $this->toLowercase($getFieldValue([
-                            'Segundo apellido', 'segundo apellido', 'apellido materno'
+                            'Segundo apellido',
+                            'segundo apellido',
+                            'apellido materno'
                         ])) ?? '',
                         'first_name' => $this->toLowercase($getFieldValue([
-                            'Primer Nombre', 'primer nombre', 'nombre', 'Nombre'
+                            'Primer Nombre',
+                            'primer nombre',
+                            'nombre',
+                            'Nombre'
                         ])) ?? '',
                         'second_name' => $this->toLowercase($getFieldValue([
-                            'Segundo Nombre', 'segundo nombre', 'nombre segundo'
+                            'Segundo Nombre',
+                            'segundo nombre',
+                            'nombre segundo'
                         ])) ?? '',
                         'email' => $this->toLowercase($getFieldValue([
-                            'Email', 'email', 'correo', 'correo electronico'
+                            'Email',
+                            'email',
+                            'correo',
+                            'correo electronico'
                         ])) ?? '',
                         'code_phone' => '+56', // Código por defecto para Chile
                         'phone' => $getFieldValue([
-                            'Teléfono', 'telefono', 'fono', 'celular'
+                            'Teléfono',
+                            'telefono',
+                            'fono',
+                            'celular'
                         ]) ?? '',
                         'document_type' => $documentTypeId,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
                         'birth_date' => $this->parseBirthDate($getFieldValue([
-                            'fecha de nacimiento', 'fecha nacimiento', 'nacimiento', 'Fecha de nacimiento'
+                            'fecha de nacimiento',
+                            'fecha nacimiento',
+                            'nacimiento',
+                            'Fecha de nacimiento'
                         ])) ?? null,
                         'nationality' => $this->toLowercase($getFieldValue([
-                            'nacionalidad', 'pais', 'origen'
+                            'nacionalidad',
+                            'pais',
+                            'origen'
                         ])) ?? 'chilena',
                         'gender' => $this->normalizeGender($getFieldValue([
-                            'sexo', 'genero', 'género'
+                            'sexo',
+                            'genero',
+                            'género'
                         ])) ?? 'Masculino',
                         'address' => $getFieldValue([
-                            'Dirección', 'direccion', 'domicilio', 'domicilio'
+                            'Dirección',
+                            'direccion',
+                            'domicilio',
+                            'domicilio'
                         ]) ?? null,
                         'dietary_restrictions' => $getFieldValue([
-                            'restricción alimenticia', 'restriccion alimenticia', 'restricción dietaria', 'restriccion dietaria', 'Restricción dietaria'
+                            'restricción alimenticia',
+                            'restriccion alimenticia',
+                            'restricción dietaria',
+                            'restriccion dietaria',
+                            'Restricción dietaria'
                         ]) ?? null, // NO convertir a lowercase
                         'intolerances' => $getFieldValue([
-                            'intolerancia', 'intolerancias'
+                            'intolerancia',
+                            'intolerancias'
                         ]) ?? null, // NO convertir a lowercase
                         'allergies' => $getFieldValue([
-                            'alergias', 'alergia'
+                            'alergias',
+                            'alergia'
                         ]) ?? null, // NO convertir a lowercase
                         'status' => 'pending_payment',
                         'registration_date' => now(),
@@ -662,21 +881,28 @@ class CourseService
 
                     $participant->courses()->attach($course->id, $pivotData);
                     $createdCount++;
-
-
                 }
 
                 // Manejar contacto de emergencia
                 if ($getFieldValue([
-                    'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                    'Nombre del apoderado',
+                    'nombre apoderado',
+                    'apoderado',
+                    'guardian'
                 ])) {
 
                     // Obtener datos del apoderado
                     $guardianName = $getFieldValue([
-                        'Nombre del apoderado', 'nombre apoderado', 'apoderado', 'guardian'
+                        'Nombre del apoderado',
+                        'nombre apoderado',
+                        'apoderado',
+                        'guardian'
                     ]);
                     $guardianEmail = $getFieldValue([
-                        'correo electronico del apoderado', 'correo apoderado', 'email apoderado', 'email del apoderado'
+                        'correo electronico del apoderado',
+                        'correo apoderado',
+                        'email apoderado',
+                        'email del apoderado'
                     ]);
 
                     // Verificar si ya existe un contacto de emergencia para este participante
@@ -690,7 +916,9 @@ class CourseService
 
                         // Obtener y limpiar RUT del apoderado
                         $guardianRut = $getFieldValue([
-                            'RUT del apoderado', 'rut apoderado', 'documento apoderado'
+                            'RUT del apoderado',
+                            'rut apoderado',
+                            'documento apoderado'
                         ]);
                         $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
 
@@ -700,17 +928,19 @@ class CourseService
                             'document_type' => $guardianDocumentTypeId,
                             'document_number' => $cleanGuardianRut,
                             'phone' => $getFieldValue([
-                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                                'Teléfono contacto emergencia',
+                                'telefono contacto emergencia',
+                                'fono contacto emergencia'
                             ]) ?? $existingEmergencyContact->phone,
                             'birth_date' => $this->parseBirthDate($getFieldValue([
-                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                                'Fecha nacimiento contacto emergencia',
+                                'fecha nacimiento contacto emergencia'
                             ])) ?? $existingEmergencyContact->birth_date,
                             'relationship' => $getFieldValue([
-                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                                'Relación contacto emergencia',
+                                'relacion contacto emergencia'
                             ]) ?? $existingEmergencyContact->relationship,
                         ]);
-
-
                     } else {
                         // CREATE: Crear nuevo contacto de emergencia
 
@@ -719,7 +949,9 @@ class CourseService
 
                         // Obtener y limpiar RUT del apoderado
                         $guardianRut = $getFieldValue([
-                            'RUT del apoderado', 'rut apoderado', 'documento apoderado'
+                            'RUT del apoderado',
+                            'rut apoderado',
+                            'documento apoderado'
                         ]);
                         $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
 
@@ -730,20 +962,22 @@ class CourseService
                             'document_number' => $cleanGuardianRut,
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $getFieldValue([
-                                'Teléfono contacto emergencia', 'telefono contacto emergencia', 'fono contacto emergencia'
+                                'Teléfono contacto emergencia',
+                                'telefono contacto emergencia',
+                                'fono contacto emergencia'
                             ]) ?? '',
                             'country' => 'CL', // Chile por defecto
                             'birth_date' => $this->parseBirthDate($getFieldValue([
-                                'Fecha nacimiento contacto emergencia', 'fecha nacimiento contacto emergencia'
+                                'Fecha nacimiento contacto emergencia',
+                                'fecha nacimiento contacto emergencia'
                             ])) ?? null,
                             'address' => null,
                             'relationship' => $getFieldValue([
-                                'Relación contacto emergencia', 'relacion contacto emergencia'
+                                'Relación contacto emergencia',
+                                'relacion contacto emergencia'
                             ]) ?? 'Familiar',
                             'participant_id' => $participant->id,
                         ]);
-
-
                     }
                 }
 
@@ -761,7 +995,6 @@ class CourseService
                 'participants_created' => $createdCount,
                 'participants_updated' => $updatedCount,
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error al procesar el archivo de estudiantes', [
                 'course_id' => $course->id,
@@ -931,7 +1164,6 @@ class CourseService
                 'participants_count' => $participants->count(),
                 'created_count' => $createdCount,
             ]);
-
         } catch (\Exception $e) {
             Log::error('Error al crear registros en participant_program', [
                 'course_id' => $course->id,

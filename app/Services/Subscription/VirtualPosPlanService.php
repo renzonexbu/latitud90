@@ -247,6 +247,47 @@ class VirtualPosPlanService
         // Generar return_url
         $returnUrl = config('app.url') . '/admin/programs';
 
+        // Determinar configuración del primer cobro
+        $immediateFirstCharge = $programData['immediate_first_charge'] ?? true;
+
+        // Usar PROGRAMA_DE_PAGOS para tener control total sobre las fechas de cobro
+        $now = now();
+        $chargesProgram = [];
+
+        // Generar programa de cobros
+        for ($i = 0; $i < $maxInstallments; $i++) {
+            if ($i === 0) {
+                // Primera cuota
+                if ($immediateFirstCharge) {
+                    // Cobro inmediato: HOY
+                    $chargeDate = $now->copy();
+                } else {
+                    // Cobro diferido: día 1 del próximo mes
+                    $chargeDate = $now->copy()->addMonth()->startOfMonth();
+                }
+            } else {
+                // Cuotas siguientes: sumar meses desde la primera cuota
+                $chargeDate = ($i === 0 ? $now : $chargesProgram[0]['charge_date_obj'])->copy()->addMonths($i);
+            }
+
+            $chargesProgram[] = [
+                'charge_date_obj' => $chargeDate, // Guardar objeto Carbon para siguiente iteración
+                'charge_date' => $chargeDate->format('Y-m-d'),
+                'amount' => $monthlyAmount,
+                'description' => 'Cargo ' . ($i + 1) . ' de ' . $maxInstallments,
+                'internal_code' => ($programData['code'] ?? 'PLAN') . '-CUOTA-' . ($i + 1)
+            ];
+        }
+
+        // Remover el objeto Carbon antes de codificar
+        $chargesProgramForApi = array_map(function($charge) {
+            unset($charge['charge_date_obj']);
+            return $charge;
+        }, $chargesProgram);
+
+        // Codificar charges_program en Base64 según documentación
+        $chargesProgramBase64 = base64_encode(json_encode($chargesProgramForApi));
+
         return [
             'id' => $programData['code'] ?? 'PLAN_' . uniqid(), // ID único del plan (sin prefijo PLAN_)
             'name' => $planName,
@@ -254,14 +295,14 @@ class VirtualPosPlanService
             'is_active' => 'T', // T = activo, F = inactivo
             'amount' => $monthlyAmount, // Monto mensual (Float según docs)
             'currency' => 'CLP',
-            'trial_days' => 0, // Sin período de prueba
+            'trial_days' => 0, // No se usa con PROGRAMA_DE_PAGOS
             'num_charges' => $maxInstallments, // Número de cobros (cuotas)
             'frequency_type' => 'Mensual', // Diario, Semanal, Mensual, Semestral, Anual
             'return_url' => base64_encode($returnUrl), // Codificar en base64 según docs VirtualPos
-            'type' => 'MONTO_FIJO', // MONTO_FIJO, MONTO_VARIABLE, PROGRAMA_DE_PAGOS
-            'fixed_amount_day_charge' => '01', // Día del mes para cobro (0,01,05,10,15,20,25,28,30)
+            'type' => 'PROGRAMA_DE_PAGOS', // Usar PROGRAMA_DE_PAGOS para control manual de fechas
+            'charges_program' => $chargesProgramBase64, // Array de cobros codificado en Base64
             'show_in_terminal' => 'F', // No mostrar en SmartPOS
-            'automatic_renewal' => 'T', // Renovación automática por defecto (igual que buildPlanData)
+            'automatic_renewal' => 'F', // Sin renovación automática (ya definimos todas las cuotas)
             'shipping_address' => '', // Opcional: igual que buildPlanData
         ];
     }

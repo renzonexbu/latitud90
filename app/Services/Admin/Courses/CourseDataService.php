@@ -72,28 +72,14 @@ class CourseDataService
 
     private function calculateTotalAmount($course, $activeParticipants, $program = null, $programCourse = null): float
     {
-        // Sumar precios de participantes con pagos normales
-        $participantsTotal = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-            if ($program) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($p, $program);
-                return $carry + $priceData['final_price'];
-            }
-            $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
-            $adj = (float) ($p->pivot->price_adjustments ?? 0);
-            return $carry + round($base + $adj, 2);
-        }, 0.0);
-
-        // Sumar total de suscripciones (installment_plans)
-        // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
-        $subscriptionsTotal = 0.0;
-        if ($programCourse) {
-            $subscriptionsTotal = (float) DB::table('installment_plans')
-                ->where('program_id', $programCourse->id)
-                ->whereIn('status', ['active', 'pending', 'completed'])
-                ->sum('total_amount');
+        // Total del curso = precio del viaje × cantidad de alumnos activos
+        if ($programCourse && $programCourse->trip_price) {
+            $tripPrice = (float) $programCourse->trip_price;
+            $totalStudents = $activeParticipants->count();
+            return $tripPrice * $totalStudents;
         }
 
-        return $participantsTotal + $subscriptionsTotal;
+        return 0.0;
     }
 
     private function calculatePaidAmount($course, $program = null, $programCourse = null): float
@@ -142,24 +128,10 @@ class CourseDataService
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
 
-            $participantsTotal = $activeParticipants->reduce(function ($carry, $p) use ($program) {
-                if ($program) {
-                    $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($p, $program);
-                    return $carry + $priceData['final_price'];
-                }
-                $base = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
-                $adj = (float) ($p->pivot->price_adjustments ?? 0);
-                return $carry + round($base + $adj, 2);
-            }, 0.0);
-
-            // Sumar total de suscripciones
-            // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
-            $subscriptionsTotal = (float) DB::table('installment_plans')
-                ->where('program_id', $programCourse->id)
-                ->whereIn('status', ['active', 'pending', 'completed'])
-                ->sum('total_amount');
-
-            $courseTotalAmount = $participantsTotal + $subscriptionsTotal;
+            // Total del curso = precio del viaje × cantidad de alumnos activos
+            $tripPrice = (float) ($programCourse->trip_price ?? 0);
+            $totalStudents = $activeParticipants->count();
+            $courseTotalAmount = $tripPrice * $totalStudents;
 
             // Calculate paid amount (pagos normales + cuotas de suscripciones)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
