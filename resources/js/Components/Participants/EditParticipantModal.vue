@@ -289,13 +289,28 @@
                             >
                                 <option value="">-- Selecciona --</option>
                                 <option
-                                    v-for="c in participant.courses || []"
-                                    :key="c.id"
-                                    :value="c.id"
+                                    v-for="prog in participantPrograms || []"
+                                    :key="prog.id"
+                                    :value="prog.id"
                                 >
-                                    {{ (c.institution?.name || 'Sin institución') + ' / ' + (c.program?.name || 'Sin programa') }}
+                                    {{ (prog.name || 'Sin programa') + ' - ' + (prog.code || '') }}
                                 </option>
                             </select>
+
+                            <!-- Botón de Toggle Status del Programa -->
+                            <button
+                                v-if="currentProgram"
+                                type="button"
+                                @click="toggleProgramStatus"
+                                :class="[
+                                    'mt-3 w-full px-4 py-2 rounded-lg transition-colors text-sm font-medium',
+                                    currentProgramStatus === 'cancelled'
+                                        ? 'bg-green-500 text-white hover:bg-green-600'
+                                        : 'bg-red-500 text-white hover:bg-red-600'
+                                ]"
+                            >
+                                {{ currentProgramStatus === 'cancelled' ? 'Reactivar Programa' : 'Cancelar Programa' }}
+                            </button>
                         </div>
 
                         <!-- Precio individual: Derecha -->
@@ -325,10 +340,23 @@
                         <button
                             type="button"
                             @click="addDiscount"
-                            class="px-4 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark transition-colors text-sm"
+                            :disabled="hasActiveSubscription"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-colors text-sm',
+                                hasActiveSubscription
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-turquesa text-white hover:bg-turquesa-dark'
+                            ]"
                         >
                             + Agregar Descuento
                         </button>
+                    </div>
+
+                    <!-- Mensaje de bloqueo por suscripción -->
+                    <div v-if="hasActiveSubscription" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p class="text-sm text-yellow-800">
+                            ⚠️ No se pueden aplicar descuentos ni ajustes porque este participante tiene una suscripción activa para este programa.
+                        </p>
                     </div>
 
                     <!-- Lista de descuentos existentes -->
@@ -655,6 +683,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    participantPrograms: {
+        type: Array,
+        default: () => [],
+    },
     participantProgramsWithDiscounts: {
         type: Array,
         default: () => [],
@@ -767,6 +799,36 @@ const canRestructure = computed(() => {
 // Detectar si hay descuentos aplicados
 const hasDiscountApplied = computed(() => {
     return discounts.value.length > 0;
+});
+
+// Obtener el programa actual seleccionado
+const currentProgram = computed(() => {
+    if (!form.value.pivot_course_id || !props.participantPrograms || props.participantPrograms.length === 0) {
+        return null;
+    }
+
+    // Buscar en participantPrograms el programa que coincida con el ID seleccionado
+    const program = props.participantPrograms.find(p => p.id == form.value.pivot_course_id);
+
+    return program || null;
+});
+
+// Obtener el status actual del programa en participant_program
+const currentProgramStatus = computed(() => {
+    if (!currentProgram.value) {
+        return 'pending_payment';
+    }
+
+    // El status viene directamente del backend en participant_program_status
+    return currentProgram.value.participant_program_status || 'pending_payment';
+});
+
+// Verificar si el programa actual tiene suscripción activa
+const hasActiveSubscription = computed(() => {
+    if (!currentProgram.value) {
+        return false;
+    }
+    return currentProgram.value.has_active_subscription === true;
 });
 
 const formatDateForInput = (dateString) => {
@@ -887,19 +949,30 @@ watch(
 // Sincronizar precio individual mostrado según el curso/programa seleccionado
 watch(
     () => form.value.pivot_course_id,
-    (newCourseId) => {
-        if (!newCourseId || !props.participant || !props.participant.courses) {
+    (newProgramId) => {
+        if (!newProgramId || !props.participantPrograms) {
             return;
         }
-        const course = props.participant.courses.find((c) => c.id == newCourseId);
-        if (course && course.pivot) {
-            form.value.individual_price = course.pivot.individual_price ?? form.value.individual_price;
+        // Buscar el programa por ID
+        const program = props.participantPrograms.find((p) => p.id == newProgramId);
+        if (program && program.participant_amount !== undefined) {
+            form.value.individual_price = program.participant_amount;
         }
-        
-        // Recargar descuentos cuando cambie el curso
+
+        // Recargar descuentos cuando cambie el programa
         loadExistingDiscounts();
     },
     { immediate: true }
+);
+
+// Watch para actualizar precio individual cuando cambie el programa seleccionado
+watch(
+    currentProgram,
+    (newProgram) => {
+        if (newProgram && newProgram.participant_amount !== undefined) {
+            form.value.individual_price = newProgram.participant_amount;
+        }
+    }
 );
 
 // Funciones para el sistema de descuentos múltiples
@@ -1022,6 +1095,39 @@ const updateParticipant = () => {
             onFinish: () => {
                 isSubmitting.value = false;
             },
+        }
+    );
+};
+
+// Toggle del status del programa (pending_payment <-> cancelled)
+const toggleProgramStatus = () => {
+    if (!currentProgram.value) {
+        alert('Por favor selecciona un curso/programa primero');
+        return;
+    }
+
+    const statusText = currentProgramStatus.value === 'cancelled' ? 'reactivar' : 'cancelar';
+    const confirmMessage = `¿Estás seguro de que quieres ${statusText} este programa para el participante?`;
+
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    router.post(
+        route('admin.participants.toggle-program-status', {
+            participant: props.participant.id,
+            program: currentProgram.value.id
+        }),
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                window.location.reload();
+            },
+            onError: (errors) => {
+                const errorMessage = errors.error || errors.message || 'Error desconocido';
+                alert('❌ Error: ' + errorMessage);
+            }
         }
     );
 };

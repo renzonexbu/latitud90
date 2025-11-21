@@ -22,10 +22,11 @@ class ProgramService
         // Limpiar el documento de puntos y guiones
         $cleanDocument = $this->cleanDocument($document);
         
-        // Buscar el participante en la base de datos usando join con la tabla document
+        // Buscar el participante en la base de datos usando join con la tabla document (solo activos)
         $participant = Participant::join('document', 'participants.document_type', '=', 'document.id')
             ->where('participants.document_number', $cleanDocument)
             ->where('document.name', $documentType)
+            ->where('participants.is_active', true)
             ->select('participants.*')
             ->with(['courses', 'emergencyContacts'])
             ->first();
@@ -41,6 +42,12 @@ class ProgramService
 
     public function getAvailablePrograms(Participant $participant): array
     {
+        // Obtener todos los enrollment_codes cancelados para este participante
+        $cancelledEnrollmentCodes = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+            ->where('status', 'cancelled')
+            ->pluck('enrollment_code')
+            ->toArray();
+
         // Obtener los cursos del participante con sus programCourses (planes específicos)
         $courses = $participant->courses()
             ->with(['institution', 'programCourses.program'])
@@ -56,6 +63,16 @@ class ProgramService
                 }
 
                 $program = $programCourse->program; // La plantilla del programa
+
+                // Generar el enrollment_code para este programa
+                // Extraer solo la parte numérica del código (antes del guión)
+                $programCodePart = explode('-', $programCourse->code)[0];
+                $enrollmentCode = $participant->document_number . '-' . $programCodePart;
+
+                // Verificar si este enrollment_code específico está cancelado
+                if (in_array($enrollmentCode, $cancelledEnrollmentCodes)) {
+                    continue; // Skip este programa cancelado específicamente
+                }
 
                 // Obtener el pivot del participante con este curso
                 $pivot = $course->participants()->where('participant_id', $participant->id)->first()?->pivot;
@@ -165,12 +182,6 @@ class ProgramService
                 // Crear resumen de cuotas si hay cuotas
                 if ($totalInstallments > 0) {
                     $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
-                }
-
-                // Generar enrollment_code (ya no se usa participant_program)
-                $enrollmentCode = null;
-                if ($programCourse->code && $participant->document_number) {
-                    $enrollmentCode = $programCourse->code . $participant->document_number;
                 }
 
                 $availablePrograms[] = [

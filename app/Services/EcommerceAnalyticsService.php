@@ -50,9 +50,11 @@ class EcommerceAnalyticsService
     {
         // Limpiar documento para búsqueda
         $cleanDocument = preg_replace('/[.-]/', '', $document);
-        
-        // Buscar si el participante existe
-        $participant = Participant::where('document_number', $cleanDocument)->first();
+
+        // Buscar si el participante existe (solo activos)
+        $participant = Participant::where('document_number', $cleanDocument)
+            ->where('is_active', true)
+            ->first();
         $participantId = $participant ? $participant->id : null;
         $participantRut = $participant ? $participant->document_number : $cleanDocument;
         

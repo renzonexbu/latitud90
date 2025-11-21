@@ -82,7 +82,7 @@
                                 <svg class="w-4 h-4 text-gray-400 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                 </svg>
-                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-[9999] pointer-events-none">
                                     {{ participant.is_active 
                                         ? 'Participante visible en el flujo de compra' 
                                         : 'Participante oculto del flujo de compra' 
@@ -383,13 +383,18 @@
                             v-else
                             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
                         >
-                            <ProgramCard
+                            <!-- Program Card Wrapper with Action Buttons -->
+                            <div
                                 v-for="program in formattedPrograms.data"
                                 :key="program.id"
-                                :program="program"
-                                mode="programCourse"
-                                @click="handleProgramCardClick(program)"
-                            />
+                                class="relative group"
+                            >
+                                <ProgramCard
+                                    :program="program"
+                                    mode="programCourse"
+                                    @click="handleProgramCardClick(program)"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -410,6 +415,7 @@
         <EditParticipantModal
             :show="showEditModal"
             :participant="participant"
+            :participant-programs="participantPrograms"
             :participant-programs-with-discounts="
                 participantProgramsWithDiscounts
             "

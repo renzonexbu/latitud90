@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Services\Admin\Participants;
+
+use App\Models\ParticipantProgram;
+use App\Models\ProgramCourse;
+use Illuminate\Support\Facades\DB;
+use Exception;
+
+class ToggleProgramStatusService
+{
+    /**
+     * Toggle el status del programa entre pending_payment y cancelled
+     *
+     * @param int $participantId
+     * @param int $programCourseId El ID del ProgramCourse
+     * @return array
+     * @throws Exception
+     */
+    public function execute(int $participantId, int $programCourseId): array
+    {
+        return DB::transaction(function () use ($participantId, $programCourseId) {
+            // Obtener el ProgramCourse
+            $programCourse = ProgramCourse::findOrFail($programCourseId);
+
+            // Obtener el Participant para generar el enrollment_code
+            $participant = \App\Models\Participant::findOrFail($participantId);
+
+            // Generar el enrollment_code específico
+            // Extraer solo la parte numérica del código (antes del guión)
+            $programCodePart = explode('-', $programCourse->code)[0];
+            $enrollmentCode = $participant->document_number . '-' . $programCodePart;
+
+            // Buscar la relación participante-programa usando el enrollment_code específico
+            $participantProgram = ParticipantProgram::where('participant_id', $participantId)
+                ->where('enrollment_code', $enrollmentCode)
+                ->first();
+
+            if (!$participantProgram) {
+                throw new Exception('La relación entre el participante y el programa no existe.');
+            }
+
+            // Toggle entre pending_payment y cancelled
+            $newStatus = $participantProgram->status === 'cancelled' ? 'pending_payment' : 'cancelled';
+            $previousStatus = $participantProgram->status;
+
+            $participantProgram->update([
+                'status' => $newStatus
+            ]);
+
+            $message = $newStatus === 'cancelled'
+                ? 'Participante desvinculado del programa exitosamente.'
+                : 'Participante re-vinculado al programa exitosamente.';
+
+            return [
+                'success' => true,
+                'message' => $message,
+                'participant_program_id' => $participantProgram->id,
+                'previous_status' => $previousStatus,
+                'new_status' => $newStatus
+            ];
+        });
+    }
+}

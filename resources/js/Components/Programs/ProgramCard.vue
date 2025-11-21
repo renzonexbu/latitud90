@@ -71,9 +71,16 @@
 
             <!-- SVG Icon and Status Badge (Right side) -->
             <div class="flex flex-col items-end gap-2">
+                <!-- Cancelled Badge -->
+                <div
+                    v-if="program.is_cancelled || program.participant_program_status === 'cancelled'"
+                    class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                >
+                    Cancelado
+                </div>
                 <!-- Status Badge -->
                 <div
-                    v-if="showStatusBadge && program.status"
+                    v-else-if="showStatusBadge && program.status"
                     class="px-2 py-1 rounded-full text-xs font-medium"
                     :class="getStatusClass(program.status)"
                 >
@@ -110,15 +117,22 @@
         >
             <!-- SVG Icon and Status Badge -->
             <div class="flex flex-col items-end gap-2">
+                <!-- Cancelled Badge -->
+                <div
+                    v-if="program.is_cancelled || program.participant_program_status === 'cancelled'"
+                    class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                >
+                    Cancelado
+                </div>
                 <!-- Status Badge -->
-                <div 
-                    v-if="showStatusBadge && program.status"
+                <div
+                    v-else-if="showStatusBadge && program.status"
                     class="px-2 py-1 rounded-full text-xs font-medium"
                     :class="getStatusClass(program.status)"
                 >
                     {{ getStatusLabel(program.status) }}
                 </div>
-                
+
                 <!-- SVG Icon -->
                 <div
                     class="rounded-[50px] bg-turquesa flex p-[11px] justify-center items-center gap-[10px] flex-shrink-0"
@@ -341,14 +355,16 @@ export default {
         getStatusLabel(status) {
             const labels = {
                 'reserva': 'Reserva',
-                'ejecutado': 'Ejecutado'
+                'ejecutado': 'Ejecutado',
+                'cancelled': 'Cancelado'
             };
             return labels[status] || status;
         },
         getStatusClass(status) {
             const classes = {
                 'reserva': 'bg-yellow-100 text-yellow-800',
-                'ejecutado': 'bg-blue-100 text-blue-800'
+                'ejecutado': 'bg-blue-100 text-blue-800',
+                'cancelled': 'bg-red-100 text-red-800'
             };
             return classes[status] || 'bg-gray-100 text-gray-800';
         },

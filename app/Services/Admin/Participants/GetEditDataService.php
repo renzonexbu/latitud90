@@ -60,13 +60,27 @@ class GetEditDataService
      */
     private function getParticipantProgramsData(Participant $participant, $participantPrograms)
     {
+        // Obtener todos los enrollment_codes cancelados para este participante
+        $cancelledEnrollmentCodes = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+            ->where('status', 'cancelled')
+            ->pluck('enrollment_code')
+            ->toArray();
+
         // Obtener los cursos del participante con sus programas
         return $participant->courses()
             ->with(['institution', 'programCourses.program'])
             ->get()
-            ->flatMap(function ($course) use ($participant) {
-                return $course->programCourses->map(function ($programCourse) use ($course, $participant) {
+            ->flatMap(function ($course) use ($participant, $cancelledEnrollmentCodes) {
+                return $course->programCourses->map(function ($programCourse) use ($course, $participant, $cancelledEnrollmentCodes) {
                     $program = $programCourse->program;
+
+                    // Generar el enrollment_code para este programa
+                    // Extraer solo la parte numérica del código (antes del guión)
+                    $programCodePart = explode('-', $programCourse->code)[0];
+                    $enrollmentCode = $participant->document_number . '-' . $programCodePart;
+
+                    // Verificar si este enrollment_code específico está cancelado (no filtrar, solo marcar)
+                    $isCancelled = in_array($enrollmentCode, $cancelledEnrollmentCodes);
 
                     // Calcular precio del participante para este program_course
                     // 1. Obtener el precio base del pivot participant_course
@@ -90,9 +104,10 @@ class GetEditDataService
                     ];
 
                 // Pagos aprobados/completados del participante para este programa
-                $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $program) {
+                // NOTA: orders.program_id guarda el ID del ProgramCourse, no del Program template
+                $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                     $q->where('participant_id', $participant->id)
-                        ->where('program_id', $program->id);
+                        ->where('program_id', $programCourse->id);
                 })
                     ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
@@ -109,8 +124,9 @@ class GetEditDataService
                 $installmentPlan = null;
 
                 // Buscar planes de cuotas del participante para este programa
+                // NOTA: InstallmentPlan también debe usar programCourse->id
                 $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participant->id)
-                    ->where('program_id', $program->id)
+                    ->where('program_id', $programCourse->id)
                     ->with(['installments' => function ($query) {
                         $query->orderBy('installment_number', 'asc');
                     }])
@@ -133,8 +149,9 @@ class GetEditDataService
 
                 // Si no hay planes de cuotas, buscar en orders como fallback
                 if ($totalInstallments == 0) {
+                    // NOTA: orders.program_id es el ID del ProgramCourse
                     $orders = \App\Models\Order::where('participant_id', $participant->id)
-                        ->where('program_id', $program->id)
+                        ->where('program_id', $programCourse->id)
                         ->with(['orderDetails'])
                         ->get();
 
@@ -156,6 +173,11 @@ class GetEditDataService
                     $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
                 }
 
+                    // Obtener el status desde participant_program usando el enrollment_code específico
+                    $participantProgramStatus = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                        ->where('enrollment_code', $enrollmentCode)
+                        ->value('status') ?? 'pending_payment';
+
                     // Usar los datos del program_course (que tiene trip_price, departure_date, name específicos)
                     $array = $programCourse->toArray();
                     // Agregar la relación program (plantilla) para acceder a destination, images, etc.
@@ -170,6 +192,16 @@ class GetEditDataService
                     $array['total_installments'] = $totalInstallments;
                     $array['paid_installments'] = $paidInstallments;
                     $array['installments_summary'] = $installmentsSummary;
+                    $array['participant_program_status'] = $participantProgramStatus; // Status del participant_program
+                    $array['is_cancelled'] = $isCancelled; // Bandera para saber si está cancelado
+
+                    // Verificar si tiene suscripción activa
+                    $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
+                        ->where('program_id', $programCourse->id)
+                        ->where('status', 'ACTIVA')
+                        ->first();
+                    $array['has_active_subscription'] = $activeSubscription !== null;
+
                     $array['course'] = [
                         'id' => $course->id,
                         'institution' => $course->institution,
@@ -208,6 +240,7 @@ class GetEditDataService
 
                     return $array;
                 });
-            });
+            })
+            ->values(); // Reindexar para asegurar que se serialice como array
     }
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\Participants\ParticipantMedicalController;
 use App\Http\Controllers\Admin\Participants\ParticipantEmergencyContactsController;
 use App\Http\Controllers\Admin\Participants\ParticipantStatusController;
 use App\Http\Controllers\Admin\Participants\ParticipantPaymentsController;
+use App\Http\Controllers\Admin\Participants\ParticipantProgramController;
 use Illuminate\Support\Facades\Route;
 
 // Main participants CRUD routes
@@ -27,3 +28,6 @@ Route::put('participants/{participant}/medical-conditions', [ParticipantMedicalC
 Route::put('participants/{participant}/emergency-contacts', [ParticipantEmergencyContactsController::class, 'store'])->name('participants.update-emergency-contacts');
 Route::put('participants/{participant}/emergency-contact', [ParticipantEmergencyContactsController::class, 'update'])->name('participants.update-emergency-contact');
 Route::delete('participants/{participant}/emergency-contact', [ParticipantEmergencyContactsController::class, 'destroy'])->name('participants.delete-emergency-contact');
+
+// Program status toggle route
+Route::post('participants/{participant}/programs/{program}/toggle-status', [ParticipantProgramController::class, 'toggleProgramStatus'])->name('participants.toggle-program-status');

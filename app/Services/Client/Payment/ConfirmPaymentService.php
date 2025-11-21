@@ -34,19 +34,24 @@ class ConfirmPaymentService
             // Limpiar el documento de puntos y guiones
             $cleanDocument = preg_replace('/[.-]/', '', $rut);
             
-            // Buscar primero por RUT (compatibilidad)
+            // Buscar primero por RUT (compatibilidad) - solo activos
             $participant = Participant::where('document_number', $cleanDocument)
+                ->where('is_active', true)
                 ->whereHas('documentType', function($query) {
                     $query->where('name', 'RUT');
                 })
                 ->first();
-                
-            // Si no se encuentra por RUT, buscar por cualquier tipo de documento
+
+            // Si no se encuentra por RUT, buscar por cualquier tipo de documento - solo activos
             if (!$participant) {
-                $participant = Participant::where('document_number', $cleanDocument)->first();
+                $participant = Participant::where('document_number', $cleanDocument)
+                    ->where('is_active', true)
+                    ->first();
             }
         } elseif ($participantId) {
-            $participant = Participant::find($participantId);
+            $participant = Participant::where('id', $participantId)
+                ->where('is_active', true)
+                ->first();
         }
 
         // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso para pagar por este participante
