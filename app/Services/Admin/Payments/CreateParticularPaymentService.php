@@ -10,6 +10,7 @@ use App\Models\Installment;
 use App\Models\Participant;
 use App\Models\Program;
 use App\Models\ProgramCourse;
+use App\Models\ProgramSubscription;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
@@ -38,6 +39,9 @@ class CreateParticularPaymentService
             // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
             $participant = Participant::findOrFail($data['participant_id']);
             $programCourse = ProgramCourse::with('program')->findOrFail($data['program_id']);
+
+            // VALIDACIÓN CRÍTICA: No permitir pagos presenciales si hay suscripción activa
+            $this->validateNoActiveSubscription($participant->id, $programCourse->id);
 
             // Para pagos presenciales, usar gateway presencial y mapear la opción según el tipo
             $paymentGateway = PaymentGateway::where('code', 'presencial')->firstOrFail();
@@ -164,6 +168,31 @@ class CreateParticularPaymentService
         if ($data['amount'] <= 0) {
             throw new \Exception("El monto debe ser mayor a 0");
         }
+    }
+
+    /**
+     * Validar que NO exista una suscripción activa
+     * Los pagos presenciales NO se pueden hacer si hay suscripción activa (debe manejarse por VirtualPOS)
+     */
+    private function validateNoActiveSubscription(int $participantId, int $programId): void
+    {
+        $activeSubscription = ProgramSubscription::where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+            ->first();
+
+        if ($activeSubscription) {
+            throw new \Exception(
+                "No se puede registrar un pago presencial para este participante porque tiene una suscripción activa (ID: {$activeSubscription->id}, Estado: {$activeSubscription->status}). " .
+                "Los pagos para participantes con suscripción deben realizarse a través del sistema de VirtualPOS."
+            );
+        }
+
+        Log::info('Validación de suscripción activa: OK (no existe suscripción)', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'operation' => 'presential_payment'
+        ]);
     }
 
     /**

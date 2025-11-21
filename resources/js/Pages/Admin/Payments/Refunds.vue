@@ -16,6 +16,37 @@
                             </Link>
                         </div>
 
+                        <!-- Alerta de error general -->
+                        <div
+                            v-if="errors.error"
+                            ref="errorAlert"
+                            class="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg"
+                        >
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <svg
+                                        class="h-5 w-5 text-red-500"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-red-800">
+                                        Error al procesar el reembolso
+                                    </h3>
+                                    <div class="mt-2 text-sm text-red-700">
+                                        {{ errors.error }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <form @submit.prevent="submit" class="space-y-8">
                             <!-- SECCIÓN 1: DATOS DEL CLIENTE -->
                             <div class="border-b border-gray-200 pb-6">
@@ -281,6 +312,7 @@ const form = useForm({
 
 const availableParticipants = ref([]);
 const participantPaymentStatus = ref(null);
+const errorAlert = ref(null);
 
 const rutValidation = reactive({
     isValid: null,
@@ -704,7 +736,28 @@ const submit = () => {
 
     // Crear un nuevo formulario con los datos combinados
     const submitForm = useForm(combinedData);
-    submitForm.post(route('admin.payments.refunds.store'));
+    submitForm.post(route('admin.payments.refunds.store'), {
+        preserveScroll: false,
+        onFinish: () => {
+            // Si hay errores, hacer scroll hacia el componente de error
+            if (Object.keys(submitForm.errors).length > 0) {
+                nextTick(() => {
+                    setTimeout(() => {
+                        // Hacer scroll al elemento de error si existe
+                        if (errorAlert.value) {
+                            errorAlert.value.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start'
+                            });
+                        } else {
+                            // Fallback: scroll al top de la página
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    }, 150);
+                });
+            }
+        }
+    });
 };
 
 // Lifecycle
