@@ -51,11 +51,12 @@
         <!-- Hero Section -->
         <HeroSection
             id=""
+            :content="siteContent?.hero"
             @participant-not-found="handleParticipantNotFound"
         ></HeroSection>
         <!-- Schools Section -->
         <div class="section-spacing">
-            <SchoolsSection></SchoolsSection>
+            <SchoolsSection :content="siteContent?.schools" :schools="schools"></SchoolsSection>
         </div>
         <!-- Logo Carousel -->
         <!-- <div class="section-spacing">
@@ -64,7 +65,7 @@
 
         <!-- Transform Section -->
         <div class="section-spacing">
-            <TransformSection></TransformSection>
+            <TransformSection :content="siteContent?.transform"></TransformSection>
         </div>
 
         <!-- About Section -->
@@ -74,12 +75,12 @@
 
         <!-- Experiences Section -->
         <div class="section-spacing" id="nuestrosProgramas">
-            <ExperienceSection></ExperienceSection>
+            <ExperienceSection :content="siteContent?.experiences"></ExperienceSection>
         </div>
 
         <!-- Courses Section -->
         <div class="section-spacing" id="courses">
-            <CoursesSection></CoursesSection>
+            <CoursesSection :content="siteContent?.courses"></CoursesSection>
         </div>
 
         <!-- Testimonials Section -->
@@ -89,7 +90,7 @@
 
         <!-- FAQ Section -->
         <div class="section-spacing" id="faq">
-            <FaqSection></FaqSection>
+            <FaqSection :content="siteContent?.faq"></FaqSection>
         </div>
 
         <!-- Contact Section -->
@@ -103,6 +104,7 @@
         <!-- Footer -->
         <Footer
             class="rounded-lg"
+            :content="siteContent?.footer"
             @newsletter-subscribed="handleNewsletterSubscribed"
             @newsletter-error="handleNewsletterError"
         ></Footer>
@@ -160,6 +162,8 @@ export default {
         programs: Object,
         filters: Object,
         serviceTypes: Array,
+        siteContent: Object,
+        schools: Array,
     },
     setup(props) {
         const searchQuery = ref(props.filters.search || "");
@@ -352,6 +356,7 @@ export default {
             showNewsletterAlert,
             showParticipantErrorAlert,
             showNewsletterErrorAlert,
+            siteContent: props.siteContent,
             formatServiceType,
             formatPrice,
             formatDate,

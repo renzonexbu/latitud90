@@ -2,7 +2,7 @@
     <section class="py-12 bg-[#F9F9F9]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h2 class="text-3xl font-bold text-center text-teal-600 mb-12">
-                Nuestras experiencias
+                {{ sectionTitle }}
             </h2>
 
             <div class="flex gap-4 justify-center items-center">
@@ -17,8 +17,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="/images/banners/VIAJE_DE_ESTUDIO.webp"
-                                        alt="Viajes de estudio"
+                                        :src="cards[0].imagen"
+                                        :alt="cards[0].alt"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -29,21 +29,13 @@
                                 <div class="flip-card-content">
                                     <!-- Título -->
                                     <div class="flip-card-title">
-                                        <span class="flip-title-text"
-                                            >Viajes de</span
-                                        >
-                                        <span class="flip-title-text"
-                                            >estudio<span class="flip-title-dot"
-                                                >.</span
-                                            ></span
-                                        >
+                                        <span class="flip-title-text">{{ cards[0].tituloLinea1 }}</span>
+                                        <span class="flip-title-text">{{ cards[0].tituloLinea2 }}<span class="flip-title-dot">.</span></span>
                                     </div>
 
                                     <!-- Descripción -->
                                     <div class="flip-card-description">
-                                        Planificamos viajes de estudio en Chile
-                                        y el extranjero, generando experiencias
-                                        únicas de aprendizaje y entretención.
+                                        {{ cards[0].descripcion }}
                                     </div>
 
                                     <!-- Icono SVG -->
@@ -78,8 +70,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="/images/banners/CEAL.webp"
-                                        alt="Cursos de Educación al aire libre"
+                                        :src="cards[1].imagen"
+                                        :alt="cards[1].alt"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -90,24 +82,13 @@
                                 <div class="flip-card-content">
                                     <!-- Título -->
                                     <div class="flip-card-title">
-                                        <span class="flip-title-text"
-                                            >Cursos de Educación</span
-                                        >
-                                        <span class="flip-title-text"
-                                            >al aire libre – CEAL<span
-                                                class="flip-title-dot"
-                                                >.</span
-                                            ></span
-                                        >
+                                        <span class="flip-title-text">{{ cards[1].tituloLinea1 }}</span>
+                                        <span class="flip-title-text">{{ cards[1].tituloLinea2 }}<span class="flip-title-dot">.</span></span>
                                     </div>
 
                                     <!-- Descripción -->
                                     <div class="flip-card-description">
-                                        Transformamos el medio natural en una
-                                        gran sala de clases, con actividades
-                                        educativas que fomenten el desarrollo de
-                                        habilidades blandas y trabajo en equipo,
-                                        junto a colegios y universidades.
+                                        {{ cards[1].descripcion }}
                                     </div>
 
                                     <!-- Icono SVG -->
@@ -142,8 +123,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="/images/banners/GIRAS_DEPORTIVAS.webp"
-                                        alt="Giras Deportivas"
+                                        :src="cards[2].imagen"
+                                        :alt="cards[2].alt"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -154,23 +135,13 @@
                                 <div class="flip-card-content">
                                     <!-- Título -->
                                     <div class="flip-card-title">
-                                        <span class="flip-title-text"
-                                            >Giras</span
-                                        >
-                                        <span class="flip-title-text">
-                                            Deportivas<span
-                                                class="flip-title-dot"
-                                                >.</span
-                                        ></span>
+                                        <span class="flip-title-text">{{ cards[2].tituloLinea1 }}</span>
+                                        <span class="flip-title-text">{{ cards[2].tituloLinea2 }}<span class="flip-title-dot">.</span></span>
                                     </div>
 
                                     <!-- Descripción -->
                                     <div class="flip-card-description">
-                                        Ofrecemos un servicio integral que
-                                        abarca desde la planificación
-                                        personalizada hasta la asistencia en las
-                                        salidas o viajes deportivos de tu
-                                        colegio, universidad o club deportivo.
+                                        {{ cards[2].descripcion }}
                                     </div>
 
                                     <!-- Icono SVG -->
@@ -204,8 +175,8 @@
                             <div class="flip-card-front">
                                 <div class="overflow-hidden rounded-lg">
                                     <img
-                                        src="/images/banners/OTRAS_EXPERIENCIAS.webp"
-                                        alt="Experiencias personalizadas"
+                                        :src="cards[3].imagen"
+                                        :alt="cards[3].alt"
                                         class="w-full h-auto object-cover"
                                     />
                                 </div>
@@ -216,24 +187,13 @@
                                 <div class="flip-card-content">
                                     <!-- Título -->
                                     <div class="flip-card-title">
-                                        <span class="flip-title-text"
-                                            >Experiencias</span
-                                        >
-                                        <span class="flip-title-text"
-                                            >a tu medida<span
-                                                class="flip-title-dot"
-                                                >.</span
-                                            ></span
-                                        >
+                                        <span class="flip-title-text">{{ cards[3].tituloLinea1 }}</span>
+                                        <span class="flip-title-text">{{ cards[3].tituloLinea2 }}<span class="flip-title-dot">.</span></span>
                                     </div>
 
                                     <!-- Descripción -->
                                     <div class="flip-card-description">
-                                        Diseñamos programas, eventos o talleres
-                                        personalizados, según tus necesidades.
-                                        Algunas experiencias son: Summer Camp,
-                                        Día de la familia o Kermesse, Campamento
-                                        “Padre-Hijo”, entre otros.
+                                        {{ cards[3].descripcion }}
                                     </div>
 
                                     <!-- Icono SVG -->
@@ -262,13 +222,106 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
+
+const props = defineProps({
+    content: {
+        type: Object,
+        default: () => ({})
+    }
+});
 
 const flippedCards = ref([false, false, false, false]);
 
 const flipCard = (index) => {
     flippedCards.value[index] = !flippedCards.value[index];
 };
+
+// Defaults originales del template
+const defaultCards = [
+    {
+        imagen: '/images/banners/VIAJE_DE_ESTUDIO.webp',
+        titulo: 'Viajes de estudio.',
+        tituloLinea1: 'Viajes de',
+        tituloLinea2: 'estudio',
+        descripcion: 'Planificamos viajes de estudio en Chile y el extranjero, generando experiencias únicas de aprendizaje y entretención.',
+        alt: 'Viajes de estudio'
+    },
+    {
+        imagen: '/images/banners/CEAL.webp',
+        titulo: 'Cursos de Educación al aire libre – CEAL.',
+        tituloLinea1: 'Cursos de Educación',
+        tituloLinea2: 'al aire libre – CEAL',
+        descripcion: 'Transformamos el medio natural en una gran sala de clases, con actividades educativas que fomenten el desarrollo de habilidades blandas y trabajo en equipo, junto a colegios y universidades.',
+        alt: 'Cursos de Educación al aire libre'
+    },
+    {
+        imagen: '/images/banners/GIRAS_DEPORTIVAS.webp',
+        titulo: 'Giras Deportivas.',
+        tituloLinea1: 'Giras',
+        tituloLinea2: 'Deportivas',
+        descripcion: 'Ofrecemos un servicio integral que abarca desde la planificación personalizada hasta la asistencia en las salidas o viajes deportivos de tu colegio, universidad o club deportivo.',
+        alt: 'Giras Deportivas'
+    },
+    {
+        imagen: '/images/banners/OTRAS_EXPERIENCIAS.webp',
+        titulo: 'Experiencias a tu medida.',
+        tituloLinea1: 'Experiencias',
+        tituloLinea2: 'a tu medida',
+        descripcion: 'Diseñamos programas, eventos o talleres personalizados, según tus necesidades. Algunas experiencias son: Summer Camp, Día de la familia o Kermesse, Campamento "Padre-Hijo", entre otros.',
+        alt: 'Experiencias personalizadas'
+    }
+];
+
+const getContent = (key, defaultValue) => {
+    return props.content?.[key]?.value || defaultValue;
+};
+
+const getImageUrl = (key, defaultValue) => {
+    const value = props.content?.[key]?.value;
+    if (!value) return defaultValue;
+    if (value.startsWith('http')) return value;
+    if (value.startsWith('/')) return value;
+    if (value.startsWith('site-content/')) return `/storage/${value}`;
+    return value;
+};
+
+// Función para dividir título en dos líneas
+const splitTitle = (titulo) => {
+    // Remover el punto final si existe
+    const cleanTitle = titulo.replace(/\.$/, '');
+    const words = cleanTitle.split(' ');
+
+    if (words.length <= 2) {
+        return { linea1: words[0] || '', linea2: words.slice(1).join(' ') || '' };
+    }
+
+    // Dividir aproximadamente a la mitad
+    const midPoint = Math.ceil(words.length / 2);
+    return {
+        linea1: words.slice(0, midPoint).join(' '),
+        linea2: words.slice(midPoint).join(' ')
+    };
+};
+
+// Cards con contenido dinámico
+const cards = computed(() => {
+    return defaultCards.map((card, index) => {
+        const num = index + 1;
+        const titulo = getContent(`tarjeta_${num}_titulo`, card.titulo);
+        const { linea1, linea2 } = splitTitle(titulo);
+        return {
+            imagen: getImageUrl(`tarjeta_${num}_imagen`, card.imagen),
+            titulo: titulo,
+            tituloLinea1: linea1,
+            tituloLinea2: linea2,
+            descripcion: getContent(`tarjeta_${num}_descripcion`, card.descripcion),
+            alt: card.alt
+        };
+    });
+});
+
+const sectionTitle = computed(() => getContent('titulo', 'Nuestras experiencias'));
 </script>
 
 <style scoped>
@@ -435,11 +488,17 @@ const flipCard = (index) => {
     margin-bottom: 15px;
     margin-top: 80px;
     margin-left: 20px;
+    max-width: calc(100% - 40px);
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .flip-title-text {
     color: #fff;
-    display: inline;
+    display: block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .flip-title-dot {
@@ -458,6 +517,8 @@ const flipCard = (index) => {
     hyphens: auto;
     max-width: 85%;
     text-justify: inter-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
     margin: 0 auto;
 }
 </style>

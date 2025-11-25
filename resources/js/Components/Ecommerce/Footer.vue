@@ -49,7 +49,7 @@
                             justify-content: flex-start;
                         "
                     >
-                        Suscríbete a nuestro newsletter
+                        {{ newsletterTitulo }}
                     </div>
                     <div
                         class="flex flex-row items-center justify-between w-full flex-shrink-0 relative"
@@ -71,7 +71,7 @@
                             <input
                                 v-model="newsletterEmail"
                                 type="email"
-                                placeholder="Ingresa su email aqui."
+                                :placeholder="newsletterPlaceholder"
                                 class="border-none outline-none bg-transparent rounded-full"
                                 style="
                                     color: var(--colores-neutro-negro, #434343);
@@ -110,7 +110,7 @@
                                     position: relative;
                                 "
                             >
-                                Subscribe
+                                {{ newsletterBoton }}
                             </span>
                             <div
                                 v-else
@@ -185,7 +185,7 @@
                             Email contacto:
                         </div>
                         <a
-                            :href="`mailto:${contactInfo.emails.educacion}`"
+                            :href="`mailto:${emailContacto}`"
                             class="text-left underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -209,7 +209,7 @@
                                 position: relative;
                             "
                         >
-                            {{ contactInfo.emails.educacion }}
+                            {{ emailContacto }}
                         </a>
                     </div>
                 </div>
@@ -300,7 +300,7 @@
                                 position: relative;
                             "
                         >
-                            {{ contactInfo.address.street }}
+                            {{ direccion }}
                         </div>
                     </div>
                 </div>
@@ -446,7 +446,7 @@
                             Email de contacto para pagos:
                         </div>
                         <a
-                            href="mailto:pagos@latitud90.com"
+                            :href="`mailto:${emailPagos}`"
                             class="text-left underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -470,7 +470,7 @@
                                 position: relative;
                             "
                         >
-                            pagos@latitud90.com
+                            {{ emailPagos }}
                         </a>
                     </div>
                 </div>
@@ -529,7 +529,7 @@
                             Otras consultas:
                         </div>
                         <a
-                            href="mailto:contacto@latitud90.com"
+                            :href="`mailto:${emailOtrasConsultas}`"
                             class="text-left underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -553,7 +553,7 @@
                                 position: relative;
                             "
                         >
-                            contacto@latitud90.com
+                            {{ emailOtrasConsultas }}
                         </a>
                     </div>
                 </div>
@@ -583,14 +583,14 @@
                         line-height: 22px;
                     "
                 >
-                    Copyright © 2025 Latiud90|
+                    {{ copyrightText }}|
                     <a :href="contactInfo.links.termsAndConditions" class="underline"
                         >Términos y condiciones</a
                     >
                 </p>
                 <div class="flex space-x-4">
                     <a
-                        :href="contactInfo.socialMedia.facebook"
+                        :href="facebookUrl"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
@@ -602,7 +602,7 @@
                         />
                     </a>
                     <a
-                        :href="contactInfo.socialMedia.instagram"
+                        :href="instagramUrl"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
@@ -614,7 +614,7 @@
                         />
                     </a>
                     <a
-                        :href="contactInfo.socialMedia.linkedin"
+                        :href="linkedinUrl"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="hover:text-white transition-colors duration-200"
@@ -711,7 +711,7 @@
                                 justify-content: flex-start;
                             "
                         >
-                            Suscríbete a nuestro newsletter
+                            {{ newsletterTitulo }}
                         </div>
                         <div
                             style="
@@ -750,7 +750,7 @@
                                 <input
                                     v-model="newsletterEmail"
                                     type="email"
-                                    placeholder="Ingresa su email aqui."
+                                    :placeholder="newsletterPlaceholder"
                                     class="border-none outline-none bg-transparent rounded-full"
                                     style="
                                         color: var(
@@ -799,7 +799,7 @@
                                         position: relative;
                                     "
                                 >
-                                    Subscribe
+                                    {{ newsletterBoton }}
                                 </span>
                                 <div
                                     v-else
@@ -914,7 +914,7 @@
                             Email contacto:
                         </div>
                         <a
-                            :href="`mailto:${contactInfo.emails.educacion}`"
+                            :href="`mailto:${emailContacto}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -939,7 +939,7 @@
                                 position: relative;
                             "
                         >
-                            {{ contactInfo.emails.educacion }}
+                            {{ emailContacto }}
                         </a>
                     </div>
                 </div>
@@ -1034,7 +1034,7 @@
                             Viajes de estudio y CEAL:
                         </div>
                         <a
-                            :href="`mailto:${contactInfo.emails.educacion}`"
+                            :href="`mailto:${emailContacto}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -1059,7 +1059,7 @@
                                 position: relative;
                             "
                         >
-                            {{ contactInfo.emails.educacion }}
+                            {{ emailContacto }}
                         </a>
                     </div>
                 </div>
@@ -1180,7 +1180,7 @@
                                 position: relative;
                             "
                         >
-                            {{ contactInfo.address.street }}
+                            {{ direccion }}
                         </div>
                     </div>
                 </div>
@@ -1395,7 +1395,7 @@
                             Email de contacto para pagos:
                         </div>
                         <a
-                            href="mailto:pagos@latitud90.com"
+                            :href="`mailto:${emailPagos}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -1420,7 +1420,7 @@
                                 position: relative;
                             "
                         >
-                            pagos@latitud90.com
+                            {{ emailPagos }}
                         </a>
                     </div>
                 </div>
@@ -1515,7 +1515,7 @@
                             Otras consultas:
                         </div>
                         <a
-                            href="mailto:contacto@latitud90.com"
+                            :href="`mailto:${emailOtrasConsultas}`"
                             class="underline"
                             style="
                                 color: var(--blanco, #fefeff);
@@ -1540,7 +1540,7 @@
                                 position: relative;
                             "
                         >
-                            contacto@latitud90.com
+                            {{ emailOtrasConsultas }}
                         </a>
                     </div>
                 </div>
@@ -1600,7 +1600,7 @@
                             "
                         >
                             <a
-                                :href="contactInfo.socialMedia.facebook"
+                                :href="facebookUrl"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
@@ -1619,7 +1619,7 @@
                                 />
                             </a>
                             <a
-                                :href="contactInfo.socialMedia.instagram"
+                                :href="instagramUrl"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
@@ -1638,7 +1638,7 @@
                                 />
                             </a>
                             <a
-                                :href="contactInfo.socialMedia.linkedin"
+                                :href="linkedinUrl"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="hover:opacity-80 transition-opacity"
@@ -1670,7 +1670,7 @@
                             align-self: stretch;
                         "
                     >
-                        Copyright © 2025 Latiud90
+                        {{ copyrightText }}
                         <br />
                         <a :href="contactInfo.links.termsAndConditions" class="underline"
                             >Términos y condiciones</a
@@ -1683,20 +1683,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import images from "@images/index.js";
 import contactInfo from '@/config/contact.js';
+
+const props = defineProps({
+    content: {
+        type: Object,
+        default: () => ({})
+    }
+});
 
 const newsletterEmail = ref('');
 const isSubscribing = ref(false);
 
 const emit = defineEmits(['newsletter-subscribed', 'newsletter-error']);
 
+// Helper para obtener contenido dinámico
+const getContent = (key, defaultValue) => {
+    return props.content?.[key]?.value || defaultValue;
+};
+
+// Computed properties para contenido dinámico
+const newsletterTitulo = computed(() => getContent('newsletter_titulo', 'Suscríbete a nuestro newsletter'));
+const newsletterPlaceholder = computed(() => getContent('newsletter_placeholder', 'Ingresa su email aqui.'));
+const newsletterBoton = computed(() => getContent('newsletter_boton', 'Subscribe'));
+const emailContacto = computed(() => getContent('email_contacto', contactInfo.emails.educacion));
+const emailPagos = computed(() => getContent('email_pagos', 'pagos@latitud90.com'));
+const emailOtrasConsultas = computed(() => getContent('email_otras_consultas', 'contacto@latitud90.com'));
+const direccion = computed(() => getContent('direccion', contactInfo.address.street));
+const facebookUrl = computed(() => getContent('facebook_url', contactInfo.socialMedia.facebook));
+const instagramUrl = computed(() => getContent('instagram_url', contactInfo.socialMedia.instagram));
+const linkedinUrl = computed(() => getContent('linkedin_url', contactInfo.socialMedia.linkedin));
+const copyrightText = computed(() => getContent('copyright', 'Copyright © 2025 Latitud90'));
+
 const subscribeToNewsletter = async () => {
     if (!newsletterEmail.value || isSubscribing.value) return;
-    
+
     isSubscribing.value = true;
-    
+
     try {
         const response = await fetch('/newsletter/subscribe', {
             method: 'POST',
@@ -1708,19 +1733,16 @@ const subscribeToNewsletter = async () => {
                 email: newsletterEmail.value
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             newsletterEmail.value = '';
-            // Emitir evento de éxito
             emit('newsletter-subscribed');
         } else {
-            // Emitir evento de error
             emit('newsletter-error');
         }
     } catch (error) {
-        // Emitir evento de error
         emit('newsletter-error');
     } finally {
         isSubscribing.value = false;

@@ -48,6 +48,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de plantillas de documentos
     include __DIR__ . '/document-templates.php';
 
+    // Gestión de contenido del sitio (tipo ACF)
+    include __DIR__ . '/site-content.php';
+
+    // Gestión de colegios
+    include __DIR__ . '/schools.php';
+
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
     Route::get('reports/payments', [PaymentController::class, 'reportsIndex'])->name('reports.payments');
     Route::get('reports/financial', [PaymentController::class, 'financialReport'])->name('reports.financial');

@@ -1,7 +1,8 @@
 <template>
     <div class="relative h-[80vh] rounded-3xl overflow-hidden mx-4 my-4">
         <div
-            class="absolute inset-0 bg-[url('/resources/images/dashboard.png')] bg-cover bg-center rounded-3xl"
+            class="absolute inset-0 bg-cover bg-center rounded-3xl"
+            :style="{ backgroundImage: `url('${backgroundImage}')` }"
         >
             <!-- Overlay para la imagen de fondo -->
             <div class="absolute inset-0 bg-black opacity-30 rounded-3xl"></div>
@@ -249,7 +250,7 @@
                             </svg>
                         </div>
                         <!-- Texto para desktop -->
-                        <span class="hidden md:inline">Buscar programa</span>
+                        <span class="hidden md:inline">{{ botonBuscarText }}</span>
                     </button>
                 </div>
             </div>
@@ -273,17 +274,7 @@
                             />
                         </svg>
                     </div>
-                    <span
-                        >Ingrese el
-                        {{
-                            selectedDocumentType === "RUT"
-                                ? "número de RUT"
-                                : selectedDocumentType === "DNI"
-                                ? "número de DNI"
-                                : "número de pasaporte"
-                        }}
-                        del alumno</span
-                    >
+                    <span>{{ paso1Text }}</span>
                 </div>
 
                 <div class="flex items-center">
@@ -301,7 +292,7 @@
                             />
                         </svg>
                     </div>
-                    <span>Seleccione el programa a pagar</span>
+                    <span>{{ paso2Text }}</span>
                 </div>
 
                 <div class="flex items-center">
@@ -319,7 +310,7 @@
                             />
                         </svg>
                     </div>
-                    <span>Seleccione el método de pago y boleta</span>
+                    <span>{{ paso3Text }}</span>
                 </div>
             </div>
         </div>
@@ -327,12 +318,40 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, computed } from "vue";
 import { router } from "@inertiajs/vue3";
 import axios from "axios";
 import { encodeParticipantToken } from "@/utils/tokenUtils";
 
+const props = defineProps({
+    content: {
+        type: Object,
+        default: () => ({})
+    }
+});
+
 const emit = defineEmits(["participant-not-found"]);
+
+// Helper para obtener contenido dinámico
+const getContent = (key, defaultValue) => {
+    return props.content?.[key]?.value || defaultValue;
+};
+
+// Computed para textos dinámicos
+const paso1Text = computed(() => getContent('paso_1', 'Ingrese el número de RUT/DNI/pasaporte del alumno'));
+const paso2Text = computed(() => getContent('paso_2', 'Seleccione el programa a pagar'));
+const paso3Text = computed(() => getContent('paso_3', 'Seleccione el método de pago y boleta'));
+const botonBuscarText = computed(() => getContent('boton_buscar', 'Buscar programa'));
+
+// Computed para imagen de fondo
+const backgroundImage = computed(() => {
+    const bgValue = props.content?.background?.value;
+    if (!bgValue) return '/home_images/dashboard.png';
+    if (bgValue.startsWith('http')) return bgValue;
+    if (bgValue.startsWith('/')) return bgValue;
+    if (bgValue.startsWith('site-content/')) return `/storage/${bgValue}`;
+    return `/${bgValue}`;
+});
 
 const searchQuery = ref("");
 const rutValidation = reactive({

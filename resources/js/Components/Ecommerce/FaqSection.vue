@@ -3,40 +3,44 @@
     <div class="faq-container">
       <!-- Headings Section -->
       <div class="headings">
-        <h2 class="title">Preguntas frecuentes</h2>
+        <h2 class="title">{{ getContent('titulo', 'Preguntas frecuentes') }}</h2>
         <div class="spacer">
           <div class="_4-px"></div>
-          <div class="text">24</div>
+          <div class="text">{{ faqItems.length }}</div>
         </div>
       </div>
 
       <!-- Accordion Section -->
       <div class="accordion">
-        <!-- FAQ Item 1 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 0 }">
+        <div
+          v-for="(faq, index) in faqItems"
+          :key="index"
+          class="accordion-card"
+          :class="{ 'open': openFaq === index }"
+        >
           <div class="accordion-content">
             <div class="accordion-top">
               <div class="card-title">
-                ¿Cómo solicito el descuento de hermanos mellizos o gemelos?
+                {{ faq.question }}
               </div>
-              <div class="line-rounded-plus" @click="toggleFaq(0)">
-                <svg 
-                  v-if="openFaq !== 0"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
+              <div class="line-rounded-plus" @click="toggleFaq(index)">
+                <svg
+                  v-if="openFaq !== index"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 14 14"
                   fill="none"
                   class="plus-icon">
                   <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
                   <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <svg 
+                <svg
                   v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="9.1"
+                  height="9.1"
+                  viewBox="0 0 12 11"
                   fill="none"
                   class="close-icon">
                   <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -45,208 +49,8 @@
               </div>
             </div>
             <transition name="accordion">
-              <div v-if="openFaq === 0" class="paragraph">
-                A través de su ejecutivo comercial.
-              </div>
-            </transition>
-          </div>
-        </div>
-
-        <!-- FAQ Item 2 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 1 }">
-          <div class="accordion-content">
-            <div class="accordion-top">
-              <div class="card-title">
-                ¿Cómo activar las cuotas para el pago mensual con tarjeta de débito
-                o transferencia electrónica a través de la tienda online?
-              </div>
-              <div class="line-rounded-plus" @click="toggleFaq(1)">
-                <svg 
-                  v-if="openFaq !== 1"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
-                  fill="none"
-                  class="plus-icon">
-                  <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg 
-                  v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
-                  fill="none"
-                  class="close-icon">
-                  <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M1.4502 1.21875L10.5502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <transition name="accordion">
-              <div v-if="openFaq === 1" class="paragraph">
-                En caso de elegir esta opción de pago debes escribir a pagos@latitud90.com.
-              </div>
-            </transition>
-          </div>
-        </div>
-
-        <!-- FAQ Item 3 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 2 }">
-          <div class="accordion-content">
-            <div class="accordion-top">
-              <div class="card-title">¿Cómo puedo confirmar que he pagado?</div>
-              <div class="line-rounded-plus" @click="toggleFaq(2)">
-                <svg 
-                  v-if="openFaq !== 2"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
-                  fill="none"
-                  class="plus-icon">
-                  <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg 
-                  v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
-                  fill="none"
-                  class="close-icon">
-                  <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M1.4502 1.21875L10.5502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <transition name="accordion">
-              <div v-if="openFaq === 2" class="paragraph">
-                La confirmación es automática, a través de la recepción de la boleta a la dirección electrónica informada al momento del pago.
-              </div>
-            </transition>
-          </div>
-        </div>
-
-        <!-- FAQ Item 4 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 3 }">
-          <div class="accordion-content">
-            <div class="accordion-top">
-              <div class="card-title">
-                ¿En caso de no ser apoderado o representante legal puedo pagar?
-              </div>
-              <div class="line-rounded-plus" @click="toggleFaq(3)">
-                <svg 
-                  v-if="openFaq !== 3"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
-                  fill="none"
-                  class="plus-icon">
-                  <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg 
-                  v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
-                  fill="none"
-                  class="close-icon">
-                  <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M1.4502 1.21875L10.5502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <transition name="accordion">
-              <div v-if="openFaq === 3" class="paragraph">
-                Si puede hacerlo, siempre que conozca los datos del participante al cual pagara o abonara.
-              </div>
-            </transition>
-          </div>
-        </div>
-
-        <!-- FAQ Item 5 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 4 }">
-          <div class="accordion-content">
-            <div class="accordion-top">
-              <div class="card-title">
-                ¿Hasta cuándo tengo plazo para pagar el viaje de estudios?
-              </div>
-              <div class="line-rounded-plus" @click="toggleFaq(4)">
-                <svg 
-                  v-if="openFaq !== 4"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
-                  fill="none"
-                  class="plus-icon">
-                  <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg 
-                  v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
-                  fill="none"
-                  class="close-icon">
-                  <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M1.4502 1.21875L10.5502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <transition name="accordion">
-              <div v-if="openFaq === 4" class="paragraph">
-                La fecha límite para comenzar el pago está indicada en el documento “FORMAS DE PAGO”.
-              </div>
-            </transition>
-          </div>
-        </div>
-
-        <!-- FAQ Item 6 -->
-        <div class="accordion-card" :class="{ 'open': openFaq === 5 }">
-          <div class="accordion-content">
-            <div class="accordion-top">
-              <div class="card-title">
-                ¿Qué pasa si la operación del pago con mi tarjeta de débito o
-                transferencia Khipu es rechazada?
-              </div>
-              <div class="line-rounded-plus" @click="toggleFaq(5)">
-                <svg 
-                  v-if="openFaq !== 5"
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="12" 
-                  height="12" 
-                  viewBox="0 0 14 14" 
-                  fill="none"
-                  class="plus-icon">
-                  <path d="M7 0.769531V12.7695" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M13 6.76953H1" stroke="#007E93" stroke-width="1.32353" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <svg 
-                  v-else
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="9.1" 
-                  height="9.1" 
-                  viewBox="0 0 12 11" 
-                  fill="none"
-                  class="close-icon">
-                  <path d="M10.5502 1.21875L1.4502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M1.4502 1.21875L10.5502 10.3188" stroke="#007E93" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <transition name="accordion">
-              <div v-if="openFaq === 5" class="paragraph">
-                Verifique si el límite diario de su banco le permite pagar el monto que intenta abonar. Tenga presente que por tema de seguridad bancaria, el monto de la primera transferencia o pago estará limitada.
+              <div v-if="openFaq === index" class="paragraph">
+                {{ faq.answer }}
               </div>
             </transition>
           </div>
@@ -257,56 +61,72 @@
 </template>
 
 <script>
-  export default {
-    name: "FaqSection",
-    data() {
-      return {
-        openFaq: null,
-        faqs: [
-          {
-            question:
-              "¿Cómo solicito el descuento de hermanos mellizos o gemelos?",
-            answer:
-              "Puedes solicitar el descuento contactando a nuestro servicio de atención al cliente con la documentación necesaria que acredite el parentesco."
-          },
-          {
-            question:
-              "¿Cómo activar las cuotas para el pago mensual con tarjeta de débito o transferencia electrónica a través de la tienda online?",
-            answer:
-              "En caso de elegir esta opción de pago debes escribir a pagos@latitud90.com"
-          },
-          {
-            question: "¿Cómo puedo confirmar que he pagado?",
-            answer:
-              "Recibirás un correo electrónico de confirmación una vez que tu pago haya sido procesado correctamente."
-          },
-          {
-            question:
-              "¿En caso de no ser apoderado o representante legal puedo pagar?",
-            answer:
-              "Sí, cualquier persona puede realizar el pago en nombre del estudiante, solo necesitarás proporcionar la información del alumno en el proceso de pago."
-          },
-          {
-            question:
-              "¿Hasta cuándo tengo plazo para pagar el viaje de estudios?",
-            answer:
-              "El plazo de pago depende de las condiciones específicas de cada viaje. Te recomendamos revisar la información proporcionada por tu colegio o contactar directamente con nuestro equipo de atención al cliente."
-          },
-          {
-            question:
-              "¿Qué pasa si la operación del pago con mi tarjeta de débito o transferencia Khipu es rechazada?",
-            answer:
-              "Si experimentas problemas con tu pago, por favor comunícate inmediatamente con nuestro equipo de soporte a través de pagos@latitud90.com para que podamos ayudarte a resolverlo."
-          }
-        ]
-      };
-    },
-    methods: {
-      toggleFaq(index) {
-        this.openFaq = this.openFaq === index ? null : index;
-      }
+export default {
+  name: "FaqSection",
+  props: {
+    content: {
+      type: Object,
+      default: () => ({})
     }
-  };
+  },
+  data() {
+    return {
+      openFaq: null,
+      defaultFaqs: [
+        {
+          question: "¿Cómo solicito el descuento de hermanos mellizos o gemelos?",
+          answer: "A través de su ejecutivo comercial."
+        },
+        {
+          question: "¿Cómo activar las cuotas para el pago mensual con tarjeta de débito o transferencia electrónica a través de la tienda online?",
+          answer: "En caso de elegir esta opción de pago debes escribir a pagos@latitud90.com."
+        },
+        {
+          question: "¿Cómo puedo confirmar que he pagado?",
+          answer: "La confirmación es automática, a través de la recepción de la boleta a la dirección electrónica informada al momento del pago."
+        },
+        {
+          question: "¿En caso de no ser apoderado o representante legal puedo pagar?",
+          answer: "Si puede hacerlo, siempre que conozca los datos del participante al cual pagara o abonara."
+        },
+        {
+          question: "¿Hasta cuándo tengo plazo para pagar el viaje de estudios?",
+          answer: "La fecha límite para comenzar el pago está indicada en el documento \"FORMAS DE PAGO\"."
+        },
+        {
+          question: "¿Qué pasa si la operación del pago con mi tarjeta de débito o transferencia Khipu es rechazada?",
+          answer: "Verifique si el límite diario de su banco le permite pagar el monto que intenta abonar. Tenga presente que por tema de seguridad bancaria, el monto de la primera transferencia o pago estará limitada."
+        }
+      ]
+    };
+  },
+  computed: {
+    faqItems() {
+      // Si hay contenido dinámico, construir las FAQs desde el contenido
+      if (this.content && Object.keys(this.content).length > 0) {
+        const faqs = [];
+        let i = 1;
+        while (this.content[`pregunta_${i}`]) {
+          faqs.push({
+            question: this.content[`pregunta_${i}`]?.value || '',
+            answer: this.content[`respuesta_${i}`]?.value || ''
+          });
+          i++;
+        }
+        return faqs.length > 0 ? faqs : this.defaultFaqs;
+      }
+      return this.defaultFaqs;
+    }
+  },
+  methods: {
+    toggleFaq(index) {
+      this.openFaq = this.openFaq === index ? null : index;
+    },
+    getContent(key, defaultValue) {
+      return this.content?.[key]?.value || defaultValue;
+    }
+  }
+};
 </script>
 
 <style scoped>
@@ -525,21 +345,21 @@
     flex-direction: column;
     gap: 2rem;
   }
-  
+
   .faq-container {
     flex-direction: column;
     gap: 2rem;
   }
-  
+
   .headings {
     width: 100%;
     margin-bottom: 2rem;
   }
-  
+
   .accordion {
     width: 100%;
   }
-  
+
   .accordion-card {
     border-radius: 20px;
   }
@@ -552,17 +372,17 @@
     gap: 1.5rem;
     margin: 0;
   }
-  
+
   .faq-container {
     flex-direction: column;
     gap: 1.5rem;
   }
-  
+
   .headings {
     width: 100%;
     margin-bottom: 1rem;
   }
-  
+
   .title {
     color: #FFF;
     font-family: Nexa, sans-serif;
@@ -572,17 +392,17 @@
     line-height: 28px;
     margin-bottom: 1rem;
   }
-  
+
   .accordion {
     width: 100%;
     gap: 16px;
   }
-  
+
   .accordion-card {
     border-radius: 20px;
     padding: 16px 20px;
   }
-  
+
   .card-title {
     color: #007E93;
     font-family: Nexa, sans-serif;
@@ -591,7 +411,7 @@
     font-weight: 400;
     line-height: 13px;
   }
-  
+
   .paragraph {
     color: #007E93;
     font-family: Nexa, sans-serif;
@@ -601,12 +421,12 @@
     line-height: 13px;
     padding-top: 12px;
   }
-  
+
   .line-rounded-plus {
     width: 14px;
     height: 14px;
   }
-  
+
   .plus-icon,
   .close-icon {
     width: 10px;

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\School;
+use App\Models\SiteContent;
 use App\Services\Client\Communication\NewsletterService;
 use App\Services\Client\Communication\ContactMessageService;
 use Illuminate\Http\Request;
@@ -23,7 +25,9 @@ class EcommerceController extends Controller
         return Inertia::render('Ecommerce/Index', [
             'programs' => [],
             'filters' => [],
-            'serviceTypes' => []
+            'serviceTypes' => [],
+            'siteContent' => SiteContent::getAllGroupedBySections(),
+            'schools' => School::getActive(),
         ]);
     }
 

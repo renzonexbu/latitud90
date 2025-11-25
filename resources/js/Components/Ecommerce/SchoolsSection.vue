@@ -2,7 +2,7 @@
   <section class="py-12 bg-[#F9F9F9]">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h2 class="text-3xl font-bold text-center text-teal-600 mb-12 mobile-title">
-        Colegios que nos acompañan
+        {{ getContent('titulo', 'Colegios que nos acompañan') }}
       </h2>
 
       <!-- Carousel Container -->
@@ -55,11 +55,21 @@
 <script>
   export default {
     name: "SchoolsSection",
+    props: {
+      content: {
+        type: Object,
+        default: () => ({})
+      },
+      schools: {
+        type: Array,
+        default: () => []
+      }
+    },
     data() {
       return {
         currentSlide: 0,
         interval: null,
-        schools: [
+        fallbackSchools: [
           {
             name: "Alianza Francesa - Viña del Mar",
             logo: "/images/schools/Alianza Francesa - Viña del Mar.png"
@@ -312,28 +322,41 @@
       };
     },
     computed: {
+      activeSchools() {
+        // Usar schools del prop si existe, sino usar fallbackSchools
+        if (this.schools && this.schools.length > 0) {
+          return this.schools.map(s => ({
+            name: s.name,
+            logo: s.logo_url || s.logo
+          }));
+        }
+        return this.fallbackSchools;
+      },
       slides() {
         const slides = [];
         // En mobile: 3 colegios por slide, en desktop: 7 colegios por slide
         const itemsPerSlide = 7; // Mantenemos 7 para desktop por defecto
-        
-        for (let i = 0; i < this.schools.length; i += itemsPerSlide) {
-          const slide = this.schools.slice(i, i + itemsPerSlide);
-          
+
+        for (let i = 0; i < this.activeSchools.length; i += itemsPerSlide) {
+          const slide = this.activeSchools.slice(i, i + itemsPerSlide);
+
           // Si el slide no está completo, completarlo con colegios del inicio
           if (slide.length < itemsPerSlide) {
             const remainingItems = itemsPerSlide - slide.length;
-            const itemsFromStart = this.schools.slice(0, remainingItems);
+            const itemsFromStart = this.activeSchools.slice(0, remainingItems);
             slide.push(...itemsFromStart);
           }
-          
+
           slides.push(slide);
         }
-        
+
         return slides;
       }
     },
     methods: {
+      getContent(key, defaultValue) {
+        return this.content?.[key]?.value || defaultValue;
+      },
       nextSlide() {
         this.currentSlide = (this.currentSlide + 1) % this.slides.length;
       },

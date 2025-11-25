@@ -29,105 +29,21 @@
         <!-- Títulos específicos para cada banner -->
         <div class="absolute z-10 top-20 left-36 mobile-svg">
             <transition-group name="fade" tag="div" class="relative">
-                <!-- Banner 0: Norte de Chile -->
-                <div v-show="currentBanner === 0" key="0" class="absolute banner-0">
+                <div
+                    v-for="(banner, index) in banners"
+                    :key="index"
+                    v-show="currentBanner === index"
+                    class="absolute"
+                    :class="`banner-${index}`"
+                >
                     <h1 class="banner-title">
                         <span class="title-main"
                             >Viaja <span class="title-a">a</span></span
                         >
                         <br />
                         <span class="title-main-2"
-                            >Norte de Chile<span class="title-dot"
-                                >.</span
-                            ></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 1: Sur de Chile -->
-                <div v-show="currentBanner === 1" key="1" class="absolute banner-1">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Sur de Chile<span class="title-dot">.</span></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 2: Perú -->
-                <div v-show="currentBanner === 2" key="2" class="absolute banner-2">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Perú<span class="title-dot">.</span></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 3: Brasil -->
-                <div v-show="currentBanner === 3" key="3" class="absolute banner-3">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Brasil<span class="title-dot">.</span></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 4: Estados Unidos -->
-                <div v-show="currentBanner === 4" key="4" class="absolute banner-4">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Estados Unidos<span class="title-dot"
-                                >.</span
-                            ></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 5: Europa -->
-                <div v-show="currentBanner === 5" key="5" class="absolute banner-5">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Europa<span class="title-dot">.</span></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 6: Campamentos -->
-                <div v-show="currentBanner === 6" key="6" class="absolute banner-6">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Campamentos<span class="title-dot">.</span></span
-                        >
-                    </h1>
-                </div>
-                <!-- Banner 7: Centro de Desafíos Lat90 -->
-                <div v-show="currentBanner === 7" key="7" class="absolute banner-7">
-                    <h1 class="banner-title">
-                        <span class="title-main"
-                            >Viaja <span class="title-a">a</span></span
-                        >
-                        <br />
-                        <span class="title-main-2"
-                            >Centro de Desafíos Lat90<span class="title-dot"
-                                >.</span
-                            ></span
+                            >{{ banner.destino
+                            }}<span class="title-dot">.</span></span
                         >
                     </h1>
                 </div>
@@ -138,8 +54,8 @@
         <div class="absolute z-10 mobile-button">
             <div class="boton-m">
                 <div class="placeholder">
-                    <a href="https://www.latitud90.com" target="_blank">
-                        Descubre más en nuestra web
+                    <a :href="buttonUrl" target="_blank">
+                        {{ buttonText }}
                     </a>
                 </div>
             </div>
@@ -178,27 +94,90 @@
 <script>
 export default {
     name: "CoursesSection",
+    props: {
+        content: {
+            type: Object,
+            default: () => ({}),
+        },
+    },
     data() {
         return {
             currentBanner: 0,
-            banners: [
+            defaultBanners: [
                 {
                     url: "/images/banners/NORTE_CHILE.webp",
                     position: "center 75%",
+                    destino: "Norte de Chile",
                 },
                 {
                     url: "/images/banners/SUR_DE_CHILE.webp",
                     position: "center",
+                    destino: "Sur de Chile",
                 },
-                { url: "/images/banners/PERÚ.webp", position: "center" },
-                { url: "/images/banners/BRASIL.webp", position: "center" },
-                { url: "/images/banners/USA.webp", position: "center" },
-                { url: "/images/banners/EUROPA.webp", position: "center" },
-                { url: "/images/banners/CAMPAMENTOS.webp", position: "center" },
-                { url: "/images/banners/CEAL.webp", position: "center 75%" },
+                {
+                    url: "/images/banners/PERÚ.webp",
+                    position: "center",
+                    destino: "Perú",
+                },
+                {
+                    url: "/images/banners/BRASIL.webp",
+                    position: "center",
+                    destino: "Brasil",
+                },
+                {
+                    url: "/images/banners/USA.webp",
+                    position: "center",
+                    destino: "Estados Unidos",
+                },
+                {
+                    url: "/images/banners/EUROPA.webp",
+                    position: "center",
+                    destino: "Europa",
+                },
+                {
+                    url: "/images/banners/CAMPAMENTOS.webp",
+                    position: "center",
+                    destino: "Campamentos",
+                },
+                {
+                    url: "/images/banners/CEAL.webp",
+                    position: "center 75%",
+                    destino: "Centro de Desafíos Lat90",
+                },
             ],
             autoPlayInterval: null,
         };
+    },
+    computed: {
+        banners() {
+            return this.defaultBanners.map((defaultBanner, index) => {
+                const imageKey = `banner_${index + 1}_imagen`;
+                const destinoKey = `banner_${index + 1}_destino`;
+                const imageValue =
+                    this.content[imageKey]?.value || this.content[imageKey];
+                const destinoValue =
+                    this.content[destinoKey]?.value || this.content[destinoKey];
+                return {
+                    url: this.getImageUrl(imageValue, defaultBanner.url),
+                    position: defaultBanner.position,
+                    destino: destinoValue || defaultBanner.destino,
+                };
+            });
+        },
+        buttonText() {
+            return (
+                this.content.boton_texto?.value ||
+                this.content.boton_texto ||
+                "Descubre más en nuestra web"
+            );
+        },
+        buttonUrl() {
+            return (
+                this.content.boton_url?.value ||
+                this.content.boton_url ||
+                "https://www.latitud90.com"
+            );
+        },
     },
     mounted() {
         this.startAutoPlay();
@@ -207,6 +186,13 @@ export default {
         this.stopAutoPlay();
     },
     methods: {
+        getImageUrl(value, defaultValue) {
+            if (!value) return defaultValue;
+            if (value.startsWith("http")) return value;
+            if (value.startsWith("/")) return value;
+            if (value.startsWith("site-content/")) return `/storage/${value}`;
+            return value;
+        },
         startAutoPlay() {
             this.autoPlayInterval = setInterval(() => {
                 this.nextBanner();
@@ -445,8 +431,7 @@ section {
 
     /* Tamaños específicos para títulos largos */
     .banner-4 .title-main-2,  /* Estados Unidos */
-    .banner-7 .title-main-2   /* Centro de Desafíos Lat90 */
-    {
+    .banner-7 .title-main-2   /* Centro de Desafíos Lat90 */ {
         font-size: 38px !important;
     }
 

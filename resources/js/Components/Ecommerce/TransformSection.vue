@@ -7,7 +7,7 @@
                     <div class="first-line">
                         <span class="text-normal">Transformamos</span>
                         <img
-                            src="@images/home-section/section_img1.png"
+                            :src="getImageUrl('imagen_1', '/home_images/section_img1.png')"
                             alt="Persona en columpio"
                             class="inline-image image-1"
                         />
@@ -15,20 +15,16 @@
                         <span class="text-bold">experiencia</span>
                     </div>
                     <div class="second-line">
-                        <span class="text-normal"
-                            >en un programa único, fomentando la conexión,
-                            respeto</span
-                        >
+                        <span class="text-normal">{{ getContent('texto_linea_2', 'en un programa único, fomentando la conexión, respeto') }}</span>
                     </div>
                     <div class="third-line">
                         <span class="text-normal">y la</span>
                         <img
-                            src="@images/home-section/section_img2.png"
+                            :src="getImageUrl('imagen_2', '/home_images/section_img2.png')"
                             alt="Personas en balsas"
                             class="inline-image image-2"
                         />
-                        <span class="text-normal">exploración</span
-                        ><span class="text-red-dot">.</span>
+                        <span class="text-normal">exploración</span><span class="text-red-dot">.</span>
                     </div>
                 </div>
 
@@ -37,7 +33,7 @@
                     <div class="mobile-line">
                         <span class="text-normal">Transformamos</span>
                         <img
-                            src="@images/home-section/section_img1.png"
+                            :src="getImageUrl('imagen_1', '/home_images/section_img1.png')"
                             alt="Persona en columpio"
                             class="inline-image image-1"
                         />
@@ -55,12 +51,11 @@
                     </div>
                     <div class="mobile-line">
                         <img
-                            src="@images/home-section/section_img2.png"
+                            :src="getImageUrl('imagen_2', '/home_images/section_img2.png')"
                             alt="Personas en balsas"
                             class="inline-image image-2"
                         />
-                        <span class="text-normal">exploración</span
-                        ><span class="text-red-dot">.</span>
+                        <span class="text-normal">exploración</span><span class="text-red-dot">.</span>
                     </div>
                 </div>
             </div>
@@ -69,7 +64,29 @@
 </template>
 
 <script setup>
-// No props needed for this component
+import { computed } from 'vue';
+
+const props = defineProps({
+    content: {
+        type: Object,
+        default: () => ({})
+    }
+});
+
+// Helper para obtener contenido dinámico
+const getContent = (key, defaultValue) => {
+    return props.content?.[key]?.value || defaultValue;
+};
+
+// Helper para obtener URL de imagen
+const getImageUrl = (key, defaultValue) => {
+    const value = props.content?.[key]?.value;
+    if (!value) return defaultValue;
+    if (value.startsWith('http')) return value;
+    if (value.startsWith('/')) return value;
+    if (value.startsWith('site-content/')) return `/storage/${value}`;
+    return value;
+};
 </script>
 
 <style scoped>
