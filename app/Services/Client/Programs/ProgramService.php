@@ -3,6 +3,7 @@
 namespace App\Services\Client\Programs;
 
 use App\Models\Participant;
+use App\Models\ParticipantProgram;
 use App\Models\Course;
 use App\Models\Program;
 use App\Models\ProgramCourse;
@@ -80,7 +81,26 @@ class ProgramService
                 // Calcular precio del participante para este program_course
                 $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
                 $adjustments = $pivot?->price_adjustments ?? 0;
-                $discounts = 0; // Por ahora no hay descuentos (participant_program ya no se usa)
+
+                // Obtener descuentos desde participant_program_discounts
+                $discounts = 0;
+                $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->with('discounts')
+                    ->first();
+
+                if ($participantProgram && $participantProgram->discounts) {
+                    foreach ($participantProgram->discounts as $discount) {
+                        if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
+                            $discounts += $basePrice;
+                        } elseif ($discount->percent) {
+                            $discounts += ($basePrice * $discount->percent / 100);
+                        } elseif ($discount->amount) {
+                            $discounts += $discount->amount;
+                        }
+                    }
+                }
+
                 $finalPrice = max(0, $basePrice + $adjustments - $discounts);
 
                 // Calcular cuotas y monto pagado
@@ -213,6 +233,7 @@ class ProgramService
                     'participant_balance' => $participantBalance,
                     'participant_amount' => $basePrice,
                     'participant_adjustments' => $adjustments,
+                    'participant_discounts' => $discounts,
                     'total_installments' => $totalInstallments,
                     'paid_installments' => $paidInstallments,
                     'installments_summary' => $installmentsSummary,

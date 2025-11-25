@@ -70,10 +70,12 @@
               >
                 Ver Programas Inscritos
               </button>
-              <button v-if="participant.can_pay" class="flex-1 min-w-[200px] bg-[#007E93] hover:bg-[#005a6b] text-white font-bold py-3 px-5 rounded-full transition-all hover:shadow-lg">
+              <!-- Oculto temporalmente - funcionalidad pendiente -->
+              <button v-if="false && participant.can_pay" class="flex-1 min-w-[200px] bg-[#007E93] hover:bg-[#005a6b] text-white font-bold py-3 px-5 rounded-full transition-all hover:shadow-lg">
                 Gestionar Pagos
               </button>
-              <button v-if="participant.can_view_documents" class="flex-1 min-w-[200px] bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-full transition-all hover:shadow-lg">
+              <!-- Oculto temporalmente - funcionalidad pendiente -->
+              <button v-if="false && participant.can_view_documents" class="flex-1 min-w-[200px] bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-full transition-all hover:shadow-lg">
                 Ver Documentos
               </button>
             </div>

@@ -5,6 +5,7 @@ namespace App\Services\Client\Guardian;
 use App\Models\EmergencyContact;
 use App\Models\GuardianUser;
 use App\Models\Participant;
+use App\Models\ParticipantProgram;
 use App\Models\ProgramCourse;
 use App\Models\ProgramSubscription;
 use App\Models\InstallmentPlan;
@@ -106,6 +107,31 @@ class GuardianParticipantService
                 // Obtener el pivot del participante con este curso
                 $pivot = $course->participants()->where('participant_id', $participant->id)->first()?->pivot;
 
+                // Calcular precio con descuentos
+                $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
+                $adjustments = $pivot?->price_adjustments ?? 0;
+
+                // Obtener descuentos desde participant_program_discounts
+                $discountAmount = 0;
+                $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->with('discounts')
+                    ->first();
+
+                if ($participantProgram && $participantProgram->discounts) {
+                    foreach ($participantProgram->discounts as $discount) {
+                        if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
+                            $discountAmount += $basePrice;
+                        } elseif ($discount->percent) {
+                            $discountAmount += ($basePrice * $discount->percent / 100);
+                        } elseif ($discount->amount) {
+                            $discountAmount += $discount->amount;
+                        }
+                    }
+                }
+
+                $finalPrice = max(0, $basePrice + $adjustments - $discountAmount);
+
                 // Obtener primera imagen del programa si existe
                 $images = $program->images;
                 $firstImage = !empty($images) ? $images[0]['url'] : null;
@@ -118,7 +144,9 @@ class GuardianParticipantService
                     'departure_date' => $programCourse->departure_date, // Del plan específico
                     'end_date' => null,
                     'location' => $program->destination,
-                    'price' => $pivot?->individual_price ?? $programCourse->trip_price,
+                    'price' => $finalPrice,
+                    'base_price' => $basePrice,
+                    'discount_amount' => $discountAmount,
                     'status' => $pivot?->status ?? 'active',
                     'enrollment_code' => $pivot?->enrollment_code,
                     'image' => $firstImage,
@@ -152,7 +180,27 @@ class GuardianParticipantService
 
         $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
         $adjustments = $pivot?->price_adjustments ?? 0;
-        $finalPrice = max(0, $basePrice + $adjustments);
+
+        // Obtener descuentos desde participant_program_discounts
+        $discountAmount = 0;
+        $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->with('discounts')
+            ->first();
+
+        if ($participantProgram && $participantProgram->discounts) {
+            foreach ($participantProgram->discounts as $discount) {
+                if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
+                    $discountAmount += $basePrice;
+                } elseif ($discount->percent) {
+                    $discountAmount += ($basePrice * $discount->percent / 100);
+                } elseif ($discount->amount) {
+                    $discountAmount += $discount->amount;
+                }
+            }
+        }
+
+        $finalPrice = max(0, $basePrice + $adjustments - $discountAmount);
 
         // Obtener la suscripción activa si existe
         $subscription = ProgramSubscription::where('participant_id', $participant->id)
@@ -210,6 +258,7 @@ class GuardianParticipantService
             'price' => $finalPrice,
             'base_price' => $basePrice,
             'adjustments' => $adjustments,
+            'discount_amount' => $discountAmount,
             'image' => $firstImage,
             'images' => $images,
             // Información de suscripción

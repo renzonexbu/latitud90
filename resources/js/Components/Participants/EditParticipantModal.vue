@@ -472,8 +472,8 @@
                     </div>
                 </div>
 
-                <!-- Reestructuración de Cuotas -->
-                <div class="mb-6">
+                <!-- Reestructuración de Cuotas (Oculto temporalmente - funcionalidad no utilizada) -->
+                <div v-if="false" class="mb-6">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-[18px] font-nexa-bold text-turquesa">
                             Reestructuración de Cuotas

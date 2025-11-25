@@ -60,10 +60,13 @@ class UpdateParticipantService
                 $course = Course::find((int) $data['pivot_course_id']);
 
                 if ($course) {
-                    // VALIDACIÓN: Verificar si hay suscripción activa antes de permitir cambios de precio
-                    if (array_key_exists('individual_price', $data) || array_key_exists('price_adjustments', $data)) {
+                    // Obtener el program_course desde el curso para validaciones y descuentos
+                    $programCourse = $course->programCourses()->first();
+
+                    // VALIDACIÓN: Verificar si hay suscripción activa antes de permitir cambios de precio/descuentos
+                    if ($programCourse && (array_key_exists('individual_price', $data) || array_key_exists('price_adjustments', $data) || !empty($data['discounts']))) {
                         $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
-                            ->where('program_id', (int) $data['pivot_course_id'])
+                            ->where('program_id', $programCourse->id)
                             ->where('status', 'ACTIVA')
                             ->first();
 
@@ -85,6 +88,41 @@ class UpdateParticipantService
                             'price_adjustments' => $data['price_adjustments'],
                             'adjustment_reason' => $data['adjustment_reason'] ?? null
                         ]);
+                    }
+
+                    // Procesar descuentos si se proporcionan
+                    if (!empty($data['discounts']) && $programCourse) {
+                        // Buscar el participant_program usando program_course_id (almacenado en program_id)
+                        $participantProgram = DB::table('participant_program')
+                            ->where('participant_id', $participant->id)
+                            ->where('program_id', $programCourse->id)
+                            ->first();
+
+                        // Si no existe, crearlo
+                        if (!$participantProgram) {
+                            $participantProgramId = DB::table('participant_program')->insertGetId([
+                                'participant_id' => $participant->id,
+                                'program_id' => $programCourse->id,
+                                'status' => 'pending_payment',
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+
+                            Log::info('UpdateParticipantService: Creado participant_program', [
+                                'participant_id' => $participant->id,
+                                'program_course_id' => $programCourse->id,
+                                'participant_program_id' => $participantProgramId
+                            ]);
+
+                            $participantProgram = (object) ['id' => $participantProgramId];
+                        }
+
+                        Log::info('UpdateParticipantService: Procesando descuentos', [
+                            'participant_id' => $participant->id,
+                            'program_course_id' => $programCourse->id,
+                            'participant_program_id' => $participantProgram->id
+                        ]);
+                        $this->processDiscounts($participantProgram->id, $data['discounts']);
                     }
                 }
             }
@@ -116,8 +154,7 @@ class UpdateParticipantService
 
     /**
      * Procesa los descuentos para un participant_program
-     * DEPRECATED: Este método ya no se usa con la nueva estructura de base de datos
-     * Los descuentos ahora se manejan directamente en el pivot participant_course
+     * Los descuentos se guardan en la tabla participant_program_discounts
      *
      * @param int $participantProgramId
      * @param string $discountsJson

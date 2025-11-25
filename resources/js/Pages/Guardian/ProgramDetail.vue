@@ -164,9 +164,9 @@
                 <span
                   class="px-4 py-2 rounded-full text-sm font-semibold"
                   :class="{
-                    'bg-green-100 text-green-800': installment.is_paid,
-                    'bg-yellow-100 text-yellow-800': !installment.is_paid && isUpcoming(installment.due_date),
-                    'bg-red-100 text-red-800': !installment.is_paid && isPastDue(installment.due_date)
+                    'bg-green-100 text-green-800': isInstallmentPaid(installment),
+                    'bg-yellow-100 text-yellow-800': !isInstallmentPaid(installment) && isUpcoming(installment.due_date),
+                    'bg-red-100 text-red-800': !isInstallmentPaid(installment) && isPastDue(installment.due_date)
                   }"
                 >
                   {{ getInstallmentStatusLabel(installment) }}
@@ -239,8 +239,13 @@ const isPastDue = (dueDate) => {
   return due < today
 }
 
+// Verificar si una cuota está pagada por cualquier indicador
+const isInstallmentPaid = (installment) => {
+  return installment.is_paid || installment.status === 'paid' || !!installment.paid_at
+}
+
 const getInstallmentStatusLabel = (installment) => {
-  if (installment.is_paid) {
+  if (isInstallmentPaid(installment)) {
     return 'Pagado'
   }
   if (isPastDue(installment.due_date)) {

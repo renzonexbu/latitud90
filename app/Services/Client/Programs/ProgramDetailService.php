@@ -5,6 +5,7 @@ namespace App\Services\Client\Programs;
 use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Participant;
+use App\Models\ParticipantProgram;
 use App\Models\Institution;
 use App\Models\Course;
 use App\Models\Feature;
@@ -48,6 +49,7 @@ class ProgramDetailService
         $isEnrolled = false;
         $participantAmount = null;
         $participantAdjustments = 0.0;
+        $participantDiscounts = 0.0;
         $participantTotalAmount = (float) $programCourse->trip_price;
         $paidAmount = 0.0;
         $participantBalance = (float) $programCourse->trip_price;
@@ -62,8 +64,26 @@ class ProgramDetailService
                 // Calcular precio usando la nueva arquitectura (igual que ProgramService)
                 $basePrice = $pivotParticipant->pivot->individual_price ?? $programCourse->trip_price ?? 0;
                 $adjustments = $pivotParticipant->pivot->price_adjustments ?? 0;
-                $discounts = 0; // Por ahora no hay descuentos (participant_program ya no se usa)
-                $finalPrice = max(0, $basePrice + $adjustments - $discounts);
+
+                // Obtener descuentos desde participant_program_discounts
+                $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->with('discounts')
+                    ->first();
+
+                if ($participantProgram && $participantProgram->discounts) {
+                    foreach ($participantProgram->discounts as $discount) {
+                        if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
+                            $participantDiscounts += $basePrice;
+                        } elseif ($discount->percent) {
+                            $participantDiscounts += ($basePrice * $discount->percent / 100);
+                        } elseif ($discount->amount) {
+                            $participantDiscounts += $discount->amount;
+                        }
+                    }
+                }
+
+                $finalPrice = max(0, $basePrice + $adjustments - $participantDiscounts);
 
                 $participantAmount = $basePrice;
                 $participantAdjustments = $adjustments;
@@ -212,6 +232,7 @@ class ProgramDetailService
             // Montos por participante
             'participant_amount' => $participantAmount,
             'participant_adjustments' => $participantAdjustments,
+            'participant_discounts' => $participantDiscounts,
             'participant_total_due' => $participantTotalAmount,
             'paidAmount' => $paidAmount,
             'participant_balance' => $participantBalance,

@@ -29,16 +29,16 @@ class GetEditDataService
                 'emergencyContacts'
             ]);
 
-            // Ya no se usa participant_program, ahora los datos están en el pivot participant_course
-            $participantPrograms = collect();
-
             // Obtener datos de programas del participante con precios calculados
-            $participantProgramsData = $this->getParticipantProgramsData($participant, $participantPrograms);
+            $participantProgramsData = $this->getParticipantProgramsData($participant);
+
+            // Obtener participant_programs con descuentos para cada program_course
+            $participantProgramsWithDiscounts = $this->getParticipantProgramsWithDiscounts($participant);
 
             return [
                 'participant' => $participant,
                 'participantPrograms' => $participantProgramsData,
-                'participantProgramsWithDiscounts' => collect(), // Ya no se usa participant_program
+                'participantProgramsWithDiscounts' => $participantProgramsWithDiscounts,
             ];
         } catch (\Exception $e) {
             Log::error('Error al obtener datos para editar participante', [
@@ -52,13 +52,47 @@ class GetEditDataService
     }
 
     /**
+     * Obtener participant_programs con descuentos para cada program_course
+     *
+     * @param Participant $participant
+     * @return \Illuminate\Support\Collection
+     */
+    private function getParticipantProgramsWithDiscounts(Participant $participant)
+    {
+        // Obtener todos los participant_program del participante con sus descuentos
+        $participantPrograms = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+            ->with(['discounts'])
+            ->get();
+
+        return $participantPrograms->map(function ($pp) {
+            return [
+                'id' => $pp->id,
+                'participant_id' => $pp->participant_id,
+                'program_id' => $pp->program_id, // Este es el program_course_id
+                'status' => $pp->status,
+                'enrollment_code' => $pp->enrollment_code,
+                'discounts' => $pp->discounts->map(function ($discount) {
+                    return [
+                        'id' => $discount->id,
+                        'percent' => $discount->percent,
+                        'amount' => $discount->amount,
+                        'discount_type' => $discount->discount_type,
+                        'comment' => $discount->comment,
+                        'approved_by' => $discount->approved_by,
+                    ];
+                }),
+                'installment_plan' => null, // Se puede agregar si es necesario
+            ];
+        });
+    }
+
+    /**
      * Obtener datos de programas del participante con precios calculados
      *
      * @param Participant $participant
-     * @param \Illuminate\Support\Collection $participantPrograms
      * @return \Illuminate\Support\Collection
      */
-    private function getParticipantProgramsData(Participant $participant, $participantPrograms)
+    private function getParticipantProgramsData(Participant $participant)
     {
         // Obtener todos los enrollment_codes cancelados para este participante
         $cancelledEnrollmentCodes = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
@@ -90,8 +124,27 @@ class GetEditDataService
                     // 2. Obtener ajustes del pivot
                     $adjustments = $pivot?->price_adjustments ?? 0;
 
-                    // 3. Por ahora no hay descuentos (el sistema antiguo participant_program ya no se usa)
+                    // 3. Obtener descuentos desde participant_program_discounts
                     $discounts = 0;
+                    $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                        ->where('program_id', $programCourse->id)
+                        ->with('discounts')
+                        ->first();
+
+                    if ($participantProgram && $participantProgram->discounts) {
+                        foreach ($participantProgram->discounts as $discount) {
+                            if ($discount->discount_type === 'released' || $discount->percent >= 100) {
+                                // Liberado = 100% del precio base
+                                $discounts += $basePrice;
+                            } elseif ($discount->percent) {
+                                // Descuento porcentual
+                                $discounts += ($basePrice * $discount->percent / 100);
+                            } elseif ($discount->amount) {
+                                // Descuento de monto fijo
+                                $discounts += $discount->amount;
+                            }
+                        }
+                    }
 
                     // 4. Calcular precio final
                     $finalPrice = max(0, $basePrice + $adjustments - $discounts);
