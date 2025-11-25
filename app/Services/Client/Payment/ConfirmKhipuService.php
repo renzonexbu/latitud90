@@ -5,6 +5,7 @@ namespace App\Services\Client\Payment;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\KhipuService;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -89,7 +90,8 @@ class ConfirmKhipuService
                         'status' => 'pending',
                         'buy_order' => $orderDetail->order_id . '-' . $orderDetail->installment_number,
                         'external_payment_id' => $paymentId,
-                        'transaction_date' => now('America/Santiago'), // Establecer fecha de transacción
+                        'transaction_date' => now('America/Santiago'),
+                        'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
                     ]);
                 } else {
                     // Actualizar el external_payment_id y transaction_date si no los tienen

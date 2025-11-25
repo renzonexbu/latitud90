@@ -15,6 +15,7 @@ use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
 use App\Helpers\ParticipantPriceHelper;
 use App\Helpers\RutHelper;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use App\Services\Subscription\SubscriptionRecalculationService;
 use Illuminate\Support\Facades\DB;
@@ -375,6 +376,7 @@ class CreateParticularPaymentService
                 ]
             ],
             'currency' => 'CLP',
+            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($order->program_id),
         ]);
     }
 

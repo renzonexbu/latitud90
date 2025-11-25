@@ -752,6 +752,14 @@ class ReportController extends Controller
             if ($dateTo) $filters['dateTo'] = $dateTo;
             if ($programId) $filters['programId'] = $programId;
 
+            Log::info('exportSoftlandZip: Filtros recibidos', [
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'programId' => $programId,
+                'filters' => $filters,
+                'all_request' => $request->all()
+            ]);
+
             // Limpiar archivos antiguos
             $this->softlandZipExporter->cleanupOldFiles();
 

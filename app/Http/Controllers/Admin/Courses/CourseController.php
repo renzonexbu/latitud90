@@ -89,8 +89,8 @@ class CourseController extends Controller
 
     public function edit(Course $course, Request $request)
     {
-        // Load course with necessary relationships
-        $course->load(['institution', 'programCourses.program']);
+        // Load course with necessary relationships, including paymentOptions
+        $course->load(['institution', 'programCourses.program', 'programCourses.paymentOptions']);
 
         return Inertia::render('Admin/Courses/Edit', [
             'course' => $course,

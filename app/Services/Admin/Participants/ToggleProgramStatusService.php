@@ -40,6 +40,18 @@ class ToggleProgramStatusService
                 throw new Exception('La relación entre el participante y el programa no existe.');
             }
 
+            // VALIDACIÓN: Verificar si hay suscripción activa antes de permitir cancelación
+            if ($participantProgram->status !== 'cancelled') {
+                $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participantId)
+                    ->where('program_id', $programCourseId)
+                    ->where('status', 'ACTIVA')
+                    ->first();
+
+                if ($activeSubscription) {
+                    throw new Exception('No se puede cancelar este programa porque el participante tiene una suscripción activa. Primero debe cancelar la suscripción.');
+                }
+            }
+
             // Toggle entre pending_payment y cancelled
             $newStatus = $participantProgram->status === 'cancelled' ? 'pending_payment' : 'cancelled';
             $previousStatus = $participantProgram->status;

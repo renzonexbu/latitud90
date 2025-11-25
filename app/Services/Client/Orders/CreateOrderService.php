@@ -78,7 +78,7 @@ class CreateOrderService
             }
 
             // Crear la orden principal
-            $order = Order::create([
+            $orderData = [
                 'participant_id' => $participant->id,
                 'program_id' => $programCourse->id, // program_id en orders apunta a program_courses
                 'total_amount' => $participantTotalAmount,
@@ -90,7 +90,11 @@ class CreateOrderService
                 'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
                 'session_id' => $paymentData['session_id'] ?? null,
                 'notes' => 'Orden creada desde el flujo de pago'
-            ]);
+            ];
+
+            \Log::info('=== CREATING ORDER ===', $orderData);
+
+            $order = Order::create($orderData);
 
             // Crear cuotas según tipo de pago
             if ($paymentData['paymentType'] === 'monthly' && $totalInstallments > 1) {
@@ -306,10 +310,18 @@ class CreateOrderService
         $cityId = $this->resolveCityId($mappedFormData['city'] ?? null);
         $documentTypeId = $this->resolveDocumentTypeId($mappedFormData['document_type'] ?? null);
 
-        return OrderDetail::create([
+        \Log::info('=== MAPPED FORM DATA FOR ORDER DETAIL ===', [
+            'original_formData' => $formData,
+            'mappedFormData' => $mappedFormData,
+            'name_to_save' => $mappedFormData['name'],
+            'email_to_save' => $mappedFormData['email'],
+            'document_number_to_save' => $mappedFormData['document_number'],
+        ]);
+
+        $orderDetailData = [
             'order_id' => $order->id,
             'payment_option_id' => $paymentOptionId,
-            
+
             // Datos del comprador
             'name' => $mappedFormData['name'],
             'email' => $mappedFormData['email'],
@@ -320,18 +332,18 @@ class CreateOrderService
             'phone' => $mappedFormData['phone'],
             'document_type' => $documentTypeId,
             'document_number' => $mappedFormData['document_number'],
-            
+
             // Dirección de facturación (por ahora usando los mismos datos)
             'billing_address' => $formData['billing_address'] ?? null,
             'billing_city' => $mappedFormData['city_name'] ?? $mappedFormData['city'],
             'billing_country' => $mappedFormData['country_name'] ?? $mappedFormData['country'],
             'billing_postal_code' => $formData['billing_postal_code'] ?? null,
-            
+
             // Acuerdos
             'terms_accepted' => $mappedFormData['terms_accepted'],
             'marketing_accepted' => $mappedFormData['marketing_accepted'],
             'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
-            
+
             // Información de la cuota
             'installment_number' => $installmentNumber,
             'base_amount' => $amount,
@@ -340,7 +352,11 @@ class CreateOrderService
             'due_date' => $dueDate ?? now(),
             'is_paid' => false,
             'status' => 'pending',
-        ]);
+        ];
+
+        \Log::info('=== CREATING ORDER DETAIL ===', $orderDetailData);
+
+        return OrderDetail::create($orderDetailData);
     }
 
     private function updateExistingOrderDetail(OrderDetail $orderDetail, array $paymentData, array $formData)
@@ -456,15 +472,28 @@ class CreateOrderService
 
         if (!$code) { return null; }
 
-        // Validar que el programa tenga esta opción habilitada (pivot)
+        // Buscar el ID de la opción de pago por código
         $optionId = DB::table('payment_options')->where('code', $code)->value('id');
         if (!$optionId) { return null; }
-        $enabled = DB::table('program_payment_option')
-            ->where('program_id', $programId)
-            ->where('payment_option_id', $optionId)
-            ->where('enabled', true)
+
+        // Verificar si hay configuración de pivot para este program_course
+        $pivotExists = DB::table('program_course_payment_option')
+            ->where('program_course_id', $programId)
             ->exists();
-        return $enabled ? (int)$optionId : null;
+
+        // Si hay registros en el pivot, validar que esté habilitado
+        // Si no hay registros en el pivot, permitir la opción (modo legacy)
+        if ($pivotExists) {
+            $enabled = DB::table('program_course_payment_option')
+                ->where('program_course_id', $programId)
+                ->where('payment_option_id', $optionId)
+                ->where('enabled', true)
+                ->exists();
+            return $enabled ? (int)$optionId : null;
+        }
+
+        // Modo legacy: sin configuración de pivot, permitir cualquier opción
+        return (int)$optionId;
     }
 
     // Eliminado: generación local de número de orden. Usar OrderNumberGenerator central.

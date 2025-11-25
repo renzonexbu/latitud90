@@ -11,6 +11,7 @@ use App\Models\PaymentGateway;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
+use App\Helpers\PaymentDocumentTypeHelper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -140,15 +141,24 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $this->updateSubscriptionStatus($subscription, $virtualPosData);
 
         // Obtener charges actuales vs guardados
-        $currentCharges = $virtualPosData['charge_program'] ?? [];
+        // NOTA: VirtualPOS devuelve los datos bajo la clave 'suscription'
+        $subscriptionData = $virtualPosData['suscription'] ?? $virtualPosData;
+        $currentCharges = $subscriptionData['charge_program'] ?? [];
         $savedCharges = $subscription->charge_program ?? [];
+
+        Log::info('SyncSubscriptionPayments: Charges recibidos de VirtualPOS', [
+            'subscription_id' => $subscription->id,
+            'total_charges' => count($currentCharges),
+            'charges' => $currentCharges
+        ]);
 
         // Detectar nuevos pagos
         $newPayments = $this->detectNewPayments($currentCharges, $savedCharges);
 
         Log::info('SyncSubscriptionPayments: Nuevos pagos detectados', [
             'subscription_id' => $subscription->id,
-            'count' => count($newPayments)
+            'count' => count($newPayments),
+            'payments' => $newPayments
         ]);
 
         // Procesar cada nuevo pago
@@ -197,7 +207,9 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      */
     protected function updateSubscriptionStatus(ProgramSubscription $subscription, array $virtualPosData): void
     {
-        $virtualPosStatus = $virtualPosData['status'] ?? $subscription->status;
+        // VirtualPOS devuelve los datos bajo la clave 'suscription'
+        $subscriptionData = $virtualPosData['suscription'] ?? $virtualPosData;
+        $virtualPosStatus = $subscriptionData['status'] ?? $subscription->status;
         $newStatus = $this->mapVirtualPosStatus($virtualPosStatus);
 
         if ($newStatus !== $subscription->status) {
@@ -209,6 +221,11 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             ]);
 
             $subscription->update(['status' => $newStatus]);
+        }
+
+        // También actualizar el charge_program guardado
+        if (isset($subscriptionData['charge_program'])) {
+            $subscription->update(['charge_program' => $subscriptionData['charge_program']]);
         }
     }
 
@@ -239,22 +256,13 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     /**
      * Detectar nuevos pagos comparando charges actuales vs guardados
      *
-     * @return array Charges que ahora están pagados y no lo estaban antes
+     * @return array Charges que están pagados pero no tienen Payment en BD
      */
     protected function detectNewPayments(array $currentCharges, array $savedCharges): array
     {
         $newPayments = [];
 
-        // Crear mapa de charges guardados para fácil búsqueda
-        $savedChargesMap = [];
-        foreach ($savedCharges as $savedCharge) {
-            $chargeId = $savedCharge['id'] ?? null;
-            if ($chargeId) {
-                $savedChargesMap[$chargeId] = $savedCharge;
-            }
-        }
-
-        // Buscar charges que cambiaron a pagado
+        // Buscar charges que están pagados en VirtualPOS
         foreach ($currentCharges as $currentCharge) {
             $chargeId = $currentCharge['id'] ?? null;
             $currentStatus = strtolower($currentCharge['status'] ?? '');
@@ -263,25 +271,18 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 continue;
             }
 
-            // Verificar si es un pago nuevo
-            $isNewPayment = false;
-
-            if (!isset($savedChargesMap[$chargeId])) {
-                // Charge completamente nuevo que ya viene pagado
-                $isNewPayment = true;
-            } else {
-                // Charge existente que cambió de estado
-                $savedStatus = strtolower($savedChargesMap[$chargeId]['status'] ?? '');
-                if ($savedStatus !== 'pagado') {
-                    $isNewPayment = true;
-                }
-            }
-
-            if ($isNewPayment) {
-                // Verificar que no esté ya registrado en la BD
-                if (!$this->isChargeAlreadyProcessed($chargeId)) {
-                    $newPayments[] = $currentCharge;
-                }
+            // LÓGICA CORREGIDA: Si el charge está pagado en VirtualPOS pero NO existe
+            // en nuestra BD, entonces es un pago nuevo que debemos procesar.
+            // No importa si ya estaba pagado en el charge_program guardado anteriormente,
+            // lo importante es si tenemos el Payment registrado en la BD.
+            if (!$this->isChargeAlreadyProcessed($chargeId)) {
+                Log::info('SyncSubscriptionPayments: Pago nuevo detectado', [
+                    'charge_id' => $chargeId,
+                    'amount' => $currentCharge['amount'] ?? 0,
+                    'charge_date' => $currentCharge['charge_date'] ?? null,
+                    'status' => $currentStatus
+                ]);
+                $newPayments[] = $currentCharge;
             }
         }
 
@@ -318,7 +319,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
 
             // 3. Crear OrderDetail para este pago
-            $orderDetail = $this->createOrderDetail($order, $charge, $installmentNumber);
+            $orderDetail = $this->createOrderDetail($order, $charge, $installmentNumber, $subscription);
 
             // 4. Crear Payment
             $payment = $this->createPayment($orderDetail, $charge, $subscription);
@@ -354,23 +355,43 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         // Buscar orden existente para esta suscripción
         $order = Order::where('participant_id', $subscription->participant_id)
             ->where('program_id', $subscription->program_id)
-            ->whereIn('status', ['pending', 'paid', 'partial'])
+            ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
             ->first();
 
         if (!$order) {
-            // Crear nueva orden
+            // Obtener el participant_program_id si existe
+            $participantProgram = DB::table('participant_program')
+                ->where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->first();
+
+            // Obtener course_id desde el program_course
+            $programCourse = $subscription->programCourse;
+            $courseId = $programCourse ? $programCourse->course_id : null;
+
+            // Crear nueva orden con todos los campos requeridos
             $order = Order::create([
                 'participant_id' => $subscription->participant_id,
                 'program_id' => $subscription->program_id,
+                'course_id' => $courseId,
+                'participant_program_id' => $participantProgram ? $participantProgram->id : null,
+                'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
+                'session_id' => $subscription->virtualpos_subscription_id, // Usar subscription ID de VirtualPos
                 'total_amount' => 0, // Se actualizará con cada pago
-                'status' => 'partial',
-                'payment_type' => 'subscription',
+                'discount' => 0,
+                'final_amount' => $subscription->total_amount, // Monto total de la suscripción
+                'total_installments' => $subscription->installments,
+                'payment_type' => 'monthly', // Usar 'monthly' igual que en SubscriptionController
+                'status' => 'pending',
+                'notes' => 'Orden de suscripción VirtualPOS - ' . $subscription->installments . ' cuotas',
                 'created_at' => now(),
             ]);
 
             Log::info('SyncSubscriptionPayments: Orden creada', [
                 'order_id' => $order->id,
-                'subscription_id' => $subscription->id
+                'order_number' => $order->order_number,
+                'subscription_id' => $subscription->id,
+                'total_installments' => $subscription->installments
             ]);
         }
 
@@ -392,26 +413,174 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     }
 
     /**
-     * Crear OrderDetail para este pago
+     * Crear o actualizar OrderDetail para este pago
      */
-    protected function createOrderDetail(Order $order, array $charge, int $installmentNumber): OrderDetail
+    protected function createOrderDetail(Order $order, array $charge, int $installmentNumber, ProgramSubscription $subscription): OrderDetail
     {
         $amount = $charge['amount'] ?? 0;
 
         // Obtener gateway de VirtualPos
         $gateway = \App\Models\PaymentGateway::where('code', 'virtualpos')->first();
 
-        $orderDetail = OrderDetail::create([
+        // Obtener payment_option_id para suscripción
+        $paymentOption = \App\Models\PaymentOption::where('code', 'lat90_subscription')->first();
+
+        // VERIFICAR SI YA EXISTE UN ORDERDETAIL PARA ESTA CUOTA
+        $existingOrderDetail = OrderDetail::where('order_id', $order->id)
+            ->where('installment_number', $installmentNumber)
+            ->first();
+
+        if ($existingOrderDetail) {
+            // Actualizar OrderDetail existente a pagado
+            Log::info('SyncSubscriptionPayments: OrderDetail existente encontrado, actualizando a paid', [
+                'order_detail_id' => $existingOrderDetail->id,
+                'installment_number' => $installmentNumber
+            ]);
+
+            $existingOrderDetail->update([
+                'status' => 'paid',
+                'is_paid' => true,
+                'paid_at' => now(),
+                'amount' => $amount,
+                'base_amount' => $amount,
+                'payment_gateway_id' => $gateway ? $gateway->id : null,
+                'payment_option_id' => $paymentOption ? $paymentOption->id : null,
+                'due_date' => $charge['charge_date'] ? \Carbon\Carbon::parse($charge['charge_date']) : now(),
+            ]);
+
+            // Actualizar total de la orden
+            $order->increment('total_amount', $amount);
+
+            Log::info('=== UPDATED EXISTING ORDER DETAIL FOR SUBSCRIPTION CHARGE ===', [
+                'order_detail_id' => $existingOrderDetail->id,
+                'installment_number' => $installmentNumber,
+            ]);
+
+            return $existingOrderDetail;
+        }
+
+        // Si no existe, crear nuevo OrderDetail
+        // IMPORTANTE: Usar datos del comprador guardados en la suscripción
+        $buyerData = [];
+        $firstOrderDetail = null;
+
+        // 1. Primero intentar obtener de buyer_data guardado en la suscripción
+        if (!empty($subscription->buyer_data)) {
+            $savedBuyerData = $subscription->buyer_data;
+
+            // Construir nombre completo del comprador
+            $buyerFullName = trim(
+                ($savedBuyerData['first_name'] ?? '') . ' ' .
+                ($savedBuyerData['second_name'] ?? '') . ' ' .
+                ($savedBuyerData['first_last_name'] ?? '') . ' ' .
+                ($savedBuyerData['second_last_name'] ?? '')
+            );
+            $buyerFullName = preg_replace('/\s+/', ' ', $buyerFullName);
+
+            // Normalizar IDs usando métodos auxiliares
+            $buyerData = [
+                'name' => $buyerFullName,
+                'email' => $savedBuyerData['email'],
+                'country' => $this->resolveCountryId($savedBuyerData['country_id'] ?? $savedBuyerData['country'] ?? null),
+                'region' => $this->resolveRegionId($savedBuyerData['region_id'] ?? $savedBuyerData['region'] ?? null),
+                'city' => $this->resolveCityId($savedBuyerData['city_id'] ?? $savedBuyerData['city'] ?? null),
+                'code_phone' => $savedBuyerData['code_phone'] ?? null,
+                'phone' => $savedBuyerData['phone'] ?? null,
+                'document_type' => $this->resolveDocumentTypeId($savedBuyerData['document_type'] ?? null),
+                'document_number' => $savedBuyerData['original_document_number'] ?? $savedBuyerData['document_number'],
+                'billing_address' => null,
+                'billing_country' => $savedBuyerData['country'] ?? 'Chile',
+                'billing_city' => $savedBuyerData['city'] ?? null,
+                'billing_postal_code' => null,
+                'terms_accepted' => true,
+                'marketing_accepted' => false,
+                'terms_accepted_confirmation' => true,
+            ];
+
+            Log::info('SyncSubscriptionPayments: Usando buyer_data de la suscripción', [
+                'subscription_id' => $subscription->id,
+                'buyer_name' => $buyerFullName
+            ]);
+
+        } else {
+            // 2. Fallback: buscar primer OrderDetail si existe (para suscripciones antiguas)
+            $firstOrderDetail = OrderDetail::where('order_id', $order->id)
+                ->orderBy('id', 'asc')
+                ->first();
+
+            if ($firstOrderDetail) {
+                $buyerData = [
+                    'name' => $firstOrderDetail->name,
+                    'email' => $firstOrderDetail->email,
+                    'country' => $firstOrderDetail->country,
+                    'region' => $firstOrderDetail->region,
+                    'city' => $firstOrderDetail->city,
+                    'code_phone' => $firstOrderDetail->code_phone,
+                    'phone' => $firstOrderDetail->phone,
+                    'document_type' => $firstOrderDetail->document_type,
+                    'document_number' => $firstOrderDetail->document_number,
+                    'billing_address' => $firstOrderDetail->billing_address,
+                    'billing_country' => $firstOrderDetail->billing_country,
+                    'billing_city' => $firstOrderDetail->billing_city,
+                    'billing_postal_code' => $firstOrderDetail->billing_postal_code,
+                    'terms_accepted' => $firstOrderDetail->terms_accepted,
+                    'marketing_accepted' => $firstOrderDetail->marketing_accepted,
+                    'terms_accepted_confirmation' => $firstOrderDetail->terms_accepted_confirmation,
+                ];
+
+                Log::info('SyncSubscriptionPayments: Usando datos del primer OrderDetail (suscripción antigua)', [
+                    'subscription_id' => $subscription->id,
+                    'order_detail_id' => $firstOrderDetail->id
+                ]);
+
+            } else {
+                // 3. Último fallback: datos del participante
+                Log::warning('SyncSubscriptionPayments: No hay buyer_data ni OrderDetail, usando datos del participante', [
+                    'subscription_id' => $subscription->id,
+                    'order_id' => $order->id
+                ]);
+
+                $participant = $order->participant;
+                if ($participant) {
+                    $buyerData = [
+                        'name' => $participant->full_name,
+                        'email' => $participant->email,
+                        'country' => $participant->country ?? null,
+                        'region' => null,
+                        'city' => null,
+                        'code_phone' => $participant->code_phone ?? null,
+                        'phone' => $participant->phone ?? null,
+                        'document_type' => \App\Models\Document::where('name', 'RUT')->value('id'),
+                        'document_number' => $participant->document_number,
+                        'billing_address' => null,
+                        'billing_country' => $participant->country ?? 'Chile',
+                        'billing_city' => null,
+                        'billing_postal_code' => null,
+                        'terms_accepted' => true,
+                        'marketing_accepted' => false,
+                        'terms_accepted_confirmation' => true,
+                    ];
+                }
+            }
+        }
+
+        $orderDetail = OrderDetail::create(array_merge([
             'order_id' => $order->id,
+            'payment_option_id' => $paymentOption ? $paymentOption->id : null,
+            'payment_gateway_id' => $gateway ? $gateway->id : null,
             'base_amount' => $amount,
             'discount_amount' => 0,
             'amount' => $amount,
             'installment_number' => $installmentNumber,
-            'installments_number' => $this->getTotalInstallments($charge['description'] ?? ''),
             'status' => 'paid',
             'is_paid' => true,
             'paid_at' => now(),
-            'payment_gateway_id' => $gateway ? $gateway->id : null,
+            'due_date' => $charge['charge_date'] ? \Carbon\Carbon::parse($charge['charge_date']) : now(),
+        ], $buyerData));
+
+        Log::info('=== CREATING ORDER DETAIL FOR SUBSCRIPTION CHARGE ===', [
+            'order_detail_data' => $orderDetail->toArray(),
+            'copied_from_first_detail' => $firstOrderDetail ? true : false,
         ]);
 
         // Actualizar total de la orden
@@ -441,24 +610,52 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         // Obtener gateway de VirtualPos
         $gateway = PaymentGateway::where('code', 'virtualpos')->first();
 
+        // Obtener payment_option_id para suscripción
+        $paymentOption = \App\Models\PaymentOption::where('code', 'lat90_subscription')->first();
+
         $paymentData = $charge['payment'] ?? [];
 
-        $payment = Payment::create([
+        // Obtener datos de pago desde el charge y la suscripción
+        $paymentMethod = $subscription->payment_method ?? [];
+        $cardBrand = $paymentData['card_type'] ?? ($paymentMethod['brand'] ?? null);
+        $cardLast4 = $paymentData['card_number'] ?? ($paymentMethod['last4'] ?? null);
+
+        $paymentRecord = [
             'order_id' => $orderDetail->order_id,
             'order_detail_id' => $orderDetail->id,
             'payment_gateway_id' => $gateway ? $gateway->id : null,
+            'payment_option_id' => $paymentOption ? $paymentOption->id : null,
             'external_payment_id' => $charge['id'],
+            'buy_order' => $subscription->virtualpos_subscription_id ?? null, // Usar subscription ID como buy_order
+            'session_id' => null, // No aplica para suscripciones recurrentes
+            'token' => $paymentData['token'] ?? $charge['id'], // Usar charge ID como token
             'status' => 'completed',
             'amount' => $charge['amount'] ?? 0,
-            'installments_number' => $paymentData['installment_number'] ?? 1,
+            'currency' => 'CLP',
+            'installments_number' => $paymentData['installments_number'] ?? ($paymentData['installment_number'] ?? 1),
             'installment_amount' => $paymentData['installment_amount'] ?? ($charge['amount'] ?? 0),
             'transaction_date' => $this->parseTransactionDate($charge),
-            'authorization_code' => $paymentData['auth_code'] ?? null,
-            'card_type' => $subscription->payment_method['brand'] ?? null,
-            'card_number' => $paymentData['card_number'] ?? null,
-            'gateway_response' => json_encode($charge),
+            'accounting_date' => $this->parseTransactionDate($charge),
+            'authorization_code' => $paymentData['auth_code'] ?? ($paymentData['authorization_code'] ?? null),
+            'response_code' => $paymentData['response_code'] ?? '0', // 0 = aprobado
+            'vci' => $paymentData['vci'] ?? null,
+            'card_type' => $cardBrand,
+            'card_number' => $cardLast4,
+            'commerce_code' => config('services.virtualpos.commerce_code') ?? null,
+            'gateway_response' => $charge, // Array, se casteará automáticamente
+            'raw_notification' => $charge, // Array, se casteará automáticamente
             'email_sent' => false,
+            'balance' => 0, // Sin balance pendiente ya que es pago completo
+            'document_type' => \App\Helpers\PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+        ];
+
+        Log::info('=== CREATING PAYMENT FOR SUBSCRIPTION CHARGE ===', [
+            'payment_data' => $paymentRecord,
+            'charge_id' => $charge['id'],
+            'subscription_id' => $subscription->id,
         ]);
+
+        $payment = Payment::create($paymentRecord);
 
         return $payment;
     }
@@ -757,5 +954,59 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
         // Fallback: retornar URL genérica al portal
         return route('guardian.dashboard');
+    }
+
+    /**
+     * Métodos auxiliares para resolver IDs de ubicaciones y documentos
+     */
+    protected function resolveCountryId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        // Probar por código (CL, etc.)
+        if (strlen($string) <= 3) {
+            $id = \App\Models\Country::where('code', $string)->value('id');
+            if ($id) { return (int) $id; }
+        }
+        // Fallback por nombre exacto
+        $id = \App\Models\Country::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        // Fallback por like
+        $id = \App\Models\Country::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    protected function resolveRegionId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Region::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Region::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    protected function resolveCityId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Comune::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Comune::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    protected function resolveDocumentTypeId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Document::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Document::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
     }
 }

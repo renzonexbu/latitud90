@@ -7,6 +7,7 @@ use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
 use App\Models\PaymentOption;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use App\Helpers\RutHelper;
 use Illuminate\Http\Request;
@@ -212,6 +213,7 @@ class StorePaymentService
                 ]
             ],
             'currency' => 'CLP',
+            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($order->program_id),
         ]);
     }
 

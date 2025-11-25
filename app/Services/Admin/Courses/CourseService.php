@@ -87,7 +87,10 @@ class CourseService
 
             $programCourse->save();
 
-            // 4. Crear registros en participant_program para cada participante del curso
+            // 4. Sincronizar opciones de pago
+            $this->syncPaymentOptions($programCourse, $data);
+
+            // 5. Crear registros en participant_program para cada participante del curso
             $this->createParticipantProgramRecords($course, $programCourse);
 
             // 5. Crear plan en VirtualPos si el pago por suscripción está habilitado
@@ -359,6 +362,9 @@ class CourseService
             $programCourse->name = $this->generateProgramCourseName($institution, $course, $program, $data);
             $programCourse->save();
 
+            // Sincronizar opciones de pago
+            $this->syncPaymentOptions($programCourse, $data);
+
             // Manejar plan de VirtualPos
             if ($data['enable_subscription_payment'] && $data['subscription_max_months'] > 0) {
                 if ($programCourse->virtualpos_plan_id) {
@@ -468,6 +474,9 @@ class CourseService
         // Generar nombre del plan
         $programCourse->name = $this->generateProgramCourseName($institution, $course, $program, $data);
         $programCourse->save();
+
+        // Sincronizar opciones de pago
+        $this->syncPaymentOptions($programCourse, $data);
 
         // Crear plan en VirtualPos si está habilitado
         if ($programCourse->enable_subscription_payment && $programCourse->subscription_max_months > 0) {
@@ -1172,6 +1181,68 @@ class CourseService
                 'trace' => $e->getTraceAsString(),
             ]);
             // No lanzar excepción para no interrumpir la creación del curso
+        }
+    }
+
+    /**
+     * Sincronizar opciones de pago para el curso
+     */
+    private function syncPaymentOptions(ProgramCourse $programCourse, array $data): void
+    {
+        try {
+            // Obtener todas las opciones de pago seleccionadas
+            $selectedPaymentOptions = [];
+
+            // Opciones de pago total
+            if (!empty($data['full_payment_options']) && is_array($data['full_payment_options'])) {
+                $selectedPaymentOptions = array_merge($selectedPaymentOptions, $data['full_payment_options']);
+            }
+
+            // Opciones de suscripción
+            if (!empty($data['subscription_payment_options']) && is_array($data['subscription_payment_options'])) {
+                $selectedPaymentOptions = array_merge($selectedPaymentOptions, $data['subscription_payment_options']);
+            }
+
+            Log::info('Sincronizando opciones de pago para ProgramCourse', [
+                'program_course_id' => $programCourse->id,
+                'selected_options' => $selectedPaymentOptions,
+            ]);
+
+            if (empty($selectedPaymentOptions)) {
+                // Si no hay opciones seleccionadas, remover todas las existentes
+                $programCourse->paymentOptions()->detach();
+                Log::info('No hay opciones de pago seleccionadas, se eliminaron todas las existentes', [
+                    'program_course_id' => $programCourse->id,
+                ]);
+                return;
+            }
+
+            // Obtener IDs de opciones de pago desde la base de datos
+            $paymentOptionIds = \App\Models\PaymentOption::whereIn('code', $selectedPaymentOptions)->pluck('id')->toArray();
+
+            if (empty($paymentOptionIds)) {
+                Log::warning('No se encontraron opciones de pago válidas en la base de datos', [
+                    'program_course_id' => $programCourse->id,
+                    'selected_codes' => $selectedPaymentOptions,
+                ]);
+                return;
+            }
+
+            // Sincronizar con la tabla pivot (esto añade nuevas y elimina las que no están)
+            $programCourse->paymentOptions()->sync($paymentOptionIds);
+
+            Log::info('Opciones de pago sincronizadas exitosamente', [
+                'program_course_id' => $programCourse->id,
+                'synced_ids' => $paymentOptionIds,
+                'synced_count' => count($paymentOptionIds),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al sincronizar opciones de pago', [
+                'program_course_id' => $programCourse->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // No lanzar excepción para no interrumpir la creación/actualización del curso
         }
     }
 }

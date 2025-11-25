@@ -12,6 +12,7 @@ use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
 use App\Services\EcommerceAnalyticsService;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -505,7 +506,7 @@ class PaymentConfirmationService
 
         if (!$payment) {
             // Crear registro de pago solo si no existe
-            $payment = Payment::create([
+            $paymentData = [
                 'order_id' => $orderDetail->order_id,
                 'order_detail_id' => $orderDetail->id,
                 'payment_gateway_id' => $orderDetail->payment_gateway_id,
@@ -524,7 +525,12 @@ class PaymentConfirmationService
                 'card_number' => $cardNumber,
                 'gateway_response' => $result,
                 'email_sent' => false, // Marcar que aún no se ha enviado el email
-            ]);
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+            ];
+
+            \Log::info('=== CREATING PAYMENT (SUCCESSFUL) ===', $paymentData);
+
+            $payment = Payment::create($paymentData);
         } else {
             // Actualizar el pago existente
             $updateData = [
@@ -538,6 +544,7 @@ class PaymentConfirmationService
                 'card_number' => $cardNumber,
                 'gateway_response' => $result,
                 'email_sent' => false,
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
             ];
 
             // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
@@ -607,7 +614,7 @@ class PaymentConfirmationService
 
         if (!$payment) {
             // Crear registro de pago fallido solo si no existe
-            $payment = Payment::create([
+            $paymentData = [
                 'order_id' => $orderDetail->order_id,
                 'order_detail_id' => $orderDetail->id,
                 'payment_gateway_id' => $orderDetail->payment_gateway_id,
@@ -619,13 +626,19 @@ class PaymentConfirmationService
                 'status' => 'failed',
                 'transaction_date' => $transactionDate,
                 'gateway_response' => $result,
-            ]);
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+            ];
+
+            \Log::info('=== CREATING PAYMENT (FAILED) ===', $paymentData);
+
+            $payment = Payment::create($paymentData);
         } else {
             // Actualizar el pago existente
             $updateData = [
                 'status' => 'failed',
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
                 'gateway_response' => $result,
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
             ];
 
             // Solo actualizar transaction_date si no está establecido o si viene en la respuesta

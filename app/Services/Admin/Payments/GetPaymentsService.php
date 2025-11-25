@@ -218,6 +218,9 @@ class GetPaymentsService
             // Obtener client_data de la suscripción (datos enviados a VirtualPos)
             $clientData = $subscription?->client_data ?? [];
 
+            // Obtener buyer_data de la suscripción (datos del comprador)
+            $buyerData = $subscription?->buyer_data ?? [];
+
             return (object) [
                 'id' => $enrollmentCode,
                 'is_installment' => true,
@@ -232,6 +235,8 @@ class GetPaymentsService
                     'id' => $plan->order_id ?? null,
                     'order_number' => 'SUB-' . $plan->id,
                     'participant' => $participant,
+                    'buyer_first_name' => $buyerData['first_name'] ?? null,
+                    'buyer_first_last_name' => $buyerData['first_last_name'] ?? null,
                     'program_course' => $programCourse ? (object) [
                         'name' => $programCourse->name,
                         'course' => (object) [

@@ -158,22 +158,22 @@ class ProgramDetailService
             }
         }
 
-        // Cargar opciones de pago habilitadas (configuradas en la plantilla del programa)
-        $fullPaymentOptionCodes = DB::table('program_payment_option as ppo')
-            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
-            ->where('ppo.program_id', $program->id)
-            ->where('ppo.enabled', true)
-            ->where('po.mode', 'full')
+        // Cargar opciones de pago habilitadas (configuradas en el curso específico)
+        $fullPaymentOptionCodes = DB::table('program_course_payment_option as pcpo')
+            ->join('payment_options as po', 'po.id', '=', 'pcpo.payment_option_id')
+            ->where('pcpo.program_course_id', $programCourse->id)
+            ->where('pcpo.enabled', true)
+            ->where('po.code', 'LIKE', 'full_%')
             ->pluck('po.code')
             ->toArray();
 
         // Opciones de pago en cuotas (lat90 -> subscription)
-        $subscriptionPaymentOptionCodes = DB::table('program_payment_option as ppo')
-            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+        $subscriptionPaymentOptionCodes = DB::table('program_course_payment_option as pcpo')
+            ->join('payment_options as po', 'po.id', '=', 'pcpo.payment_option_id')
             ->select(['po.code', 'po.label'])
-            ->where('ppo.program_id', $program->id)
-            ->where('ppo.enabled', true)
-            ->where('po.mode', 'lat90')
+            ->where('pcpo.program_course_id', $programCourse->id)
+            ->where('pcpo.enabled', true)
+            ->where('po.code', 'LIKE', 'subscription_%')
             ->get()
             ->map(function ($row) {
                 return ['code' => $row->code, 'label' => $row->label];

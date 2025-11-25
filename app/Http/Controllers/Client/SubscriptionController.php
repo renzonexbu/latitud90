@@ -411,6 +411,7 @@ class SubscriptionController extends Controller
                 'payment_method' => $response['suscription']['payment_method'] ?? $response['payment_method'] ?? null,
                 'charge_program' => $response['suscription']['charge_program'] ?? $response['charge_program'] ?? null,
                 'client_data' => $clientData,
+                'buyer_data' => $buyerData, // Guardar datos del comprador para crear OrderDetails cuando se confirmen los pagos
                 'api_response' => $response,
             ]);
 
@@ -426,19 +427,8 @@ class SubscriptionController extends Controller
                 'payment_type' => 'monthly', // Usar 'monthly' en lugar de 'subscription'
             ]);
 
-            // Crear OrderDetail asociado a la orden
-            $orderDetail = \App\Models\OrderDetail::create([
-                'order_id' => $order->id,
-                'program_id' => $programCourse->id,
-                'participant_id' => $participant->id,
-                'name' => $programCourse->name ?? 'Programa de suscripción',
-                'email' => $buyerData['email'],
-                'quantity' => 1,
-                'unit_price' => $totalAmount,
-                'total_price' => $totalAmount,
-                'discount' => 0,
-                'discount_type' => null,
-            ]);
+            // NO crear OrderDetail aquí - se creará cuando el Job detecte el pago como "pagado"
+            // Los datos del comprador están guardados en $subscription->buyer_data
 
             // Crear plan de cuotas en la base de datos local
             $installmentPlan = InstallmentPlan::create([
@@ -658,6 +648,24 @@ class SubscriptionController extends Controller
             // Si la suscripción está ACTIVA, redirigir a éxito
             if ($virtualPosStatus === 'ACTIVA') {
                 Log::info('Suscripción ACTIVA, redirigiendo a success');
+
+                // IMPORTANTE: Disparar sincronización de pagos inmediatamente
+                // para registrar el primer pago en Payment y OrderDetail
+                try {
+                    Log::info('Disparando SyncSubscriptionPaymentsJob para registrar primer pago', [
+                        'subscription_id' => $subscription->id
+                    ]);
+
+                    \App\Jobs\SyncSubscriptionPaymentsJob::dispatch($subscription->id);
+
+                    Log::info('SyncSubscriptionPaymentsJob despachado exitosamente');
+                } catch (\Exception $e) {
+                    Log::error('Error despachando SyncSubscriptionPaymentsJob', [
+                        'subscription_id' => $subscription->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    // No detener el flujo, el job se ejecutará en el siguiente ciclo programado
+                }
 
                 // Verificar si la primera cuota está pagada y enviar email
                 if ($installmentPlan) {
@@ -1210,5 +1218,60 @@ class SubscriptionController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Métodos auxiliares para resolver IDs de países, regiones, ciudades y tipos de documento
+     * Copiados de CreateOrderService para mantener consistencia
+     */
+    private function resolveCountryId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        // Probar por código (CL, etc.)
+        if (strlen($string) <= 3) {
+            $id = \App\Models\Country::where('code', $string)->value('id');
+            if ($id) { return (int) $id; }
+        }
+        // Fallback por nombre exacto
+        $id = \App\Models\Country::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        // Fallback por like
+        $id = \App\Models\Country::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveRegionId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Region::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Region::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveCityId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Comune::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Comune::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
+    }
+
+    private function resolveDocumentTypeId($value): ?int
+    {
+        if (empty($value)) { return null; }
+        if (is_numeric($value)) { return (int) $value; }
+        $string = trim((string) $value);
+        $id = \App\Models\Document::where('name', $string)->value('id');
+        if ($id) { return (int) $id; }
+        $id = \App\Models\Document::where('name', 'like', $string)->value('id');
+        return $id ? (int) $id : null;
     }
 }

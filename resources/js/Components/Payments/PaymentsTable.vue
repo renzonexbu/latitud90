@@ -183,24 +183,38 @@ export default {
 
 
     methods: {
+        toCapitalCase(text) {
+            if (!text) return '';
+            return text
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        },
+
         getParticipantName(payment) {
             // Si es un installment
             if (payment.is_installment && payment.order?.participant) {
                 const p = payment.order.participant;
-                return `${p.first_name} ${p.first_last_name}`;
+                const firstName = this.toCapitalCase(p.first_name || '');
+                const lastName = this.toCapitalCase(p.first_last_name || '');
+                return `${firstName} ${lastName}`.trim() || "N/A";
             }
             // Usar el atributo del modelo Payment que ya está construido correctamente
-            return payment.participant_name || "N/A";
+            return this.toCapitalCase(payment.participant_name || "N/A");
         },
 
         getBuyerName(payment) {
             // Si es un installment
             if (payment.is_installment && payment.order) {
-                return `${payment.order.buyer_first_name || ''} ${payment.order.buyer_first_last_name || ''}`.trim() || "N/A";
+                const firstName = this.toCapitalCase(payment.order.buyer_first_name || '');
+                const lastName = this.toCapitalCase(payment.order.buyer_first_last_name || '');
+                const fullName = `${firstName} ${lastName}`.trim();
+                return fullName || "N/A";
             }
             // Los datos del comprador están en order_detail
             if (payment.order_detail?.name) {
-                return payment.order_detail.name;
+                return this.toCapitalCase(payment.order_detail.name);
             }
             // Fallback al participante si no hay datos del comprador
             if (payment.order?.participant) {

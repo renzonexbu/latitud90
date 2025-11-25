@@ -328,15 +328,30 @@ export default {
             try {
                 this.isProcessingPayment = true;
 
-                // Preparar datos del participante desde confirmationData
-                const participantData = {
+                // Preparar datos del COMPRADOR (buyer) desde confirmationData
+                const buyerData = {
                     document_number: this.confirmationData.form_data.document_number,
+                    document_type: this.confirmationData.form_data.document_type || 'RUT',
+                    original_document_number: this.confirmationData.form_data.document_number,
                     first_name: this.confirmationData.form_data.name.split(' ')[0],
-                    first_last_name: this.confirmationData.form_data.name.split(' ').slice(1).join(' ') || this.confirmationData.form_data.name,
+                    second_name: this.confirmationData.form_data.name.split(' ')[1] || '',
+                    first_last_name: this.confirmationData.form_data.name.split(' ').slice(2).join(' ') || this.confirmationData.form_data.name.split(' ').slice(1).join(' ') || this.confirmationData.form_data.name,
+                    second_last_name: '',
                     email: this.confirmationData.form_data.email,
                     phone: this.confirmationData.form_data.phone,
                     code_phone: this.confirmationData.form_data.code_phone || '+56',
-                    city: this.confirmationData.form_data.city,
+                    country: this.confirmationData.form_data.country || 'Chile',
+                    country_id: this.confirmationData.form_data.countryId || 44,
+                    region: this.confirmationData.form_data.region || '',
+                    region_id: this.confirmationData.form_data.regionId || null,
+                    city: this.confirmationData.form_data.city || '',
+                    city_id: this.confirmationData.form_data.cityId || null,
+                };
+
+                // Preparar datos del PARTICIPANTE (para buscar en BD)
+                const participantData = {
+                    document_number: this.confirmationData.participant_data?.document_number || this.confirmationData.form_data.document_number,
+                    name: this.confirmationData.participant_data?.name || this.confirmationData.form_data.name,
                 };
 
                 // Crear formulario para enviar datos
@@ -359,12 +374,17 @@ export default {
                     const input = document.createElement('input');
                     input.type = 'hidden';
                     input.name = name;
-                    input.value = value;
+                    input.value = value || '';
                     form.appendChild(input);
                 };
 
                 addField('program_course_id', this.programId);
                 addField('installments', this.selectedPayment.installments);
+
+                // Agregar datos del comprador (buyer)
+                Object.keys(buyerData).forEach(key => {
+                    addField(`buyer[${key}]`, buyerData[key]);
+                });
 
                 // Agregar datos del participante
                 Object.keys(participantData).forEach(key => {

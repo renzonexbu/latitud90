@@ -275,6 +275,7 @@ export default {
         return {
             isMobilePaymentOpen: false,
             currentInstallments: 1,
+            currentPaymentType: null, // 'total' o 'monthly'
         };
     },
     mounted() {
@@ -331,6 +332,7 @@ export default {
         },
         handlePaymentSelection(selection) {
             this.currentInstallments = selection?.installments || 1;
+            this.currentPaymentType = selection?.paymentType || null;
         },
         formatDueDate(dateStr) {
             if (!dateStr) return '';

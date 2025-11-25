@@ -4,6 +4,7 @@ namespace App\Services\Client\PaymentProcessing;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\SystemLogging;
 
 class RecordPendingPaymentService
@@ -38,6 +39,7 @@ class RecordPendingPaymentService
                 'buy_order' => $buyOrder,
                 'gateway_response' => $gatewayResult,
                 'transaction_date' => now()->setTimezone('America/Santiago'),
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($order->program_id),
             ];
 
             // Buscar pago existente por order_detail_id

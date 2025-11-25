@@ -137,11 +137,10 @@
                                                                 Precio del viaje * (CLP)
                                                             </div>
                                                             <input
-                                                                type="number"
-                                                                v-model="form.trip_price"
-                                                                step="0.01"
-                                                                min="0"
-                                                                placeholder="0.00"
+                                                                type="text"
+                                                                :value="formatPrice(form.trip_price)"
+                                                                @input="handlePriceInput"
+                                                                placeholder="0"
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.trip_price }"
                                                             />
@@ -745,27 +744,44 @@ const getPaymentOptions = () => {
 // Helper to get full payment options
 const getFullPaymentOptions = () => {
     const pc = programCourse.value;
-    // Si el pago total está habilitado, retornar todas las opciones disponibles por defecto
-    // Esto es temporal hasta que tengamos un sistema para guardar las opciones específicas
-    if (pc.enable_total_payment) {
-        return [
-            'full_transfer_khipu',
-            'full_debit_credit_0',
-            'full_debit_credit_3',
-            'full_debit_credit_6',
-            'full_debit_credit_9',
-            'full_debit_credit_12',
-            'full_international'
-        ];
+
+    // Check both camelCase and snake_case (Laravel can serialize either way)
+    const paymentOptions = pc.payment_options || pc.paymentOptions;
+    console.log('getFullPaymentOptions - paymentOptions from backend:', paymentOptions);
+
+    // Si tiene paymentOptions guardadas, filtrar solo las de tipo "full"
+    if (paymentOptions && Array.isArray(paymentOptions) && paymentOptions.length > 0) {
+        const fullOptions = paymentOptions
+            .filter(opt => opt.code && opt.code.startsWith('full_'))
+            .map(opt => opt.code);
+        console.log('getFullPaymentOptions - filtered full options:', fullOptions);
+        return fullOptions;
     }
+
+    // Fallback: si no hay opciones guardadas pero el pago total está habilitado, no retornar nada
+    // El usuario deberá seleccionar manualmente las opciones
+    console.log('getFullPaymentOptions - no options found, returning empty array');
     return [];
 };
 
 const getSubscriptionPaymentOptions = () => {
     const pc = programCourse.value;
-    if (pc.enable_subscription_payment) {
-        return ['subscription_virtualpos'];
+
+    // Check both camelCase and snake_case (Laravel can serialize either way)
+    const paymentOptions = pc.payment_options || pc.paymentOptions;
+    console.log('getSubscriptionPaymentOptions - paymentOptions from backend:', paymentOptions);
+
+    // Si tiene paymentOptions guardadas, filtrar solo las de tipo "subscription"
+    if (paymentOptions && Array.isArray(paymentOptions) && paymentOptions.length > 0) {
+        const subscriptionOptions = paymentOptions
+            .filter(opt => opt.code && opt.code.startsWith('subscription_'))
+            .map(opt => opt.code);
+        console.log('getSubscriptionPaymentOptions - filtered subscription options:', subscriptionOptions);
+        return subscriptionOptions;
     }
+
+    // Fallback: si no hay opciones guardadas pero la suscripción está habilitada, no retornar nada
+    console.log('getSubscriptionPaymentOptions - no options found, returning empty array');
     return [];
 };
 
@@ -804,12 +820,15 @@ console.log('=== EDIT COURSE DEBUG ===');
 console.log('1. Full Course Data:', props.course);
 console.log('2. Program Courses Array:', props.course.program_courses || props.course.programCourses);
 console.log('3. First ProgramCourse:', programCourse.value);
-console.log('4. Form Initial Values:', form.value);
+console.log('4. ProgramCourse.payment_options:', programCourse.value.payment_options);
+console.log('5. Form Initial Values:', form.value);
 console.log('   - Departure Date (formatted):', form.value.departure_date);
 console.log('   - Final Payment Date (formatted):', form.value.final_payment_date);
 console.log('   - Trip Price:', form.value.trip_price);
 console.log('   - Subscription Max Months:', form.value.subscription_max_months);
 console.log('   - Payment Options:', form.value.payment_options);
+console.log('   - Full Payment Options:', form.value.full_payment_options);
+console.log('   - Subscription Payment Options:', form.value.subscription_payment_options);
 console.log('========================');
 
 // Payment options data (from PaymentDetails.vue)
@@ -944,22 +963,45 @@ const handlePaymentOptionChange = (option, event) => {
 };
 
 const toggleFullOption = (code, event) => {
+    console.log('toggleFullOption called:', { code, checked: event.target.checked, currentOptions: form.value.full_payment_options });
     if (!Array.isArray(form.value.full_payment_options)) form.value.full_payment_options = [];
     const set = new Set(form.value.full_payment_options);
     if (event.target.checked) set.add(code); else set.delete(code);
     form.value.full_payment_options = Array.from(set);
+    console.log('toggleFullOption result:', form.value.full_payment_options);
 };
 
 const toggleSubscriptionOption = (code, event) => {
+    console.log('toggleSubscriptionOption called:', { code, checked: event.target.checked, currentOptions: form.value.subscription_payment_options });
     if (!Array.isArray(form.value.subscription_payment_options)) form.value.subscription_payment_options = [];
     const set = new Set(form.value.subscription_payment_options);
     if (event.target.checked) set.add(code); else set.delete(code);
     form.value.subscription_payment_options = Array.from(set);
+    console.log('toggleSubscriptionOption result:', form.value.subscription_payment_options);
 };
 
 // Select program
 const selectProgram = (programId) => {
     form.value.program_id = programId;
+};
+
+// Format price with thousands separator (no decimals)
+const formatPrice = (value) => {
+    if (!value && value !== 0) return '';
+    // Convert to number and remove decimals
+    const number = Math.floor(parseFloat(value));
+    if (isNaN(number)) return '';
+    // Format with thousands separator
+    return new Intl.NumberFormat('es-CL').format(number);
+};
+
+// Handle price input
+const handlePriceInput = (event) => {
+    const value = event.target.value;
+    // Remove all non-digit characters
+    const cleanValue = value.replace(/\D/g, '');
+    // Update form with the clean number
+    form.value.trip_price = cleanValue ? parseInt(cleanValue) : '';
 };
 
 // Handle file upload
@@ -988,6 +1030,13 @@ const handleFileUpload = (event) => {
 
 // Submit form
 const saveCourse = () => {
+    console.log('=== SAVING COURSE ===');
+    console.log('Form values before submit:', {
+        full_payment_options: form.value.full_payment_options,
+        subscription_payment_options: form.value.subscription_payment_options,
+        payment_options: form.value.payment_options,
+    });
+
     isSubmitting.value = true;
 
     // Create FormData for file upload
@@ -1021,15 +1070,21 @@ const saveCourse = () => {
     }
 
     if (form.value.full_payment_options && form.value.full_payment_options.length > 0) {
+        console.log('Appending full_payment_options to FormData:', form.value.full_payment_options);
         form.value.full_payment_options.forEach(option => {
             formData.append('full_payment_options[]', option);
         });
+    } else {
+        console.log('NO full_payment_options to append (empty or null)');
     }
 
     if (form.value.subscription_payment_options && form.value.subscription_payment_options.length > 0) {
+        console.log('Appending subscription_payment_options to FormData:', form.value.subscription_payment_options);
         form.value.subscription_payment_options.forEach(option => {
             formData.append('subscription_payment_options[]', option);
         });
+    } else {
+        console.log('NO subscription_payment_options to append (empty or null)');
     }
 
     if (form.value.subscription_max_months) {

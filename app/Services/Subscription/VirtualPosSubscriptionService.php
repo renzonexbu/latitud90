@@ -126,7 +126,20 @@ class VirtualPosSubscriptionService
                 throw new Exception('Error al recuperar suscripción: ' . $response->body());
             }
 
-            return $response->json();
+            $data = $response->json();
+
+            // VirtualPOS devuelve los datos bajo la clave 'suscription'
+            $subscriptionData = $data['suscription'] ?? $data;
+            $chargeProgram = $subscriptionData['charge_program'] ?? [];
+
+            Log::info('VirtualPos: Respuesta completa de getSubscription', [
+                'subscription_id' => $subscriptionId,
+                'has_charge_program' => !empty($chargeProgram),
+                'charge_program_count' => count($chargeProgram),
+                'status' => $subscriptionData['status'] ?? 'unknown'
+            ]);
+
+            return $data;
         } catch (Exception $e) {
             Log::error('VirtualPos: Excepción al recuperar suscripción', [
                 'subscription_id' => $subscriptionId,

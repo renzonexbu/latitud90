@@ -60,6 +60,18 @@ class UpdateParticipantService
                 $course = Course::find((int) $data['pivot_course_id']);
 
                 if ($course) {
+                    // VALIDACIÓN: Verificar si hay suscripción activa antes de permitir cambios de precio
+                    if (array_key_exists('individual_price', $data) || array_key_exists('price_adjustments', $data)) {
+                        $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
+                            ->where('program_id', (int) $data['pivot_course_id'])
+                            ->where('status', 'ACTIVA')
+                            ->first();
+
+                        if ($activeSubscription) {
+                            throw new Exception('No se pueden aplicar descuentos ni ajustes de precio porque este participante tiene una suscripción activa para este programa.');
+                        }
+                    }
+
                     // Actualizar el pivot del curso con el precio individual
                     if (array_key_exists('individual_price', $data)) {
                         $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class ProgramCourse extends Model
 {
@@ -77,5 +78,15 @@ class ProgramCourse extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Relación con opciones de pago disponibles para este curso
+     */
+    public function paymentOptions(): BelongsToMany
+    {
+        return $this->belongsToMany(PaymentOption::class, 'program_course_payment_option')
+            ->withPivot('enabled')
+            ->withTimestamps();
     }
 }

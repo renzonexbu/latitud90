@@ -61,6 +61,12 @@ class StoreCourseRequest extends CourseRequest
             // Opciones de pago
             'enable_total_payment' => ['nullable', 'boolean'],
             'enable_subscription_payment' => ['nullable', 'boolean'],
+            'payment_options' => ['nullable', 'array'],
+            'payment_options.*' => ['nullable', 'string'],
+            'full_payment_options' => ['nullable', 'array'],
+            'full_payment_options.*' => ['nullable', 'string'],
+            'subscription_payment_options' => ['nullable', 'array'],
+            'subscription_payment_options.*' => ['nullable', 'string'],
             'subscription_max_months' => ['nullable', 'integer', 'min:1', 'max:12', 'required_if:enable_subscription_payment,true'],
             'immediate_first_charge' => ['nullable', 'boolean'],
 

@@ -28,6 +28,13 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/subscription-payments-sync.log'));
 
+        // Sincronizar installments con charge_program de VirtualPos cada 8 horas
+        $schedule->command('subscription:sync-installments')
+            ->everyEightHours()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo(storage_path('logs/subscription-installments-sync.log'));
+
         // Verificar cuotas vencidas cada minuto (para pruebas)
         // TODO: Cambiar a cada 12 horas en producción
         $schedule->command('installments:check-overdue')
@@ -79,7 +86,7 @@ class Kernel extends ConsoleKernel
             ->appendOutputTo(storage_path('logs/pending-payment-emails.log'));
 
         // Enviar recordatorios a participantes sin pagos iniciados - cada día a las 9:00 AM
-        $schedule->job(new \App\Jobs\SendNoPaymentReminders)
+        $schedule->command('reminders:send-no-payment')
             ->dailyAt('09:00')
             ->withoutOverlapping()
             ->runInBackground()

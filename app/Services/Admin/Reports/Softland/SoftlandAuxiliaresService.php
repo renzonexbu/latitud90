@@ -36,15 +36,17 @@ class SoftlandAuxiliaresService
     ];
 
     /**
-     * Genera los datos de auxiliares contables para Softland desde orders_detail
+     * Genera los datos de auxiliares contables para Softland desde orders_detail y suscripciones
      */
     public function generateAuxiliaresData(): Collection
     {
-        // Obtener compradores únicos de orders_detail con joins a las tablas relacionadas
+        $auxiliares = collect();
+
+        // 1. Obtener compradores únicos de orders_detail con joins a las tablas relacionadas
         $orderDetails = OrderDetail::with([
-            'documentType', 
-            'country', 
-            'region', 
+            'documentType',
+            'country',
+            'region',
             'city',
             'order.participant' // Agregar relación con participant
         ])
@@ -58,9 +60,43 @@ class SoftlandAuxiliaresService
                 return $group->first();
             });
 
-        return $orderDetails->map(function ($orderDetail) {
-            return $this->mapOrderDetailToAuxiliar($orderDetail);
-        });
+        // Mapear order_details a auxiliares
+        foreach ($orderDetails as $orderDetail) {
+            $auxiliares->push($this->mapOrderDetailToAuxiliar($orderDetail));
+        }
+
+        // 2. Obtener compradores únicos de suscripciones (buyer_data)
+        $subscriptions = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
+            ->with('participant')
+            ->get();
+
+        $subscriptionBuyers = $subscriptions
+            ->filter(function ($subscription) {
+                $buyerData = $subscription->buyer_data;
+                return !empty($buyerData['document_number']);
+            })
+            ->groupBy(function ($subscription) {
+                $buyerData = $subscription->buyer_data;
+                return $this->normalizeDocumentNumber($buyerData['document_number']);
+            })
+            ->map(function ($group) {
+                // Tomar el primer registro de cada grupo
+                return $group->first();
+            });
+
+        // Mapear subscriptions a auxiliares
+        foreach ($subscriptionBuyers as $subscription) {
+            $normalizedDoc = $this->normalizeDocumentNumber($subscription->buyer_data['document_number']);
+
+            // Solo agregar si no existe ya en auxiliares (evitar duplicados con order_details)
+            if (!$auxiliares->contains(function ($aux) use ($normalizedDoc) {
+                return $this->normalizeDocumentNumber($aux['rut_auxiliar']) === $normalizedDoc;
+            })) {
+                $auxiliares->push($this->mapSubscriptionToAuxiliar($subscription));
+            }
+        }
+
+        return $auxiliares;
     }
 
     /**
@@ -241,8 +277,132 @@ class SoftlandAuxiliaresService
         if (!$string) {
             return '';
         }
-        
+
         return mb_substr($string, 0, $length);
+    }
+
+    /**
+     * Mapea una suscripción (buyer_data) a los campos de auxiliar de Softland
+     */
+    private function mapSubscriptionToAuxiliar($subscription): array
+    {
+        $buyerData = $subscription->buyer_data;
+        $participant = $subscription->participant;
+
+        // Formatear el número de documento
+        $documentNumber = $this->formatSubscriptionDocumentNumber($buyerData);
+
+        // Generar código auxiliar (RUT sin puntos ni guiones)
+        $auxiliarCode = strtoupper(str_replace(['.', '-', ' '], '', $buyerData['document_number'] ?? ''));
+
+        // Nombre del auxiliar en capital case
+        $firstName = ucwords(strtolower($buyerData['first_name'] ?? ''));
+        $lastName = ucwords(strtolower($buyerData['first_last_name'] ?? ''));
+        $nombreAuxiliar = $this->truncateString("{$firstName} {$lastName}", 60);
+
+        // Email del comprador
+        $email = $buyerData['email'] ?? '';
+
+        return [
+            // Campos principales con datos reales
+            'codigo_auxiliar' => $auxiliarCode,
+            'nombre_auxiliar' => $nombreAuxiliar,
+            'nombre_fantasia' => $nombreAuxiliar,
+            'rut_auxiliar' => $documentNumber,
+            'activo' => 'S',
+
+            // Campos de ubicación
+            'codigo_giro_comercial' => '',
+            'codigo_pais_auxiliar' => '',
+            'codigo_region' => '',
+            'codigo_ciudad_auxiliar' => '',
+            'codigo_comuna_auxiliar' => '',
+            'direccion_auxiliar' => '', // Vacío para suscripciones
+            'numero_dir_auxiliar' => '',
+            'telefono_1_auxiliar' => '', // Vacío para suscripciones
+            'telefono_2_auxiliar' => '',
+            'telefono_3_auxiliar' => '',
+            'fax_1_auxiliar' => '',
+            'fax_2_auxiliar' => '',
+            'clasificacion_cliente' => 'S',
+            'clasificacion_proveedor' => 'S',
+            'clasificacion_empleado' => '',
+            'clasificacion_socio' => '',
+            'clasificacion_distribuidor' => '',
+            'clasificacion_otro' => '',
+            'casilla_auxiliar' => '',
+            'email_auxiliar' => '',
+            'sitio_web_auxiliar' => '',
+            'notas_auxiliar' => '', // Vacío para suscripciones
+            'nombre_contacto' => '',
+            'codigo_cargo_contacto' => '',
+            'telefono_contacto' => '',
+            'fax_contacto' => '',
+            'email_contacto' => '',
+            'codigo_vendedor' => '',
+            'condicion_venta' => '',
+            'monto_autorizado' => '',
+            'codigo_categoria_cliente' => '',
+            'codigo_zona_vendedor' => '',
+            'codigo_canal_venta' => '',
+            'lugar_despacho' => '',
+            'direccion_despacho' => '',
+            'codigo_comuna_despacho' => '',
+            'codigo_ciudad_despacho' => '',
+            'codigo_pais_despacho' => '',
+            'telefono_1_despacho' => '',
+            'telefono_2_despacho' => '',
+            'telefono_3_despacho' => '',
+            'fax_despacho' => '',
+            'atencion_despacho' => '',
+            'codigo_cobrador' => '',
+            'direccion_cobranza' => '',
+            'codigo_comuna_cobranza' => '',
+            'codigo_ciudad_cobranza' => '',
+            'codigo_pais_cobranza' => '',
+            'telefono' => '',
+            'dia_pago' => '',
+            'codigo_lista_precio' => '',
+            'email_dte' => $email,
+            'es_emisor_receptor_dte' => 'S',
+            'codigo_clasificacion_negocio' => '',
+            'cuenta_clientes_doctos_moneda_base' => '',
+            'cuenta_clientes_doctos_moneda_extranjera' => '',
+            'codigo_banco' => '',
+            'cuenta_corriente' => '',
+            'codigo_condicion_pago_proveedor' => '',
+        ];
+    }
+
+    /**
+     * Formatea el número de documento de una suscripción (buyer_data)
+     */
+    private function formatSubscriptionDocumentNumber(array $buyerData): string
+    {
+        if (empty($buyerData['document_number'])) {
+            return '';
+        }
+
+        $documentNumber = $buyerData['document_number'];
+        $documentType = $buyerData['document_type'] ?? 'RUT';
+
+        // Si es pasaporte, usar RUT estándar para extranjeros en Softland
+        if ($documentType === 'PASAPORTE') {
+            return '55555555-5';
+        }
+
+        // Si es RUT, formatear con guión (sin puntos)
+        if ($documentType === 'RUT') {
+            // Limpiar puntos y guiones existentes
+            $cleanNumber = preg_replace('/[^0-9kK]/', '', $documentNumber);
+            if (strlen($cleanNumber) >= 8) {
+                $number = substr($cleanNumber, 0, -1);
+                $dv = strtoupper(substr($cleanNumber, -1));
+                $documentNumber = $number . '-' . $dv;
+            }
+        }
+
+        return $this->truncateString($documentNumber, 11);
     }
 
     /**

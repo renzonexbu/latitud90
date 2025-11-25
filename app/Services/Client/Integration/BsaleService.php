@@ -121,7 +121,7 @@ class BsaleService
     {
         try {
             // Verificar si el programa es de entrega el mismo año
-            $program = $orderDetail->order->program;
+            $program = $orderDetail->order->programCourse;
             $isSameYear = $this->isSameYearDelivery($program);
             
             // Log para debugging
@@ -347,7 +347,7 @@ class BsaleService
      */
     private function createDocument(OrderDetail $orderDetail, Payment $payment, int $customerId): array
     {
-        $program = $orderDetail->order->program;
+        $program = $orderDetail->order->programCourse;
         $participant = $orderDetail->order->participant;
         
         // Build full participant name from individual fields in uppercase

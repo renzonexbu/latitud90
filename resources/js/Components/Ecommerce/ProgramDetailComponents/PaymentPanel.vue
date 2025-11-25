@@ -883,7 +883,7 @@ export default {
             this.processPaymentNavigation();
         },
 
-        processPaymentNavigation() {
+        async processPaymentNavigation() {
             // Guardar los datos de pago en la sesión o localStorage
             const paymentData = {
                 paymentType: this.paymentType,
@@ -906,6 +906,11 @@ export default {
             // Registrar selección de método de pago en analytics
             this.recordPaymentSelection(paymentData);
 
+            // Si es pago total, cerrar sesión del guardian para continuar como visita
+            if (this.paymentType === 'total') {
+                await this.logoutGuardianForTotalPayment();
+            }
+
             // Obtener token desde las props de la página
             const token = this.$page.props.token || '';
 
@@ -919,6 +924,25 @@ export default {
 
             // Usar window.location.href para navegación completa
             window.location.href = url;
+        },
+
+        async logoutGuardianForTotalPayment() {
+            // Cerrar sesión del guardian para que el pago total se procese como visita
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                await fetch('/guardian/logout', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                });
+                console.log('Sesión de guardian cerrada para pago total');
+            } catch (error) {
+                // Ignorar errores de logout (puede que no haya sesión activa)
+                console.log('No había sesión de guardian activa');
+            }
         },
 
         proceedToGuardianRegister() {

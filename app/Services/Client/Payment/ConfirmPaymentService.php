@@ -54,32 +54,9 @@ class ConfirmPaymentService
                 ->first();
         }
 
-        // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso para pagar por este participante
-        if ($participant && auth('guardian')->check()) {
-            $guardian = auth('guardian')->user();
-
-            if (!$guardian->canPayFor($participant->id)) {
-                $this->logWarning('Guardian sin permiso intenta acceder a confirmación de pago', [
-                    'guardian_id' => $guardian->id,
-                    'guardian_email' => $guardian->email,
-                    'participant_id' => $participant->id,
-                    'participant_document' => $participant->document_number,
-                    'participant_name' => $participant->full_name
-                ]);
-
-                // Retornar error para que se muestre en la página
-                return [
-                    'error' => true,
-                    'message' => 'No tienes permiso para realizar pagos por este participante. Por favor contacta a soporte si crees que esto es un error.'
-                ];
-            }
-
-            $this->logInfo('Guardian autorizado en confirmación de pago', [
-                'guardian_id' => $guardian->id,
-                'guardian_email' => $guardian->email,
-                'participant_id' => $participant->id
-            ]);
-        }
+        // NOTA: La validación de permisos de guardian se hace SOLO en el flujo de suscripciones
+        // (SubscriptionController::createFromConfirmation). Para pagos totales, cualquier persona
+        // puede pagar como "visita", por lo que no se valida aquí.
 
         // Calcular montos por participante
         $isEnrolled = false;
@@ -193,22 +170,22 @@ class ConfirmPaymentService
             }
         }
 
-        // Cargar opciones de pago habilitadas desde la plantilla del programa (igual que ProgramDetailService)
-        $fullPaymentOptionCodes = DB::table('program_payment_option as ppo')
-            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
-            ->where('ppo.program_id', $program->id)
-            ->where('ppo.enabled', true)
-            ->where('po.mode', 'full')
+        // Cargar opciones de pago habilitadas desde el curso específico
+        $fullPaymentOptionCodes = DB::table('program_course_payment_option as pcpo')
+            ->join('payment_options as po', 'po.id', '=', 'pcpo.payment_option_id')
+            ->where('pcpo.program_course_id', $programCourse->id)
+            ->where('pcpo.enabled', true)
+            ->where('po.code', 'LIKE', 'full_%')
             ->pluck('po.code')
             ->toArray();
 
         // Opciones de pago en cuotas (lat90 -> subscription)
-        $lat90PaymentOptions = DB::table('program_payment_option as ppo')
-            ->join('payment_options as po', 'po.id', '=', 'ppo.payment_option_id')
+        $lat90PaymentOptions = DB::table('program_course_payment_option as pcpo')
+            ->join('payment_options as po', 'po.id', '=', 'pcpo.payment_option_id')
             ->select(['po.code', 'po.label'])
-            ->where('ppo.program_id', $program->id)
-            ->where('ppo.enabled', true)
-            ->where('po.mode', 'lat90')
+            ->where('pcpo.program_course_id', $programCourse->id)
+            ->where('pcpo.enabled', true)
+            ->where('po.code', 'LIKE', 'subscription_%')
             ->get()
             ->map(function ($row) {
                 return ['code' => $row->code, 'label' => $row->label];

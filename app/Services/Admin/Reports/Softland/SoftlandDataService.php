@@ -14,26 +14,109 @@ class SoftlandDataService
      */
     public function generateMovements(array $filters = []): Collection
     {
-        // Obtener SOLO pagos completados que generaron boleta (B2) o anticipo (AC) y NO son presenciales
-        $payments = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails'])
+        // LOG: Filtros recibidos en el servicio
+        Log::info('========== SOFTLAND DATA SERVICE ==========');
+        Log::info('SoftlandDataService::generateMovements - Filtros recibidos:', [
+            'filters' => $filters,
+            'dateFrom' => $filters['dateFrom'] ?? 'NO DEFINIDO',
+            'dateTo' => $filters['dateTo'] ?? 'NO DEFINIDO',
+            'programId' => $filters['programId'] ?? 'NO DEFINIDO',
+        ]);
+
+        // Construir query y loggear SQL
+        $query = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails', 'orderDetail', 'paymentGateway'])
             ->where('status', 'completed')
             ->whereIn('document_type', ['B2', 'AC'])
-            ->whereHas('paymentOption', function ($query) {
-                $query->where('mode', '!=', 'presential');
+            ->whereHas('paymentOption', function ($q) {
+                $q->where('mode', '!=', 'presential');
             })
-            ->when(isset($filters['dateFrom']), function ($query) use ($filters) {
-                $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
+            ->when(isset($filters['dateFrom']), function ($q) use ($filters) {
+                $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
             })
-            ->when(isset($filters['dateTo']), function ($query) use ($filters) {
-                $query->whereDate('transaction_date', '<=', $filters['dateTo']);
+            ->when(isset($filters['dateTo']), function ($q) use ($filters) {
+                $q->whereDate('transaction_date', '<=', $filters['dateTo']);
             })
-            ->when(isset($filters['programId']), function ($query) use ($filters) {
-                $query->whereHas('order', function ($q) use ($filters) {
-                    $q->where('program_id', $filters['programId']);
+            ->when(isset($filters['programId']), function ($q) use ($filters) {
+                $q->whereHas('order', function ($subQ) use ($filters) {
+                    $subQ->where('program_id', $filters['programId']);
                 });
             })
-            ->orderBy('transaction_date')
-            ->get();
+            ->orderBy('transaction_date');
+
+        // LOG: SQL que se ejecutará
+        Log::info('SoftlandDataService - SQL Query:', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+        ]);
+
+        // Obtener SOLO pagos completados que generaron boleta (B2) o anticipo (AC) y NO son presenciales
+        $payments = $query->get();
+
+        Log::info('SoftlandDataService - Pagos encontrados:', [
+            'total' => $payments->count(),
+        ]);
+
+        // LOG: Mostrar todos los pagos obtenidos con sus datos
+        Log::info('============================================');
+        Log::info('SOFTLAND: PAGOS OBTENIDOS DE LA BASE DE DATOS');
+        Log::info('============================================');
+        foreach ($payments as $payment) {
+            $participant = $payment->order?->participant;
+            $payer = $payment->orderDetail;
+            $gateway = $payment->paymentGateway;
+            $program = $payment->order?->programCourse;
+
+            // Obtener enrollment_code
+            $enrollmentCode = 'N/A';
+            if ($payment->order && $payment->order->participant_id && $payment->order->program_id) {
+                $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $payment->order->participant_id)
+                    ->where('program_id', $payment->order->program_id)
+                    ->first();
+                $enrollmentCode = $participantProgram?->enrollment_code ?? 'N/A';
+            }
+
+            Log::info("Payment #{$payment->id}:", [
+                'document_type' => $payment->document_type,
+                'amount' => $payment->amount,
+                'transaction_date' => $payment->transaction_date?->format('Y-m-d'),
+                'authorization_code' => $payment->authorization_code ?? 'NULL',
+                'gateway' => $gateway?->code ?? 'NULL',
+                'payment_option' => $payment->paymentOption?->code ?? 'NULL',
+                'participant_id' => $participant?->id ?? 'NULL',
+                'participant_name' => $participant?->full_name ?? 'NULL',
+                'payer_name' => $payer?->name ?? 'NULL',
+                'program_id' => $program?->id ?? 'NULL',
+                'program_name' => $program?->name ?? 'NULL',
+                'enrollment_code' => $enrollmentCode,
+            ]);
+        }
+        Log::info('============================================');
+
+        // Obtener installments pagados (cuotas de suscripciones)
+        $installments = $this->getInstallments($filters);
+
+        // LOG: Mostrar todos los installments obtenidos
+        Log::info('============================================');
+        Log::info('SOFTLAND: INSTALLMENTS OBTENIDOS DE LA BASE DE DATOS');
+        Log::info('============================================');
+        foreach ($installments as $installment) {
+            $participant = $installment['participant'] ?? null;
+            $buyerData = $installment['buyer_data'] ?? [];
+            $payment = $installment['payment'] ?? null;
+
+            Log::info("Installment #{$installment['installment_id']}:", [
+                'amount' => $installment['amount'],
+                'paid_at' => $installment['paid_at'] ?? 'NULL',
+                'payment_id' => $installment['payment_id'] ?? 'NULL',
+                'document_type' => $installment['document_type'] ?? 'NULL',
+                'participant_id' => $participant?->id ?? 'NULL',
+                'participant_name' => $participant?->full_name ?? 'NULL',
+                'payer_first_name' => $buyerData['first_name'] ?? 'NULL',
+                'payer_last_name' => $buyerData['first_last_name'] ?? 'NULL',
+                'gateway' => $payment?->paymentGateway?->code ?? 'NULL',
+            ]);
+        }
+        Log::info('============================================');
 
         $debitMovements = collect();  // Movimientos DEBE
         $creditMovements = collect(); // Movimientos HABER
@@ -73,11 +156,24 @@ class SoftlandDataService
             }
         }
 
+        // Procesar installments (cuotas de suscripciones como B2)
+        foreach ($installments as $installment) {
+            Log::info('SoftlandDataService: Procesando installment', [
+                'installment_id' => $installment['installment_id'],
+                'amount' => $installment['amount'],
+            ]);
+
+            // Los installments se procesan como boletas (B2)
+            $debitMovements->push($this->createInstallmentDebitMovement($installment));
+            $creditMovements->push($this->createInstallmentCreditMovement($installment));
+        }
+
         // Combinar movimientos: primero todos los DEBE, luego todos los HABER
         $movements = $debitMovements->concat($creditMovements);
 
         Log::info('SoftlandDataService: Movimientos generados', [
             'total_payments' => $payments->count(),
+            'total_installments' => $installments->count(),
             'total_debit_movements' => $debitMovements->count(),
             'total_credit_movements' => $creditMovements->count(),
             'total_movements' => $movements->count(),
@@ -121,12 +217,12 @@ class SoftlandDataService
             'tipo_docto_conciliacion' => '', // Columna 17 - Tipo Docto. Conciliación
             'nro_docto_conciliacion' => '', // Columna 18 - Nro. Docto. Conciliación
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - Código Auxiliar
-            'tipo_documento' => $payment->document_type ?? 'B2', // Columna 20 - Tipo Documento
-            'nro_documento' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna 21 - Nro. Documento
+            'tipo_documento' => ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') ? 'VP' : ($payment->document_type ?? 'B2'), // Columna 20 - VP para VirtualPos
+            'nro_documento' => $payment->authorization_code ?? ($payment->bsale_number ?? $payment->id), // Columna 21 - Nro. Documento (authorization_code)
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 22 - Fecha Emisión Docto.
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 23 - Fecha Vencimiento Docto.
-            'tipo_docto_referencia' => $payment->document_type ?? 'B2', // Columna 24 - Tipo Docto. Referencia
-            'nro_docto_referencia' => $payment->bsale_number ?? ($payment->buy_order ?? $payment->id), // Columna 25 - Nro. Docto. Referencia
+            'tipo_docto_referencia' => ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') ? 'VP' : ($payment->document_type ?? 'B2'), // Columna 24 - VP para VirtualPos
+            'nro_docto_referencia' => $payment->authorization_code ?? ($payment->bsale_number ?? $payment->id), // Columna 25 - Nro. Docto. Referencia (authorization_code)
             'nro_correlativo_interno' => '', // Columna 26 - Nro. Correlativo Interno
 
             // Montos detalle libro (columnas 27-36)
@@ -212,7 +308,7 @@ class SoftlandDataService
     private function createCreditMovement(Payment $payment): array
     {
         $participant = $payment->order->participant;
-        $program = $payment->order->program;
+        $program = $payment->order->programCourse;
         $paymentOption = $payment->paymentOption;
 
         return [
@@ -333,7 +429,14 @@ class SoftlandDataService
         $documentType = $payment->document_type ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
         $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'PARTICIPANTE-NO-ENCONTRADO';
-        $paymentMethod = $paymentOption ? ($paymentOption->report_code ?? 'SIN-METODO') : 'SIN-METODO';
+
+        // Para VirtualPos usar "VP", para otros usar el report_code
+        $paymentMethod = 'SIN-METODO';
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            $paymentMethod = 'VP';
+        } elseif ($paymentOption) {
+            $paymentMethod = $paymentOption->report_code ?? 'SIN-METODO';
+        }
 
         return "{$documentType}-{$boletaNumber}-{$participantName}/{$paymentMethod}";
     }
@@ -344,7 +447,15 @@ class SoftlandDataService
     private function formatCreditDescription(Payment $payment, $participant, $program, $paymentOption): string
     {
         $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
-        $documentType = $payment->document_type ?? 'B2';
+
+        // Determinar el tipo de documento según el gateway de pago
+        $documentType = '';
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            $documentType = 'VP'; // VirtualPOS
+        } else {
+            $documentType = $payment->document_type ?? 'B2';
+        }
+
         $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
         return "N{$programCode}/Programa educación/{$documentType}-{$boletaNumber}";
@@ -511,7 +622,7 @@ class SoftlandDataService
     private function createRefundCreditMovement(Payment $payment): array
     {
         $participant = $payment->order->participant ?? null;
-        $program = $payment->order->program ?? null;
+        $program = $payment->order->programCourse ?? null;
         $paymentOption = $payment->paymentOption;
 
         return [
@@ -690,11 +801,19 @@ class SoftlandDataService
         $participant = $payment->order->participant;
         $paymentOption = $payment->paymentOption;
 
-        // Obtener el nombre del contacto de emergencia
-        $emergencyContactName = '';
-        if ($participant && $participant->emergencyContacts()->exists()) {
-            $emergencyContact = $participant->emergencyContacts()->first();
-            $emergencyContactName = ucwords(strtolower($emergencyContact->name ?? ''));
+        // Obtener el nombre del pagador/apoderado desde OrderDetail
+        $payerName = '';
+        $orderDetail = $payment->orderDetail;
+        if ($orderDetail && $orderDetail->name) {
+            $payerName = ucwords(strtolower($orderDetail->name));
+        }
+
+        // Determinar el tipo de documento según el gateway de pago
+        $documentType = '';
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            $documentType = 'VP'; // VirtualPOS
+        } else {
+            $documentType = $paymentOption->report_code ?? '';
         }
 
         return [
@@ -702,7 +821,7 @@ class SoftlandDataService
             'codigo_plan_cuenta' => '1-1-02-014', // Cuenta específica para AC
             'debe' => (int) abs($payment->amount), // Mismo monto que haber sin decimales
             'haber' => 0, // Vacío para DEBE
-            'descripcion_movimiento' => $emergencyContactName, // Solo el nombre del contacto de emergencia
+            'descripcion_movimiento' => $payerName, // Solo el nombre del pagador/apoderado
             'equivalencia_moneda' => '', // Columna 5 - vacía
             'monto_debe_moneda_adicional' => '', // Columna 6 - vacía
             'monto_haber_moneda_adicional' => '', // Columna 7 - vacía
@@ -722,12 +841,12 @@ class SoftlandDataService
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
-            'tipo_documento' => $paymentOption->report_code ?? '', // Columna 20 - payment_option.report_code
-            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - mismo que haber
+            'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, o payment_option.report_code
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'tipo_docto_referencia' => $paymentOption->report_code ?? '', // Columna 24 - payment_option.report_code
-            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - vacía
+            'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, o payment_option.report_code
+            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro (columnas 27-36 vacías)
@@ -813,8 +932,16 @@ class SoftlandDataService
     private function createACCreditMovement(Payment $payment): array
     {
         $participant = $payment->order->participant;
-        $program = $payment->order->program;
+        $program = $payment->order->programCourse;
         $paymentOption = $payment->paymentOption;
+
+        // Determinar el tipo de documento según el gateway de pago
+        $documentType = '';
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            $documentType = 'VP'; // VirtualPOS
+        } else {
+            $documentType = 'AC'; // Anticipo por defecto
+        }
 
         return [
             // Información básica
@@ -841,12 +968,12 @@ class SoftlandDataService
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
             'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
-            'tipo_documento' => 'AC', // Columna 20 - payment_option.report_code
-            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - mismo que haber
+            'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, AC por defecto
+            'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'tipo_docto_referencia' => 'AC', // Columna 24 - payment_option.report_code
-            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - vacía
+            'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, AC por defecto
+            'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
             'fecha_docto_referencia' => '', // Columna 26 - vacía
 
             // Montos detalle libro
@@ -941,25 +1068,39 @@ class SoftlandDataService
 
     /**
      * Formatea la descripción del movimiento AC (HABER)
-     * Formato: program_code-participant_document/emergency_contact_name/AC
+     * Formato: enrollment_code/payer_name/document_type
      */
     private function formatACCreditDescription(Payment $payment, $participant, $program): string
     {
-        $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
+        // Obtener enrollment_code desde participant_program
+        // Buscar usando participant_id y program_id del order
+        $enrollmentCode = '';
+        if ($payment->order && $payment->order->participant_id && $payment->order->program_id) {
+            $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $payment->order->participant_id)
+                ->where('program_id', $payment->order->program_id)
+                ->first();
 
-        // Obtener documento del participante limpio
-        $participantDocument = '';
-        if ($participant && $participant->document_number) {
-            $participantDocument = str_replace(['.', '-'], '', $participant->document_number);
+            if ($participantProgram && $participantProgram->enrollment_code) {
+                $enrollmentCode = $participantProgram->enrollment_code;
+            }
         }
 
-        // Obtener nombre del contacto de emergencia en capital case
-        $emergencyContactName = '';
-        if ($participant && $participant->emergencyContacts && $participant->emergencyContacts->count() > 0) {
-            $emergencyContactName = ucwords(strtolower($participant->emergencyContacts->first()->name ?? ''));
+        // Obtener el nombre del pagador/apoderado desde OrderDetail
+        $payerName = '';
+        $orderDetail = $payment->orderDetail;
+        if ($orderDetail && $orderDetail->name) {
+            $payerName = ucwords(strtolower($orderDetail->name));
         }
 
-        return "{$programCode}-{$participantDocument}/{$emergencyContactName}/AC";
+        // Determinar el tipo de documento según el gateway de pago
+        $documentType = '';
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            $documentType = 'VP'; // VirtualPOS
+        } else {
+            $documentType = 'AC'; // Anticipo por defecto
+        }
+
+        return "{$enrollmentCode}/{$payerName}/{$documentType}";
     }
 
 
@@ -972,5 +1113,394 @@ class SoftlandDataService
 
         // Si no es Khipu o no tiene external_payment_id, usar authorization_code
         return $payment->authorization_code ?? ($payment->buy_order ?? (string)$payment->id);
+    }
+
+    /**
+     * Obtener installments pagados (cuotas de suscripciones)
+     */
+    private function getInstallments(array $filters = []): Collection
+    {
+        $query = \App\Models\Installment::with([
+            'installmentPlan.participant',
+            'payment',  // Incluir el Payment para obtener authorization_code y document_type
+        ])
+        ->where('is_paid', true);
+
+        // Aplicar filtros de fecha si están presentes
+        if (isset($filters['dateFrom'])) {
+            $query->whereDate('paid_at', '>=', $filters['dateFrom']);
+        }
+
+        if (isset($filters['dateTo'])) {
+            $query->whereDate('paid_at', '<=', $filters['dateTo']);
+        }
+
+        if (isset($filters['programId'])) {
+            $query->whereHas('installmentPlan', function ($q) use ($filters) {
+                $q->where('program_id', $filters['programId']);
+            });
+        }
+
+        $installments = $query->orderBy('paid_at')->get();
+
+        // Transformar installments a formato estándar
+        return $installments->map(function ($installment) {
+            $plan = $installment->installmentPlan;
+            $participant = $plan->participant ?? null;
+
+            // Obtener el program_course
+            $programCourse = \App\Models\ProgramCourse::with('course.institution')->find($plan->program_id);
+
+            // Obtener la suscripción para los datos del comprador
+            $subscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id ?? null)
+                ->where('program_id', $plan->program_id)
+                ->first();
+
+            $buyerData = $subscription?->buyer_data ?? [];
+
+            return [
+                'installment_id' => $installment->id,
+                'installment_number' => $installment->installment_number,
+                'amount' => $installment->amount,
+                'paid_at' => $installment->paid_at,
+                'participant' => $participant,
+                'program_course' => $programCourse,
+                'buyer_data' => $buyerData,
+                'virtualpos_charge_id' => $installment->virtualpos_charge_id,
+                'payment' => $installment->payment,  // Incluir el Payment completo
+                'authorization_code' => $installment->payment?->authorization_code,
+                'document_type' => $installment->payment?->document_type ?? 'B2',
+            ];
+        });
+    }
+
+    /**
+     * Crea el movimiento de cobro de installment (DEBE)
+     */
+    private function createInstallmentDebitMovement(array $installment): array
+    {
+        $participant = $installment['participant'];
+        $buyerData = $installment['buyer_data'];
+
+        // Nombre del comprador en capital case
+        $buyerName = '';
+        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+            $firstName = ucwords(strtolower($buyerData['first_name']));
+            $lastName = ucwords(strtolower($buyerData['first_last_name']));
+            $buyerName = "{$firstName} {$lastName}";
+        } elseif ($participant) {
+            $buyerName = $participant->full_name ?? 'N/A';
+        }
+
+        // Código auxiliar (RUT del comprador sin puntos ni guiones)
+        $auxiliarCode = '';
+        if (!empty($buyerData['document_number'])) {
+            $auxiliarCode = strtoupper(str_replace(['.', '-'], '', $buyerData['document_number']));
+        }
+
+        // Número de documento: usar authorization_code del Payment
+        $authorizationCode = $installment['authorization_code'] ?? null;
+        $documentType = $installment['document_type'] ?? 'B2';
+        $documentNumber = $authorizationCode ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+
+        // Determinar cuenta y tipo de documento según el Payment asociado
+        $payment = $installment['payment'] ?? null;
+        $isVirtualPos = $payment && $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
+        $paymentMethod = $isVirtualPos ? 'VP' : 'SUSCRIPCION';
+
+        // Si el Payment tiene document_type='AC', usar cuenta 014, sino 010
+        $accountCode = ($documentType === 'AC') ? '1-1-02-014' : '1-1-02-010';
+
+        // Si es VirtualPos, tipo de documento es VP
+        $displayDocumentType = $isVirtualPos ? 'VP' : $documentType;
+
+        // Descripción: para AC solo el nombre del pagador, para B2 el formato completo
+        $description = '';
+        if ($documentType === 'AC') {
+            // Para AC (cuenta 014): solo el nombre del pagador
+            $description = $buyerName;
+        } else {
+            // Para B2 (cuenta 010): formato completo
+            $description = "{$displayDocumentType}-{$documentNumber}-{$buyerName}/{$paymentMethod}";
+        }
+
+        return [
+            // Información básica
+            'codigo_plan_cuenta' => $accountCode,
+            'debe' => (int) abs($installment['amount']),
+            'haber' => 0,
+            'descripcion_movimiento' => $description,
+            'equivalencia_moneda' => '',
+            'monto_debe_moneda_adicional' => '',
+            'monto_haber_moneda_adicional' => '',
+
+            // Códigos (columnas 8-16)
+            'codigo_condicion_venta' => '',
+            'codigo_vendedor' => '',
+            'codigo_ubicacion' => '',
+            'codigo_concepto_caja' => '',
+            'codigo_instrumento_financiero' => '',
+            'cantidad_instrumento_financiero' => '',
+            'codigo_detalle_gasto' => '',
+            'cantidad_concepto_gasto' => '',
+            'codigo_centro_costo' => '',
+
+            // Documentación (columnas 17-26)
+            'tipo_docto_conciliacion' => '',
+            'nro_docto_conciliacion' => '',
+            'codigo_auxiliar' => $auxiliarCode,
+            'tipo_documento' => $displayDocumentType,
+            'nro_documento' => $documentNumber,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'tipo_docto_referencia' => $displayDocumentType,
+            'nro_docto_referencia' => $documentNumber,
+            'nro_correlativo_interno' => '',
+
+            // Montos detalle libro (columnas 27-36)
+            'monto_1_detalle_libro' => '',
+            'monto_2_detalle_libro' => (int) abs($installment['amount']),
+            'monto_3_detalle_libro' => '',
+            'monto_4_detalle_libro' => '',
+            'monto_5_detalle_libro' => '',
+            'monto_6_detalle_libro' => '',
+            'monto_7_detalle_libro' => '',
+            'monto_8_detalle_libro' => '',
+            'monto_9_detalle_libro' => '',
+            'monto_suma_detalle_libro' => (int) abs($installment['amount']),
+
+            // Configuración (columnas 37-38)
+            'graba_detalle_libro' => 'S',
+            'documento_nulo' => '',
+
+            // Flujos de efectivo (columnas 39-58)
+            'codigo_flujo_efectivo_1' => '',
+            'monto_flujo_1' => '',
+            'codigo_flujo_efectivo_2' => '',
+            'monto_flujo_2' => '',
+            'codigo_flujo_efectivo_3' => '',
+            'monto_flujo_3' => '',
+            'codigo_flujo_efectivo_4' => '',
+            'monto_flujo_4' => '',
+            'codigo_flujo_efectivo_5' => '',
+            'monto_flujo_5' => '',
+            'codigo_flujo_efectivo_6' => '',
+            'monto_flujo_6' => '',
+            'codigo_flujo_efectivo_7' => '',
+            'monto_flujo_7' => '',
+            'codigo_flujo_efectivo_8' => '',
+            'monto_flujo_8' => '',
+            'codigo_flujo_efectivo_9' => '',
+            'monto_flujo_9' => '',
+            'codigo_flujo_efectivo_10' => '',
+            'monto_flujo_10' => '',
+
+            // Información adicional (columnas 59-61)
+            'numero_cuota_pago' => '',
+            'numero_documento_desde' => '',
+            'numero_documento_hasta' => '',
+
+            // Centros de costo concepto presupuesto caja (columnas 62-91)
+            'centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '',
+            'centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '',
+            'centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '',
+            'centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '',
+            'centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '',
+            'centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '',
+            'centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '',
+            'centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '',
+            'centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '',
+            'centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '',
+        ];
+    }
+
+    /**
+     * Crea el movimiento de ingreso de installment (HABER)
+     */
+    private function createInstallmentCreditMovement(array $installment): array
+    {
+        $programCourse = $installment['program_course'];
+        $authorizationCode = $installment['authorization_code'] ?? null;
+        $documentType = $installment['document_type'] ?? 'B2';
+        $documentNumber = $authorizationCode ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+
+        // Obtener código del programa
+        $programCode = 'SIN-CODIGO';
+        if ($programCourse) {
+            // Obtener el program parent para el código
+            $program = \App\Models\Program::find($programCourse->program_id);
+            $programCode = $program?->code ?? 'SIN-CODIGO';
+        }
+
+        // Determinar cuenta según el document_type del Payment
+        $payment = $installment['payment'] ?? null;
+        $isVirtualPos = $payment && $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
+
+        // Si es AC, va a cuenta 060, sino a 021
+        $accountCode = ($documentType === 'AC') ? '2-1-04-060' : '3-1-01-021';
+
+        // Si es VirtualPos, tipo de documento es VP
+        $displayDocumentType = $isVirtualPos ? 'VP' : $documentType;
+
+        // Descripción: para AC usar formato enrollment_code/payer_name/VP, para B2 el formato de programa
+        $description = '';
+        if ($documentType === 'AC') {
+            // Para AC (cuenta 060): enrollment_code/payer_name/VP
+            // Obtener enrollment_code
+            $enrollmentCode = '';
+            $participant = $installment['participant'] ?? null;
+            if ($participant && $payment) {
+                // Buscar ParticipantProgram para obtener enrollment_code
+                $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse?->program_id)
+                    ->first();
+                $enrollmentCode = $participantProgram?->enrollment_code ?? '';
+            }
+
+            // Obtener nombre del pagador
+            $buyerData = $installment['buyer_data'] ?? [];
+            $payerName = '';
+            if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+                $firstName = ucwords(strtolower($buyerData['first_name']));
+                $lastName = ucwords(strtolower($buyerData['first_last_name']));
+                $payerName = "{$firstName} {$lastName}";
+            } elseif ($participant) {
+                $payerName = $participant->full_name ?? '';
+            }
+
+            $description = "{$enrollmentCode}/{$payerName}/{$displayDocumentType}";
+        } else {
+            // Para B2 (cuenta 021): formato de programa educación
+            $description = "N{$programCode}/Programa educación/{$displayDocumentType}-{$documentNumber}";
+        }
+
+        return [
+            // Información básica
+            'codigo_plan_cuenta' => $accountCode,
+            'debe' => 0,
+            'haber' => (int) abs($installment['amount']),
+            'descripcion_movimiento' => $description,
+            'equivalencia_moneda' => '',
+            'monto_debe_moneda_adicional' => '',
+            'monto_haber_moneda_adicional' => '',
+
+            // Códigos (columnas H-M vacías)
+            'codigo_condicion_venta' => '',
+            'codigo_vendedor' => '',
+            'codigo_ubicacion' => '',
+            'codigo_concepto_caja' => '',
+            'codigo_instrumento_financiero' => '',
+            'cantidad_instrumento_financiero' => '',
+            'codigo_detalle_gasto' => '',
+            'cantidad_concepto_gasto' => '',
+            'codigo_centro_costo' => 'E2-02-01',
+
+            // Documentación
+            'tipo_docto_conciliacion' => '',
+            'nro_docto_conciliacion' => '',
+            'codigo_auxiliar' => '',
+            'tipo_documento' => '',
+            'nro_documento' => '',
+            'fecha_emision_docto' => '',
+            'fecha_vencimiento_docto' => '',
+            'tipo_docto_referencia' => '',
+            'nro_docto_referencia' => '',
+            'nro_correlativo_interno' => '',
+
+            // Montos detalle libro
+            'monto_1_detalle_libro' => '',
+            'monto_2_detalle_libro' => '',
+            'monto_3_detalle_libro' => '',
+            'monto_4_detalle_libro' => '',
+            'monto_5_detalle_libro' => '',
+            'monto_6_detalle_libro' => '',
+            'monto_7_detalle_libro' => '',
+            'monto_8_detalle_libro' => '',
+            'monto_9_detalle_libro' => '',
+            'monto_suma_detalle_libro' => '',
+
+            // Configuración
+            'graba_detalle_libro' => '',
+            'documento_nulo' => '',
+
+            // Flujos de efectivo (todas vacías)
+            'codigo_flujo_efectivo_1' => '',
+            'monto_flujo_1' => '',
+            'codigo_flujo_efectivo_2' => '',
+            'monto_flujo_2' => '',
+            'codigo_flujo_efectivo_3' => '',
+            'monto_flujo_3' => '',
+            'codigo_flujo_efectivo_4' => '',
+            'monto_flujo_4' => '',
+            'codigo_flujo_efectivo_5' => '',
+            'monto_flujo_5' => '',
+            'codigo_flujo_efectivo_6' => '',
+            'monto_flujo_6' => '',
+            'codigo_flujo_efectivo_7' => '',
+            'monto_flujo_7' => '',
+            'codigo_flujo_efectivo_8' => '',
+            'monto_flujo_8' => '',
+            'codigo_flujo_efectivo_9' => '',
+            'monto_flujo_9' => '',
+            'codigo_flujo_efectivo_10' => '',
+            'monto_flujo_10' => '',
+
+            // Información adicional (columnas 59-61)
+            'numero_cuota_pago' => '',
+            'numero_documento_desde' => '',
+            'numero_documento_hasta' => '',
+
+            // Centros de costo concepto presupuesto caja (columnas 62-91)
+            'centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '',
+            'centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '',
+            'centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '',
+            'centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '',
+            'centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '',
+            'centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '',
+            'centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '',
+            'centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '',
+            'centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '',
+            'centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '',
+        ];
     }
 }

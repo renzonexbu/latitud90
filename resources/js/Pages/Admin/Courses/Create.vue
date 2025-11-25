@@ -137,11 +137,10 @@
                                                                 Precio del viaje * (CLP)
                                                             </div>
                                                             <input
-                                                                type="number"
-                                                                v-model="form.trip_price"
-                                                                step="0.01"
-                                                                min="0"
-                                                                placeholder="0.00"
+                                                                type="text"
+                                                                :value="formatPrice(form.trip_price)"
+                                                                @input="handlePriceInput"
+                                                                placeholder="0"
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.trip_price }"
                                                             />
@@ -905,6 +904,25 @@ const toggleSubscriptionOption = (code, event) => {
 // Select program
 const selectProgram = (programId) => {
     form.value.program_id = programId;
+};
+
+// Format price with thousands separator (no decimals)
+const formatPrice = (value) => {
+    if (!value && value !== 0) return '';
+    // Convert to number and remove decimals
+    const number = Math.floor(parseFloat(value));
+    if (isNaN(number)) return '';
+    // Format with thousands separator
+    return new Intl.NumberFormat('es-CL').format(number);
+};
+
+// Handle price input
+const handlePriceInput = (event) => {
+    const value = event.target.value;
+    // Remove all non-digit characters
+    const cleanValue = value.replace(/\D/g, '');
+    // Update form with the clean number
+    form.value.trip_price = cleanValue ? parseInt(cleanValue) : '';
 };
 
 // Handle file upload

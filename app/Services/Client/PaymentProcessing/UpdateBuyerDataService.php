@@ -168,13 +168,24 @@ class UpdateBuyerDataService
             return null;
         }
 
-        $enabled = DB::table('program_payment_option')
-            ->where('program_id', $programId)
-            ->where('payment_option_id', $optionId)
-            ->where('enabled', true)
+        // Verificar si hay configuración de pivot para este program_course
+        $pivotExists = DB::table('program_course_payment_option')
+            ->where('program_course_id', $programId)
             ->exists();
 
-        return $enabled ? (int)$optionId : null;
+        // Si hay registros en el pivot, validar que esté habilitado
+        // Si no hay registros en el pivot, permitir la opción (modo legacy)
+        if ($pivotExists) {
+            $enabled = DB::table('program_course_payment_option')
+                ->where('program_course_id', $programId)
+                ->where('payment_option_id', $optionId)
+                ->where('enabled', true)
+                ->exists();
+            return $enabled ? (int)$optionId : null;
+        }
+
+        // Modo legacy: sin configuración de pivot, permitir cualquier opción
+        return (int)$optionId;
     }
 
     // Métodos de resolución de IDs
