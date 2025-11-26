@@ -3,6 +3,7 @@
 namespace App\Services\Admin\Programs;
 
 use App\Models\Program;
+use App\Services\ImageOptimizationService;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -10,6 +11,13 @@ use Illuminate\Support\Facades\Log;
 class CreateProgramService
 {
     use AdminLogging;
+
+    protected ImageOptimizationService $imageService;
+
+    public function __construct(ImageOptimizationService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
 
     /**
      * Execute the program template creation.
@@ -96,7 +104,7 @@ class CreateProgramService
         $timestamp = now()->format('Y_m_d_H_i_s');
 
         // Crear la carpeta base del programa
-        $programFolder = "public/programs/{$programId}";
+        $programFolder = "programs/{$programId}";
 
         // Procesar archivo de itinerario
         if (isset($programData['itinerary_file']) && $programData['itinerary_file']) {
@@ -119,19 +127,17 @@ class CreateProgramService
             $programData['equipment_file_path'] = $fullPath;
         }
 
-        // Procesar imágenes si se proporcionaron
+        // Procesar imágenes si se proporcionaron (optimizadas y convertidas a WebP)
         if (isset($programData['images']) && is_array($programData['images'])) {
-            $imagePaths = [];
-            foreach ($programData['images'] as $index => $image) {
-                if ($image && $image->isValid()) {
-                    $imagePath = "{$programFolder}/images/imagen_{$programId}_{$timestamp}_{$index}.{$image->getClientOriginalExtension()}";
-                    $fullPath = $image->storeAs($imagePath, null, 'public');
-                    $imagePaths[] = $fullPath;
-                }
-            }
+            $imagesDirectory = "{$programFolder}/images";
+            $imagePaths = $this->imageService->optimizeMultiple(
+                $programData['images'],
+                $imagesDirectory,
+                "imagen_{$programId}"
+            );
+
             if (!empty($imagePaths)) {
-                // Guardar solo la ruta de la carpeta de imágenes
-                $programData['images_folder'] = $programFolder . '/images';
+                $programData['images_folder'] = $imagesDirectory;
             }
         }
 

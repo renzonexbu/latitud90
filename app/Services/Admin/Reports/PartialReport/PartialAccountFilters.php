@@ -17,9 +17,9 @@ class PartialAccountFilters
     {
         $query = $this->dataProvider->buildBaseQuery();
 
-        // Filtro por programa
+        // Filtro por programa (ahora filtra por program_courses.id)
         if (!empty($filters['programId'])) {
-            $query->where('pr.id', $filters['programId']);
+            $query->where('pgc.id', $filters['programId']);
         }
 
         // Filtro por participante

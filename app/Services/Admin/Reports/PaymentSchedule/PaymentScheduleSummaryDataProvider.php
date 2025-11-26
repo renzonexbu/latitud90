@@ -21,6 +21,7 @@ class PaymentScheduleSummaryDataProvider
             ->leftJoin('sales_executives as se', 'se.id', '=', 'pgc.sales_executive_id')
             ->leftJoin('payments as pay', 'i.payment_id', '=', 'pay.id')
             ->leftJoin('payment_gateways as pg', 'pay.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->select([
                 // Datos del ejecutivo
                 'se.id as sales_executive_id',
@@ -32,38 +33,42 @@ class PaymentScheduleSummaryDataProvider
                 'pgc.name as program_name',
                 'prog.id as program_id',
                 'prog.destination as program_destination',
-                
+
                 // Fecha para agrupación mensual
                 DB::raw('YEAR(i.due_date) as `year`'),
                 DB::raw('MONTH(i.due_date) as `month`'),
                 DB::raw('DATE_FORMAT(i.due_date, "%Y-%m") as `year_month`'),
-                
+
                 // Datos de las cuotas
                 'i.id as installment_id',
                 'i.installment_number',
-                'i.amount as installment_amount', 
+                'i.amount as installment_amount',
                 'i.due_date',
                 'i.status as installment_status',
                 'i.paid_at',
-                
+
                 // Datos del pago
                 'pay.id as payment_id',
                 'pay.amount as payment_amount',
                 'pay.transaction_date',
                 'pg.code as gateway_code',
-                
+                'po.mode as payment_mode',
+
                 // Estado calculado de la cuota
-                DB::raw('CASE 
+                DB::raw('CASE
                     WHEN i.status = "paid" THEN "paid"
                     WHEN i.due_date < CURDATE() AND i.status != "paid" THEN "overdue"
                     ELSE "pending"
                 END as `payment_status`'),
-                
+
                 // Tipo de método de pago para TC vs PAT
-                DB::raw('CASE 
+                // PAT = Pago Automático con Tarjeta (suscripción)
+                // TC = Tarjeta de Crédito (pago único/manual)
+                DB::raw('CASE
+                    WHEN i.status = "paid" AND (po.mode = "subscription" OR po.gateway_code = "virtualpos") THEN "PAT"
                     WHEN i.status = "paid" AND pg.code = "transbank" THEN "TC"
-                    WHEN i.status = "paid" AND pg.code IN ("khipu", "presencial", "refund") THEN "PAT"
-                    WHEN i.status = "paid" AND pg.code IS NULL THEN "TC"
+                    WHEN i.status = "paid" AND pg.code IN ("khipu", "presencial") THEN "TC"
+                    WHEN i.status = "paid" THEN "TC"
                     ELSE "UNPAID"
                 END as `payment_method_type`')
             ])

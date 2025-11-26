@@ -3,6 +3,7 @@
 namespace App\Services\Admin\Programs;
 
 use App\Models\Program;
+use App\Services\ImageOptimizationService;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,13 @@ use Illuminate\Support\Facades\Log;
 class UpdateProgramService
 {
     use AdminLogging;
+
+    protected ImageOptimizationService $imageService;
+
+    public function __construct(ImageOptimizationService $imageService)
+    {
+        $this->imageService = $imageService;
+    }
 
     /**
      * Execute the program template update.
@@ -155,7 +163,7 @@ class UpdateProgramService
     {
         $programId = $program->id;
         $timestamp = now()->format('Y_m_d_H_i_s');
-        $programFolder = "public/programs/{$programId}";
+        $programFolder = "programs/{$programId}";
         $processedData = [];
 
         // Procesar archivo de itinerario
@@ -194,19 +202,32 @@ class UpdateProgramService
             $processedData['equipment_file_path'] = $fullPath;
         }
 
-        // Procesar nuevas imágenes si se proporcionaron
+        // Procesar nuevas imágenes si se proporcionaron (optimizadas y convertidas a WebP)
         if (isset($programData['images']) && is_array($programData['images'])) {
-            $existingImages = $program->images ?? [];
+            Log::info('UpdateProgramService: Procesando imágenes', [
+                'program_id' => $programId,
+                'images_count' => count($programData['images']),
+            ]);
 
-            foreach ($programData['images'] as $index => $image) {
-                if ($image && $image->isValid()) {
-                    $imagePath = "{$programFolder}/images/imagen_{$programId}_{$timestamp}_{$index}.{$image->getClientOriginalExtension()}";
-                    $fullPath = $image->storeAs($imagePath, null, 'public');
-                }
-            }
+            $imagesDirectory = "{$programFolder}/images";
+            $imagePaths = $this->imageService->optimizeMultiple(
+                $programData['images'],
+                $imagesDirectory,
+                "imagen_{$programId}"
+            );
+
+            Log::info('UpdateProgramService: Imágenes procesadas', [
+                'paths' => $imagePaths,
+            ]);
 
             // Mantener la carpeta de imágenes
-            $processedData['images_folder'] = $programFolder . '/images';
+            $processedData['images_folder'] = $imagesDirectory;
+        } else {
+            Log::info('UpdateProgramService: No hay imágenes nuevas para procesar', [
+                'program_id' => $programId,
+                'images_isset' => isset($programData['images']),
+                'images_is_array' => isset($programData['images']) ? is_array($programData['images']) : false,
+            ]);
         }
 
         return $processedData;

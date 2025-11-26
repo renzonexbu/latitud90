@@ -4,6 +4,7 @@ namespace App\Services\Admin\Reports\PartialReport;
 
 use App\Models\Participant;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -58,8 +59,19 @@ class PartialAccountService
      */
     public function getFilterData(): array
     {
+        $programs = ProgramCourse::select('id', 'code', 'name')
+            ->where('active', true)
+            ->orderBy('code')
+            ->get()
+            ->map(function($program) {
+                return [
+                    'id' => $program->id,
+                    'name' => $program->code . ' - ' . $program->name,
+                ];
+            });
+
         return [
-            'programs' => Program::select('id', 'name')->orderBy('name')->get(),
+            'programs' => $programs,
             'participants' => Participant::select('id', 'first_last_name', 'second_last_name', 'first_name', 'second_name')->get(),
         ];
     }

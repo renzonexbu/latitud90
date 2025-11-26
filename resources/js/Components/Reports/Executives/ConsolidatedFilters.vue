@@ -34,13 +34,13 @@
             <!-- Programas -->
             <div class="relative flex-1">
                 <select
-                    v-model="filters.programCode"
+                    v-model="filters.programId"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="onProgramChange"
                 >
                     <option value="">Todos los programas</option>
-                    <option v-for="program in programs" :key="program.id" :value="program.code">
-                        {{ program.code }} - {{ program.name }} - {{ program.destination }}
+                    <option v-for="program in programs" :key="program.id" :value="program.id">
+                        {{ program.code }} - {{ program.name }} {{ program.program?.destination ? '- ' + program.program.destination : '' }}
                     </option>
                 </select>
             </div>
@@ -81,7 +81,7 @@ export default {
     data() {
         return {
             filters: {
-                programCode: this.initialFilters.programCode || "",
+                programId: this.initialFilters.programId || "",
                 dateFrom: this.initialFilters.dateFrom || "",
                 dateTo: this.initialFilters.dateTo || "",
             }
@@ -109,9 +109,9 @@ export default {
         clearFilters() {
             const today = new Date();
             const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-            
+
             this.filters = {
-                programCode: "",
+                programId: "",
                 dateFrom: lastMonth.toISOString().split('T')[0],
                 dateTo: today.toISOString().split('T')[0],
             };

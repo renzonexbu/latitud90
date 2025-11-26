@@ -26,14 +26,18 @@ class DailyPaymentsTransformer
     
     private function transformPaymentItem($item): array
     {
+        // Usar program_course_id (programa específico) en lugar de program_id (template)
+        $programCourseId = $item->program_course_id ?? $item->program_id;
+
         // Calcular estadísticas globales del participante para este programa
-        $participantStats = $this->calculateParticipantStats($item->participant_id, $item->program_id);
-        
+        // Pasar el payment_type para determinar si es pago único o en cuotas
+        $participantStats = $this->calculateParticipantStats($item->participant_id, $programCourseId, $item->payment_type ?? null);
+
         // Calcular el precio real del participante con descuentos aplicados
-        $participantPrice = $this->calculateParticipantPrice($item->participant_id, $item->program_id);
+        $participantPrice = $this->calculateParticipantPrice($item->participant_id, $programCourseId);
 
         // Separar descuentos normales de liberados
-        $discountBreakdown = $this->calculateDiscountBreakdown($item->participant_id, $item->program_id);
+        $discountBreakdown = $this->calculateDiscountBreakdown($item->participant_id, $programCourseId);
 
         // Construir nombre del participante con CapitalCase
         $participantName = $this->buildParticipantName($item);
@@ -345,7 +349,7 @@ class DailyPaymentsTransformer
     /**
      * Calcular estadísticas completas de la orden
      */
-    private function calculateParticipantStats($participantId, $programId): array
+    private function calculateParticipantStats($participantId, $programId, $paymentType = null): array
     {
         // Calcular el precio real con descuentos aplicados
         $participantPrice = $this->calculateParticipantPrice($participantId, $programId);
@@ -359,16 +363,42 @@ class DailyPaymentsTransformer
             ->whereIn('payments.status', ['completed', 'approved'])
             ->sum('payments.amount');
 
-        // Buscar TODOS los planes de cuotas del participante para este programa
+        // Calcular el saldo pendiente real
+        $remainingBalance = max($finalPriceWithDiscounts - $totalPaidAmount, 0);
+
+        // Si es pago total (payment_type = 'total' o no es 'monthly'), mostrar como pago único
+        // Esto incluye casos donde payment_type es null o tiene otro valor
+        if ($paymentType === 'total' || $paymentType !== 'monthly') {
+            // Verificar si realmente tiene un plan de cuotas activo (monthly)
+            $hasActiveInstallmentPlan = DB::table('installment_plans')
+                ->where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->whereIn('status', ['active', 'current'])
+                ->exists();
+
+            // Si no tiene plan de cuotas activo, tratar como pago único
+            if (!$hasActiveInstallmentPlan) {
+                $isPaid = $totalPaidAmount >= $finalPriceWithDiscounts;
+                return [
+                    'total_paid' => $totalPaidAmount,
+                    'remaining_balance' => $remainingBalance,
+                    'paid_installments_display' => $isPaid ? '1/1' : '0/1',
+                    'overdue_installments_display' => '0',
+                ];
+            }
+        }
+
+        // Buscar planes de cuotas ACTIVOS del participante para este programa
         $installmentPlans = DB::table('installment_plans')
             ->where('participant_id', $participantId)
             ->where('program_id', $programId)
+            ->whereIn('status', ['active', 'current', 'completed'])
             ->get();
 
         if ($installmentPlans->count() > 0) {
             // Usar el sistema de cuotas (installments) - SUMAR TODOS LOS PLANES
             $planIds = $installmentPlans->pluck('id')->toArray();
-            
+
             $installmentStats = DB::table('installments')
                 ->whereIn('installment_plan_id', $planIds)
                 ->selectRaw('
@@ -382,44 +412,62 @@ class DailyPaymentsTransformer
             $paidInstallments = $installmentStats->paid_installments ?? 0;
             $overdueInstallments = $installmentStats->overdue_installments ?? 0;
 
-            // Calcular el saldo pendiente real
-            $remainingBalance = max($finalPriceWithDiscounts - $totalPaidAmount, 0);
+            // Si no hay cuotas en los planes, tratar como pago único
+            if ($totalInstallments == 0) {
+                $isPaid = $totalPaidAmount >= $finalPriceWithDiscounts;
+                return [
+                    'total_paid' => $totalPaidAmount,
+                    'remaining_balance' => $remainingBalance,
+                    'paid_installments_display' => $isPaid ? '1/1' : '0/1',
+                    'overdue_installments_display' => '0',
+                ];
+            }
 
             return [
                 'total_paid' => $totalPaidAmount,
                 'remaining_balance' => $remainingBalance,
-                'paid_installments_display' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : '0',
+                'paid_installments_display' => "{$paidInstallments}/{$totalInstallments}",
                 'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
             ];
         } else {
-            // Usar el sistema de orders_detail (pagos presenciales/totales)
-            $allOrders = DB::table('orders')
-                ->where('participant_id', $participantId)
-                ->where('program_id', $programId)
-                ->pluck('id')
-                ->toArray();
+            // No hay planes de cuotas activos, verificar orders_detail solo para pagos mensuales
+            if ($paymentType === 'monthly') {
+                $allOrders = DB::table('orders')
+                    ->where('participant_id', $participantId)
+                    ->where('program_id', $programId)
+                    ->pluck('id')
+                    ->toArray();
 
-            $orderDetailStats = DB::table('orders_detail')
-                ->whereIn('order_id', $allOrders)
-                ->selectRaw('
-                    COUNT(*) as total_installments,
-                    COUNT(CASE WHEN is_paid = 1 THEN 1 END) as paid_installments,
-                    COUNT(CASE WHEN is_paid = 0 AND due_date < CURDATE() THEN 1 END) as overdue_installments
-                ')
-                ->first();
+                $orderDetailStats = DB::table('orders_detail')
+                    ->whereIn('order_id', $allOrders)
+                    ->selectRaw('
+                        COUNT(*) as total_installments,
+                        COUNT(CASE WHEN is_paid = 1 THEN 1 END) as paid_installments,
+                        COUNT(CASE WHEN is_paid = 0 AND due_date < CURDATE() THEN 1 END) as overdue_installments
+                    ')
+                    ->first();
 
-            $totalInstallments = $orderDetailStats->total_installments ?? 0;
-            $paidInstallments = $orderDetailStats->paid_installments ?? 0;
-            $overdueInstallments = $orderDetailStats->overdue_installments ?? 0;
+                $totalInstallments = $orderDetailStats->total_installments ?? 0;
+                $paidInstallments = $orderDetailStats->paid_installments ?? 0;
+                $overdueInstallments = $orderDetailStats->overdue_installments ?? 0;
 
-            // Calcular el saldo pendiente real
-            $remainingBalance = max($finalPriceWithDiscounts - $totalPaidAmount, 0);
+                if ($totalInstallments > 0) {
+                    return [
+                        'total_paid' => $totalPaidAmount,
+                        'remaining_balance' => $remainingBalance,
+                        'paid_installments_display' => "{$paidInstallments}/{$totalInstallments}",
+                        'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
+                    ];
+                }
+            }
 
+            // Por defecto, tratar como pago único
+            $isPaid = $totalPaidAmount >= $finalPriceWithDiscounts;
             return [
                 'total_paid' => $totalPaidAmount,
                 'remaining_balance' => $remainingBalance,
-                'paid_installments_display' => $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : '0',
-                'overdue_installments_display' => $overdueInstallments > 0 ? "{$overdueInstallments}" : '0',
+                'paid_installments_display' => $isPaid ? '1/1' : '0/1',
+                'overdue_installments_display' => '0',
             ];
         }
     }

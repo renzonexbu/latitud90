@@ -279,6 +279,53 @@ class VirtualPosSubscriptionService
     }
 
     /**
+     * Obtener detalle de un cargo (charge) específico
+     * Este endpoint retorna información adicional como el auth_code
+     *
+     * @param string $chargeId ID del cargo (ej: cid_xxx)
+     * @return array
+     * @throws Exception
+     */
+    public function getCharge(string $chargeId): array
+    {
+        try {
+            $endpoint = "/charge/{$chargeId}";
+
+            Log::info('VirtualPos: Recuperando detalle de cargo', [
+                'charge_id' => $chargeId
+            ]);
+
+            $response = Http::withHeaders($this->getHeaders())
+                ->get($this->apiUrl . $endpoint);
+
+            if ($response->failed()) {
+                Log::error('VirtualPos: Error al recuperar cargo', [
+                    'charge_id' => $chargeId,
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                throw new Exception('Error al recuperar cargo: ' . $response->body());
+            }
+
+            $data = $response->json();
+
+            Log::info('VirtualPos: Detalle de cargo obtenido', [
+                'charge_id' => $chargeId,
+                'status' => $data['charge']['status'] ?? 'unknown',
+                'has_auth_code' => isset($data['charge']['payment']['order']['auth_code'])
+            ]);
+
+            return $data;
+        } catch (Exception $e) {
+            Log::error('VirtualPos: Excepción al recuperar cargo', [
+                'charge_id' => $chargeId,
+                'message' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Obtener headers necesarios para la autenticación
      *
      * @param string|null $uuid UUID de la petición (requerido para POST)

@@ -91,42 +91,51 @@ class ExecutivesPartialAccountService
                 $participantName = ucwords(strtolower($participantName));
 
                 $price = (float) $row->price;
-                $abono = (float) $row->abono;
                 $scholarship = (float) $row->scholarship;
                 $released = (float) $row->released;
-                $porPagar = max($price - $abono - $scholarship - $released, 0);
 
                 // Calcular cuotas pagadas y vencidas solo para pagos completed
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $programCourseId)
                     ->pluck('id')->all();
-                
+
                 $paidInstallments = 0;
                 $overdueInstallments = 0;
-                $totalInstallments = (int) $row->total_installments;
-                
+                $totalInstallments = 0;
+                $abono = 0;
+
                 if (!empty($orderIds)) {
-                    // Solo considerar cuotas relacionadas a pagos completed
-                    $completedPaymentIds = \App\Models\Payment::whereIn('order_id', $orderIds)
-                        ->where('status', 'completed')
-                        ->pluck('id')->all();
-                    
-                    if (!empty($completedPaymentIds)) {
-                        $paidInstallments = \App\Models\Installment::whereIn('installment_plan_id', function($query) use ($orderIds) {
-                            $query->select('id')->from('installment_plans')->whereIn('order_id', $orderIds);
-                        })->where('status', 'paid')->count();
-                        
-                        $overdueInstallments = \App\Models\Installment::whereIn('installment_plan_id', function($query) use ($orderIds) {
-                            $query->select('id')->from('installment_plans')->whereIn('order_id', $orderIds);
-                        })->where(function($query) {
-                            $query->where('status', 'overdue')
-                                  ->orWhere(function($q) {
-                                      $q->where('status', 'pending')
-                                        ->where('due_date', '<', now());
-                                  });
-                        })->count();
+                    // Obtener el plan de cuotas
+                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+
+                    if ($installmentPlan) {
+                        $totalInstallments = $installmentPlan->installments()->count();
+
+                        // Contar cuotas pagadas
+                        $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
+
+                        // Contar cuotas vencidas (no pagadas y con fecha pasada)
+                        $overdueInstallments = $installmentPlan->installments()
+                            ->where(function($query) {
+                                $query->where('status', 'overdue')
+                                      ->orWhere(function($q) {
+                                          $q->where('status', 'pending')
+                                            ->where('due_date', '<', now());
+                                      });
+                            })->count();
+
+                        // Calcular abono: suma de los montos de las cuotas pagadas
+                        $abono = (float) $installmentPlan->installments()
+                            ->where('status', 'paid')
+                            ->sum('amount');
+                    } else {
+                        // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
+                        $abono = (float) $row->abono;
                     }
                 }
+
+                // Por pagar = Precio - Abono - Becas - Liberado
+                $porPagar = max($price - $abono - $scholarship - $released, 0);
 
                 $items->push([
                     'student' => $participantName,

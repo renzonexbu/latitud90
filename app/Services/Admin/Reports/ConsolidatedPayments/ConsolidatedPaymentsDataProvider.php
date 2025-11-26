@@ -29,26 +29,31 @@ class ConsolidatedPaymentsDataProvider
             ->groupBy('ip.order_id');
 
         // Subconsulta: estadísticas de cuotas por participante y programa (desde installments)
+        // Agrupar por order_id para obtener estadísticas específicas de cada orden
         $installmentsStatsSub = DB::table('installments as i')
             ->join('installment_plans as ip2', 'i.installment_plan_id', '=', 'ip2.id')
             ->selectRaw('
                 ip2.participant_id,
                 ip2.program_id,
+                ip2.order_id,
                 COUNT(*) as total_installments_ins,
                 COUNT(CASE WHEN i.status = "paid" THEN 1 END) as paid_installments_ins
             ')
-            ->groupBy('ip2.participant_id', 'ip2.program_id');
+            ->groupBy('ip2.participant_id', 'ip2.program_id', 'ip2.order_id');
 
         // Subconsulta: estadísticas de cuotas por participante y programa (fallback orders_detail)
+        // IMPORTANTE: Solo contar cuotas de órdenes no canceladas para evitar contar cuotas de órdenes fallidas
         $orderDetailsStatsSub = DB::table('orders_detail as od2')
             ->join('orders as o2', 'od2.order_id', '=', 'o2.id')
             ->selectRaw('
                 o2.participant_id,
                 o2.program_id,
+                o2.id as order_id,
                 COUNT(*) as total_installments_od,
                 COUNT(CASE WHEN od2.is_paid = 1 THEN 1 END) as paid_installments_od
             ')
-            ->groupBy('o2.participant_id', 'o2.program_id');
+            ->whereNotIn('o2.status', ['cancelled', 'failed', 'pending'])
+            ->groupBy('o2.participant_id', 'o2.program_id', 'o2.id');
 
         return DB::table('payments as pay')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
@@ -71,12 +76,12 @@ class ConsolidatedPaymentsDataProvider
                 $join->on('iplan.order_id', '=', 'o.id');
             })
             ->leftJoinSub($installmentsStatsSub, 'ins_stats', function ($join) {
-                $join->on('ins_stats.participant_id', '=', 'o.participant_id')
-                     ->on('ins_stats.program_id', '=', 'o.program_id');
+                // Usar order_id para obtener estadísticas específicas de esta orden
+                $join->on('ins_stats.order_id', '=', 'o.id');
             })
             ->leftJoinSub($orderDetailsStatsSub, 'od_stats', function ($join) {
-                $join->on('od_stats.participant_id', '=', 'o.participant_id')
-                     ->on('od_stats.program_id', '=', 'o.program_id');
+                // Usar order_id para obtener estadísticas específicas de esta orden
+                $join->on('od_stats.order_id', '=', 'o.id');
             })
             ->select([
                 // Identificación

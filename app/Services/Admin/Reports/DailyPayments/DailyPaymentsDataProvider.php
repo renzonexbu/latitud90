@@ -51,11 +51,12 @@ class DailyPaymentsDataProvider
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'doc.name as participant_document_type',
                 // Datos del programa (template)
-                'pr.id as program_id',
-                'pr.name as program_name',
+                'pr.id as template_program_id',
                 'pr.destination',
                 // Datos del programa específico (program_course)
+                'pgc.id as program_course_id',
                 'pgc.code as program_code',
+                'pgc.name as program_name',
                 'pgc.departure_date as departure_date',
                 'pgc.sales_executive_id',
                 // Datos del ejecutivo de ventas

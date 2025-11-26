@@ -194,12 +194,76 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             }
         }
 
+        // Actualizar pagos existentes que no tengan authorization_code
+        $updatedAuthCodes = $this->updateExistingPaymentsAuthCodes($subscription, $currentCharges);
+
         // Actualizar charge_program guardado
         $subscription->update([
             'charge_program' => $currentCharges
         ]);
 
         return count($newPayments);
+    }
+
+    /**
+     * Actualizar authorization_code de pagos existentes que no lo tengan
+     *
+     * @return int Número de pagos actualizados
+     */
+    protected function updateExistingPaymentsAuthCodes(ProgramSubscription $subscription, array $currentCharges): int
+    {
+        $updatedCount = 0;
+
+        // Buscar pagos de esta suscripción que no tengan authorization_code
+        $paymentsWithoutAuthCode = Payment::whereNull('authorization_code')
+            ->where('external_payment_id', 'like', 'cid_%')
+            ->whereHas('order', function ($query) use ($subscription) {
+                $query->where('participant_id', $subscription->participant_id)
+                    ->where('program_id', $subscription->program_id);
+            })
+            ->get();
+
+        if ($paymentsWithoutAuthCode->isEmpty()) {
+            return 0;
+        }
+
+        Log::info('SyncSubscriptionPayments: Pagos sin auth_code encontrados', [
+            'subscription_id' => $subscription->id,
+            'count' => $paymentsWithoutAuthCode->count()
+        ]);
+
+        foreach ($paymentsWithoutAuthCode as $payment) {
+            $chargeId = $payment->external_payment_id;
+
+            try {
+                // Obtener detalle del cargo desde VirtualPOS
+                $chargeDetail = $this->virtualPosService->getCharge($chargeId);
+
+                if (isset($chargeDetail['charge']['payment']['order']['auth_code'])) {
+                    $authCode = $chargeDetail['charge']['payment']['order']['auth_code'];
+
+                    $payment->update([
+                        'authorization_code' => $authCode
+                    ]);
+
+                    Log::info('SyncSubscriptionPayments: auth_code actualizado en pago existente', [
+                        'payment_id' => $payment->id,
+                        'charge_id' => $chargeId,
+                        'auth_code' => $authCode
+                    ]);
+
+                    $updatedCount++;
+                }
+            } catch (Exception $e) {
+                Log::warning('SyncSubscriptionPayments: No se pudo obtener auth_code para pago existente', [
+                    'payment_id' => $payment->id,
+                    'charge_id' => $chargeId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        return $updatedCount;
     }
 
     /**
@@ -308,6 +372,24 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'amount' => $charge['amount'] ?? 0,
             'charge_date' => $charge['charge_date'] ?? null
         ]);
+
+        // Obtener detalle del cargo desde VirtualPOS para obtener el auth_code
+        try {
+            $chargeDetail = $this->virtualPosService->getCharge($charge['id']);
+            // Fusionar los datos del detalle con el charge original
+            if (isset($chargeDetail['charge'])) {
+                $charge = array_merge($charge, $chargeDetail['charge']);
+                Log::info('SyncSubscriptionPayments: Detalle del cargo obtenido', [
+                    'charge_id' => $charge['id'],
+                    'auth_code' => $charge['payment']['order']['auth_code'] ?? 'N/A'
+                ]);
+            }
+        } catch (Exception $e) {
+            Log::warning('SyncSubscriptionPayments: No se pudo obtener detalle del cargo, continuando sin auth_code', [
+                'charge_id' => $charge['id'],
+                'error' => $e->getMessage()
+            ]);
+        }
 
         DB::beginTransaction();
 
@@ -614,11 +696,15 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $paymentOption = \App\Models\PaymentOption::where('code', 'lat90_subscription')->first();
 
         $paymentData = $charge['payment'] ?? [];
+        $orderData = $paymentData['order'] ?? [];
 
         // Obtener datos de pago desde el charge y la suscripción
         $paymentMethod = $subscription->payment_method ?? [];
         $cardBrand = $paymentData['card_type'] ?? ($paymentMethod['brand'] ?? null);
-        $cardLast4 = $paymentData['card_number'] ?? ($paymentMethod['last4'] ?? null);
+        $cardLast4 = $orderData['card_number'] ?? ($paymentData['card_number'] ?? ($paymentMethod['last4'] ?? null));
+
+        // Extraer auth_code desde la ubicación correcta (payment.order.auth_code)
+        $authCode = $orderData['auth_code'] ?? ($paymentData['auth_code'] ?? ($paymentData['authorization_code'] ?? null));
 
         $paymentRecord = [
             'order_id' => $orderDetail->order_id,
@@ -632,11 +718,11 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'status' => 'completed',
             'amount' => $charge['amount'] ?? 0,
             'currency' => 'CLP',
-            'installments_number' => $paymentData['installments_number'] ?? ($paymentData['installment_number'] ?? 1),
-            'installment_amount' => $paymentData['installment_amount'] ?? ($charge['amount'] ?? 0),
+            'installments_number' => $orderData['installment_number'] ?? ($paymentData['installments_number'] ?? 1),
+            'installment_amount' => $orderData['installment_amount'] ?? ($paymentData['installment_amount'] ?? ($charge['amount'] ?? 0)),
             'transaction_date' => $this->parseTransactionDate($charge),
             'accounting_date' => $this->parseTransactionDate($charge),
-            'authorization_code' => $paymentData['auth_code'] ?? ($paymentData['authorization_code'] ?? null),
+            'authorization_code' => $authCode,
             'response_code' => $paymentData['response_code'] ?? '0', // 0 = aprobado
             'vci' => $paymentData['vci'] ?? null,
             'card_type' => $cardBrand,

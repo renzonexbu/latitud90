@@ -874,8 +874,8 @@ const filesOpen = ref(false);
 // Estado para las imágenes
 const selectedImages = ref([]);
 
-// Cargar imágenes existentes en modo edit
-if (props.mode === "edit" && props.existingImages.length > 0) {
+// Cargar imágenes existentes en modo edit o template-edit
+if ((props.mode === "edit" || props.mode === "template-edit") && props.existingImages.length > 0) {
     selectedImages.value = props.existingImages.map((image, index) => ({
         id: `existing-${index}`,
         file: null,

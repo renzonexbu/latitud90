@@ -30,8 +30,8 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
-                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id',
-                'pr.id', 'pr.name',
+                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id', 'pgc.name',
+                'pr.id',
                 'c.education_level', 'c.course_number',
                 'i.name',
             ])
@@ -53,7 +53,7 @@ class PartialAccountDataProvider
                 'pgc.departure_date',
                 'pgc.sales_executive_id',
                 'pr.id as program_id',
-                'pr.name as program_name',
+                'pgc.name as program_name',
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
@@ -74,8 +74,8 @@ class PartialAccountDataProvider
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
-                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id',
-                'pr.id', 'pr.name',
+                'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id', 'pgc.name',
+                'pr.id',
                 'c.education_level', 'c.course_number',
                 'i.name',
             ])
@@ -97,7 +97,7 @@ class PartialAccountDataProvider
                 'pgc.departure_date',
                 'pgc.sales_executive_id',
                 'pr.id as program_id',
-                'pr.name as program_name',
+                'pgc.name as program_name',
                 'c.education_level',
                 'c.course_number',
                 'i.name as institution_name',
@@ -105,8 +105,6 @@ class PartialAccountDataProvider
             ])
             ->orderByDesc('pp.created_at')
             ->get();
-
-
 
         return $result;
     }

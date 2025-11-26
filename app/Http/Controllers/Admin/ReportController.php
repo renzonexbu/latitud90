@@ -529,10 +529,15 @@ class ReportController extends Controller
             // Add headers
             if ($data->isNotEmpty()) {
                 $headers = array_keys($data->first());
-                
+
+                // Identificar columna de porcentaje
+                $percentageCol = null;
                 $col = 'A';
                 foreach ($headers as $header) {
                     $sheet->setCellValue($col . '1', $header);
+                    if (stripos($header, 'Progreso de Pago') !== false || stripos($header, 'porcentaje') !== false) {
+                        $percentageCol = $col;
+                    }
                     $col++;
                 }
 
@@ -576,6 +581,13 @@ class ReportController extends Controller
                 // Auto-size columns
                 foreach (range('A', $lastCol) as $columnID) {
                     $sheet->getColumnDimension($columnID)->setAutoSize(true);
+                }
+
+                // Aplicar formato de porcentaje a la columna correspondiente
+                if ($percentageCol && $row > 2) {
+                    $sheet->getStyle($percentageCol . '2:' . $percentageCol . ($row - 1))
+                        ->getNumberFormat()
+                        ->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_PERCENTAGE_00);
                 }
             }
 

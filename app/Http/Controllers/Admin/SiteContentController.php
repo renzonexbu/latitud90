@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SiteContent;
+use App\Services\ImageOptimizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -100,21 +101,25 @@ class SiteContentController extends Controller
     }
 
     /**
-     * Subir imagen
+     * Subir imagen (optimizada y convertida a WebP)
      */
-    public function uploadImage(Request $request)
+    public function uploadImage(Request $request, ImageOptimizationService $imageService)
     {
         try {
             $request->validate([
-                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:20480',
                 'section' => 'required|string',
             ]);
 
-            $path = $request->file('image')->store('site-content/' . $request->section, 'public');
+            $directory = 'site-content/' . $request->section;
+            $path = $imageService->optimizeAndStore(
+                $request->file('image'),
+                $directory
+            );
 
             return response()->json([
                 'success' => true,
-                'path' => 'site-content/' . $request->section . '/' . basename($path),
+                'path' => $path,
                 'url' => asset('storage/' . $path),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {

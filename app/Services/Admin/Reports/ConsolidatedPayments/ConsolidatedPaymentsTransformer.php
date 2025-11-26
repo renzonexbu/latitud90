@@ -42,10 +42,7 @@ class ConsolidatedPaymentsTransformer
             'installments_number' => $item->installments_number ?? 1,
             'paid_installments' => (int)($item->paid_installments ?? 0),
             'total_installments' => (int)($item->total_installments ?? 0),
-            'paid_installments_display' => $this->formatInstallments(
-                (int)($item->paid_installments ?? 0),
-                (int)($item->total_installments ?? 0)
-            ),
+            'paid_installments_display' => $this->formatInstallmentsDisplay($item),
             'payment_date' => $item->payment_date,
             'payer_name' => $this->capitalizeWords($this->cleanUtf8($item->payer_name ?? 'N/A')),
             'payer_email' => $this->cleanUtf8($item->payer_email ?? 'N/A'),
@@ -123,6 +120,33 @@ class ConsolidatedPaymentsTransformer
     {
         if ($total <= 0) return (string)$paid;
         return sprintf('%d/%d', $paid, $total);
+    }
+
+    /**
+     * Formatea el display de cuotas pagadas considerando el tipo de pago
+     * Para pagos totales (payment_type='total') siempre muestra 1/1 si está pagado
+     */
+    private function formatInstallmentsDisplay($item): string
+    {
+        $paymentType = $item->payment_type ?? null;
+        $paymentStatus = $item->payment_status ?? null;
+
+        // Si es pago total, mostrar 1/1 si está aprobado/pagado, 0/1 si no
+        if ($paymentType === 'total') {
+            $isPaymentCompleted = in_array($paymentStatus, ['approved', 'completed', 'paid', 'success']);
+            return $isPaymentCompleted ? '1/1' : '0/1';
+        }
+
+        // Para pagos en cuotas, usar la lógica normal
+        $paid = (int)($item->paid_installments ?? 0);
+        $total = (int)($item->total_installments ?? 0);
+
+        // Si no hay total definido pero hay cuotas pagadas, usar el total de la orden
+        if ($total <= 0) {
+            $total = (int)($item->total_installments ?? 1);
+        }
+
+        return $this->formatInstallments($paid, $total);
     }
 
     private function formatDocument($documentNumber): string

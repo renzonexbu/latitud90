@@ -89,69 +89,106 @@ class PaymentReceiptService
      */
     private function preparePdfData(OrderDetail $orderDetail, Payment $payment): array
     {
-        $program = $orderDetail->order->program;
+        $programCourse = $orderDetail->order->program;
         $participant = $orderDetail->order->participant;
-        
+
+        // Obtener el Program padre para el destination
+        $program = $programCourse->program;
+
         // Obtener el tipo de documento del participante desde la tabla document
         $documentType = $participant->documentType;
         $documentTypeName = $documentType ? $documentType->name : 'N/A';
-        
+
         // Formatear número de documento del participante
         $documentNumber = $this->formatDocumentNumber($participant->document_number, $documentTypeName);
-        
+
         // Obtener etiqueta del tipo de documento
         $documentTypeLabel = $this->getDocumentTypeLabel($documentTypeName);
-        
-        // Construir nombre completo del participante
-        $participantFullName = $this->buildParticipantFullName($participant);
-        
+
+        // Construir nombre completo del participante (con Capital Case)
+        $participantFullName = $this->capitalizeWords($this->buildParticipantFullName($participant));
+
+        // Capitalizar nombre del apoderado
+        $apoderadoNombre = $this->capitalizeWords($orderDetail->name ?? 'N/A');
+
         // Calcular el monto total que debe pagar el participante usando el helper
-        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $totalDue = $priceData['final_price'];
-        
+
         // Calcular saldo abonado (suma de todos los pagos del participante para este programa)
-        $totalPaid = Payment::whereHas('orderDetail', function($query) use ($participant, $program) {
-            $query->whereHas('order', function($q) use ($participant, $program) {
+        $totalPaid = Payment::whereHas('orderDetail', function($query) use ($participant, $programCourse) {
+            $query->whereHas('order', function($q) use ($participant, $programCourse) {
                 $q->where('participant_id', $participant->id)
-                  ->where('program_id', $program->id);
+                  ->where('program_id', $programCourse->id);
             });
         })->where('status', 'completed')->sum('amount');
-        
+
+        // Formatear fecha en español
+        $fechaComprobante = $this->formatDateSpanish($payment->created_at, 'd \d\e F, Y');
+        $fechaPrograma = $programCourse->departure_date
+            ? $this->formatDateSpanish($programCourse->departure_date, 'F, Y')
+            : 'Por definir';
+
         return [
             // Datos del comprobante
-            'folio' => $program->code ?? 'N/A',
-            'fecha' => $payment->created_at->format('d \d\e F, Y'),
+            'folio' => $programCourse->code ?? 'N/A',
+            'fecha' => $fechaComprobante,
             'monto' => number_format($payment->amount, 0, ',', '.'),
-            
+
             // Datos del comprador/apoderado
-            'apoderado_nombre' => $orderDetail->name ?? 'N/A',
-            
+            'apoderado_nombre' => $apoderadoNombre,
+
             // Datos del alumno/participante
             'alumno_nombre' => $participantFullName,
             'alumno_rut' => $documentNumber,
             'document_type' => $documentTypeLabel,
-            
+
             // Datos del programa
             'valor_programa' => number_format($totalDue, 0, ',', '.'),
-            'destino' => $program->destination ?? $program->name ?? 'N/A',
-            'fecha_programa' => $program->departure_date ? $program->departure_date->format('F, Y') : 'Por definir',
-            
+            'destino' => $program->destination ?? $programCourse->name ?? 'N/A',
+            'fecha_programa' => $fechaPrograma,
+
             // Datos del abono
             'monto_abono' => number_format($payment->amount, 0, ',', '.'),
             'fecha_abono' => $payment->created_at->format('d-m-Y'),
             'saldo_abonado' => number_format($totalPaid, 0, ',', '.'),
-            
+
             // Datos de la empresa
             'empresa_direccion' => config('lat90.company.address.full', 'Carlos Antúnez 1941, Providencia'),
             'empresa_region' => config('lat90.company.address.region', 'Región Metropolitana'),
             'empresa_telefono' => config('lat90.company.phone', '+56 9 7909 1738'),
             'empresa_sitio' => config('lat90.company.website', 'www.latitud90.com'),
-            
+
             // Datos del firmante
             'prestador_nombre_firma' => config('lat90.company.legal_name', 'Experiencias Educativas y Capacitaciones SpA'),
             'firmante_nombre' => config('lat90.pdf.signature.name', 'Carmen Gutiérrez M.'),
             'firmante_cargo' => config('lat90.pdf.signature.position', 'Jefa área de recaudación'),
         ];
+    }
+
+    /**
+     * Formatear fecha en español
+     */
+    private function formatDateSpanish($date, string $format): string
+    {
+        $months = [
+            'January' => 'Enero',
+            'February' => 'Febrero',
+            'March' => 'Marzo',
+            'April' => 'Abril',
+            'May' => 'Mayo',
+            'June' => 'Junio',
+            'July' => 'Julio',
+            'August' => 'Agosto',
+            'September' => 'Septiembre',
+            'October' => 'Octubre',
+            'November' => 'Noviembre',
+            'December' => 'Diciembre',
+        ];
+
+        $formatted = $date->format($format);
+
+        return str_replace(array_keys($months), array_values($months), $formatted);
     }
     
     /**

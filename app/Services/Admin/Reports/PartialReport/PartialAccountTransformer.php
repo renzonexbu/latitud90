@@ -3,6 +3,8 @@
 namespace App\Services\Admin\Reports\PartialReport;
 
 use App\Helpers\ParticipantPriceHelper;
+use App\Models\InstallmentPlan;
+use App\Models\Order;
 use App\Models\Participant;
 use App\Models\Program;
 use App\Models\ProgramCourse;
@@ -225,8 +227,35 @@ class PartialAccountTransformer
             $netAmount = (float) $priceData['final_price'];
         }
         
-        // Get actual paid amount from orders
-        $totalPaid = (float) ($enrollment->paid_amount ?? 0);
+        // Get actual paid amount - check installments first
+        $totalPaid = 0;
+
+        if ($participant && $programCourse) {
+            // Obtener las órdenes del participante para este programa
+            $orderIds = Order::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->pluck('id')->all();
+
+            if (!empty($orderIds)) {
+                // Buscar plan de cuotas
+                $installmentPlan = InstallmentPlan::whereIn('order_id', $orderIds)->first();
+
+                if ($installmentPlan) {
+                    // Si hay plan de cuotas, sumar las cuotas pagadas
+                    $totalPaid = (float) $installmentPlan->installments()
+                        ->where('status', 'paid')
+                        ->sum('amount');
+                } else {
+                    // Si no hay plan de cuotas, usar el monto pagado directo (pago único/contado)
+                    $totalPaid = (float) ($enrollment->paid_amount ?? 0);
+                }
+            } else {
+                // Sin órdenes, usar el monto del enrollment
+                $totalPaid = (float) ($enrollment->paid_amount ?? 0);
+            }
+        } else {
+            $totalPaid = (float) ($enrollment->paid_amount ?? 0);
+        }
         
         // Calculate pending amount (can't be negative)
         $pendingAmount = max($netAmount - $totalPaid, 0);
@@ -382,10 +411,10 @@ class PartialAccountTransformer
      */
     private function getPaymentHistory(int $participantId, int $programId): array
     {
-
         $payments = DB::table('payments')
             ->join('orders_detail', 'payments.order_detail_id', '=', 'orders_detail.id')
             ->join('orders', 'orders_detail.order_id', '=', 'orders.id')
+            ->leftJoin('payment_gateways', 'payments.payment_gateway_id', '=', 'payment_gateways.id')
             ->where('orders.participant_id', $participantId)
             ->where('orders.program_id', $programId)
             ->select([
@@ -393,7 +422,8 @@ class PartialAccountTransformer
                 'payments.amount',
                 'payments.status',
                 'payments.payment_method',
-                'payments.transaction_date',
+                'payment_gateways.name as method',
+                DB::raw('COALESCE(payments.transaction_date, payments.created_at) as date'),
                 'payments.authorization_code',
                 'payments.external_payment_id',
                 'payments.bsale_document_id',
@@ -404,7 +434,6 @@ class PartialAccountTransformer
             ->orderBy('payments.created_at', 'desc')
             ->get()
             ->toArray();
-
 
         return $payments;
     }
