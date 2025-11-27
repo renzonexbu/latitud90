@@ -53,20 +53,31 @@ class AdminController extends Controller
                 $course = $programCourse->course;
                 $participants = $course?->participants ?? collect();
 
-                // Objetivo: suma de (precio individual + ajuste) por participante
-                $target = $participants->sum(function ($p) {
-                    $individual = (float) ($p->pivot->individual_price ?? $p->individual_price ?? 0);
-                    $adjust = (float) ($p->pivot->price_adjustments ?? 0);
-                    return $individual + $adjust;
-                });
+                // Cantidad de alumnos activos (misma lógica que CourseDataService)
+                $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
+                $totalStudents = $activeParticipants->count();
 
-                // Recaudado: suma de pagos aprobados/completados del programa
-                // Nota: No podemos filtrar por course_id ya que orders solo tiene program_id
-                $collected = (float) \App\Models\Payment::whereHas('order', function ($q) use ($program) {
-                        $q->where('program_id', $program->id);
-                    })
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->sum('amount');
+                // Objetivo: precio del programa × cantidad de alumnos activos
+                $tripPrice = (float) ($programCourse->trip_price ?? 0);
+                $target = $tripPrice * $totalStudents;
+
+                // Recaudado: pagos normales + cuotas de suscripciones pagadas
+                // 1. Pagos normales completados
+                $normalPayments = (float) \Illuminate\Support\Facades\DB::table('payments')
+                    ->join('orders', 'payments.order_id', '=', 'orders.id')
+                    ->where('orders.program_id', $programCourse->id)
+                    ->whereIn('payments.status', ['approved', 'completed'])
+                    ->sum('payments.amount');
+
+                // 2. Cuotas de suscripciones pagadas (installments)
+                // Usar status = 'paid' porque is_paid puede no estar sincronizado
+                $subscriptionPayments = (float) \Illuminate\Support\Facades\DB::table('installments')
+                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                    ->where('installment_plans.program_id', $programCourse->id)
+                    ->where('installments.status', 'paid')
+                    ->sum('installments.amount');
+
+                $collected = $normalPayments + $subscriptionPayments;
 
                 $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
 
@@ -74,10 +85,10 @@ class AdminController extends Controller
                     'institutionName' => optional($course->institution)->name ?? '—',
                     'educationLevel' => $course->education_level ?? '—',
                     'course' => $course->course_number ?? '—',
-                    'year' => optional($course)->year ?? Carbon::now()->year,
-                    'programName' => $program->name,
+                    'year' => $programCourse->year ?? Carbon::now()->year,
+                    'programName' => ($programCourse->code ?? '') . ' - ' . ($programCourse->name ?? $program->name),
                     'destination' => $program->destination,
-                    'students' => $course->total_students ?? ($participants->count() ?? 0),
+                    'students' => $totalStudents,
                     'percent' => $percent,
                     'totalCollected' => round($collected, 2),
                     'targetAmount' => round((float) $target, 2),

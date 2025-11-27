@@ -202,8 +202,9 @@ class PaymentController extends Controller
 
     public function getParticipantPaymentStatus(Request $request)
     {
+        // program_id ahora apunta a program_courses (instancias específicas)
         $request->validate([
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
         ]);
 

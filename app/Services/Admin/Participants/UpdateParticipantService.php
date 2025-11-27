@@ -33,6 +33,13 @@ class UpdateParticipantService
                 throw new Exception('El RUT no se puede modificar');
             }
 
+            // Normalizar nombres a Capital Case
+            foreach (['first_name', 'second_name', 'first_last_name', 'second_last_name'] as $nameField) {
+                if (!empty($data[$nameField])) {
+                    $data[$nameField] = $this->toCapitalCase($data[$nameField]);
+                }
+            }
+
             // Preparar los datos para actualización
             $updateData = [
                 'first_last_name' => $data['first_last_name'] ?? $participant->first_last_name,
@@ -351,5 +358,16 @@ class UpdateParticipantService
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Convertir texto a Capital Case (primera letra de cada palabra en mayúscula)
+     */
+    private function toCapitalCase(?string $text): ?string
+    {
+        if (empty($text)) {
+            return $text;
+        }
+        return mb_convert_case(trim($text), MB_CASE_TITLE, 'UTF-8');
     }
 }

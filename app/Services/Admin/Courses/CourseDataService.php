@@ -98,10 +98,11 @@ class CourseDataService
 
         // Sumar cuotas de suscripciones pagadas (installments)
         // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+        // Usar status = 'paid' porque is_paid puede no estar sincronizado
         $subscriptionPayments = (float) DB::table('installments')
             ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
             ->where('installment_plans.program_id', $programCourse->id)
-            ->where('installments.is_paid', true)
+            ->where('installments.status', 'paid')
             ->sum('installments.amount');
 
         return $normalPayments + $subscriptionPayments;
@@ -143,10 +144,11 @@ class CourseDataService
 
             // Sumar cuotas de suscripciones pagadas
             // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
+            // Usar status = 'paid' porque is_paid puede no estar sincronizado
             $subscriptionPayments = (float) DB::table('installments')
                 ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                 ->where('installment_plans.program_id', $programCourse->id)
-                ->where('installments.is_paid', true)
+                ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 
             $coursePaidAmount = round($normalPayments + $subscriptionPayments, 2);

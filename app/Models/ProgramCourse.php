@@ -29,9 +29,18 @@ class ProgramCourse extends Model
         'virtualpos_plan_id',
         'discount_type',
         'discount_value',
+        'itinerary_file',
+        'travel_assistance_coverage',
+        'equipment_list',
         'status',
         'active',
         'created_by',
+    ];
+
+    protected $appends = [
+        'itinerary_file_url',
+        'travel_assistance_coverage_url',
+        'equipment_list_url',
     ];
 
     protected $casts = [
@@ -88,5 +97,38 @@ class ProgramCourse extends Model
         return $this->belongsToMany(PaymentOption::class, 'program_course_payment_option')
             ->withPivot('enabled')
             ->withTimestamps();
+    }
+
+    /**
+     * Get the full URL for the itinerary file
+     */
+    public function getItineraryFileUrlAttribute(): ?string
+    {
+        if (!$this->itinerary_file) return null;
+
+        $path = str_replace('public/', '', $this->itinerary_file);
+        return asset('storage/' . $path);
+    }
+
+    /**
+     * Get the full URL for the travel assistance coverage file
+     */
+    public function getTravelAssistanceCoverageUrlAttribute(): ?string
+    {
+        if (!$this->travel_assistance_coverage) return null;
+
+        $path = str_replace('public/', '', $this->travel_assistance_coverage);
+        return asset('storage/' . $path);
+    }
+
+    /**
+     * Get the full URL for the equipment list file
+     */
+    public function getEquipmentListUrlAttribute(): ?string
+    {
+        if (!$this->equipment_list) return null;
+
+        $path = str_replace('public/', '', $this->equipment_list);
+        return asset('storage/' . $path);
     }
 }

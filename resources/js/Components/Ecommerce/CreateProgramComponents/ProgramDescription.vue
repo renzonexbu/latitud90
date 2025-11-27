@@ -381,413 +381,8 @@
                     </transition>
                 </div>
 
-                <!-- Separador -->
-                <AccordionSeparator />
-
-                <!-- Acordeón 3: Archivos PDF -->
-                <div class="accordion-section">
-                    <div
-                        class="accordion-header"
-                        @click="filesOpen = !filesOpen"
-                    >
-                        <div class="accordion-title">Archivos del programa</div>
-                        <svg
-                            class="accordion-arrow"
-                            :class="{ rotated: filesOpen }"
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="26"
-                            height="14"
-                            viewBox="0 0 26 14"
-                            fill="none"
-                        >
-                            <g clip-path="url(#clip0_833_13975_3)">
-                                <path
-                                    d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
-                                    fill="#007E93"
-                                />
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_833_13975_3">
-                                    <rect
-                                        width="12.6173"
-                                        height="25.2128"
-                                        fill="white"
-                                        transform="translate(26 0.691406) rotate(90)"
-                                    />
-                                </clipPath>
-                            </defs>
-                        </svg>
-                    </div>
-                    <transition name="accordion-slide">
-                        <div v-if="filesOpen" class="accordion-content">
-                            <div class="pdf-upload-grid">
-                                <div class="pdf-upload-item">
-                                    <div class="itinerario">Itinerario</div>
-
-                                    <!-- Archivo existente (solo en modo edit) -->
-                                    <div
-                                        v-if="
-                                            mode === 'edit' &&
-                                            existingFiles.itinerary_file
-                                        "
-                                        class="existing-file"
-                                    >
-                                        <a
-                                            :href="existingFiles.itinerary_file"
-                                            target="_blank"
-                                            class="existing-file-link"
-                                        >
-                                            📄 Ver archivo actual
-                                        </a>
-                                        <button
-                                            type="button"
-                                            @click="
-                                                removeExistingFile('itinerary')
-                                            "
-                                            class="remove-existing-file"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-
-                                    <label
-                                        class="primary-button"
-                                        for="itinerary-file"
-                                    >
-                                        <div class="button-text">
-                                            {{
-                                                mode === "edit" &&
-                                                existingFiles.itinerary_file
-                                                    ? "Cambiar PDF"
-                                                    : "Adjunte aqui el PDF"
-                                            }}
-                                        </div>
-                                        <svg
-                                            class="paperclip-icon"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="21"
-                                            height="20"
-                                            viewBox="0 0 21 20"
-                                            fill="none"
-                                        >
-                                            <path
-                                                d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
-                                                stroke="#C7C7C7"
-                                                stroke-width="1.25"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            />
-                                        </svg>
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="itinerary-file"
-                                        accept=".pdf"
-                                        style="display: none"
-                                        @change="
-                                            handleFileUpload(
-                                                'itinerary',
-                                                $event
-                                            )
-                                        "
-                                    />
-
-                                    <!-- Preview del archivo PDF seleccionado -->
-                                    <div
-                                        v-if="formData.itinerary_file"
-                                        class="pdf-preview"
-                                    >
-                                        <div class="pdf-preview-item">
-                                            <div class="pdf-icon">📄</div>
-                                            <div class="pdf-info">
-                                                <div class="pdf-name">
-                                                    {{
-                                                        formData.itinerary_file
-                                                            .name
-                                                    }}
-                                                </div>
-                                                <div class="pdf-size">
-                                                    {{
-                                                        formatFileSize(
-                                                            formData
-                                                                .itinerary_file
-                                                                .size
-                                                        )
-                                                    }}
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                @click="
-                                                    removePdfFile('itinerary')
-                                                "
-                                                class="remove-pdf-btn"
-                                            >
-                                                <svg
-                                                    width="16"
-                                                    height="16"
-                                                    viewBox="0 0 16 16"
-                                                    fill="none"
-                                                >
-                                                    <path
-                                                        d="M12 4L4 12M4 4L12 12"
-                                                        stroke="#666"
-                                                        stroke-width="1.5"
-                                                        stroke-linecap="round"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="pdf-upload-item">
-                                    <div
-                                        class="cobertura-de-asistencia-en-viaje"
-                                    >
-                                        Cobertura de asistencia en viaje
-                                    </div>
-
-                                    <!-- Archivo existente (solo en modo edit) -->
-                                    <div
-                                        v-if="
-                                            mode === 'edit' &&
-                                            existingFiles.coverage_file
-                                        "
-                                        class="existing-file"
-                                    >
-                                        <a
-                                            :href="existingFiles.coverage_file"
-                                            target="_blank"
-                                            class="existing-file-link"
-                                        >
-                                            📄 Ver archivo actual
-                                        </a>
-                                        <button
-                                            type="button"
-                                            @click="
-                                                removeExistingFile('coverage')
-                                            "
-                                            class="remove-existing-file"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-
-                                    <label
-                                        class="primary-button"
-                                        for="coverage-file"
-                                    >
-                                        <div class="button-text">
-                                            {{
-                                                mode === "edit" &&
-                                                existingFiles.coverage_file
-                                                    ? "Cambiar PDF"
-                                                    : "Adjunte aqui el PDF"
-                                            }}
-                                        </div>
-                                        <svg
-                                            class="paperclip-icon"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="21"
-                                            height="20"
-                                            viewBox="0 0 21 20"
-                                            fill="none"
-                                        >
-                                            <path
-                                                d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
-                                                stroke="#C7C7C7"
-                                                stroke-width="1.25"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            />
-                                        </svg>
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="coverage-file"
-                                        accept=".pdf"
-                                        style="display: none"
-                                        @change="
-                                            handleFileUpload('coverage', $event)
-                                        "
-                                    />
-
-                                    <!-- Preview del archivo PDF seleccionado -->
-                                    <div
-                                        v-if="formData.coverage_file"
-                                        class="pdf-preview"
-                                    >
-                                        <div class="pdf-preview-item">
-                                            <div class="pdf-icon">📄</div>
-                                            <div class="pdf-info">
-                                                <div class="pdf-name">
-                                                    {{
-                                                        formData.coverage_file
-                                                            .name
-                                                    }}
-                                                </div>
-                                                <div class="pdf-size">
-                                                    {{
-                                                        formatFileSize(
-                                                            formData
-                                                                .coverage_file
-                                                                .size
-                                                        )
-                                                    }}
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                @click="
-                                                    removePdfFile('coverage')
-                                                "
-                                                class="remove-pdf-btn"
-                                            >
-                                                <svg
-                                                    width="16"
-                                                    height="16"
-                                                    viewBox="0 0 16 16"
-                                                    fill="none"
-                                                >
-                                                    <path
-                                                        d="M12 4L4 12M4 4L12 12"
-                                                        stroke="#666"
-                                                        stroke-width="1.5"
-                                                        stroke-linecap="round"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="pdf-upload-item">
-                                    <div class="lista-de-equipo">
-                                        Lista de equipo
-                                    </div>
-
-                                    <!-- Archivo existente (solo en modo edit) -->
-                                    <div
-                                        v-if="
-                                            mode === 'edit' &&
-                                            existingFiles.equipment_file
-                                        "
-                                        class="existing-file"
-                                    >
-                                        <a
-                                            :href="existingFiles.equipment_file"
-                                            target="_blank"
-                                            class="existing-file-link"
-                                        >
-                                            📄 Ver archivo actual
-                                        </a>
-                                        <button
-                                            type="button"
-                                            @click="
-                                                removeExistingFile('equipment')
-                                            "
-                                            class="remove-existing-file"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-
-                                    <label
-                                        class="primary-button"
-                                        for="equipment-file"
-                                    >
-                                        <div class="button-text">
-                                            {{
-                                                mode === "edit" &&
-                                                existingFiles.equipment_file
-                                                    ? "Cambiar PDF"
-                                                    : "Adjunte aqui el PDF"
-                                            }}
-                                        </div>
-                                        <svg
-                                            class="paperclip-icon"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="21"
-                                            height="20"
-                                            viewBox="0 0 21 20"
-                                            fill="none"
-                                        >
-                                            <path
-                                                d="M3.87061 8.52025L8.6531 3.91191C13.1773 -0.452253 20.5248 6.28108 15.8164 10.8236L9.88977 16.5419C6.81977 19.5036 1.83394 14.9344 5.02894 11.8519L10.8706 6.21608C12.4864 4.65775 15.1098 7.06191 13.4289 8.68441L8.57644 13.3336"
-                                                stroke="#C7C7C7"
-                                                stroke-width="1.25"
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                            />
-                                        </svg>
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="equipment-file"
-                                        accept=".pdf"
-                                        style="display: none"
-                                        @change="
-                                            handleFileUpload(
-                                                'equipment',
-                                                $event
-                                            )
-                                        "
-                                    />
-
-                                    <!-- Preview del archivo PDF seleccionado -->
-                                    <div
-                                        v-if="formData.equipment_file"
-                                        class="pdf-preview"
-                                    >
-                                        <div class="pdf-preview-item">
-                                            <div class="pdf-icon">📄</div>
-                                            <div class="pdf-info">
-                                                <div class="pdf-name">
-                                                    {{
-                                                        formData.equipment_file
-                                                            .name
-                                                    }}
-                                                </div>
-                                                <div class="pdf-size">
-                                                    {{
-                                                        formatFileSize(
-                                                            formData
-                                                                .equipment_file
-                                                                .size
-                                                        )
-                                                    }}
-                                                </div>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                @click="
-                                                    removePdfFile('equipment')
-                                                "
-                                                class="remove-pdf-btn"
-                                            >
-                                                <svg
-                                                    width="16"
-                                                    height="16"
-                                                    viewBox="0 0 16 16"
-                                                    fill="none"
-                                                >
-                                                    <path
-                                                        d="M12 4L4 12M4 4L12 12"
-                                                        stroke="#666"
-                                                        stroke-width="1.5"
-                                                        stroke-linecap="round"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </transition>
-                </div>
-
                 <!-- Botón activar/desactivar programa (solo edición) -->
-                <div v-if="mode === 'edit'" class="mt-4 w-full">
+                <div v-if="mode === 'edit' || mode === 'template-edit'" class="mt-4 w-full">
                     <button
                         type="button"
                         @click="$emit('toggle-status')"
@@ -796,7 +391,7 @@
                             isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
                         ]"
                     >
-                        {{ isActive ? 'Desactivar Programa' : 'Activar Programa' }}
+                        {{ isActive ? 'Desactivar Plantilla' : 'Activar Plantilla' }}
                     </button>
                 </div>
             </div>
@@ -821,9 +416,6 @@ const props = defineProps({
             pilar_2: "",
             pilar_3: "",
             pilar_4: "",
-            itinerary_file: null,
-            coverage_file: null,
-            equipment_file: null,
         }),
     },
     mode: {
@@ -839,14 +431,6 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    existingFiles: {
-        type: Object,
-        default: () => ({
-            itinerary_file: null,
-            coverage_file: null,
-            equipment_file: null,
-        }),
-    },
     isActive: {
         type: Boolean,
         default: true,
@@ -858,7 +442,6 @@ const emit = defineEmits([
     "update:modelValue",
     "update:images",
     "remove:existingImage",
-    "remove:existingFile",
     "toggle-status",
 ]);
 
@@ -869,7 +452,6 @@ const isSyncingFromProps = ref(false);
 // Estados para los acordeones
 const detailsOpen = ref(true); // Abierto por defecto
 const pillarsOpen = ref(false);
-const filesOpen = ref(false);
 
 // Estado para las imágenes
 const selectedImages = ref([]);
@@ -939,32 +521,6 @@ watch(
     { deep: true }
 );
 
-// Función para manejar la carga de archivos PDF
-const handleFileUpload = (type, event) => {
-    const file = event.target.files[0];
-    if (file) {
-        // Validar tipo de archivo
-        if (file.type !== "application/pdf") {
-            alert("Por favor seleccione un archivo PDF válido.");
-            event.target.value = "";
-            return;
-        }
-
-        // Validar tamaño (10MB = 10 * 1024 * 1024 bytes)
-        if (file.size > 10 * 1024 * 1024) {
-            alert(
-                `${file.name} es demasiado grande. El tamaño máximo es 10MB.`
-            );
-            event.target.value = "";
-            return;
-        }
-
-        formData.value[`${type}_file`] = file;
-    } else {
-        event.target.value = "";
-    }
-};
-
 // Función para manejar la carga de imágenes
 const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
@@ -1011,16 +567,6 @@ const removeImage = (index) => {
     selectedImages.value.splice(index, 1);
     // Emitir imágenes actualizadas al padre
     emit("update:images", selectedImages.value);
-};
-
-// Función para eliminar archivo existente
-const removeExistingFile = (fileType) => {
-    emit("remove:existingFile", fileType);
-};
-
-// Función para remover un archivo PDF seleccionado
-const removePdfFile = (fileType) => {
-    formData.value[`${fileType}_file`] = null;
 };
 
 // Función para formatear el tamaño del archivo

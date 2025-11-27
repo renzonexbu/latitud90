@@ -62,7 +62,7 @@
                 <div class="w-[150px] text-center">Destino</div>
                 <div class="w-[90px] text-center">Alumnos</div>
                 <div class="w-[110px] text-center">Estado</div>
-                <div class="w-[121px] text-center">Total recolectado</div>
+                <div class="w-[160px] text-center">Recaudado / Total</div>
                 <div class="w-[18px]"></div>
             </div>
 
@@ -123,9 +123,9 @@
                 </div>
 
                 <div
-                    class="w-[121px] text-center text-colores-op2-verde-oscuro truncate"
+                    class="w-[160px] text-center text-colores-op2-verde-oscuro truncate"
                 >
-                    {{ formatAmount(row.totalCollected) }}
+                    {{ formatAmount(row.totalCollected) }} / {{ formatAmount(row.targetAmount) }}
                 </div>
                 <div class="w-[18px]"></div>
             </div>

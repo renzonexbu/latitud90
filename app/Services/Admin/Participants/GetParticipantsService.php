@@ -48,11 +48,20 @@ class GetParticipantsService
             ->orderBy('name')
             ->get();
 
-        // Obtener programas activos (plantillas)
-        $programs = Program::with(['programCourses.course.institution'])
+        // Obtener program_courses activos (instancias específicas de programas)
+        $programs = ProgramCourse::with(['program', 'course.institution'])
             ->where('active', true)
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($programCourse) {
+                return [
+                    'id' => $programCourse->id,
+                    'name' => $programCourse->name,
+                    'destination' => $programCourse->program->destination ?? '',
+                    'year' => $programCourse->year,
+                    'departure_date' => $programCourse->departure_date?->format('d/m/Y'),
+                ];
+            });
 
         // Obtener tipos de documento
         $documentTypes = Document::orderBy('name')->get();

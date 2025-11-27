@@ -184,7 +184,7 @@ class CreateParticularPaymentService
 
         if ($activeSubscription) {
             throw new \Exception(
-                "No se puede registrar un pago presencial para este participante porque tiene una suscripción activa (ID: {$activeSubscription->id}, Estado: {$activeSubscription->status}). " .
+                "No se puede registrar un pago presencial para este participante porque tiene una suscripción activa. " .
                 "Los pagos para participantes con suscripción deben realizarse a través del sistema de VirtualPOS."
             );
         }

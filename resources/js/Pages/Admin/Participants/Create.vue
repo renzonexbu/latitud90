@@ -566,8 +566,7 @@
                                                 :key="program.id"
                                                 :value="program.id"
                                             >
-                                                {{ program.name }} -
-                                                {{ program.destination }}
+                                                {{ program.name }} - {{ program.destination }} ({{ program.year }})
                                             </option>
                                         </select>
                                         <span

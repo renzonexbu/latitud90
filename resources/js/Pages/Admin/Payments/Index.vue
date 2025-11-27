@@ -143,14 +143,14 @@
                         </div>
                     </div>
 
-                    <!-- Métodos de Pago Detallados -->
+                    <!-- Tipos de Pago Utilizados -->
                     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div class="p-6">
                             <h3 class="text-lg font-semibold mb-4">
-                                Métodos de Pago Detallados
+                                Tipos de Pago Utilizados
                             </h3>
                             <p class="text-sm text-gray-600 mb-4">
-                                Desglose detallado por método de pago y cantidad de cuotas.
+                                Desglose por tipo de pago: transferencia, tarjeta con cuotas, suscripciones, etc.
                             </p>
                             <div class="h-64">
                                 <canvas ref="paymentMethodsChart"></canvas>

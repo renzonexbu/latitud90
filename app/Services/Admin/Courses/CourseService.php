@@ -74,7 +74,7 @@ class CourseService
                 'discount_type' => $data['discount_type'] ?? null,
                 'discount_value' => $data['discount_value'] ?? null,
                 // No se establece 'status' aquí - lo asigna automáticamente el trigger de la BD
-                'active' => true,
+                'active' => $data['active'] ?? true,
                 'created_by' => auth()->id(),
             ]);
 
@@ -87,7 +87,10 @@ class CourseService
 
             $programCourse->save();
 
-            // 4. Sincronizar opciones de pago
+            // 4. Procesar archivos PDF del programa
+            $this->processProgramFiles($programCourse, $data);
+
+            // 5. Sincronizar opciones de pago
             $this->syncPaymentOptions($programCourse, $data);
 
             // 5. Crear registros en participant_program para cada participante del curso
@@ -356,11 +359,15 @@ class CourseService
                 'immediate_first_charge' => $data['immediate_first_charge'] ?? $programCourse->immediate_first_charge ?? true,
                 'discount_type' => $data['discount_type'] ?? null,
                 'discount_value' => $data['discount_value'] ?? null,
+                'active' => $data['active'] ?? $programCourse->active ?? true,
             ]);
 
             // Actualizar nombre del plan
             $programCourse->name = $this->generateProgramCourseName($institution, $course, $program, $data);
             $programCourse->save();
+
+            // Procesar archivos PDF del programa
+            $this->processProgramFiles($programCourse, $data);
 
             // Sincronizar opciones de pago
             $this->syncPaymentOptions($programCourse, $data);
@@ -686,23 +693,23 @@ class CourseService
 
                         // Actualizar datos del participante
                         $existingParticipant->update([
-                            'first_last_name' => $this->toLowercase($getFieldValue([
+                            'first_last_name' => $this->toCapitalCase($getFieldValue([
                                 'Primer apellido',
                                 'primer apellido',
                                 'apellido paterno'
                             ])) ?? $existingParticipant->first_last_name,
-                            'second_last_name' => $this->toLowercase($getFieldValue([
+                            'second_last_name' => $this->toCapitalCase($getFieldValue([
                                 'Segundo apellido',
                                 'segundo apellido',
                                 'apellido materno'
                             ])) ?? $existingParticipant->second_last_name,
-                            'first_name' => $this->toLowercase($getFieldValue([
+                            'first_name' => $this->toCapitalCase($getFieldValue([
                                 'Primer Nombre',
                                 'primer nombre',
                                 'nombre',
                                 'Nombre'
                             ])) ?? $existingParticipant->first_name,
-                            'second_name' => $this->toLowercase($getFieldValue([
+                            'second_name' => $this->toCapitalCase($getFieldValue([
                                 'Segundo Nombre',
                                 'segundo nombre',
                                 'nombre segundo'
@@ -798,23 +805,23 @@ class CourseService
 
 
                     $participant = Participant::create([
-                        'first_last_name' => $this->toLowercase($getFieldValue([
+                        'first_last_name' => $this->toCapitalCase($getFieldValue([
                             'Primer apellido',
                             'primer apellido',
                             'apellido paterno'
                         ])) ?? '',
-                        'second_last_name' => $this->toLowercase($getFieldValue([
+                        'second_last_name' => $this->toCapitalCase($getFieldValue([
                             'Segundo apellido',
                             'segundo apellido',
                             'apellido materno'
                         ])) ?? '',
-                        'first_name' => $this->toLowercase($getFieldValue([
+                        'first_name' => $this->toCapitalCase($getFieldValue([
                             'Primer Nombre',
                             'primer nombre',
                             'nombre',
                             'Nombre'
                         ])) ?? '',
-                        'second_name' => $this->toLowercase($getFieldValue([
+                        'second_name' => $this->toCapitalCase($getFieldValue([
                             'Segundo Nombre',
                             'segundo nombre',
                             'nombre segundo'
@@ -932,7 +939,7 @@ class CourseService
                         $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
 
                         $existingEmergencyContact->update([
-                            'name' => $this->toLowercase($guardianName) ?? $existingEmergencyContact->name,
+                            'name' => $this->toCapitalCase($guardianName) ?? $existingEmergencyContact->name,
                             'email' => $this->toLowercase($guardianEmail) ?? $existingEmergencyContact->email,
                             'document_type' => $guardianDocumentTypeId,
                             'document_number' => $cleanGuardianRut,
@@ -965,7 +972,7 @@ class CourseService
                         $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
 
                         $emergencyContact = EmergencyContact::create([
-                            'name' => $this->toLowercase($guardianName),
+                            'name' => $this->toCapitalCase($guardianName),
                             'email' => $this->toLowercase($guardianEmail),
                             'document_type' => $guardianDocumentTypeId,
                             'document_number' => $cleanGuardianRut,
@@ -1031,6 +1038,15 @@ class CourseService
     {
         if (empty($text)) return $text;
         return strtolower(trim($text));
+    }
+
+    /**
+     * Convertir texto a Capital Case (primera letra de cada palabra en mayúscula)
+     */
+    private function toCapitalCase(?string $text): ?string
+    {
+        if (empty($text)) return $text;
+        return mb_convert_case(trim($text), MB_CASE_TITLE, 'UTF-8');
     }
 
     /**
@@ -1181,6 +1197,79 @@ class CourseService
                 'trace' => $e->getTraceAsString(),
             ]);
             // No lanzar excepción para no interrumpir la creación del curso
+        }
+    }
+
+    /**
+     * Procesar y guardar archivos PDF del programa
+     */
+    private function processProgramFiles(ProgramCourse $programCourse, array $data): void
+    {
+        try {
+            $courseCode = $programCourse->code ?? $programCourse->id;
+
+            Log::info('Procesando archivos PDF del programa', [
+                'program_course_id' => $programCourse->id,
+                'course_code' => $courseCode,
+                'has_itinerary_file' => isset($data['itinerary_file']),
+                'itinerary_is_uploadedfile' => isset($data['itinerary_file']) && $data['itinerary_file'] instanceof UploadedFile,
+                'has_coverage_file' => isset($data['coverage_file']),
+                'coverage_is_uploadedfile' => isset($data['coverage_file']) && $data['coverage_file'] instanceof UploadedFile,
+                'has_equipment_file' => isset($data['equipment_file']),
+                'equipment_is_uploadedfile' => isset($data['equipment_file']) && $data['equipment_file'] instanceof UploadedFile,
+            ]);
+
+            // Procesar itinerario
+            if (isset($data['itinerary_file']) && $data['itinerary_file'] instanceof UploadedFile) {
+                // Eliminar archivo anterior si existe
+                if ($programCourse->itinerary_file) {
+                    Storage::disk('public')->delete($programCourse->itinerary_file);
+                }
+                $path = $data['itinerary_file']->store("program_courses/{$courseCode}/files", 'public');
+                $programCourse->itinerary_file = $path;
+                Log::info('Itinerary file saved', ['path' => $path]);
+            } elseif (!empty($data['remove_itinerary_file']) && $programCourse->itinerary_file) {
+                Storage::disk('public')->delete($programCourse->itinerary_file);
+                $programCourse->itinerary_file = null;
+            }
+
+            // Procesar cobertura de asistencia
+            if (isset($data['coverage_file']) && $data['coverage_file'] instanceof UploadedFile) {
+                if ($programCourse->travel_assistance_coverage) {
+                    Storage::disk('public')->delete($programCourse->travel_assistance_coverage);
+                }
+                $path = $data['coverage_file']->store("program_courses/{$courseCode}/files", 'public');
+                $programCourse->travel_assistance_coverage = $path;
+            } elseif (!empty($data['remove_coverage_file']) && $programCourse->travel_assistance_coverage) {
+                Storage::disk('public')->delete($programCourse->travel_assistance_coverage);
+                $programCourse->travel_assistance_coverage = null;
+            }
+
+            // Procesar lista de equipo
+            if (isset($data['equipment_file']) && $data['equipment_file'] instanceof UploadedFile) {
+                if ($programCourse->equipment_list) {
+                    Storage::disk('public')->delete($programCourse->equipment_list);
+                }
+                $path = $data['equipment_file']->store("program_courses/{$courseCode}/files", 'public');
+                $programCourse->equipment_list = $path;
+            } elseif (!empty($data['remove_equipment_file']) && $programCourse->equipment_list) {
+                Storage::disk('public')->delete($programCourse->equipment_list);
+                $programCourse->equipment_list = null;
+            }
+
+            $programCourse->save();
+
+            Log::info('Archivos de programa procesados', [
+                'program_course_id' => $programCourse->id,
+                'itinerary_file' => $programCourse->itinerary_file,
+                'travel_assistance_coverage' => $programCourse->travel_assistance_coverage,
+                'equipment_list' => $programCourse->equipment_list,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error procesando archivos de programa', [
+                'program_course_id' => $programCourse->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

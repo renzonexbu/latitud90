@@ -41,16 +41,17 @@ class CreateParticipantService
             }
 
             // Asociar programa y curso automáticamente
+            // program_id ahora apunta a program_courses (instancias específicas)
             if (!empty($participantData['program_id'])) {
-                $program = \App\Models\Program::with('course')->find($participantData['program_id']);
-                
-                if ($program && $program->course) {
-                    // Calcular el precio individual por participante (precio del programa dividido por número de participantes)
-                    $individualPrice = $this->calculateIndividualPrice($program);
-                    
+                $programCourse = \App\Models\ProgramCourse::with(['course', 'program'])->find($participantData['program_id']);
+
+                if ($programCourse && $programCourse->course) {
+                    // Calcular el precio individual por participante
+                    $individualPrice = $this->calculateIndividualPriceFromProgramCourse($programCourse);
+
                     // Generar enrollment_code consistente con el flujo Excel
-                    $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($program, $participant);
-                    
+                    $enrollmentCode = \App\Helpers\EnrollmentCodeHelper::generateEnrollmentCode($programCourse, $participant);
+
                     // Asociar al curso del programa automáticamente
                     $coursePivotData = [
                         'status' => 'pending_payment',
@@ -58,21 +59,21 @@ class CreateParticipantService
                         'price_adjustments' => $participantData['price_adjustments'] ?? 0,
                         'adjustment_reason' => $participantData['adjustment_reason'] ?? null,
                     ];
-                    $participant->courses()->attach($program->course->id, $coursePivotData);
-                    
-                    // Asociar al programa con el precio individual
-                    $participant->programs()->attach($participantData['program_id'], [
+                    $participant->courses()->attach($programCourse->course->id, $coursePivotData);
+
+                    // Asociar al program_course (participant_program.program_id -> program_courses.id)
+                    $participant->programCourses()->attach($participantData['program_id'], [
                         'enrollment_code' => $enrollmentCode,
                         'individual_price' => $individualPrice,
                         'status' => 'pending_payment',
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
-                    
+
                     Log::info('Participante asociado automáticamente al curso del programa', [
                         'participant_id' => $participant->id,
-                        'program_id' => $program->id,
-                        'course_id' => $program->course->id,
+                        'program_course_id' => $programCourse->id,
+                        'course_id' => $programCourse->course->id,
                         'individual_price' => $individualPrice
                     ]);
                 }
@@ -136,6 +137,13 @@ class CreateParticipantService
         $data['registration_date'] = $data['registration_date'] ?? now();
         $data['price_adjustments'] = $data['price_adjustments'] ?? 0;
 
+        // Normalizar nombres a Capital Case
+        foreach (['first_name', 'second_name', 'first_last_name', 'second_last_name'] as $nameField) {
+            if (!empty($data[$nameField])) {
+                $data[$nameField] = $this->toCapitalCase($data[$nameField]);
+            }
+        }
+
         // Limpiar RUT si es tipo RUT
         if (!empty($data['document_number']) && !empty($data['document_type'])) {
             $documentType = \App\Models\Document::find($data['document_type']);
@@ -164,12 +172,17 @@ class CreateParticipantService
             $contactData['participant_id'] = $participant->id;
             $contactData['relationship'] = 'Familiar'; // Valor por defecto
             $contactData['country'] = 'CL'; // Normalizar país como Chile
-            
+
+            // Normalizar nombre a Capital Case
+            if (!empty($contactData['name'])) {
+                $contactData['name'] = $this->toCapitalCase($contactData['name']);
+            }
+
             // Limpiar RUT del contacto de emergencia si existe
             if (!empty($contactData['document_number'])) {
                 $contactData['document_number'] = $this->cleanRut($contactData['document_number']);
             }
-            
+
             if (!empty($contactData['email'])) {
                 $contactData['email'] = $this->normalizeEmail($contactData['email']);
             }
@@ -212,20 +225,12 @@ class CreateParticipantService
     }
 
     /**
-     * Calcula el precio individual por participante para un programa
+     * Obtiene el precio individual por participante desde un ProgramCourse
+     * El trip_price ya representa el precio por alumno
      */
-    private function calculateIndividualPrice(Program $program): float
+    private function calculateIndividualPriceFromProgramCourse(\App\Models\ProgramCourse $programCourse): float
     {
-        // Obtener el número total de participantes en el curso del programa
-        $totalParticipants = $program->course->participants()->count();
-        
-        // Si no hay participantes, usar 1 como divisor
-        $divisor = max(1, $totalParticipants);
-        
-        // Calcular precio individual: precio total del programa dividido por número de participantes
-        $individualPrice = (float) ($program->trip_price ?? 0) / $divisor;
-        
-        return round($individualPrice, 2);
+        return (float) ($programCourse->trip_price ?? 0);
     }
 
     /**
@@ -248,5 +253,16 @@ class CreateParticipantService
         }
         $normalized = preg_replace('/\s+/', '', $normalized);
         return $normalized ?? $email;
+    }
+
+    /**
+     * Convertir texto a Capital Case (primera letra de cada palabra en mayúscula)
+     */
+    private function toCapitalCase(?string $text): ?string
+    {
+        if (empty($text)) {
+            return $text;
+        }
+        return mb_convert_case(trim($text), MB_CASE_TITLE, 'UTF-8');
     }
 }

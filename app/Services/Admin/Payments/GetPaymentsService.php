@@ -387,8 +387,9 @@ class GetPaymentsService
         ];
 
         // 2. Suscripciones (cuotas de VirtualPos)
-        $subscriptionCount = \App\Models\Installment::where('is_paid', true)->count();
-        $subscriptionTotal = \App\Models\Installment::where('is_paid', true)->sum('amount');
+        // Usar status = 'paid' porque is_paid puede no estar sincronizado
+        $subscriptionCount = \App\Models\Installment::where('status', 'paid')->count();
+        $subscriptionTotal = \App\Models\Installment::where('status', 'paid')->sum('amount');
 
         $distribution[] = [
             'label' => 'Suscripciones',
@@ -427,6 +428,7 @@ class GetPaymentsService
 
     /**
      * Obtener métodos de pago detallados
+     * Agrupa por tipo de pago específico (opción de pago) en lugar de solo por gateway
      *
      * @return array
      */
@@ -434,59 +436,47 @@ class GetPaymentsService
     {
         $methods = [];
 
-        // Obtener pagos completados agrupados por gateway
-        $paymentsByGateway = Payment::where('status', 'completed')
-            ->with('paymentGateway', 'paymentOption')
+        // Obtener pagos completados agrupados por opción de pago
+        // Excluir suscripciones (mode = 'subscription') porque se cuentan desde installments
+        $paymentsByOption = Payment::where('status', 'completed')
+            ->where('amount', '>', 0) // Excluir devoluciones
+            ->with('paymentOption')
             ->get()
+            ->filter(function ($payment) {
+                // Excluir pagos con payment_option de tipo subscription
+                return $payment->paymentOption?->mode !== 'subscription';
+            })
             ->groupBy(function ($payment) {
-                return $payment->paymentGateway?->name ?? 'N/A';
+                return $payment->paymentOption?->label ?? 'Sin especificar';
             });
 
-        foreach ($paymentsByGateway as $gatewayName => $payments) {
-            $count = $payments->count();
-            $total = $payments->sum('amount');
-
-            // Para Transbank, agregar detalles de cuotas
-            if ($gatewayName === 'transbank') {
-                // Agrupar por número de cuotas
-                $byInstallments = $payments->groupBy(function ($payment) {
-                    $installments = $payment->paymentOption?->installments ?? 0;
-                    if ($installments == 0 || $installments == 1) {
-                        return 'Débito/Pago al Contado';
-                    }
-                    return "{$installments} cuotas";
-                });
-
-                foreach ($byInstallments as $label => $installmentPayments) {
-                    $methods[] = [
-                        'label' => "Transbank - {$label}",
-                        'count' => $installmentPayments->count(),
-                        'total' => $installmentPayments->sum('amount'),
-                        'percentage' => 0, // Se calculará en el frontend
-                    ];
-                }
-            } else {
-                $methods[] = [
-                    'label' => $gatewayName,
-                    'count' => $count,
-                    'total' => $total,
-                    'percentage' => 0, // Se calculará en el frontend
-                ];
-            }
+        foreach ($paymentsByOption as $optionLabel => $payments) {
+            $methods[] = [
+                'label' => $optionLabel,
+                'count' => $payments->count(),
+                'total' => $payments->sum('amount'),
+                'percentage' => 0, // Se calculará en el frontend
+            ];
         }
 
-        // Agregar cuotas de suscripciones (VirtualPos)
-        $subscriptionInstallments = \App\Models\Installment::where('is_paid', true)->count();
-        $subscriptionTotal = \App\Models\Installment::where('is_paid', true)->sum('amount');
+        // Agregar cuotas de suscripciones (VirtualPos) desde installments
+        // Usar status = 'paid' porque is_paid puede no estar sincronizado
+        $subscriptionInstallments = \App\Models\Installment::where('status', 'paid')->count();
+        $subscriptionTotal = \App\Models\Installment::where('status', 'paid')->sum('amount');
 
         if ($subscriptionInstallments > 0) {
             $methods[] = [
-                'label' => 'VirtualPos - Suscripciones',
+                'label' => 'Suscripción mensual (VirtualPos)',
                 'count' => $subscriptionInstallments,
                 'total' => $subscriptionTotal,
                 'percentage' => 0,
             ];
         }
+
+        // Ordenar por total de mayor a menor
+        usort($methods, function ($a, $b) {
+            return $b['total'] <=> $a['total'];
+        });
 
         return $methods;
     }

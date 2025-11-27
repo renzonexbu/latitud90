@@ -92,6 +92,20 @@ class CourseController extends Controller
         // Load course with necessary relationships, including paymentOptions
         $course->load(['institution', 'programCourses.program', 'programCourses.paymentOptions']);
 
+        // Debug: Log the programCourse file data
+        $programCourse = $course->programCourses->first();
+        if ($programCourse) {
+            \Illuminate\Support\Facades\Log::info('Edit Course - ProgramCourse Files', [
+                'program_course_id' => $programCourse->id,
+                'itinerary_file' => $programCourse->itinerary_file,
+                'itinerary_file_url' => $programCourse->itinerary_file_url,
+                'travel_assistance_coverage' => $programCourse->travel_assistance_coverage,
+                'travel_assistance_coverage_url' => $programCourse->travel_assistance_coverage_url,
+                'equipment_list' => $programCourse->equipment_list,
+                'equipment_list_url' => $programCourse->equipment_list_url,
+            ]);
+        }
+
         return Inertia::render('Admin/Courses/Edit', [
             'course' => $course,
             'programs' => Program::where('active', true)->get(),

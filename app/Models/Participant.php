@@ -107,6 +107,21 @@ class Participant extends Model
                     ->withTimestamps();
     }
 
+    /**
+     * Relación con ProgramCourse (instancias específicas de programas)
+     * participant_program.program_id -> program_courses.id
+     */
+    public function programCourses()
+    {
+        return $this->belongsToMany(ProgramCourse::class, 'participant_program', 'participant_id', 'program_id')
+                    ->withPivot([
+                        'enrollment_code',
+                        'individual_price',
+                        'status'
+                    ])
+                    ->withTimestamps();
+    }
+
     public function payments()
     {
         return $this->hasManyThrough(Payment::class, Order::class);

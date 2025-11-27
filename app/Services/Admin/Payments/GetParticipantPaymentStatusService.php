@@ -3,7 +3,7 @@
 namespace App\Services\Admin\Payments;
 
 use App\Models\Participant;
-use App\Models\Program;
+use App\Models\ProgramCourse;
 use App\Models\Payment;
 use App\Models\Order;
 use App\Helpers\ParticipantPriceHelper;
@@ -16,6 +16,7 @@ class GetParticipantPaymentStatusService
     use AdminLogging;
     /**
      * Obtener estado de pagos de un participante para un programa específico
+     * program_id ahora apunta a program_courses (instancias específicas)
      *
      * @param Request $request
      * @return array
@@ -23,29 +24,29 @@ class GetParticipantPaymentStatusService
      */
     public function execute(Request $request): array
     {
-        $programId = $request->program_id;
+        $programCourseId = $request->program_id; // program_id ahora es program_course_id
         $participantId = $request->participant_id;
 
         try {
-            // Obtener el participante
+            // Obtener el participante y el program_course (instancia específica)
             $participant = Participant::find($participantId);
-            $program = Program::find($programId);
+            $programCourse = ProgramCourse::with(['program', 'course'])->find($programCourseId);
 
-            if (!$participant || !$program) {
+            if (!$participant || !$programCourse) {
                 throw new \Exception('Participante o programa no encontrado');
             }
 
             // Calcular montos usando el helper
             try {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $program);
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
                 $totalAmount = $priceData['final_price'];
             } catch (\Exception $e) {
                 // Fallback al precio del programa si el helper falla
-                $totalAmount = $program->trip_price ?? 0;
+                $totalAmount = $programCourse->trip_price ?? 0;
                 Log::warning('Error calculando precio con helper, usando precio del programa', [
                     'error' => $e->getMessage(),
                     'participant_id' => $participantId,
-                    'program_id' => $programId
+                    'program_course_id' => $programCourseId
                 ]);
             }
 
@@ -56,14 +57,15 @@ class GetParticipantPaymentStatusService
             $orders = collect(); // Inicializar como colección vacía
 
             // Buscar planes de cuotas del participante para este programa (más confiable)
+            // program_id en installment_plans ahora apunta a program_courses
             $installmentPlans = \App\Models\InstallmentPlan::where('participant_id', $participantId)
-                ->where('program_id', $programId)
+                ->where('program_id', $programCourseId)
                 ->with(['installments'])
                 ->get();
 
             foreach ($installmentPlans as $plan) {
                 $totalInstallments = $plan->installments->count();
-                
+
                 foreach ($plan->installments as $installment) {
                     if ($installment->status === 'paid') {
                         $paidInstallments++;
@@ -72,24 +74,35 @@ class GetParticipantPaymentStatusService
             }
 
             // CALCULAR EL MONTO REAL PAGADO desde la tabla payments
-            $totalPaidAmount = Payment::whereHas('order', function ($q) use ($participantId, $programId) {
+            // orders.program_id ahora apunta a program_courses
+            $totalPaidAmount = Payment::whereHas('order', function ($q) use ($participantId, $programCourseId) {
                     $q->where('participant_id', $participantId)
-                      ->where('program_id', $programId);
+                      ->where('program_id', $programCourseId);
                 })
                 ->whereIn('status', ['completed', 'approved'])
                 ->sum('amount');
 
+            // Agregar también las cuotas pagadas de suscripciones
+            $subscriptionPayments = \App\Models\Installment::whereHas('installmentPlan', function ($q) use ($participantId, $programCourseId) {
+                    $q->where('participant_id', $participantId)
+                      ->where('program_id', $programCourseId);
+                })
+                ->where('status', 'paid')
+                ->sum('amount');
+
+            $totalPaidAmount += $subscriptionPayments;
+
             // Si no hay planes de cuotas, buscar en orders como fallback
             if ($totalInstallments == 0) {
                 $orders = Order::where('participant_id', $participantId)
-                    ->where('program_id', $programId)
+                    ->where('program_id', $programCourseId)
                     ->with(['orderDetails', 'payments'])
                     ->get();
 
                 foreach ($orders as $order) {
                     if ($order->orderDetails) {
                         $totalInstallments = $order->orderDetails->count();
-                        
+
                         foreach ($order->orderDetails as $detail) {
                             if ($detail->is_paid) {
                                 $paidInstallments++;
@@ -110,8 +123,8 @@ class GetParticipantPaymentStatusService
             }
 
             // Determinar estado de inscripción
-            $isEnrolled = $program->course && $program->course->participants->contains($participantId);
-            
+            $isEnrolled = $programCourse->course && $programCourse->course->participants->contains($participantId);
+
             // Estado de pagos
             $paymentStatus = 'no_enrolled';
             if ($isEnrolled) {
@@ -129,10 +142,10 @@ class GetParticipantPaymentStatusService
                 'payments',
                 'ParticipantPaymentStatus',
                 $participant->id,
-                "Consulta de estado de pagos: {$participant->first_name} {$participant->first_last_name} - Programa: {$program->name}",
+                "Consulta de estado de pagos: {$participant->first_name} {$participant->first_last_name} - Programa: {$programCourse->name}",
                 [
                     'participant_id' => $participant->id,
-                    'program_id' => $program->id,
+                    'program_course_id' => $programCourse->id,
                     'total_amount' => $totalAmount,
                     'paid_amount' => $totalPaidAmount,
                     'balance' => $balance,
@@ -152,9 +165,9 @@ class GetParticipantPaymentStatusService
                         'email' => $participant->email,
                     ],
                     'program' => [
-                        'id' => $program->id,
-                        'name' => $program->name,
-                        'destination' => $program->destination,
+                        'id' => $programCourse->id,
+                        'name' => $programCourse->name,
+                        'destination' => $programCourse->program->destination ?? '',
                     ],
                     'payment_info' => [
                         'total_amount' => $totalAmount,
@@ -204,7 +217,7 @@ class GetParticipantPaymentStatusService
         } catch (\Exception $e) {
             Log::error('Error al obtener estado de pagos del participante', [
                 'participant_id' => $participantId,
-                'program_id' => $programId,
+                'program_course_id' => $programCourseId,
                 'error' => $e->getMessage()
             ]);
 

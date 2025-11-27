@@ -23,7 +23,8 @@ class DatabaseSeeder extends Seeder
             ComunesSeeder::class,
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
-            DocumentTemplateSeeder::class
+            DocumentTemplateSeeder::class,
+            SiteContentSeeder::class,
         ]);
     }
 }

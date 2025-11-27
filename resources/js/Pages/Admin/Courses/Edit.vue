@@ -635,6 +635,167 @@
                                             </div>
                                         </transition>
                                     </div>
+
+                                    <!-- Separator -->
+                                    <div class="accordion-separator"></div>
+
+                                    <!-- Acordeón 4: Archivos del programa -->
+                                    <div class="accordion-section">
+                                        <div
+                                            class="accordion-header"
+                                            @click="filesOpen = !filesOpen"
+                                        >
+                                            <div class="accordion-title">
+                                                Archivos del programa
+                                            </div>
+                                            <svg
+                                                class="accordion-arrow"
+                                                :class="{ rotated: filesOpen }"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width="26"
+                                                height="14"
+                                                viewBox="0 0 26 14"
+                                                fill="none"
+                                            >
+                                                <path
+                                                    d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
+                                                    fill="#007E93"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <transition name="accordion-slide">
+                                            <div v-if="filesOpen" class="accordion-content">
+                                                <div class="pdf-upload-grid">
+                                                    <!-- Itinerario -->
+                                                    <div class="pdf-upload-item">
+                                                        <div class="pdf-label">Itinerario</div>
+                                                        <!-- Archivo existente -->
+                                                        <div v-if="existingFiles.itinerary_file && !form.itinerary_file" class="existing-file">
+                                                            <a :href="existingFiles.itinerary_file" target="_blank" class="existing-file-link">
+                                                                Ver archivo actual
+                                                            </a>
+                                                            <button type="button" @click="removeExistingFile('itinerary')" class="existing-file-remove">&times;</button>
+                                                        </div>
+                                                        <label class="pdf-upload-btn" :for="'itinerary-file-edit'">
+                                                            <span>{{ existingFiles.itinerary_file ? 'Cambiar PDF' : 'Adjunte aquí el PDF' }}</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                                            </svg>
+                                                        </label>
+                                                        <input
+                                                            type="file"
+                                                            id="itinerary-file-edit"
+                                                            accept=".pdf"
+                                                            style="display: none"
+                                                            @change="handlePdfUpload('itinerary', $event)"
+                                                        />
+                                                        <div v-if="form.itinerary_file" class="pdf-preview">
+                                                            <span class="pdf-name">{{ form.itinerary_file.name }}</span>
+                                                            <span class="pdf-size">{{ formatFileSize(form.itinerary_file.size) }}</span>
+                                                            <button type="button" @click="removePdfFile('itinerary')" class="pdf-remove">&times;</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Cobertura de asistencia -->
+                                                    <div class="pdf-upload-item">
+                                                        <div class="pdf-label">Cobertura de asistencia</div>
+                                                        <!-- Archivo existente -->
+                                                        <div v-if="existingFiles.coverage_file && !form.coverage_file" class="existing-file">
+                                                            <a :href="existingFiles.coverage_file" target="_blank" class="existing-file-link">
+                                                                Ver archivo actual
+                                                            </a>
+                                                            <button type="button" @click="removeExistingFile('coverage')" class="existing-file-remove">&times;</button>
+                                                        </div>
+                                                        <label class="pdf-upload-btn" :for="'coverage-file-edit'">
+                                                            <span>{{ existingFiles.coverage_file ? 'Cambiar PDF' : 'Adjunte aquí el PDF' }}</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                                            </svg>
+                                                        </label>
+                                                        <input
+                                                            type="file"
+                                                            id="coverage-file-edit"
+                                                            accept=".pdf"
+                                                            style="display: none"
+                                                            @change="handlePdfUpload('coverage', $event)"
+                                                        />
+                                                        <div v-if="form.coverage_file" class="pdf-preview">
+                                                            <span class="pdf-name">{{ form.coverage_file.name }}</span>
+                                                            <span class="pdf-size">{{ formatFileSize(form.coverage_file.size) }}</span>
+                                                            <button type="button" @click="removePdfFile('coverage')" class="pdf-remove">&times;</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Lista de equipo -->
+                                                    <div class="pdf-upload-item">
+                                                        <div class="pdf-label">Lista de equipo</div>
+                                                        <!-- Archivo existente -->
+                                                        <div v-if="existingFiles.equipment_file && !form.equipment_file" class="existing-file">
+                                                            <a :href="existingFiles.equipment_file" target="_blank" class="existing-file-link">
+                                                                Ver archivo actual
+                                                            </a>
+                                                            <button type="button" @click="removeExistingFile('equipment')" class="existing-file-remove">&times;</button>
+                                                        </div>
+                                                        <label class="pdf-upload-btn" :for="'equipment-file-edit'">
+                                                            <span>{{ existingFiles.equipment_file ? 'Cambiar PDF' : 'Adjunte aquí el PDF' }}</span>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                                                            </svg>
+                                                        </label>
+                                                        <input
+                                                            type="file"
+                                                            id="equipment-file-edit"
+                                                            accept=".pdf"
+                                                            style="display: none"
+                                                            @change="handlePdfUpload('equipment', $event)"
+                                                        />
+                                                        <div v-if="form.equipment_file" class="pdf-preview">
+                                                            <span class="pdf-name">{{ form.equipment_file.name }}</span>
+                                                            <span class="pdf-size">{{ formatFileSize(form.equipment_file.size) }}</span>
+                                                            <button type="button" @click="removePdfFile('equipment')" class="pdf-remove">&times;</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </transition>
+                                    </div>
+
+                                    <!-- Separator -->
+                                    <div class="accordion-separator"></div>
+
+                                    <!-- Estado del programa -->
+                                    <div class="accordion-section">
+                                        <div class="accordion-title mb-4">
+                                            Estado del programa
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <label class="flex items-center gap-3 cursor-pointer">
+                                                <div
+                                                    @click="form.active = !form.active"
+                                                    :class="[
+                                                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out cursor-pointer',
+                                                        form.active ? 'bg-green-500' : 'bg-gray-300'
+                                                    ]"
+                                                >
+                                                    <span
+                                                        :class="[
+                                                            'inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ease-in-out',
+                                                            form.active ? 'translate-x-6' : 'translate-x-1'
+                                                        ]"
+                                                    ></span>
+                                                </div>
+                                                <span :class="[
+                                                    'font-nexa-bold text-sm',
+                                                    form.active ? 'text-green-600' : 'text-gray-500'
+                                                ]">
+                                                    {{ form.active ? 'Activo' : 'Inactivo' }}
+                                                </span>
+                                            </label>
+                                            <span class="text-xs text-gray-500">
+                                                Define si el programa estará visible y disponible para inscripciones
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -699,6 +860,14 @@ const props = defineProps({
 const priceOpen = ref(true);
 const travelersOpen = ref(true);
 const paymentOpen = ref(true);
+const filesOpen = ref(false);
+
+// Existing files from programCourse
+const existingFiles = ref({
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+});
 
 // Form state
 const isSubmitting = ref(false);
@@ -710,6 +879,21 @@ const programCourse = computed(() => {
     const pc = props.course.program_courses?.[0] || props.course.programCourses?.[0] || {};
     console.log('ProgramCourse computed:', pc);
     return pc;
+});
+
+// Get selected program data with PDFs
+const selectedProgram = computed(() => {
+    const programId = form.value.program_id;
+    if (!programId) return null;
+
+    // Try to get from loaded programCourse first (has full data)
+    const pcProgram = programCourse.value?.program;
+    if (pcProgram && pcProgram.id === programId) {
+        return pcProgram;
+    }
+
+    // Otherwise look in programs list
+    return props.programs.find(p => p.id === programId) || null;
 });
 
 // Helper function to format date from datetime to YYYY-MM-DD
@@ -813,6 +997,14 @@ const form = ref({
 
     // Sales executive
     sales_executive_id: programCourse.value.sales_executive_id || '',
+
+    // Archivos del programa
+    itinerary_file: null,
+    coverage_file: null,
+    equipment_file: null,
+
+    // Estado activo
+    active: programCourse.value.active ?? true,
 });
 
 // Debug: Log para verificar qué datos se están cargando
@@ -1028,6 +1220,67 @@ const handleFileUpload = (event) => {
     }
 };
 
+// Initialize existing files from programCourse
+const initExistingFiles = () => {
+    const pc = programCourse.value;
+    console.log('=== INIT EXISTING FILES ===');
+    console.log('ProgramCourse data:', pc);
+    console.log('itinerary_file (raw):', pc.itinerary_file);
+    console.log('itinerary_file_url:', pc.itinerary_file_url);
+    console.log('travel_assistance_coverage (raw):', pc.travel_assistance_coverage);
+    console.log('travel_assistance_coverage_url:', pc.travel_assistance_coverage_url);
+    console.log('equipment_list (raw):', pc.equipment_list);
+    console.log('equipment_list_url:', pc.equipment_list_url);
+
+    existingFiles.value = {
+        itinerary_file: pc.itinerary_file_url || pc.itineraryFileUrl || null,
+        coverage_file: pc.travel_assistance_coverage_url || pc.travelAssistanceCoverageUrl || null,
+        equipment_file: pc.equipment_list_url || pc.equipmentListUrl || null,
+    };
+
+    console.log('Existing files after init:', existingFiles.value);
+};
+initExistingFiles();
+
+// Handle PDF file upload
+const handlePdfUpload = (type, event) => {
+    const file = event.target.files[0];
+    if (file) {
+        if (file.type !== 'application/pdf') {
+            alert('Por favor seleccione un archivo PDF válido.');
+            event.target.value = '';
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert(`${file.name} es demasiado grande. El tamaño máximo es 10MB.`);
+            event.target.value = '';
+            return;
+        }
+        form.value[`${type}_file`] = file;
+    }
+};
+
+// Remove PDF file (new upload)
+const removePdfFile = (type) => {
+    form.value[`${type}_file`] = null;
+};
+
+// Remove existing PDF file
+const removeExistingFile = (type) => {
+    existingFiles.value[`${type}_file`] = null;
+    // Mark for deletion on server
+    form.value[`remove_${type}_file`] = true;
+};
+
+// Format file size
+const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 // Submit form
 const saveCourse = () => {
     console.log('=== SAVING COURSE ===');
@@ -1101,6 +1354,19 @@ const saveCourse = () => {
     // Sales executive
     if (form.value.sales_executive_id)
         formData.append('sales_executive_id', form.value.sales_executive_id);
+
+    // Estado activo
+    formData.append('active', form.value.active ? '1' : '0');
+
+    // Archivos del programa
+    if (form.value.itinerary_file) formData.append('itinerary_file', form.value.itinerary_file);
+    if (form.value.coverage_file) formData.append('coverage_file', form.value.coverage_file);
+    if (form.value.equipment_file) formData.append('equipment_file', form.value.equipment_file);
+
+    // Marcar archivos para eliminar
+    if (form.value.remove_itinerary_file) formData.append('remove_itinerary_file', '1');
+    if (form.value.remove_coverage_file) formData.append('remove_coverage_file', '1');
+    if (form.value.remove_equipment_file) formData.append('remove_equipment_file', '1');
 
     // Submit as PUT request to update route
     router.post(route('admin.courses.update', props.course.id), formData, {
@@ -1666,5 +1932,128 @@ const saveCourse = () => {
 
 .block {
     display: block;
+}
+
+/* PDF Upload Styles */
+.pdf-upload-grid {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.pdf-upload-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+}
+
+.pdf-label {
+    color: var(--colores-neutro-gris-4, #5b5b5b);
+    font-family: 'Nexa-Bold', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.pdf-upload-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 12px 16px;
+    background: #fefeff;
+    border: 1px dashed #5b5b5b;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #c7c7c7;
+    font-size: 14px;
+}
+
+.pdf-upload-btn:hover {
+    border-color: #007e93;
+    background-color: rgba(0, 126, 147, 0.05);
+}
+
+.pdf-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    width: 100%;
+}
+
+.pdf-name {
+    color: #5b5b5b;
+    font-family: 'Nexa-Bold', sans-serif;
+    font-size: 12px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-size {
+    color: #c7c7c7;
+    font-size: 11px;
+}
+
+.pdf-remove {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0 4px;
+}
+
+.pdf-remove:hover {
+    color: #b91c1c;
+}
+
+.existing-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f0f9ff;
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+    width: 100%;
+}
+
+.existing-file-link {
+    color: #0284c7;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.existing-file-link:hover {
+    color: #0369a1;
+    text-decoration: underline;
+}
+
+.existing-file-remove {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 0 4px;
+}
+
+.existing-file-remove:hover {
+    color: #b91c1c;
 }
 </style>

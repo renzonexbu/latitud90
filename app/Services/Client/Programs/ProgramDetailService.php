@@ -89,7 +89,7 @@ class ProgramDetailService
                 $participantAdjustments = $adjustments;
                 $participantTotalAmount = $finalPrice;
 
-                // Calcular monto pagado desde las cuotas del installment_plan
+                // Calcular monto pagado desde las cuotas del installment_plan (suscripciones)
                 $paidAmount = 0.0;
                 $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
                     ->where('program_id', $programCourse->id)
@@ -98,23 +98,24 @@ class ProgramDetailService
 
                 foreach ($installmentPlans as $plan) {
                     foreach ($plan->installments as $installment) {
-                        // Sumar solo cuotas realmente pagadas
-                        if ($installment->status === 'paid' && $installment->is_paid) {
+                        // Sumar solo cuotas realmente pagadas (usar status = 'paid' como fuente de verdad)
+                        if ($installment->status === 'paid') {
                             $paidAmount += (float) $installment->amount;
                         }
                     }
                 }
 
-                // Si no hay installment plans, buscar pagos en orders (excluyendo suscripciones)
-                if ($installmentPlans->isEmpty()) {
-                    $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
-                            $q->where('participant_id', $participant->id)
-                              ->where('program_id', $programCourse->id)
-                              ->where('order_number', 'NOT LIKE', 'SUB-%'); // Excluir órdenes de suscripción
-                        })
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->sum('amount');
-                }
+                // SIEMPRE sumar pagos de orders (presenciales, pagos totales, etc.) excluyendo suscripciones
+                // Esto incluye pagos presenciales que no crean installment plans
+                $orderPayments = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $programCourse->id)
+                          ->where('order_number', 'NOT LIKE', 'SUB-%'); // Excluir órdenes de suscripción
+                    })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->sum('amount');
+
+                $paidAmount += $orderPayments;
 
                 $paidAmount = round($paidAmount, 2);
                 $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
@@ -243,10 +244,10 @@ class ProgramDetailService
             'has_active_subscription' => $hasActiveSubscription,
             'active_subscription' => $activeSubscription,
 
-            // Archivos PDF (de la plantilla)
-            'itinerary_file' => $program->itinerary_file_url,
-            'travel_assistance_coverage' => $program->travel_assistance_coverage_url,
-            'equipment_list' => $program->equipment_list_url,
+            // Archivos PDF (del plan específico programCourse)
+            'itinerary_file' => $programCourse->itinerary_file_url,
+            'travel_assistance_coverage' => $programCourse->travel_assistance_coverage_url,
+            'equipment_list' => $programCourse->equipment_list_url,
 
             // Información adicional (de la plantilla)
             'itinerary_description' => $program->itinerary_description,

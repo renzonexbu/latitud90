@@ -76,6 +76,14 @@ class StoreCourseRequest extends CourseRequest
 
             // Ejecutivo de ventas
             'sales_executive_id' => ['nullable', 'exists:sales_executives,id'],
+
+            // Archivos del programa
+            'itinerary_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'coverage_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+            'equipment_file' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
+
+            // Estado activo
+            'active' => ['nullable', 'boolean'],
         ]);
     }
 
@@ -123,6 +131,17 @@ class StoreCourseRequest extends CourseRequest
 
             // Ejecutivo de ventas
             'sales_executive_id.exists' => 'El ejecutivo de ventas seleccionado no existe',
+
+            // Archivos del programa
+            'itinerary_file.file' => 'El archivo de itinerario debe ser un archivo válido',
+            'itinerary_file.mimes' => 'El archivo de itinerario debe ser un PDF',
+            'itinerary_file.max' => 'El archivo de itinerario no debe ser mayor a 10MB',
+            'coverage_file.file' => 'El archivo de cobertura debe ser un archivo válido',
+            'coverage_file.mimes' => 'El archivo de cobertura debe ser un PDF',
+            'coverage_file.max' => 'El archivo de cobertura no debe ser mayor a 10MB',
+            'equipment_file.file' => 'El archivo de lista de equipo debe ser un archivo válido',
+            'equipment_file.mimes' => 'El archivo de lista de equipo debe ser un PDF',
+            'equipment_file.max' => 'El archivo de lista de equipo no debe ser mayor a 10MB',
         ];
     }
 }

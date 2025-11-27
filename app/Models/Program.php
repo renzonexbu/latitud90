@@ -17,9 +17,6 @@ class Program extends Model
         'images_folder',
         'pillars',
         'itinerary_description',
-        'itinerary_file',
-        'travel_assistance_coverage',
-        'equipment_list',
         'created_by',
         'active',
     ];
@@ -29,9 +26,6 @@ class Program extends Model
     ];
 
     protected $appends = [
-        'itinerary_file_url',
-        'travel_assistance_coverage_url',
-        'equipment_list_url',
         'images'
     ];
 
@@ -107,42 +101,6 @@ class Program extends Model
     public function getTotalRevenueAttribute()
     {
         return $this->participants()->sum('individual_price');
-    }
-
-    /**
-     * Get the full URL for the itinerary file
-     */
-    public function getItineraryFileUrlAttribute()
-    {
-        if (!$this->itinerary_file) return null;
-        
-        // Remover 'public/' del inicio si existe
-        $path = str_replace('public/', '', $this->itinerary_file);
-        return asset('storage/' . $path);
-    }
-
-    /**
-     * Get the full URL for the travel assistance coverage file
-     */
-    public function getTravelAssistanceCoverageUrlAttribute()
-    {
-        if (!$this->travel_assistance_coverage) return null;
-        
-        // Remover 'public/' del inicio si existe
-        $path = str_replace('public/', '', $this->travel_assistance_coverage);
-        return asset('storage/' . $path);
-    }
-
-    /**
-     * Get the full URL for the equipment list file
-     */
-    public function getEquipmentListUrlAttribute()
-    {
-        if (!$this->equipment_list) return null;
-        
-        // Remover 'public/' del inicio si existe
-        $path = str_replace('public/', '', $this->equipment_list);
-        return asset('storage/' . $path);
     }
 
     /**
