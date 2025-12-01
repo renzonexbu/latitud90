@@ -12,6 +12,9 @@ use App\Services\Client\Authentication\PasswordResetService;
 use App\Services\Client\Authentication\RegisterGuardianService;
 use App\Services\EcommerceAnalyticsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
@@ -211,14 +214,14 @@ class GuardianAuthController extends Controller
         }
 
         // ✅ LOGEAR AUTOMÁTICAMENTE después de verificar email exitosamente
-        auth('guardian')->login($result['user']);
+        Auth::guard('guardian')->login($result['user']);
 
         // Enviar email de bienvenida con cuenta verificada
         try {
-            \Illuminate\Support\Facades\Mail::to($result['user']->email)
+            Mail::to($result['user']->email)
                 ->send(new \App\Mail\GuardianAccountVerified($result['user']));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error enviando email de cuenta verificada', [
+            Log::error('Error enviando email de cuenta verificada', [
                 'user_id' => $result['user']->id,
                 'error' => $e->getMessage()
             ]);
@@ -243,30 +246,30 @@ class GuardianAuthController extends Controller
      */
     public function resendVerification(Request $request)
     {
-        \Log::info('=== INICIO REENVÍO VERIFICACIÓN (Controlador) ===');
-        \Log::info('Request data:', $request->all());
+        Log::info('=== INICIO REENVÍO VERIFICACIÓN (Controlador) ===');
+        Log::info('Request data:', $request->all());
 
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
-            \Log::error('Validación falló:', $validator->errors()->toArray());
+            Log::error('Validación falló:', $validator->errors()->toArray());
             return back()->withErrors($validator);
         }
 
-        \Log::info('Llamando a registerService->resendVerificationEmail con email: ' . $request->email);
+        Log::info('Llamando a registerService->resendVerificationEmail con email: ' . $request->email);
         $result = $this->registerService->resendVerificationEmail($request->email);
 
-        \Log::info('Resultado del servicio:', $result);
+        Log::info('Resultado del servicio:', $result);
 
         if (!$result['success']) {
-            \Log::error('Error al reenviar email: ' . $result['message']);
+            Log::error('Error al reenviar email: ' . $result['message']);
             return back()->withErrors(['error' => $result['message']]);
         }
 
-        \Log::info('Email reenviado exitosamente');
-        \Log::info('=== FIN REENVÍO VERIFICACIÓN (Controlador) ===');
+        Log::info('Email reenviado exitosamente');
+        Log::info('=== FIN REENVÍO VERIFICACIÓN (Controlador) ===');
         return back()->with('success', $result['message']);
     }
 
@@ -333,16 +336,16 @@ class GuardianAuthController extends Controller
         // NUEVA VALIDACIÓN: Verificar si el email está asociado al participante del token
         $pendingSubscription = session('pending_subscription');
 
-        \Log::info('=== INICIO VALIDACIÓN GUARDIAN ===');
-        \Log::info('Pending subscription:', ['data' => $pendingSubscription]);
-        \Log::info('Email del login:', ['email' => $request->email]);
+        Log::info('=== INICIO VALIDACIÓN GUARDIAN ===');
+        Log::info('Pending subscription:', ['data' => $pendingSubscription]);
+        Log::info('Email del login:', ['email' => $request->email]);
 
         if ($pendingSubscription && isset($pendingSubscription['token'])) {
             $token = $pendingSubscription['token'];
-            \Log::info('Token encontrado:', ['token' => $token]);
+            Log::info('Token encontrado:', ['token' => $token]);
 
             $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($token);
-            \Log::info('Token decodificado:', ['tokenData' => $tokenData]);
+            Log::info('Token decodificado:', ['tokenData' => $tokenData]);
 
             if ($tokenData) {
                 // Buscar el participante usando el mismo patrón que ProgramService
@@ -352,7 +355,7 @@ class GuardianAuthController extends Controller
                     ->select('participants.*')
                     ->first();
 
-                \Log::info('Participante encontrado:', [
+                Log::info('Participante encontrado:', [
                     'participant_id' => $participant ? $participant->id : null,
                     'participant_name' => $participant ? $participant->first_name . ' ' . $participant->first_last_name : null
                 ]);
@@ -363,7 +366,7 @@ class GuardianAuthController extends Controller
                         ->where('email', $request->email)
                         ->first();
 
-                    \Log::info('Búsqueda en emergency_contact:', [
+                    Log::info('Búsqueda en emergency_contact:', [
                         'participant_id' => $participant->id,
                         'email_buscado' => $request->email,
                         'encontrado' => $emergencyContact ? 'SI' : 'NO',
@@ -372,18 +375,18 @@ class GuardianAuthController extends Controller
                     ]);
 
                     if (!$emergencyContact) {
-                        \Log::warning('Acceso denegado - Email no está en emergency_contact del participante');
+                        Log::warning('Acceso denegado - Email no está en emergency_contact del participante');
                         return back()
                             ->withErrors(['error' => 'Este email no está registrado como apoderado del participante. Por favor, verifica que hayas usado el email correcto o contacta al administrador.'])
                             ->withInput();
                     }
 
-                    \Log::info('Validación exitosa - Email encontrado en emergency_contact');
+                    Log::info('Validación exitosa - Email encontrado en emergency_contact');
                 }
             }
         }
 
-        \Log::info('=== FIN VALIDACIÓN GUARDIAN ===');
+        Log::info('=== FIN VALIDACIÓN GUARDIAN ===');
 
         $result = $this->loginService->login(
             $request->only(['email', 'password']),
@@ -476,7 +479,8 @@ class GuardianAuthController extends Controller
     {
         $this->loginService->logout();
 
-        $request->session()->invalidate();
+        // Solo regenerar el token CSRF por seguridad
+        // NO invalidar toda la sesión para no afectar otros guards (ej: admin)
         $request->session()->regenerateToken();
 
         return redirect()->route('ecommerce.index')

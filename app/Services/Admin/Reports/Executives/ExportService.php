@@ -169,6 +169,7 @@ class ExportService
     {
         try {
             // Validar: solo rango de fechas requerido
+            $programId = $filters['programId'] ?? null;
             $programCode = $filters['programCode'] ?? null;
             $dateFrom = $filters['dateFrom'] ?? null;
             $dateTo = $filters['dateTo'] ?? null;
@@ -180,7 +181,7 @@ class ExportService
             }
 
             // Si no hay programa => crear un ZIP con un Excel por cada programa
-            if (!$programCode) {
+            if (!$programId && !$programCode) {
                 $programCourses = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])
                     ->where('active', true)
                     ->orderBy('code')
@@ -223,7 +224,13 @@ class ExportService
 
             // Exportar solo el programa seleccionado
             /** @var \App\Models\ProgramCourse|null $programCourse */
-            $programCourse = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])->where('code', $programCode)->first();
+            $programCourse = null;
+            if ($programId) {
+                $programCourse = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])->find($programId);
+            } elseif ($programCode) {
+                $programCourse = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])->where('code', $programCode)->first();
+            }
+
             if (!$programCourse) {
                 return response()->json(['error' => 'Programa no encontrado'], 404);
             }

@@ -17,6 +17,8 @@ class ExecutivesPartialAccountService
         $page = (int)($filters['page'] ?? 1);
         $perPage = 25;
 
+        // Soportar tanto programId como programCode para compatibilidad
+        $programId = $filters['programId'] ?? null;
         $programCode = $filters['programCode'] ?? null;
         $dateFrom = $filters['dateFrom'] ?? Carbon::now('America/Santiago')->subMonth()->format('Y-m-d');
         $dateTo = $filters['dateTo'] ?? Carbon::now('America/Santiago')->format('Y-m-d');
@@ -25,23 +27,15 @@ class ExecutivesPartialAccountService
 
         $items = collect([]);
 
-        if ($programCode) {
-            // Buscar el program_course por su código
+        // Buscar program_course por ID o por código
+        $programCourse = null;
+        if ($programId) {
+            $programCourse = \App\Models\ProgramCourse::find($programId);
+        } elseif ($programCode) {
             $programCourse = \App\Models\ProgramCourse::where('code', $programCode)->first();
-            if (!$programCourse) {
-                return [
-                    'partialAccounts' => new LengthAwarePaginator([], 0, $perPage, $page),
-                    'filters' => [
-                        'dateFrom' => $dateFrom,
-                        'dateTo' => $dateTo,
-                        'programCode' => $programCode,
-                    ],
-                    'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
-                ];
-            }
+        }
 
-            // Obtener el program_id del program_course
-            $program = $programCourse->program;
+        if ($programCourse) {
             $programCourseId = $programCourse->id;
 
             // Usar la misma lógica de consulta que ConsolidatedPayments
@@ -165,6 +159,7 @@ class ExecutivesPartialAccountService
             'filters' => [
                 'dateFrom' => $dateFrom,
                 'dateTo' => $dateTo,
+                'programId' => $programId,
                 'programCode' => $programCode,
             ],
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),

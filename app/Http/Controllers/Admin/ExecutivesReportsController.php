@@ -28,7 +28,7 @@ class ExecutivesReportsController extends Controller
 
     public function partialAccount(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programCode', 'page']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode', 'page']);
 
         $data = $this->partialAccountService->getPartialAccounts($filters);
 
@@ -45,7 +45,7 @@ class ExecutivesReportsController extends Controller
 
     public function exportPartialAccount(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programCode']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode']);
         $format = $request->get('format', 'xlsx');
 
         return $this->exportService->exportPartialAccount($filters, $format);
