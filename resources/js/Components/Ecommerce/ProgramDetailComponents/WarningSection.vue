@@ -10,11 +10,11 @@
     <!-- Contenido de la Advertencia -->
     <div class="flex flex-col gap-1 items-start justify-start flex-1 relative">
       <div class="text-[#5b5b5b] text-left font-nexa-bold text-sm leading-[18px] font-bold relative w-full">
-        El itinerario o programa puede sufrir modificaciones por razones de fuerza mayor
+        {{ warningTitle }}
       </div>
       <div class="text-left font-nexa-regular text-xs leading-[17px] font-normal relative self-stretch">
         <span class="text-[#5b5b5b] font-nexa-regular text-xs">
-          Como condiciones meteorológicas, pandemia, normas sanitarias, cortes de puentes, pasos fronterizos, catástrofe o estado de excepción. Para más información, descarga
+          {{ warningDescription }}
         </span>
         <a
           v-if="itineraryFile"
@@ -28,13 +28,13 @@
           aquí
         </span>
         <span class="text-[#5b5b5b] font-nexa-regular text-xs">
-          el itinerario completo o consúltanos a nuestro correo eléctrico
+          {{ warningItineraryText }}
         </span>
         <a
-          href="mailto:educacion@latitud90.com"
+          :href="`mailto:${warningEmail}`"
           class="text-[#1a4b75] font-nexa-bold text-xs font-bold underline hover:text-[#0d3352] transition-colors"
         >
-          educacion@latitud90.com
+          {{ warningEmail }}
         </a>
       </div>
     </div>
@@ -48,6 +48,29 @@ export default {
     itineraryFile: {
       type: String,
       default: null
+    },
+    content: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  computed: {
+    warningTitle() {
+      return this.getContent('titulo', 'El itinerario o programa puede sufrir modificaciones por razones de fuerza mayor');
+    },
+    warningDescription() {
+      return this.getContent('descripcion', 'Como condiciones meteorológicas, pandemia, normas sanitarias, cortes de puentes, pasos fronterizos, catástrofe o estado de excepción. Para más información, descarga ');
+    },
+    warningItineraryText() {
+      return this.getContent('texto_itinerario', ' el itinerario completo o consúltanos a nuestro correo eléctrico ');
+    },
+    warningEmail() {
+      return this.getContent('email', 'educacion@latitud90.com');
+    }
+  },
+  methods: {
+    getContent(key, defaultValue) {
+      return this.content?.[key]?.value || defaultValue;
     }
   }
 };

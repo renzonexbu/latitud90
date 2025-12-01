@@ -453,6 +453,40 @@ class SiteContentSeeder extends Seeder
                 'order' => 13,
             ],
 
+            // Program Detail - Warning Section
+            [
+                'section' => 'program_detail',
+                'key' => 'titulo',
+                'type' => 'text',
+                'value' => 'El itinerario o programa puede sufrir modificaciones por razones de fuerza mayor',
+                'label' => 'Advertencia - Título',
+                'order' => 1,
+            ],
+            [
+                'section' => 'program_detail',
+                'key' => 'descripcion',
+                'type' => 'textarea',
+                'value' => 'Como condiciones meteorológicas, pandemia, normas sanitarias, cortes de puentes, pasos fronterizos, catástrofe o estado de excepción. Para más información, descarga ',
+                'label' => 'Advertencia - Descripción',
+                'order' => 2,
+            ],
+            [
+                'section' => 'program_detail',
+                'key' => 'texto_itinerario',
+                'type' => 'text',
+                'value' => ' el itinerario completo o consúltanos a nuestro correo eléctrico ',
+                'label' => 'Advertencia - Texto itinerario',
+                'order' => 3,
+            ],
+            [
+                'section' => 'program_detail',
+                'key' => 'email',
+                'type' => 'text',
+                'value' => 'educacion@latitud90.com',
+                'label' => 'Advertencia - Email de contacto',
+                'order' => 4,
+            ],
+
             // Footer Section
             [
                 'section' => 'footer',
@@ -541,6 +575,23 @@ class SiteContentSeeder extends Seeder
                 'value' => 'Copyright © 2025 Latitud90',
                 'label' => 'Texto de copyright',
                 'order' => 11,
+            ],
+            // Contact / WhatsApp Section
+            [
+                'section' => 'contact',
+                'key' => 'whatsapp',
+                'type' => 'text',
+                'value' => '56988071858',
+                'label' => 'Número de WhatsApp (sin +)',
+                'order' => 1,
+            ],
+            [
+                'section' => 'contact',
+                'key' => 'whatsapp_mensaje',
+                'type' => 'text',
+                'value' => 'Hola, me gustaría obtener más información',
+                'label' => 'Mensaje predeterminado de WhatsApp',
+                'order' => 2,
             ],
         ];
 

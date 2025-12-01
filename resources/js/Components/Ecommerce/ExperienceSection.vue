@@ -367,16 +367,19 @@ const sectionTitle = computed(() => getContent('titulo', 'Nuestras experiencias'
 
     /* Ajustar título en mobile */
     .flip-card-title {
-        font-size: 20px !important;
+        font-size: 18px !important;
         letter-spacing: 0.309px !important;
-        margin-top: 70px !important;
+        margin-top: 50px !important;
         margin-bottom: 12px !important;
+        max-width: calc(100% - 50px) !important;
+        margin-left: 8px !important;
     }
 
     /* Ajustar descripción en mobile */
     .flip-card-description {
-        font-size: 10.812px !important;
-        line-height: 13.901px !important;
+        font-size: 11px !important;
+        line-height: 14px !important;
+        max-width: 95% !important;
     }
 
     /* Ajustar icono SVG en mobile */
@@ -476,19 +479,19 @@ const sectionTitle = computed(() => getContent('titulo', 'Nuestras experiencias'
 
 .flip-card-title {
     font-family: "Nexa", sans-serif;
-    font-size: 28px;
+    font-size: 24px;
     font-style: normal;
     font-weight: 900;
-    line-height: 96%;
+    line-height: 100%;
     letter-spacing: 0.4px;
     color: #fff;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     margin-bottom: 15px;
-    margin-top: 80px;
-    margin-left: 20px;
-    max-width: calc(100% - 40px);
+    margin-top: 60px;
+    margin-left: 10px;
+    max-width: calc(100% - 60px);
     overflow-wrap: break-word;
     word-break: break-word;
 }
@@ -515,10 +518,11 @@ const sectionTitle = computed(() => getContent('titulo', 'Nuestras experiencias'
     line-height: 18px;
     text-align: justify;
     hyphens: auto;
-    max-width: 85%;
+    max-width: 95%;
     text-justify: inter-word;
     overflow-wrap: break-word;
     word-break: break-word;
     margin: 0 auto;
+    padding: 0 5px;
 }
 </style>

@@ -80,7 +80,10 @@
                             :equipment-list="program.equipment_list"
                         />
                         <!-- Sección de Advertencia -->
-                        <WarningSection :itinerary-file="program.itinerary_file" />
+                        <WarningSection
+                            :itinerary-file="program.itinerary_file"
+                            :content="siteContent.program_detail || {}"
+                        />
 
                         <!-- Galería de Imágenes -->
                         <!-- <ImageGallery
@@ -103,6 +106,7 @@
                             :program="program"
                             :show-remaining-amount="!program.active_installment"
                             :participant-document="participant?.document_number || rut"
+                            :whatsapp-number="siteContent?.contact?.whatsapp?.value"
                             @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
@@ -188,6 +192,7 @@
                         :show-remaining-amount="true"
                         :show-payment-button="true"
                         :participant-document="participant?.document_number || rut"
+                        :whatsapp-number="siteContent?.contact?.whatsapp?.value"
                         @payment-selection-updated="handlePaymentSelection"
                     />
                 </div>
@@ -255,6 +260,10 @@ export default {
         token: {
             type: String,
             required: true,
+        },
+        siteContent: {
+            type: Object,
+            default: () => ({}),
         },
     },
 

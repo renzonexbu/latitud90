@@ -1,6 +1,6 @@
 <template>
     <a
-        :href="`https://wa.me/${contactInfo.whatsapp.number}`"
+        :href="`https://wa.me/${whatsappNumber}`"
         target="_blank"
         rel="noopener noreferrer"
         class="whatsapp-float"
@@ -21,6 +21,16 @@
 
 <script setup>
 import contactInfo from '@/config/contact.js';
+
+const props = defineProps({
+    whatsappNumber: {
+        type: String,
+        default: null
+    }
+});
+
+// Usar el número de prop o fallback al contactInfo
+const whatsappNumber = props.whatsappNumber || contactInfo.whatsapp.number;
 </script>
 
 <style scoped>

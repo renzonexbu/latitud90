@@ -7,6 +7,7 @@ use App\Services\Client\Programs\ProgramService;
 use App\Services\Client\Programs\ProgramDetailService;
 use App\Services\EcommerceAnalyticsService;
 use App\Helpers\TokenHelper;
+use App\Models\SiteContent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -134,10 +135,42 @@ class ProgramController extends Controller
                 ->with('error', 'Programa no encontrado');
         }
 
+        // Obtener contenido editable de program_detail
+        $programDetailContent = SiteContent::where('section', 'program_detail')
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->get()
+            ->keyBy('key')
+            ->map(function ($item) {
+                return [
+                    'value' => $item->effective_value,
+                    'key' => $item->key,
+                ];
+            })
+            ->toArray();
+
+        // Obtener contenido de contacto (WhatsApp)
+        $contactContent = SiteContent::where('section', 'contact')
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->get()
+            ->keyBy('key')
+            ->map(function ($item) {
+                return [
+                    'value' => $item->effective_value,
+                    'key' => $item->key,
+                ];
+            })
+            ->toArray();
+
         return Inertia::render('Ecommerce/ProgramDetail', [
             'participant' => $participant,
             'program' => $programDetails,
-            'token' => $token
+            'token' => $token,
+            'siteContent' => [
+                'program_detail' => $programDetailContent,
+                'contact' => $contactContent,
+            ],
         ]);
     }
 }

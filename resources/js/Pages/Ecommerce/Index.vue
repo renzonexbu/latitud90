@@ -110,7 +110,7 @@
         ></Footer>
 
         <!-- WhatsApp Float Button -->
-        <WhatsAppFloat />
+        <WhatsAppFloat :whatsapp-number="siteContent?.contact?.whatsapp?.value" />
     </div>
 </template>
 

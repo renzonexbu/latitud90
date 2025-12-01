@@ -126,7 +126,9 @@ class SiteContent extends Model
             'transform' => 'Sección Transformamos',
             'experiences' => 'Nuestras Experiencias',
             'courses' => 'Destinos/Banners',
+            'program_detail' => 'Detalle de Programa',
             'faq' => 'Preguntas Frecuentes',
+            'contact' => 'Contacto / WhatsApp',
             'footer' => 'Footer',
         ];
     }

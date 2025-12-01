@@ -12,7 +12,14 @@
                     ¡Selecciona la forma de pago que mejor se adapte a ti, total
                     o en cuotas! Para cualquier consulta, no dudes en
                     escribirnos por
-                    <span class="underline">WhatsApp</span>
+                    <a
+                        :href="`https://wa.me/${effectiveWhatsappNumber}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-[#25D366] hover:text-[#128C7E] underline font-semibold transition-colors"
+                    >
+                        WhatsApp
+                    </a>
                 </p>
             </div>
 
@@ -298,6 +305,7 @@
 <script>
 import PaymentOption from "./PaymentOption.vue";
 import PaymentSubOption from "./PaymentSubOption.vue";
+import contactInfo from "@/config/contact.js";
 import MonthlyWarningMessage from "./MonthlyWarningMessage.vue";
 import { router } from "@inertiajs/vue3";
 import { getFirstInstallmentAmount, formatPrice, splitAmountInInstallments } from "@/utils/paymentUtils";
@@ -354,6 +362,10 @@ export default {
         participantDocument: {
             type: String,
             required: false,
+            default: null
+        },
+        whatsappNumber: {
+            type: String,
             default: null
         },
     },
@@ -435,6 +447,7 @@ export default {
             accordionOpen: null,
             selectedInstallments: 1,
             showGuardianModal: false,
+            contactInfo: contactInfo,
             // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
@@ -1184,6 +1197,9 @@ export default {
             const availableInstallments = this.getAvailableInstallments();
             const maxInstallments = Math.max(...availableInstallments, 0);
             return maxInstallments > 1;
+        },
+        effectiveWhatsappNumber() {
+            return this.whatsappNumber || this.contactInfo.whatsapp.number;
         }
     }
 };
