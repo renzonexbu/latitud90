@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\MaintainerController;
 use App\Http\Controllers\Admin\Maintainer\TermsConditionsController;
 use App\Http\Controllers\Admin\Maintainer\FaqController;
+use App\Http\Controllers\Admin\Maintainer\PaymentFormController;
 
 Route::middleware(['auth', 'verified', 'role:super_admin'])->group(function () {
     Route::prefix('maintainer')->name('maintainer.')->group(function () {
@@ -52,6 +53,12 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->group(function () {
             Route::delete('/{id}', [FaqController::class, 'destroy'])->name('destroy');
             Route::post('/update-title', [FaqController::class, 'updateTitle'])->name('update-title');
             Route::post('/reorder', [FaqController::class, 'reorder'])->name('reorder');
+        });
+
+        // Formulario de Pago
+        Route::prefix('payment-form')->name('payment-form.')->group(function () {
+            Route::get('/', [PaymentFormController::class, 'index'])->name('index');
+            Route::post('/', [PaymentFormController::class, 'update'])->name('update');
         });
     });
 });

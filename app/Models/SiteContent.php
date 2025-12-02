@@ -127,6 +127,7 @@ class SiteContent extends Model
             'experiences' => 'Nuestras Experiencias',
             'courses' => 'Destinos/Banners',
             'program_detail' => 'Detalle de Programa',
+            'payment_form' => 'Formulario de Pago',
             'faq' => 'Preguntas Frecuentes',
             'contact' => 'Contacto / WhatsApp',
             'footer' => 'Footer',

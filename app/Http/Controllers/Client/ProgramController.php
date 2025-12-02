@@ -163,6 +163,20 @@ class ProgramController extends Controller
             })
             ->toArray();
 
+        // Obtener contenido del formulario de pago
+        $paymentFormContent = SiteContent::where('section', 'payment_form')
+            ->where('is_active', true)
+            ->orderBy('order')
+            ->get()
+            ->keyBy('key')
+            ->map(function ($item) {
+                return [
+                    'value' => $item->effective_value,
+                    'key' => $item->key,
+                ];
+            })
+            ->toArray();
+
         return Inertia::render('Ecommerce/ProgramDetail', [
             'participant' => $participant,
             'program' => $programDetails,
@@ -170,6 +184,7 @@ class ProgramController extends Controller
             'siteContent' => [
                 'program_detail' => $programDetailContent,
                 'contact' => $contactContent,
+                'payment_form' => $paymentFormContent,
             ],
         ]);
     }

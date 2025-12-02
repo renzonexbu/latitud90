@@ -51,6 +51,11 @@ class SiteContentController extends Controller
             return redirect()->route('admin.maintainer.faqs.index');
         }
 
+        // Redirigir formulario de pago al mantenedor especializado
+        if ($section === 'payment_form') {
+            return redirect()->route('admin.maintainer.payment-form.index');
+        }
+
         $contents = SiteContent::where('section', $section)
             ->orderBy('order')
             ->get();

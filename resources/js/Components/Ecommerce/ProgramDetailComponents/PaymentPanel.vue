@@ -6,12 +6,10 @@
                 <h2
                     class="text-[#007E93] font-outfit-semibold text-[18px] md:text-[20px] leading-[24px] md:leading-[61.43px] font-semibold"
                 >
-                    Selecione la formas de pago
+                    {{ paymentFormTitle }}
                 </h2>
                 <p class="text-[#5B5B5B] font-nexa text-xs md:text-sm leading-[16px] md:leading-[18px]">
-                    ¡Selecciona la forma de pago que mejor se adapte a ti, total
-                    o en cuotas! Para cualquier consulta, no dudes en
-                    escribirnos por
+                    {{ paymentFormSubtitle }}
                     <a
                         :href="`https://wa.me/${effectiveWhatsappNumber}`"
                         target="_blank"
@@ -51,7 +49,7 @@
                     v-if="program.enable_total_payment"
                     :is-selected="paymentType === 'total'"
                     :is-accordion-open="accordionOpen === 'total'"
-                    title="Pago total"
+                    :title="totalPaymentTitle"
                     @select="selectPaymentType('total')"
                 >
                     <template #accordion-content>
@@ -75,7 +73,7 @@
                     v-if="program.enable_lat90_payment && shouldShowMonthlyOption"
                     :is-selected="paymentType === 'monthly'"
                     :is-accordion-open="accordionOpen === 'monthly'"
-                    title="Suscripción"
+                    :title="subscriptionTitle"
                     @select="selectPaymentType('monthly')"
                 >
                     <template #accordion-content>
@@ -368,6 +366,10 @@ export default {
             type: String,
             default: null
         },
+        paymentFormContent: {
+            type: Object,
+            default: () => ({})
+        },
     },
     watch: {
         selectedInstallments: {
@@ -501,7 +503,7 @@ export default {
                 
                 codes.forEach(code => {
                     if (code.includes('khipu')) {
-                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.', 1);
+                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, this.khipuWarning, 1);
                     } else if (code.includes('international')) {
                         pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales', 999);
                     } else if (code.includes('debit_credit')) {
@@ -534,7 +536,7 @@ export default {
             const baseOptions = this.filterPaymentOptionsByMethod(this.program.total_payment_method_id);
             return baseOptions.map(opt => {
                 if (opt.value === 'khipu') {
-                    return { ...opt, warning: '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.' };
+                    return { ...opt, warning: this.khipuWarning };
                 }
                 return opt;
             });
@@ -1200,6 +1202,22 @@ export default {
         },
         effectiveWhatsappNumber() {
             return this.whatsappNumber || this.contactInfo.whatsapp.number;
+        },
+        // Computed properties for payment form content with fallbacks
+        paymentFormTitle() {
+            return this.paymentFormContent?.title?.value || 'Seleccione la forma de pago';
+        },
+        paymentFormSubtitle() {
+            return this.paymentFormContent?.subtitle?.value || '¡Selecciona la forma de pago que mejor se adapte a ti, total o en cuotas! Para cualquier consulta, no dudes en escribirnos por';
+        },
+        totalPaymentTitle() {
+            return this.paymentFormContent?.total_payment_title?.value || 'Pago total';
+        },
+        subscriptionTitle() {
+            return this.paymentFormContent?.subscription_title?.value || 'Suscripción';
+        },
+        khipuWarning() {
+            return this.paymentFormContent?.khipu_warning?.value || '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.';
         }
     }
 };

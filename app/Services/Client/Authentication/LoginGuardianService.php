@@ -79,27 +79,6 @@ class LoginGuardianService
                 ];
             }
 
-            // Verificar que el email esté verificado
-            \Log::info('Email verification check', [
-                'user_id' => $guardianUser->id,
-                'verified' => $guardianUser->email_verified_at ? 'yes' : 'no',
-                'verified_at' => $guardianUser->email_verified_at
-            ]);
-
-            if (!$guardianUser->email_verified_at) {
-                \Log::warning('Email not verified', [
-                    'user_id' => $guardianUser->id,
-                    'email' => $guardianUser->email
-                ]);
-
-                return [
-                    'success' => false,
-                    'message' => 'Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
-                    'requires_verification' => true,
-                    'email' => $guardianUser->email
-                ];
-            }
-
             // Verificar que la cuenta no esté suspendida
             \Log::info('Account status check', [
                 'user_id' => $guardianUser->id,

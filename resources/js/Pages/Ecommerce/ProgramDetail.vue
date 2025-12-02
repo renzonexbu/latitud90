@@ -107,6 +107,7 @@
                             :show-remaining-amount="!program.active_installment"
                             :participant-document="participant?.document_number || rut"
                             :whatsapp-number="siteContent?.contact?.whatsapp?.value"
+                            :payment-form-content="siteContent?.payment_form || {}"
                             @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
@@ -193,6 +194,7 @@
                         :show-payment-button="true"
                         :participant-document="participant?.document_number || rut"
                         :whatsapp-number="siteContent?.contact?.whatsapp?.value"
+                        :payment-form-content="siteContent?.payment_form || {}"
                         @payment-selection-updated="handlePaymentSelection"
                     />
                 </div>

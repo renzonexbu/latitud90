@@ -78,6 +78,7 @@
                             :show-warning="true"
                             :show-remaining-amount="false"
                             :show-payment-button="false"
+                            :payment-form-content="siteContent?.payment_form || {}"
                             @terms-accepted-updated="handleTermsAcceptedUpdate"
                             @payment-selection-updated="handlePaymentSelection"
                         />
@@ -162,6 +163,10 @@ export default {
         token: {
             type: String,
             required: true,
+        },
+        siteContent: {
+            type: Object,
+            default: () => ({}),
         },
     },
     data() {
