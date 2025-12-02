@@ -25,6 +25,9 @@ const handleEditSection = (section) => {
     // Redirigir a la gestión de colegios si es la sección schools
     if (section === 'schools') {
         router.get(route("admin.schools.index"));
+    } else if (section === 'faq') {
+        // Redirigir al nuevo mantenedor de FAQs
+        router.get(route("admin.maintainer.faqs.index"));
     } else {
         router.get(route("admin.site-content.edit", section));
     }

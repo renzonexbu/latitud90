@@ -70,7 +70,7 @@ class ReportsSummaryService
 
     private function getConsolidatedPaymentsSummary($dateFrom, $dateTo, $programId)
     {
-        $query = Payment::with(['order.program', 'order.participant'])
+        $query = Payment::with(['order.program', 'order.programCourse', 'order.participant'])
             ->whereBetween('created_at', [$dateFrom, $dateTo])
             ->where('status', 'completed');
 
@@ -256,10 +256,23 @@ class ReportsSummaryService
 
     private function getTopPrograms($payments)
     {
-        return $payments->groupBy('order.program.id')
+        return $payments->groupBy('order.program_id')
             ->map(function ($group) {
+                $order = $group->first()->order;
+                // Intentar obtener del ProgramCourse (nueva arquitectura)
+                $programCourse = $order->programCourse;
+                if ($programCourse) {
+                    $code = $programCourse->code ?? '';
+                    $name = $programCourse->name ?? 'Sin nombre';
+                } else {
+                    // Fallback a Program (arquitectura antigua)
+                    $code = $order->program->code ?? '';
+                    $name = $order->program->name ?? 'Sin nombre';
+                }
+
                 return [
-                    'name' => $group->first()->order->program->name ?? 'Sin nombre',
+                    'code' => $code,
+                    'name' => $code ? "{$code} - {$name}" : $name,
                     'count' => $group->count(),
                     'amount' => $group->sum('amount')
                 ];

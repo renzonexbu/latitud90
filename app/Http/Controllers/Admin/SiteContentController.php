@@ -46,6 +46,11 @@ class SiteContentController extends Controller
                 ->with('error', 'Sección no encontrada');
         }
 
+        // Redirigir FAQs al nuevo mantenedor especializado
+        if ($section === 'faq') {
+            return redirect()->route('admin.maintainer.faqs.index');
+        }
+
         $contents = SiteContent::where('section', $section)
             ->orderBy('order')
             ->get();

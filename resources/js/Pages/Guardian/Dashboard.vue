@@ -100,7 +100,7 @@
 </template>
 
 <script setup>
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import GuardianLayout from '@/Layouts/GuardianLayout.vue'
 
 const props = defineProps({

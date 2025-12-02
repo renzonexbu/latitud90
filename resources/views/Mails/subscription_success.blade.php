@@ -50,22 +50,6 @@
         .content {
             padding: 30px;
         }
-        .success-icon {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .success-icon .circle {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 40px;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-        }
         .greeting {
             font-size: 20px;
             font-weight: bold;
@@ -211,17 +195,12 @@
         <div class="email-container">
             <!-- Header -->
             <div class="header">
-                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
+                <img src="{{ $message->embedData(file_get_contents(public_path('images/logo-color.png')), 'logo.png', 'image/png') }}" alt="Latitud 90" class="logo">
                 <div class="subject">¡Suscripción Exitosa!</div>
             </div>
 
             <!-- Content -->
             <div class="content">
-                <!-- Success Icon -->
-                <div class="success-icon">
-                    <div class="circle">✓</div>
-                </div>
-
                 <!-- Greeting -->
                 <div class="greeting">
                     Hola {{ ucwords(strtolower($customer_name)) }},

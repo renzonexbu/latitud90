@@ -185,9 +185,18 @@
           <h3 class="text-xl font-bold text-[#1C4F4A] mb-2">
             No hay mensualidades registradas
           </h3>
-          <p class="text-gray-600">
+          <p class="text-gray-600 mb-6">
             Este programa aún no tiene un plan de cuotas configurado
           </p>
+          <a
+            :href="getPaymentUrl()"
+            class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#1C4F4A] to-[#007E93] text-white font-semibold rounded-full hover:opacity-90 transition-opacity shadow-lg"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            Ir a Pagar
+          </a>
         </div>
       </div>
     </div>
@@ -271,5 +280,17 @@ const formatPaymentMethod = (paymentMethodJson) => {
     console.error('Error parsing payment method:', e)
     return 'Tarjeta registrada'
   }
+}
+
+// Generar URL para ir a pagar en el ecommerce
+const getPaymentUrl = () => {
+  const programId = props.program?.id
+  const token = props.participant?.ecommerce_token
+
+  if (!programId || !token) {
+    return '#'
+  }
+
+  return `/programs/${programId}?token=${encodeURIComponent(token)}`
 }
 </script>

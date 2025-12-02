@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Participant;
 use App\Models\ProgramCourse;
 use App\Services\Client\Guardian\GuardianParticipantService;
+use App\Helpers\TokenHelper;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -102,12 +103,17 @@ class GuardianDashboardController extends Controller
                 ->with('error', 'Programa no encontrado');
         }
 
+        // Generar token para URL del ecommerce
+        $documentType = $participant->documentType ? $participant->documentType->name : 'RUT';
+        $ecommerceToken = TokenHelper::encodeParticipantToken($participant->document_number, $documentType);
+
         return Inertia::render('Guardian/ProgramDetail', [
             'participant' => [
                 'id' => $participant->id,
                 'name' => $participant->full_name,
                 'document' => $participant->document_number,
-                'document_type' => $participant->documentType ? $participant->documentType->name : 'N/A',
+                'document_type' => $documentType,
+                'ecommerce_token' => $ecommerceToken,
             ],
             'program' => $programDetails,
             'auth' => [

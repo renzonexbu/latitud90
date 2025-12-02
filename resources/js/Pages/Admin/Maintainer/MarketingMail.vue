@@ -120,6 +120,136 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal de Confirmación de Sincronización -->
+        <Teleport to="body">
+            <Transition name="modal">
+                <div v-if="showSyncModal" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-screen items-center justify-center p-4">
+                        <!-- Overlay -->
+                        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showSyncModal = false"></div>
+
+                        <!-- Modal -->
+                        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
+                            <div class="flex items-center mb-4">
+                                <div class="flex-shrink-0 w-10 h-10 bg-turquesa/10 rounded-full flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-turquesa" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                </div>
+                                <h3 class="ml-3 text-lg font-semibold text-gray-900">Sincronizar Emails</h3>
+                            </div>
+
+                            <p class="text-gray-600 mb-6">
+                                ¿Deseas importar los emails de compradores que aceptaron recibir comunicaciones de marketing?
+                            </p>
+
+                            <div class="flex justify-end space-x-3">
+                                <button
+                                    @click="showSyncModal = false"
+                                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    @click="confirmSync"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-turquesa hover:bg-turquesa-dark rounded-md transition-colors"
+                                >
+                                    Sincronizar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
+
+        <!-- Modal de Confirmación de Eliminación -->
+        <Teleport to="body">
+            <Transition name="modal">
+                <div v-if="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-screen items-center justify-center p-4">
+                        <!-- Overlay -->
+                        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showDeleteModal = false"></div>
+
+                        <!-- Modal -->
+                        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
+                            <div class="flex items-center mb-4">
+                                <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </div>
+                                <h3 class="ml-3 text-lg font-semibold text-gray-900">Eliminar Email</h3>
+                            </div>
+
+                            <p class="text-gray-600 mb-6">
+                                ¿Estás seguro de que deseas eliminar este email de la lista de marketing? Esta acción no se puede deshacer.
+                            </p>
+
+                            <div class="flex justify-end space-x-3">
+                                <button
+                                    @click="showDeleteModal = false"
+                                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    @click="confirmDelete"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
+
+        <!-- Modal de Resultado -->
+        <Teleport to="body">
+            <Transition name="modal">
+                <div v-if="showResultModal" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-screen items-center justify-center p-4">
+                        <!-- Overlay -->
+                        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showResultModal = false"></div>
+
+                        <!-- Modal -->
+                        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all">
+                            <div class="flex items-center mb-4">
+                                <div :class="[
+                                    'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
+                                    resultModal.success ? 'bg-green-100' : 'bg-red-100'
+                                ]">
+                                    <svg v-if="resultModal.success" class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <svg v-else class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                                <h3 class="ml-3 text-lg font-semibold text-gray-900">{{ resultModal.title }}</h3>
+                            </div>
+
+                            <div class="text-gray-600 mb-6 whitespace-pre-line">{{ resultModal.message }}</div>
+
+                            <div class="flex justify-end">
+                                <button
+                                    @click="closeResultModal"
+                                    :class="[
+                                        'px-4 py-2 text-sm font-medium text-white rounded-md transition-colors',
+                                        resultModal.success ? 'bg-turquesa hover:bg-turquesa-dark' : 'bg-gray-600 hover:bg-gray-700'
+                                    ]"
+                                >
+                                    Aceptar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </AdminLayout>
 </template>
 
@@ -166,7 +296,16 @@ export default {
     },
     data() {
         return {
-            syncing: false
+            syncing: false,
+            showSyncModal: false,
+            showDeleteModal: false,
+            showResultModal: false,
+            deleteEmailId: null,
+            resultModal: {
+                success: true,
+                title: '',
+                message: ''
+            }
         };
     },
     methods: {
@@ -203,46 +342,49 @@ export default {
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    alert(result.message);
-                    // Refresh the page to get updated data
+                    this.showResult(true, 'Estado Actualizado', result.message);
                     this.$inertia.reload();
                 } else {
-                    alert('Error: ' + result.message);
+                    this.showResult(false, 'Error', result.message);
                 }
             } catch (error) {
-                alert('Error al cambiar el estado del email');
+                this.showResult(false, 'Error', 'Error al cambiar el estado del email');
             }
         },
 
-        async handleDeleteEmail(emailId) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este email?')) {
-                return;
-            }
-            
+        handleDeleteEmail(emailId) {
+            this.deleteEmailId = emailId;
+            this.showDeleteModal = true;
+        },
+
+        async confirmDelete() {
+            this.showDeleteModal = false;
+
             try {
-                const response = await fetch(`/admin/maintainer/marketing-mails/${emailId}`, {
+                const response = await fetch(`/admin/maintainer/marketing-mails/${this.deleteEmailId}`, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    alert(result.message);
-                    // Refresh the page to get updated data
+                    this.showResult(true, 'Email Eliminado', result.message);
                     this.$inertia.reload();
                 } else {
-                    alert('Error: ' + result.message);
+                    this.showResult(false, 'Error', result.message);
                 }
             } catch (error) {
-                alert('Error al eliminar el email');
+                this.showResult(false, 'Error', 'Error al eliminar el email');
+            } finally {
+                this.deleteEmailId = null;
             }
         },
 
@@ -277,13 +419,13 @@ export default {
             document.body.removeChild(form);
         },
 
-        async handleSync() {
+        handleSync() {
             if (this.syncing) return;
+            this.showSyncModal = true;
+        },
 
-            if (!confirm('¿Deseas sincronizar los emails desde orders_detail con marketing_accepted = true?')) {
-                return;
-            }
-
+        async confirmSync() {
+            this.showSyncModal = false;
             this.syncing = true;
 
             try {
@@ -299,29 +441,55 @@ export default {
                 const result = await response.json();
 
                 if (result.success) {
-                    const message = `Sincronización completada:\n` +
-                        `- Total procesados: ${result.results.total_processed}\n` +
-                        `- Nuevos emails agregados: ${result.results.new_emails_added}\n` +
-                        `- Emails actualizados: ${result.results.existing_emails_updated}`;
+                    const message = `Total procesados: ${result.results.total_processed}\n` +
+                        `Nuevos emails agregados: ${result.results.new_emails_added}\n` +
+                        `Emails actualizados: ${result.results.existing_emails_updated}`;
 
-                    alert(message);
-
-                    // Recargar la página para ver los datos actualizados
+                    this.showResult(true, 'Sincronización Completada', message);
                     this.$inertia.reload();
                 } else {
-                    alert('Error: ' + result.message);
+                    this.showResult(false, 'Error', result.message);
                 }
             } catch (error) {
                 console.error('Error al sincronizar:', error);
-                alert('Error al sincronizar emails');
+                this.showResult(false, 'Error', 'Error al sincronizar emails');
             } finally {
                 this.syncing = false;
             }
+        },
+
+        showResult(success, title, message) {
+            this.resultModal = { success, title, message };
+            this.showResultModal = true;
+        },
+
+        closeResultModal() {
+            this.showResultModal = false;
         }
     }
 };
 </script>
 
 <style scoped>
-/* Custom styles if needed */
+/* Modal transitions */
+.modal-enter-active,
+.modal-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+.modal-enter-active .relative,
+.modal-leave-active .relative {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-enter-from .relative,
+.modal-leave-to .relative {
+    transform: scale(0.95);
+    opacity: 0;
+}
 </style>

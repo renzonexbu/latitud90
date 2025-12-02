@@ -505,7 +505,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $gateway = \App\Models\PaymentGateway::where('code', 'virtualpos')->first();
 
         // Obtener payment_option_id para suscripción
-        $paymentOption = \App\Models\PaymentOption::where('code', 'lat90_subscription')->first();
+        $paymentOption = \App\Models\PaymentOption::where('code', 'subscription_virtualpos')->first();
 
         // VERIFICAR SI YA EXISTE UN ORDERDETAIL PARA ESTA CUOTA
         $existingOrderDetail = OrderDetail::where('order_id', $order->id)
@@ -693,7 +693,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $gateway = PaymentGateway::where('code', 'virtualpos')->first();
 
         // Obtener payment_option_id para suscripción
-        $paymentOption = \App\Models\PaymentOption::where('code', 'lat90_subscription')->first();
+        $paymentOption = \App\Models\PaymentOption::where('code', 'subscription_virtualpos')->first();
 
         $paymentData = $charge['payment'] ?? [];
         $orderData = $paymentData['order'] ?? [];

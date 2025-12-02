@@ -280,9 +280,9 @@ class DailyPaymentsTransformer
             ->first();
 
         return $emergencyContact ? [
-            'name' => $this->capitalizeWords($this->cleanUtf8($emergencyContact->name)),
-            'phone' => $this->cleanUtf8($emergencyContact->phone),
-            'email' => $this->cleanUtf8($emergencyContact->email)
+            'name' => $this->capitalizeWords($this->cleanUtf8($emergencyContact->name ?? '')),
+            'phone' => $this->cleanUtf8($emergencyContact->phone ?? ''),
+            'email' => $this->cleanUtf8($emergencyContact->email ?? '')
         ] : ['name' => 'N/A', 'phone' => 'N/A', 'email' => 'N/A'];
     }
 

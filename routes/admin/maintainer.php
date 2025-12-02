@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\MaintainerController;
+use App\Http\Controllers\Admin\Maintainer\TermsConditionsController;
+use App\Http\Controllers\Admin\Maintainer\FaqController;
 
 Route::middleware(['auth', 'verified', 'role:super_admin'])->group(function () {
     Route::prefix('maintainer')->name('maintainer.')->group(function () {
@@ -30,6 +32,26 @@ Route::middleware(['auth', 'verified', 'role:super_admin'])->group(function () {
             Route::get('/', [MaintainerController::class, 'adminLogs'])->name('index');
             Route::get('/{id}', [MaintainerController::class, 'showAdminLog'])->name('show');
             Route::post('/export', [MaintainerController::class, 'exportAdminLogs'])->name('export');
+        });
+
+        // Términos y Condiciones
+        Route::prefix('terms-conditions')->name('terms-conditions.')->group(function () {
+            Route::get('/', [TermsConditionsController::class, 'index'])->name('index');
+            Route::post('/', [TermsConditionsController::class, 'store'])->name('store');
+            Route::put('/{id}', [TermsConditionsController::class, 'update'])->name('update');
+            Route::delete('/{id}', [TermsConditionsController::class, 'destroy'])->name('destroy');
+            Route::post('/{id}/toggle-status', [TermsConditionsController::class, 'toggleStatus'])->name('toggle-status');
+            Route::post('/reorder', [TermsConditionsController::class, 'reorder'])->name('reorder');
+        });
+
+        // Preguntas Frecuentes (FAQs)
+        Route::prefix('faqs')->name('faqs.')->group(function () {
+            Route::get('/', [FaqController::class, 'index'])->name('index');
+            Route::post('/', [FaqController::class, 'store'])->name('store');
+            Route::put('/{id}', [FaqController::class, 'update'])->name('update');
+            Route::delete('/{id}', [FaqController::class, 'destroy'])->name('destroy');
+            Route::post('/update-title', [FaqController::class, 'updateTitle'])->name('update-title');
+            Route::post('/reorder', [FaqController::class, 'reorder'])->name('reorder');
         });
     });
 });

@@ -131,7 +131,7 @@
         }
         .security-notice {
             background-color: #f0f8ff;
-            border: 2px solid: #007E93;
+            border: 2px solid #007E93;
             border-radius: 8px;
             padding: 25px;
             margin: 30px 0;
@@ -184,7 +184,7 @@
     <div class="email-wrapper">
         <div class="email-container">
             <div class="header">
-                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
+                <img src="{{ $message->embedData(file_get_contents(public_path('images/logo-color.png')), 'logo.png', 'image/png') }}" alt="Latitud 90" class="logo">
                 <div class="subject">Cobro Rechazado - Acción Requerida</div>
             </div>
 

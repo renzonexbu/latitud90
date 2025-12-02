@@ -134,7 +134,7 @@
         <div class="email-container">
             <!-- Header -->
             <div class="header">
-                <img src="data:image/png;base64,{{ base64_encode(file_get_contents(resource_path('images/logo-color.png'))) }}" alt="Latitud 90" class="logo">
+                <img src="{{ $message->embedData(file_get_contents(public_path('images/logo-color.png')), 'logo.png', 'image/png') }}" alt="Latitud 90" class="logo">
                 <div class="subject">Confirmación de correo – Portal de pago Latitud 90</div>
             </div>
 

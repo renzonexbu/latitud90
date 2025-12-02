@@ -1048,9 +1048,8 @@
                                                 class="font-medium text-gray-900"
                                             >
                                                 {{
-                                                    program.code ||
                                                     program.name ||
-                                                    "Programa sin código"
+                                                    "Programa sin nombre"
                                                 }}
                                             </p>
                                             <p class="text-sm text-gray-500">
