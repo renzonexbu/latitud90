@@ -71,7 +71,7 @@
                             :description="program.itinerary_description"
                         /> -->
 
-                        <!-- Archivos PDF -->
+                        <!-- Archivos PDF - Ocultos temporalmente
                         <ProgramDocuments
                             :itinerary-file="program.itinerary_file"
                             :travel-assistance-coverage="
@@ -79,11 +79,13 @@
                             "
                             :equipment-list="program.equipment_list"
                         />
-                        <!-- Sección de Advertencia -->
+                        -->
+                        <!-- Sección de Advertencia - Oculta temporalmente
                         <WarningSection
                             :itinerary-file="program.itinerary_file"
                             :content="siteContent.program_detail || {}"
                         />
+                        -->
 
                         <!-- Galería de Imágenes -->
                         <!-- <ImageGallery

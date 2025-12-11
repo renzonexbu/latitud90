@@ -2,7 +2,6 @@
 
 namespace App\Services\Client\Authentication;
 
-use App\Models\EmergencyContact;
 use App\Models\GuardianUser;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -20,25 +19,6 @@ class LoginGuardianService
                 'remember' => $remember,
             ]);
 
-            // VALIDACIÓN CRÍTICA: Verificar que el email existe en emergency_contact
-            $emergencyContactExists = EmergencyContact::where('email', $credentials['email'])->exists();
-
-            \Log::info('Emergency contact check', [
-                'email' => $credentials['email'],
-                'exists' => $emergencyContactExists
-            ]);
-
-            if (!$emergencyContactExists) {
-                \Log::warning('Email not found in emergency_contact', [
-                    'email' => $credentials['email']
-                ]);
-
-                return [
-                    'success' => false,
-                    'message' => 'No se encontró ningún contacto de emergencia asociado a este email. Solo los apoderados registrados pueden iniciar sesión.'
-                ];
-            }
-
             // Buscar el usuario
             $guardianUser = GuardianUser::where('email', $credentials['email'])->first();
 
@@ -55,7 +35,7 @@ class LoginGuardianService
 
                 return [
                     'success' => false,
-                    'message' => 'Credenciales incorrectas. Si eres apoderado y no tienes cuenta, debes registrarte primero.'
+                    'message' => 'Credenciales incorrectas. Si no tienes cuenta, debes registrarte primero.'
                 ];
             }
 

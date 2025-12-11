@@ -9,6 +9,7 @@ use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Installment;
 use App\Traits\SystemLogging;
+use App\Helpers\BuyerTrackingHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -196,7 +197,10 @@ class PaymentOrderService
             'terms_accepted' => $mappedFormData['terms_accepted'],
             'marketing_accepted' => $mappedFormData['marketing_accepted'],
             'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
-            
+
+            // Información de tracking del comprador
+            ...BuyerTrackingHelper::extractTrackingInfo(),
+
             // Información del pago
             'installment_number' => $installment ? $installment->installment_number : 1,
             'base_amount' => $order->final_amount,

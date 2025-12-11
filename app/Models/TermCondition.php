@@ -13,6 +13,8 @@ class TermCondition extends Model
 
     protected $fillable = [
         'title',
+        'version',
+        'effective_date',
         'content',
         'position',
         'is_active',
@@ -21,6 +23,7 @@ class TermCondition extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'position' => 'integer',
+        'effective_date' => 'date',
     ];
 
     /**
@@ -37,5 +40,25 @@ class TermCondition extends Model
     public function scopeOrdered($query)
     {
         return $query->orderBy('position', 'asc');
+    }
+
+    /**
+     * Obtener la versión activa actual de los T&C
+     * Retorna el registro más reciente que esté activo
+     */
+    public static function getCurrentVersion(): ?self
+    {
+        return static::active()
+            ->orderBy('effective_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Relación con los detalles de órdenes que aceptaron esta versión
+     */
+    public function orderDetails()
+    {
+        return $this->hasMany(OrderDetail::class, 'terms_condition_id');
     }
 }

@@ -64,9 +64,9 @@
     </div> -->
 
         <!-- Transform Section -->
-        <div class="section-spacing">
+        <!-- <div class="section-spacing">
             <TransformSection :content="siteContent?.transform"></TransformSection>
-        </div>
+        </div> -->
 
         <!-- About Section -->
         <!-- <div class="section-spacing" id="about">

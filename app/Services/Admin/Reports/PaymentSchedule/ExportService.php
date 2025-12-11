@@ -3,12 +3,24 @@
 namespace App\Services\Admin\Reports\PaymentSchedule;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportService
 {
+    /**
+     * Verificar si el usuario actual es super_admin
+     */
+    private function isSuperAdmin(): bool
+    {
+        $user = Auth::user();
+        if (!$user || !method_exists($user, 'hasRole')) {
+            return false;
+        }
+        return $user->hasRole('super_admin');
+    }
     public function export(array $data, string $filename, string $format = 'xlsx'): StreamedResponse
     {
         try {
@@ -231,25 +243,41 @@ class ExportService
     {
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Pago no iniciado');
-        
-        // Headers para participantes sin pagos
-        $headers = [
-            'Participante',
-            'Documento',
-            'Email Participante',
-            'Contacto de Emergencia',
-            'Email Contacto',
-            'Teléfono Contacto',
-            'Relación',
-            'Fecha Inscripción',
-            'Precio Individual',
-            'Descuento',
-            'Monto Final',
-            'Programa',
-            'Código Programa',
-            'Ejecutivo Comercial'
-        ];
-        
+        $isAdmin = $this->isSuperAdmin();
+
+        // Headers para participantes sin pagos (columnas de contacto pagador solo para super_admin)
+        if ($isAdmin) {
+            $headers = [
+                'Participante',
+                'Documento',
+                'Email Participante',
+                'Contacto Pagador',
+                'Email Contacto',
+                'Teléfono Contacto',
+                'Relación',
+                'Fecha Inscripción',
+                'Precio Individual',
+                'Descuento',
+                'Monto Final',
+                'Programa',
+                'Código Programa',
+                'Ejecutivo Comercial'
+            ];
+        } else {
+            $headers = [
+                'Participante',
+                'Documento',
+                'Email Participante',
+                'Fecha Inscripción',
+                'Precio Individual',
+                'Descuento',
+                'Monto Final',
+                'Programa',
+                'Código Programa',
+                'Ejecutivo Comercial'
+            ];
+        }
+
         // Escribir headers
         $colIndex = 0;
         foreach ($headers as $header) {
@@ -257,49 +285,63 @@ class ExportService
             $sheet->setCellValue($col . '1', $header);
             $colIndex++;
         }
-        
+
         // Escribir datos de participantes sin pagos
         $rowIndex = 2;
         $participantsWithoutPayments = $data['participantsWithoutPayments'] ?? [];
-        
+
         // Convertir Collection a array si es necesario
         if ($participantsWithoutPayments instanceof \Illuminate\Support\Collection) {
             $participantsWithoutPayments = $participantsWithoutPayments->toArray();
         }
-        
+
         if (is_array($participantsWithoutPayments)) {
             foreach ($participantsWithoutPayments as $participant) {
                 $participantArray = (array) $participant;
-                
+
                 $fullName = trim(
-                    ($participantArray['first_name'] ?? '') . ' ' . 
-                    ($participantArray['first_last_name'] ?? '') . ' ' . 
+                    ($participantArray['first_name'] ?? '') . ' ' .
+                    ($participantArray['first_last_name'] ?? '') . ' ' .
                     ($participantArray['second_last_name'] ?? '')
                 );
-                
-                $incorporationDate = isset($participantArray['incorporation_date']) 
-                    ? date('d/m/Y', strtotime($participantArray['incorporation_date'])) 
+
+                $incorporationDate = isset($participantArray['incorporation_date'])
+                    ? date('d/m/Y', strtotime($participantArray['incorporation_date']))
                     : 'N/A';
-                
-                $sheet->setCellValue('A' . $rowIndex, $fullName);
-                $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participantArray['document_number'] ?? ''));
-                $sheet->setCellValue('C' . $rowIndex, $participantArray['participant_email'] ?? 'N/A');
-                $sheet->setCellValue('D' . $rowIndex, $participantArray['emergency_contact_name'] ?? 'Sin contacto');
-                $sheet->setCellValue('E' . $rowIndex, $participantArray['emergency_contact_email'] ?? 'Sin email');
-                $sheet->setCellValue('F' . $rowIndex, $participantArray['emergency_contact_phone'] ?? 'N/A');
-                $sheet->setCellValue('G' . $rowIndex, $participantArray['emergency_contact_relationship'] ?? 'N/A');
-                $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
-                $sheet->setCellValue('I' . $rowIndex, (int)($participantArray['individual_price'] ?? 0));
-                $sheet->setCellValue('J' . $rowIndex, (int)($participantArray['discount_amount'] ?? 0));
-                $sheet->setCellValue('K' . $rowIndex, (int)($participantArray['final_amount'] ?? 0));
-                $sheet->setCellValue('L' . $rowIndex, $participantArray['program_name'] ?? 'N/A');
-                $sheet->setCellValue('M' . $rowIndex, $participantArray['program_code'] ?? 'N/A');
-                $sheet->setCellValue('N' . $rowIndex, $participantArray['sales_executive_name'] ?? 'Sin asignar');
-                
+
+                if ($isAdmin) {
+                    $sheet->setCellValue('A' . $rowIndex, $fullName);
+                    $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participantArray['document_number'] ?? ''));
+                    $sheet->setCellValue('C' . $rowIndex, $participantArray['participant_email'] ?? 'N/A');
+                    $sheet->setCellValue('D' . $rowIndex, $participantArray['emergency_contact_name'] ?? 'Sin contacto');
+                    $sheet->setCellValue('E' . $rowIndex, $participantArray['emergency_contact_email'] ?? 'Sin email');
+                    $sheet->setCellValue('F' . $rowIndex, $participantArray['emergency_contact_phone'] ?? 'N/A');
+                    $sheet->setCellValue('G' . $rowIndex, $participantArray['emergency_contact_relationship'] ?? 'N/A');
+                    $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
+                    $sheet->setCellValue('I' . $rowIndex, (int)($participantArray['individual_price'] ?? 0));
+                    $sheet->setCellValue('J' . $rowIndex, (int)($participantArray['discount_amount'] ?? 0));
+                    $sheet->setCellValue('K' . $rowIndex, (int)($participantArray['final_amount'] ?? 0));
+                    $sheet->setCellValue('L' . $rowIndex, $participantArray['program_name'] ?? 'N/A');
+                    $sheet->setCellValue('M' . $rowIndex, $participantArray['program_code'] ?? 'N/A');
+                    $sheet->setCellValue('N' . $rowIndex, $participantArray['sales_executive_name'] ?? 'Sin asignar');
+                } else {
+                    // Sin columnas de contacto pagador
+                    $sheet->setCellValue('A' . $rowIndex, $fullName);
+                    $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participantArray['document_number'] ?? ''));
+                    $sheet->setCellValue('C' . $rowIndex, $participantArray['participant_email'] ?? 'N/A');
+                    $sheet->setCellValue('D' . $rowIndex, $incorporationDate);
+                    $sheet->setCellValue('E' . $rowIndex, (int)($participantArray['individual_price'] ?? 0));
+                    $sheet->setCellValue('F' . $rowIndex, (int)($participantArray['discount_amount'] ?? 0));
+                    $sheet->setCellValue('G' . $rowIndex, (int)($participantArray['final_amount'] ?? 0));
+                    $sheet->setCellValue('H' . $rowIndex, $participantArray['program_name'] ?? 'N/A');
+                    $sheet->setCellValue('I' . $rowIndex, $participantArray['program_code'] ?? 'N/A');
+                    $sheet->setCellValue('J' . $rowIndex, $participantArray['sales_executive_name'] ?? 'Sin asignar');
+                }
+
                 $rowIndex++;
             }
         }
-        
+
         // Aplicar formato
         $this->applyNoPaymentFormatting($sheet, $headers);
     }

@@ -54,32 +54,24 @@ class RegisterGuardianService
                 now()->addHours(24)
             );
 
-            // Enviar email de verificación de manera inmediata
-            \Log::info('=== INICIO ENVÍO EMAIL VERIFICACIÓN ===');
-            \Log::info('Guardian User ID: ' . $guardianUser->id);
-            \Log::info('Email destino: ' . $guardianUser->email);
-            \Log::info('Token generado: ' . $verificationToken);
-
+            // Enviar email de verificación de manera inmediata (no bloquea el registro si falla)
             try {
                 Mail::to($guardianUser->email)->sendNow(
                     new GuardianEmailVerification($guardianUser, $verificationToken)
                 );
-                \Log::info('Email enviado exitosamente');
+                \Log::info('Email de verificación enviado a: ' . $guardianUser->email);
             } catch (\Exception $e) {
-                \Log::error('Error al enviar email de verificación: ' . $e->getMessage());
-                \Log::error('Stack trace: ' . $e->getTraceAsString());
-                throw $e;
+                // Solo loguear el error, no romper el flujo de registro
+                \Log::warning('No se pudo enviar email de verificación (el registro continúa): ' . $e->getMessage());
             }
-
-            \Log::info('=== FIN ENVÍO EMAIL VERIFICACIÓN ===');
 
             DB::commit();
 
             return [
                 'success' => true,
-                'message' => 'Registro exitoso. Por favor verifica tu email para activar tu cuenta.',
+                'message' => '¡Registro exitoso! Ya puedes iniciar sesión.',
                 'user' => $guardianUser,
-                'requires_verification' => true
+                'requires_verification' => false
             ];
 
         } catch (\Exception $e) {
@@ -188,28 +180,24 @@ class RegisterGuardianService
             );
 
             // Reenviar email de manera inmediata
-            \Log::info('=== INICIO REENVÍO EMAIL VERIFICACIÓN ===');
-            \Log::info('Guardian User ID: ' . $guardianUser->id);
-            \Log::info('Email destino: ' . $guardianUser->email);
-            \Log::info('Nuevo token generado: ' . $verificationToken);
-
             try {
                 Mail::to($guardianUser->email)->sendNow(
                     new GuardianEmailVerification($guardianUser, $verificationToken)
                 );
-                \Log::info('Email reenviado exitosamente');
+                \Log::info('Email de verificación reenviado a: ' . $guardianUser->email);
+
+                return [
+                    'success' => true,
+                    'message' => 'Email de verificación reenviado exitosamente.'
+                ];
             } catch (\Exception $e) {
-                \Log::error('Error al reenviar email de verificación: ' . $e->getMessage());
-                \Log::error('Stack trace: ' . $e->getTraceAsString());
-                throw $e;
+                \Log::warning('No se pudo reenviar email de verificación: ' . $e->getMessage());
+
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo enviar el email en este momento. Por favor intenta más tarde.'
+                ];
             }
-
-            \Log::info('=== FIN REENVÍO EMAIL VERIFICACIÓN ===');
-
-            return [
-                'success' => true,
-                'message' => 'Email de verificación reenviado exitosamente.'
-            ];
 
         } catch (\Exception $e) {
             return [

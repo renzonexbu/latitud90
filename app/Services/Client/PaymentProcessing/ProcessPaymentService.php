@@ -104,6 +104,11 @@ class ProcessPaymentService
                 'payment_type' => $paymentData['paymentType'] ?? 'unknown'
             ]);
 
+            \Log::info('=== PROCESS PAYMENT: Before order creation ===', [
+                'payment_type' => $paymentData['paymentType'] ?? 'total',
+                'payment_method' => $paymentData['paymentMethod'] ?? 'unknown',
+            ]);
+
             // Determinar el tipo de pago y crear la orden correspondiente
             if (($paymentData['paymentType'] ?? 'total') === 'monthly') {
                 // PAGO DE CUOTAS MENSUALES
@@ -112,6 +117,11 @@ class ProcessPaymentService
                 // PAGO TOTAL
                 $result = $this->processTotalPayment($programId, $rut, $paymentData, $formData);
             }
+
+            \Log::info('=== PROCESS PAYMENT: Order creation result ===', [
+                'success' => $result['success'] ?? false,
+                'error' => $result['error'] ?? null,
+            ]);
 
             if (!$result['success']) {
                 return [
@@ -124,14 +134,48 @@ class ProcessPaymentService
             $orderDetail = $result['order_detail'];
             $installment = $result['installment'] ?? null;
 
+            \Log::info('=== PROCESS PAYMENT: Order created successfully ===', [
+                'order_id' => $order->id,
+                'order_detail_id' => $orderDetail->id,
+            ]);
+
+            $this->logInfo('=== PAYMENT FLOW STEP 1: Order created ===', [
+                'order_id' => $order->id,
+                'order_detail_id' => $orderDetail->id,
+            ]);
+
             // Actualizar datos del comprador y método de pago en el OrderDetail
             $this->updateBuyerDataService->execute($orderDetail, $formData, $paymentData);
+
+            $this->logInfo('=== PAYMENT FLOW STEP 2: Buyer data updated ===');
 
             // Almacenar cliente frecuente para futuras compras
             $this->storeFrequentClientService->execute($formData);
 
+            $this->logInfo('=== PAYMENT FLOW STEP 3: Frequent client stored ===');
+            $this->logInfo('=== PAYMENT FLOW STEP 4: About to create gateway transaction ===', [
+                'payment_method' => $paymentData['paymentMethod'] ?? 'unknown',
+                'use_virtualpos' => config('lat90.payment.use_virtualpos'),
+            ]);
+
+            \Log::info('=== PROCESS PAYMENT: About to call gateway ===', [
+                'payment_method' => $paymentData['paymentMethod'] ?? 'unknown',
+                'use_virtualpos' => config('lat90.payment.use_virtualpos'),
+            ]);
+
             // Crear transacción en el gateway de pago
             $gatewayResult = $this->createGatewayTransactionService->execute($orderDetail, $paymentData);
+
+            \Log::info('=== PROCESS PAYMENT: Gateway result ===', [
+                'success' => $gatewayResult['success'] ?? false,
+                'error' => $gatewayResult['error'] ?? null,
+                'has_url' => isset($gatewayResult['url']),
+            ]);
+
+            $this->logInfo('=== PAYMENT FLOW STEP 5: Gateway transaction completed ===', [
+                'success' => $gatewayResult['success'] ?? false,
+                'result' => $gatewayResult,
+            ]);
 
             if (!$gatewayResult['success']) {
                 return [

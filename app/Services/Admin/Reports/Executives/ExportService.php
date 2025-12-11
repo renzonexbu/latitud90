@@ -14,9 +14,22 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\RichText\Run;
+use Illuminate\Support\Facades\Auth;
 
 class ExportService
 {
+    /**
+     * Verificar si el usuario actual es super_admin
+     */
+    private function isSuperAdmin(): bool
+    {
+        $user = Auth::user();
+        if (!$user || !method_exists($user, 'hasRole')) {
+            return false;
+        }
+        return $user->hasRole('super_admin');
+    }
+
     public function exportConsolidated(array $filters, string $format = 'xlsx')
     {
         try {
@@ -36,11 +49,15 @@ class ExportService
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             
+            // Verificar si es super_admin para las columnas de contacto pagador
+            $isAdmin = $this->isSuperAdmin();
+            $lastColumnForMerge = $isAdmin ? 'N' : 'L';
+
             // Línea 1: Título
             $sheet->setCellValue('A1', 'Consolidado de Pagos');
-            $sheet->mergeCells('A1:N1');
+            $sheet->mergeCells('A1:' . $lastColumnForMerge . '1');
             $this->styleTitle($sheet, 'A1');
-            
+
             // Línea 2: Rango de fechas
             $dateFrom = $filters['dateFrom'] ?? '';
             $dateTo = $filters['dateTo'] ?? '';
@@ -49,36 +66,58 @@ class ExportService
                 $dateRange = 'Período: ' . Carbon::parse($dateFrom)->format('d/m/Y') . ' - ' . Carbon::parse($dateTo)->format('d/m/Y');
             }
             $sheet->setCellValue('A2', $dateRange);
-            $sheet->mergeCells('A2:N2');
+            $sheet->mergeCells('A2:' . $lastColumnForMerge . '2');
             $this->styleSubtitle($sheet, 'A2');
             
             // Línea 3: Vacía (espacio)
             $sheet->setCellValue('A3', '');
             
-            // Línea 4: Cabecera de la tabla
-            $headers = [
-                'A4' => 'Nro. Programa',
-                'B4' => 'N° de Identificación',
-                'C4' => 'Nombres y Apellidos',
-                'D4' => 'Estado',
-                'E4' => 'Pago y/o Dev.',
-                'F4' => 'Nro. Documento',
-                'G4' => 'Tipo de Documento',
-                'H4' => 'Forma Pago',
-                'I4' => 'Fecha de Pago',
-                'J4' => 'Contacto Pagador',
-                'K4' => 'Email Contacto Pagador',
-                'L4' => 'Aporte o Beca',
-                'M4' => 'Liberado',
-                'N4' => 'Precio'
-            ];
-            
+            // Línea 4: Cabecera de la tabla (columnas de contacto pagador solo para super_admin)
+            if ($isAdmin) {
+                $headers = [
+                    'A4' => 'Nro. Programa',
+                    'B4' => 'N° de Identificación',
+                    'C4' => 'Nombres y Apellidos',
+                    'D4' => 'Estado',
+                    'E4' => 'Pago y/o Dev.',
+                    'F4' => 'Nro. Documento',
+                    'G4' => 'Tipo de Documento',
+                    'H4' => 'Forma Pago',
+                    'I4' => 'Fecha de Pago',
+                    'J4' => 'Contacto Pagador',
+                    'K4' => 'Email Contacto Pagador',
+                    'L4' => 'Aporte o Beca',
+                    'M4' => 'Liberado',
+                    'N4' => 'Precio'
+                ];
+                $headerRange = 'A4:N4';
+                $lastColumn = 'N';
+            } else {
+                // Sin columnas de contacto pagador
+                $headers = [
+                    'A4' => 'Nro. Programa',
+                    'B4' => 'N° de Identificación',
+                    'C4' => 'Nombres y Apellidos',
+                    'D4' => 'Estado',
+                    'E4' => 'Pago y/o Dev.',
+                    'F4' => 'Nro. Documento',
+                    'G4' => 'Tipo de Documento',
+                    'H4' => 'Forma Pago',
+                    'I4' => 'Fecha de Pago',
+                    'J4' => 'Aporte o Beca',
+                    'K4' => 'Liberado',
+                    'L4' => 'Precio'
+                ];
+                $headerRange = 'A4:L4';
+                $lastColumn = 'L';
+            }
+
             foreach ($headers as $cell => $header) {
                 $sheet->setCellValue($cell, $header);
             }
-            
+
             // Aplicar estilos a la cabecera
-            $this->styleHeader($sheet, 'A4:N4');
+            $this->styleHeader($sheet, $headerRange);
             
             // Obtener los items del servicio asegurando estructura de arreglo
             $resolvedItems = [];
@@ -98,32 +137,47 @@ class ExportService
             // Datos dinámicos desde línea 5
             $row = 5;
             foreach ($resolvedItems as $item) {
-                    $sheet->setCellValue('A' . $row, $item['program_number'] ?? 'N/A');
-                    $sheet->setCellValue('B' . $row, isset($item['identification_number']) ? $this->formatRut($item['identification_number']) : 'N/A');
-                    $sheet->setCellValue('C' . $row, $item['full_name'] ?? 'N/A');
-                    $sheet->setCellValue('D' . $row, $item['status'] ?? 'N/A');
-                    $sheet->setCellValue('E' . $row, $item['payment_or_refund'] ?? 0);
-                    $sheet->setCellValue('F' . $row, $item['document_number'] ?? 'N/A');
-                    $sheet->setCellValue('G' . $row, $item['document_type'] ?? 'N/A');
-                    $sheet->setCellValue('H' . $row, $item['payment_form'] ?? 'N/A');
-                    $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
+                $sheet->setCellValue('A' . $row, $item['program_number'] ?? 'N/A');
+                $sheet->setCellValue('B' . $row, isset($item['identification_number']) ? $this->formatRut($item['identification_number']) : 'N/A');
+                $sheet->setCellValue('C' . $row, $item['full_name'] ?? 'N/A');
+                $sheet->setCellValue('D' . $row, $item['status'] ?? 'N/A');
+                $sheet->setCellValue('E' . $row, $item['payment_or_refund'] ?? 0);
+                $sheet->setCellValue('F' . $row, $item['document_number'] ?? 'N/A');
+                $sheet->setCellValue('G' . $row, $item['document_type'] ?? 'N/A');
+                $sheet->setCellValue('H' . $row, $item['payment_form'] ?? 'N/A');
+                $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
+
+                if ($isAdmin) {
+                    // Incluir columnas de contacto pagador solo para super_admin
                     $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
                     $sheet->setCellValue('K' . $row, $item['payer_email'] ?? 'N/A');
                     $sheet->setCellValue('L' . $row, $item['scholarship_or_grant'] ?? 0);
                     $sheet->setCellValue('M' . $row, $item['liberated'] ?? 0);
                     $sheet->setCellValue('N' . $row, $item['price'] ?? 0);
-                    
+
                     // Aplicar formato de moneda a las columnas numéricas
                     $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('M' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('N' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    
-                    $row++;
+                } else {
+                    // Sin columnas de contacto pagador
+                    $sheet->setCellValue('J' . $row, $item['scholarship_or_grant'] ?? 0);
+                    $sheet->setCellValue('K' . $row, $item['liberated'] ?? 0);
+                    $sheet->setCellValue('L' . $row, $item['price'] ?? 0);
+
+                    // Aplicar formato de moneda a las columnas numéricas
+                    $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                }
+
+                $row++;
             }
-            
+
             // Ajustar ancho de columnas automáticamente
-            foreach (range('A', 'N') as $column) {
+            foreach (range('A', $lastColumn) as $column) {
                 $sheet->getColumnDimension($column)->setAutoSize(true);
             }
             
@@ -551,16 +605,15 @@ class ExportService
         // Obtener datos usando el servicio SIN PAGINACIÓN
         $consolidatedService = app(ExecutivesConsolidatedService::class);
         $data = $consolidatedService->getConsolidatedForExport($filters);
-        
+        $isAdmin = $this->isSuperAdmin();
+
         $filename = 'apoderados_consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
-        
-        $rows = [
-            ['Consolidado de Pagos'],
-            ['Período: ' . ($filters['dateFrom'] ?? '') . ' - ' . ($filters['dateTo'] ?? '')],
-            [''],
-            [
+
+        // Headers condicionales según rol
+        if ($isAdmin) {
+            $headerRow = [
                 'Nro. Programa',
-                'N° de Identificación', 
+                'N° de Identificación',
                 'Nombres y Apellidos',
                 'Estado',
                 'Pago y/o Dev.',
@@ -573,31 +626,70 @@ class ExportService
                 'Aporte o Beca',
                 'Liberado',
                 'Precio'
-            ]
+            ];
+        } else {
+            $headerRow = [
+                'Nro. Programa',
+                'N° de Identificación',
+                'Nombres y Apellidos',
+                'Estado',
+                'Pago y/o Dev.',
+                'Nro. Documento',
+                'Tipo de Documento',
+                'Forma Pago',
+                'Fecha de Pago',
+                'Aporte o Beca',
+                'Liberado',
+                'Precio'
+            ];
+        }
+
+        $rows = [
+            ['Consolidado de Pagos'],
+            ['Período: ' . ($filters['dateFrom'] ?? '') . ' - ' . ($filters['dateTo'] ?? '')],
+            [''],
+            $headerRow
         ];
-        
+
         // Usar los items del método de exportación
         if (isset($data['items']) && is_array($data['items'])) {
             foreach ($data['items'] as $item) {
-                $rows[] = [
-                    $item['program_number'] ?? 'N/A',
-                    $item['identification_number'] ?? 'N/A',
-                    $item['full_name'] ?? 'N/A',
-                    $item['status'] ?? 'N/A',
-                    number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
-                    $item['document_number'] ?? 'N/A',
-                    $item['document_type'] ?? 'N/A',
-                    $item['payment_form'] ?? 'N/A',
-                    $item['payment_date'] ?? 'N/A',
-                    $item['payer_contact'] ?? 'N/A',
-                    $item['payer_email'] ?? 'N/A',
-                    number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
-                    number_format($item['liberated'] ?? 0, 0, ',', '.'),
-                    number_format($item['price'] ?? 0, 0, ',', '.')
-                ];
+                if ($isAdmin) {
+                    $rows[] = [
+                        $item['program_number'] ?? 'N/A',
+                        $item['identification_number'] ?? 'N/A',
+                        $item['full_name'] ?? 'N/A',
+                        $item['status'] ?? 'N/A',
+                        number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
+                        $item['document_number'] ?? 'N/A',
+                        $item['document_type'] ?? 'N/A',
+                        $item['payment_form'] ?? 'N/A',
+                        $item['payment_date'] ?? 'N/A',
+                        $item['payer_contact'] ?? 'N/A',
+                        $item['payer_email'] ?? 'N/A',
+                        number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
+                        number_format($item['liberated'] ?? 0, 0, ',', '.'),
+                        number_format($item['price'] ?? 0, 0, ',', '.')
+                    ];
+                } else {
+                    $rows[] = [
+                        $item['program_number'] ?? 'N/A',
+                        $item['identification_number'] ?? 'N/A',
+                        $item['full_name'] ?? 'N/A',
+                        $item['status'] ?? 'N/A',
+                        number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
+                        $item['document_number'] ?? 'N/A',
+                        $item['document_type'] ?? 'N/A',
+                        $item['payment_form'] ?? 'N/A',
+                        $item['payment_date'] ?? 'N/A',
+                        number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
+                        number_format($item['liberated'] ?? 0, 0, ',', '.'),
+                        number_format($item['price'] ?? 0, 0, ',', '.')
+                    ];
+                }
             }
         }
-        
+
         return $this->streamCsv($filename, $rows);
     }
 

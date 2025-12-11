@@ -28,7 +28,7 @@
               </div>
             </div>
             <div class="text-[#007e93] text-center font-nexa-bold text-[20px] leading-[28px] font-bold self-stretch word-wrap break-word">
-              Busca al viajero mediante su RUT
+              Busca al participante mediante su RUT
             </div>
             <!-- Línea desde el primer círculo -->
             <div class="absolute top-[19px] left-1/2 w-full h-0 border-t-2 border-[#007e93] z-0"></div>
@@ -101,7 +101,7 @@
               1
             </div>
             <div class="text-[#007E93] text-left font-nexa text-[14px] font-normal font-normal leading-[18px] flex-1">
-              Busca al viajero mediante su RUT
+              Busca al participante mediante su RUT
             </div>
           </div>
           <div class="flex items-center gap-[12px] relative z-[2]">

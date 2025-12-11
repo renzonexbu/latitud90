@@ -59,7 +59,17 @@ return [
     ],
     
 
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Pagos
+    |--------------------------------------------------------------------------
+    |
+    | use_virtualpos: Controla el ambiente de TODOS los métodos de pago
+    |   - true  = Producción (VirtualPos para tarjetas + VirtualPos/Khipu para transferencias)
+    |   - false = QA/Test (Transbank para tarjetas + Khipu nativo para transferencias)
+    |
+    */
     'payment' => [
-        'use_virtualpos' => false, // true = VirtualPOS (producción), false = Transbank (pruebas)
+        'use_virtualpos' => env('USE_VIRTUALPOS', false),
     ],
 ];

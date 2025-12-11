@@ -119,7 +119,7 @@ class ConfirmKhipuService
                     'gateway_response' => $status['data'] ?? $status,
                     'raw_notification' => $status['data'] ?? $status,
                 ];
-                
+
                 // Agregar transaction_date si el pago es aprobado y viene en la respuesta
                 if ($approved && isset($status['transaction_date'])) {
                     $updateData['transaction_date'] = $this->parseTransactionDate($status['transaction_date']);
@@ -127,6 +127,9 @@ class ConfirmKhipuService
                     // Si no hay transaction_date pero el pago es aprobado, usar la fecha actual
                     $updateData['transaction_date'] = now('America/Santiago');
                 }
+
+                // Mapear campos adicionales según el gateway (VirtualPos vs Khipu nativo)
+                $updateData = $this->mapGatewaySpecificFields($updateData, $status, $approved);
                 
                 $payment->update($updateData);
 
@@ -253,5 +256,150 @@ class ConfirmKhipuService
         // Para simplificar, podemos extraer la fecha y hora, y formatearla
         $date = \Carbon\Carbon::parse($dateString);
         return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Mapear campos específicos del gateway a los campos del modelo Payment
+     *
+     * VirtualPos (producción) devuelve campos diferentes a Khipu nativo (QA/test)
+     *
+     * @param array $updateData Datos base a actualizar
+     * @param array $status Respuesta del gateway
+     * @param bool $approved Si el pago fue aprobado
+     * @return array Datos actualizados con campos específicos del gateway
+     */
+    private function mapGatewaySpecificFields(array $updateData, array $status, bool $approved): array
+    {
+        $isVirtualPos = $this->khipuService->isProductionMode();
+        $data = $status['data'] ?? [];
+
+        $this->logInfo('ConfirmKhipuService: Mapping gateway-specific fields', [
+            'is_virtualpos' => $isVirtualPos,
+            'approved' => $approved,
+            'status_keys' => array_keys($status),
+            'data_keys' => array_keys($data),
+        ]);
+
+        if ($isVirtualPos) {
+            // VirtualPos (producción) - Mapear campos específicos
+            // Estructura: $status contiene auth_code, card_number, payment_type directamente
+            // y $data contiene la respuesta completa con payment.order
+
+            $paymentData = $data['payment'] ?? [];
+            $orderData = $paymentData['order'] ?? [];
+
+            // authorization_code: código de autorización del banco
+            if (!empty($status['auth_code'])) {
+                $updateData['authorization_code'] = $status['auth_code'];
+            } elseif (!empty($orderData['auth_code'])) {
+                $updateData['authorization_code'] = $orderData['auth_code'];
+            } elseif (!empty($paymentData['auth_code'])) {
+                $updateData['authorization_code'] = $paymentData['auth_code'];
+            }
+
+            // card_number: últimos 4 dígitos de la tarjeta (si aplica)
+            if (!empty($status['card_number'])) {
+                $updateData['card_number'] = $status['card_number'];
+            } elseif (!empty($orderData['card_number'])) {
+                $updateData['card_number'] = $orderData['card_number'];
+            }
+
+            // card_type: tipo de tarjeta/método de pago
+            if (!empty($status['payment_type'])) {
+                $updateData['card_type'] = $this->normalizeCardType($status['payment_type']);
+            } elseif (!empty($orderData['payment_type_code'])) {
+                $updateData['card_type'] = $this->normalizeCardType($orderData['payment_type_code']);
+            } elseif (!empty($orderData['payment_method'])) {
+                $updateData['card_type'] = $this->normalizeCardType($orderData['payment_method']);
+            }
+
+            // installments_number: número de cuotas (si aplica)
+            if (!empty($orderData['installments'])) {
+                $updateData['installments_number'] = (int) $orderData['installments'];
+            } elseif (!empty($orderData['installments_number'])) {
+                $updateData['installments_number'] = (int) $orderData['installments_number'];
+            }
+
+            // response_code: código de respuesta de la transacción
+            if (!empty($orderData['response_code'])) {
+                $updateData['response_code'] = $orderData['response_code'];
+            }
+
+            // commerce_code: código del comercio
+            if (!empty($orderData['commerce_code'])) {
+                $updateData['commerce_code'] = $orderData['commerce_code'];
+            }
+
+            // external_payment_id: UUID del pago en VirtualPos
+            if (!empty($orderData['uuid'])) {
+                $updateData['external_payment_id'] = $orderData['uuid'];
+            }
+
+            $this->logInfo('ConfirmKhipuService: VirtualPos fields mapped', [
+                'authorization_code' => $updateData['authorization_code'] ?? null,
+                'card_number' => $updateData['card_number'] ?? null,
+                'card_type' => $updateData['card_type'] ?? null,
+                'installments_number' => $updateData['installments_number'] ?? null,
+            ]);
+
+        } else {
+            // Khipu nativo (QA/test) - Mapear campos específicos
+            // Khipu devuelve: payment_id, status, conciliation_date, etc.
+
+            // Para Khipu, el card_type es siempre 'khipu' (transferencia bancaria)
+            if ($approved) {
+                $updateData['card_type'] = 'khipu';
+            }
+
+            // bank: banco desde donde se hizo la transferencia
+            if (!empty($data['bank'])) {
+                // Guardar el banco en gateway_response si no hay campo específico
+                $updateData['commerce_code'] = $data['bank'];
+            }
+
+            // conciliation_date: fecha de conciliación
+            if (!empty($data['conciliation_date'])) {
+                $updateData['accounting_date'] = $this->parseTransactionDate($data['conciliation_date']);
+            }
+
+            // payer_email: email del pagador
+            if (!empty($data['payer_email'])) {
+                // Este dato se guarda en gateway_response (ya incluido arriba)
+            }
+
+            $this->logInfo('ConfirmKhipuService: Khipu native fields mapped', [
+                'card_type' => $updateData['card_type'] ?? null,
+                'bank' => $data['bank'] ?? null,
+            ]);
+        }
+
+        return $updateData;
+    }
+
+    /**
+     * Normalizar el tipo de tarjeta/método de pago para almacenamiento consistente
+     *
+     * @param string $paymentType Tipo de pago del gateway
+     * @return string Tipo normalizado
+     */
+    private function normalizeCardType(string $paymentType): string
+    {
+        $typeMap = [
+            'khipu' => 'KHIPU',
+            'transferencia' => 'KHIPU',
+            'transfer' => 'KHIPU',
+            'VD' => 'DEBIT',
+            'VN' => 'CREDIT',
+            'VC' => 'CREDIT',
+            'SI' => 'CREDIT',
+            'S2' => 'CREDIT',
+            'NC' => 'CREDIT',
+            'VP' => 'PREPAID',
+            'debit' => 'DEBIT',
+            'credit' => 'CREDIT',
+            'prepaid' => 'PREPAID',
+        ];
+
+        return $typeMap[strtolower($paymentType)] ?? strtoupper($paymentType);
     }
 }

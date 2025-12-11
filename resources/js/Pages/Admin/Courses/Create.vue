@@ -643,10 +643,8 @@
                                         </transition>
                                     </div>
 
-                                    <!-- Separator -->
+                                    <!-- Acordeón 4: Archivos del programa - OCULTO TEMPORALMENTE
                                     <div class="accordion-separator"></div>
-
-                                    <!-- Acordeón 4: Archivos del programa -->
                                     <div class="accordion-section">
                                         <div
                                             class="accordion-header"
@@ -673,7 +671,6 @@
                                         <transition name="accordion-slide">
                                             <div v-if="filesOpen" class="accordion-content">
                                                 <div class="pdf-upload-grid">
-                                                    <!-- Itinerario -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Itinerario</div>
                                                         <label class="pdf-upload-btn" :for="'itinerary-file'">
@@ -695,8 +692,6 @@
                                                             <button type="button" @click="removePdfFile('itinerary')" class="pdf-remove">&times;</button>
                                                         </div>
                                                     </div>
-
-                                                    <!-- Cobertura de asistencia -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Cobertura de asistencia</div>
                                                         <label class="pdf-upload-btn" :for="'coverage-file'">
@@ -718,8 +713,6 @@
                                                             <button type="button" @click="removePdfFile('coverage')" class="pdf-remove">&times;</button>
                                                         </div>
                                                     </div>
-
-                                                    <!-- Lista de equipo -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Lista de equipo</div>
                                                         <label class="pdf-upload-btn" :for="'equipment-file'">
@@ -745,9 +738,7 @@
                                             </div>
                                         </transition>
                                     </div>
-
-                                    <!-- Separator -->
-                                    <div class="accordion-separator"></div>
+                                    FIN Acordeón 4: Archivos del programa - OCULTO TEMPORALMENTE -->
 
                                     <!-- Estado del programa -->
                                     <div class="accordion-section">

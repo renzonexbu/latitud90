@@ -338,10 +338,10 @@ const getContent = (key, defaultValue) => {
 };
 
 // Computed para textos dinámicos
-const paso1Text = computed(() => getContent('paso_1', 'Ingrese el número de RUT/DNI/pasaporte del alumno'));
+const paso1Text = computed(() => getContent('paso_1', 'Ingrese el RUT/DNI PASAPORTE del participante'));
 const paso2Text = computed(() => getContent('paso_2', 'Seleccione el programa a pagar'));
-const paso3Text = computed(() => getContent('paso_3', 'Seleccione el método de pago y boleta'));
-const botonBuscarText = computed(() => getContent('boton_buscar', 'Buscar programa'));
+const paso3Text = computed(() => getContent('paso_3', 'Seleccione el método de pago'));
+const botonBuscarText = computed(() => getContent('boton_buscar', 'Pagar aqui'));
 
 // Computed para imagen de fondo
 const backgroundImage = computed(() => {
@@ -371,7 +371,7 @@ watch(selectedDocumentType, (newType) => {
 
 const getDocumentPlaceholder = () => {
     if (selectedDocumentType.value === "RUT") {
-        return "Ingresar Rut del viajero";
+        return "Ingresar Rut del participante";
     } else if (selectedDocumentType.value === "DNI") {
         return "Ingresar Número de DNI";
     } else {

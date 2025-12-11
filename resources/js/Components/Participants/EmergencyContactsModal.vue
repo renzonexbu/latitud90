@@ -23,6 +23,14 @@
 
       <!-- Content -->
       <div class="p-6 overflow-y-auto flex-1">
+        <!-- Messages -->
+        <div v-if="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          {{ errorMessage }}
+        </div>
+        <div v-if="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+          {{ successMessage }}
+        </div>
+
         <!-- Existing Contacts -->
         <div class="mb-6">
           <h3 class="text-[18px] font-nexa-bold text-gray-800 mb-4">Apoderado</h3>
@@ -389,6 +397,8 @@ const emit = defineEmits(['close']);
 
 const isSubmitting = ref(false);
 const showNewContactForm = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
 
 const newContact = ref({
   name: '',
@@ -411,6 +421,10 @@ const formatDate = (dateString) => {
 
 // Watcher para formatear las fechas y documentos cuando se abra el modal
 watch(() => props.show, (newValue) => {
+  // Limpiar mensajes cuando se abre/cierra el modal
+  errorMessage.value = '';
+  successMessage.value = '';
+
   if (newValue && props.participant.emergency_contacts) {
     // Formatear las fechas y documentos de los contactos existentes e inicializar validación
     props.participant.emergency_contacts.forEach(contact => {
@@ -460,27 +474,43 @@ const saveNewContact = () => {
 
 const updateContact = (contactId, index) => {
   isSubmitting.value = true;
+  errorMessage.value = '';
+  successMessage.value = '';
 
   const contact = props.participant.emergency_contacts[index];
   const formData = new FormData();
   formData.append('contact_id', contactId);
-  formData.append('name', contact.name);
-  formData.append('email', contact.email);
+  formData.append('name', contact.name || '');
+  formData.append('email', contact.email || '');
   formData.append('document_type', contact.document_type || '1');
   formData.append('document_number', contact.document_number || '');
-  formData.append('code_phone', contact.code_phone);
-  formData.append('phone', contact.phone);
-  formData.append('country', contact.country);
+  formData.append('code_phone', contact.code_phone || '');
+  formData.append('phone', contact.phone || '');
+  formData.append('country', contact.country || '');
   formData.append('birth_date', contact.birth_date || '');
   formData.append('address', contact.address || '');
   formData.append('_method', 'PUT');
 
+  console.log('Updating contact:', contactId, 'Data:', Object.fromEntries(formData));
+
   router.post(route('admin.participants.update-emergency-contact', props.participant.id), formData, {
-    onSuccess: () => {
-      window.location.reload();
+    preserveScroll: true,
+    onSuccess: (page) => {
+      console.log('Update success:', page);
+      successMessage.value = 'Apoderado actualizado exitosamente';
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     },
     onError: (errors) => {
+      console.error('Update errors:', errors);
       isSubmitting.value = false;
+      if (typeof errors === 'object') {
+        const errorMessages = Object.values(errors).flat();
+        errorMessage.value = errorMessages.join(', ');
+      } else {
+        errorMessage.value = 'Error al actualizar el apoderado';
+      }
     },
     onFinish: () => {
       isSubmitting.value = false;

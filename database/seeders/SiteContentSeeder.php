@@ -530,19 +530,11 @@ class SiteContentSeeder extends Seeder
             ],
             [
                 'section' => 'footer',
-                'key' => 'email_otras_consultas',
-                'type' => 'text',
-                'value' => 'contacto@latitud90.com',
-                'label' => 'Email otras consultas',
-                'order' => 6,
-            ],
-            [
-                'section' => 'footer',
                 'key' => 'direccion',
                 'type' => 'text',
-                'value' => 'Av. Apoquindo 4700, Of. 31, Las Condes',
+                'value' => 'Carlos Antúnez 1941, Providencia',
                 'label' => 'Dirección',
-                'order' => 7,
+                'order' => 6,
             ],
             [
                 'section' => 'footer',
@@ -550,7 +542,7 @@ class SiteContentSeeder extends Seeder
                 'type' => 'text',
                 'value' => 'https://www.facebook.com/latitud90',
                 'label' => 'Facebook URL',
-                'order' => 8,
+                'order' => 7,
             ],
             [
                 'section' => 'footer',
@@ -558,7 +550,7 @@ class SiteContentSeeder extends Seeder
                 'type' => 'text',
                 'value' => 'https://www.instagram.com/latitud90',
                 'label' => 'Instagram URL',
-                'order' => 9,
+                'order' => 8,
             ],
             [
                 'section' => 'footer',
@@ -566,7 +558,7 @@ class SiteContentSeeder extends Seeder
                 'type' => 'text',
                 'value' => 'https://www.linkedin.com/company/latitud90',
                 'label' => 'LinkedIn URL',
-                'order' => 10,
+                'order' => 9,
             ],
             [
                 'section' => 'footer',
@@ -574,7 +566,7 @@ class SiteContentSeeder extends Seeder
                 'type' => 'text',
                 'value' => 'Copyright © 2025 Latitud90',
                 'label' => 'Texto de copyright',
-                'order' => 11,
+                'order' => 10,
             ],
             // Contact / WhatsApp Section
             [

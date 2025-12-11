@@ -19,7 +19,7 @@ const fieldsConfig = {
     subtitle: {
         label: 'Subtítulo / Descripción',
         type: 'textarea',
-        default_value: '¡Selecciona la forma de pago que mejor se adapte a ti, total o en cuotas! Para cualquier consulta, no dudes en escribirnos por WhatsApp',
+        default_value: 'Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito, débito o Khipu, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por WhatsApp',
     },
     total_payment_title: {
         label: 'Título opción "Pago Total"',

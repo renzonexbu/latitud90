@@ -84,10 +84,16 @@ class CreateGatewayTransactionService
             }
         }
 
-        $this->logInfo('createGatewayTransaction normalized method', [
+        $this->logInfo('=== CreateGatewayTransactionService: NORMALIZED METHOD ===', [
+            'original_method' => $method,
+            'normalized_method' => $normalizedMethod,
+            'installmentsOverride' => $installmentsOverride,
+            'will_use_case' => $normalizedMethod === 'khipu' ? 'KHIPU' : ($normalizedMethod === 'credit' || $normalizedMethod === 'debit' || $normalizedMethod === 'international' ? 'VIRTUALPOS/TRANSBANK' : 'DEFAULT/UNSUPPORTED'),
+        ]);
+
+        \Log::info('=== CREATE GATEWAY: Normalized method ===', [
             'original' => $method,
             'normalized' => $normalizedMethod,
-            'installmentsOverride' => $installmentsOverride,
         ]);
 
         switch ($normalizedMethod) {
@@ -132,8 +138,39 @@ class CreateGatewayTransactionService
                 }
 
             case 'khipu':
+                \Log::info('=== CREATE GATEWAY: KHIPU case entered ===', [
+                    'order_detail_id' => $orderDetail->id,
+                    'amount' => $amount,
+                    'is_production' => $this->khipuService->isProductionMode(),
+                ]);
+
+                $this->logInfo('=== KHIPU CASE ENTERED ===', [
+                    'order_detail_id' => $orderDetail->id,
+                    'amount' => $amount,
+                    'order_id' => $orderId,
+                    'khipu_service_production_mode' => $this->khipuService->isProductionMode(),
+                ]);
+
+                // Datos del cliente para VirtualPos (producción)
+                $customerData = [
+                    'email' => $orderDetail->email ?? 'cliente@latitud90.cl',
+                    'rut' => $orderDetail->document_number ?? '',
+                    'first_name' => $this->extractFirstName($orderDetail->name ?? 'Cliente'),
+                    'last_name' => $this->extractLastName($orderDetail->name ?? 'Latitud90'),
+                    'description' => 'Pago programa Latitud 90 - Orden #' . $orderId,
+                ];
+
+                $this->logInfo('Khipu customer data prepared', [
+                    'customer_data' => $customerData,
+                    'callback_url' => $khipuCallbackUrl,
+                ]);
+
                 // Para Khipu, necesitamos crear la transacción primero para obtener el payment_id
-                $khipuResult = $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, null);
+                $khipuResult = $this->khipuService->createTransaction($orderId, $amount, $khipuCallbackUrl, null, $customerData);
+
+                $this->logInfo('Khipu createTransaction result', [
+                    'result' => $khipuResult,
+                ]);
 
                 if ($khipuResult['success']) {
                     // Agregar el payment_id a la URL de retorno
@@ -153,5 +190,28 @@ class CreateGatewayTransactionService
                     'error' => 'Método de pago no soportado'
                 ];
         }
+    }
+
+    /**
+     * Extraer primer nombre del nombre completo
+     */
+    private function extractFirstName(string $fullName): string
+    {
+        $parts = explode(' ', trim($fullName));
+        return $parts[0] ?? 'Cliente';
+    }
+
+    /**
+     * Extraer apellido del nombre completo
+     */
+    private function extractLastName(string $fullName): string
+    {
+        $parts = explode(' ', trim($fullName));
+        // Si hay más de una parte, tomar todo después del primer nombre
+        if (count($parts) > 1) {
+            array_shift($parts);
+            return implode(' ', $parts);
+        }
+        return 'Latitud90';
     }
 }

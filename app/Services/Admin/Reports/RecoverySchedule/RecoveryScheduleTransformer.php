@@ -37,6 +37,7 @@ class RecoveryScheduleTransformer
             'participant_phone' => $this->cleanUtf8($item->phone ?? ''),
             'program_name' => $this->cleanUtf8($item->program_name),
             'program_departure_date' => $item->program_departure_date,
+            'final_payment_date' => $item->final_payment_date,
             'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'N/A')),
             'sales_executive_email' => $this->cleanUtf8($item->sales_executive_email ?? ''),
             'sales_executive_phone' => $this->cleanUtf8($item->sales_executive_phone ?? ''),
@@ -89,6 +90,9 @@ class RecoveryScheduleTransformer
             }
             if (in_array('departureDate', $selectedFields['program'])) {
                 $row['Fecha Salida'] = $this->formatDate($transformed['program_departure_date']);
+            }
+            if (in_array('finalPaymentDate', $selectedFields['program'])) {
+                $row['Fecha Final Pago'] = $this->formatDate($transformed['final_payment_date']);
             }
             if (in_array('salesExecutive', $selectedFields['program'])) {
                 $row['Ejecutivo de Ventas'] = $transformed['sales_executive_name'];
@@ -157,6 +161,7 @@ class RecoveryScheduleTransformer
                 'Teléfono' => $transformed['participant_phone'],
                 'Programa' => $transformed['program_name'],
                 'Fecha Salida' => $this->formatDate($transformed['program_departure_date']),
+                'Fecha Final Pago' => $this->formatDate($transformed['final_payment_date']),
                 'Ejecutivo de Ventas' => $transformed['sales_executive_name'],
                 'Email Ejecutivo' => $transformed['sales_executive_email'],
                 'Teléfono Ejecutivo' => $transformed['sales_executive_phone'],

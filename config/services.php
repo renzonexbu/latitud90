@@ -43,7 +43,16 @@ return [
     ],
 
     'khipu' => [
-        'api_key' => env('KHIPU_API_KEY', 'ae940262-4f1a-4a0d-aef3-e5406b533b44'),
+        // Credenciales de prueba (sandbox)
+        'test' => [
+            'api_key' => env('KHIPU_TEST_API_KEY', 'ae940262-4f1a-4a0d-aef3-e5406b533b44'),
+            'secret_key' => env('KHIPU_TEST_SECRET_KEY', ''),
+        ],
+        // Credenciales de producción
+        'production' => [
+            'api_key' => env('KHIPU_PROD_API_KEY'),
+            'secret_key' => env('KHIPU_PROD_SECRET_KEY'),
+        ],
         'base_url' => env('KHIPU_BASE_URL', 'https://payment-api.khipu.com'),
     ],
 

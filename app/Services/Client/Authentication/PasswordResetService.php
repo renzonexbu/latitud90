@@ -36,10 +36,19 @@ class PasswordResetService
                 now()->addHour()
             );
 
-            // Enviar email
-            Mail::to($guardianUser->email)->send(
-                new GuardianPasswordReset($guardianUser, $resetToken)
-            );
+            // Enviar email (no rompe el flujo si falla)
+            try {
+                Mail::to($guardianUser->email)->send(
+                    new GuardianPasswordReset($guardianUser, $resetToken)
+                );
+            } catch (\Exception $mailError) {
+                \Log::warning('No se pudo enviar email de reseteo de contraseña: ' . $mailError->getMessage());
+
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo enviar el email en este momento. Por favor intenta más tarde.'
+                ];
+            }
 
             return [
                 'success' => true,
@@ -47,9 +56,11 @@ class PasswordResetService
             ];
 
         } catch (\Exception $e) {
+            \Log::error('Error en solicitud de reseteo: ' . $e->getMessage());
+
             return [
                 'success' => false,
-                'message' => 'Error al solicitar reseteo: ' . $e->getMessage()
+                'message' => 'Ocurrió un error. Por favor intenta más tarde.'
             ];
         }
     }

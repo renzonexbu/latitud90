@@ -7,9 +7,20 @@
                 <!-- Menú de Navegación de Reportes -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <h2 class="text-2xl font-bold mb-6">
-                            Sistema de Reportes
-                        </h2>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold">
+                                Reportes Ejecutivo Comercial
+                            </h2>
+                            <Link
+                                :href="route('admin.reports.executives.index')"
+                                class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                Reportes Apoderados
+                            </Link>
+                        </div>
 
                         <div
                             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
@@ -221,17 +232,18 @@
                                 </p>
                             </Link>
 
-                            <!-- Consolidado Área Ingresos (Apoderados) -->
+
+                            <!-- Aceptación de Términos y Condiciones -->
                             <Link
-                                :href="route('admin.reports.executives.consolidated')"
-                                class="bg-teal-50 hover:bg-teal-100 p-6 rounded-lg border border-teal-200 transition-colors"
+                                :href="route('admin.reports.terms-acceptance')"
+                                class="bg-rose-50 hover:bg-rose-100 p-6 rounded-lg border border-rose-200 transition-colors"
                             >
                                 <div class="flex items-center mb-3">
                                     <div
-                                        class="p-2 bg-teal-100 rounded-lg mr-3"
+                                        class="p-2 bg-rose-100 rounded-lg mr-3"
                                     >
                                         <svg
-                                            class="w-6 h-6 text-teal-600"
+                                            class="w-6 h-6 text-rose-600"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -240,32 +252,32 @@
                                                 stroke-linecap="round"
                                                 stroke-linejoin="round"
                                                 stroke-width="2"
-                                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                                             ></path>
                                         </svg>
                                     </div>
                                     <h3
-                                        class="text-lg font-semibold text-teal-800"
+                                        class="text-lg font-semibold text-rose-800"
                                     >
-                                        Consolidado Área Ingresos
+                                        Aceptación TyC
                                     </h3>
                                 </div>
-                                <p class="text-sm text-teal-600">
-                                    Reporte consolidado de ingresos por apoderados
+                                <p class="text-sm text-rose-600">
+                                    Registro de aceptación de términos y condiciones
                                 </p>
                             </Link>
 
-                            <!-- Estado de Cuenta Parcial (Apoderados) -->
+                            <!-- Cuotas Pagadas -->
                             <Link
-                                :href="route('admin.reports.executives.partial-account')"
-                                class="bg-cyan-50 hover:bg-cyan-100 p-6 rounded-lg border border-cyan-200 transition-colors"
+                                :href="route('admin.reports.paid-installments')"
+                                class="bg-emerald-50 hover:bg-emerald-100 p-6 rounded-lg border border-emerald-200 transition-colors"
                             >
                                 <div class="flex items-center mb-3">
                                     <div
-                                        class="p-2 bg-cyan-100 rounded-lg mr-3"
+                                        class="p-2 bg-emerald-100 rounded-lg mr-3"
                                     >
                                         <svg
-                                            class="w-6 h-6 text-cyan-600"
+                                            class="w-6 h-6 text-emerald-600"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -274,18 +286,18 @@
                                                 stroke-linecap="round"
                                                 stroke-linejoin="round"
                                                 stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
                                             ></path>
                                         </svg>
                                     </div>
                                     <h3
-                                        class="text-lg font-semibold text-cyan-800"
+                                        class="text-lg font-semibold text-emerald-800"
                                     >
-                                        Estado de Cuenta Parcial
+                                        Cuotas Pagadas
                                     </h3>
                                 </div>
-                                <p class="text-sm text-cyan-600">
-                                    Estado de cuenta parcial por apoderados
+                                <p class="text-sm text-emerald-600">
+                                    Registro de cuotas de suscripción pagadas
                                 </p>
                             </Link>
                         </div>

@@ -193,6 +193,16 @@
                         <li>Nunca te solicitaremos pagar directamente por un email</li>
                     </ul>
                 </div>
+
+                <!-- Contact Info Section -->
+                <div style="background-color: #f8f9fa; padding: 20px; margin: 25px 0; border-radius: 8px; text-align: center;">
+                    <p style="margin: 8px 0; font-size: 14px; color: #555;">
+                        Cualquier consulta sobre Portal de Pago, favor escribir a: <a href="mailto:pagos@latitud90.com" style="color: #007E93;">pagos@latitud90.com</a>
+                    </p>
+                    <p style="margin: 8px 0; font-size: 14px; color: #555;">
+                        Cualquier consulta por detalles comerciales u otro, favor escribir a: <a href="mailto:contacto@latitud90.com" style="color: #007E93;">contacto@latitud90.com</a>
+                    </p>
+                </div>
             </div>
 
             <div class="footer">

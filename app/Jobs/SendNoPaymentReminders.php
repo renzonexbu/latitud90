@@ -76,15 +76,18 @@ class SendNoPaymentReminders implements ShouldQueue
                         continue;
                     }
 
-                    Mail::to($contact->email)->send(
-                        new NoPaymentReminderMail(
-                            $participantName,
-                            $incorporationDate,
-                            $programAmount
-                        )
-                    );
-
-                    Log::info("Recordatorio enviado a {$contact->email} para participante {$participant->id}");
+                    try {
+                        Mail::to($contact->email)->send(
+                            new NoPaymentReminderMail(
+                                $participantName,
+                                $incorporationDate,
+                                $programAmount
+                            )
+                        );
+                        Log::info("Recordatorio enviado a {$contact->email} para participante {$participant->id}");
+                    } catch (\Exception $mailError) {
+                        Log::warning("No se pudo enviar recordatorio a {$contact->email}: " . $mailError->getMessage());
+                    }
                 }
 
                 // Actualizar fecha del último recordatorio

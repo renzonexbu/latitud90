@@ -13,6 +13,7 @@ use App\Models\Comune;
 use App\Models\Document;
 use Carbon\Carbon;
 use App\Helpers\ParticipantPriceHelper;
+use App\Helpers\BuyerTrackingHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
 
@@ -344,6 +345,9 @@ class CreateOrderService
             'marketing_accepted' => $mappedFormData['marketing_accepted'],
             'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
 
+            // Información de tracking del comprador
+            ...BuyerTrackingHelper::extractTrackingInfo(),
+
             // Información de la cuota
             'installment_number' => $installmentNumber,
             'base_amount' => $amount,
@@ -419,8 +423,11 @@ class CreateOrderService
             'terms_accepted' => $mappedFormData['terms_accepted'],
             'marketing_accepted' => $mappedFormData['marketing_accepted'],
             'terms_accepted_confirmation' => $paymentData['termsAccepted'] ?? false,
+
+            // Información de tracking del comprador
+            ...BuyerTrackingHelper::extractTrackingInfo(),
         ]);
-        
+
         $this->logInfo('Existing OrderDetail updated with new buyer data and payment method', [
             'order_detail_id' => $orderDetail->id,
             'installment_number' => $orderDetail->installment_number,

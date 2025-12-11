@@ -479,18 +479,36 @@ class PaymentConfirmationService
         }
 
         // Extraer datos específicos según el tipo de gateway
-        $authorizationCode = $result['authorization_code'] ?? null;
+        $authorizationCode = $result['authorization_code'] ?? $result['auth_code'] ?? null;
         $cardType = null;
         $installmentsNumber = null;
         $installmentAmount = null;
         $vci = $result['vci'] ?? null;
-        $cardNumber = null;
+        $cardNumber = $result['card_number'] ?? null;
 
         // Mapear datos específicos según el gateway
         if ($gatewayType === 'virtualpos') {
-            $cardType = $result['payment_method'] ?? null;
+            $cardType = $result['payment_method'] ?? $result['payment_type'] ?? null;
             $installmentsNumber = $result['installments'] ?? null;
             $installmentAmount = $result['installment_amount'] ?? null;
+
+            // Extraer datos de la estructura anidada de VirtualPos
+            $data = $result['data'] ?? [];
+            $paymentData = $data['payment'] ?? [];
+            $orderData = $paymentData['order'] ?? [];
+
+            if (!$authorizationCode && !empty($orderData['auth_code'])) {
+                $authorizationCode = $orderData['auth_code'];
+            }
+            if (!$cardNumber && !empty($orderData['card_number'])) {
+                $cardNumber = $orderData['card_number'];
+            }
+            if (!$cardType && !empty($orderData['payment_type_code'])) {
+                $cardType = $orderData['payment_type_code'];
+            }
+            if (!$installmentsNumber && !empty($orderData['installments'])) {
+                $installmentsNumber = $orderData['installments'];
+            }
         } elseif ($gatewayType === 'transbank') {
             // Para Transbank, extraer datos del full_response
             $fullResponse = $result['full_response'] ?? [];
@@ -502,6 +520,56 @@ class PaymentConfirmationService
                 $installmentsNumber = $firstDetail['installments_number'] ?? null;
                 $cardNumber = $fullResponse['card_detail']['card_number'] ?? null;
             }
+        } elseif ($gatewayType === 'khipu') {
+            // Para Khipu, verificar si viene de VirtualPos (producción) o Khipu nativo (QA)
+            $isVirtualPosMode = $this->khipuService->isProductionMode();
+
+            if ($isVirtualPosMode) {
+                // VirtualPos para Khipu (producción) - estructura similar a virtualpos
+                $data = $result['data'] ?? [];
+                $paymentData = $data['payment'] ?? [];
+                $orderData = $paymentData['order'] ?? [];
+
+                if (!$authorizationCode) {
+                    $authorizationCode = $result['auth_code'] ?? $orderData['auth_code'] ?? $paymentData['auth_code'] ?? null;
+                }
+                if (!$cardNumber) {
+                    $cardNumber = $result['card_number'] ?? $orderData['card_number'] ?? null;
+                }
+                if (!$cardType) {
+                    $cardType = $result['payment_type'] ?? $orderData['payment_type_code'] ?? $orderData['payment_method'] ?? 'KHIPU';
+                }
+                if (!$installmentsNumber && !empty($orderData['installments'])) {
+                    $installmentsNumber = $orderData['installments'];
+                }
+
+                $this->logInfo('PaymentConfirmationService: Khipu via VirtualPos fields mapped', [
+                    'auth_code' => $authorizationCode,
+                    'card_number' => $cardNumber,
+                    'card_type' => $cardType,
+                    'installments' => $installmentsNumber,
+                ]);
+            } else {
+                // Khipu nativo (QA) - el tipo de tarjeta es 'KHIPU' (transferencia)
+                $cardType = 'KHIPU';
+
+                // Extraer banco si está disponible
+                $data = $result['data'] ?? [];
+                if (!empty($data['bank'])) {
+                    // Guardar el nombre del banco en card_number como referencia
+                    $cardNumber = $data['bank'];
+                }
+
+                $this->logInfo('PaymentConfirmationService: Khipu native fields mapped', [
+                    'card_type' => $cardType,
+                    'bank' => $data['bank'] ?? null,
+                ]);
+            }
+        }
+
+        // Normalizar card_type para consistencia
+        if ($cardType) {
+            $cardType = $this->normalizeCardType($cardType);
         }
 
         if (!$payment) {
@@ -899,5 +967,38 @@ class PaymentConfirmationService
         // Para simplificar, podemos extraer la fecha y hora, y formatearla
         $date = \Carbon\Carbon::parse($dateString);
         return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * Normalizar el tipo de tarjeta/método de pago para almacenamiento consistente
+     *
+     * @param string $paymentType Tipo de pago del gateway
+     * @return string Tipo normalizado
+     */
+    private function normalizeCardType(string $paymentType): string
+    {
+        $typeMap = [
+            // Khipu / Transferencia bancaria
+            'khipu' => 'KHIPU',
+            'transferencia' => 'KHIPU',
+            'transfer' => 'KHIPU',
+            // Transbank códigos
+            'VD' => 'DEBIT',       // Venta Débito
+            'VN' => 'CREDIT',      // Venta Normal (crédito sin cuotas)
+            'VC' => 'CREDIT',      // Venta en Cuotas
+            'SI' => 'CREDIT',      // Sin Interés
+            'S2' => 'CREDIT',      // Sin Interés 2 cuotas
+            'NC' => 'CREDIT',      // N Cuotas
+            'VP' => 'PREPAID',     // Venta Prepago
+            // Nombres descriptivos
+            'debit' => 'DEBIT',
+            'credit' => 'CREDIT',
+            'prepaid' => 'PREPAID',
+            'internacional' => 'INTERNATIONAL',
+            'international' => 'INTERNATIONAL',
+        ];
+
+        $lowerType = strtolower($paymentType);
+        return $typeMap[$lowerType] ?? $typeMap[$paymentType] ?? strtoupper($paymentType);
     }
 }

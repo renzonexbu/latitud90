@@ -187,6 +187,7 @@ class PaymentScheduleSummaryDataProvider
                 'pgc.id as program_course_id',
                 'pgc.name as program_name',
                 'pgc.code as program_code',
+                'pgc.final_payment_date as final_payment_date',
                 'prog.id as program_id',
                 'se.name as sales_executive_name',
                 'ec.name as emergency_contact_name',

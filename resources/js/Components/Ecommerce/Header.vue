@@ -165,9 +165,11 @@
                         {{ link.label }}
                     </a>
                 </div>
+                <!-- Botón oculto temporalmente
                 <div class="boton-l" @click="scrollToHero">
                     <div class="placeholder2">Pagar programa</div>
                 </div>
+                -->
             </div>
         </nav>
 
@@ -273,6 +275,7 @@
                                     {{ link.label }}
                                 </a>
                             </li>
+                            <!-- Botón oculto temporalmente
                             <li class="pt-4">
                                 <button
                                     @click="scrollToHero"
@@ -281,6 +284,7 @@
                                     Pagar programa
                                 </button>
                             </li>
+                            -->
                         </ul>
                     </div>
                 </div>

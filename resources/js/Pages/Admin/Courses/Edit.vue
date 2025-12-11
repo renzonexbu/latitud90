@@ -636,10 +636,8 @@
                                         </transition>
                                     </div>
 
-                                    <!-- Separator -->
+                                    <!-- Acordeón 4: Archivos del programa - OCULTO TEMPORALMENTE
                                     <div class="accordion-separator"></div>
-
-                                    <!-- Acordeón 4: Archivos del programa -->
                                     <div class="accordion-section">
                                         <div
                                             class="accordion-header"
@@ -666,10 +664,8 @@
                                         <transition name="accordion-slide">
                                             <div v-if="filesOpen" class="accordion-content">
                                                 <div class="pdf-upload-grid">
-                                                    <!-- Itinerario -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Itinerario</div>
-                                                        <!-- Archivo existente -->
                                                         <div v-if="existingFiles.itinerary_file && !form.itinerary_file" class="existing-file">
                                                             <a :href="existingFiles.itinerary_file" target="_blank" class="existing-file-link">
                                                                 Ver archivo actual
@@ -695,11 +691,8 @@
                                                             <button type="button" @click="removePdfFile('itinerary')" class="pdf-remove">&times;</button>
                                                         </div>
                                                     </div>
-
-                                                    <!-- Cobertura de asistencia -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Cobertura de asistencia</div>
-                                                        <!-- Archivo existente -->
                                                         <div v-if="existingFiles.coverage_file && !form.coverage_file" class="existing-file">
                                                             <a :href="existingFiles.coverage_file" target="_blank" class="existing-file-link">
                                                                 Ver archivo actual
@@ -725,11 +718,8 @@
                                                             <button type="button" @click="removePdfFile('coverage')" class="pdf-remove">&times;</button>
                                                         </div>
                                                     </div>
-
-                                                    <!-- Lista de equipo -->
                                                     <div class="pdf-upload-item">
                                                         <div class="pdf-label">Lista de equipo</div>
-                                                        <!-- Archivo existente -->
                                                         <div v-if="existingFiles.equipment_file && !form.equipment_file" class="existing-file">
                                                             <a :href="existingFiles.equipment_file" target="_blank" class="existing-file-link">
                                                                 Ver archivo actual
@@ -759,9 +749,7 @@
                                             </div>
                                         </transition>
                                     </div>
-
-                                    <!-- Separator -->
-                                    <div class="accordion-separator"></div>
+                                    FIN Acordeón 4: Archivos del programa - OCULTO TEMPORALMENTE -->
 
                                     <!-- Estado del programa -->
                                     <div class="accordion-section">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Program;
+use App\Models\ProgramCourse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -33,6 +34,8 @@ use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
 use App\Services\Admin\Reports\Softland\SoftlandAuxiliaresService;
 use App\Services\Admin\Reports\Softland\SoftlandZipExporter;
 use App\Services\Admin\Reports\BsaleDocuments\BsaleZipDownloadService;
+use App\Services\Admin\Reports\TermsAcceptance\TermsAcceptanceDataProvider;
+use App\Services\Admin\Reports\PaidInstallments\PaidInstallmentsDataProvider;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -218,6 +221,7 @@ class ReportController extends Controller
                 'Teléfono Contacto',
                 'Relación',
                 'Fecha Inscripción',
+                'Fecha Final Pago',
                 'Precio Individual',
                 'Descuento',
                 'Monto Final',
@@ -266,6 +270,10 @@ class ReportController extends Controller
                     ? date('d/m/Y', strtotime($participant->incorporation_date))
                     : 'N/A';
 
+                $finalPaymentDate = isset($participant->final_payment_date)
+                    ? date('d/m/Y', strtotime($participant->final_payment_date))
+                    : 'N/A';
+
                 $sheet->setCellValue('A' . $rowIndex, $fullName);
                 $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participant->document_number ?? ''));
                 $sheet->setCellValue('C' . $rowIndex, $participant->participant_email ?? 'N/A');
@@ -274,12 +282,13 @@ class ReportController extends Controller
                 $sheet->setCellValue('F' . $rowIndex, $participant->emergency_contact_phone ?? 'N/A');
                 $sheet->setCellValue('G' . $rowIndex, $participant->emergency_contact_relationship ?? 'N/A');
                 $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
-                $sheet->setCellValue('I' . $rowIndex, (int)($participant->individual_price ?? 0));
-                $sheet->setCellValue('J' . $rowIndex, (int)($participant->discount_amount ?? 0));
-                $sheet->setCellValue('K' . $rowIndex, (int)($participant->final_amount ?? 0));
-                $sheet->setCellValue('L' . $rowIndex, $participant->program_name ?? 'N/A');
-                $sheet->setCellValue('M' . $rowIndex, $participant->program_code ?? 'N/A');
-                $sheet->setCellValue('N' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
+                $sheet->setCellValue('I' . $rowIndex, $finalPaymentDate);
+                $sheet->setCellValue('J' . $rowIndex, (int)($participant->individual_price ?? 0));
+                $sheet->setCellValue('K' . $rowIndex, (int)($participant->discount_amount ?? 0));
+                $sheet->setCellValue('L' . $rowIndex, (int)($participant->final_amount ?? 0));
+                $sheet->setCellValue('M' . $rowIndex, $participant->program_name ?? 'N/A');
+                $sheet->setCellValue('N' . $rowIndex, $participant->program_code ?? 'N/A');
+                $sheet->setCellValue('O' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
 
                 $rowIndex++;
             }
@@ -1398,6 +1407,245 @@ class ReportController extends Controller
         } catch (\Exception $e) {
             Log::warning("Error validating PDF file {$filePath}: " . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Reporte de aceptación de términos y condiciones
+     */
+    public function termsAcceptance(Request $request)
+    {
+        $dataProvider = new TermsAcceptanceDataProvider();
+        $termsAcceptanceData = $dataProvider->getData($request->all());
+
+        // Paginación
+        $perPage = 15;
+        $currentPage = $request->get('page', 1);
+        $total = $termsAcceptanceData->count();
+        $items = $termsAcceptanceData->forPage($currentPage, $perPage)->values();
+
+        $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+
+        $paginatedData->appends($request->query());
+
+        return Inertia::render('Admin/Reports/TermsAcceptance', [
+            'termsAcceptanceData' => $paginatedData,
+            'programs' => ProgramCourse::select('id', 'code', 'name')->orderBy('code', 'desc')->get(),
+            'filters' => $request->all()
+        ]);
+    }
+
+    /**
+     * Exportar reporte de aceptación de términos a Excel
+     */
+    public function exportTermsAcceptance(Request $request)
+    {
+        try {
+            $filters = $request->only(['program_id', 'date_from', 'date_to', 'search']);
+
+            $dataProvider = new TermsAcceptanceDataProvider();
+            $data = $dataProvider->getData($filters);
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Aceptación TyC');
+
+            // Headers en el orden especificado
+            $headers = [
+                'Nombre',
+                'Rut',
+                'Correo',
+                'Hora que aceptó términos y condiciones',
+                'Fecha de aceptación términos condiciones',
+                'IP desde donde se conectó',
+                'Navegador',
+                'Sistema Operativo',
+                'Programa'
+            ];
+
+            // Estilo para headers
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '1c4f4a'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ];
+
+            // Escribir headers
+            foreach ($headers as $index => $header) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+                $sheet->setCellValue("{$col}1", $header);
+                $sheet->getStyle("{$col}1")->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Escribir datos
+            $row = 2;
+            foreach ($data as $record) {
+                $sheet->setCellValue("A{$row}", $record['name'] ?? '');
+                $sheet->setCellValue("B{$row}", $record['document_number'] ?? '');
+                $sheet->setCellValue("C{$row}", $record['email'] ?? '');
+                $sheet->setCellValue("D{$row}", $record['terms_accepted_time'] ?? '');
+                $sheet->setCellValue("E{$row}", $record['terms_accepted_date'] ?? '');
+                $sheet->setCellValue("F{$row}", $record['ip_address'] ?? '');
+                $sheet->setCellValue("G{$row}", $record['browser'] ?? '');
+                $sheet->setCellValue("H{$row}", $record['operating_system'] ?? '');
+                $sheet->setCellValue("I{$row}", ($record['program_code'] ?? '') . ' - ' . ($record['program_name'] ?? ''));
+                $row++;
+            }
+
+            // Crear archivo temporal
+            $filename = 'aceptacion_tyc_' . now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
+            $tempPath = storage_path('app/temp/' . $filename);
+
+            if (!file_exists(storage_path('app/temp'))) {
+                mkdir(storage_path('app/temp'), 0755, true);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save($tempPath);
+
+            return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Error al exportar reporte de aceptación TyC: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Reporte de cuotas pagadas
+     */
+    public function paidInstallments(Request $request)
+    {
+        $dataProvider = new PaidInstallmentsDataProvider();
+        $paidInstallmentsData = $dataProvider->getData($request->all());
+
+        // Paginación
+        $perPage = 15;
+        $currentPage = $request->get('page', 1);
+        $total = $paidInstallmentsData->count();
+        $items = $paidInstallmentsData->forPage($currentPage, $perPage)->values();
+
+        $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+
+        $paginatedData->appends($request->query());
+
+        return Inertia::render('Admin/Reports/PaidInstallments', [
+            'paidInstallmentsData' => $paginatedData,
+            'programs' => ProgramCourse::select('id', 'code', 'name')->orderBy('code', 'desc')->get(),
+            'filters' => $request->all()
+        ]);
+    }
+
+    /**
+     * Exportar reporte de cuotas pagadas a Excel
+     */
+    public function exportPaidInstallments(Request $request)
+    {
+        try {
+            $filters = $request->only(['program_id', 'date_from', 'date_to', 'search']);
+
+            $dataProvider = new PaidInstallmentsDataProvider();
+            $data = $dataProvider->getData($filters);
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Cuotas Pagadas');
+
+            // Headers
+            $headers = [
+                'Número de Negocio',
+                'Participante',
+                'Tipo Documento',
+                'Documento',
+                'Monto Recaudado',
+                'Fecha de Pago',
+                'Cuota',
+                'Estado Plan'
+            ];
+
+            // Estilo para headers
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '1c4f4a'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ];
+
+            // Escribir headers
+            foreach ($headers as $index => $header) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+                $sheet->setCellValue("{$col}1", $header);
+                $sheet->getStyle("{$col}1")->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Escribir datos
+            $row = 2;
+            foreach ($data as $record) {
+                $sheet->setCellValue("A{$row}", $record['program_code'] ?? '');
+                $sheet->setCellValue("B{$row}", $record['participant_name'] ?? '');
+                $sheet->setCellValue("C{$row}", $record['document_type'] ?? '');
+                $sheet->setCellValue("D{$row}", $record['participant_document'] ?? '');
+                $sheet->setCellValue("E{$row}", $record['amount'] ?? 0);
+                $sheet->setCellValue("F{$row}", $record['paid_at'] ?? '');
+                $sheet->setCellValue("G{$row}", $record['installment_label'] ?? '');
+                $sheet->setCellValue("H{$row}", $record['plan_status'] ?? '');
+                $row++;
+            }
+
+            // Formato de moneda para columna E (Monto Recaudado)
+            $sheet->getStyle('E2:E' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
+
+            // Crear archivo temporal
+            $filename = 'cuotas_pagadas_' . now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';
+            $tempPath = storage_path('app/temp/' . $filename);
+
+            if (!file_exists(storage_path('app/temp'))) {
+                mkdir(storage_path('app/temp'), 0755, true);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save($tempPath);
+
+            return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Error al exportar reporte de cuotas pagadas: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
         }
     }
 }

@@ -183,8 +183,7 @@
             Selecciona la forma de pago
           </h3>
           <p class="text-sm text-gray-600 mb-4">
-            ¡Selecciona la forma de pago que mejor se adapte a ti, total o en
-            cuotas! Para cualquier consulta, no dudes en escribirnos por
+            Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito, débito o Khipu, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por
             <a
               href="https://wa.me/?text=Hola%20Latitud90,%20tengo%20una%20consulta%20sobre%20el%20método%20de%20pago."
               target="_blank"

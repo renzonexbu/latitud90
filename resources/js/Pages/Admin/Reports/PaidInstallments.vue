@@ -1,13 +1,13 @@
 <template>
-    <AdminLayout title="Participantes Sin Pagos">
-        <Head title="Participantes Sin Pagos" />
+    <AdminLayout title="Cuotas Pagadas">
+        <Head title="Cuotas Pagadas" />
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header con botones de acción -->
                 <div class="flex items-center justify-between">
                     <ReportsHeader
-                        title="Participantes Sin Pagos Iniciados"
-                        subtitle="Participantes que no han iniciado el proceso de pago por ecommerce"
+                        title="Cuotas Pagadas"
+                        subtitle="Registro de cuotas de suscripción pagadas"
                     />
 
                     <div class="flex gap-3">
@@ -19,7 +19,7 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                             </svg>
-                            Volver al Cronograma
+                            Volver
                         </button>
 
                         <!-- Botón Exportar -->
@@ -53,7 +53,7 @@
                     <!-- Filtros Row -->
                     <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
                         <!-- Programas -->
-                        <div class="relative flex-1 min-w-[250px]">
+                        <div class="relative flex-1 min-w-[200px]">
                             <select
                                 v-model="filters.program_id"
                                 class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
@@ -61,23 +61,29 @@
                             >
                                 <option value="">Todos los programas</option>
                                 <option v-for="program in programs" :key="program.id" :value="program.id">
-                                    {{ program.name }}
+                                    {{ program.code }} - {{ program.name }}
                                 </option>
                             </select>
                         </div>
 
-                        <!-- Ejecutivos -->
-                        <div class="relative flex-1 min-w-[250px]">
-                            <select
-                                v-model="filters.sales_executive_id"
-                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                        <!-- Fecha Desde -->
+                        <div class="relative min-w-[180px]">
+                            <input
+                                v-model="filters.date_from"
+                                type="date"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
                                 @change="applyFilters"
                             >
-                                <option value="">Todos los ejecutivos</option>
-                                <option v-for="executive in salesExecutives" :key="executive.id" :value="executive.id">
-                                    {{ executive.name }}
-                                </option>
-                            </select>
+                        </div>
+
+                        <!-- Fecha Hasta -->
+                        <div class="relative min-w-[180px]">
+                            <input
+                                v-model="filters.date_to"
+                                type="date"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+                                @change="applyFilters"
+                            >
                         </div>
 
                         <!-- Búsqueda -->
@@ -86,7 +92,7 @@
                                 v-model="filters.search"
                                 @input="debounceSearch"
                                 type="text"
-                                placeholder="Buscar por nombre o documento..."
+                                placeholder="Buscar por participante..."
                                 class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
                             >
                         </div>
@@ -104,91 +110,87 @@
                     </div>
                 </div>
 
-                <!-- Tabla de Participantes -->
-                <div v-if="participantsWithoutPayments && participantsWithoutPayments.data && participantsWithoutPayments.data.length > 0">
+                <!-- Tabla de Cuotas Pagadas -->
+                <div v-if="paidInstallmentsData && paidInstallmentsData.data && paidInstallmentsData.data.length > 0">
                     <div class="bg-white rounded-[20px] overflow-hidden">
                         <!-- Table Container -->
-                        <div class="flex flex-col gap-0">
+                        <div class="flex flex-col gap-0 overflow-x-auto">
                             <!-- Table Header -->
-                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]">
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[160px]">
+                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1100px] h-[61.51px]">
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                    Nro. Negocio
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                                     Participante
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Tipo Doc.
                                 </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                                     Documento
                                 </div>
-                                <div v-if="isAdmin" class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
-                                    Contacto Pagador
-                                </div>
-                                <div v-if="isAdmin" class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[160px]">
-                                    Email Contacto
-                                </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    Fecha Inscripción
+                                    Monto Recaudado
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    Fecha Final Pago
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                                    Fecha de Pago
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    Monto a Pagar
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Cuota
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                                    Programa
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Estado
                                 </div>
                             </div>
 
                             <!-- Table Body -->
-                            <div class="flex flex-col">
+                            <div class="flex flex-col min-w-[1100px]">
                                 <div
-                                    v-for="(participant, index) in participantsWithoutPayments.data"
-                                    :key="participant.participant_id"
+                                    v-for="(record, index) in paidInstallmentsData.data"
+                                    :key="record.id"
                                     :class="[
                                         'px-5 py-[14px] flex items-center justify-between',
                                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                                     ]"
                                 >
+                                    <!-- Nro. Negocio -->
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                        {{ record.program_code }}
+                                    </div>
+
                                     <!-- Participante -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[160px]">
-                                        {{ toCapitalCase(participant.first_name) }} {{ toCapitalCase(participant.first_last_name) }} {{ toCapitalCase(participant.second_last_name) }}
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
+                                        {{ toCapitalCase(record.participant_name) }}
+                                    </div>
+
+                                    <!-- Tipo Documento -->
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[100px]">
+                                        {{ record.document_type }}
                                     </div>
 
                                     <!-- Documento -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                        {{ formatDocument(participant.document_number, participant.document_type) }}
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[120px]">
+                                        {{ record.participant_document }}
                                     </div>
 
-                                    <!-- Contacto Pagador (solo visible para super_admin) -->
-                                    <div v-if="isAdmin" class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
-                                        {{ toCapitalCase(participant.emergency_contact_name) || 'Sin contacto' }}
+                                    <!-- Monto Recaudado -->
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                        {{ formatCurrency(record.amount) }}
                                     </div>
 
-                                    <!-- Email Contacto (solo visible para super_admin) -->
-                                    <div v-if="isAdmin" class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[160px]">
-                                        {{ participant.emergency_contact_email || 'Sin email' }}
+                                    <!-- Fecha de Pago -->
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[140px]">
+                                        {{ record.paid_at || '-' }}
                                     </div>
 
-                                    <!-- Fecha Inscripción -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                        {{ formatDate(participant.incorporation_date) }}
+                                    <!-- Cuota -->
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                        {{ record.installment_label }}
                                     </div>
 
-                                    <!-- Fecha Final Pago -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                        {{ participant.final_payment_date ? formatDate(participant.final_payment_date) : '-' }}
-                                    </div>
-
-                                    <!-- Monto a Pagar -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                        <div>${{ formatCurrency(participant.final_amount) }}</div>
-                                        <div v-if="participant.discount_amount > 0" class="text-[12px] text-[#4b8d7f]">
-                                            Desc: ${{ formatCurrency(participant.discount_amount) }}
-                                        </div>
-                                    </div>
-
-                                    <!-- Programa -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                                        <div>{{ participant.program_name }}</div>
-                                        <div class="text-[12px] text-[#888888]">{{ participant.program_code }}</div>
+                                    <!-- Estado -->
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[100px]">
+                                        {{ record.plan_status }}
                                     </div>
                                 </div>
                             </div>
@@ -199,9 +201,9 @@
                     <div class="mt-6 flex flex-row items-center justify-end gap-6 relative">
                         <!-- Total Items -->
                         <div class="text-[#9ca3af] font-normal text-sm">
-                            Total {{ participantsWithoutPayments.total }} Registros
+                            Total {{ paidInstallmentsData.total }} Registros
                         </div>
-                        
+
                         <!-- Page Numbers -->
                         <div class="flex flex-row gap-2 items-center justify-center">
                             <div
@@ -210,7 +212,7 @@
                                 @click="goToPage(page)"
                                 :class="[
                                     'flex w-8 h-8 items-center justify-center rounded-full cursor-pointer transition-colors',
-                                    participantsWithoutPayments.current_page === page
+                                    paidInstallmentsData.current_page === page
                                         ? 'bg-[#1c4f4a] text-white'
                                         : 'bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]',
                                 ]"
@@ -226,10 +228,10 @@
                 <!-- Estado vacío -->
                 <div v-else class="bg-white rounded-lg shadow p-8 text-center">
                     <div class="text-gray-500 text-lg">
-                        No se encontraron participantes sin pagos iniciados
+                        No se encontraron cuotas pagadas
                     </div>
                     <p class="text-gray-400 mt-2">
-                        Todos los participantes han iniciado su proceso de pago o están exentos
+                        Aún no hay cuotas registradas como pagadas
                     </p>
                 </div>
             </div>
@@ -238,30 +240,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { ref, reactive, computed } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ReportsHeader from '@/Components/Reports/ReportsHeader.vue'
 
-// Verificar si el usuario es super_admin
-const page = usePage()
-const isAdmin = computed(() => {
-    const roles = page.props.auth?.user?.roles || []
-    return roles.includes('super_admin')
-})
-
 // Props
 const props = defineProps({
-    participantsWithoutPayments: Object,
+    paidInstallmentsData: Object,
     programs: Array,
-    salesExecutives: Array,
     filters: Object
 })
 
-// Reactive data - Initialize with empty strings to show default options
+// Reactive data
 const filters = reactive({
     program_id: props.filters?.program_id || '',
-    sales_executive_id: props.filters?.sales_executive_id || '',
+    date_from: props.filters?.date_from || '',
+    date_to: props.filters?.date_to || '',
     search: props.filters?.search || ''
 })
 
@@ -269,29 +264,9 @@ const isExporting = ref(false)
 let searchTimeout = null
 
 // Methods
-const formatDocument = (documentNumber, documentType) => {
-    if (documentType === 'rut') {
-        return formatRut(documentNumber)
-    }
-    return documentNumber
-}
-
-const formatRut = (rut) => {
-    if (!rut) return ''
-    
-    // Remove any existing formatting
-    const cleanRut = rut.toString().replace(/[^0-9kK]/g, '')
-    
-    if (cleanRut.length < 2) return cleanRut
-    
-    // Separate the verification digit
-    const body = cleanRut.slice(0, -1)
-    const dv = cleanRut.slice(-1).toUpperCase()
-    
-    // Add dots to the body
-    const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-    
-    return `${formattedBody}-${dv}`
+const formatCurrency = (amount) => {
+    if (!amount) return '$0'
+    return '$' + parseInt(amount).toLocaleString('es-CL')
 }
 
 const toCapitalCase = (str) => {
@@ -299,34 +274,24 @@ const toCapitalCase = (str) => {
     return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatDate = (date) => {
-    if (!date) return ''
-    return new Date(date).toLocaleDateString('es-CL')
-}
-
-const formatCurrency = (amount) => {
-    if (!amount) return '0'
-    return new Intl.NumberFormat('es-CL').format(amount)
-}
-
 // Computed properties for pagination
 const validPages = computed(() => {
-    if (!props.participantsWithoutPayments || !props.participantsWithoutPayments.last_page) {
+    if (!props.paidInstallmentsData || !props.paidInstallmentsData.last_page) {
         return [1]
     }
-    
+
     const pages = []
-    const totalPages = props.participantsWithoutPayments.last_page
-    
+    const totalPages = props.paidInstallmentsData.last_page
+
     for (let i = 1; i <= Math.min(totalPages, 10); i++) {
         pages.push(i)
     }
-    
+
     return pages
 })
 
 const applyFilters = () => {
-    router.get(route('admin.reports.no-payment'), filters, {
+    router.get(route('admin.reports.paid-installments'), filters, {
         preserveState: true,
         preserveScroll: true
     })
@@ -340,7 +305,7 @@ const debounceSearch = () => {
 }
 
 const goToPage = (page) => {
-    router.get(route('admin.reports.no-payment'), { ...filters, page }, {
+    router.get(route('admin.reports.paid-installments'), { ...filters, page }, {
         preserveState: true,
         preserveScroll: true
     })
@@ -348,32 +313,30 @@ const goToPage = (page) => {
 
 const clearFilters = () => {
     filters.program_id = ''
-    filters.sales_executive_id = ''
+    filters.date_from = ''
+    filters.date_to = ''
     filters.search = ''
     applyFilters()
 }
 
 const goBack = () => {
-    router.get(route('admin.reports.payment-schedule'))
+    router.get(route('admin.reports.index'))
 }
 
 const exportToExcel = () => {
     isExporting.value = true
 
-    // Crear parámetros de query
     const params = new URLSearchParams()
 
     if (filters.program_id) params.append('program_id', filters.program_id)
-    if (filters.sales_executive_id) params.append('sales_executive_id', filters.sales_executive_id)
+    if (filters.date_from) params.append('date_from', filters.date_from)
+    if (filters.date_to) params.append('date_to', filters.date_to)
     if (filters.search) params.append('search', filters.search)
 
-    // Crear la URL con los parámetros
-    const url = route('admin.reports.export.no-payment') + (params.toString() ? '?' + params.toString() : '')
+    const url = route('admin.reports.export.paid-installments') + (params.toString() ? '?' + params.toString() : '')
 
-    // Abrir la URL en una nueva ventana para descargar
     window.open(url, '_blank')
 
-    // Resetear el estado después de un segundo
     setTimeout(() => {
         isExporting.value = false
     }, 1000)
@@ -381,14 +344,13 @@ const exportToExcel = () => {
 </script>
 
 <style scoped>
-/* Custom font classes */
 .font-nexa-bold {
     font-family: "Nexa-Bold", sans-serif;
     font-weight: 700;
 }
 
-.font-nexa-xbold {
-    font-family: "Nexa-XBold", sans-serif;
+.font-nexa-regular {
+    font-family: "Nexa-Regular", sans-serif;
     font-weight: 400;
 }
 

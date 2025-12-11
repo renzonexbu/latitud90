@@ -58,9 +58,20 @@ Route::get('/reports/download-all-payment-receipts/{participantId}/{programId}',
 Route::get('/debug-zip/{participantId}/{programId}', [ReportController::class, 'debugZipCreation'])->name('admin.reports.debug-zip');
 Route::get('/reports/download-all-bsale-documents/{participantId}/{programId}', [ReportController::class, 'downloadAllBsaleDocuments'])->name('reports.download-all-bsale-documents');
 
-// Ejecutivos: Consolidado de Área Ingresos y Estado de Cuenta Parcial
+// Reporte de aceptación de términos y condiciones
+Route::get('/reports/terms-acceptance', [ReportController::class, 'termsAcceptance'])->name('reports.terms-acceptance');
+Route::get('/reports/export/terms-acceptance', [ReportController::class, 'exportTermsAcceptance'])->name('reports.export.terms-acceptance');
+
+// Reporte de cuotas pagadas
+Route::get('/reports/paid-installments', [ReportController::class, 'paidInstallments'])->name('reports.paid-installments');
+Route::get('/reports/export/paid-installments', [ReportController::class, 'exportPaidInstallments'])->name('reports.export.paid-installments');
+
+// Ejecutivos/Apoderados: Consolidado de Área Ingresos y Estado de Cuenta Parcial
 use App\Http\Controllers\Admin\ExecutivesReportsController;
 Route::prefix('/reports/executives')->name('reports.executives.')->group(function () {
+    // Vista index de reportes de apoderados
+    Route::get('/', [ExecutivesReportsController::class, 'index'])->name('index');
+
     Route::get('/consolidated', [ExecutivesReportsController::class, 'consolidated'])->name('consolidated');
     Route::get('/partial-account', [ExecutivesReportsController::class, 'partialAccount'])->name('partial-account');
 

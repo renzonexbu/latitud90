@@ -27,10 +27,10 @@ class UpdateEmergencyContactService
             'email' => $data['email'],
             'document_type' => $documentType,
             'document_number' => $documentNumber,
-            'code_phone' => $data['code_phone'],
-            'phone' => $data['phone'],
-            'country' => $data['country'],
-            'birth_date' => $data['birth_date'] ?? null,
+            'code_phone' => $data['code_phone'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'country' => $data['country'] ?? null,
+            'birth_date' => !empty($data['birth_date']) ? $data['birth_date'] : null,
             'address' => $data['address'] ?? null,
         ]);
     }

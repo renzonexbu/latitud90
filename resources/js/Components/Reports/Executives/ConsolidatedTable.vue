@@ -32,10 +32,10 @@
                         <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-28">
                             Fecha de Pago
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                        <th v-if="isAdmin" class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
                             Contacto Pagador
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-40">
+                        <th v-if="isAdmin" class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-40">
                             Email Contacto Pagador
                         </th>
                         <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-28">
@@ -123,15 +123,15 @@
                             </div>
                         </td>
 
-                        <!-- Contacto Pagador -->
-                        <td class="px-3 py-4 whitespace-nowrap w-32">
+                        <!-- Contacto Pagador (solo visible para super_admin) -->
+                        <td v-if="isAdmin" class="px-3 py-4 whitespace-nowrap w-32">
                             <div class="text-sm text-gray-900">
                                 {{ item.payer_contact || 'N/A' }}
                             </div>
                         </td>
 
-                        <!-- Email Contacto Pagador -->
-                        <td class="px-3 py-4 whitespace-nowrap w-40">
+                        <!-- Email Contacto Pagador (solo visible para super_admin) -->
+                        <td v-if="isAdmin" class="px-3 py-4 whitespace-nowrap w-40">
                             <div class="text-sm text-gray-900">
                                 {{ item.payer_email || 'N/A' }}
                             </div>
@@ -188,6 +188,16 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+
+// Verificar si el usuario es super_admin
+const page = usePage();
+const isAdmin = computed(() => {
+    const roles = page.props.auth?.user?.roles || [];
+    return roles.includes('super_admin');
+});
+
 const props = defineProps({
     items: {
         type: Object,

@@ -17,6 +17,14 @@ class ExecutivesReportsController extends Controller
         private ExecutivesExportService $exportService
     ) {}
 
+    /**
+     * Vista index de reportes de apoderados
+     */
+    public function index()
+    {
+        return Inertia::render('Admin/Reports/ExecutivesIndex');
+    }
+
     public function consolidated(Request $request)
     {
         $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'page']);

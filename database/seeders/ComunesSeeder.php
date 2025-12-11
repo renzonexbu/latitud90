@@ -1743,7 +1743,7 @@ class ComunesSeeder extends Seeder
             ],
             [
                 'id' => 248,
-                'name' => 'FruVllar',
+                'name' => 'Frutillar',
                 'region_id' => 12,
                 'created_at' => '2025-08-07 12:51:55',
                 'updated_at' => '2025-08-07 12:51:55',

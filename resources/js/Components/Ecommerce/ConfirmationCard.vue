@@ -48,6 +48,7 @@
                         <div class="text-white font-nexa text-base md:text-lg font-bold">
                             {{ program.name }}
                         </div>
+                        <!-- Botón "Cambiar programa" oculto temporalmente
                         <button
                             class="bg-[#1C4F4A] rounded-full px-[8px] md:px-[10px] py-1 hover:bg-[#0f3a35] transition-colors duration-300"
                             @click="changeProgram"
@@ -58,6 +59,7 @@
                                 Cambiar programa
                             </div>
                         </button>
+                        -->
                     </div>
                 </div>
             </div>

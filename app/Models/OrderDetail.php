@@ -32,6 +32,8 @@ class OrderDetail extends Model
         'terms_accepted',
         'marketing_accepted',
         'terms_accepted_confirmation',
+        'terms_accepted_at',
+        'terms_condition_id',
         'installment_number',
         'base_amount',
         'discount_amount',
@@ -44,6 +46,19 @@ class OrderDetail extends Model
         'adjustment_reason',
         'transaction_id',
         'gateway_response',
+        // Tracking del comprador
+        'ip_address',
+        'user_agent',
+        'device_type',
+        'browser',
+        'operating_system',
+        'geo_country',
+        'geo_region',
+        'geo_city',
+        'referrer_url',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
     ];
 
     protected $casts = [
@@ -53,6 +68,7 @@ class OrderDetail extends Model
         'due_date' => 'date',
         'paid_at' => 'datetime',
         'adjusted_at' => 'datetime',
+        'terms_accepted_at' => 'datetime',
         'is_paid' => 'boolean',
         'terms_accepted' => 'boolean',
         'marketing_accepted' => 'boolean',
@@ -103,5 +119,10 @@ class OrderDetail extends Model
     public function documentType()
     {
         return $this->belongsTo(Document::class, 'document_type');
+    }
+
+    public function termsCondition()
+    {
+        return $this->belongsTo(TermCondition::class, 'terms_condition_id');
     }
 }
