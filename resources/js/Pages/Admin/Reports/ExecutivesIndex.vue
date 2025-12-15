@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Reportes Apoderados" />
+        <Head title="Reportes Ejecutivo Comercial" />
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
@@ -9,7 +9,7 @@
                     <div class="p-6 text-gray-900">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold">
-                                Reportes Apoderados
+                                Reportes Ejecutivo Comercial
                             </h2>
                             <Link
                                 :href="route('admin.reports.index')"
@@ -23,7 +23,7 @@
                         </div>
 
                         <p class="text-gray-600 mb-6">
-                            Reportes destinados para la gestión de información de apoderados y ejecutivos de venta.
+                            Reportes destinados para ejecutivos comerciales con información de contacto pagador.
                         </p>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -53,11 +53,11 @@
                                     </h3>
                                 </div>
                                 <p class="text-sm text-teal-600">
-                                    Reporte consolidado de ingresos por apoderados con información de contacto pagador.
+                                    Reporte consolidado de ingresos con información de contacto pagador.
                                 </p>
                             </Link>
 
-                            <!-- Estado de Cuenta Parcial (Apoderados) -->
+                            <!-- Estado de Cuenta Parcial -->
                             <Link
                                 :href="route('admin.reports.executives.partial-account')"
                                 class="bg-cyan-50 hover:bg-cyan-100 p-6 rounded-lg border border-cyan-200 transition-colors"
@@ -83,7 +83,7 @@
                                     </h3>
                                 </div>
                                 <p class="text-sm text-cyan-600">
-                                    Estado de cuenta parcial por apoderados con datos de contacto pagador.
+                                    Estado de cuenta parcial con datos de contacto pagador.
                                 </p>
                             </Link>
                         </div>
