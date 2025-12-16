@@ -78,6 +78,13 @@
                 >
                     Cancelado
                 </div>
+                <!-- Subscription Cancelled Badge -->
+                <div
+                    v-else-if="program.subscription_cancelled"
+                    class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+                >
+                    Suscripción Cancelada
+                </div>
                 <!-- Status Badge -->
                 <div
                     v-else-if="showStatusBadge && program.status"
@@ -123,6 +130,13 @@
                     class="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
                 >
                     Cancelado
+                </div>
+                <!-- Subscription Cancelled Badge -->
+                <div
+                    v-else-if="program.subscription_cancelled"
+                    class="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+                >
+                    Suscripción Cancelada
                 </div>
                 <!-- Status Badge -->
                 <div

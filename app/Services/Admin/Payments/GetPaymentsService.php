@@ -222,9 +222,9 @@ class GetPaymentsService
             $buyerData = $subscription?->buyer_data ?? [];
 
             return (object) [
-                'id' => $enrollmentCode,
+                'id' => $installment->id,  // Usar ID de la tabla installments para consistencia
                 'is_installment' => true,
-                'installment_id' => $installment->id,
+                'enrollment_code' => $enrollmentCode,  // Mantener enrollment_code como referencia
                 'installment_number' => $installment->installment_number,
                 'amount' => $installment->amount,
                 'status' => $this->mapInstallmentStatus($installment->status, $installment->is_paid),

@@ -4,6 +4,7 @@ namespace App\Services\Client\Authentication;
 
 use App\Models\GuardianEmergencyContact;
 use App\Models\GuardianUser;
+use App\Models\GuardianUserParticipant;
 use App\Mail\GuardianEmailVerification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,8 +15,11 @@ class RegisterGuardianService
 {
     /**
      * Registrar un nuevo guardian user
+     *
+     * @param array $data Datos del guardian
+     * @param int|null $participantId ID del participante a vincular (opcional)
      */
-    public function register(array $data): array
+    public function register(array $data, ?int $participantId = null): array
     {
         try {
             DB::beginTransaction();
@@ -44,6 +48,20 @@ class RegisterGuardianService
                 'email_verified_at' => null, // Se verifica después por email
             ]);
 
+            // Si viene un participante, crear la vinculacion
+            if ($participantId) {
+                GuardianUserParticipant::create([
+                    'guardian_user_id' => $guardianUser->id,
+                    'participant_id' => $participantId,
+                    'can_pay' => true,
+                ]);
+
+                \Log::info('Guardian vinculado con participante', [
+                    'guardian_user_id' => $guardianUser->id,
+                    'participant_id' => $participantId
+                ]);
+            }
+
             // Generar token de verificación
             $verificationToken = Str::random(64);
 
@@ -67,11 +85,15 @@ class RegisterGuardianService
 
             DB::commit();
 
+            $requiresVerification = config('lat90.guardian.require_email_verification', true);
+
             return [
                 'success' => true,
-                'message' => '¡Registro exitoso! Ya puedes iniciar sesión.',
+                'message' => $requiresVerification
+                    ? '¡Registro exitoso! Revisa tu email para verificar tu cuenta.'
+                    : '¡Registro exitoso! Ya puedes iniciar sesión.',
                 'user' => $guardianUser,
-                'requires_verification' => false
+                'requires_verification' => $requiresVerification
             ];
 
         } catch (\Exception $e) {

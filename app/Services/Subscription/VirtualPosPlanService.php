@@ -291,7 +291,7 @@ class VirtualPosPlanService
         return [
             'id' => $programData['code'] ?? 'PLAN_' . uniqid(), // ID único del plan (sin prefijo PLAN_)
             'name' => $planName,
-            'description' => $programData['trip_description'] ?? 'Programa de viaje educativo Latitud90',
+            'description' => !empty($programData['trip_description']) ? $programData['trip_description'] : 'Programa de viaje educativo Latitud90',
             'is_active' => 'T', // T = activo, F = inactivo
             'amount' => $monthlyAmount, // Monto mensual (Float según docs)
             'currency' => 'CLP',

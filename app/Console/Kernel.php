@@ -30,7 +30,7 @@ class Kernel extends ConsoleKernel
 
         // Sincronizar installments con charge_program de VirtualPos cada 8 horas
         $schedule->command('subscription:sync-installments')
-            ->everyEightHours()
+            ->cron('0 */8 * * *')
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/subscription-installments-sync.log'));

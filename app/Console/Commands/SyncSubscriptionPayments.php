@@ -14,7 +14,8 @@ class SyncSubscriptionPayments extends Command
      */
     protected $signature = 'subscriptions:sync-payments
                             {--subscription= : ID de suscripción específica a sincronizar}
-                            {--all : Sincronizar todas las suscripciones activas}';
+                            {--all : Sincronizar todas las suscripciones activas}
+                            {--queue : Ejecutar en cola en lugar de síncronamente}';
 
     /**
      * The console command description.
@@ -30,6 +31,7 @@ class SyncSubscriptionPayments extends Command
     {
         $subscriptionId = $this->option('subscription');
         $all = $this->option('all');
+        $useQueue = $this->option('queue');
 
         if (!$subscriptionId && !$all) {
             $this->error('Debes especificar --subscription=ID o --all');
@@ -39,19 +41,32 @@ class SyncSubscriptionPayments extends Command
         $this->info('Iniciando sincronización de pagos de suscripciones...');
 
         try {
-            if ($all) {
-                $this->info('Sincronizando todas las suscripciones activas');
-                SyncSubscriptionPaymentsJob::dispatch();
+            if ($useQueue) {
+                // Ejecutar en cola (asíncrono)
+                if ($all) {
+                    $this->info('Despachando job para todas las suscripciones activas...');
+                    SyncSubscriptionPaymentsJob::dispatch();
+                } else {
+                    $this->info("Despachando job para suscripción ID: {$subscriptionId}");
+                    SyncSubscriptionPaymentsJob::dispatch((int) $subscriptionId);
+                }
+                $this->info('Job despachado. Revisa los logs para ver el progreso.');
             } else {
-                $this->info("Sincronizando suscripción ID: {$subscriptionId}");
-                SyncSubscriptionPaymentsJob::dispatch((int) $subscriptionId);
+                // Ejecutar de forma síncrona (inmediato)
+                if ($all) {
+                    $this->info('Sincronizando todas las suscripciones activas...');
+                    SyncSubscriptionPaymentsJob::dispatchSync();
+                } else {
+                    $this->info("Sincronizando suscripción ID: {$subscriptionId}");
+                    SyncSubscriptionPaymentsJob::dispatchSync((int) $subscriptionId);
+                }
+                $this->info('Sincronización completada.');
             }
 
-            $this->info('Job despachado exitosamente. Revisa los logs para ver el progreso.');
             return Command::SUCCESS;
 
         } catch (\Exception $e) {
-            $this->error('Error despachando job: ' . $e->getMessage());
+            $this->error('Error: ' . $e->getMessage());
             return Command::FAILURE;
         }
     }

@@ -103,7 +103,7 @@ Artisan::command('payment-options:update', function () {
     $results = $service->updatePaymentOptions();
 
     $this->info('🔄 Actualizando opciones de pago automáticamente...');
-    $this->info("📊 Programas procesados: {$results['programs_processed']}");
+    $this->info("📊 Program courses procesados: {$results['program_courses_processed']}");
     $this->info("✅ Opciones actualizadas: {$results['options_updated']}");
     $this->info("📈 Cuotas actualizadas: {$results['installments_updated']}");
 

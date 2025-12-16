@@ -57,6 +57,34 @@
               </div>
             </div>
 
+            <!-- Badge de tipo de pago -->
+            <div v-if="program.payment_type && program.payment_type !== 'none'" class="mb-4">
+              <span
+                class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold"
+                :class="getPaymentTypeBadgeClass"
+              >
+                <svg v-if="program.payment_type === 'subscription'" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <svg v-else-if="program.payment_type === 'full_payment'" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <svg v-else class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {{ getPaymentTypeLabel }}
+              </span>
+              <span
+                v-if="program.subscription_cancelled"
+                class="ml-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-800"
+              >
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancelada
+              </span>
+            </div>
+
             <!-- Resumen de pago -->
             <div class="bg-gradient-to-r from-[#1C4F4A] to-[#007E93] rounded-[20px] p-6 text-white">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -93,26 +121,49 @@
       </div>
 
       <!-- Información de suscripción -->
-      <div v-if="program.has_subscription" class="mb-6 bg-blue-50 border border-blue-200 rounded-[20px] p-6">
+      <div
+        v-if="program.has_subscription"
+        class="mb-6 rounded-[20px] p-6 border"
+        :class="isSubscriptionCancelled ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'"
+      >
         <div class="flex items-center mb-3">
-          <svg class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <!-- Icono de check para activa, X para cancelada -->
+          <svg v-if="!isSubscriptionCancelled" class="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <h2 class="text-xl font-bold text-blue-900">Suscripción Activa</h2>
+          <svg v-else class="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h2 class="text-xl font-bold" :class="isSubscriptionCancelled ? 'text-red-900' : 'text-blue-900'">
+            {{ isSubscriptionCancelled ? 'Suscripción Cancelada' : 'Suscripción Activa' }}
+          </h2>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <p class="text-blue-600 font-semibold mb-1">Estado</p>
-            <p class="text-blue-900">{{ program.subscription.status }}</p>
+            <p class="font-semibold mb-1" :class="isSubscriptionCancelled ? 'text-red-600' : 'text-blue-600'">Estado</p>
+            <p :class="isSubscriptionCancelled ? 'text-red-900' : 'text-blue-900'">
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                :class="getSubscriptionStatusClass"
+              >
+                {{ formatSubscriptionStatus(program.subscription.status) }}
+              </span>
+            </p>
           </div>
           <div>
-            <p class="text-blue-600 font-semibold mb-1">Método de Pago</p>
-            <p class="text-blue-900">{{ formatPaymentMethod(program.subscription.payment_method) }}</p>
+            <p class="font-semibold mb-1" :class="isSubscriptionCancelled ? 'text-red-600' : 'text-blue-600'">Método de Pago</p>
+            <p :class="isSubscriptionCancelled ? 'text-red-900' : 'text-blue-900'">{{ formatPaymentMethod(program.subscription.payment_method) }}</p>
           </div>
           <div>
-            <p class="text-blue-600 font-semibold mb-1">Fecha de Creación</p>
-            <p class="text-blue-900">{{ formatDate(program.subscription.created_at) }}</p>
+            <p class="font-semibold mb-1" :class="isSubscriptionCancelled ? 'text-red-600' : 'text-blue-600'">Fecha de Creación</p>
+            <p :class="isSubscriptionCancelled ? 'text-red-900' : 'text-blue-900'">{{ formatDate(program.subscription.created_at) }}</p>
           </div>
+        </div>
+        <!-- Mensaje adicional si está cancelada -->
+        <div v-if="isSubscriptionCancelled" class="mt-4 p-3 bg-red-100 rounded-lg">
+          <p class="text-red-800 text-sm">
+            <strong>Nota:</strong> Esta suscripción ha sido cancelada. Los cobros automáticos ya no se realizarán.
+          </p>
         </div>
       </div>
 
@@ -205,12 +256,89 @@
 
 <script setup>
 import { Head } from '@inertiajs/vue3'
+import { computed } from 'vue'
 import GuardianLayout from '@/Layouts/GuardianLayout.vue'
 
 const props = defineProps({
   participant: Object,
   program: Object
 })
+
+// Verificar si la suscripción está cancelada
+const isSubscriptionCancelled = computed(() => {
+  if (!props.program?.subscription?.status) return false
+  const status = props.program.subscription.status.toLowerCase()
+  return status === 'cancelada' || status === 'cancelled' || status === 'canceled'
+})
+
+// Label para el tipo de pago
+const getPaymentTypeLabel = computed(() => {
+  const type = props.program?.payment_type
+  if (type === 'subscription') {
+    return props.program?.subscription_cancelled ? 'Suscripción' : 'Suscripción Activa'
+  }
+  if (type === 'full_payment') {
+    return 'Pago Completo'
+  }
+  if (type === 'installments') {
+    return 'Plan de Cuotas'
+  }
+  return 'Sin pago'
+})
+
+// Clases CSS para el badge de tipo de pago
+const getPaymentTypeBadgeClass = computed(() => {
+  const type = props.program?.payment_type
+  if (type === 'subscription') {
+    return props.program?.subscription_cancelled
+      ? 'bg-red-100 text-red-800'
+      : 'bg-blue-100 text-blue-800'
+  }
+  if (type === 'full_payment') {
+    return 'bg-green-100 text-green-800'
+  }
+  if (type === 'installments') {
+    return 'bg-purple-100 text-purple-800'
+  }
+  return 'bg-gray-100 text-gray-800'
+})
+
+// Clases CSS para el badge de estado
+const getSubscriptionStatusClass = computed(() => {
+  if (!props.program?.subscription?.status) return 'bg-gray-100 text-gray-800'
+  const status = props.program.subscription.status.toLowerCase()
+
+  if (status === 'activa' || status === 'active') {
+    return 'bg-green-100 text-green-800'
+  }
+  if (status === 'cancelada' || status === 'cancelled' || status === 'canceled') {
+    return 'bg-red-100 text-red-800'
+  }
+  if (status === 'pendiente' || status === 'pending') {
+    return 'bg-yellow-100 text-yellow-800'
+  }
+  if (status === 'suspendida' || status === 'suspended') {
+    return 'bg-orange-100 text-orange-800'
+  }
+  return 'bg-gray-100 text-gray-800'
+})
+
+// Formatear estado de suscripción para mostrar
+const formatSubscriptionStatus = (status) => {
+  if (!status) return 'Desconocido'
+  const statusMap = {
+    'activa': 'Activa',
+    'active': 'Activa',
+    'cancelada': 'Cancelada',
+    'cancelled': 'Cancelada',
+    'canceled': 'Cancelada',
+    'pendiente': 'Pendiente',
+    'pending': 'Pendiente',
+    'suspendida': 'Suspendida',
+    'suspended': 'Suspendida'
+  }
+  return statusMap[status.toLowerCase()] || status
+}
 
 const formatPrice = (price) => {
   if (!price && price !== 0) return 'N/A'

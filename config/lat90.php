@@ -61,6 +61,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Configuración de Guardian (Apoderados)
+    |--------------------------------------------------------------------------
+    |
+    | require_email_verification: Controla si los apoderados deben verificar
+    | su email antes de poder usar su cuenta
+    |   - true  = El apoderado debe verificar su email para iniciar sesión
+    |   - false = El apoderado puede usar su cuenta sin verificar el email
+    |
+    */
+    'guardian' => [
+        'require_email_verification' => env('GUARDIAN_REQUIRE_EMAIL_VERIFICATION', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Configuración de Pagos
     |--------------------------------------------------------------------------
     |
@@ -71,5 +86,19 @@ return [
     */
     'payment' => [
         'use_virtualpos' => env('USE_VIRTUALPOS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configuración de Suscripciones VirtualPos
+    |--------------------------------------------------------------------------
+    |
+    | subscription_env: Controla el ambiente de las suscripciones
+    |   - 'sandbox'    = Ambiente de pruebas (sin transacciones reales)
+    |   - 'production' = Ambiente de producción (transacciones reales)
+    |
+    */
+    'subscriptions' => [
+        'env' => env('VIRTUALPOS_SUBSCRIPTION_ENV', 'sandbox'),
     ],
 ];

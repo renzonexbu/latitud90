@@ -50,6 +50,7 @@ class RolesAndPermissionsSeeder extends Seeder
             
             'ver_reportes',
             'exportar_reportes',
+            'ver_contacto_pagador', // Permiso para ver información sensible del contacto pagador
             
             'ver_cursos',
             'editar_cursos',
@@ -78,14 +79,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // Asignar permisos al Super Admin (acceso total)
         $superAdmin->givePermissionTo(Permission::all());
 
-        // Permisos para Admin de Contabilidad (control total sobre su grupo)
+        // Permisos para Admin de Contabilidad (control total sobre su grupo + contacto pagador)
         $adminContabilidad->givePermissionTo([
             'ver', 'editar', 'eliminar', 'crear',
             'crear_usuarios', 'editar_usuarios', 'eliminar_usuarios', 'ver_usuarios',
             'ver_programas', 'editar_programas', 'eliminar_programas', 'crear_programas',
             'ver_participantes', 'editar_participantes', 'eliminar_participantes', 'crear_participantes',
             'ver_pagos', 'editar_pagos', 'crear_pagos', 'eliminar_pagos',
-            'ver_reportes', 'exportar_reportes',
+            'ver_reportes', 'exportar_reportes', 'ver_contacto_pagador',
             'ver_cursos', 'editar_cursos', 'eliminar_cursos', 'crear_cursos',
             'ver_instituciones', 'editar_instituciones', 'eliminar_instituciones', 'crear_instituciones'
         ]);

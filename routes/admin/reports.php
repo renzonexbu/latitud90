@@ -61,21 +61,30 @@ Route::get('/reports/download-all-bsale-documents/{participantId}/{programId}', 
 // Reporte de aceptación de términos y condiciones
 Route::get('/reports/terms-acceptance', [ReportController::class, 'termsAcceptance'])->name('reports.terms-acceptance');
 Route::get('/reports/export/terms-acceptance', [ReportController::class, 'exportTermsAcceptance'])->name('reports.export.terms-acceptance');
+Route::get('/reports/download/terms-acceptance-pdf/{orderDetailId}', [ReportController::class, 'downloadTermsAcceptancePdf'])->name('reports.download.terms-acceptance-pdf');
+Route::get('/reports/download/terms-acceptance-pdfs-zip', [ReportController::class, 'downloadTermsAcceptancePdfsZip'])->name('reports.download.terms-acceptance-pdfs-zip');
 
 // Reporte de cuotas pagadas
 Route::get('/reports/paid-installments', [ReportController::class, 'paidInstallments'])->name('reports.paid-installments');
 Route::get('/reports/export/paid-installments', [ReportController::class, 'exportPaidInstallments'])->name('reports.export.paid-installments');
 
+// Reporte simple para TI (Número de Negocio y Monto Recaudado)
+Route::get('/reports/it-simple', [ReportController::class, 'itSimpleReport'])->name('reports.it-simple');
+Route::get('/reports/export/it-simple', [ReportController::class, 'exportItSimpleReport'])->name('reports.export.it-simple');
+
 // Ejecutivos/Apoderados: Consolidado de Área Ingresos y Estado de Cuenta Parcial
+// Estos reportes contienen información sensible del contacto pagador y requieren permiso especial
 use App\Http\Controllers\Admin\ExecutivesReportsController;
-Route::prefix('/reports/executives')->name('reports.executives.')->group(function () {
-    // Vista index de reportes de apoderados
-    Route::get('/', [ExecutivesReportsController::class, 'index'])->name('index');
+Route::prefix('/reports/executives')->name('reports.executives.')
+    ->middleware('permission:ver_contacto_pagador')
+    ->group(function () {
+        // Vista index de reportes de apoderados
+        Route::get('/', [ExecutivesReportsController::class, 'index'])->name('index');
 
-    Route::get('/consolidated', [ExecutivesReportsController::class, 'consolidated'])->name('consolidated');
-    Route::get('/partial-account', [ExecutivesReportsController::class, 'partialAccount'])->name('partial-account');
+        Route::get('/consolidated', [ExecutivesReportsController::class, 'consolidated'])->name('consolidated');
+        Route::get('/partial-account', [ExecutivesReportsController::class, 'partialAccount'])->name('partial-account');
 
-    // Exportaciones
-    Route::get('/export/consolidated', [ExecutivesReportsController::class, 'exportConsolidated'])->name('export.consolidated');
-    Route::get('/export/partial-account', [ExecutivesReportsController::class, 'exportPartialAccount'])->name('export.partial-account');
-});
+        // Exportaciones
+        Route::get('/export/consolidated', [ExecutivesReportsController::class, 'exportConsolidated'])->name('export.consolidated');
+        Route::get('/export/partial-account', [ExecutivesReportsController::class, 'exportPartialAccount'])->name('export.partial-account');
+    });

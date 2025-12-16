@@ -44,20 +44,9 @@
                 <h3 class="text-lg font-bold text-[#1C4F4A] mb-1">
                   {{ link.emergency_contact.participant.name }}
                 </h3>
-                <p class="text-sm text-gray-600 mb-3">
+                <p class="text-sm text-gray-600">
                   RUT: {{ link.emergency_contact.participant.document }}
                 </p>
-                <div class="flex flex-wrap gap-2">
-                  <span v-if="link.is_primary" class="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold rounded-full">
-                    Apoderado Principal
-                  </span>
-                  <span v-if="link.can_pay" class="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-full">
-                    Puede pagar
-                  </span>
-                  <span v-if="link.can_view_documents" class="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-bold rounded-full">
-                    Ver documentos
-                  </span>
-                </div>
               </div>
               <div class="ml-6">
                 <Link

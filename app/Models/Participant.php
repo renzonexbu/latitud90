@@ -55,6 +55,21 @@ class Participant extends Model
         return $this->hasMany(EmergencyContact::class);
     }
 
+    /**
+     * Relacion con guardian users (apoderados)
+     */
+    public function guardianUsers()
+    {
+        return $this->belongsToMany(
+            GuardianUser::class,
+            'guardian_user_participant',
+            'participant_id',
+            'guardian_user_id'
+        )
+        ->withPivot(['can_pay'])
+        ->withTimestamps();
+    }
+
     public function medicalConditions()
     {
         return $this->hasMany(MedicalCondition::class);

@@ -45,18 +45,6 @@
                 </div>
               </div>
 
-              <!-- Badges de permisos -->
-              <div class="flex flex-wrap gap-2">
-                <span v-if="participant.is_primary" class="px-3 py-1 bg-white/20 backdrop-blur text-white text-xs font-bold rounded-full border border-white/30">
-                  Apoderado Principal
-                </span>
-                <span v-if="participant.can_pay" class="px-3 py-1 bg-white/20 backdrop-blur text-white text-xs font-bold rounded-full border border-white/30">
-                  Puede Pagar
-                </span>
-                <span v-if="participant.can_view_documents" class="px-3 py-1 bg-white/20 backdrop-blur text-white text-xs font-bold rounded-full border border-white/30">
-                  Ver Documentos
-                </span>
-              </div>
             </div>
           </div>
 

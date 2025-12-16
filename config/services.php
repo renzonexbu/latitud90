@@ -68,9 +68,16 @@ return [
 
     'virtualpos' => [
         // Configuración para Subscriptions API v3 (módulo independiente)
-        'api_url' => env('VIRTUALPOS_API_URL', 'https://api.virtualpos.cl/v3'),
-        'api_key' => env('VIRTUALPOS_API_KEY'),
-        'secret_key' => env('VIRTUALPOS_SECRET_KEY'),
+        // El ambiente se controla con VIRTUALPOS_SUBSCRIPTION_ENV en .env (sandbox/production)
+        'api_url' => env('VIRTUALPOS_SUBSCRIPTION_ENV', 'sandbox') === 'production'
+            ? 'https://api.virtualpos.cl/v3'
+            : 'https://api.virtualpos-sandbox.com/v3',
+        'api_key' => env('VIRTUALPOS_SUBSCRIPTION_ENV', 'sandbox') === 'production'
+            ? env('VIRTUALPOS_PROD_API_KEY')
+            : env('VIRTUALPOS_SANDBOX_API_KEY'),
+        'secret_key' => env('VIRTUALPOS_SUBSCRIPTION_ENV', 'sandbox') === 'production'
+            ? env('VIRTUALPOS_PROD_SECRET_KEY')
+            : env('VIRTUALPOS_SANDBOX_SECRET_KEY'),
         'merchant_code' => env('VIRTUALPOS_MERCHANT_CODE'),
 
         // Configuración existente de cuotas (legacy)

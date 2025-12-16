@@ -85,6 +85,7 @@ class Installment extends Model
 
         $this->update([
             'status' => 'paid',
+            'is_paid' => true,
             'paid_at' => now(),
             'payment_order_id' => $orderId,
             'payment_order_detail_id' => $orderDetailId,

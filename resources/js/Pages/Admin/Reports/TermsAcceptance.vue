@@ -22,6 +22,24 @@
                             Volver
                         </button>
 
+                        <!-- Botón Descargar PDFs seleccionados -->
+                        <button
+                            v-if="selectedIds.length > 0"
+                            @click="downloadSelectedPdfs"
+                            :disabled="isDownloadingMultiple"
+                            class="h-[46px] px-6 bg-[#007e93] hover:bg-[#006577] text-white rounded-[50px] border-none font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <svg v-if="!isDownloadingMultiple" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v6m0 0l-3-3m3 3l3-3"></path>
+                            </svg>
+                            <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {{ isDownloadingMultiple ? 'Descargando...' : `Descargar PDFs (${selectedIds.length})` }}
+                        </button>
+
                         <!-- Botón Exportar -->
                         <button
                             @click="exportToExcel"
@@ -116,7 +134,17 @@
                         <!-- Table Container -->
                         <div class="flex flex-col gap-0 overflow-x-auto">
                             <!-- Table Header -->
-                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1200px] h-[61.51px]">
+                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1350px] h-[61.51px]">
+                                <!-- Checkbox Seleccionar Todos -->
+                                <div class="flex items-center justify-center w-[50px]">
+                                    <input
+                                        type="checkbox"
+                                        ref="selectAllCheckbox"
+                                        :checked="isAllSelected"
+                                        @change="toggleSelectAll"
+                                        class="w-4 h-4 text-[#1c4f4a] bg-white border-gray-300 rounded focus:ring-[#1c4f4a] focus:ring-2 cursor-pointer"
+                                    >
+                                </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
                                     Nombre
                                 </div>
@@ -141,18 +169,32 @@
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
                                     Programa
                                 </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Acciones
+                                </div>
                             </div>
 
                             <!-- Table Body -->
-                            <div class="flex flex-col min-w-[1200px]">
+                            <div class="flex flex-col min-w-[1350px]">
                                 <div
                                     v-for="(record, index) in termsAcceptanceData.data"
                                     :key="record.id"
                                     :class="[
                                         'px-5 py-[14px] flex items-center justify-between',
                                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
+                                        selectedIds.includes(record.id) ? 'bg-[#e8f4f6]' : '',
                                     ]"
                                 >
+                                    <!-- Checkbox -->
+                                    <div class="flex items-center justify-center w-[50px]">
+                                        <input
+                                            type="checkbox"
+                                            :value="record.id"
+                                            v-model="selectedIds"
+                                            class="w-4 h-4 text-[#1c4f4a] bg-white border-gray-300 rounded focus:ring-[#1c4f4a] focus:ring-2 cursor-pointer"
+                                        >
+                                    </div>
+
                                     <!-- Nombre -->
                                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
                                         {{ toCapitalCase(record.name) }}
@@ -191,6 +233,26 @@
                                     <!-- Programa -->
                                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
                                         <div class="truncate" :title="`${record.program_code} - ${record.program_name}`">{{ record.program_code }} - {{ record.program_name }}</div>
+                                    </div>
+
+                                    <!-- Acciones -->
+                                    <div class="flex items-center justify-center w-[100px] gap-2">
+                                        <!-- Botón descargar PDF -->
+                                        <button
+                                            @click="downloadPdf(record.id)"
+                                            :disabled="downloadingPdfId === record.id"
+                                            class="p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50"
+                                            title="Descargar evidencia PDF"
+                                        >
+                                            <svg v-if="downloadingPdfId !== record.id" class="w-5 h-5 text-[#1c4f4a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11v6m0 0l-3-3m3 3l3-3"></path>
+                                            </svg>
+                                            <svg v-else class="w-5 h-5 text-[#1c4f4a] animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -240,7 +302,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ReportsHeader from '@/Components/Reports/ReportsHeader.vue'
@@ -261,7 +323,32 @@ const filters = reactive({
 })
 
 const isExporting = ref(false)
+const downloadingPdfId = ref(null)
+const selectedIds = ref([])
+const isDownloadingMultiple = ref(false)
+const selectAllCheckbox = ref(null)
 let searchTimeout = null
+
+// Computed properties for selection
+const isAllSelected = computed(() => {
+    if (!props.termsAcceptanceData?.data?.length) return false
+    return props.termsAcceptanceData.data.every(record => selectedIds.value.includes(record.id))
+})
+
+const isIndeterminate = computed(() => {
+    if (!props.termsAcceptanceData?.data?.length) return false
+    const selectedCount = props.termsAcceptanceData.data.filter(record => selectedIds.value.includes(record.id)).length
+    return selectedCount > 0 && selectedCount < props.termsAcceptanceData.data.length
+})
+
+// Watcher para manejar el estado indeterminate del checkbox
+watch(isIndeterminate, (newValue) => {
+    nextTick(() => {
+        if (selectAllCheckbox.value) {
+            selectAllCheckbox.value.indeterminate = newValue
+        }
+    })
+}, { immediate: true })
 
 // Methods
 const formatDocument = (documentNumber, documentType) => {
@@ -357,6 +444,54 @@ const exportToExcel = () => {
     setTimeout(() => {
         isExporting.value = false
     }, 1000)
+}
+
+const downloadPdf = (orderDetailId) => {
+    downloadingPdfId.value = orderDetailId
+
+    const url = route('admin.reports.download.terms-acceptance-pdf', { orderDetailId })
+    window.open(url, '_blank')
+
+    setTimeout(() => {
+        downloadingPdfId.value = null
+    }, 1000)
+}
+
+const toggleSelectAll = () => {
+    if (isAllSelected.value) {
+        // Deseleccionar todos los de la página actual
+        const currentPageIds = props.termsAcceptanceData.data.map(record => record.id)
+        selectedIds.value = selectedIds.value.filter(id => !currentPageIds.includes(id))
+    } else {
+        // Seleccionar todos los de la página actual
+        const currentPageIds = props.termsAcceptanceData.data.map(record => record.id)
+        const newIds = currentPageIds.filter(id => !selectedIds.value.includes(id))
+        selectedIds.value = [...selectedIds.value, ...newIds]
+    }
+}
+
+const downloadSelectedPdfs = async () => {
+    if (selectedIds.value.length === 0) return
+
+    isDownloadingMultiple.value = true
+
+    try {
+        // Construir URL con los IDs seleccionados
+        const params = new URLSearchParams()
+        selectedIds.value.forEach(id => params.append('ids[]', id))
+
+        const url = route('admin.reports.download.terms-acceptance-pdfs-zip') + '?' + params.toString()
+        window.open(url, '_blank')
+
+        // Limpiar selección después de descargar
+        setTimeout(() => {
+            selectedIds.value = []
+            isDownloadingMultiple.value = false
+        }, 2000)
+    } catch (error) {
+        console.error('Error al descargar PDFs:', error)
+        isDownloadingMultiple.value = false
+    }
 }
 </script>
 

@@ -41,6 +41,27 @@ class EnsureGuardianAuthenticated
                 ->with('message', 'Para usar el método de pago mensual, necesitas registrarte como apoderado.');
         }
 
+        // Verificar si se requiere verificación de email (configurable)
+        if (config('lat90.guardian.require_email_verification', true)) {
+            $guardian = auth('guardian')->user();
+
+            if (!$guardian->email_verified_at) {
+                // Si es una petición AJAX, retornar JSON
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Debes verificar tu email antes de continuar. Revisa tu bandeja de entrada.',
+                        'requires_verification' => true,
+                        'redirect' => route('guardian.verification.notice')
+                    ], 403);
+                }
+
+                // Redirigir a la página de verificación pendiente
+                return redirect()->route('guardian.verification.notice')
+                    ->with('message', 'Debes verificar tu email antes de continuar. Revisa tu bandeja de entrada.');
+            }
+        }
+
         return $next($request);
     }
 }

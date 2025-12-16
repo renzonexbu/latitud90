@@ -11,7 +11,9 @@
                             <h2 class="text-2xl font-bold">
                                 Reportes
                             </h2>
+                            <!-- Solo visible para usuarios con permiso ver_contacto_pagador -->
                             <Link
+                                v-if="canViewPayerContact"
                                 :href="route('admin.reports.executives.index')"
                                 class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
                             >
@@ -298,6 +300,40 @@
                                 </div>
                                 <p class="text-sm text-emerald-600">
                                     Registro de cuotas de suscripción pagadas
+                                </p>
+                            </Link>
+
+                            <!-- Reporte TI Simple -->
+                            <Link
+                                :href="route('admin.reports.it-simple')"
+                                class="bg-slate-50 hover:bg-slate-100 p-6 rounded-lg border border-slate-200 transition-colors"
+                            >
+                                <div class="flex items-center mb-3">
+                                    <div
+                                        class="p-2 bg-slate-100 rounded-lg mr-3"
+                                    >
+                                        <svg
+                                            class="w-6 h-6 text-slate-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                            ></path>
+                                        </svg>
+                                    </div>
+                                    <h3
+                                        class="text-lg font-semibold text-slate-800"
+                                    >
+                                        Reporte TI
+                                    </h3>
+                                </div>
+                                <p class="text-sm text-slate-600">
+                                    Nro. Negocio y Monto Recaudado (simple)
                                 </p>
                             </Link>
                         </div>
@@ -1190,9 +1226,16 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed, nextTick, watch } from "vue";
-import { Head, router, Link } from "@inertiajs/vue3";
+import { Head, router, Link, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Chart, registerables } from "chart.js";
+
+// Obtener permisos del usuario
+const page = usePage();
+const canViewPayerContact = computed(() => {
+    const permissions = page.props.auth?.user?.permissions || [];
+    return permissions.includes('ver_contacto_pagador');
+});
 
 Chart.register(...registerables);
 

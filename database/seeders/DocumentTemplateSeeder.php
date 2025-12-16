@@ -255,5 +255,134 @@ HTML;
             'version' => 1,
             'notes' => 'Plantilla inicial del comprobante de pago',
         ]);
+
+        // Plantilla de Evidencia de Aceptación de Términos y Condiciones
+        $termsAcceptanceContent = <<<'HTML'
+<div class="header-inner" style="margin-bottom: 25px;">
+    <div class="header-left">
+        <img class="logo-lat90" src="data:image/png;base64,{{logo_base64}}" alt="Lat90" />
+    </div>
+    <div class="header-right">
+        <img class="page-divider" src="data:image/png;base64,{{divider_base64}}" alt="divider" style="display:block; margin:-60px 0 6px auto;" />
+        <div class="company-data">
+            {{empresa_direccion}}<br />
+            {{empresa_region}}<br />
+            {{empresa_telefono}}<br />
+            {{empresa_sitio}}
+        </div>
+    </div>
+</div>
+
+<div style="margin-bottom: 20px;">
+    <p style="font-family: 'Calibri', sans-serif; font-size: 14px; font-weight: bold; color: #0f6c7a; margin: 0;">
+        Evidencia de Aceptación de Términos y Condiciones
+    </p>
+</div>
+
+<div class="section">
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; font-weight: bold; color: #222; margin: 0 0 5px 0;">
+        Identificación del Usuario
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Nombre:</strong> {{usuario_nombre}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>{{documento_tipo}}:</strong> {{documento_numero}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Correo electrónico:</strong> {{usuario_email}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Usuario del sistema:</strong> {{usuario_email}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Programa:</strong> {{programa}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Método de autenticación:</strong> Inicio de sesión mediante usuario y contraseña
+    </p>
+</div>
+
+<div class="section" style="margin-top: 15px;">
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; font-weight: bold; color: #222; margin: 0 0 5px 0;">
+        Descripción del Proceso de Aceptación
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; text-align: justify; margin: 2px 0; padding-left: 15px;">
+        El sistema implementado para la aceptación de los Términos y Condiciones requiere la manifestación expresa e inequívoca del usuario.
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; text-align: justify; margin: 2px 0; padding-left: 15px;">
+        Antes de iniciar el proceso de introducción de datos de pago, el usuario debe marcar un checkbox indicando que ha leído y acepta los Términos y Condiciones vigentes.
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; text-align: justify; margin: 2px 0; padding-left: 15px;">
+        El sistema no permite continuar con el flujo de contratación si el checkbox no ha sido marcado. Este mecanismo constituye una acción afirmativa verificable y registrada en el sistema.
+    </p>
+</div>
+
+<div class="section" style="margin-top: 15px;">
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; font-weight: bold; color: #222; margin: 0 0 5px 0;">
+        Registro del Evento de Aceptación (Log)
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Evento:</strong> Aceptación de Términos y Condiciones
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>ID de evento:</strong> {{evento_id}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Usuario:</strong> {{usuario_email}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Nombre asociado:</strong> {{usuario_nombre}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Correo asociado:</strong> {{usuario_email}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Fecha y hora:</strong> {{fecha_aceptacion}} (UTC-3)
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Dirección IP:</strong> {{ip_address}}
+    </p>
+    <p style="font-family: 'Calibri', sans-serif; font-size: 11px; color: #222; margin: 2px 0; padding-left: 15px;">
+        <strong>Versión de Términos y Condiciones aceptada:</strong> {{tc_version}}
+    </p>
+</div>
+
+<div class="section" style="margin-top: 20px;">
+    <p style="font-family: 'Calibri', sans-serif; font-size: 10px; color: #555; text-align: justify;">
+        El sistema registra automáticamente el evento de aceptación en la bitácora interna (log), asociándolo al usuario autenticado, su IP, la fecha exacta y la versión del documento aceptado. Estos registros son generados de forma automática y quedan almacenados en un entorno seguro, garantizando su integridad y trazabilidad.
+    </p>
+</div>
+HTML;
+
+        // Variables disponibles para evidencia de aceptación T&C
+        $termsAcceptanceVariables = [
+            'logo_base64' => 'Logo de la empresa en base64',
+            'divider_base64' => 'Divisor en base64',
+            'empresa_direccion' => 'Dirección de la empresa',
+            'empresa_region' => 'Región',
+            'empresa_telefono' => 'Teléfono',
+            'empresa_sitio' => 'Sitio web',
+            'usuario_nombre' => 'Nombre del usuario que aceptó',
+            'documento_tipo' => 'Tipo de documento (RUT, Pasaporte, etc.)',
+            'documento_numero' => 'Número de documento formateado',
+            'usuario_email' => 'Correo electrónico del usuario',
+            'programa' => 'Código y nombre del programa',
+            'evento_id' => 'ID del evento de aceptación',
+            'fecha_aceptacion' => 'Fecha y hora de aceptación',
+            'ip_address' => 'Dirección IP desde donde se aceptó',
+            'tc_version' => 'Versión de los T&C aceptados',
+        ];
+
+        // Crear plantilla de evidencia de aceptación T&C
+        DocumentTemplate::create([
+            'type' => DocumentTemplate::TYPE_TERMS_ACCEPTANCE_EVIDENCE,
+            'name' => 'Evidencia de Aceptación de Términos y Condiciones',
+            'content' => $termsAcceptanceContent,
+            'variables' => $termsAcceptanceVariables,
+            'is_active' => true,
+            'version' => 1,
+            'notes' => 'Plantilla inicial de evidencia de aceptación de T&C',
+        ]);
     }
 }

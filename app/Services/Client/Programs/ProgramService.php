@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Models\InstallmentPlan;
 use App\Models\Order;
+use App\Models\ProgramSubscription;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
@@ -204,6 +205,16 @@ class ProgramService
                     $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
                 }
 
+                // Verificar si existe una suscripción cancelada para este participante y programa
+                $subscription = ProgramSubscription::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->first();
+
+                $subscriptionCancelled = $subscription && in_array(
+                    strtolower($subscription->status),
+                    ['cancelada', 'cancelled', 'canceled']
+                );
+
                 $availablePrograms[] = [
                     'id' => $programCourse->id, // ID del program_course específico
                     'name' => $programCourse->name, // Nombre del plan específico
@@ -239,7 +250,9 @@ class ProgramService
                     'installments_summary' => $installmentsSummary,
                     'status' => 'enrolled',
                     'enrollment_date' => $pivot?->created_at ?? null,
-                    'enrollment_code' => $enrollmentCode
+                    'enrollment_code' => $enrollmentCode,
+                    'subscription_cancelled' => $subscriptionCancelled,
+                    'has_subscription' => $subscription !== null,
                 ];
             }
         }

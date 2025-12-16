@@ -67,6 +67,13 @@ Route::prefix('guardian')->name('guardian.')->group(function () {
     // Rutas para usuarios autenticados
     Route::middleware('auth:guardian')->group(function () {
 
+        // Página de verificación de email pendiente
+        Route::get('/verification-required', [GuardianAuthController::class, 'showVerificationNotice'])
+            ->name('verification.notice');
+
+        Route::post('/verification-resend', [GuardianAuthController::class, 'resendVerificationAuthenticated'])
+            ->name('verification.resend');
+
         // Logout
         Route::post('/logout', [GuardianAuthController::class, 'logout'])
             ->name('logout');

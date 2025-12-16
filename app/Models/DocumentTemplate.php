@@ -35,6 +35,7 @@ class DocumentTemplate extends Model
      */
     public const TYPE_CONTRACT = 'contract';
     public const TYPE_PAYMENT_RECEIPT = 'payment_receipt';
+    public const TYPE_TERMS_ACCEPTANCE_EVIDENCE = 'terms_acceptance_evidence';
 
     /**
      * Obtener la plantilla activa por tipo

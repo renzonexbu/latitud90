@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Comune;
 use App\Models\Country;
 use App\Models\Document;
+use App\Models\Participant;
 use App\Models\Region;
 use App\Services\Client\Authentication\LoginGuardianService;
 use App\Services\Client\Authentication\PasswordResetService;
@@ -109,40 +110,22 @@ class GuardianAuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
-        // VALIDACIÓN OBLIGATORIA: El email debe estar registrado como contacto de emergencia de algún participante
+        // Buscar participante desde el token en sesion
+        $participantId = null;
+        $participantRut = null;
         $pendingSubscription = session('pending_subscription');
-        $emailValidated = false;
 
         if ($pendingSubscription && isset($pendingSubscription['token'])) {
-            $token = $pendingSubscription['token'];
-            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($token);
+            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($pendingSubscription['token']);
+            if ($tokenData && isset($tokenData['document'])) {
+                $participantRut = $tokenData['document'];
 
-            if ($tokenData) {
-                // Buscar el participante usando el mismo patrón que ProgramService
-                $participant = \App\Models\Participant::join('document', 'participants.document_type', '=', 'document.id')
-                    ->where('participants.document_number', $tokenData['document'])
-                    ->where('document.name', $tokenData['document_type'])
-                    ->select('participants.*')
-                    ->first();
-
+                // Buscar el participante por documento
+                $participant = Participant::where('document_number', $tokenData['document'])->first();
                 if ($participant) {
-                    // Verificar si el email está en emergency_contact del participante
-                    $emergencyContact = \App\Models\EmergencyContact::where('participant_id', $participant->id)
-                        ->where('email', $request->email)
-                        ->first();
-
-                    if ($emergencyContact) {
-                        $emailValidated = true;
-                    }
+                    $participantId = $participant->id;
                 }
             }
-        }
-
-        // Si no se validó el email, rechazar el registro
-        if (!$emailValidated) {
-            return back()
-                ->withErrors(['email' => 'Este email no está registrado como apoderado del participante. Por favor, verifica que hayas usado el email correcto o contacta al administrador.'])
-                ->withInput();
         }
 
         $result = $this->registerService->register($request->only([
@@ -156,7 +139,7 @@ class GuardianAuthController extends Controller
             'region_id',
             'comune_id',
             'password'
-        ]));
+        ]), $participantId);
 
         if (!$result['success']) {
             return back()
@@ -165,10 +148,6 @@ class GuardianAuthController extends Controller
         }
 
         // Registrar tracking de registro de guardian
-        $participantRut = null;
-        if (isset($tokenData) && isset($tokenData['document'])) {
-            $participantRut = $tokenData['document'];
-        }
         $this->analyticsService->recordGuardianRegister($request, $request->email, $participantRut);
 
         return redirect()
@@ -333,61 +312,6 @@ class GuardianAuthController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
-        // NUEVA VALIDACIÓN: Verificar si el email está asociado al participante del token
-        $pendingSubscription = session('pending_subscription');
-
-        Log::info('=== INICIO VALIDACIÓN GUARDIAN ===');
-        Log::info('Pending subscription:', ['data' => $pendingSubscription]);
-        Log::info('Email del login:', ['email' => $request->email]);
-
-        if ($pendingSubscription && isset($pendingSubscription['token'])) {
-            $token = $pendingSubscription['token'];
-            Log::info('Token encontrado:', ['token' => $token]);
-
-            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($token);
-            Log::info('Token decodificado:', ['tokenData' => $tokenData]);
-
-            if ($tokenData) {
-                // Buscar el participante usando el mismo patrón que ProgramService
-                $participant = \App\Models\Participant::join('document', 'participants.document_type', '=', 'document.id')
-                    ->where('participants.document_number', $tokenData['document'])
-                    ->where('document.name', $tokenData['document_type'])
-                    ->select('participants.*')
-                    ->first();
-
-                Log::info('Participante encontrado:', [
-                    'participant_id' => $participant ? $participant->id : null,
-                    'participant_name' => $participant ? $participant->first_name . ' ' . $participant->first_last_name : null
-                ]);
-
-                if ($participant) {
-                    // Buscar directamente si el email está en emergency_contact del participante
-                    $emergencyContact = \App\Models\EmergencyContact::where('participant_id', $participant->id)
-                        ->where('email', $request->email)
-                        ->first();
-
-                    Log::info('Búsqueda en emergency_contact:', [
-                        'participant_id' => $participant->id,
-                        'email_buscado' => $request->email,
-                        'encontrado' => $emergencyContact ? 'SI' : 'NO',
-                        'emergency_contact_id' => $emergencyContact ? $emergencyContact->id : null,
-                        'emergency_contact_name' => $emergencyContact ? $emergencyContact->name : null
-                    ]);
-
-                    if (!$emergencyContact) {
-                        Log::warning('Acceso denegado - Email no está en emergency_contact del participante');
-                        return back()
-                            ->withErrors(['error' => 'Este email no está registrado como apoderado del participante. Por favor, verifica que hayas usado el email correcto o contacta al administrador.'])
-                            ->withInput();
-                    }
-
-                    Log::info('Validación exitosa - Email encontrado en emergency_contact');
-                }
-            }
-        }
-
-        Log::info('=== FIN VALIDACIÓN GUARDIAN ===');
-
         $result = $this->loginService->login(
             $request->only(['email', 'password']),
             $request->boolean('remember')
@@ -410,13 +334,16 @@ class GuardianAuthController extends Controller
 
         // Registrar tracking de login de guardian
         $participantRut = null;
-        if (isset($tokenData) && isset($tokenData['document'])) {
-            $participantRut = $tokenData['document'];
+        $pendingSubscription = session('pending_subscription');
+        if ($pendingSubscription && isset($pendingSubscription['token'])) {
+            $tokenData = \App\Helpers\TokenHelper::decodeParticipantToken($pendingSubscription['token']);
+            if ($tokenData && isset($tokenData['document'])) {
+                $participantRut = $tokenData['document'];
+            }
         }
         $this->analyticsService->recordGuardianLogin($request, $request->email, $participantRut);
 
         // Verificar si hay un pending_subscription en la sesión para redirigir al programa
-        $pendingSubscription = session('pending_subscription');
 
         if ($pendingSubscription && isset($pendingSubscription['return_url'])) {
             // Limpiar la sesión
@@ -568,6 +495,44 @@ class GuardianAuthController extends Controller
         return redirect()
             ->route('guardian.login')
             ->with('success', $result['message']);
+    }
+
+    /**
+     * Mostrar página de verificación de email pendiente (usuario autenticado)
+     */
+    public function showVerificationNotice()
+    {
+        $user = auth('guardian')->user();
+
+        // Si ya está verificado, redirigir al dashboard
+        if ($user->email_verified_at) {
+            return redirect()->route('guardian.dashboard')
+                ->with('success', 'Tu email ya está verificado.');
+        }
+
+        return Inertia::render('Guardian/VerificationNotice', [
+            'email' => $user->email
+        ]);
+    }
+
+    /**
+     * Reenviar email de verificación (usuario autenticado)
+     */
+    public function resendVerificationAuthenticated(Request $request)
+    {
+        $user = auth('guardian')->user();
+
+        if ($user->email_verified_at) {
+            return back()->with('info', 'Tu email ya está verificado.');
+        }
+
+        $result = $this->registerService->resendVerificationEmail($user->email);
+
+        if (!$result['success']) {
+            return back()->withErrors(['error' => $result['message']]);
+        }
+
+        return back()->with('success', 'Email de verificación reenviado. Revisa tu bandeja de entrada.');
     }
 
     /**

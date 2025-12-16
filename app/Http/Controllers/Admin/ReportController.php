@@ -28,6 +28,7 @@ use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryDataProvide
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryFilters;
 use App\Services\Admin\Reports\PaymentSchedule\PaymentScheduleSummaryTransformer;
 use App\Models\SalesExecutive;
+use App\Models\OrderDetail;
 use App\Services\EcommerceAnalyticsService;
 use App\Services\Admin\Reports\Softland\ExcelExporter as SoftlandExcelExporter;
 use App\Services\Admin\Reports\Softland\AuxiliaresExporter;
@@ -211,15 +212,28 @@ class ReportController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Participantes Sin Pagos');
 
-            // Headers
+            // Verificar si tiene permiso para ver contacto pagador
+            $canViewPayerContact = auth()->user()->hasPermissionTo('ver_contacto_pagador');
+
+            // Headers base
             $headers = [
                 'Participante',
                 'Documento',
                 'Email Participante',
-                'Contacto de Emergencia',
-                'Email Contacto',
-                'Teléfono Contacto',
-                'Relación',
+            ];
+
+            // Agregar columnas de contacto pagador solo si tiene permiso
+            if ($canViewPayerContact) {
+                $headers = array_merge($headers, [
+                    'Contacto Pagador',
+                    'Email Contacto Pagador',
+                    'Teléfono Contacto Pagador',
+                    'Relación',
+                ]);
+            }
+
+            // Agregar resto de columnas
+            $headers = array_merge($headers, [
                 'Fecha Inscripción',
                 'Fecha Final Pago',
                 'Precio Individual',
@@ -228,7 +242,7 @@ class ReportController extends Controller
                 'Programa',
                 'Código Programa',
                 'Ejecutivo Comercial'
-            ];
+            ]);
 
             // Estilo para headers
             $headerStyle = [
@@ -277,18 +291,32 @@ class ReportController extends Controller
                 $sheet->setCellValue('A' . $rowIndex, $fullName);
                 $sheet->setCellValue('B' . $rowIndex, $this->formatRut($participant->document_number ?? ''));
                 $sheet->setCellValue('C' . $rowIndex, $participant->participant_email ?? 'N/A');
-                $sheet->setCellValue('D' . $rowIndex, $participant->emergency_contact_name ?? 'Sin contacto');
-                $sheet->setCellValue('E' . $rowIndex, $participant->emergency_contact_email ?? 'Sin email');
-                $sheet->setCellValue('F' . $rowIndex, $participant->emergency_contact_phone ?? 'N/A');
-                $sheet->setCellValue('G' . $rowIndex, $participant->emergency_contact_relationship ?? 'N/A');
-                $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
-                $sheet->setCellValue('I' . $rowIndex, $finalPaymentDate);
-                $sheet->setCellValue('J' . $rowIndex, (int)($participant->individual_price ?? 0));
-                $sheet->setCellValue('K' . $rowIndex, (int)($participant->discount_amount ?? 0));
-                $sheet->setCellValue('L' . $rowIndex, (int)($participant->final_amount ?? 0));
-                $sheet->setCellValue('M' . $rowIndex, $participant->program_name ?? 'N/A');
-                $sheet->setCellValue('N' . $rowIndex, $participant->program_code ?? 'N/A');
-                $sheet->setCellValue('O' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
+
+                if ($canViewPayerContact) {
+                    // Con columnas de contacto pagador
+                    $sheet->setCellValue('D' . $rowIndex, $participant->emergency_contact_name ?? 'Sin contacto');
+                    $sheet->setCellValue('E' . $rowIndex, $participant->emergency_contact_email ?? 'Sin email');
+                    $sheet->setCellValue('F' . $rowIndex, $participant->emergency_contact_phone ?? 'N/A');
+                    $sheet->setCellValue('G' . $rowIndex, $participant->emergency_contact_relationship ?? 'N/A');
+                    $sheet->setCellValue('H' . $rowIndex, $incorporationDate);
+                    $sheet->setCellValue('I' . $rowIndex, $finalPaymentDate);
+                    $sheet->setCellValue('J' . $rowIndex, (int)($participant->individual_price ?? 0));
+                    $sheet->setCellValue('K' . $rowIndex, (int)($participant->discount_amount ?? 0));
+                    $sheet->setCellValue('L' . $rowIndex, (int)($participant->final_amount ?? 0));
+                    $sheet->setCellValue('M' . $rowIndex, $participant->program_name ?? 'N/A');
+                    $sheet->setCellValue('N' . $rowIndex, $participant->program_code ?? 'N/A');
+                    $sheet->setCellValue('O' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
+                } else {
+                    // Sin columnas de contacto pagador
+                    $sheet->setCellValue('D' . $rowIndex, $incorporationDate);
+                    $sheet->setCellValue('E' . $rowIndex, $finalPaymentDate);
+                    $sheet->setCellValue('F' . $rowIndex, (int)($participant->individual_price ?? 0));
+                    $sheet->setCellValue('G' . $rowIndex, (int)($participant->discount_amount ?? 0));
+                    $sheet->setCellValue('H' . $rowIndex, (int)($participant->final_amount ?? 0));
+                    $sheet->setCellValue('I' . $rowIndex, $participant->program_name ?? 'N/A');
+                    $sheet->setCellValue('J' . $rowIndex, $participant->program_code ?? 'N/A');
+                    $sheet->setCellValue('K' . $rowIndex, $participant->sales_executive_name ?? 'Sin asignar');
+                }
 
                 $rowIndex++;
             }
@@ -1530,6 +1558,107 @@ class ReportController extends Controller
     }
 
     /**
+     * Descargar PDF de evidencia de aceptación de términos y condiciones
+     */
+    public function downloadTermsAcceptancePdf(int $orderDetailId)
+    {
+        try {
+            $orderDetail = OrderDetail::with(['order.programCourse', 'order.participant', 'termsCondition'])
+                ->findOrFail($orderDetailId);
+
+            // Verificar que tenga términos aceptados
+            if (!$orderDetail->terms_accepted || !$orderDetail->terms_accepted_at) {
+                return response()->json([
+                    'error' => 'Este registro no tiene términos y condiciones aceptados'
+                ], 400);
+            }
+
+            $pdfService = new \App\Services\PDF\TermsAcceptanceEvidenceService();
+            return $pdfService->download($orderDetail);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Registro no encontrado'], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al generar PDF de evidencia TyC: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Descargar múltiples PDFs de evidencia de aceptación de términos como ZIP
+     */
+    public function downloadTermsAcceptancePdfsZip(Request $request)
+    {
+        try {
+            $ids = $request->input('ids', []);
+
+            if (empty($ids)) {
+                return response()->json(['error' => 'No se seleccionaron registros'], 400);
+            }
+
+            // Limitar a 50 PDFs por descarga para evitar sobrecarga
+            if (count($ids) > 50) {
+                return response()->json(['error' => 'Máximo 50 PDFs por descarga'], 400);
+            }
+
+            $orderDetails = OrderDetail::with(['order.programCourse', 'order.participant', 'termsCondition'])
+                ->whereIn('id', $ids)
+                ->where('terms_accepted', true)
+                ->whereNotNull('terms_accepted_at')
+                ->get();
+
+            if ($orderDetails->isEmpty()) {
+                return response()->json(['error' => 'No se encontraron registros válidos'], 404);
+            }
+
+            $pdfService = new \App\Services\PDF\TermsAcceptanceEvidenceService();
+            $tempFiles = [];
+            $zipFilename = 'evidencias_tyc_' . date('Y-m-d_His') . '.zip';
+            $zipPath = storage_path('app/temp/' . $zipFilename);
+
+            // Asegurar que el directorio existe
+            if (!file_exists(dirname($zipPath))) {
+                mkdir(dirname($zipPath), 0755, true);
+            }
+
+            // Crear archivo ZIP
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                return response()->json(['error' => 'Error al crear archivo ZIP'], 500);
+            }
+
+            foreach ($orderDetails as $orderDetail) {
+                try {
+                    $pdfPath = $pdfService->generatePdf($orderDetail);
+                    $tempFiles[] = $pdfPath;
+
+                    // Nombre del archivo en el ZIP
+                    $pdfName = 'Evidencia_TyC_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $orderDetail->name) . '_' . $orderDetail->id . '.pdf';
+                    $zip->addFile($pdfPath, $pdfName);
+                } catch (\Exception $e) {
+                    Log::warning('Error generando PDF para order_detail ' . $orderDetail->id . ': ' . $e->getMessage());
+                    continue;
+                }
+            }
+
+            $zip->close();
+
+            // Limpiar archivos temporales de PDFs después de cerrar el ZIP
+            foreach ($tempFiles as $tempFile) {
+                if (file_exists($tempFile)) {
+                    @unlink($tempFile);
+                }
+            }
+
+            // Retornar el ZIP para descarga
+            return response()->download($zipPath, $zipFilename)->deleteFileAfterSend(true);
+
+        } catch (\Exception $e) {
+            Log::error('Error al generar ZIP de evidencias TyC: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al generar ZIP: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Reporte de cuotas pagadas
      */
     public function paidInstallments(Request $request)
@@ -1645,6 +1774,143 @@ class ReportController extends Controller
             return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
         } catch (\Exception $e) {
             Log::error('Error al exportar reporte de cuotas pagadas: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Reporte simple para TI: Numero de Negocio y Monto Recaudado
+     */
+    public function itSimpleReport(Request $request)
+    {
+        $dataProvider = new \App\Services\Admin\Reports\ITSimple\ITSimpleReportDataProvider();
+        $data = $dataProvider->getData($request->all());
+
+        // Paginación
+        $perPage = 20;
+        $currentPage = $request->get('page', 1);
+        $total = $data->count();
+        $items = $data->forPage($currentPage, $perPage)->values();
+
+        $paginatedData = new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+
+        $paginatedData->appends($request->query());
+
+        // Calcular totales
+        $totals = [
+            'total_collected' => $data->sum('total_collected'),
+            'total_installments' => $data->sum('installments_count'),
+            'total_programs' => $data->count(),
+        ];
+
+        return Inertia::render('Admin/Reports/ITSimpleReport', [
+            'reportData' => $paginatedData,
+            'programs' => ProgramCourse::select('id', 'code', 'name')->orderBy('code', 'desc')->get(),
+            'filters' => $request->all(),
+            'totals' => $totals,
+        ]);
+    }
+
+    /**
+     * Exportar reporte simple TI a Excel
+     */
+    public function exportItSimpleReport(Request $request)
+    {
+        try {
+            $filters = $request->only(['program_id', 'date_from', 'date_to']);
+
+            $dataProvider = new \App\Services\Admin\Reports\ITSimple\ITSimpleReportDataProvider();
+            $data = $dataProvider->getData($filters);
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Reporte TI');
+
+            // Headers
+            $headers = [
+                'Número de Negocio',
+                'Monto Recaudado',
+                'Cantidad Cuotas',
+            ];
+
+            // Estilo para headers
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '1c4f4a'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
+            ];
+
+            // Escribir headers
+            foreach ($headers as $index => $header) {
+                $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+                $sheet->setCellValue("{$col}1", $header);
+                $sheet->getStyle("{$col}1")->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Escribir datos
+            $row = 2;
+            foreach ($data as $record) {
+                $sheet->setCellValue("A{$row}", $record['program_code']);
+                $sheet->setCellValue("B{$row}", $record['total_collected']);
+                $sheet->setCellValue("C{$row}", $record['installments_count']);
+
+                // Formatear monto como número
+                $sheet->getStyle("B{$row}")->getNumberFormat()
+                    ->setFormatCode('#,##0');
+
+                $row++;
+            }
+
+            // Agregar fila de totales
+            $totalRow = $row;
+            $sheet->setCellValue("A{$totalRow}", 'TOTAL');
+            $sheet->setCellValue("B{$totalRow}", $data->sum('total_collected'));
+            $sheet->setCellValue("C{$totalRow}", $data->sum('installments_count'));
+
+            // Estilo para totales
+            $totalStyle = [
+                'font' => ['bold' => true],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'E0E0E0'],
+                ],
+            ];
+            $sheet->getStyle("A{$totalRow}:C{$totalRow}")->applyFromArray($totalStyle);
+            $sheet->getStyle("B{$totalRow}")->getNumberFormat()->setFormatCode('#,##0');
+
+            // Preparar respuesta
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+            $filename = 'Reporte_TI_' . date('Y-m-d_His') . '.xlsx';
+
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+
+            $writer->save('php://output');
+            exit;
+
+        } catch (\Exception $e) {
+            Log::error('Error al exportar reporte TI: ' . $e->getMessage());
             return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
         }
     }

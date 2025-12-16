@@ -278,28 +278,13 @@ export default {
         },
 
         getStatusLabel(status, payment = null) {
-            // Si es un installment, usar etiquetas específicas
-            if (payment?.is_installment) {
-                if (status === 'completed') {
-                    return 'Pagado';
-                } else if (status === 'pending') {
-                    return 'Pendiente';
-                } else if (status === 'failed') {
-                    return 'No Pagado';
-                }
-            }
-
-            // Si es una suscripción aprobada, mostrar un mensaje más claro
-            if (payment?.order?.order_number?.startsWith('SUB-') && status === 'approved') {
-                return 'Suscripción Activa';
-            }
-
+            // Estandarizar etiquetas de estado para todos los pagos
             const labels = {
                 pending: "Pendiente",
-                completed: "Completado",
+                completed: "Pagado",      // Estandarizado: todo completado = "Pagado"
                 failed: "Fallido",
                 authorized: "Autorizado",
-                approved: "Aprobado",
+                approved: "Pagado",       // Aprobado también es "Pagado"
                 cancelled: "Cancelado",
                 refunded: "Reembolsado",
                 processing: "Procesando",

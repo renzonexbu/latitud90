@@ -13,16 +13,55 @@ use App\Models\InstallmentPlan;
 class GuardianParticipantService
 {
     /**
-     * Obtener participantes asociados al email del guardian
+     * Obtener participantes vinculados al guardian
+     */
+    public function getParticipantsForGuardian(GuardianUser $user): array
+    {
+        // Obtener participantes desde la nueva tabla pivote
+        $participants = $user->participants()
+            ->with('documentType')
+            ->get();
+
+        // Transformar a estructura compatible con las vistas
+        return $participants->map(function ($participant) {
+            return [
+                'id' => $participant->pivot->id ?? $participant->id,
+                'is_primary' => true,
+                'can_pay' => $participant->pivot->can_pay ?? true,
+                'can_view_documents' => true,
+                'can_view_itinerary' => true,
+                'emergency_contact' => [
+                    'id' => $participant->id,
+                    'name' => $participant->full_name,
+                    'email' => $participant->email,
+                    'phone' => $participant->phone,
+                    'relationship' => 'Apoderado',
+                    'participant' => [
+                        'id' => $participant->id,
+                        'name' => $participant->full_name,
+                        'document' => $participant->document_number,
+                        'document_type' => $participant->documentType ? $participant->documentType->name : 'N/A',
+                        'email' => $participant->email,
+                        'phone' => $participant->code_phone && $participant->phone
+                            ? '+' . $participant->code_phone . ' ' . $participant->phone
+                            : $participant->phone,
+                        'birth_date' => $participant->birth_date,
+                    ]
+                ]
+            ];
+        })->toArray();
+    }
+
+    /**
+     * @deprecated Usar getParticipantsForGuardian en su lugar
      */
     public function getParticipantsByEmail(string $email): array
     {
-        // Buscar contactos de emergencia que tengan el email del guardian
+        // Mantener compatibilidad: buscar por email en emergency_contact como fallback
         $emergencyContacts = EmergencyContact::where('email', $email)
             ->with('participant.documentType')
             ->get();
 
-        // Transformar a estructura compatible con las vistas
         return $emergencyContacts->map(function ($contact) {
             return [
                 'id' => $contact->id,
@@ -57,7 +96,8 @@ class GuardianParticipantService
      */
     public function prepareUserDataForDashboard(GuardianUser $user): array
     {
-        $participants = $this->getParticipantsByEmail($user->email);
+        // Usar la nueva relacion directa
+        $participants = $this->getParticipantsForGuardian($user);
 
         $userData = $user->toArray();
         $userData['guardian_links'] = $participants;
@@ -70,7 +110,7 @@ class GuardianParticipantService
      */
     public function getParticipantsList(GuardianUser $user): array
     {
-        return $this->getParticipantsByEmail($user->email);
+        return $this->getParticipantsForGuardian($user);
     }
 
     /**
@@ -78,9 +118,8 @@ class GuardianParticipantService
      */
     public function guardianHasAccessToParticipant(GuardianUser $user, int $participantId): bool
     {
-        return EmergencyContact::where('email', $user->email)
-            ->where('participant_id', $participantId)
-            ->exists();
+        // Verificar en la nueva tabla pivote
+        return $user->participants()->where('participants.id', $participantId)->exists();
     }
 
     /**
@@ -136,6 +175,45 @@ class GuardianParticipantService
                 $images = $program->images;
                 $firstImage = !empty($images) ? $images[0]['url'] : null;
 
+                // Buscar suscripción activa para este participante y programa
+                $subscription = ProgramSubscription::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->first();
+
+                // Obtener información de pagos para determinar tipo de pago
+                $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->first();
+
+                // Determinar tipo de pago y estado
+                $paymentType = 'none'; // none, subscription, full_payment
+                $paymentStatus = null;
+                $paidInstallments = 0;
+                $totalInstallments = 0;
+
+                if ($subscription) {
+                    $paymentType = 'subscription';
+                    $paymentStatus = $subscription->status;
+
+                    // Contar cuotas pagadas
+                    if ($installmentPlan) {
+                        $totalInstallments = $installmentPlan->installments()->count();
+                        $paidInstallments = $installmentPlan->installments()->where('is_paid', true)->count();
+                    }
+                } elseif ($installmentPlan) {
+                    // Verificar si tiene un plan de cuotas (puede ser pago completo con cuotas)
+                    $totalInstallments = $installmentPlan->installments()->count();
+                    $paidInstallments = $installmentPlan->installments()->where('is_paid', true)->count();
+
+                    if ($totalInstallments === 1 && $paidInstallments === 1) {
+                        $paymentType = 'full_payment';
+                        $paymentStatus = 'paid';
+                    } elseif ($totalInstallments > 0) {
+                        $paymentType = 'installments';
+                        $paymentStatus = $paidInstallments === $totalInstallments ? 'completed' : 'in_progress';
+                    }
+                }
+
                 $programs[] = [
                     'id' => $programCourse->id, // ID del program_course específico
                     'name' => $programCourse->name, // Nombre del plan específico
@@ -150,6 +228,13 @@ class GuardianParticipantService
                     'status' => $pivot?->status ?? 'active',
                     'enrollment_code' => $pivot?->enrollment_code,
                     'image' => $firstImage,
+                    // Información de pago
+                    'payment_type' => $paymentType,
+                    'payment_status' => $paymentStatus,
+                    'paid_installments' => $paidInstallments,
+                    'total_installments' => $totalInstallments,
+                    'has_subscription' => $subscription !== null,
+                    'subscription_cancelled' => $subscription ? in_array(strtolower($subscription->status), ['cancelada', 'cancelled', 'canceled']) : false,
                 ];
             }
         }
@@ -202,10 +287,9 @@ class GuardianParticipantService
 
         $finalPrice = max(0, $basePrice + $adjustments - $discountAmount);
 
-        // Obtener la suscripción activa si existe
+        // Obtener la suscripción si existe (incluyendo canceladas para mostrar el historial)
         $subscription = ProgramSubscription::where('participant_id', $participant->id)
             ->where('program_id', $programCourse->id)
-            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
             ->first();
 
         // Obtener el plan de cuotas
@@ -249,6 +333,22 @@ class GuardianParticipantService
         $images = $program->images;
         $firstImage = !empty($images) ? $images[0]['url'] : null;
 
+        // Determinar tipo de pago
+        $paymentType = 'none';
+        if ($subscription) {
+            $paymentType = 'subscription';
+        } elseif ($installmentPlan && $totalInstallments === 1 && $paidInstallments === 1) {
+            $paymentType = 'full_payment';
+        } elseif ($installmentPlan && $totalInstallments > 0) {
+            $paymentType = 'installments';
+        }
+
+        // Verificar si la suscripción está cancelada
+        $subscriptionCancelled = $subscription && in_array(
+            strtolower($subscription->status),
+            ['cancelada', 'cancelled', 'canceled']
+        );
+
         return [
             'id' => $programCourse->id,
             'name' => $programCourse->name,
@@ -261,6 +361,9 @@ class GuardianParticipantService
             'discount_amount' => $discountAmount,
             'image' => $firstImage,
             'images' => $images,
+            // Tipo de pago
+            'payment_type' => $paymentType,
+            'subscription_cancelled' => $subscriptionCancelled,
             // Información de suscripción
             'has_subscription' => $subscription !== null,
             'subscription' => $subscription ? [

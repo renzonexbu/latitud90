@@ -19,15 +19,15 @@ use Illuminate\Support\Facades\Auth;
 class ExportService
 {
     /**
-     * Verificar si el usuario actual es super_admin
+     * Verificar si el usuario tiene permiso para ver información del contacto pagador
      */
-    private function isSuperAdmin(): bool
+    private function canViewPayerContact(): bool
     {
         $user = Auth::user();
-        if (!$user || !method_exists($user, 'hasRole')) {
+        if (!$user || !method_exists($user, 'hasPermissionTo')) {
             return false;
         }
-        return $user->hasRole('super_admin');
+        return $user->hasPermissionTo('ver_contacto_pagador');
     }
 
     public function exportConsolidated(array $filters, string $format = 'xlsx')
@@ -49,8 +49,8 @@ class ExportService
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Verificar si es super_admin para las columnas de contacto pagador
-            $isAdmin = $this->isSuperAdmin();
+            // Verificar si tiene permiso para ver columnas de contacto pagador
+            $isAdmin = $this->canViewPayerContact();
             $lastColumnForMerge = $isAdmin ? 'N' : 'L';
 
             // Línea 1: Título
@@ -605,7 +605,7 @@ class ExportService
         // Obtener datos usando el servicio SIN PAGINACIÓN
         $consolidatedService = app(ExecutivesConsolidatedService::class);
         $data = $consolidatedService->getConsolidatedForExport($filters);
-        $isAdmin = $this->isSuperAdmin();
+        $isAdmin = $this->canViewPayerContact();
 
         $filename = 'apoderados_consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
 
