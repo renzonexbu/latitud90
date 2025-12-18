@@ -115,7 +115,7 @@ export default {
                     destino: "Sur de Chile",
                 },
                 {
-                    url: "/images/banners/PERÚ.webp",
+                    url: "/images/banners/PERU.webp",
                     position: "center",
                     destino: "Perú",
                 },

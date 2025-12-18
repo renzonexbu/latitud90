@@ -334,7 +334,7 @@ const navLinks = [
     //     external: false
     // },
     {
-        label: "Contactanos",
+        label: "Contáctanos",
         href: contactInfo.links.contactPage,
         external: true,
     },

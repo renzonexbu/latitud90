@@ -8,7 +8,7 @@
                 >
                     {{ paymentFormTitle }}
                 </h2>
-                <p class="text-[#5B5B5B] font-nexa text-xs md:text-sm leading-[16px] md:leading-[18px]">
+                <p class="text-[#5B5B5B] font-nexa text-xs md:text-sm leading-[16px] md:leading-[18px] text-justify">
                     {{ paymentFormSubtitle }}
                     <a
                         :href="`https://wa.me/${effectiveWhatsappNumber}`"
@@ -1211,10 +1211,10 @@ export default {
             return this.paymentFormContent?.subtitle?.value || 'Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito, débito o Khipu, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por';
         },
         totalPaymentTitle() {
-            return this.paymentFormContent?.total_payment_title?.value || 'Pago total';
+            return this.paymentFormContent?.total_payment_title?.value || 'Pagar con Tarjeta Crédito, Débito o Khipu';
         },
         subscriptionTitle() {
-            return this.paymentFormContent?.subscription_title?.value || 'Suscripción';
+            return this.paymentFormContent?.subscription_title?.value || 'Suscribir pago Automático (PAT)';
         },
         khipuWarning() {
             return this.paymentFormContent?.khipu_warning?.value || '⚠️ Importante: la primera transferencia a una cuenta nueva tiene un límite bancario de $250.000. Si el monto supera este valor, escríbanos a pagos@latitud90.com para recibir un link de pago.';

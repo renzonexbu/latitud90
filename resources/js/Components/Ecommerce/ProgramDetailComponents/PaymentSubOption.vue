@@ -38,11 +38,11 @@
                 <!-- Warning Message (if exists) -->
                 <div
                     v-if="option.warning"
-                    class="flex flex-row gap-[8px] items-center"
+                    class="flex flex-row gap-[8px] items-start"
                 >
                     <!-- Warning SVG -->
                     <svg
-                        class="w-[17.5px] h-[17.5px] flex-shrink-0"
+                        class="w-[17.5px] h-[17.5px] flex-shrink-0 mt-[2px]"
                         width="19"
                         height="18"
                         viewBox="0 0 19 18"
@@ -59,7 +59,7 @@
 
                     <!-- Warning Text -->
                     <span
-                        class="text-[#D54A42] font-nexa text-xs leading-[13px] font-extrabold mt-[5px]"
+                        class="text-[#D54A42] font-nexa text-xs leading-[15px] font-extrabold text-justify"
                     >
                         {{ option.warning }}
                     </span>

@@ -387,7 +387,7 @@
                                 position: relative;
                             "
                         >
-                            Haz click aqui
+                            Haz clic aquí
                         </a>
                     </div>
                 </div>
@@ -862,126 +862,6 @@
                     </div>
                 </div>
 
-                <!-- Viajes de estudio Mobile -->
-                <div
-                    style="
-                        display: flex;
-                        flex-direction: row;
-                        gap: 16px;
-                        align-items: center;
-                        justify-content: flex-start;
-                        flex-shrink: 0;
-                        position: relative;
-                    "
-                >
-                    <div
-                        style="
-                            flex-shrink: 0;
-                            width: 36px;
-                            height: 36px;
-                            position: relative;
-                        "
-                    >
-                        <div
-                            style="
-                                background: #006e80;
-                                border-radius: 51px;
-                                width: 36px;
-                                height: 36px;
-                                position: absolute;
-                                left: 0px;
-                                top: 1.5px;
-                            "
-                        ></div>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="18"
-                            height="19"
-                            viewBox="0 0 18 19"
-                            fill="none"
-                            style="
-                                width: 18px;
-                                height: 18px;
-                                position: absolute;
-                                left: 9px;
-                                top: 10.5px;
-                                overflow: visible;
-                            "
-                        >
-                            <path
-                                d="M15.0297 2.01284C15.7917 1.74659 16.5237 2.47859 16.2575 3.24059L11.8137 15.9381C11.525 16.7616 10.3775 16.8081 10.0235 16.0108L7.87921 11.1868L10.8972 8.16809C10.9966 8.06146 11.0507 7.92043 11.0481 7.7747C11.0455 7.62898 10.9865 7.48994 10.8834 7.38688C10.7804 7.28382 10.6413 7.22478 10.4956 7.22221C10.3499 7.21964 10.2088 7.27373 10.1022 7.37309L7.08346 10.3911L2.25946 8.24685C1.46221 7.8921 1.50946 6.74534 2.33221 6.45659L15.0297 2.01284Z"
-                                fill="#FEFEFF"
-                            />
-                        </svg>
-                    </div>
-                    <div
-                        style="
-                            display: flex;
-                            flex-direction: column;
-                            gap: 3px;
-                            align-items: flex-start;
-                            justify-content: center;
-                            flex-shrink: 0;
-                            position: relative;
-                        "
-                    >
-                        <div
-                            style="
-                                color: var(--blanco, #fefeff);
-                                text-align: left;
-                                font-family: var(
-                                    --cuerpo-de-texto-m-font-family,
-                                    'Nexa-Regular',
-                                    sans-serif
-                                );
-                                font-size: var(
-                                    --cuerpo-de-texto-m-font-size,
-                                    12px
-                                );
-                                line-height: var(
-                                    --cuerpo-de-texto-m-line-height,
-                                    18px
-                                );
-                                font-weight: var(
-                                    --cuerpo-de-texto-m-font-weight,
-                                    400
-                                );
-                                position: relative;
-                            "
-                        >
-                            Viajes de estudio y CEAL:
-                        </div>
-                        <a
-                            :href="`mailto:${emailContacto}`"
-                            class="underline"
-                            style="
-                                color: var(--blanco, #fefeff);
-                                text-align: left;
-                                font-family: var(
-                                    --cuerpo-de-texto-m-font-family,
-                                    'Nexa-Bold',
-                                    sans-serif
-                                );
-                                font-size: var(
-                                    --cuerpo-de-texto-m-font-size,
-                                    12px
-                                );
-                                line-height: var(
-                                    --cuerpo-de-texto-m-line-height,
-                                    18px
-                                );
-                                font-weight: var(
-                                    --cuerpo-de-texto-m-font-weight,
-                                    700
-                                );
-                                position: relative;
-                            "
-                        >
-                            {{ emailContacto }}
-                        </a>
-                    </div>
-                </div>
-
                 <!-- Ubicación Mobile -->
                 <div
                     style="
@@ -1218,7 +1098,7 @@
                                 position: relative;
                             "
                         >
-                            Haz click aqui
+                            Haz clic aquí
                         </a>
                     </div>
                 </div>

@@ -18,7 +18,7 @@
           :class="currentStep >= 1 ? 'text-[#007e93]' : 'text-[#c7c7c7]'"
           class="text-center font-nexa-bold text-sm leading-5 font-bold max-w-[120px] hidden md:block"
         >
-          Busca al pasajero mediante su RUT
+          Busca al participante
         </div>
         <!-- Línea desde el primer círculo -->
         <div class="absolute top-[19px] left-1/2 w-full h-0 border-t-2 border-[#d3d3d3] z-0 hidden md:block"></div>

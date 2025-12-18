@@ -71,7 +71,7 @@ return [
     |
     */
     'guardian' => [
-        'require_email_verification' => env('GUARDIAN_REQUIRE_EMAIL_VERIFICATION', true),
+        'require_email_verification' => env('GUARDIAN_REQUIRE_EMAIL_VERIFICATION', false),
     ],
 
     /*

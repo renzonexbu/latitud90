@@ -235,6 +235,25 @@
 
                             <!-- Agreements - Moved to align with phone input -->
                             <div class="flex flex-col gap-[7px] mt-[18px]">
+                                <!-- Marketing Agreement -->
+                                <div class="flex flex-col gap-[8px]">
+                                    <label class="flex items-center gap-[8px] cursor-pointer">
+                                        <input
+                                            id="marketing-checkbox"
+                                            type="checkbox"
+                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px] cursor-pointer"
+                                            v-model="formData.marketingAccepted"
+                                        />
+                                        <span
+                                            class="text-[#434343] font-nexa text-[10px] leading-[16px] font-normal"
+                                        >
+                                            Acepto recibir información sobre
+                                            programas educativos, viajes y
+                                            ofertas
+                                        </span>
+                                    </label>
+                                </div>
+
                                 <!-- Terms and Conditions -->
                                 <div class="flex flex-col gap-[8px]">
                                     <label class="flex items-center gap-[8px] cursor-pointer">
@@ -258,25 +277,6 @@
                                             >
                                                 términos y condiciones*
                                             </a>
-                                        </span>
-                                    </label>
-                                </div>
-
-                                <!-- Marketing Agreement -->
-                                <div class="flex flex-col gap-[8px]">
-                                    <label class="flex items-center gap-[8px] cursor-pointer">
-                                        <input
-                                            id="marketing-checkbox"
-                                            type="checkbox"
-                                            class="custom-checkbox w-[12px] h-[12px] rounded-[1.5px] cursor-pointer"
-                                            v-model="formData.marketingAccepted"
-                                        />
-                                        <span
-                                            class="text-[#434343] font-nexa text-[10px] leading-[16px] font-normal"
-                                        >
-                                            Acepto recibir información sobre
-                                            programas educativos, viajes y
-                                            ofertas
                                         </span>
                                     </label>
                                 </div>

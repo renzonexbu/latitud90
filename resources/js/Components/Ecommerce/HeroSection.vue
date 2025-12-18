@@ -188,14 +188,14 @@
                 </div>
 
                 <div
-                    class="flex flex-col sm:flex-row items-center justify-center md:justify-start relative input-container"
+                    class="relative input-container"
                 >
                     <input
                         v-model="searchQuery"
                         type="text"
-                        :placeholder="getDocumentPlaceholder()"
+                        :placeholder="documentPlaceholder"
                         :class="[
-                            'w-full px-6 py-3 rounded-full border-0 shadow-lg focus:ring-2 focus:ring-teal-500',
+                            'w-full pl-4 pr-[120px] sm:pl-6 sm:pr-36 py-3 rounded-full border-0 shadow-lg focus:ring-2 focus:ring-teal-500 text-sm sm:text-base placeholder:text-xs sm:placeholder:text-sm placeholder:text-ellipsis placeholder:overflow-hidden',
                             rutValidation.isValid === false
                                 ? 'border-red-500 ring-red-500'
                                 : '',
@@ -222,35 +222,13 @@
                         @click="performSearch"
                         :disabled="!rutValidation.isValid"
                         :class="[
-                            'mt-3 sm:mt-0 sm:absolute sm:top-1/2 sm:right-2 sm:transform sm:-translate-y-1/2 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200 mobile-search-btn',
+                            'absolute top-1/2 right-2 transform -translate-y-1/2 text-white font-semibold py-2 px-3 sm:px-6 rounded-full transition-colors duration-200 text-xs sm:text-base whitespace-nowrap',
                             rutValidation.isValid
                                 ? 'bg-teal-500 hover:bg-teal-600'
                                 : 'bg-gray-400 cursor-not-allowed',
                         ]"
                     >
-                        <!-- Ícono de lupa para mobile con fondo circular verde -->
-                        <div
-                            class="md:hidden w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center"
-                        >
-                            <svg
-                                class="w-4 h-4"
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="15"
-                                height="16"
-                                viewBox="0 0 15 16"
-                                fill="none"
-                            >
-                                <path
-                                    d="M10.6212 11.0002L12.5189 12.8979M11.9194 7.66075C11.9194 8.88631 11.4325 10.0617 10.5659 10.9283C9.69932 11.7949 8.52395 12.2818 7.29838 12.2818C6.07281 12.2818 4.89744 11.7949 4.03083 10.9283C3.16422 10.0617 2.67737 8.88631 2.67737 7.66075C2.67737 6.43518 3.16422 5.2598 4.03083 4.3932C4.89744 3.52659 6.07281 3.03973 7.29838 3.03973C8.52395 3.03973 9.69932 3.52659 10.5659 4.3932C11.4325 5.2598 11.9194 6.43518 11.9194 7.66075Z"
-                                    stroke="white"
-                                    stroke-width="0.924202"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </div>
-                        <!-- Texto para desktop -->
-                        <span class="hidden md:inline">{{ botonBuscarText }}</span>
+                        {{ botonBuscarText }}
                     </button>
                 </div>
             </div>
@@ -318,7 +296,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from "vue";
+import { ref, reactive, watch, computed, onMounted, onUnmounted } from "vue";
 import { router } from "@inertiajs/vue3";
 import axios from "axios";
 import { encodeParticipantToken } from "@/utils/tokenUtils";
@@ -331,6 +309,21 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["participant-not-found"]);
+
+// Detectar si es mobile
+const isMobile = ref(false);
+const checkMobile = () => {
+    isMobile.value = window.innerWidth < 640;
+};
+
+onMounted(() => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobile);
+});
 
 // Helper para obtener contenido dinámico
 const getContent = (key, defaultValue) => {
@@ -369,15 +362,27 @@ watch(selectedDocumentType, (newType) => {
     searchQuery.value = "";
 });
 
-const getDocumentPlaceholder = () => {
-    if (selectedDocumentType.value === "RUT") {
-        return "Ingresar Rut del participante";
-    } else if (selectedDocumentType.value === "DNI") {
-        return "Ingresar Número de DNI";
+const documentPlaceholder = computed(() => {
+    if (isMobile.value) {
+        // Placeholder corto para mobile
+        if (selectedDocumentType.value === "RUT") {
+            return "Ingrese RUT";
+        } else if (selectedDocumentType.value === "DNI") {
+            return "Ingrese DNI";
+        } else {
+            return "Ingrese Pasaporte";
+        }
     } else {
-        return "Ingresar Número de Pasaporte";
+        // Placeholder largo para desktop
+        if (selectedDocumentType.value === "RUT") {
+            return "Ingresar Rut del participante";
+        } else if (selectedDocumentType.value === "DNI") {
+            return "Ingresar Número de DNI";
+        } else {
+            return "Ingresar Número de Pasaporte";
+        }
     }
-};
+});
 
 const formatDocument = () => {
     if (selectedDocumentType.value === "RUT") {
@@ -593,30 +598,6 @@ const performSearch = async () => {
 
 /* Estilos específicos para mobile */
 @media (max-width: 768px) {
-    /* Centrar lupa dentro del input en mobile */
-    .mobile-search-btn {
-        position: absolute !important;
-        right: 8px !important;
-        top: 19% !important;
-        transform: none !important;
-        background: transparent !important;
-        padding: 0 !important;
-        width: auto !important;
-        height: auto !important;
-        margin: 0 !important;
-    }
-
-    /* Contenedor interno de lupa */
-    .md\\:hidden.w-8.h-8.bg-teal-500.rounded-full.flex.items-center.justify-center {
-        width: 32px !important;
-        height: 32px !important;
-        background: #007e93 !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
     /* Componente mobile circles */
     .mobile-circle-item {
         width: 77.927px !important;

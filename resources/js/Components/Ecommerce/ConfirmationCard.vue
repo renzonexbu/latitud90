@@ -90,28 +90,6 @@
                     </div>
                 </div>
 
-                <!-- Terms Acceptance -->
-                <div class="flex flex-col gap-[6px] md:gap-[8px] mt-6 md:mt-8 mb-4 md:mb-6">
-                    <div class="flex items-start gap-[6px] md:gap-[8px]">
-                        <input
-                            type="checkbox"
-                            class="custom-checkbox w-[10px] h-[10px] md:w-[12px] md:h-[12px] rounded-[1.5px] mt-[2px] md:mt-[1px]"
-                            v-model="termsAccepted"
-                        />
-                        <div
-                            class="text-[#434343] font-nexa text-[11px] md:text-[12px] leading-[16px] md:leading-[18px] font-normal"
-                        >
-                            <span class="font-nexa">Acepto los</span>
-                            <a
-                                href="/terminos-y-condiciones"
-                                target="_blank"
-                                class="font-nexa font-bold underline hover:text-[#007E93] transition-colors"
-                            >
-                                términos y condiciones de compra*
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Payment Button -->
@@ -295,26 +273,11 @@ export default {
     },
     data() {
         return {
-            termsAccepted: false,
             isProcessing: false,
             errorMessage: null,
             currentInstallments: 1,
             showGuardianModal: false,
         };
-    },
-    watch: {
-        termsAccepted(newValue) {
-            // Guardar el estado de términos aceptados en localStorage
-            const paymentData = localStorage.getItem("selectedPaymentData");
-            if (paymentData) {
-                try {
-                    const parsedData = JSON.parse(paymentData);
-                    parsedData.termsAccepted = newValue;
-                    localStorage.setItem("selectedPaymentData", JSON.stringify(parsedData));
-                } catch (error) {
-                }
-            }
-        }
     },
     mounted() {
         // ========================================
@@ -331,12 +294,11 @@ export default {
         console.log('active_installment:', this.program?.active_installment);
         console.log('=====================================');
 
-        // Cargar el estado de términos aceptados desde localStorage
+        // Cargar el estado de cuotas desde localStorage
         const paymentData = localStorage.getItem("selectedPaymentData");
         if (paymentData) {
             try {
                 const parsedData = JSON.parse(paymentData);
-                this.termsAccepted = parsedData.termsAccepted || false;
                 this.currentInstallments = parsedData.installments || 1;
             } catch (error) {
             }
@@ -380,7 +342,6 @@ export default {
             const hasValidAmount = this.displayPayAmount > 0;
 
             const result = hasPaymentMethod &&
-                   this.termsAccepted &&
                    !this.isProcessing &&
                    !isPaymentComplete &&
                    hasValidAmount;
@@ -388,7 +349,6 @@ export default {
             // LOG DE DEBUGGING
             console.log('isPaymentButtonEnabled - Debug:', {
                 hasPaymentMethod,
-                termsAccepted: this.termsAccepted,
                 isProcessing: this.isProcessing,
                 isPaymentComplete,
                 hasValidAmount,
@@ -398,14 +358,13 @@ export default {
                 RESULTADO: result,
                 MOTIVO_DESHABILITADO: !result ? {
                     sinMetodoPago: !hasPaymentMethod,
-                    sinTerminos: !this.termsAccepted,
                     estaProcesando: this.isProcessing,
                     pagoCompleto: isPaymentComplete,
                     montoInvalido: !hasValidAmount
                 } : 'Botón habilitado'
             });
 
-            // El botón está habilitado si hay método de pago Y términos aceptados Y no está procesando Y no se pagó todo Y hay monto válido
+            // El botón está habilitado si hay método de pago Y no está procesando Y no se pagó todo Y hay monto válido
             return result;
         },
         displayPayAmount() {
@@ -859,8 +818,7 @@ export default {
                         payment_type: this.currentInstallments > 1 ? 'monthly' : 'total',
                         payment_method: paymentMethod,
                         amount: this.displayPayAmount,
-                        installments: this.currentInstallments,
-                        terms_accepted: this.termsAccepted
+                        installments: this.currentInstallments
                     }
                 })
             }).catch(error => {

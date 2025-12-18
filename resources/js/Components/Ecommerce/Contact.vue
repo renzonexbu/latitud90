@@ -11,7 +11,7 @@
                 <div class="container">
                     <div class="form">
                         <div class="form-header">
-                            <div class="heading-h-1">Contactanos</div>
+                            <div class="heading-h-1">Contáctanos</div>
                             <div class="heading-h-12">
                                 Escríbenos para cotizar un programa, evento o
                                 pedir más información:

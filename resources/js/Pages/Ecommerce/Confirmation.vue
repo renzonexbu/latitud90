@@ -79,7 +79,6 @@
                             :show-remaining-amount="false"
                             :show-payment-button="false"
                             :payment-form-content="siteContent?.payment_form || {}"
-                            @terms-accepted-updated="handleTermsAcceptedUpdate"
                             @payment-selection-updated="handlePaymentSelection"
                         />
                     </div>
@@ -404,19 +403,6 @@ export default {
                 console.error('Error al crear suscripción:', error);
                 this.showAlertMessage('error', 'Error', 'Error al procesar la suscripción. Por favor intenta nuevamente.');
                 this.isProcessingPayment = false;
-            }
-        },
-        handleTermsAcceptedUpdate(termsAccepted) {
-            // Actualizar el estado de términos aceptados en localStorage
-            const paymentData = localStorage.getItem("selectedPaymentData");
-            if (paymentData) {
-                try {
-                    const parsedData = JSON.parse(paymentData);
-                    parsedData.termsAccepted = termsAccepted;
-                    localStorage.setItem("selectedPaymentData", JSON.stringify(parsedData));
-                } catch (error) {
-                    console.error("Error updating payment data:", error);
-                }
             }
         },
         checkPaymentError() {

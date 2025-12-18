@@ -72,7 +72,7 @@
         fallbackSchools: [
           {
             name: "Alianza Francesa - Viña del Mar",
-            logo: "/images/schools/Alianza Francesa - Viña del Mar.png"
+            logo: "/images/schools/Alianza Francesa - Vina del Mar.png"
           },
           {
             name: "British High School",
@@ -136,7 +136,7 @@
           },
           {
             name: "Colegio Itahue - Concepción",
-            logo: "/images/schools/Colegio Itahue - Concepción.png"
+            logo: "/images/schools/Colegio Itahue - Concepcion.png"
           },
           {
             name: "Colegio Kilpatrick",
@@ -164,7 +164,7 @@
           },
           {
             name: "Colegio Mayor de Peñalolén",
-            logo: "/images/schools/Colegio Mayor de Peñalolén.png"
+            logo: "/images/schools/Colegio Mayor de Penalolen.png"
           },
           {
             name: "Colegio Nido de Aguilas",
@@ -180,11 +180,11 @@
           },
           {
             name: "Colegio Pinares - Concepción",
-            logo: "/images/schools/Colegio Pinares - Concepción.png"
+            logo: "/images/schools/Colegio Pinares - Concepcion.png"
           },
           {
             name: "Colegio Pucalán Montessori",
-            logo: "/images/schools/Colegio Pucalán Montessori.png"
+            logo: "/images/schools/Colegio Pucalan Montessori.png"
           },
           {
             name: "colegio saint george",
@@ -228,7 +228,7 @@
           },
           {
             name: "Colegio St John's-Concepción",
-            logo: "/images/schools/Colegio St John's-Concepción.png"
+            logo: "/images/schools/Colegio St Johns-Concepcion.png"
           },
           {
             name: "Colegio Suizo",
@@ -248,7 +248,7 @@
           },
           {
             name: "Orchard College - Curicó",
-            logo: "/images/schools/Orchard College - Curicó.png"
+            logo: "/images/schools/Orchard College - Curico.png"
           },
           {
             name: "Redland School",

@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             DocumentTemplateSeeder::class,
             SiteContentSeeder::class,
             TermsConditionsSeeder::class,
+            PaymentFormContentSeeder::class
         ]);
     }
 }

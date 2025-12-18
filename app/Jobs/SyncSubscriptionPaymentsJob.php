@@ -577,6 +577,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 'terms_accepted' => true,
                 'marketing_accepted' => false,
                 'terms_accepted_confirmation' => true,
+                'terms_accepted_at' => now(),
             ];
 
             Log::info('SyncSubscriptionPayments: Usando buyer_data de la suscripción', [
@@ -608,6 +609,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                     'terms_accepted' => $firstOrderDetail->terms_accepted,
                     'marketing_accepted' => $firstOrderDetail->marketing_accepted,
                     'terms_accepted_confirmation' => $firstOrderDetail->terms_accepted_confirmation,
+                    'terms_accepted_at' => $firstOrderDetail->terms_accepted_at ?? now(),
                 ];
 
                 Log::info('SyncSubscriptionPayments: Usando datos del primer OrderDetail (suscripción antigua)', [
@@ -641,6 +643,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                         'terms_accepted' => true,
                         'marketing_accepted' => false,
                         'terms_accepted_confirmation' => true,
+                        'terms_accepted_at' => now(),
                     ];
                 }
             }

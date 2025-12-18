@@ -87,7 +87,7 @@ export default {
         },
         {
           question: "¿En caso de no ser apoderado o representante legal puedo pagar?",
-          answer: "Si puede hacerlo, siempre que conozca los datos del participante al cual pagara o abonara."
+          answer: "Si puede hacerlo, siempre que conozca los datos del participante al cual pagará o abonará."
         },
         {
           question: "¿Hasta cuándo tengo plazo para pagar el viaje de estudios?",
