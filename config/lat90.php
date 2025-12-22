@@ -100,5 +100,24 @@ return [
     */
     'subscriptions' => [
         'env' => env('VIRTUALPOS_SUBSCRIPTION_ENV', 'sandbox'),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Configuración de Reintentos Automáticos
+        |--------------------------------------------------------------------------
+        |
+        | max_retry_attempts: Número máximo de reintentos automáticos para cargos rechazados
+        |                     Nota: VirtualPos ya hace 3 reintentos internos antes de marcar como rechazado.
+        |                     Estos son reintentos ADICIONALES después de que VirtualPos falla.
+        | retry_delay_hours: Horas de espera entre reintentos (para evitar múltiples cobros el mismo día)
+        | notify_after_all_retries: Notificar al usuario solo después de agotar todos los reintentos
+        |
+        */
+        'retry' => [
+            'enabled' => env('SUBSCRIPTION_RETRY_ENABLED', true),
+            'max_attempts' => env('SUBSCRIPTION_MAX_RETRY_ATTEMPTS', 2),
+            'delay_hours' => env('SUBSCRIPTION_RETRY_DELAY_HOURS', 24),
+            'notify_after_all_retries' => env('SUBSCRIPTION_NOTIFY_AFTER_ALL_RETRIES', true),
+        ],
     ],
 ];

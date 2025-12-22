@@ -35,6 +35,7 @@ class ProgramSubscription extends Model
         'api_response',
         'email_sent',
         'email_sent_at',
+        'last_synced_at',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class ProgramSubscription extends Model
         'card_change_link_generated_at' => 'datetime',
         'email_sent' => 'boolean',
         'email_sent_at' => 'datetime',
+        'last_synced_at' => 'datetime',
     ];
 
     /**

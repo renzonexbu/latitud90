@@ -4,9 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProgramSubscription;
+use App\Models\Installment;
+use App\Models\InstallmentPlan;
+use App\Models\VirtualPosPlan;
 use App\Services\Admin\Subscriptions\GetSubscriptionsService;
 use App\Services\VirtualPos\CancelSubscriptionService;
+use App\Services\VirtualPos\SyncSubscriptionService;
+use App\Services\VirtualPos\CreateChargeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,7 +20,9 @@ class SubscriptionController extends Controller
 {
     public function __construct(
         private GetSubscriptionsService $getSubscriptionsService,
-        private CancelSubscriptionService $cancelSubscriptionService
+        private CancelSubscriptionService $cancelSubscriptionService,
+        private SyncSubscriptionService $syncSubscriptionService,
+        private CreateChargeService $createChargeService
     ) {}
 
     /**
@@ -32,6 +40,24 @@ class SubscriptionController extends Controller
      */
     public function show(ProgramSubscription $subscription): Response
     {
+        // Sincronizar automáticamente con VirtualPos al ver los detalles
+        if (!empty($subscription->virtualpos_subscription_id)) {
+            Log::channel('daily')->info('ADMIN SHOW: Sincronizando automáticamente con VirtualPos', [
+                'subscription_id' => $subscription->id,
+                'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            ]);
+
+            $syncResult = $this->syncSubscriptionService->sync($subscription);
+
+            Log::channel('daily')->info('ADMIN SHOW: Resultado de sincronización automática', [
+                'success' => $syncResult['success'],
+                'message' => $syncResult['message'],
+            ]);
+
+            // Recargar la suscripción después de sincronizar
+            $subscription->refresh();
+        }
+
         $subscription->load([
             'participant.documentType',
             'programCourse.program',
@@ -68,6 +94,40 @@ class SubscriptionController extends Controller
             })->toArray();
         }
 
+        // Obtener cargos adicionales del api_response
+        $additionalCharges = [];
+        $apiResponse = $subscription->api_response ?? [];
+        if (!empty($apiResponse['additional_charges'])) {
+            $additionalCharges = collect($apiResponse['additional_charges'])->map(function ($charge) {
+                return [
+                    'id' => $charge['id'] ?? null,
+                    'amount' => $charge['amount'] ?? 0,
+                    'charge_date' => isset($charge['charge_date']) ? \Carbon\Carbon::parse($charge['charge_date'])->format('d-m-Y') : null,
+                    'status' => $charge['status'] ?? 'pendiente',
+                    'description' => $charge['description'] ?? 'Cargo adicional',
+                ];
+            })->toArray();
+        }
+
+        // Obtener información del plan de VirtualPos
+        $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
+        $planInfo = null;
+
+        if ($virtualPosPlan) {
+            $planInfo = [
+                'id' => $virtualPosPlan->id,
+                'name' => $virtualPosPlan->name,
+                'is_personalized' => $virtualPosPlan->isPersonalized(),
+                'discount_type' => $virtualPosPlan->discount_type,
+                'discount_reason' => $virtualPosPlan->discount_reason,
+                'discount_amount' => $virtualPosPlan->discount_amount,
+                'original_price' => $virtualPosPlan->original_price,
+                'trip_price' => $virtualPosPlan->trip_price,
+                'monthly_amount' => $virtualPosPlan->monthly_amount,
+                'max_installments' => $virtualPosPlan->max_installments,
+            ];
+        }
+
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => [
                 'id' => $subscription->id,
@@ -91,9 +151,11 @@ class SubscriptionController extends Controller
                 'institution' => [
                     'name' => $subscription->programCourse->course->institution->name ?? 'N/A',
                 ],
+                'plan' => $planInfo,
                 'installments' => $installments,
                 'total_installments' => $totalInstallments,
                 'paid_installments' => $paidInstallments,
+                'additional_charges' => $additionalCharges,
             ]
         ]);
     }
@@ -103,8 +165,27 @@ class SubscriptionController extends Controller
      */
     public function syncWithVirtualPos(ProgramSubscription $subscription)
     {
-        // TODO: Implementar sincronización manual con VirtualPos
-        return back()->with('success', 'Suscripción sincronizada correctamente');
+        Log::channel('daily')->info('=== ADMIN: Sincronizar suscripción con VirtualPos ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'current_status' => $subscription->status,
+            'user_id' => auth()->id(),
+        ]);
+
+        $result = $this->syncSubscriptionService->sync($subscription);
+
+        Log::channel('daily')->info('ADMIN: Resultado de sincronización', [
+            'subscription_id' => $subscription->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'data' => $result['data'] ?? null,
+        ]);
+
+        if ($result['success']) {
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
     }
 
     /**
@@ -112,9 +193,238 @@ class SubscriptionController extends Controller
      */
     public function cancel(ProgramSubscription $subscription)
     {
+        Log::channel('daily')->info('=== ADMIN: Cancelar suscripción ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'current_status' => $subscription->status,
+            'user_id' => auth()->id(),
+        ]);
+
         $result = $this->cancelSubscriptionService->cancel($subscription);
 
+        Log::channel('daily')->info('ADMIN: Resultado de cancelación', [
+            'subscription_id' => $subscription->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+        ]);
+
         if ($result['success']) {
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
+    }
+
+    /**
+     * Crear un cargo manual para una cuota
+     */
+    public function createCharge(ProgramSubscription $subscription, Request $request)
+    {
+        Log::channel('daily')->info('=== ADMIN: Crear cargo para cuota ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'installment_id' => $request->installment_id,
+            'user_id' => auth()->id(),
+        ]);
+
+        $request->validate([
+            'installment_id' => 'required|integer|exists:installments,id',
+        ]);
+
+        $installment = Installment::findOrFail($request->installment_id);
+
+        Log::channel('daily')->info('ADMIN: Datos de la cuota', [
+            'installment_id' => $installment->id,
+            'installment_number' => $installment->installment_number,
+            'amount' => $installment->amount,
+            'is_paid' => $installment->is_paid,
+            'virtualpos_charge_id' => $installment->virtualpos_charge_id,
+        ]);
+
+        // Verificar que la cuota pertenece a la suscripción
+        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->first();
+
+        if (!$installmentPlan || $installment->installment_plan_id !== $installmentPlan->id) {
+            Log::channel('daily')->warning('ADMIN: Cuota no pertenece a la suscripción', [
+                'installment_plan_id' => $installment->installment_plan_id,
+                'expected_plan_id' => $installmentPlan?->id,
+            ]);
+            return back()->with('error', 'La cuota no pertenece a esta suscripción.');
+        }
+
+        $result = $this->createChargeService->createCharge($subscription, $installment);
+
+        Log::channel('daily')->info('ADMIN: Resultado de crear cargo', [
+            'subscription_id' => $subscription->id,
+            'installment_id' => $installment->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'data' => $result['data'] ?? null,
+        ]);
+
+        // Sincronizar después de crear el cargo
+        if ($result['success']) {
+            $this->syncSubscriptionService->sync($subscription);
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
+    }
+
+    /**
+     * Reintentar un cargo fallido
+     */
+    public function retryCharge(ProgramSubscription $subscription, Request $request)
+    {
+        Log::channel('daily')->info('=== ADMIN: Reintentar cargo de cuota ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'installment_id' => $request->installment_id,
+            'user_id' => auth()->id(),
+        ]);
+
+        $request->validate([
+            'installment_id' => 'required|integer|exists:installments,id',
+        ]);
+
+        $installment = Installment::findOrFail($request->installment_id);
+
+        Log::channel('daily')->info('ADMIN: Datos de la cuota para reintento', [
+            'installment_id' => $installment->id,
+            'installment_number' => $installment->installment_number,
+            'amount' => $installment->amount,
+            'current_charge_id' => $installment->virtualpos_charge_id,
+        ]);
+
+        // Verificar que la cuota pertenece a la suscripción
+        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->first();
+
+        if (!$installmentPlan || $installment->installment_plan_id !== $installmentPlan->id) {
+            Log::channel('daily')->warning('ADMIN: Cuota no pertenece a la suscripción en reintento');
+            return back()->with('error', 'La cuota no pertenece a esta suscripción.');
+        }
+
+        $result = $this->createChargeService->retryCharge($subscription, $installment);
+
+        Log::channel('daily')->info('ADMIN: Resultado de reintentar cargo', [
+            'subscription_id' => $subscription->id,
+            'installment_id' => $installment->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+        ]);
+
+        // Sincronizar después de reintentar el cargo
+        if ($result['success']) {
+            $this->syncSubscriptionService->sync($subscription);
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
+    }
+
+    /**
+     * Eliminar un cargo de una cuota
+     */
+    public function deleteCharge(ProgramSubscription $subscription, Request $request)
+    {
+        Log::channel('daily')->info('=== ADMIN: Eliminar cargo de cuota ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'installment_id' => $request->installment_id,
+            'user_id' => auth()->id(),
+        ]);
+
+        $request->validate([
+            'installment_id' => 'required|integer|exists:installments,id',
+        ]);
+
+        $installment = Installment::findOrFail($request->installment_id);
+
+        Log::channel('daily')->info('ADMIN: Datos del cargo a eliminar', [
+            'installment_id' => $installment->id,
+            'installment_number' => $installment->installment_number,
+            'virtualpos_charge_id' => $installment->virtualpos_charge_id,
+            'is_paid' => $installment->is_paid,
+        ]);
+
+        // Verificar que la cuota pertenece a la suscripción
+        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->first();
+
+        if (!$installmentPlan || $installment->installment_plan_id !== $installmentPlan->id) {
+            Log::channel('daily')->warning('ADMIN: Cuota no pertenece a la suscripción en eliminación');
+            return back()->with('error', 'La cuota no pertenece a esta suscripción.');
+        }
+
+        $result = $this->createChargeService->deleteCharge($subscription, $installment);
+
+        Log::channel('daily')->info('ADMIN: Resultado de eliminar cargo', [
+            'subscription_id' => $subscription->id,
+            'installment_id' => $installment->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'data' => $result['data'] ?? null,
+        ]);
+
+        // Sincronizar después de eliminar el cargo
+        if ($result['success']) {
+            $this->syncSubscriptionService->sync($subscription);
+            return back()->with('success', $result['message']);
+        }
+
+        return back()->with('error', $result['message']);
+    }
+
+    /**
+     * Crear un nuevo cargo para la suscripción
+     */
+    public function createNewCharge(ProgramSubscription $subscription, Request $request)
+    {
+        Log::channel('daily')->info('=== ADMIN: Crear nuevo cargo para suscripción ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'due_date' => $request->due_date,
+            'user_id' => auth()->id(),
+        ]);
+
+        $request->validate([
+            'amount' => 'required|integer|min:1',
+            'description' => 'required|string|max:255',
+            'due_date' => 'nullable|date',
+        ]);
+
+        Log::channel('daily')->info('ADMIN: Datos validados para nuevo cargo', [
+            'subscription_status' => $subscription->status,
+            'amount' => $request->amount,
+            'description' => $request->description,
+            'due_date' => $request->due_date,
+        ]);
+
+        $result = $this->createChargeService->createNewChargeForSubscription(
+            $subscription,
+            $request->amount,
+            $request->description,
+            $request->due_date
+        );
+
+        Log::channel('daily')->info('ADMIN: Resultado de crear nuevo cargo', [
+            'subscription_id' => $subscription->id,
+            'success' => $result['success'],
+            'message' => $result['message'],
+            'charge_id' => $result['charge_id'] ?? null,
+            'data' => $result['data'] ?? null,
+        ]);
+
+        // Sincronizar después de crear el cargo
+        if ($result['success']) {
+            $this->syncSubscriptionService->sync($subscription);
             return back()->with('success', $result['message']);
         }
 

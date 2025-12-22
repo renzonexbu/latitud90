@@ -16,6 +16,7 @@ use App\Models\ProgramSubscription;
 use App\Models\InstallmentPlan;
 use App\Models\Order;
 use App\Models\EmergencyContact;
+use App\Models\VirtualPosPlan;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Helpers\ParticipantPriceHelper;
 use Exception;
@@ -226,10 +227,8 @@ class SubscriptionController extends Controller
             // Cargar program_course con sus relaciones
             $programCourse = ProgramCourse::with(['program', 'course'])->findOrFail($programCourseId);
 
-            // Verificar que el program_course tiene un plan de VirtualPos
-            if (!$programCourse->virtualpos_plan_id) {
-                throw new Exception('Este programa no tiene un plan de suscripción configurado.');
-            }
+            // Nota: La verificación del plan de VirtualPos se hace más adelante,
+            // después de buscar el participante, para poder usar planes personalizados
 
             // Buscar participante usando los datos recibidos
             $cleanParticipantDocument = preg_replace('/[.-]/', '', $participantData['document_number']);
@@ -280,6 +279,24 @@ class SubscriptionController extends Controller
                 'participant_id' => $participant->id,
                 'participant_document' => $participant->document_number,
                 'participant_name' => $participant->full_name
+            ]);
+
+            // Obtener el plan de VirtualPos apropiado (personalizado si existe, o general)
+            $virtualPosPlan = VirtualPosPlan::getPlanForParticipant($participant->id, $programCourse->id);
+
+            // Si no hay plan en la tabla virtualpos_plans, usar el ID del programCourse como fallback
+            $planId = $virtualPosPlan ? $virtualPosPlan->virtualpos_plan_id : $programCourse->virtualpos_plan_id;
+
+            if (!$planId) {
+                throw new Exception('Este programa no tiene un plan de suscripción configurado.');
+            }
+
+            Log::info('Plan de VirtualPos seleccionado', [
+                'plan_id' => $planId,
+                'is_personalized' => $virtualPosPlan ? $virtualPosPlan->isPersonalized() : false,
+                'plan_name' => $virtualPosPlan ? $virtualPosPlan->name : 'N/A',
+                'participant_id' => $participant->id,
+                'program_course_id' => $programCourse->id
             ]);
 
             // Calcular el monto total y el monto de la primera cuota
@@ -352,7 +369,7 @@ class SubscriptionController extends Controller
 
             // Construir datos de la suscripción
             $subscriptionData = $virtualPosService->buildSubscriptionData([
-                'plan_id' => $programCourse->virtualpos_plan_id,
+                'plan_id' => $planId,
                 'service_id' => $serviceId,
                 'amount' => $firstInstallmentAmount,
                 'currency' => 'CLP',
@@ -374,7 +391,8 @@ class SubscriptionController extends Controller
                 'buyer_original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
                 'buyer_name' => $buyerData['first_name'] . ' ' . $buyerData['first_last_name'],
                 'buyer_email' => $buyerData['email'],
-                'plan_id' => $programCourse->virtualpos_plan_id,
+                'plan_id' => $planId,
+                'is_personalized_plan' => $virtualPosPlan ? $virtualPosPlan->isPersonalized() : false,
                 'service_id' => $serviceId,
                 'amount' => $firstInstallmentAmount,
                 'installments' => $installments,
@@ -399,8 +417,8 @@ class SubscriptionController extends Controller
                 'participant_id' => $participant->id,
                 'program_id' => $programCourse->id, // Almacenamos el program_course_id
                 'virtualpos_subscription_id' => $response['suscription']['id'] ?? $response['id'] ?? null,
-                'virtualpos_plan_id' => $programCourse->virtualpos_plan_id,
-                'plan_name' => $response['suscription']['plan_name'] ?? $response['plan_name'] ?? $programCourse->name,
+                'virtualpos_plan_id' => $planId,
+                'plan_name' => $response['suscription']['plan_name'] ?? $response['plan_name'] ?? ($virtualPosPlan ? $virtualPosPlan->name : $programCourse->name),
                 'status' => $status,
                 'amount' => $firstInstallmentAmount,
                 'currency' => 'CLP',

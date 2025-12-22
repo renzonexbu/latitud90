@@ -241,8 +241,10 @@ class VirtualPosPlanService
         $planName = $programData['name'] ?? 'Programa ' . ($programData['code'] ?? 'Sin código');
 
         // Calcular monto mensual (precio total dividido entre cuotas máximas)
+        // Convertir a entero porque VirtualPos no acepta decimales para CLP
         $maxInstallments = $programData['max_installments'] ?? 12;
-        $monthlyAmount = ($programData['trip_price'] ?? 0) / $maxInstallments;
+        $tripPrice = (int) round($programData['trip_price'] ?? 0);
+        $monthlyAmount = (int) ceil($tripPrice / $maxInstallments);
 
         // Generar return_url
         $returnUrl = config('app.url') . '/admin/programs';
@@ -273,7 +275,7 @@ class VirtualPosPlanService
             $chargesProgram[] = [
                 'charge_date_obj' => $chargeDate, // Guardar objeto Carbon para siguiente iteración
                 'charge_date' => $chargeDate->format('Y-m-d'),
-                'amount' => $monthlyAmount,
+                'amount' => (int) $monthlyAmount, // Entero para CLP
                 'description' => 'Cargo ' . ($i + 1) . ' de ' . $maxInstallments,
                 'internal_code' => ($programData['code'] ?? 'PLAN') . '-CUOTA-' . ($i + 1)
             ];
@@ -293,10 +295,10 @@ class VirtualPosPlanService
             'name' => $planName,
             'description' => !empty($programData['trip_description']) ? $programData['trip_description'] : 'Programa de viaje educativo Latitud90',
             'is_active' => 'T', // T = activo, F = inactivo
-            'amount' => $monthlyAmount, // Monto mensual (Float según docs)
+            'amount' => (int) $monthlyAmount, // Monto mensual (entero para CLP)
             'currency' => 'CLP',
             'trial_days' => 0, // No se usa con PROGRAMA_DE_PAGOS
-            'num_charges' => $maxInstallments, // Número de cobros (cuotas)
+            'num_charges' => (int) $maxInstallments, // Número de cobros (cuotas)
             'frequency_type' => 'Mensual', // Diario, Semanal, Mensual, Semestral, Anual
             'return_url' => base64_encode($returnUrl), // Codificar en base64 según docs VirtualPos
             'type' => 'PROGRAMA_DE_PAGOS', // Usar PROGRAMA_DE_PAGOS para control manual de fechas

@@ -8,9 +8,11 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Models\PaymentGateway;
+use App\Models\ChargeAttempt;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
+use App\Services\VirtualPos\CreateChargeService;
 use App\Helpers\PaymentDocumentTypeHelper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -30,6 +32,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     protected $virtualPosService;
     protected $emailService;
     protected $bsaleService;
+    protected $createChargeService;
 
     /**
      * Constructor del Job
@@ -47,12 +50,14 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     public function handle(
         VirtualPosSubscriptionService $virtualPosService,
         SuccessPaymentEmailService $emailService,
-        BsaleService $bsaleService
+        BsaleService $bsaleService,
+        CreateChargeService $createChargeService
     ): void
     {
         $this->virtualPosService = $virtualPosService;
         $this->emailService = $emailService;
         $this->bsaleService = $bsaleService;
+        $this->createChargeService = $createChargeService;
 
         Log::info('SyncSubscriptionPayments: Iniciando sincronización de pagos de suscripciones');
 
@@ -934,13 +939,240 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     protected function processFailedCharge(ProgramSubscription $subscription, array $charge): void
     {
         $chargeId = $charge['id'];
+        $amount = $charge['amount'] ?? 0;
 
         Log::info('SyncSubscriptionPayments: Procesando charge rechazado', [
             'subscription_id' => $subscription->id,
             'charge_id' => $chargeId,
-            'amount' => $charge['amount'] ?? 0,
+            'amount' => $amount,
             'charge_date' => $charge['charge_date'] ?? null
         ]);
+
+        // Obtener configuración de reintentos
+        $retryEnabled = config('lat90.subscriptions.retry.enabled', true);
+        $maxAttempts = config('lat90.subscriptions.retry.max_attempts', 3);
+        $delayHours = config('lat90.subscriptions.retry.delay_hours', 24);
+        $notifyAfterAllRetries = config('lat90.subscriptions.retry.notify_after_all_retries', true);
+
+        // Registrar el intento fallido original en la tabla charge_attempts
+        $this->registerChargeAttempt($subscription, $charge, 'failed');
+
+        // Verificar si los reintentos están habilitados
+        if (!$retryEnabled) {
+            Log::info('SyncSubscriptionPayments: Reintentos automáticos deshabilitados', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId
+            ]);
+            $this->notifyFailedPayment($subscription, $charge);
+            $this->markChargeAsProcessed($subscription, $chargeId);
+            return;
+        }
+
+        // Contar intentos previos para este cargo original
+        $attemptCount = ChargeAttempt::getAttemptCountForOriginalCharge(
+            $subscription->id,
+            $chargeId
+        );
+
+        Log::info('SyncSubscriptionPayments: Verificando reintentos', [
+            'subscription_id' => $subscription->id,
+            'charge_id' => $chargeId,
+            'attempt_count' => $attemptCount,
+            'max_attempts' => $maxAttempts
+        ]);
+
+        // Verificar si ya alcanzamos el máximo de intentos
+        if ($attemptCount >= $maxAttempts) {
+            Log::info('SyncSubscriptionPayments: Máximo de reintentos alcanzado', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId,
+                'attempts' => $attemptCount,
+                'max_attempts' => $maxAttempts
+            ]);
+
+            if ($notifyAfterAllRetries) {
+                $this->notifyFailedPayment($subscription, $charge);
+            }
+
+            $this->markChargeAsProcessed($subscription, $chargeId);
+            return;
+        }
+
+        // Verificar si ha pasado suficiente tiempo desde el último intento
+        $lastAttempt = ChargeAttempt::where('program_subscription_id', $subscription->id)
+            ->where('original_charge_id', $chargeId)
+            ->orderBy('attempted_at', 'desc')
+            ->first();
+
+        if ($lastAttempt && $lastAttempt->attempted_at) {
+            $hoursSinceLastAttempt = Carbon::now()->diffInHours($lastAttempt->attempted_at);
+
+            if ($hoursSinceLastAttempt < $delayHours) {
+                Log::info('SyncSubscriptionPayments: Esperando delay entre reintentos', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'hours_since_last' => $hoursSinceLastAttempt,
+                    'delay_hours' => $delayHours,
+                    'next_retry_in_hours' => $delayHours - $hoursSinceLastAttempt
+                ]);
+                return; // No marcar como procesado, se reintentará en la próxima ejecución
+            }
+        }
+
+        // Intentar crear un nuevo cargo (reintento automático)
+        $this->attemptAutomaticRetry($subscription, $charge, $attemptCount + 1, $maxAttempts);
+    }
+
+    /**
+     * Registrar un intento de cargo en la base de datos
+     */
+    protected function registerChargeAttempt(
+        ProgramSubscription $subscription,
+        array $charge,
+        string $status,
+        string $type = 'automatic',
+        ?string $newChargeId = null,
+        ?string $failureReason = null,
+        ?array $apiResponse = null
+    ): ChargeAttempt
+    {
+        // Buscar la cuota asociada si existe
+        $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+        $installment = null;
+
+        if ($installmentNumber > 0) {
+            $installment = Installment::whereHas('installmentPlan', function ($query) use ($subscription) {
+                $query->where('participant_id', $subscription->participant_id)
+                    ->where('program_id', $subscription->program_id);
+            })->where('installment_number', $installmentNumber)->first();
+        }
+
+        // Contar intentos previos para determinar el número de intento
+        $attemptNumber = ChargeAttempt::where('program_subscription_id', $subscription->id)
+            ->where('original_charge_id', $charge['id'])
+            ->count() + 1;
+
+        $chargeAttempt = ChargeAttempt::create([
+            'program_subscription_id' => $subscription->id,
+            'installment_id' => $installment?->id,
+            'virtualpos_charge_id' => $newChargeId,
+            'original_charge_id' => $charge['id'],
+            'attempt_number' => $attemptNumber,
+            'amount' => $charge['amount'] ?? 0,
+            'description' => $charge['description'] ?? null,
+            'type' => $type,
+            'status' => $status,
+            'failure_reason' => $failureReason ?? ($status === 'failed' ? 'Cargo rechazado por VirtualPos' : null),
+            'virtualpos_status' => $charge['status'] ?? null,
+            'api_response' => $apiResponse ?? $charge,
+            'attempted_at' => now(),
+            'resolved_at' => in_array($status, ['success', 'failed']) ? now() : null,
+        ]);
+
+        Log::info('SyncSubscriptionPayments: Intento de cargo registrado', [
+            'charge_attempt_id' => $chargeAttempt->id,
+            'subscription_id' => $subscription->id,
+            'original_charge_id' => $charge['id'],
+            'new_charge_id' => $newChargeId,
+            'attempt_number' => $attemptNumber,
+            'status' => $status,
+            'type' => $type
+        ]);
+
+        return $chargeAttempt;
+    }
+
+    /**
+     * Intentar un reintento automático de cargo
+     */
+    protected function attemptAutomaticRetry(
+        ProgramSubscription $subscription,
+        array $originalCharge,
+        int $attemptNumber,
+        int $maxAttempts
+    ): void
+    {
+        $chargeId = $originalCharge['id'];
+        $amount = $originalCharge['amount'] ?? 0;
+        $description = $originalCharge['description'] ?? '';
+
+        Log::info('SyncSubscriptionPayments: Intentando reintento automático', [
+            'subscription_id' => $subscription->id,
+            'original_charge_id' => $chargeId,
+            'attempt_number' => $attemptNumber,
+            'max_attempts' => $maxAttempts,
+            'amount' => $amount
+        ]);
+
+        // Crear nuevo cargo vía VirtualPOS
+        $retryDescription = "Reintento {$attemptNumber}/{$maxAttempts} - {$description}";
+
+        $result = $this->createChargeService->createNewChargeForSubscription(
+            $subscription,
+            (int) $amount,
+            $retryDescription
+        );
+
+        if ($result['success']) {
+            $newChargeId = $result['charge_id'] ?? null;
+
+            Log::info('SyncSubscriptionPayments: Reintento automático creado exitosamente', [
+                'subscription_id' => $subscription->id,
+                'original_charge_id' => $chargeId,
+                'new_charge_id' => $newChargeId,
+                'attempt_number' => $attemptNumber
+            ]);
+
+            // Registrar el intento como pendiente (se procesará cuando VirtualPOS lo procese)
+            $this->registerChargeAttempt(
+                $subscription,
+                $originalCharge,
+                'pending',
+                'automatic',
+                $newChargeId,
+                null,
+                $result['data'] ?? null
+            );
+
+            // Marcar el cargo original como procesado
+            $this->markChargeAsProcessed($subscription, $chargeId);
+
+        } else {
+            Log::error('SyncSubscriptionPayments: Error en reintento automático', [
+                'subscription_id' => $subscription->id,
+                'original_charge_id' => $chargeId,
+                'attempt_number' => $attemptNumber,
+                'error' => $result['message'] ?? 'Error desconocido'
+            ]);
+
+            // Registrar el intento fallido
+            $this->registerChargeAttempt(
+                $subscription,
+                $originalCharge,
+                'failed',
+                'automatic',
+                null,
+                $result['message'] ?? 'Error al crear cargo de reintento',
+                $result
+            );
+
+            // Si este fue el último intento, notificar al usuario
+            if ($attemptNumber >= $maxAttempts) {
+                $notifyAfterAllRetries = config('lat90.subscriptions.retry.notify_after_all_retries', true);
+                if ($notifyAfterAllRetries) {
+                    $this->notifyFailedPayment($subscription, $originalCharge);
+                }
+                $this->markChargeAsProcessed($subscription, $chargeId);
+            }
+        }
+    }
+
+    /**
+     * Notificar pago fallido a los contactos de emergencia
+     */
+    protected function notifyFailedPayment(ProgramSubscription $subscription, array $charge): void
+    {
+        $chargeId = $charge['id'];
 
         // 1. Generar link de actualización de tarjeta si no existe o está vencido
         $cardUpdateLink = $this->generateCardUpdateLink($subscription);
@@ -995,7 +1227,17 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             }
         }
 
-        // 5. Marcar el charge como procesado
+        Log::info('SyncSubscriptionPayments: Notificación de pago fallido completada', [
+            'subscription_id' => $subscription->id,
+            'charge_id' => $chargeId
+        ]);
+    }
+
+    /**
+     * Marcar un charge como procesado para no volver a notificar
+     */
+    protected function markChargeAsProcessed(ProgramSubscription $subscription, string $chargeId): void
+    {
         $processedIds = $subscription->processed_failed_charge_ids ?? [];
         $processedIds[] = $chargeId;
 
@@ -1003,7 +1245,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'processed_failed_charge_ids' => $processedIds
         ]);
 
-        Log::info('SyncSubscriptionPayments: Charge rechazado procesado exitosamente', [
+        Log::info('SyncSubscriptionPayments: Charge marcado como procesado', [
             'subscription_id' => $subscription->id,
             'charge_id' => $chargeId
         ]);

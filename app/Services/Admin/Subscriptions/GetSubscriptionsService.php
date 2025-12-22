@@ -4,6 +4,7 @@ namespace App\Services\Admin\Subscriptions;
 
 use App\Models\ProgramSubscription;
 use App\Models\ProgramCourse;
+use App\Models\VirtualPosPlan;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,24 @@ class GetSubscriptionsService
             $totalAmount = $installmentPlan ? $installmentPlan->installments->sum('amount') : 0;
             $paidAmount = $installmentPlan ? $installmentPlan->installments->where('is_paid', true)->sum('amount') : 0;
 
+            // Obtener información del plan de VirtualPos
+            $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
+            $planInfo = null;
+
+            if ($virtualPosPlan) {
+                $planInfo = [
+                    'id' => $virtualPosPlan->id,
+                    'name' => $virtualPosPlan->name,
+                    'is_personalized' => $virtualPosPlan->isPersonalized(),
+                    'discount_type' => $virtualPosPlan->discount_type,
+                    'discount_reason' => $virtualPosPlan->discount_reason,
+                    'discount_amount' => $virtualPosPlan->discount_amount,
+                    'original_price' => $virtualPosPlan->original_price,
+                    'trip_price' => $virtualPosPlan->trip_price,
+                    'monthly_amount' => $virtualPosPlan->monthly_amount,
+                ];
+            }
+
             return [
                 'id' => $subscription->id,
                 'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
@@ -60,6 +79,7 @@ class GetSubscriptionsService
                 'institution' => [
                     'name' => $subscription->programCourse->course->institution->name ?? 'N/A',
                 ],
+                'plan' => $planInfo,
                 'total_installments' => $totalInstallments,
                 'paid_installments' => $paidInstallments,
                 'total_amount' => $totalAmount,

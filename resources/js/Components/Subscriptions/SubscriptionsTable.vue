@@ -27,6 +27,11 @@
                     Institución
                 </div>
                 <div
+                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
+                >
+                    Plan
+                </div>
+                <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
                     Cuotas
@@ -87,6 +92,23 @@
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
                     >
                         {{ subscription.institution.name }}
+                    </div>
+
+                    <!-- Plan Type -->
+                    <div class="flex justify-center items-center w-[100px]">
+                        <div
+                            v-if="subscription.plan?.is_personalized"
+                            class="rounded-[12px] px-[8px] py-[4px] bg-purple-500 text-white font-nexa-xbold text-[11px] leading-[13px] text-center"
+                            :title="getPlanTooltip(subscription)"
+                        >
+                            Personalizado
+                        </div>
+                        <div
+                            v-else
+                            class="text-[#5b5b5b] font-nexa-bold text-[11px] leading-[13px] text-center"
+                        >
+                            General
+                        </div>
                     </div>
 
                     <!-- Cuotas pagadas/total -->
@@ -228,6 +250,32 @@ export default {
             } catch (error) {
                 return "Error Date";
             }
+        },
+
+        getPlanTooltip(subscription) {
+            if (!subscription.plan?.is_personalized) return '';
+
+            const discountTypes = {
+                'scholarship': 'Beca',
+                'released': 'Liberado',
+            };
+
+            let tooltip = 'Plan personalizado';
+
+            if (subscription.plan.discount_type) {
+                const discountLabel = discountTypes[subscription.plan.discount_type] || subscription.plan.discount_type;
+                tooltip += ` - ${discountLabel}`;
+            }
+
+            if (subscription.plan.discount_amount) {
+                tooltip += ` ($${this.formatPrice(subscription.plan.discount_amount)} descuento)`;
+            }
+
+            if (subscription.plan.discount_reason) {
+                tooltip += `\n${subscription.plan.discount_reason}`;
+            }
+
+            return tooltip;
         },
     },
 };

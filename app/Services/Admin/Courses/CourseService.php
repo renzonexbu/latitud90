@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Models\VirtualPosPlan;
 use App\Services\Subscription\VirtualPosPlanService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -284,6 +285,26 @@ class CourseService
                 // Guardar el plan_id en el ProgramCourse
                 $programCourse->virtualpos_plan_id = $result['plan_id'];
                 $programCourse->save();
+
+                // Guardar el plan en la tabla virtualpos_plans
+                $monthlyAmount = $planData['trip_price'] / $planData['max_installments'];
+
+                VirtualPosPlan::create([
+                    'virtualpos_plan_id' => $result['plan_id'],
+                    'program_course_id' => $programCourse->id,
+                    'code' => $planData['code'],
+                    'name' => $planData['name'],
+                    'description' => $planData['trip_description'],
+                    'trip_price' => $planData['trip_price'],
+                    'monthly_amount' => $monthlyAmount,
+                    'max_installments' => $planData['max_installments'],
+                    'immediate_first_charge' => $planData['immediate_first_charge'],
+                    'currency' => 'CLP',
+                    'frequency_type' => 'Mensual',
+                    'plan_type' => 'PROGRAMA_DE_PAGOS',
+                    'is_active' => true,
+                    'api_response' => $result['data'] ?? null,
+                ]);
 
                 Log::info('Plan de VirtualPos creado y guardado exitosamente', [
                     'program_course_id' => $programCourse->id,

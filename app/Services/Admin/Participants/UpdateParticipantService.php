@@ -4,6 +4,7 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
 use App\Models\ParticipantProgramDiscount;
+use App\Models\ProgramCourse;
 use App\Models\Course;
 use App\Models\Program;
 use App\Traits\AdminLogging;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use App\Services\Admin\Installments\InstallmentRecalculationService;
+use App\Services\Subscription\ParticipantPlanService;
 use App\Helpers\ParticipantPriceHelper;
 
 class UpdateParticipantService
@@ -130,6 +132,11 @@ class UpdateParticipantService
                             'participant_program_id' => $participantProgram->id
                         ]);
                         $this->processDiscounts($participantProgram->id, $data['discounts']);
+
+                        // Crear plan personalizado en VirtualPos si tiene descuentos y suscripción habilitada
+                        if ($programCourse->enable_subscription_payment) {
+                            $this->createPersonalizedPlanIfNeeded($participant, $programCourse, $data['discounts']);
+                        }
                     }
                 }
             }
@@ -369,5 +376,130 @@ class UpdateParticipantService
             return $text;
         }
         return mb_convert_case(trim($text), MB_CASE_TITLE, 'UTF-8');
+    }
+
+    /**
+     * Crear plan personalizado en VirtualPos si el participante tiene descuentos
+     */
+    private function createPersonalizedPlanIfNeeded(
+        Participant $participant,
+        ProgramCourse $programCourse,
+        string $discountsJson
+    ): void {
+        try {
+            Log::channel('daily')->info('=== UPDATE PARTICIPANT: Verificando creación de plan personalizado ===', [
+                'participant_id' => $participant->id,
+                'participant_name' => $participant->full_name,
+                'program_course_id' => $programCourse->id,
+                'program_course_name' => $programCourse->name,
+                'discounts_json' => $discountsJson,
+            ]);
+
+            $discounts = json_decode($discountsJson, true);
+
+            // Si no hay descuentos o están vacíos, no crear plan personalizado
+            if (empty($discounts)) {
+                Log::channel('daily')->info('UPDATE PARTICIPANT: No hay descuentos en JSON', [
+                    'participant_id' => $participant->id,
+                    'program_course_id' => $programCourse->id,
+                    'discounts_decoded' => $discounts,
+                ]);
+                return;
+            }
+
+            // Verificar si hay al menos un descuento con valor
+            $hasValidDiscount = false;
+            $discountType = 'scholarship';
+            $discountComment = null;
+
+            foreach ($discounts as $discount) {
+                Log::channel('daily')->info('UPDATE PARTICIPANT: Analizando descuento', [
+                    'discount' => $discount,
+                    'has_value' => !empty($discount['value']),
+                    'type' => $discount['type'] ?? 'N/A',
+                ]);
+
+                if (!empty($discount['value']) || $discount['type'] === 'liberado') {
+                    $hasValidDiscount = true;
+                    if ($discount['type'] === 'liberado') {
+                        $discountType = 'released';
+                    }
+                    $discountComment = $discount['comment'] ?? $discountComment;
+                }
+            }
+
+            if (!$hasValidDiscount) {
+                Log::channel('daily')->info('UPDATE PARTICIPANT: Descuentos sin valor válido', [
+                    'participant_id' => $participant->id,
+                    'program_course_id' => $programCourse->id,
+                    'discounts' => $discounts,
+                ]);
+                return;
+            }
+
+            Log::channel('daily')->info('UPDATE PARTICIPANT: Descuento válido encontrado, procediendo a crear plan', [
+                'participant_id' => $participant->id,
+                'discount_type' => $discountType,
+                'discount_comment' => $discountComment,
+            ]);
+
+            // Usar el servicio de planes personalizados
+            $planService = app(ParticipantPlanService::class);
+
+            // Verificar si ya existe un plan personalizado o suscripción activa
+            $checkResult = $planService->needsPersonalizedPlan($participant, $programCourse);
+
+            // Si tiene suscripción activa, no crear plan personalizado
+            if ($checkResult['has_active_subscription']) {
+                Log::channel('daily')->warning('UPDATE PARTICIPANT: No se crea plan - participante tiene suscripción activa', [
+                    'participant_id' => $participant->id,
+                    'program_course_id' => $programCourse->id,
+                    'subscription_id' => $checkResult['active_subscription']?->id,
+                    'subscription_status' => $checkResult['active_subscription']?->status,
+                ]);
+                return; // No crear plan si ya tiene suscripción activa
+            }
+
+            if ($checkResult['has_existing_plan']) {
+                // Si ya existe un plan, desactivarlo para crear uno nuevo con los montos actualizados
+                Log::channel('daily')->info('UPDATE PARTICIPANT: Desactivando plan existente', [
+                    'participant_id' => $participant->id,
+                    'existing_plan_id' => $checkResult['existing_plan']?->id,
+                ]);
+                $planService->deactivatePlan($participant->id, $programCourse->id);
+            }
+
+            // Crear el plan personalizado
+            $result = $planService->createPersonalizedPlan(
+                $participant,
+                $programCourse,
+                $discountType,
+                $discountComment
+            );
+
+            if ($result['success']) {
+                Log::channel('daily')->info('UPDATE PARTICIPANT: Plan personalizado creado exitosamente', [
+                    'participant_id' => $participant->id,
+                    'program_course_id' => $programCourse->id,
+                    'virtualpos_plan_id' => $result['virtualpos_plan_id'],
+                    'price_details' => $result['price_details']
+                ]);
+            } else {
+                Log::channel('daily')->warning('UPDATE PARTICIPANT: No se pudo crear plan personalizado', [
+                    'participant_id' => $participant->id,
+                    'program_course_id' => $programCourse->id,
+                    'error' => $result['message']
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('UPDATE PARTICIPANT: Error al crear plan personalizado', [
+                'participant_id' => $participant->id,
+                'program_course_id' => $programCourse->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            // No lanzar excepción para no interrumpir la actualización del participante
+        }
     }
 }
