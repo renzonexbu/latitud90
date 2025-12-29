@@ -145,15 +145,24 @@ class ConsolidatedPaymentsDataProvider
 
     public function getSummary(Builder $query): array
     {
-        $summary = $query->select([
-            DB::raw('COUNT(DISTINCT pay.order_id) as total_orders'),
-            DB::raw('COUNT(pay.id) as total_payments'),
-            DB::raw('SUM(CASE WHEN pay.amount > 0 THEN pay.amount ELSE 0 END) as total_payments_amount'),
-            DB::raw('SUM(CASE WHEN pay.amount < 0 THEN ABS(pay.amount) ELSE 0 END) as total_refunds_amount'),
-            DB::raw('SUM(pay.amount) as net_amount'),
-            DB::raw('MIN(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as first_payment_date'),
-            DB::raw('MAX(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as last_payment_date'),
-        ])->first();
+        // Clonar el query y reemplazar el SELECT con agregaciones
+        // Esto evita conflictos con el SELECT original que tiene muchas columnas y subconsultas
+        $summaryQuery = clone $query;
+
+        // Remover el SELECT anterior y ORDER BY para las agregaciones
+        $summaryQuery->orders = null;
+        $summaryQuery->columns = null;
+
+        // Hacer el SELECT con agregaciones
+        $summary = $summaryQuery->selectRaw('
+            COUNT(DISTINCT pay.order_id) as total_orders,
+            COUNT(pay.id) as total_payments,
+            SUM(CASE WHEN pay.amount > 0 THEN pay.amount ELSE 0 END) as total_payments_amount,
+            SUM(CASE WHEN pay.amount < 0 THEN ABS(pay.amount) ELSE 0 END) as total_refunds_amount,
+            SUM(pay.amount) as net_amount,
+            MIN(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as first_payment_date,
+            MAX(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as last_payment_date
+        ')->first();
 
         return [
             'total_orders' => $summary->total_orders ?? 0,

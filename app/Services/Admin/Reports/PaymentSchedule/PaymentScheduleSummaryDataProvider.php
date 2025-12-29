@@ -210,7 +210,7 @@ class PaymentScheduleSummaryDataProvider
             ->groupBy(
                 'p.id', 'p.first_name', 'p.first_last_name', 'p.second_last_name',
                 'p.document_number', 'p.email', 'pp.created_at', 'pp.individual_price',
-                'pgc.id', 'pgc.name', 'pgc.code', 'prog.id', 'se.name',
+                'pgc.id', 'pgc.name', 'pgc.code', 'pgc.final_payment_date', 'prog.id', 'se.name',
                 'ec.name', 'ec.email', 'ec.phone', 'ec.relationship',
                 'ppd.amount', 'ppd.percent'
             )
