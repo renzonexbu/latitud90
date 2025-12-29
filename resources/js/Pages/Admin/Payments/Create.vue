@@ -243,7 +243,7 @@
                                             </label>
                                             <input
                                                 type="email"
-                                                placeholder="Escriba su correo electronico"
+                                                placeholder="Escriba su correo electrónico"
                                                 class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
                                                 v-model="buyerForm.email"
                                             />

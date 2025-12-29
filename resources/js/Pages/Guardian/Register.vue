@@ -169,7 +169,7 @@
                                     v-model="form.email"
                                     type="email"
                                     required
-                                    placeholder="Escriba su correo electronico"
+                                    placeholder="Escriba su correo electrónico"
                                     class="input-text"
                                     :class="{
                                         'border-red-500':

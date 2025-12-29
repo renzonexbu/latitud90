@@ -8,7 +8,7 @@
             <div class="flex gap-4 justify-center items-center">
                 <!-- Primera imagen con efecto flip -->
                 <div class="w-72 sm:w-[340px]">
-                    <div class="flip-card-container" @mouseenter="flipCard(0, true)" @mouseleave="flipCard(0, false)">
+                    <div class="flip-card-container" @mouseenter="!isMobile && flipCard(0, true)" @mouseleave="!isMobile && flipCard(0, false)" @click="isMobile && toggleCard(0)">
                         <div
                             class="flip-card"
                             :class="{ flipped: flippedCards[0] }"
@@ -51,7 +51,7 @@
 
                 <!-- Segunda imagen -->
                 <div class="w-72 sm:w-[340px]">
-                    <div class="flip-card-container" @mouseenter="flipCard(1, true)" @mouseleave="flipCard(1, false)">
+                    <div class="flip-card-container" @mouseenter="!isMobile && flipCard(1, true)" @mouseleave="!isMobile && flipCard(1, false)" @click="isMobile && toggleCard(1)">
                         <div
                             class="flip-card"
                             :class="{ flipped: flippedCards[1] }"
@@ -94,7 +94,7 @@
 
                 <!-- Tercera imagen -->
                 <div class="w-72 sm:w-[340px]">
-                    <div class="flip-card-container" @mouseenter="flipCard(2, true)" @mouseleave="flipCard(2, false)">
+                    <div class="flip-card-container" @mouseenter="!isMobile && flipCard(2, true)" @mouseleave="!isMobile && flipCard(2, false)" @click="isMobile && toggleCard(2)">
                         <div
                             class="flip-card"
                             :class="{ flipped: flippedCards[2] }"
@@ -136,7 +136,7 @@
                 </div>
                 <!-- Cuarta imagen -->
                 <div class="w-72 sm:w-[340px]">
-                    <div class="flip-card-container" @mouseenter="flipCard(3, true)" @mouseleave="flipCard(3, false)">
+                    <div class="flip-card-container" @mouseenter="!isMobile && flipCard(3, true)" @mouseleave="!isMobile && flipCard(3, false)" @click="isMobile && toggleCard(3)">
                         <div
                             class="flip-card"
                             :class="{ flipped: flippedCards[3] }"
@@ -182,7 +182,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
     content: {
@@ -192,9 +192,27 @@ const props = defineProps({
 });
 
 const flippedCards = ref([false, false, false, false]);
+const isMobile = ref(false);
+
+const checkMobile = () => {
+    isMobile.value = window.innerWidth <= 768;
+};
+
+onMounted(() => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobile);
+});
 
 const flipCard = (index, isHovered) => {
     flippedCards.value[index] = isHovered;
+};
+
+const toggleCard = (index) => {
+    flippedCards.value[index] = !flippedCards.value[index];
 };
 
 // Defaults originales del template
@@ -522,7 +540,7 @@ const sectionTitle = computed(() => getContent('titulo', 'Nuestras experiencias'
     line-height: 20px;
     text-align: justify;
     hyphens: none;
-    max-width: 100%;
+    max-width: 200px;
     text-justify: inter-word;
     overflow-wrap: normal;
     word-break: normal;

@@ -129,12 +129,27 @@
                 />
             </div>
 
+            <!-- Botón de Exportar Cobros -->
+            <div class="px-8 py-4" v-if="selectedSubscriptions.length > 0">
+                <button
+                    @click="exportChargeAttempts"
+                    class="bg-turquesa hover:bg-[#006478] text-white font-nexa-bold px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Exportar Cobros de VirtualPos ({{ selectedSubscriptions.length }} seleccionadas)
+                </button>
+            </div>
+
             <!-- Tabla -->
             <div class="px-8 py-6">
                 <SubscriptionsTable
                     :subscriptions="subscriptions.data"
+                    :selected-subscriptions="selectedSubscriptions"
                     @show-subscription-details="showSubscriptionDetails"
                     @cancel-subscription="cancelSubscription"
+                    @selection-changed="handleSelectionChanged"
                 />
 
                 <!-- Paginación -->
@@ -180,6 +195,8 @@ const props = defineProps({
     },
 });
 
+const selectedSubscriptions = ref([]);
+
 const showSubscriptionDetails = (subscription) => {
     router.visit(route("admin.subscriptions.show", subscription.id));
 };
@@ -201,4 +218,47 @@ const cancelSubscription = (subscription) => {
         });
     }
 };
+
+const handleSelectionChanged = (selected) => {
+    selectedSubscriptions.value = selected;
+};
+
+const exportChargeAttempts = () => {
+    if (selectedSubscriptions.value.length === 0) {
+        alert('Por favor selecciona al menos una suscripción para exportar.');
+        return;
+    }
+
+    // Crear formulario para enviar los IDs
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = route('admin.subscriptions.charge-attempts.export');
+    form.style.display = 'none';
+
+    // Agregar subscription_ids como array
+    selectedSubscriptions.value.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'subscription_ids[]';
+        input.value = id;
+        form.appendChild(input);
+    });
+
+    // Agregar formato
+    const formatInput = document.createElement('input');
+    formatInput.type = 'hidden';
+    formatInput.name = 'format';
+    formatInput.value = 'xlsx';
+    form.appendChild(formatInput);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+};
 </script>
+
+<style scoped>
+.bg-turquesa {
+    background-color: #007e93;
+}
+</style>

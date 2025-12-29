@@ -67,6 +67,15 @@ class PaymentScheduleDetailTransformer
                 'installment_amount' => (float) ($item->installment_amount ?? 0),
                 'installment_status' => $item->installment_status ?? null, // Para exportación
 
+                // Fuente de pago
+                'payment_source' => $item->payment_source ?? null,
+                'payment_source_label' => $this->getPaymentSourceLabel($item->payment_source ?? null),
+                'installment_display' => $this->formatInstallmentDisplay(
+                    $item->installment_number ?? null,
+                    $totalInstallments,
+                    $item->payment_source ?? null
+                ),
+
                 // Datos de pago (para exportación)
                 'gateway_code' => $item->gateway_code ?? null,
                 'transaction_date' => $item->transaction_date ?? null,
@@ -249,5 +258,40 @@ class PaymentScheduleDetailTransformer
         return preg_replace_callback('/\b[\p{L}]/u', function ($m) {
             return mb_strtoupper($m[0], 'UTF-8');
         }, $lower);
+    }
+
+    /**
+     * Obtener etiqueta amigable para la fuente de pago
+     */
+    private function getPaymentSourceLabel(?string $paymentSource): string
+    {
+        if (!$paymentSource) {
+            return 'N/A';
+        }
+
+        $labels = [
+            'subscription' => 'Suscripción',
+            'manual_cash' => 'Presencial (Efectivo)',
+            'manual_transfer' => 'Presencial (Transferencia)',
+            'manual_online' => 'Online Manual',
+            'manual_check' => 'Presencial (Cheque)',
+            'manual_other' => 'Manual (Otro)',
+        ];
+
+        return $labels[$paymentSource] ?? ucfirst(str_replace('_', ' ', $paymentSource));
+    }
+
+    /**
+     * Formatear display de cuota con número y método de pago
+     * Formato: "5 de 12 - Presencial" o "5 de 12 - Suscripción"
+     */
+    private function formatInstallmentDisplay(?int $installmentNumber, int $totalInstallments, ?string $paymentSource): ?string
+    {
+        if (!$installmentNumber || $totalInstallments === 0) {
+            return null;
+        }
+
+        $sourceLabel = $this->getPaymentSourceLabel($paymentSource);
+        return "{$installmentNumber} de {$totalInstallments} - {$sourceLabel}";
     }
 }

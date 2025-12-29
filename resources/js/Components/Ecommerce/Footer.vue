@@ -360,7 +360,7 @@
                                 position: relative;
                             "
                         >
-                            Tienes dudas?
+                            ¿Tienes dudas?
                         </div>
                         <a
                             :href="contactInfo.links.contactPage"
@@ -1070,7 +1070,7 @@
                                 position: relative;
                             "
                         >
-                            Tienes dudas?
+                            ¿Tienes dudas?
                         </div>
                         <a
                             :href="contactInfo.links.contactPage"
@@ -1385,8 +1385,8 @@ const getContent = (key, defaultValue) => {
 
 // Computed properties para contenido dinámico
 const newsletterTitulo = computed(() => getContent('newsletter_titulo', 'Suscríbete a nuestro newsletter'));
-const newsletterPlaceholder = computed(() => getContent('newsletter_placeholder', 'Ingresa su email aqui.'));
-const newsletterBoton = computed(() => getContent('newsletter_boton', 'Subscribe'));
+const newsletterPlaceholder = computed(() => getContent('newsletter_placeholder', 'Ingresa tu email aquí.'));
+const newsletterBoton = computed(() => getContent('newsletter_boton', 'Suscribirse'));
 const emailContacto = computed(() => getContent('email_contacto', contactInfo.emails.educacion));
 const emailPagos = computed(() => getContent('email_pagos', 'pagos@latitud90.com'));
 const direccion = computed(() => getContent('direccion', 'Carlos Antúnez 1941, Providencia'));

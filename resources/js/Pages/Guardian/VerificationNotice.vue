@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <h2 class="verification-title">Verificacion de Email Requerida</h2>
+      <h2 class="verification-title">Verificación de Email Requerida</h2>
 
       <!-- Email info -->
       <div class="email-info-box">
@@ -28,8 +28,8 @@
       </div>
 
       <p class="verification-message">
-        Por favor revisa tu bandeja de entrada y haz clic en el enlace de verificacion que te enviamos.
-        Una vez verificado, podras acceder a todas las funciones.
+        Por favor revisa tu bandeja de entrada y haz clic en el enlace de verificación que te enviamos.
+        Una vez verificado, podrás acceder a todas las funciones.
       </p>
 
       <!-- Warning box -->
@@ -43,7 +43,7 @@
         </div>
       </div>
 
-      <!-- Reenviar verificacion -->
+      <!-- Reenviar verificación -->
       <div class="resend-section">
         <div class="divider"></div>
         <p class="resend-label">No recibiste el correo?</p>
@@ -63,7 +63,7 @@
             <svg v-if="resendSuccess" class="button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
             </svg>
-            <span v-if="!resendSuccess">Reenviar correo de verificacion</span>
+            <span v-if="!resendSuccess">Reenviar correo de verificación</span>
             <span v-else>Correo reenviado exitosamente</span>
           </button>
         </form>
@@ -78,7 +78,7 @@
           as="button"
           class="logout-button"
         >
-          Cerrar sesion
+          Cerrar sesión
         </Link>
       </div>
 

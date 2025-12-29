@@ -252,7 +252,9 @@ class SubscriptionController extends Controller
                 throw new Exception('Participante no encontrado. Debe estar inscrito en el programa primero.');
             }
 
-            // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso para pagar por este participante
+            // VALIDACIÓN DE GUARDIAN DESHABILITADA - No se requiere validación de permisos en ecommerce
+            // Los pagos pueden ser realizados por cualquier usuario sin restricciones de guardian
+            /*
             if (auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
 
@@ -274,6 +276,7 @@ class SubscriptionController extends Controller
                     'participant_id' => $participant->id
                 ]);
             }
+            */
 
             Log::info('Participante encontrado', [
                 'participant_id' => $participant->id,
@@ -897,7 +900,8 @@ class SubscriptionController extends Controller
             $subscription = ProgramSubscription::with(['participant', 'programCourse'])
                 ->find($subscriptionId);
 
-            // VALIDACIÓN: Si hay un guardian logeado, verificar que tenga permiso
+            // VALIDACIÓN DE GUARDIAN DESHABILITADA - No se requiere validación de permisos en ecommerce
+            /*
             if ($subscription && auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
 
@@ -912,6 +916,7 @@ class SubscriptionController extends Controller
                         ->with('error', 'No tienes permiso para ver esta página.');
                 }
             }
+            */
 
             // Buscar la orden asociada
             $order = null;

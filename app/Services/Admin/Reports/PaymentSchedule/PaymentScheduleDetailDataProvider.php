@@ -61,6 +61,7 @@ class PaymentScheduleDetailDataProvider
                 'i.due_date',
                 'i.status as installment_status',
                 'i.paid_at as installment_paid_at',
+                'i.payment_source', // Fuente/método de pago de la cuota
 
                 // Datos del pago (para exportación)
                 'pay.id as payment_id',

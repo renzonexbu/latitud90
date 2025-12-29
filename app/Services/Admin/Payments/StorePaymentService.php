@@ -29,6 +29,9 @@ class StorePaymentService
         try {
             DB::beginTransaction();
 
+            // VALIDACIÓN: Verificar si el participante tiene suscripción activa
+            $this->validateSubscriptionStatus($request->participant_id, $request->program_id);
+
             // Buscar o crear la orden
             $order = $this->findOrCreateOrder($request);
 
@@ -56,6 +59,36 @@ class StorePaymentService
             //     $this->handleInstallmentPlan($order, $request->participant_id, $request->program_id, $request->amount);
             // }
 
+            // Si se proporciona installment_id, marcar la cuota como pagada manualmente
+            if ($request->has('installment_id') && $request->installment_id && $request->status === 'completed') {
+                $installmentService = new \App\Services\Admin\Installments\MarkInstallmentAsPaidManually();
+
+                // Mapear el tipo de pago presencial a payment_source
+                $paymentSource = $this->mapPresentialPaymentTypeToSource($request->presential_payment_type);
+
+                $result = $installmentService->markAsPaid(
+                    $request->installment_id,
+                    $payment->id,
+                    $order->id,
+                    $orderDetail->id,
+                    $paymentSource
+                );
+
+                if ($result['success']) {
+                    Log::info('✅ Cuota vinculada a pago presencial', [
+                        'payment_id' => $payment->id,
+                        'installment_id' => $request->installment_id,
+                        'payment_source' => $paymentSource
+                    ]);
+                } else {
+                    Log::warning('⚠️ No se pudo vincular cuota a pago presencial', [
+                        'payment_id' => $payment->id,
+                        'installment_id' => $request->installment_id,
+                        'reason' => $result['message']
+                    ]);
+                }
+            }
+
             DB::commit();
 
             // Log the payment creation
@@ -71,6 +104,7 @@ class StorePaymentService
                     'payment_status' => $request->status,
                     'participant_id' => $request->participant_id,
                     'program_id' => $request->program_id,
+                    'installment_id' => $request->installment_id ?? null,
                 ]
             );
 
@@ -443,5 +477,67 @@ class StorePaymentService
                 'installment_plan_id' => $installmentPlan->id
             ]);
         }
+    }
+
+    /**
+     * Mapear el tipo de pago presencial a payment_source
+     *
+     * @param string $presentialPaymentType
+     * @return string
+     */
+    private function mapPresentialPaymentTypeToSource(string $presentialPaymentType): string
+    {
+        $mapping = [
+            'BX' => 'manual_cash',       // Boleta/Efectivo
+            'TE' => 'manual_transfer',   // Transferencia Electrónica
+            'CH' => 'manual_check',      // Cheque
+            'DP' => 'manual_other',      // Depósito u otro
+        ];
+
+        return $mapping[$presentialPaymentType] ?? 'manual_cash';
+    }
+
+    /**
+     * Validar si el participante tiene suscripción activa
+     * Solo permite pagos presenciales si hay cobros rechazados
+     *
+     * @param int $participantId
+     * @param int $programId
+     * @throws \Exception
+     */
+    private function validateSubscriptionStatus(int $participantId, int $programId): void
+    {
+        // Buscar suscripción activa
+        $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+            ->first();
+
+        if (!$activeSubscription) {
+            // No hay suscripción activa, puede proceder con pago presencial normal
+            return;
+        }
+
+        // Tiene suscripción activa, verificar si hay cobros rechazados
+        $failedCharges = \App\Models\ChargeAttempt::where('program_subscription_id', $activeSubscription->id)
+            ->where('status', 'failed')
+            ->whereHas('installment', function ($query) {
+                $query->whereIn('status', ['pending', 'overdue']);
+            })
+            ->count();
+
+        if ($failedCharges === 0) {
+            throw new \Exception(
+                'Este participante tiene una suscripción activa sin cobros rechazados. ' .
+                'Solo se pueden registrar pagos presenciales para cuotas que VirtualPos no pudo cobrar automáticamente.'
+            );
+        }
+
+        Log::info('✅ Pago presencial permitido: Suscripción con cobros rechazados', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'subscription_id' => $activeSubscription->id,
+            'failed_charges_count' => $failedCharges
+        ]);
     }
 }

@@ -100,6 +100,7 @@ class PaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string',
             'notes' => 'nullable|string',
+            'installment_id' => 'nullable|exists:installments,id', // Opcional: ID de cuota a marcar como pagada
 
             // Datos del comprador
             'buyer_full_name' => 'required|string|max:255',

@@ -97,7 +97,27 @@ class DailyPaymentsDataProvider
 
     public function getSummary(Builder $query): array
     {
-        $summary = $query->select([
+        // Obtener los bindings del query original para mantener los filtros
+        $bindings = $query->getBindings();
+        $wheres = $query->toSql();
+
+        // Crear nuevo query solo con las agregaciones (sin usar el query original que tiene SELECT complejo)
+        $summaryQuery = DB::table('payments as pay')
+            ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
+            ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
+            ->leftJoin('participants as p', 'o.participant_id', '=', 'p.id')
+            ->leftJoin('program_courses as pgc', 'pgc.id', '=', 'o.program_id')
+            ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
+            ->leftJoin('sales_executives as se', 'pgc.sales_executive_id', '=', 'se.id')
+            ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
+            ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
+            ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id');
+
+        // Copiar los WHERE del query original
+        $summaryQuery->mergeWheres($query->wheres, $bindings);
+
+        // Ahora sí, hacer el SELECT con agregaciones
+        $summary = $summaryQuery->select([
             DB::raw('COUNT(DISTINCT pay.order_id) as total_orders'),
             DB::raw('COUNT(pay.id) as total_payments'),
             DB::raw('SUM(pay.amount) as total_amount_paid'),

@@ -3,7 +3,7 @@
     <h2 class="text-[#434343] text-left font-nexa text-[20px] leading-[28px] font-bold self-stretch">
       Pilares
     </h2>
-    <p class="text-[#5B5B5B] text-left font-nexa text-sm leading-[18px] font-normal self-stretch mt-2">
+    <p class="text-[#5B5B5B] text-justify font-nexa text-sm leading-[18px] font-normal self-stretch mt-2">
       En el desarrollo de nuestros programas incorporamos de manera transversal {{ pillarsArray.length }} pilares fundamentales:
     </p>
     

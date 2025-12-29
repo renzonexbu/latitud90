@@ -8,9 +8,14 @@ use App\Models\Installment;
 use App\Models\InstallmentPlan;
 use App\Models\VirtualPosPlan;
 use App\Services\Admin\Subscriptions\GetSubscriptionsService;
+use App\Services\Admin\Subscriptions\ChargeAttempts\ChargeAttemptsService;
+use App\Services\Admin\Subscriptions\ChargeAttempts\ChargeAttemptsDataProvider;
+use App\Services\Admin\Subscriptions\ChargeAttempts\ExportService as ChargeAttemptsExportService;
 use App\Services\VirtualPos\CancelSubscriptionService;
 use App\Services\VirtualPos\SyncSubscriptionService;
 use App\Services\VirtualPos\CreateChargeService;
+use App\Models\ProgramCourse;
+use App\Models\SalesExecutive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -22,7 +27,10 @@ class SubscriptionController extends Controller
         private GetSubscriptionsService $getSubscriptionsService,
         private CancelSubscriptionService $cancelSubscriptionService,
         private SyncSubscriptionService $syncSubscriptionService,
-        private CreateChargeService $createChargeService
+        private CreateChargeService $createChargeService,
+        private ChargeAttemptsService $chargeAttemptsService,
+        private ChargeAttemptsDataProvider $chargeAttemptsDataProvider,
+        private ChargeAttemptsExportService $chargeAttemptsExportService
     ) {}
 
     /**
@@ -429,5 +437,84 @@ class SubscriptionController extends Controller
         }
 
         return back()->with('error', $result['message']);
+    }
+
+    /**
+     * Mostrar reporte de intentos de cobro de VirtualPos
+     */
+    public function chargeAttempts(Request $request): Response
+    {
+        $data = $this->chargeAttemptsService->getChargeAttempts($request);
+
+        // Obtener programas para filtros
+        $programs = ProgramCourse::select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        // Obtener ejecutivos de ventas para filtros
+        $salesExecutives = SalesExecutive::select('id', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($executive) {
+                return [
+                    'id' => $executive->id,
+                    'name' => $executive->first_name . ' ' . $executive->last_name,
+                ];
+            });
+
+        return Inertia::render('Admin/Subscriptions/ChargeAttempts', [
+            'chargeAttempts' => $data['chargeAttempts'],
+            'statistics' => $data['statistics'],
+            'filterOptions' => $data['filterOptions'],
+            'filters' => $data['filters'],
+            'programs' => $programs,
+            'salesExecutives' => $salesExecutives,
+        ]);
+    }
+
+    /**
+     * Exportar reporte de intentos de cobro de suscripciones seleccionadas
+     */
+    public function exportChargeAttempts(Request $request)
+    {
+        try {
+            $request->validate([
+                'subscription_ids' => 'required|array|min:1',
+                'subscription_ids.*' => 'exists:program_subscriptions,id',
+                'format' => 'nullable|in:xlsx,csv',
+            ]);
+
+            $subscriptionIds = $request->input('subscription_ids');
+            $format = $request->get('format', 'xlsx');
+
+            Log::info('Exportando intentos de cobro de suscripciones', [
+                'subscription_ids' => $subscriptionIds,
+                'format' => $format,
+                'user_id' => auth()->id(),
+            ]);
+
+            // Obtener los datos filtrados por subscription_ids
+            $filters = ['subscriptionIds' => $subscriptionIds];
+            $data = $this->chargeAttemptsDataProvider->getData($filters);
+
+            if ($data->isEmpty()) {
+                return back()->with('error', 'No hay intentos de cobro registrados para las suscripciones seleccionadas.');
+            }
+
+            // Generar nombre de archivo
+            $filename = 'cobros_virtualpos_' . now('America/Santiago')->format('Y-m-d_H-i-s');
+
+            return $this->chargeAttemptsExportService->export($data, $filename, $format);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->with('error', 'Debe seleccionar al menos una suscripción para exportar.');
+        } catch (\Exception $e) {
+            Log::error('Error al exportar intentos de cobro', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Error al exportar: ' . $e->getMessage());
+        }
     }
 }

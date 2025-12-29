@@ -172,8 +172,8 @@ class CreateParticularPaymentService
     }
 
     /**
-     * Validar que NO exista una suscripción activa
-     * Los pagos presenciales NO se pueden hacer si hay suscripción activa (debe manejarse por VirtualPOS)
+     * Validar suscripción activa
+     * Si hay suscripción activa, solo permitir pagos presenciales cuando hay cobros rechazados
      */
     private function validateNoActiveSubscription(int $participantId, int $programId): void
     {
@@ -182,17 +182,45 @@ class CreateParticularPaymentService
             ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
             ->first();
 
-        if ($activeSubscription) {
+        if (!$activeSubscription) {
+            // No hay suscripción activa, puede proceder
+            Log::info('Validación de suscripción activa: OK (no existe suscripción)', [
+                'participant_id' => $participantId,
+                'program_id' => $programId,
+                'operation' => 'presential_payment'
+            ]);
+            return;
+        }
+
+        // Verificar si hay cobros rechazados en VirtualPos
+        $failedCharges = \App\Models\ChargeAttempt::where('program_subscription_id', $activeSubscription->id)
+            ->where('status', 'failed')
+            ->whereHas('installment', function ($query) {
+                $query->whereIn('status', ['pending', 'overdue']);
+            })
+            ->count();
+
+        Log::info('Validación de suscripción activa con cobros rechazados', [
+            'participant_id' => $participantId,
+            'program_id' => $programId,
+            'subscription_id' => $activeSubscription->id,
+            'failed_charges_count' => $failedCharges,
+            'operation' => 'presential_payment'
+        ]);
+
+        if ($failedCharges === 0) {
             throw new \Exception(
-                "No se puede registrar un pago presencial para este participante porque tiene una suscripción activa. " .
-                "Los pagos para participantes con suscripción deben realizarse a través del sistema de VirtualPOS."
+                "No se puede registrar un pago presencial para este participante porque tiene una suscripción activa sin cobros rechazados. " .
+                "Solo se pueden registrar pagos presenciales para cuotas que VirtualPos no pudo cobrar automáticamente."
             );
         }
 
-        Log::info('Validación de suscripción activa: OK (no existe suscripción)', [
+        // Si hay cobros rechazados, permitir el pago presencial
+        Log::info('✅ Pago presencial permitido: hay cobros rechazados pendientes de pago', [
             'participant_id' => $participantId,
             'program_id' => $programId,
-            'operation' => 'presential_payment'
+            'subscription_id' => $activeSubscription->id,
+            'failed_charges_count' => $failedCharges
         ]);
     }
 

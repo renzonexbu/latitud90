@@ -6,6 +6,15 @@
             <div
                 class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
             >
+                <!-- Checkbox para seleccionar todos -->
+                <div class="w-[40px] flex items-center justify-center">
+                    <input
+                        type="checkbox"
+                        :checked="allSelected"
+                        @change="toggleAll"
+                        class="w-5 h-5 rounded border-white text-turquesa focus:ring-white cursor-pointer"
+                    />
+                </div>
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
                 >
@@ -66,6 +75,16 @@
                     ]"
                     @click="$emit('show-subscription-details', subscription)"
                 >
+                    <!-- Checkbox -->
+                    <div class="w-[40px] flex items-center justify-center">
+                        <input
+                            type="checkbox"
+                            :checked="isSelected(subscription.id)"
+                            @click="toggleSubscription(subscription.id, $event)"
+                            class="w-5 h-5 rounded border-gray-300 text-turquesa focus:ring-turquesa cursor-pointer"
+                        />
+                    </div>
+
                     <!-- ID -->
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
@@ -204,9 +223,48 @@ export default {
             type: Array,
             default: () => [],
         },
+        selectedSubscriptions: {
+            type: Array,
+            default: () => [],
+        },
+    },
+
+    computed: {
+        allSelected() {
+            return this.subscriptions.length > 0 &&
+                   this.subscriptions.every(sub => this.selectedSubscriptions.includes(sub.id));
+        },
     },
 
     methods: {
+        toggleAll() {
+            if (this.allSelected) {
+                this.$emit('selection-changed', []);
+            } else {
+                const allIds = this.subscriptions.map(sub => sub.id);
+                this.$emit('selection-changed', allIds);
+            }
+        },
+
+        toggleSubscription(subscriptionId, event) {
+            event.stopPropagation();
+
+            const selected = [...this.selectedSubscriptions];
+            const index = selected.indexOf(subscriptionId);
+
+            if (index > -1) {
+                selected.splice(index, 1);
+            } else {
+                selected.push(subscriptionId);
+            }
+
+            this.$emit('selection-changed', selected);
+        },
+
+        isSelected(subscriptionId) {
+            return this.selectedSubscriptions.includes(subscriptionId);
+        },
+
         getStatusClass(status) {
             const classes = {
                 'ACTIVA': "bg-[#4b8d7f]", // Verde

@@ -54,7 +54,7 @@
                                             <input
                                                 v-model="formData.email"
                                                 type="email"
-                                                placeholder="Escriba aqui su email"
+                                                placeholder="Escriba aquí su email"
                                                 class="form-input"
                                                 required
                                             />
@@ -65,8 +65,8 @@
                                     <div class="field-label">Mensaje</div>
                                     <textarea
                                         v-model="formData.message"
-                                        placeholder="Escriba aqui su mensaje"
-                                        class="form-textarea"
+                                        placeholder="Escriba aquí su mensaje"
+                                        class="form-textarea"   
                                         rows="3"
                                         required
                                     ></textarea>

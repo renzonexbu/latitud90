@@ -334,7 +334,7 @@ const getContent = (key, defaultValue) => {
 const paso1Text = computed(() => getContent('paso_1', 'Ingrese el RUT/DNI PASAPORTE del participante'));
 const paso2Text = computed(() => getContent('paso_2', 'Seleccione el programa a pagar'));
 const paso3Text = computed(() => getContent('paso_3', 'Seleccione el método de pago'));
-const botonBuscarText = computed(() => getContent('boton_buscar', 'Pagar aqui'));
+const botonBuscarText = computed(() => getContent('boton_buscar', 'Pagar aquí'));
 
 // Computed para imagen de fondo
 const backgroundImage = computed(() => {

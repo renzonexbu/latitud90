@@ -23,6 +23,7 @@ class Installment extends Model
         'payment_order_id',
         'payment_order_detail_id',
         'payment_id',
+        'payment_source', // Fuente/método de pago de la cuota
         'notes',
         'adjusted_at',
         'adjustment_reason',
@@ -90,6 +91,7 @@ class Installment extends Model
             'payment_order_id' => $orderId,
             'payment_order_detail_id' => $orderDetailId,
             'payment_id' => $paymentId,
+            'payment_source' => 'subscription', // Marcar como pago de suscripción automática
         ]);
 
         Log::info('Installment: markAsPaid completed', [

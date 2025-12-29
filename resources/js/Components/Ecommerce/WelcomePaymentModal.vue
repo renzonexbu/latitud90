@@ -13,7 +13,7 @@
     <div class="hidden md:flex flex-col gap-[59px] items-center justify-start flex-shrink-0 w-full max-w-[1400px] relative">
       <!-- Título -->
       <div class="text-[#007e93] text-center font-nexa-bold text-[24px] leading-[28px] font-bold relative w-full max-w-[1200px]">
-        Bienvenido a la plataforma de pago de Lat90
+        Bienvenido a la plataforma de pago de Latitud 90
       </div>
 
       <!-- Pasos del proceso -->
@@ -28,7 +28,7 @@
               </div>
             </div>
             <div class="text-[#007e93] text-center font-nexa-bold text-[20px] leading-[28px] font-bold self-stretch word-wrap break-word">
-              Busca al participante mediante su RUT
+              Busca al participante mediante su documento
             </div>
             <!-- Línea desde el primer círculo -->
             <div class="absolute top-[19px] left-1/2 w-full h-0 border-t-2 border-[#007e93] z-0"></div>
@@ -91,7 +91,7 @@
       <div class="flex flex-col gap-[20px] w-full h-full">
         <!-- Título mobile -->
         <div class="text-[#007E93] text-center font-nexa text-[16px] font-normal font-bold leading-[18px] self-stretch">
-          Bienvenido a la plataforma de pago de Lat90
+          Bienvenido a la plataforma de pago de Latitud 90
         </div>
 
         <!-- Pasos mobile -->
@@ -101,7 +101,7 @@
               1
             </div>
             <div class="text-[#007E93] text-left font-nexa text-[14px] font-normal font-normal leading-[18px] flex-1">
-              Busca al participante mediante su RUT
+              Busca al participante mediante su documento
             </div>
           </div>
           <div class="flex items-center gap-[12px] relative z-[2]">

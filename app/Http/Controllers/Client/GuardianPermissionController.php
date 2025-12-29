@@ -45,12 +45,11 @@ class GuardianPermissionController extends Controller
 
             $guardian = auth('guardian')->user();
 
-            // Verificar permisos usando el método canPayFor del modelo
-            $hasPermission = $guardian->canPayFor($participant->id);
+            // VALIDACIÓN SIMPLIFICADA: Solo importa que haya un guardian logeado
+            // No importa si es o no el apoderado del participante
 
-            // LOG COMPLETO: SIEMPRE registrar si es guardian o no en relación al participante
-            Log::info('🔍 VALIDACIÓN DE GUARDIAN PARA PAGO DE SUSCRIPCIÓN', [
-                'es_guardian_del_participante' => $hasPermission ? 'SÍ ✅' : 'NO ❌',
+            // LOG INFORMATIVO: Registrar quién está haciendo el pago
+            Log::info('✅ Guardian logeado procesando pago de suscripción', [
                 'guardian_id' => $guardian->id,
                 'guardian_email' => $guardian->email,
                 'guardian_nombre' => $guardian->name,
@@ -58,23 +57,12 @@ class GuardianPermissionController extends Controller
                 'participante_id' => $participant->id,
                 'participante_documento' => $participant->document_number,
                 'participante_nombre' => $participant->full_name,
-                'tiene_permiso_pago' => $hasPermission,
                 'timestamp' => now()->toDateTimeString()
             ]);
 
-            if (!$hasPermission) {
-                Log::warning('⚠️ Guardian sin permiso intenta iniciar pago de suscripción', [
-                    'guardian_id' => $guardian->id,
-                    'guardian_email' => $guardian->email,
-                    'participant_id' => $participant->id,
-                    'participant_document' => $participant->document_number,
-                    'participant_name' => $participant->full_name
-                ]);
-            }
-
             return response()->json([
-                'has_permission' => $hasPermission,
-                'reason' => $hasPermission ? 'authorized' : 'not_authorized',
+                'has_permission' => true,
+                'reason' => 'guardian_logged_in',
                 'guardian_email' => $guardian->email
             ]);
 

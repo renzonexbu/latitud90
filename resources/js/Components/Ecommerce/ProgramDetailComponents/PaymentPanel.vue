@@ -262,17 +262,17 @@
 
                     <!-- Content -->
                     <div class="mb-6">
-                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4 text-justify">
                             Para continuar con el pago en cuotas mensuales, necesitas estar registrado como apoderado.
                         </p>
-                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4">
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] mb-4 text-justify">
                             Serás redirigido al formulario de registro. Una vez completado, podrás continuar con tu compra.
                         </p>
-                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px]">
+                        <p class="text-[#434343] font-nexa text-[14px] leading-[22px] text-justify">
                             ¿Ya tienes cuenta?
                             <a
                                 :href="`/guardian/login?token=${this.$page.props.token}&program_id=${this.programId}`"
-                                class="text-[#1C4F4A] font-nexa-bold hover:underline"
+                                class="text-[#1C4F4A] font-nexa-bold underline decoration-2 underline-offset-2"
                             >
                                 Inicia sesión aquí
                             </a>
