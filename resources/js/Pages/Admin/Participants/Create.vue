@@ -243,7 +243,7 @@
                                         <label
                                             class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                         >
-                                            Fecha de nacimiento *
+                                            Fecha de nacimiento
                                         </label>
                                         <input
                                             v-model="form.birth_date"
@@ -269,7 +269,7 @@
                                             <label
                                                 class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                             >
-                                                Nacionalidad *
+                                                Nacionalidad
                                             </label>
                                             <input
                                                 v-model="form.nationality"
@@ -293,7 +293,7 @@
                                             <label
                                                 class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                             >
-                                                Sexo *
+                                                Sexo
                                             </label>
                                             <select
                                                 v-model="form.gender"
@@ -411,7 +411,7 @@
                                 <h3
                                     class="text-[#007e93] text-left font-nexa-bold text-[18px] leading-[22px] font-bold mb-4"
                                 >
-                                    Contacto de emergencia *
+                                    Contacto de emergencia
                                 </h3>
 
                                 <div class="space-y-4">
@@ -420,7 +420,7 @@
                                         <label
                                             class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                         >
-                                            Nombre Completo *
+                                            Nombre Completo
                                         </label>
                                         <input
                                             v-model="
@@ -457,7 +457,7 @@
                                         <label
                                             class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                         >
-                                            Correo del apoderado *
+                                            Correo del apoderado
                                         </label>
                                         <input
                                             v-model="
@@ -494,7 +494,7 @@
                                         <label
                                             class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold block mb-2"
                                         >
-                                            RUT del apoderado *
+                                            RUT del apoderado
                                         </label>
                                         <input
                                             v-model="

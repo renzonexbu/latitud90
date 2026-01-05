@@ -36,9 +36,12 @@ class ParticipantStatusController extends Controller
     /**
      * Toggle participant active status (soft delete).
      */
-    public function destroy(Participant $participant)
+    public function destroy(Request $request, Participant $participant)
     {
-        $result = $this->toggleActiveStatusService->execute($participant);
+        // Obtener el comentario del request (opcional)
+        $comment = $request->input('comment');
+
+        $result = $this->toggleActiveStatusService->execute($participant, $comment);
 
         $this->logDelete(
             'Participantes',

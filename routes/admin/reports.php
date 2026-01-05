@@ -72,6 +72,28 @@ Route::get('/reports/export/paid-installments', [ReportController::class, 'expor
 Route::get('/reports/it-simple', [ReportController::class, 'itSimpleReport'])->name('reports.it-simple');
 Route::get('/reports/export/it-simple', [ReportController::class, 'exportItSimpleReport'])->name('reports.export.it-simple');
 
+// Documentos Procedimientos para todos los usuarios
+Route::get('/reports/procedure-documents', function () {
+    $documents = \App\Models\ProcedureDocument::active()
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return \Inertia\Inertia::render('Admin/Reports/ProcedureDocuments', [
+        'documents' => $documents
+    ]);
+})->name('reports.procedure-documents');
+
+Route::get('/reports/procedure-documents/download/{procedureDocument}', function (\App\Models\ProcedureDocument $procedureDocument) {
+    if (!\Storage::disk('public')->exists($procedureDocument->file_path)) {
+        return back()->withErrors(['error' => 'El archivo no existe']);
+    }
+
+    return \Storage::disk('public')->download(
+        $procedureDocument->file_path,
+        $procedureDocument->file_name
+    );
+})->name('reports.procedure-documents.download');
+
 // Ejecutivos/Apoderados: Consolidado de Área Ingresos y Estado de Cuenta Parcial
 // Estos reportes contienen información sensible del contacto pagador y requieren permiso especial
 use App\Http\Controllers\Admin\ExecutivesReportsController;

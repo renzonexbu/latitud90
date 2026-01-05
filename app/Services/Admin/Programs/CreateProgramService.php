@@ -129,6 +129,11 @@ class CreateProgramService
 
         // Procesar imágenes si se proporcionaron (optimizadas y convertidas a WebP)
         if (isset($programData['images']) && is_array($programData['images'])) {
+            Log::info('🔍 CreateProgramService - Imágenes recibidas:', [
+                'total_images' => count($programData['images']),
+                'images_keys' => array_keys($programData['images']),
+            ]);
+
             $imagesDirectory = "{$programFolder}/images";
             $imagePaths = $this->imageService->optimizeMultiple(
                 $programData['images'],
@@ -136,9 +141,19 @@ class CreateProgramService
                 "imagen_{$programId}"
             );
 
+            Log::info('🔍 CreateProgramService - Imágenes procesadas:', [
+                'total_saved' => count($imagePaths),
+                'paths' => $imagePaths,
+            ]);
+
             if (!empty($imagePaths)) {
                 $programData['images_folder'] = $imagesDirectory;
             }
+        } else {
+            Log::warning('⚠️ CreateProgramService - No se recibieron imágenes o no es un array:', [
+                'isset' => isset($programData['images']),
+                'is_array' => isset($programData['images']) ? is_array($programData['images']) : 'N/A',
+            ]);
         }
 
         return $programData;

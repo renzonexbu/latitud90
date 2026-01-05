@@ -525,6 +525,11 @@ watch(
 const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
 
+    console.log("🔍 ProgramDescription - Archivos seleccionados:", {
+        totalFiles: files.length,
+        filesNames: files.map(f => f.name)
+    });
+
     files.forEach((file) => {
         // Validar tipo de archivo
         if (!file.type.startsWith("image/")) {
@@ -541,11 +546,18 @@ const handleImageUpload = (event) => {
         // Crear URL para preview
         const reader = new FileReader();
         reader.onload = (e) => {
-            selectedImages.value.push({
+            const newImage = {
                 file: file,
                 url: e.target.result,
                 name: file.name,
                 size: file.size,
+            };
+            selectedImages.value.push(newImage);
+            console.log("🔍 ProgramDescription - Imagen agregada:", {
+                name: newImage.name,
+                size: newImage.size,
+                hasFile: !!newImage.file,
+                totalImagesNow: selectedImages.value.length
             });
         };
         reader.readAsDataURL(file);

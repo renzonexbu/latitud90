@@ -22,7 +22,7 @@ class UpdateParticipantRequest extends FormRequest
             'phone' => 'nullable|string|max:255',
             'code_phone' => 'nullable|string|max:255',
             'country' => 'nullable|string|max:255',
-            'birth_date' => 'required|date',
+            'birth_date' => 'nullable|date',
             'address' => 'nullable|string|max:255',
             'allergies' => 'nullable|string',
             'intolerances' => 'nullable|string',

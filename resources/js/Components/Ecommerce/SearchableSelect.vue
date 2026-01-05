@@ -8,13 +8,17 @@
             @input="handleSearch"
             @focus="showDropdown = true"
             @blur="handleBlur"
+            :disabled="disabled"
             class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-            :class="{ 'border-[#007E93]': showDropdown }"
+            :class="{
+                'border-[#007E93]': showDropdown && !disabled,
+                'opacity-50 cursor-not-allowed bg-gray-100': disabled
+            }"
         />
         
         <!-- Dropdown con opciones filtradas -->
-        <div 
-            v-if="showDropdown && filteredOptions.length > 0"
+        <div
+            v-if="showDropdown && filteredOptions.length > 0 && !disabled"
             class="absolute z-50 w-full mt-1 bg-white border border-[#D3D3D3] rounded-lg shadow-lg max-h-48 overflow-y-auto"
         >
             <div
@@ -29,8 +33,8 @@
         </div>
         
         <!-- Mensaje cuando no hay resultados -->
-        <div 
-            v-if="showDropdown && searchTerm && filteredOptions.length === 0"
+        <div
+            v-if="showDropdown && searchTerm && filteredOptions.length === 0 && !disabled"
             class="absolute z-50 w-full mt-1 bg-white border border-[#D3D3D3] rounded-lg shadow-lg px-4 py-2 text-left font-nexa text-[12px] leading-[18px] text-gray-500"
         >
             No se encontraron resultados
@@ -57,6 +61,10 @@ export default {
         searchKey: {
             type: String,
             default: 'name'
+        },
+        disabled: {
+            type: Boolean,
+            default: false
         }
     },
     data() {
@@ -112,9 +120,11 @@ export default {
     },
     methods: {
         handleSearch(event) {
+            if (this.disabled) return;
+
             this.searchTerm = event.target.value;
             this.showDropdown = true;
-            
+
             // Si el usuario borra todo, emitir valor vacío
             if (!this.searchTerm) {
                 this.$emit('input', '');
@@ -123,6 +133,8 @@ export default {
         },
         
         selectOption(option) {
+            if (this.disabled) return;
+
             this.selectedOption = option;
             this.searchTerm = option[this.searchKey];
             this.showDropdown = false;

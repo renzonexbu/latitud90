@@ -113,6 +113,27 @@
                     </button>
                 </div>
 
+                <!-- Documentos Procedimientos -->
+                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                    <div class="flex items-center mb-4">
+                        <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            Documentos Procedimientos
+                        </h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">
+                        Gestionar documentos Word y PDF de procedimientos que verán los ejecutivos comerciales.
+                    </p>
+                    <button
+                        @click="goToProcedureDocuments"
+                        class="bg-turquesa text-white px-4 py-2 rounded-md hover:bg-turquesa-dark transition-colors"
+                    >
+                        Acceder
+                    </button>
+                </div>
+
             </div>
 
             <!-- Información del Usuario -->
@@ -181,6 +202,9 @@ export default {
         },
         goToTermsConditions() {
             this.$inertia.visit(route('admin.maintainer.terms-conditions.index'));
+        },
+        goToProcedureDocuments() {
+            this.$inertia.visit(route('admin.procedure-documents.index'));
         }
     }
 };

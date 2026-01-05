@@ -17,9 +17,12 @@ Route::get('participants/inactive', [ParticipantStatusController::class, 'inacti
 Route::post('participants/{participant}/toggle-status', [ParticipantStatusController::class, 'toggleStatus'])->name('participants.toggle-status');
 Route::post('participants/bulk-action', [ParticipantStatusController::class, 'bulkAction'])->name('participants.bulk-action');
 
-// Payments and exports routes
+// Payments routes
 Route::get('participants/{participant}/payments', [ParticipantPaymentsController::class, 'show'])->name('participants.payments');
-Route::get('participants/export', [ParticipantPaymentsController::class, 'export'])->name('participants.export');
+
+// Export routes
+Route::get('participants/export/excel', [ParticipantsController::class, 'exportExcel'])->name('participants.export.excel');
+Route::get('participants/export/csv', [ParticipantsController::class, 'exportCsv'])->name('participants.export.csv');
 
 // Medical conditions route
 Route::put('participants/{participant}/medical-conditions', [ParticipantMedicalController::class, 'update'])->name('participants.update-medical-conditions');

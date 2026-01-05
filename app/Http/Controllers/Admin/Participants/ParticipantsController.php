@@ -10,6 +10,7 @@ use App\Services\Admin\Participants\UpdateParticipantService;
 use App\Services\Admin\Participants\GetParticipantsService;
 use App\Services\Admin\Participants\GetCreateDataService;
 use App\Services\Admin\Participants\GetEditDataService;
+use App\Services\Admin\Participants\ParticipantsExportService;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -25,19 +26,22 @@ class ParticipantsController extends Controller
     protected $getParticipantsService;
     protected $getCreateDataService;
     protected $getEditDataService;
+    protected $participantsExportService;
 
     public function __construct(
         CreateParticipantService $createParticipantService,
         UpdateParticipantService $updateParticipantService,
         GetParticipantsService $getParticipantsService,
         GetCreateDataService $getCreateDataService,
-        GetEditDataService $getEditDataService
+        GetEditDataService $getEditDataService,
+        ParticipantsExportService $participantsExportService
     ) {
         $this->createParticipantService = $createParticipantService;
         $this->updateParticipantService = $updateParticipantService;
         $this->getParticipantsService = $getParticipantsService;
         $this->getCreateDataService = $getCreateDataService;
         $this->getEditDataService = $getEditDataService;
+        $this->participantsExportService = $participantsExportService;
     }
 
     /**
@@ -165,6 +169,86 @@ class ParticipantsController extends Controller
             ]);
 
             return back()->withErrors(['error' => 'Error al actualizar el participante: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Export participants to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        try {
+            $status = $request->query('status', 'all'); // all, active, inactive
+
+            $result = $this->participantsExportService->export($status, 'xlsx');
+
+            $this->logAction(
+                'Export',
+                'Participantes',
+                'Exportación de participantes a Excel',
+                null,
+                null,
+                null,
+                null,
+                [
+                    'status' => $status,
+                    'format' => 'xlsx',
+                    'total_records' => $result['total_records']
+                ]
+            );
+
+            return response()->download(
+                $result['file_path'],
+                $result['file_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            )->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Error al exportar participantes a Excel', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Error al exportar participantes: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export participants to CSV
+     */
+    public function exportCsv(Request $request)
+    {
+        try {
+            $status = $request->query('status', 'all'); // all, active, inactive
+
+            $result = $this->participantsExportService->export($status, 'csv');
+
+            $this->logAction(
+                'Export',
+                'Participantes',
+                'Exportación de participantes a CSV',
+                null,
+                null,
+                null,
+                null,
+                [
+                    'status' => $status,
+                    'format' => 'csv',
+                    'total_records' => $result['total_records']
+                ]
+            );
+
+            return response()->download(
+                $result['file_path'],
+                $result['file_name'],
+                ['Content-Type' => 'text/csv']
+            )->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Error al exportar participantes a CSV', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Error al exportar participantes: ' . $e->getMessage());
         }
     }
 

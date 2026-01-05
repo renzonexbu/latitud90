@@ -422,6 +422,35 @@
                                                             <span v-if="errors.studentsFile" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.studentsFile }}
                                                             </span>
+
+                                                            <!-- Import Errors Details -->
+                                                            <div v-if="importErrorDetails && importErrorDetails.errors && importErrorDetails.errors.length > 0" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                                                <div class="flex items-start justify-between mb-3">
+                                                                    <div>
+                                                                        <h4 class="text-red-800 font-nexa-bold text-sm">Errores en el archivo de estudiantes</h4>
+                                                                        <p class="text-red-600 text-xs mt-1">
+                                                                            {{ importErrorDetails.error_count }} error(es) encontrado(s) en {{ importErrorDetails.total_rows }} filas
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="max-h-60 overflow-y-auto space-y-2">
+                                                                    <div
+                                                                        v-for="(error, index) in importErrorDetails.errors"
+                                                                        :key="index"
+                                                                        class="text-xs bg-white p-3 rounded border border-red-100"
+                                                                    >
+                                                                        <div class="flex items-start gap-2">
+                                                                            <span class="flex-shrink-0 bg-red-600 text-white px-2 py-1 rounded font-bold text-[10px]">
+                                                                                Fila {{ error.row }}
+                                                                            </span>
+                                                                            <div class="flex-1">
+                                                                                <p class="text-gray-700 font-semibold">{{ error.participant_name }}</p>
+                                                                                <p class="text-red-600 mt-1">{{ error.error }}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -611,25 +640,6 @@
                                                                 El plan de VirtualPos se creará automáticamente al guardar.
                                                             </div>
                                                         </div>
-
-                                                        <!-- Nuevo: Primer cobro inmediato -->
-                                                        <div class="field-wrapper mt-4">
-                                                            <label class="flex items-start gap-3 cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    v-model="form.immediate_first_charge"
-                                                                    class="mt-1 h-4 w-4 text-[#007e93] border-gray-300 rounded focus:ring-[#007e93]"
-                                                                />
-                                                                <div class="flex-1">
-                                                                    <div class="field-label mb-1">
-                                                                        Primer cobro inmediato
-                                                                    </div>
-                                                                    <div class="text-xs text-gray-500">
-                                                                        Si está activado, el primer cobro se realizará inmediatamente al suscribirse. Si está desactivado, el primer cobro se diferirá aproximadamente 30 días.
-                                                                    </div>
-                                                                </div>
-                                                            </label>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -816,7 +826,7 @@
 </template>
 
 <script setup>
-import { Head, useForm, Link, router } from '@inertiajs/vue3';
+import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
@@ -843,6 +853,10 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+// Obtener errores de importación desde la sesión
+const page = usePage();
+const importErrorDetails = computed(() => page.props.importErrorDetails || null);
 
 // Accordion states
 const priceOpen = ref(true);

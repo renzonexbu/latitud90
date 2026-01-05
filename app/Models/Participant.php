@@ -147,6 +147,11 @@ class Participant extends Model
         return $this->hasManyThrough(ParticipantProgramDiscount::class, ParticipantProgram::class);
     }
 
+    public function statusHistory()
+    {
+        return $this->hasMany(ParticipantStatusHistory::class)->orderBy('created_at', 'desc');
+    }
+
     public function getFullNameAttribute()
     {
         $parts = [];
@@ -204,6 +209,40 @@ class Participant extends Model
     private function capitalizeWords(string $text): string
     {
         return ucwords(strtolower(trim($text)));
+    }
+
+    /**
+     * Obtener etiqueta amigable para el estado del participante
+     *
+     * @param string|null $status El estado a traducir (si es null, usa el estado del participante)
+     * @return string
+     */
+    public function getStatusLabel(?string $status = null): string
+    {
+        $statusValue = $status ?? $this->status;
+
+        return match($statusValue) {
+            'pending_payment' => 'Pendiente de Pago',
+            'confirmed' => 'Confirmado',
+            'cancelled' => 'Cancelado',
+            default => ucfirst(str_replace('_', ' ', $statusValue ?? 'N/A'))
+        };
+    }
+
+    /**
+     * Obtener etiqueta amigable para el estado del programa del participante
+     *
+     * @param string $status
+     * @return string
+     */
+    public static function getProgramStatusLabel(string $status): string
+    {
+        return match($status) {
+            'pending_payment' => 'Pendiente de Pago',
+            'confirmed' => 'Confirmado',
+            'cancelled' => 'Liberado',
+            default => ucfirst(str_replace('_', ' ', $status))
+        };
     }
 
     // Totales deben calcularse desde el pivote y pagos; se eliminaron campos locales de pago

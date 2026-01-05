@@ -90,8 +90,13 @@ watch(
 // Watcher para sincronizar las imágenes con el formulario
 watch(selectedImages, (newImages) => {
     const imageFiles = newImages.map((img) => img.file).filter(Boolean);
+    console.log("🔍 Create.vue - Watcher ejecutado:", {
+        selectedImagesCount: newImages.length,
+        imageFilesCount: imageFiles.length,
+        imageFiles: imageFiles
+    });
     form.images = imageFiles;
-});
+}, { deep: true });
 
 // Función para actualizar imágenes
 const updateImages = (images) => {
@@ -100,6 +105,13 @@ const updateImages = (images) => {
 
 // Enviar formulario
 const submit = () => {
+    console.log("🔍 DEBUG - Datos del formulario antes de enviar:", {
+        totalImages: form.images.length,
+        images: form.images,
+        selectedImagesCount: selectedImages.value.length,
+        selectedImages: selectedImages.value
+    });
+
     form.post(route("admin.programs.store"), {
         onSuccess: () => {
             console.log("✅ Plantilla creada exitosamente");

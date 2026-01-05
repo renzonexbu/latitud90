@@ -18,7 +18,7 @@
                 <form @submit.prevent="saveCourse">
                     <div class="flex flex-col md:flex-row items-start gap-6 md:gap-[30px]">
                         <!-- Left Column - Program Template Selection -->
-                        <div class="w-full md:w-[500px] flex-shrink-0">
+                        <div class="w-full flex-shrink-0">
                             <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 shadow-[0px_4px_11.6px_0px_rgba(163,163,163,0.11)]">
                                 <div class="mb-6">
                                     <h2 class="text-[#007e93] font-nexa-bold text-[18px] leading-[22px] font-bold">
@@ -29,52 +29,36 @@
                                     </p>
                                 </div>
 
-                                <!-- Program Template Cards -->
-                                <div class="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                    <div
-                                        v-for="program in programs"
-                                        :key="program.id"
-                                        @click="selectProgram(program.id)"
-                                        :class="[
-                                            'border-2 rounded-lg p-4 cursor-pointer transition-all duration-200',
-                                            form.program_id === program.id
-                                                ? 'border-[#007e93] bg-[#007e93]/5'
-                                                : 'border-gray-200 hover:border-[#007e93]/50'
-                                        ]"
-                                    >
-                                        <div class="flex items-start gap-3">
-                                            <!-- Selection Radio -->
-                                            <div class="mt-1">
-                                                <div
-                                                    :class="[
-                                                        'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-                                                        form.program_id === program.id
-                                                            ? 'border-[#007e93] bg-[#007e93]'
-                                                            : 'border-gray-400'
-                                                    ]"
-                                                >
-                                                    <div
-                                                        v-if="form.program_id === program.id"
-                                                        class="w-2 h-2 bg-white rounded-full"
-                                                    ></div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Program Info -->
-                                            <div class="flex-1">
-                                                <h3 class="text-[#434343] font-nexa-bold text-[14px] leading-[18px] font-bold">
-                                                    {{ program.name }}
-                                                </h3>
-                                                <p class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[16px] mt-1">
-                                                    <span class="font-nexa-bold">Destino:</span> {{ program.destination }}
-                                                </p>
-                                            </div>
-                                        </div>
+                                <!-- Searchable Select for Program Templates -->
+                                <div class="field-wrapper">
+                                    <div class="field-label mb-2">
+                                        Buscar plantilla de programa *
                                     </div>
+                                    <SearchableSelect
+                                        :options="programsFormatted"
+                                        :value="form.program_id"
+                                        placeholder="Busca por nombre o destino"
+                                        @input="selectProgram"
+                                        search-key="searchText"
+                                    />
+                                    <span v-if="errors.program_id" class="text-red-500 text-sm mt-1">
+                                        {{ errors.program_id }}
+                                    </span>
                                 </div>
 
-                                <div v-if="errors.program_id" class="mt-4 text-red-500 text-xs">
-                                    {{ errors.program_id }}
+                                <!-- Selected Program Preview -->
+                                <div v-if="selectedProgram" class="mt-6 p-4 bg-[#007e93]/5 rounded-lg border border-[#007e93]/20">
+                                    <h3 class="text-[#007e93] font-nexa-bold text-[14px] leading-[18px] font-bold mb-2">
+                                        Plantilla seleccionada
+                                    </h3>
+                                    <div class="space-y-1">
+                                        <p class="text-[#434343] font-nexa-bold text-[12px] leading-[16px]">
+                                            {{ selectedProgram.name }}
+                                        </p>
+                                        <p class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[16px]">
+                                            <span class="font-nexa-bold">Destino:</span> {{ selectedProgram.destination }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -191,30 +175,25 @@
 
                                                 <div class="staff-field-row">
                                                     <div class="field-wrapper">
-                                                        <div class="field-label">
-                                                            Ejecutivo comercial
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            @click="showExecutiveModal = true"
-                                                            class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors mb-2 self-start"
-                                                        >
-                                                            Crear nuevo
-                                                        </button>
-                                                        <select
-                                                            v-model="form.sales_executive_id"
-                                                            class="admin-input-text"
-                                                            :class="{ 'border-red-500': errors.sales_executive_id }"
-                                                        >
-                                                            <option value="">Seleccione un ejecutivo</option>
-                                                            <option
-                                                                v-for="exec in salesExecutives"
-                                                                :key="exec.id"
-                                                                :value="exec.id"
+                                                        <div class="flex justify-between items-center mb-2">
+                                                            <div class="field-label">
+                                                                Ejecutivo comercial
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                @click="showExecutiveModal = true"
+                                                                class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors"
                                                             >
-                                                                {{ exec.name }} ({{ exec.code }})
-                                                            </option>
-                                                        </select>
+                                                                + Crear nuevo ejecutivo
+                                                            </button>
+                                                        </div>
+                                                        <SearchableSelect
+                                                            :options="salesExecutivesFormatted"
+                                                            :value="form.sales_executive_id"
+                                                            placeholder="Busca por nombre o código"
+                                                            @input="handleExecutiveChange"
+                                                            search-key="searchText"
+                                                        />
                                                         <span v-if="errors.sales_executive_id" class="text-red-500 text-sm mt-1">
                                                             {{ errors.sales_executive_id }}
                                                         </span>
@@ -255,30 +234,25 @@
                                             <div v-if="travelersOpen" class="accordion-content">
                                                 <div class="institution-field-row">
                                                     <div class="field-wrapper">
-                                                        <div class="field-label">
-                                                            Nombre de institución *
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            @click="showInstitutionModal = true"
-                                                            class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors mb-2 self-start"
-                                                        >
-                                                            Crear nueva
-                                                        </button>
-                                                        <select
-                                                            v-model="form.institutionId"
-                                                            class="admin-input-text"
-                                                            :class="{ 'border-red-500': errors.institutionId }"
-                                                        >
-                                                            <option value="">Seleccione una institución</option>
-                                                            <option
-                                                                v-for="institution in institutions"
-                                                                :key="institution.id"
-                                                                :value="institution.id"
+                                                        <div class="flex justify-between items-center mb-2">
+                                                            <div class="field-label">
+                                                                Nombre de institución *
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                @click="showInstitutionModal = true"
+                                                                class="text-[#007e93] hover:text-[#006580] text-xs font-nexa-bold transition-colors"
                                                             >
-                                                                {{ institution.name }}
-                                                            </option>
-                                                        </select>
+                                                                + Crear nueva institución
+                                                            </button>
+                                                        </div>
+                                                        <SearchableSelect
+                                                            :options="institutionsFormatted"
+                                                            :value="form.institutionId"
+                                                            placeholder="Busca por nombre de institución"
+                                                            @input="handleInstitutionChange"
+                                                            search-key="searchText"
+                                                        />
                                                         <span v-if="errors.institutionId" class="text-red-500 text-sm mt-1">
                                                             {{ errors.institutionId }}
                                                         </span>
@@ -288,20 +262,16 @@
                                                 <div class="education-details-row">
                                                     <div class="field-container">
                                                         <div class="field-wrapper">
-                                                            <div class="field-label">
+                                                            <div class="field-label mb-2">
                                                                 Nivel de educación *
                                                             </div>
-                                                            <select
-                                                                v-model="form.educationLevel"
-                                                                class="admin-select"
-                                                                :class="{ 'border-red-500': errors.educationLevel }"
-                                                            >
-                                                                <option value="">Seleccione un nivel</option>
-                                                                <option value="preescolar">Preescolar</option>
-                                                                <option value="basica">Básica</option>
-                                                                <option value="media">Media</option>
-                                                                <option value="universitaria">Universitaria</option>
-                                                            </select>
+                                                            <SearchableSelect
+                                                                :options="educationLevelsFormatted"
+                                                                :value="form.educationLevel"
+                                                                placeholder="Selecciona un nivel educativo"
+                                                                @input="handleEducationLevelChange"
+                                                                search-key="searchText"
+                                                            />
                                                             <span v-if="errors.educationLevel" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.educationLevel }}
                                                             </span>
@@ -429,6 +399,35 @@
                                                             <span v-if="errors.studentsFile" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.studentsFile }}
                                                             </span>
+
+                                                            <!-- Import Errors Details -->
+                                                            <div v-if="importErrorDetails && importErrorDetails.errors && importErrorDetails.errors.length > 0" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                                                <div class="flex items-start justify-between mb-3">
+                                                                    <div>
+                                                                        <h4 class="text-red-800 font-nexa-bold text-sm">Errores en el archivo de estudiantes</h4>
+                                                                        <p class="text-red-600 text-xs mt-1">
+                                                                            {{ importErrorDetails.error_count }} error(es) encontrado(s) en {{ importErrorDetails.total_rows }} filas
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="max-h-60 overflow-y-auto space-y-2">
+                                                                    <div
+                                                                        v-for="(error, index) in importErrorDetails.errors"
+                                                                        :key="index"
+                                                                        class="text-xs bg-white p-3 rounded border border-red-100"
+                                                                    >
+                                                                        <div class="flex items-start gap-2">
+                                                                            <span class="flex-shrink-0 bg-red-600 text-white px-2 py-1 rounded font-bold text-[10px]">
+                                                                                Fila {{ error.row }}
+                                                                            </span>
+                                                                            <div class="flex-1">
+                                                                                <p class="text-gray-700 font-semibold">{{ error.participant_name }}</p>
+                                                                                <p class="text-red-600 mt-1">{{ error.error }}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -618,25 +617,6 @@
                                                                 El plan de VirtualPos se creará automáticamente al guardar.
                                                             </div>
                                                         </div>
-
-                                                        <!-- Nuevo: Primer cobro inmediato -->
-                                                        <div class="field-wrapper mt-4">
-                                                            <label class="flex items-start gap-3 cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    v-model="form.immediate_first_charge"
-                                                                    class="mt-1 h-4 w-4 text-[#007e93] border-gray-300 rounded focus:ring-[#007e93]"
-                                                                />
-                                                                <div class="flex-1">
-                                                                    <div class="field-label mb-1">
-                                                                        Primer cobro inmediato
-                                                                    </div>
-                                                                    <div class="text-xs text-gray-500">
-                                                                        Si está activado, el primer cobro se realizará inmediatamente al suscribirse. Si está desactivado, el primer cobro se diferirá aproximadamente 30 días.
-                                                                    </div>
-                                                                </div>
-                                                            </label>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -817,11 +797,12 @@
 </template>
 
 <script setup>
-import { Head, useForm, Link, router } from '@inertiajs/vue3';
+import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CreateExecutiveModal from '@/Components/Sales/CreateExecutiveModal.vue';
 import CreateInstitutionModal from '@/Components/Institutions/CreateInstitutionModal.vue';
+import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 
 // Props
 const props = defineProps({
@@ -842,6 +823,10 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+// Obtener errores de importación desde la sesión
+const page = usePage();
+const importErrorDetails = computed(() => page.props.importErrorDetails || null);
 
 // Accordion states
 const priceOpen = ref(true);
@@ -995,6 +980,18 @@ const finalPaymentDateValidation = computed(() => {
         };
     }
 
+    // Calcular diferencia en días
+    const diffTime = departureDate - finalPaymentDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // Validar que haya al menos 60 días de diferencia
+    if (diffDays < 60) {
+        return {
+            isValid: false,
+            message: `Debe haber al menos 60 días entre la fecha final de pago y la fecha de salida. Actualmente hay ${diffDays} días.`
+        };
+    }
+
     return { isValid: true, message: '' };
 });
 
@@ -1041,9 +1038,66 @@ const toggleSubscriptionOption = (code, event) => {
     form.value.subscription_payment_options = Array.from(set);
 };
 
+// Format programs for SearchableSelect with searchable text
+const programsFormatted = computed(() => {
+    return props.programs.map(program => ({
+        id: program.id,
+        name: program.name,
+        destination: program.destination,
+        searchText: `${program.name} - ${program.destination}` // Combina nombre y destino para búsqueda
+    }));
+});
+
+// Get selected program
+const selectedProgram = computed(() => {
+    if (!form.value.program_id) return null;
+    return props.programs.find(p => p.id === form.value.program_id);
+});
+
 // Select program
 const selectProgram = (programId) => {
     form.value.program_id = programId;
+};
+
+// Format executives for SearchableSelect
+const salesExecutivesFormatted = computed(() => {
+    return props.salesExecutives.map(exec => ({
+        id: exec.id,
+        name: `${exec.name} (${exec.code})`,
+        searchText: `${exec.name} ${exec.code}`
+    }));
+});
+
+// Format institutions for SearchableSelect
+const institutionsFormatted = computed(() => {
+    return props.institutions.map(inst => ({
+        id: inst.id,
+        name: inst.name,
+        searchText: inst.name
+    }));
+});
+
+// Format education levels for SearchableSelect
+const educationLevelsFormatted = computed(() => {
+    return [
+        { id: 'preescolar', name: 'Preescolar', searchText: 'Preescolar' },
+        { id: 'basica', name: 'Básica', searchText: 'Básica' },
+        { id: 'media', name: 'Media', searchText: 'Media' },
+        { id: 'universitaria', name: 'Universitaria', searchText: 'Universitaria' }
+    ];
+});
+
+// Handlers for SearchableSelect
+const handleExecutiveChange = (executiveId) => {
+    form.value.sales_executive_id = executiveId;
+};
+
+const handleInstitutionChange = (institutionId) => {
+    form.value.institutionId = institutionId;
+};
+
+const handleEducationLevelChange = (level) => {
+    form.value.educationLevel = level;
 };
 
 // Format price with thousands separator (no decimals)
@@ -1848,5 +1902,14 @@ const handleInstitutionCreated = (newInstitution) => {
 
 .pdf-remove:hover {
     color: #b91c1c;
+}
+
+/* Space utility */
+.space-y-1 > * + * {
+    margin-top: 4px;
+}
+
+.mb-2 {
+    margin-bottom: 8px;
 }
 </style>

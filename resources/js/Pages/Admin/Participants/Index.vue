@@ -15,13 +15,26 @@
                     @create-participant="openCreateModal"
                 />
 
-                <!-- Filtros -->
+                <!-- Filtros y Botón Exportar -->
                 <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
-                    <ParticipantsFilters
-                        :initial-filters="localFilters"
-                        :participants="flattenedParticipantsData"
-                        @filters-changed="handleFiltersChanged"
-                    />
+                    <div class="flex justify-between items-start gap-4">
+                        <div class="flex-1">
+                            <ParticipantsFilters
+                                :initial-filters="localFilters"
+                                :participants="flattenedParticipantsData"
+                                @filters-changed="handleFiltersChanged"
+                            />
+                        </div>
+                        <button
+                            @click="showExportModal = true"
+                            class="flex-shrink-0 inline-flex items-center px-6 py-3 bg-[#007e93] hover:bg-[#006b7a] text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Exportar
+                        </button>
+                    </div>
               </div>
 
                 <!-- Participants List -->
@@ -71,15 +84,116 @@
     </div>
 
         <!-- Create Participant Modal -->
-        <CreateParticipantModal 
-            :show="showCreateModal" 
+        <CreateParticipantModal
+            :show="showCreateModal"
             :courses="courses"
             :institutions="institutions"
             :programs="programs"
             :document-types="documentTypes"
             :errors="errors"
-            @close="closeCreateModal" 
+            @close="closeCreateModal"
         />
+
+        <!-- Export Modal -->
+        <Modal :show="showExportModal" @close="closeExportModal">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">
+                    Exportar Participantes
+                </h2>
+
+                <p class="text-gray-600 mb-6">
+                    Selecciona el formato y el filtro de participantes que deseas exportar:
+                </p>
+
+                <!-- Export Options Grid -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <!-- Excel Column -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Excel (.xlsx)
+                        </h3>
+                        <a
+                            :href="route('admin.participants.export.excel', { status: 'all' })"
+                            class="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Todos los Participantes
+                        </a>
+                        <a
+                            :href="route('admin.participants.export.excel', { status: 'active' })"
+                            class="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Solo Activos
+                        </a>
+                        <a
+                            :href="route('admin.participants.export.excel', { status: 'inactive' })"
+                            class="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Solo Inactivos
+                        </a>
+                    </div>
+
+                    <!-- CSV Column -->
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            CSV (.csv)
+                        </h3>
+                        <a
+                            :href="route('admin.participants.export.csv', { status: 'all' })"
+                            class="block w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Todos los Participantes
+                        </a>
+                        <a
+                            :href="route('admin.participants.export.csv', { status: 'active' })"
+                            class="block w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Solo Activos
+                        </a>
+                        <a
+                            :href="route('admin.participants.export.csv', { status: 'inactive' })"
+                            class="block w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors text-center"
+                        >
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3" />
+                            </svg>
+                            Solo Inactivos
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Close Button -->
+                <div class="flex justify-end">
+                    <button
+                        type="button"
+                        @click="closeExportModal"
+                        class="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007e93]"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </Modal>
   </AdminLayout>
 </template>
 
@@ -91,6 +205,7 @@ import ParticipantsFilters from "@/Components/Participants/ParticipantsFilters.v
 import ParticipantsPagination from "@/Components/Participants/ParticipantsPagination.vue";
 import ParticipantsTable from "@/Components/Participants/ParticipantsTable.vue";
 import CreateParticipantModal from "./Create.vue";
+import Modal from "@/Components/Modal.vue";
 import { PersonsIcon } from "@/Components/Icons";
 import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 import _ from "lodash";
@@ -110,6 +225,7 @@ export default {
         ParticipantsTable,
         ParticipantsPagination,
         CreateParticipantModal,
+        Modal,
         PersonsIcon,
         AlertWrapper,
     },
@@ -154,6 +270,7 @@ export default {
     data() {
         return {
             showCreateModal: false,
+            showExportModal: false,
             currentPage: 1,
             localFilters: {
                 search: "",
@@ -345,6 +462,9 @@ export default {
         },
         closeCreateModal() {
             this.showCreateModal = false;
+        },
+        closeExportModal() {
+            this.showExportModal = false;
         },
         
         // Métodos auxiliares para manejar la nueva estructura de cursos

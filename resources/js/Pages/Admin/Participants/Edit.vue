@@ -439,6 +439,54 @@
             :errors="errors"
             @close="closeEmergencyContactsModal"
         />
+
+        <!-- Deactivate Participant Modal -->
+        <Modal :show="showDeactivateModal" @close="closeDeactivateModal">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">
+                    Desactivar Participante
+                </h2>
+
+                <p class="text-gray-700 mb-4">
+                    Estás a punto de desactivar al participante <strong>{{ getFullName(participant) }}</strong>.
+                </p>
+
+                <p class="text-sm text-gray-600 mb-4">
+                    Esta acción solo afectará su visibilidad en el flujo de compra, pero podrás seguir editándolo normalmente en el panel administrativo.
+                </p>
+
+                <div class="mb-6">
+                    <label for="deactivate-comment" class="block text-sm font-medium text-gray-700 mb-2">
+                        Comentario (requerido) *
+                    </label>
+                    <textarea
+                        id="deactivate-comment"
+                        v-model="deactivateComment"
+                        rows="4"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007e93] focus:border-[#007e93]"
+                        placeholder="Explica por qué deseas desactivar a este participante..."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        @click="closeDeactivateModal"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007e93]"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        @click="submitDeactivation"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                        Desactivar Participante
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </AdminLayout>
 </template>
 
@@ -449,6 +497,7 @@ import ParticipantsHeader from "@/Components/Participants/ParticipantsHeader.vue
 import EditParticipantModal from "@/Components/Participants/EditParticipantModal.vue";
 import MedicalConditionsModal from "@/Components/Participants/MedicalConditionsModal.vue";
 import EmergencyContactsModal from "@/Components/Participants/EmergencyContactsModal.vue";
+import Modal from "@/Components/Modal.vue";
 import ProgramCard from "@/Components/Programs/ProgramCard.vue";
 import { ref, computed, watch } from "vue";
 import { router } from "@inertiajs/vue3";
@@ -580,6 +629,8 @@ const getFullName = (participant) => {
 const showEditModal = ref(false);
 const showMedicalModal = ref(false);
 const showEmergencyContactsModal = ref(false);
+const showDeactivateModal = ref(false);
+const deactivateComment = ref('');
 const preSelectedCourseId = ref(null);
 
 // Modal functions
@@ -610,27 +661,58 @@ const closeEmergencyContactsModal = () => {
 };
 
 const confirmToggleParticipantStatus = () => {
-    const action = props.participant.is_active ? 'desactivar' : 'activar';
-    const message = props.participant.is_active 
-        ? `¿Estás seguro de que quieres desactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción solo afectará su visibilidad en el flujo de compra, pero podrás seguir editándolo normalmente en el panel administrativo.`
-        : `¿Estás seguro de que quieres activar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
-    
-    if (confirm(message)) {
-        router.delete(route('admin.participants.destroy', props.participant.id), {
-            onSuccess: () => {
-                // Recargar la página para mostrar el nuevo estado
-                router.reload();
-            },
-            onError: (errors) => {
-                console.error('❌ Error al cambiar estado del participante:', {
-                    participantId: props.participant.id,
-                    isActive: props.participant.is_active,
-                    errors: errors
-                });
-                alert('❌ Error al cambiar el estado del participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
-            }
-        });
+    if (props.participant.is_active) {
+        // Si está activo, mostrar modal para pedir comentario antes de desactivar
+        showDeactivateModal.value = true;
+    } else {
+        // Si está inactivo, activar directamente
+        const message = `¿Estás seguro de que quieres activar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
+
+        if (confirm(message)) {
+            router.delete(route('admin.participants.destroy', props.participant.id), {
+                onSuccess: () => {
+                    router.reload();
+                },
+                onError: (errors) => {
+                    console.error('❌ Error al cambiar estado del participante:', {
+                        participantId: props.participant.id,
+                        isActive: props.participant.is_active,
+                        errors: errors
+                    });
+                    alert('❌ Error al cambiar el estado del participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
+                }
+            });
+        }
     }
+};
+
+const closeDeactivateModal = () => {
+    showDeactivateModal.value = false;
+    deactivateComment.value = '';
+};
+
+const submitDeactivation = () => {
+    if (!deactivateComment.value.trim()) {
+        alert('Por favor, ingresa un comentario explicando por qué deseas desactivar al participante.');
+        return;
+    }
+
+    router.delete(route('admin.participants.destroy', props.participant.id), {
+        data: {
+            comment: deactivateComment.value
+        },
+        onSuccess: () => {
+            closeDeactivateModal();
+            router.reload();
+        },
+        onError: (errors) => {
+            console.error('❌ Error al desactivar participante:', {
+                participantId: props.participant.id,
+                errors: errors
+            });
+            alert('❌ Error al desactivar el participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
+        }
+    });
 };
 
 const handleProgramCardClick = (program) => {

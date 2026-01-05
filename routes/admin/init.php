@@ -54,6 +54,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de colegios
     include __DIR__ . '/schools.php';
 
+    // Gestión de documentos procedimientos
+    Route::resource('procedure-documents', \App\Http\Controllers\Admin\ProcedureDocumentsController::class);
+    Route::get('procedure-documents/{procedureDocument}/download', [\App\Http\Controllers\Admin\ProcedureDocumentsController::class, 'download'])->name('procedure-documents.download');
+
     Route::get('reports/programs', [ProgramController::class, 'reportsIndex'])->name('reports.programs');
     Route::get('reports/payments', [PaymentController::class, 'reportsIndex'])->name('reports.payments');
     Route::get('reports/financial', [PaymentController::class, 'financialReport'])->name('reports.financial');

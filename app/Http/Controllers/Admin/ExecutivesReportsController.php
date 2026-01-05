@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\ProcedureDocument;
 use App\Services\Admin\Reports\Executives\ExecutivesConsolidatedService;
 use App\Services\Admin\Reports\Executives\ExecutivesPartialAccountService;
 use App\Services\Admin\Reports\Executives\ExportService as ExecutivesExportService;
@@ -22,7 +23,13 @@ class ExecutivesReportsController extends Controller
      */
     public function index()
     {
-        return Inertia::render('Admin/Reports/ExecutivesIndex');
+        $documents = ProcedureDocument::active()
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('Admin/Reports/ExecutivesIndex', [
+            'documents' => $documents
+        ]);
     }
 
     public function consolidated(Request $request)

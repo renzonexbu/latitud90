@@ -30,9 +30,9 @@ class CreateParticipantRequest extends FormRequest
             'document_number' => 'required|string|max:255',
             // document_type es un ID a la tabla document
             'document_type' => 'required|integer|exists:document,id',
-            'birth_date' => 'required|date',
-            'nationality' => 'required|string|max:255',
-            'gender' => 'required|string|max:255',
+            'birth_date' => 'nullable|date',
+            'nationality' => 'nullable|string|max:255',
+            'gender' => 'nullable|string|max:255',
             'dietary_restrictions' => 'nullable|string|max:255',
             'intolerances' => 'nullable|string|max:255',
             'allergies' => 'nullable|string|max:255',
@@ -40,10 +40,10 @@ class CreateParticipantRequest extends FormRequest
             'address' => 'nullable|string|max:255',
             'medical_conditions' => 'nullable|string|max:255',
             // Solo se permite un contacto de emergencia
-            'emergency_contacts' => 'required|array|size:1',
-            'emergency_contacts.*.name' => 'required|string|max:255',
-            'emergency_contacts.*.email' => 'required|email|max:255',
-            'emergency_contacts.*.document_number' => 'required|string|max:255',
+            'emergency_contacts' => 'nullable|array|size:1',
+            'emergency_contacts.*.name' => 'nullable|string|max:255',
+            'emergency_contacts.*.email' => 'nullable|email|max:255',
+            'emergency_contacts.*.document_number' => 'nullable|string|max:255',
             'emergency_contacts.*.document_type' => 'nullable|integer|exists:document,id',
         ];
     }

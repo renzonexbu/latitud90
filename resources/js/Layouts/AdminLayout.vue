@@ -2,7 +2,10 @@
     <div class="h-screen flex overflow-hidden" :style="`background-color: #F9F9F9; background-image: url('${backgroundImage}'); background-size: cover; background-position: center; background-repeat: no-repeat;`">
         <!-- Sidebar -->
         <aside
-            class="mt-3 mb-3 ml-6 rounded-[20px] w-[102px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)]"
+            @mouseenter="sidebarExpanded = true"
+            @mouseleave="sidebarExpanded = false"
+            class="mt-3 mb-3 ml-6 rounded-[20px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)] fixed z-50 transition-all duration-300 ease-in-out"
+            :class="sidebarExpanded ? 'w-[250px]' : 'w-[102px]'"
         >
             <!-- Logo Section -->
             <div class="flex items-center justify-center py-6">
@@ -16,28 +19,37 @@
             </div>
 
             <!-- Navigation Icons -->
-            <nav class="flex flex-col items-center flex-1">
+            <nav class="flex flex-col flex-1">
                 <NavLink
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <HouseIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.dashboard')
                                 ? 'text-turquesa'
                                 : 'text-gray-400 group-hover:text-turquesa'
                         "
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.dashboard') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Dashboard
+                    </span>
                 </NavLink>
                 <NavLink
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <BackpackIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.programs.*')
                                 ? 'text-turquesa'
@@ -45,14 +57,23 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.programs.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Plantillas
+                    </span>
                 </NavLink>
                 <NavLink
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <LuggageIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.courses.*')
                                 ? 'text-turquesa'
@@ -60,14 +81,23 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.courses.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Programas - Cursos
+                    </span>
                 </NavLink>
                 <NavLink
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <PersonsIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.participants.*')
                                 ? 'text-turquesa'
@@ -75,14 +105,23 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.participants.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Participantes
+                    </span>
                 </NavLink>
                  <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <PaymentsIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.payments.*')
                                 ? 'text-turquesa'
@@ -90,14 +129,23 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.payments.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Pagos
+                    </span>
                 </NavLink>
                 <NavLink
                     :href="route('admin.subscriptions.index')"
                     :active="route().current('admin.subscriptions.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <SubscriptionIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.subscriptions.*')
                                 ? 'text-turquesa'
@@ -105,14 +153,23 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.subscriptions.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Suscripciones
+                    </span>
                 </NavLink>
                 <NavLink
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <ReportIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.reports.*')
                                 ? 'text-turquesa'
@@ -120,17 +177,26 @@
                         "
                         fill-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.reports.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Reportes
+                    </span>
                 </NavLink>
 
                 <!-- Contenido del Sitio -->
                 <NavLink
                     :href="route('admin.site-content.index')"
                     :active="route().current('admin.site-content.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                     title="Contenido del Sitio"
                 >
                     <svg
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.site-content.*')
                                 ? 'text-turquesa'
@@ -142,6 +208,15 @@
                     >
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.site-content.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Contenido
+                    </span>
                 </NavLink>
 
                 <!-- Mantenedor - Solo para Super Admin -->
@@ -149,10 +224,10 @@
                     v-if="$page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')"
                     :href="route('admin.maintainer.index')"
                     :active="route().current('admin.maintainer.*')"
-                    class="flex justify-center w-full p-1 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
                 >
                     <SettingsIcon
-                        class="w-8 h-8 transition-colors"
+                        class="w-8 h-8 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.maintainer.*')
                                 ? 'text-turquesa'
@@ -160,17 +235,26 @@
                         "
                         stroke-color="currentColor"
                     />
+                    <span
+                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                        :class="[
+                            route().current('admin.maintainer.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                        ]"
+                    >
+                        Mantenedor
+                    </span>
                 </NavLink>
             </nav>
 
             <!-- User Info Section -->
             <div class="border-t border-gray-200">
-                <div class="flex flex-col items-center space-y-4 py-4">
+                <div class="flex flex-col py-4">
                     <!-- <NavLink
                         :href="route('admin.profile.edit')"
                         class="flex justify-center w-full p-1 group transition-colors"
                     >
-                        <AyudaIcon 
+                        <AyudaIcon
                             class="w-8 h-8 transition-colors"
                             :class="
                                 route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
@@ -179,19 +263,28 @@
                             "
                         />
                     </NavLink> -->
-                    <div class="relative user-dropdown-container">
+                    <div class="relative user-dropdown-container w-full">
                         <button
                             @click="showingUserDropdown = !showingUserDropdown"
-                            class="flex justify-center w-full p-1 group transition-colors"
+                            class="flex items-center w-full px-6 py-3 group transition-colors"
                         >
                             <UserIcon
-                                class="w-8 h-8 transition-colors"
+                                class="w-8 h-8 transition-colors flex-shrink-0"
                                 :class="
                                     route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
                                         ? 'text-turquesa'
                                         : 'text-gray-400 group-hover:text-turquesa'
                                 "
                             />
+                            <span
+                                class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                                :class="[
+                                    (route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')) ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                                    sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                                ]"
+                            >
+                                Usuario
+                            </span>
                         </button>
                         
                         <!-- User Dropdown -->
@@ -231,7 +324,7 @@
         </aside>
 
         <!-- Page Content -->
-        <div class="flex-1 flex flex-col h-full">
+        <div class="flex-1 flex flex-col h-full ml-[126px]">
             <main class="flex-1 overflow-y-auto">
                 <slot />
             </main>
@@ -258,7 +351,6 @@ import DropdownLink from "@/Components/DropdownLink.vue";
 import NavLink from "@/Components/NavLink.vue";
 import ResponsiveNavLink from "@/Components/ResponsiveNavLink.vue";
 import Alerts from "@/Components/Alerts.vue";
-import { watch } from "vue";
 
 // Importar iconos SVG
 import {
@@ -305,6 +397,7 @@ export default {
         return {
             showingNavigationDropdown: false,
             showingUserDropdown: false,
+            sidebarExpanded: false,
             images,
             backgroundImage,
             showAlert: false,

@@ -144,7 +144,7 @@
                                         <div class="field-label">
                                             Ejecutivo comercial
                                         </div>
-                                        <button 
+                                        <button
                                             type="button"
                                             @click="$emit('create-executive')"
                                             class="text-[#007e93] text-xs font-nexa-bold hover:underline"
@@ -152,16 +152,13 @@
                                             + Crear nuevo ejecutivo
                                         </button>
                                     </div>
-                                    <select
-                                        v-model="formData.sales_executive_id"
-                                        class="admin-input-text"
-                                        :class="{ 'border-red-500': errors.sales_executive_id }"
-                                    >
-                                        <option :value="''">Seleccione un ejecutivo</option>
-                                        <option v-for="exec in salesExecutives" :key="exec.id" :value="exec.id">
-                                            {{ exec.name }} ({{ exec.code }})
-                                        </option>
-                                    </select>
+                                    <SearchableSelect
+                                        :options="salesExecutivesFormatted"
+                                        :value="formData.sales_executive_id"
+                                        placeholder="Busca por nombre o código"
+                                        @input="handleExecutiveChange"
+                                        search-key="searchText"
+                                    />
                                     <span v-if="errors.sales_executive_id" class="text-red-500 text-sm mt-1">
                                         {{ errors.sales_executive_id }}
                                     </span>
@@ -222,7 +219,7 @@
                                         <div class="field-label">
                                             Nombre de institución
                                         </div>
-                                        <button 
+                                        <button
                                             type="button"
                                             @click="createNewInstitution"
                                             class="text-[#007e93] text-xs font-nexa-bold hover:underline"
@@ -232,17 +229,14 @@
                                             + Crear nueva institución
                                         </button>
                                     </div>
-                                    <select
-                                        v-model="formData.institution_id"
-                                        class="admin-input-text"
+                                    <SearchableSelect
+                                        :options="institutionsFormatted"
+                                        :value="formData.institution_id"
+                                        placeholder="Busca por nombre de institución"
+                                        @input="handleInstitutionChange"
+                                        search-key="searchText"
                                         :disabled="props.hasExistingCourse"
-                                        :class="{ 'opacity-50 cursor-not-allowed': props.hasExistingCourse }"
-                                    >
-                                        <option value="">Seleccione una institución</option>
-                                        <option v-for="institution in institutions" :key="institution.id" :value="institution.id">
-                                            {{ institution.name }}
-                                        </option>
-                                    </select>
+                                    />
                                 </div>
                             </div>
                             <div class="education-details-row">
@@ -251,17 +245,14 @@
                                         <div class="field-label">
                                             Nivel de educación
                                         </div>
-                                        <select
-                                            v-model="formData.education_level"
-                                            class="admin-select"
+                                        <SearchableSelect
+                                            :options="educationLevelsFormatted"
+                                            :value="formData.education_level"
+                                            placeholder="Selecciona un nivel educativo"
+                                            @input="handleEducationLevelChange"
+                                            search-key="searchText"
                                             :disabled="!canEnableCourseFields()"
-                                            :class="{ 'opacity-50 cursor-not-allowed': !canEnableCourseFields() }"
-                                        >
-                                            <option value="">Seleccione un nivel</option>
-                                            <option value="preescolar">Preescolar</option>
-                                            <option value="basica">Básica</option>
-                                            <option value="media">Media</option>
-                                        </select>
+                                        />
 
                                     </div>
                                 </div>
@@ -582,6 +573,7 @@
 <script setup>
 import { ref, watch, defineEmits, onMounted, nextTick, computed } from "vue";
 import { AccordionSeparator } from "@/Components/Icons";
+import SearchableSelect from "@/Components/Ecommerce/SearchableSelect.vue";
 
 // Props
 const props = defineProps({
@@ -739,6 +731,33 @@ const maxInstallmentChoices = computed(() => {
         choices.push({ value: '1', label: '1' });
     }
     return choices;
+});
+
+// Formatear ejecutivos para SearchableSelect
+const salesExecutivesFormatted = computed(() => {
+    return props.salesExecutives.map(exec => ({
+        id: exec.id,
+        name: `${exec.name} (${exec.code})`,
+        searchText: `${exec.name} ${exec.code}` // Permite buscar por nombre o código
+    }));
+});
+
+// Formatear instituciones para SearchableSelect
+const institutionsFormatted = computed(() => {
+    return props.institutions.map(inst => ({
+        id: inst.id,
+        name: inst.name,
+        searchText: inst.name
+    }));
+});
+
+// Opciones de nivel educativo para SearchableSelect
+const educationLevelsFormatted = computed(() => {
+    return [
+        { id: 'preescolar', name: 'Preescolar', searchText: 'Preescolar' },
+        { id: 'basica', name: 'Básica', searchText: 'Básica' },
+        { id: 'media', name: 'Media', searchText: 'Media' }
+    ];
 });
 
 // Función para formatear precio como moneda
@@ -1274,6 +1293,19 @@ const updatePaymentOptionsAutomatically = () => {
     } catch (error) {
         console.error('Error actualizando opciones de pago automáticamente:', error);
     }
+};
+
+// Funciones para manejar cambios en SearchableSelects
+const handleExecutiveChange = (executiveId) => {
+    formData.value.sales_executive_id = executiveId;
+};
+
+const handleInstitutionChange = (institutionId) => {
+    formData.value.institution_id = institutionId;
+};
+
+const handleEducationLevelChange = (level) => {
+    formData.value.education_level = level;
 };
 </script>
 

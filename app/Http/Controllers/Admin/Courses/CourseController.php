@@ -64,11 +64,20 @@ class CourseController extends Controller
     {
         try {
             $course = $this->courseService->createCourse($request->validated());
-            
+
             return redirect()
                 ->route('admin.courses.index')
                 ->with('success', 'Curso creado exitosamente');
-                
+
+        } catch (\App\Exceptions\ParticipantImportException $e) {
+            // Manejar errores de importación de participantes
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'studentsFile' => $e->getMessage(),
+                    'importErrors' => $e->getErrors(),
+                ])
+                ->with('importErrorDetails', $e->toArray());
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al crear el curso: ' . $e->getMessage()]);
@@ -123,6 +132,15 @@ class CourseController extends Controller
                 ->route('admin.courses.edit', $course)
                 ->with('success', 'Curso actualizado exitosamente');
 
+        } catch (\App\Exceptions\ParticipantImportException $e) {
+            // Manejar errores de importación de participantes
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'studentsFile' => $e->getMessage(),
+                    'importErrors' => $e->getErrors(),
+                ])
+                ->with('importErrorDetails', $e->toArray());
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al actualizar el curso: ' . $e->getMessage()]);

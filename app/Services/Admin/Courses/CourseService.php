@@ -613,6 +613,19 @@ class CourseService
                     "La fecha final de pago ({$finalPaymentDateTime->format('d/m/Y')}) debe ser anterior a la fecha de salida ({$departureDateClone->format('d/m/Y')})."
                 );
             }
+
+            // Calcular la diferencia en días
+            $interval = $finalPaymentDateTime->diff($departureDateClone);
+            $daysDifference = $interval->days;
+
+            // Validar que haya al menos 60 días de diferencia
+            if ($daysDifference < 60) {
+                throw new \Exception(
+                    "Debe haber al menos 60 días entre la fecha final de pago y la fecha de salida. " .
+                    "Actualmente hay {$daysDifference} días. " .
+                    "Fecha final de pago: {$finalPaymentDateTime->format('d/m/Y')}, Fecha de salida: {$departureDateClone->format('d/m/Y')}."
+                );
+            }
         }
     }
 
@@ -637,10 +650,29 @@ class CourseService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
+            // Buscar la fila de encabezados automáticamente
+            $headerRowIndex = $this->findHeaderRow($rows);
 
+            if ($headerRowIndex === null) {
+                throw new \Exception('No se pudo encontrar la fila de encabezados en el archivo. Asegúrate de que el archivo contenga columnas como "RUT", "Apellido Paterno", "Nombre", etc.');
+            }
 
-            // La primera fila contiene los headers
-            $headers = array_shift($rows);
+            // Extraer los encabezados
+            $headers = $rows[$headerRowIndex];
+
+            // Extraer información de la cabecera (opcional, para logs)
+            $headerInfo = $this->extractHeaderInfo($worksheet->toArray(), $headerRowIndex);
+
+            // Registrar información de cabecera si se encuentra
+            if (!empty(array_filter($headerInfo))) {
+                Log::info('Información de cabecera del Excel detectada', [
+                    'course_id' => $course->id,
+                    'header_info' => $headerInfo,
+                ]);
+            }
+
+            // Eliminar todas las filas anteriores a los encabezados (incluyendo los encabezados)
+            $rows = array_slice($rows, $headerRowIndex + 1);
 
 
 
@@ -648,8 +680,14 @@ class CourseService
             $participantCount = 0;
             $updatedCount = 0;
             $createdCount = 0;
+            $errors = []; // Array para acumular errores
+            $totalRows = count($rows);
 
             foreach ($rows as $rowIndex => $row) {
+                // El número de fila para mostrar al usuario (considerando la cabecera y el header)
+                // +2 porque: +1 por el índice base 0, +1 por la fila de encabezados que ya quitamos
+                // Luego sumamos el índice donde encontramos los encabezados
+                $displayRowNumber = $rowIndex + $headerRowIndex + 2;
                 // Saltar filas vacías
                 if (empty(array_filter($row))) {
                     continue;
@@ -662,30 +700,44 @@ class CourseService
 
                 $participantData = array_combine($headers, $row);
 
-                // Función helper para obtener valor de múltiples nombres de columna
-                $getFieldValue = function ($possibleNames) use ($participantData) {
-                    foreach ($possibleNames as $name) {
-                        if (isset($participantData[$name]) && !empty($participantData[$name])) {
-                            return $participantData[$name];
+                try {
+                    // Función helper para obtener valor de múltiples nombres de columna
+                    $getFieldValue = function ($possibleNames) use ($participantData) {
+                        // Create a case-insensitive lookup map
+                        $lowercaseMap = [];
+                        foreach ($participantData as $key => $value) {
+                            $lowercaseMap[strtolower(trim($key))] = $value;
                         }
+
+                        foreach ($possibleNames as $name) {
+                            $nameLower = strtolower(trim($name));
+                            if (isset($lowercaseMap[$nameLower]) && !empty($lowercaseMap[$nameLower])) {
+                                return $lowercaseMap[$nameLower];
+                            }
+                        }
+                        return null;
+                    };
+
+                    $cleanRut = $this->cleanRut($getFieldValue([
+                        'N° de documento',
+                        'Rut del participante',
+                        'RUT',
+                        'Rut',
+                        'rut',
+                        'Documento',
+                        'Documento del participante',
+                        'documento del participante'
+                    ]));
+
+                    if (empty($cleanRut)) {
+                        // Registrar error y continuar con la siguiente fila
+                        $errors[] = [
+                            'row' => $displayRowNumber,
+                            'participant_name' => 'Desconocido (sin RUT)',
+                            'error' => 'El RUT es obligatorio pero no se encontró en el archivo',
+                        ];
+                        continue;
                     }
-                    return null;
-                };
-
-                $cleanRut = $this->cleanRut($getFieldValue([
-                    'N° de documento',
-                    'Rut del participante',
-                    'RUT',
-                    'Rut',
-                    'rut',
-                    'Documento',
-                    'Documento del participante',
-                    'documento del participante'
-                ]));
-
-                if (empty($cleanRut)) {
-                    continue; // Saltar filas sin RUT
-                }
 
                 // Obtener tipo de documento del participante
                 $documentType = $getFieldValue([
@@ -717,7 +769,8 @@ class CourseService
                             'first_last_name' => $this->toCapitalCase($getFieldValue([
                                 'Primer apellido',
                                 'primer apellido',
-                                'apellido paterno'
+                                'apellido paterno',
+                                'apellido'
                             ])) ?? $existingParticipant->first_last_name,
                             'second_last_name' => $this->toCapitalCase($getFieldValue([
                                 'Segundo apellido',
@@ -829,7 +882,8 @@ class CourseService
                         'first_last_name' => $this->toCapitalCase($getFieldValue([
                             'Primer apellido',
                             'primer apellido',
-                            'apellido paterno'
+                            'apellido paterno',
+                            'apellido'
                         ])) ?? '',
                         'second_last_name' => $this->toCapitalCase($getFieldValue([
                             'Segundo apellido',
@@ -873,12 +927,12 @@ class CourseService
                             'nacionalidad',
                             'pais',
                             'origen'
-                        ])) ?? 'chilena',
+                        ])) ?? null,
                         'gender' => $this->normalizeGender($getFieldValue([
                             'sexo',
                             'genero',
                             'género'
-                        ])) ?? 'Masculino',
+                        ])),
                         'address' => $getFieldValue([
                             'Dirección',
                             'direccion',
@@ -963,7 +1017,7 @@ class CourseService
                             'name' => $this->toCapitalCase($guardianName) ?? $existingEmergencyContact->name,
                             'email' => $this->toLowercase($guardianEmail) ?? $existingEmergencyContact->email,
                             'document_type' => $guardianDocumentTypeId,
-                            'document_number' => $cleanGuardianRut,
+                            'document_number' => $cleanGuardianRut ?: $existingEmergencyContact->document_number,
                             'phone' => $getFieldValue([
                                 'Teléfono contacto emergencia',
                                 'telefono contacto emergencia',
@@ -993,16 +1047,16 @@ class CourseService
                         $cleanGuardianRut = $this->cleanRut($guardianRut ?? '');
 
                         $emergencyContact = EmergencyContact::create([
-                            'name' => $this->toCapitalCase($guardianName),
-                            'email' => $this->toLowercase($guardianEmail),
+                            'name' => $this->toCapitalCase($guardianName) ?? null,
+                            'email' => $this->toLowercase($guardianEmail) ?? null,
                             'document_type' => $guardianDocumentTypeId,
-                            'document_number' => $cleanGuardianRut,
+                            'document_number' => $cleanGuardianRut ?: null,
                             'code_phone' => '+56', // Código por defecto para Chile
                             'phone' => $getFieldValue([
                                 'Teléfono contacto emergencia',
                                 'telefono contacto emergencia',
                                 'fono contacto emergencia'
-                            ]) ?? '',
+                            ]) ?? null,
                             'country' => 'CL', // Chile por defecto
                             'birth_date' => $this->parseBirthDate($getFieldValue([
                                 'Fecha nacimiento contacto emergencia',
@@ -1018,10 +1072,63 @@ class CourseService
                     }
                 }
 
-                $participantCount++;
+                    $participantCount++;
+                } catch (\Exception $e) {
+                    // Capturar error de esta fila específica
+                    $participantName = 'Desconocido';
+
+                    // Intentar obtener el nombre del participante para el reporte de error
+                    try {
+                        $firstName = $this->toCapitalCase($getFieldValue([
+                            'Primer Nombre',
+                            'primer nombre',
+                            'nombre',
+                            'Nombre'
+                        ])) ?? '';
+                        $lastName = $this->toCapitalCase($getFieldValue([
+                            'Primer apellido',
+                            'primer apellido',
+                            'apellido paterno',
+                            'apellido'
+                        ])) ?? '';
+
+                        if ($firstName || $lastName) {
+                            $participantName = trim("{$firstName} {$lastName}");
+                        }
+
+                        if (isset($cleanRut) && !empty($cleanRut)) {
+                            $participantName .= " (RUT: {$cleanRut})";
+                        }
+                    } catch (\Exception $nameError) {
+                        // Si falla obtener el nombre, usar "Desconocido"
+                    }
+
+                    $errors[] = [
+                        'row' => $displayRowNumber,
+                        'participant_name' => $participantName,
+                        'error' => $e->getMessage(),
+                    ];
+
+                    Log::warning('Error procesando fila de participante', [
+                        'row' => $displayRowNumber,
+                        'participant_name' => $participantName,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
             }
 
 
+
+            // Verificar si hubo errores durante el procesamiento
+            if (!empty($errors)) {
+                // Lanzar excepción con todos los errores acumulados
+                throw new \App\Exceptions\ParticipantImportException(
+                    $errors,
+                    $totalRows,
+                    $participantCount
+                );
+            }
 
             // Actualizar el curso con el número total de estudiantes
             $course->update(['total_students' => $participantCount]);
@@ -1031,7 +1138,11 @@ class CourseService
                 'total_students' => $participantCount,
                 'participants_created' => $createdCount,
                 'participants_updated' => $updatedCount,
+                'total_rows' => $totalRows,
             ]);
+        } catch (\App\Exceptions\ParticipantImportException $e) {
+            // Re-lanzar la excepción de importación para que sea manejada por el controlador
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error al procesar el archivo de estudiantes', [
                 'course_id' => $course->id,
@@ -1040,6 +1151,110 @@ class CourseService
             ]);
             throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Extraer información de la cabecera del Excel (opcional)
+     * Lee información como institución, programa, fecha, valor, etc.
+     *
+     * @param array $rows Todas las filas del Excel
+     * @param int $headerRowIndex Índice de la fila de encabezados
+     * @return array Información extraída de la cabecera
+     */
+    private function extractHeaderInfo(array $rows, int $headerRowIndex): array
+    {
+        $info = [
+            'institution' => null,
+            'program' => null,
+            'program_code' => null,
+            'date' => null,
+            'price' => null,
+        ];
+
+        // Procesar solo las filas antes de los encabezados
+        for ($i = 0; $i < $headerRowIndex; $i++) {
+            $row = $rows[$i];
+
+            foreach ($row as $cell) {
+                if (empty($cell)) continue;
+
+                $cellStr = trim($cell);
+                $cellLower = strtolower($cellStr);
+
+                // Detectar institución (línea que contiene nombre largo)
+                if (strlen($cellStr) > 20 && !str_contains($cellLower, 'fecha') && !str_contains($cellLower, 'valor')) {
+                    $info['institution'] = $cellStr;
+                }
+
+                // Detectar código de programa (Programa N°: XXXXX)
+                if (preg_match('/programa\s*n°?\s*:?\s*([A-Z0-9]+)/i', $cellStr, $matches)) {
+                    $info['program_code'] = $matches[1];
+                }
+
+                // Detectar fecha (Fecha: DD de MMMM, YYYY)
+                if (preg_match('/fecha\s*:?\s*(.+)/i', $cellStr, $matches)) {
+                    $info['date'] = trim($matches[1]);
+                }
+
+                // Detectar valor/precio (Valor: $XXX,XXX)
+                if (preg_match('/valor\s*:?\s*\$?\s*([\d,\.]+)/i', $cellStr, $matches)) {
+                    $priceStr = str_replace([',', '.'], '', $matches[1]);
+                    $info['price'] = (int) $priceStr;
+                }
+            }
+        }
+
+        return $info;
+    }
+
+    /**
+     * Buscar la fila de encabezados en el archivo Excel
+     * Detecta automáticamente dónde comienza la tabla de datos
+     *
+     * @param array $rows Todas las filas del Excel
+     * @return int|null Índice de la fila de encabezados, o null si no se encuentra
+     */
+    private function findHeaderRow(array $rows): ?int
+    {
+        // Palabras clave que indican encabezados de participantes
+        $headerKeywords = [
+            'rut',
+            'documento',
+            'apellido',
+            'nombre',
+            'email',
+            'correo',
+            'telefono',
+            'fono',
+            'celular',
+            'n°',
+            'numero',
+        ];
+
+        foreach ($rows as $index => $row) {
+            // Contar cuántas columnas contienen palabras clave
+            $matchCount = 0;
+
+            foreach ($row as $cell) {
+                if (empty($cell)) continue;
+
+                $cellLower = strtolower(trim($cell));
+
+                foreach ($headerKeywords as $keyword) {
+                    if (str_contains($cellLower, $keyword)) {
+                        $matchCount++;
+                        break; // Ya encontramos una coincidencia en esta celda
+                    }
+                }
+            }
+
+            // Si encontramos al menos 3 columnas con palabras clave, probablemente sea la fila de encabezados
+            if ($matchCount >= 3) {
+                return $index;
+            }
+        }
+
+        return null; // No se encontró fila de encabezados
     }
 
     /**
@@ -1073,9 +1288,9 @@ class CourseService
     /**
      * Normalizar género
      */
-    private function normalizeGender(?string $gender): string
+    private function normalizeGender(?string $gender): ?string
     {
-        if (empty($gender)) return 'Masculino';
+        if (empty($gender)) return null; // Retornar null si no hay valor
 
         $gender = strtolower(trim($gender));
 
@@ -1087,7 +1302,7 @@ class CourseService
             return 'Femenino';
         }
 
-        return 'Masculino'; // Por defecto
+        return null; // Retornar null si no es reconocido
     }
 
     /**
