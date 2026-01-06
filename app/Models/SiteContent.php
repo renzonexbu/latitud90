@@ -20,12 +20,20 @@ class SiteContent extends Model
         'label',
         'order',
         'is_active',
+        'focal_point_mobile_x',
+        'focal_point_mobile_y',
+        'focal_point_desktop_x',
+        'focal_point_desktop_y',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'use_default' => 'boolean',
         'order' => 'integer',
+        'focal_point_mobile_x' => 'decimal:2',
+        'focal_point_mobile_y' => 'decimal:2',
+        'focal_point_desktop_x' => 'decimal:2',
+        'focal_point_desktop_y' => 'decimal:2',
     ];
 
     protected $appends = ['image_url', 'effective_value'];

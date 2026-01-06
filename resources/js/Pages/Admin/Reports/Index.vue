@@ -3,342 +3,138 @@
         <Head title="Reportes y Estadísticas" />
 
         <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-                <!-- Menú de Navegación de Reportes -->
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-2xl font-bold">
-                                Reportes
-                            </h2>
-                            <!-- Solo visible para usuarios con permiso ver_contacto_pagador -->
-                            <Link
-                                v-if="canViewPayerContact"
-                                :href="route('admin.reports.executives.index')"
-                                class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
-                            >
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                Reportes Ejecutivo Comercial
-                            </Link>
-                        </div>
+            <div class="max-w-[1800px] mx-auto sm:px-6 lg:px-8">
+                <!-- Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">
+                        Reportes
+                    </h2>
+                    <!-- Solo visible para usuarios con permiso ver_contacto_pagador -->
+                    <Link
+                        v-if="canViewPayerContact"
+                        :href="route('admin.reports.executives.index')"
+                        class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
+                    >
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Reportes Ejecutivo Comercial
+                    </Link>
+                </div>
 
-                        <div
-                            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
-                        >
-                            <!-- Estado de Cuenta Parcial -->
-                            <Link
-                                :href="route('admin.reports.partial-account')"
-                                class="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg border border-blue-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-blue-100 rounded-lg mr-3"
+                <!-- Layout de 2 columnas -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Columna izquierda: Menú de Reportes -->
+                    <div class="lg:col-span-3">
+                        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                            <div class="p-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Menú de Reportes</h3>
+                                <nav class="space-y-1">
+                                    <!-- Estado de Cuenta Parcial -->
+                                    <Link
+                                        :href="route('admin.reports.partial-account')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-blue-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-blue-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-blue-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-blue-800"
-                                    >
-                                        Estado de Cuenta Parcial
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-blue-600">
-                                    Informe de estado de cuenta que L90
-                                    reenviará
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-blue-700">Estado de Cuenta Parcial</span>
+                                    </Link>
 
-                            <!-- Cronograma de Recuperación -->
-                            <Link
-                                :href="route('admin.reports.payment-schedule')"
-                                class="bg-green-50 hover:bg-green-100 p-6 rounded-lg border border-green-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-green-100 rounded-lg mr-3"
+                                    <!-- Cronograma de Recuperación -->
+                                    <Link
+                                        :href="route('admin.reports.payment-schedule')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-green-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-green-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-green-400 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-green-800"
-                                    >
-                                        Cronograma de Recuperación
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-green-600">
-                                    Cuotas pactadas, vencimientos y cobranzas
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-green-700">Cronograma de Recuperación</span>
+                                    </Link>
 
-                            <!-- Reporte de Pagos Diarios -->
-                            <Link
-                                :href="route('admin.reports.daily-payments')"
-                                class="bg-yellow-50 hover:bg-yellow-100 p-6 rounded-lg border border-yellow-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-yellow-100 rounded-lg mr-3"
+                                    <!-- Pagos Diarios -->
+                                    <Link
+                                        :href="route('admin.reports.daily-payments')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-yellow-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-yellow-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-yellow-400 group-hover:text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-yellow-800"
-                                    >
-                                        Pagos Diarios
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-yellow-600">
-                                    Reporte detallado de pagos por día
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-yellow-700">Pagos Diarios</span>
+                                    </Link>
 
-                            <!-- Consolidado de Pagos -->
-                            <Link
-                                :href="
-                                    route('admin.reports.consolidated-payments')
-                                "
-                                class="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg border border-purple-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-purple-100 rounded-lg mr-3"
+                                    <!-- Consolidado de Pagos -->
+                                    <Link
+                                        :href="route('admin.reports.consolidated-payments')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-purple-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-purple-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-purple-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-purple-800"
-                                    >
-                                        Consolidado de Pagos
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-purple-600">
-                                    Resumen consolidado de todos los pagos
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-purple-700">Consolidado de Pagos</span>
+                                    </Link>
 
-                            <!-- Plantilla Softland -->
-                            <Link
-                                :href="route('admin.reports.softland')"
-                                class="bg-indigo-50 hover:bg-indigo-100 p-6 rounded-lg border border-indigo-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-indigo-100 rounded-lg mr-3"
+                                    <!-- Softland -->
+                                    <Link
+                                        :href="route('admin.reports.softland')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-indigo-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-indigo-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-indigo-800"
-                                    >
-                                        Softland
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-indigo-600">
-                                    Generar plantilla Excel para importar en Softland
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-indigo-700">Softland</span>
+                                    </Link>
 
-                            <!-- Documentos BSale -->
-                            <Link
-                                :href="route('admin.reports.bsale-documents')"
-                                class="bg-red-50 hover:bg-red-100 p-6 rounded-lg border border-red-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-red-100 rounded-lg mr-3"
+                                    <!-- Documentos BSale -->
+                                    <Link
+                                        :href="route('admin.reports.bsale-documents')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-red-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-red-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-red-400 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-red-800"
-                                    >
-                                        Documentos BSale
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-red-600">
-                                    Gestión y descarga de documentos PDF de BSale
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-red-700">Documentos BSale</span>
+                                    </Link>
 
-
-                            <!-- Aceptación de Términos y Condiciones -->
-                            <Link
-                                :href="route('admin.reports.terms-acceptance')"
-                                class="bg-rose-50 hover:bg-rose-100 p-6 rounded-lg border border-rose-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-rose-100 rounded-lg mr-3"
+                                    <!-- Aceptación TyC -->
+                                    <Link
+                                        :href="route('admin.reports.terms-acceptance')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-pink-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-rose-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-pink-400 group-hover:text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-rose-800"
-                                    >
-                                        Aceptación TyC
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-rose-600">
-                                    Registro de aceptación de términos y condiciones
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-pink-700">Aceptación TyC</span>
+                                    </Link>
 
-                            <!-- Cuotas Pagadas -->
-                            <Link
-                                :href="route('admin.reports.paid-installments')"
-                                class="bg-emerald-50 hover:bg-emerald-100 p-6 rounded-lg border border-emerald-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-emerald-100 rounded-lg mr-3"
+                                    <!-- Cuotas Pagadas -->
+                                    <Link
+                                        :href="route('admin.reports.paid-installments')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-teal-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-emerald-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-teal-400 group-hover:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-emerald-800"
-                                    >
-                                        Cuotas Pagadas
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-emerald-600">
-                                    Registro de cuotas de suscripción pagadas
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-teal-700">Cuotas Pagadas</span>
+                                    </Link>
 
-                            <!-- Reporte TI Simple -->
-                            <Link
-                                :href="route('admin.reports.it-simple')"
-                                class="bg-slate-50 hover:bg-slate-100 p-6 rounded-lg border border-slate-200 transition-colors"
-                            >
-                                <div class="flex items-center mb-3">
-                                    <div
-                                        class="p-2 bg-slate-100 rounded-lg mr-3"
+                                    <!-- Reporte TI -->
+                                    <Link
+                                        :href="route('admin.reports.it-simple')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors group"
                                     >
-                                        <svg
-                                            class="w-6 h-6 text-slate-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                                            ></path>
+                                        <svg class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                         </svg>
-                                    </div>
-                                    <h3
-                                        class="text-lg font-semibold text-slate-800"
-                                    >
-                                        Reporte TI
-                                    </h3>
-                                </div>
-                                <p class="text-sm text-slate-600">
-                                    Nro. Negocio y Monto Recaudado (simple)
-                                </p>
-                            </Link>
+                                        <span class="text-gray-700 group-hover:text-slate-700">Reporte TI</span>
+                                    </Link>
+                                </nav>
+                            </div>
                         </div>
                     </div>
-                </div>
+
+                    <!-- Columna derecha: Gráficos y Reporte General -->
+                    <div class="lg:col-span-9 space-y-6">
 
                 <!-- Reporte General (Actual) -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -1217,6 +1013,8 @@
                                 Exportar Reporte Consolidado (Excel)
                             </button>
                         </div>
+                    </div>
+                </div>
                     </div>
                 </div>
             </div>

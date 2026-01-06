@@ -3,6 +3,7 @@ import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Head, Link, router, useForm } from "@inertiajs/vue3";
 import { ref, computed } from "vue";
 import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
+import FocalPointSelector from "@/Components/Admin/FocalPointSelector.vue";
 
 const props = defineProps({
     section: String,
@@ -22,6 +23,10 @@ const form = useForm({
         label: item.label,
         order: item.order,
         is_active: item.is_active,
+        focal_point_mobile_x: item.focal_point_mobile_x ?? 50,
+        focal_point_mobile_y: item.focal_point_mobile_y ?? 50,
+        focal_point_desktop_x: item.focal_point_desktop_x ?? 50,
+        focal_point_desktop_y: item.focal_point_desktop_y ?? 50,
     })),
 });
 
@@ -226,7 +231,7 @@ const getTypeLabel = (type) => {
                     </div>
 
                     <!-- Image Input -->
-                    <div v-else-if="item.type === 'image'" class="space-y-3">
+                    <div v-else-if="item.type === 'image'" class="space-y-4">
                         <!-- Modo por defecto -->
                         <div v-if="item.use_default && item.default_value" class="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                             <div class="flex items-start gap-4">
@@ -272,6 +277,20 @@ const getTypeLabel = (type) => {
                                     type="text"
                                     placeholder="URL o ruta de la imagen"
                                     class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+                                />
+                            </div>
+
+                            <!-- Focal Point Selector -->
+                            <div v-if="item.value" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="text-sm font-medium text-gray-900 mb-3">
+                                    🎯 Configurar puntos focales para esta imagen
+                                </h4>
+                                <FocalPointSelector
+                                    :image-url="getImagePreview(item)"
+                                    v-model:mobile-x="item.focal_point_mobile_x"
+                                    v-model:mobile-y="item.focal_point_mobile_y"
+                                    v-model:desktop-x="item.focal_point_desktop_x"
+                                    v-model:desktop-y="item.focal_point_desktop_y"
                                 />
                             </div>
                         </template>

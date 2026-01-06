@@ -16,7 +16,14 @@ class SiteContentController extends Controller
      */
     public function index()
     {
-        $sections = SiteContent::getSections();
+        $allSections = SiteContent::getSections();
+
+        // Filtrar solo las secciones activas que se muestran en el home
+        $activeSectionKeys = ['hero', 'schools', 'experiences', 'courses', 'faq', 'payment_form', 'contact', 'footer'];
+        $sections = array_filter($allSections, function($key) use ($activeSectionKeys) {
+            return in_array($key, $activeSectionKeys);
+        }, ARRAY_FILTER_USE_KEY);
+
         $contentBySection = [];
 
         foreach ($sections as $key => $label) {
@@ -96,6 +103,10 @@ class SiteContentController extends Controller
                 'order' => $item['order'] ?? 0,
                 'is_active' => $item['is_active'] ?? true,
                 'use_default' => $item['use_default'] ?? false,
+                'focal_point_mobile_x' => $item['focal_point_mobile_x'] ?? 50,
+                'focal_point_mobile_y' => $item['focal_point_mobile_y'] ?? 50,
+                'focal_point_desktop_x' => $item['focal_point_desktop_x'] ?? 50,
+                'focal_point_desktop_y' => $item['focal_point_desktop_y'] ?? 50,
             ];
 
             if (isset($item['id'])) {

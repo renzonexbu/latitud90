@@ -103,6 +103,7 @@ export default {
     data() {
         return {
             currentBanner: 0,
+            isMobile: false,
             defaultBanners: [
                 {
                     url: "/images/banners/NORTE_CHILE.webp",
@@ -157,9 +158,24 @@ export default {
                     this.content[imageKey]?.value || this.content[imageKey];
                 const destinoValue =
                     this.content[destinoKey]?.value || this.content[destinoKey];
+
+                // Obtener datos de la imagen del content
+                const imageData = this.content[imageKey];
+
+                // Obtener puntos focales
+                const mobileX = imageData?.focal_point_mobile_x ?? 50;
+                const mobileY = imageData?.focal_point_mobile_y ?? 50;
+                const desktopX = imageData?.focal_point_desktop_x ?? 50;
+                const desktopY = imageData?.focal_point_desktop_y ?? 50;
+
+                // Calcular position según dispositivo
+                const x = this.isMobile ? mobileX : desktopX;
+                const y = this.isMobile ? mobileY : desktopY;
+                const position = imageData ? `${x}% ${y}%` : defaultBanner.position;
+
                 return {
                     url: this.getImageUrl(imageValue, defaultBanner.url),
-                    position: defaultBanner.position,
+                    position: position,
                     destino: destinoValue || defaultBanner.destino,
                 };
             });
@@ -180,12 +196,18 @@ export default {
         },
     },
     mounted() {
+        this.checkMobile();
+        window.addEventListener('resize', this.checkMobile);
         this.startAutoPlay();
     },
     beforeUnmount() {
+        window.removeEventListener('resize', this.checkMobile);
         this.stopAutoPlay();
     },
     methods: {
+        checkMobile() {
+            this.isMobile = window.innerWidth < 768;
+        },
         getImageUrl(value, defaultValue) {
             if (!value) return defaultValue;
             if (value.startsWith("http")) return value;

@@ -20,6 +20,7 @@
                                         :src="cards[0].imagen"
                                         :alt="cards[0].alt"
                                         class="w-full h-auto object-cover"
+                                        :style="{ objectPosition: cards[0].objectPosition }"
                                     />
                                     <!-- Título sobre la imagen -->
                                     <div class="front-title-overlay">
@@ -63,6 +64,7 @@
                                         :src="cards[1].imagen"
                                         :alt="cards[1].alt"
                                         class="w-full h-auto object-cover"
+                                        :style="{ objectPosition: cards[1].objectPosition }"
                                     />
                                     <!-- Título sobre la imagen -->
                                     <div class="front-title-overlay">
@@ -106,6 +108,7 @@
                                         :src="cards[2].imagen"
                                         :alt="cards[2].alt"
                                         class="w-full h-auto object-cover"
+                                        :style="{ objectPosition: cards[2].objectPosition }"
                                     />
                                     <!-- Título sobre la imagen -->
                                     <div class="front-title-overlay">
@@ -148,6 +151,7 @@
                                         :src="cards[3].imagen"
                                         :alt="cards[3].alt"
                                         class="w-full h-auto object-cover"
+                                        :style="{ objectPosition: cards[3].objectPosition }"
                                     />
                                     <!-- Título sobre la imagen -->
                                     <div class="front-title-overlay">
@@ -288,13 +292,29 @@ const cards = computed(() => {
         const num = index + 1;
         const titulo = getContent(`tarjeta_${num}_titulo`, card.titulo);
         const { linea1, linea2 } = splitTitle(titulo);
+
+        // Obtener datos de la imagen del content
+        const imageData = props.content?.[`tarjeta_${num}_imagen`];
+
+        // Obtener puntos focales
+        const mobileX = imageData?.focal_point_mobile_x ?? 50;
+        const mobileY = imageData?.focal_point_mobile_y ?? 50;
+        const desktopX = imageData?.focal_point_desktop_x ?? 50;
+        const desktopY = imageData?.focal_point_desktop_y ?? 50;
+
+        // Calcular object-position según dispositivo
+        const x = isMobile.value ? mobileX : desktopX;
+        const y = isMobile.value ? mobileY : desktopY;
+        const objectPosition = imageData ? `${x}% ${y}%` : 'center';
+
         return {
             imagen: getImageUrl(`tarjeta_${num}_imagen`, card.imagen),
             titulo: titulo,
             tituloLinea1: linea1,
             tituloLinea2: linea2,
             descripcion: getContent(`tarjeta_${num}_descripcion`, card.descripcion),
-            alt: card.alt
+            alt: card.alt,
+            objectPosition: objectPosition
         };
     });
 });

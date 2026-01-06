@@ -1,8 +1,8 @@
 <template>
     <div class="relative h-[80vh] rounded-3xl overflow-hidden mx-4 my-4">
         <div
-            class="absolute inset-0 bg-cover bg-center rounded-3xl"
-            :style="{ backgroundImage: `url('${backgroundImage}')` }"
+            class="absolute inset-0 bg-cover rounded-3xl"
+            :style="backgroundStyle"
         >
             <!-- Overlay para la imagen de fondo -->
             <div class="absolute inset-0 bg-black opacity-30 rounded-3xl"></div>
@@ -344,6 +344,26 @@ const backgroundImage = computed(() => {
     if (bgValue.startsWith('/')) return bgValue;
     if (bgValue.startsWith('site-content/')) return `/storage/${bgValue}`;
     return `/${bgValue}`;
+});
+
+// Computed para el estilo completo del background (imagen + posición focal)
+const backgroundStyle = computed(() => {
+    const bgData = props.content?.background;
+
+    // Obtener puntos focales (mobile o desktop dependiendo del tamaño de pantalla)
+    const mobileX = bgData?.focal_point_mobile_x ?? 50;
+    const mobileY = bgData?.focal_point_mobile_y ?? 50;
+    const desktopX = bgData?.focal_point_desktop_x ?? 50;
+    const desktopY = bgData?.focal_point_desktop_y ?? 50;
+
+    // Usar punto focal mobile o desktop según el tamaño de pantalla
+    const x = isMobile.value ? mobileX : desktopX;
+    const y = isMobile.value ? mobileY : desktopY;
+
+    return {
+        backgroundImage: `url('${backgroundImage.value}')`,
+        backgroundPosition: `${x}% ${y}%`
+    };
 });
 
 const searchQuery = ref("");
