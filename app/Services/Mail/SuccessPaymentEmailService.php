@@ -2,16 +2,27 @@
 
 namespace App\Services\Mail;
 
+use App\Models\GeneratedDocument;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Services\DocumentStorageService;
 use App\Services\PDF\PaymentReceiptService;
 use App\Services\PDF\ContractService;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class SuccessPaymentEmailService
 {
     use SystemLogging;
+
+    protected $documentStorageService;
+
+    public function __construct()
+    {
+        $this->documentStorageService = new DocumentStorageService();
+    }
+
     /**
      * Enviar email de confirmación de pago exitoso
      */
@@ -19,6 +30,9 @@ class SuccessPaymentEmailService
     {
         $pdfPath = null;
         $contractPdfPath = null;
+        $receiptDoc = null;
+        $contractDoc = null;
+        $bsaleDoc = null;
 
         try {
             $emailData = $this->prepareEmailData($orderDetail, $payment);
@@ -66,6 +80,49 @@ class SuccessPaymentEmailService
                 }
             });
 
+            // Almacenar archivos permanentemente y registrar en BD
+            if ($pdfPath && file_exists($pdfPath)) {
+                // Convertir ruta absoluta a relativa desde storage/app
+                $relativePath = str_replace(storage_path('app/'), '', $pdfPath);
+                $receiptDoc = $this->documentStorageService->storePaymentReceipt(
+                    $relativePath,
+                    $payment,
+                    $orderDetail,
+                    GeneratedDocument::SOURCE_PAYMENT_CONFIRMATION
+                );
+            }
+
+            if ($contractPdfPath && file_exists($contractPdfPath)) {
+                $relativePath = str_replace(storage_path('app/'), '', $contractPdfPath);
+                $contractDoc = $this->documentStorageService->storeContract(
+                    $relativePath,
+                    $orderDetail,
+                    GeneratedDocument::SOURCE_PAYMENT_CONFIRMATION
+                );
+            }
+
+            if ($bsalePdfPath && file_exists($bsalePdfPath)) {
+                $relativePath = str_replace(storage_path('app/'), '', $bsalePdfPath);
+                $bsaleDoc = $this->documentStorageService->storeBsaleInvoice(
+                    $relativePath,
+                    $payment,
+                    $orderDetail,
+                    $payment->bsale_number,
+                    GeneratedDocument::SOURCE_PAYMENT_CONFIRMATION
+                );
+            }
+
+            // Marcar documentos como enviados por email
+            if ($receiptDoc) {
+                $this->documentStorageService->markDocumentAsEmailSent($receiptDoc, $emailData['customer_email']);
+            }
+            if ($contractDoc) {
+                $this->documentStorageService->markDocumentAsEmailSent($contractDoc, $emailData['customer_email']);
+            }
+            if ($bsaleDoc) {
+                $this->documentStorageService->markDocumentAsEmailSent($bsaleDoc, $emailData['customer_email']);
+            }
+
             $this->logInfo('SuccessPaymentEmailService: Email con PDF adjunto enviado exitosamente', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
@@ -73,6 +130,9 @@ class SuccessPaymentEmailService
                 'pdf_path' => $pdfPath,
                 'contract_sent' => $shouldSendContract,
                 'contract_pdf_path' => $contractPdfPath,
+                'receipt_doc_id' => $receiptDoc ? $receiptDoc->id : null,
+                'contract_doc_id' => $contractDoc ? $contractDoc->id : null,
+                'bsale_doc_id' => $bsaleDoc ? $bsaleDoc->id : null,
             ]);
 
             return true;
@@ -85,89 +145,19 @@ class SuccessPaymentEmailService
 
             return false;
         } finally {
-            // Almacenar archivos permanentemente antes de limpiar temporales
+            // Limpiar archivos temporales
             if ($pdfPath && file_exists($pdfPath)) {
-                $this->storePaymentReceipt($pdfPath, $payment);
                 $pdfService = new PaymentReceiptService();
                 $pdfService->cleanupTempFile($pdfPath);
             }
 
             if ($contractPdfPath && file_exists($contractPdfPath)) {
-                $this->storeContract($contractPdfPath, $orderDetail);
                 $contractService = new ContractService();
                 $contractService->cleanupTempFile($contractPdfPath);
             }
-
-            // No eliminar archivos BSale ya que ahora se almacenan permanentemente
-            // Los archivos BSale se mantienen en storage/app/bsale_documents/
         }
     }
 
-    /**
-     * Almacenar comprobante de pago permanentemente
-     */
-    private function storePaymentReceipt(string $tempPath, Payment $payment): void
-    {
-        try {
-            $year = $payment->created_at->year;
-            $storageDir = storage_path("app/payment_receipts/{$year}");
-
-            if (!file_exists($storageDir)) {
-                mkdir($storageDir, 0755, true);
-            }
-
-            $filename = 'comprobante_pago_' . $payment->id . '.pdf';
-            $permanentPath = $storageDir . '/' . $filename;
-
-            copy($tempPath, $permanentPath);
-
-            $this->logInfo('SuccessPaymentEmailService: Comprobante almacenado permanentemente', [
-                'payment_id' => $payment->id,
-                'temp_path' => $tempPath,
-                'permanent_path' => $permanentPath,
-                'year' => $year,
-            ]);
-        } catch (\Exception $e) {
-            $this->logError('SuccessPaymentEmailService: Error almacenando comprobante', [
-                'payment_id' => $payment->id,
-                'temp_path' => $tempPath,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Almacenar contrato permanentemente
-     */
-    private function storeContract(string $tempPath, OrderDetail $orderDetail): void
-    {
-        try {
-            $storageDir = storage_path('app/contracts');
-
-            if (!file_exists($storageDir)) {
-                mkdir($storageDir, 0755, true);
-            }
-
-            $filename = 'contrato_' . $orderDetail->order->participant_id . '_' . $orderDetail->order->program_id . '.pdf';
-            $permanentPath = $storageDir . '/' . $filename;
-
-            copy($tempPath, $permanentPath);
-
-            $this->logInfo('SuccessPaymentEmailService: Contrato almacenado permanentemente', [
-                'order_detail_id' => $orderDetail->id,
-                'participant_id' => $orderDetail->order->participant_id,
-                'program_id' => $orderDetail->order->program_id,
-                'temp_path' => $tempPath,
-                'permanent_path' => $permanentPath,
-            ]);
-        } catch (\Exception $e) {
-            $this->logError('SuccessPaymentEmailService: Error almacenando contrato', [
-                'order_detail_id' => $orderDetail->id,
-                'temp_path' => $tempPath,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
 
     /**
      * Verificar si se debe enviar el contrato

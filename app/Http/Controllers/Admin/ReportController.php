@@ -840,90 +840,141 @@ class ReportController extends Controller
     }
 
     /**
-     * Get list of BSale documents
+     * Get list of all generated documents (comprobantes, contratos, boletas Bsale)
      */
     public function bsaleDocumentsList(Request $request)
     {
         try {
             $year = $request->get('year');
             $search = $request->get('search');
+            $documentType = $request->get('document_type');
             $perPage = (int) $request->get('per_page', 50);
 
-            // Get all BSale documents from storage
-            $documents = collect();
-            $basePath = 'bsale_documents';
-            
-            // If year is specified, look in that year's folder
+            // Query generated_documents table
+            $query = \App\Models\GeneratedDocument::with(['payment', 'orderDetail', 'participant', 'program'])
+                ->orderBy('created_at', 'desc');
+
+            // Filter by year
             if ($year) {
-                $yearPath = $basePath . '/' . $year;
-                if (Storage::exists($yearPath)) {
-                    $files = Storage::files($yearPath);
-                    foreach ($files as $file) {
-                        $documents->push($this->formatBsaleDocument($file));
-                    }
-                }
-            } else {
-                // Get all years
-                $yearFolders = Storage::directories($basePath);
-                foreach ($yearFolders as $yearFolder) {
-                    $files = Storage::files($yearFolder);
-                    foreach ($files as $file) {
-                        $documents->push($this->formatBsaleDocument($file));
-                    }
-                }
+                $query->whereYear('created_at', $year);
             }
 
-            // Filter by search term if provided
+            // Filter by document type
+            if ($documentType) {
+                $query->where('document_type', $documentType);
+            }
+
+            // Filter by search term
             if ($search) {
-                $documents = $documents->filter(function ($doc) use ($search) {
-                    return stripos($doc['filename'], $search) !== false ||
-                           stripos($doc['bsale_number'], $search) !== false ||
-                           stripos($doc['payment_id'], $search) !== false;
+                $query->where(function ($q) use ($search) {
+                    $q->where('file_name', 'like', "%{$search}%")
+                      ->orWhere('email_sent_to', 'like', "%{$search}%")
+                      ->orWhereHas('participant', function ($pq) use ($search) {
+                          $pq->where('first_name', 'like', "%{$search}%")
+                             ->orWhere('last_name_1', 'like', "%{$search}%")
+                             ->orWhere('last_name_2', 'like', "%{$search}%");
+                      })
+                      ->orWhereHas('program', function ($pgq) use ($search) {
+                          $pgq->where('name', 'like', "%{$search}%");
+                      });
                 });
             }
 
-            // Sort by date (newest first)
-            $documents = $documents->sortByDesc('modified_at');
+            // Paginate
+            $paginated = $query->paginate($perPage);
 
-            // Get available years for filter
-            $availableYears = collect(Storage::directories($basePath))
-                ->map(function ($path) {
-                    return basename($path);
-                })
-                ->sort()
-                ->values();
+            // Format documents for frontend
+            $documents = $paginated->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'filename' => $doc->file_name,
+                    'document_type' => $doc->document_type,
+                    'document_type_label' => $doc->getTypeLabel(),
+                    'file_size' => $doc->file_size,
+                    'size_formatted' => $doc->getFileSizeFormatted(),
+                    'created_at' => $doc->created_at?->format('d/m/Y H:i'),
+                    'email_sent' => $doc->email_sent,
+                    'email_sent_at' => $doc->email_sent_at?->format('d/m/Y H:i'),
+                    'email_sent_to' => $doc->email_sent_to,
+                    'email_send_count' => $doc->email_send_count,
+                    'payment_id' => $doc->payment_id,
+                    'order_number' => $doc->orderDetail?->order?->order_number,
+                    'participant_name' => $doc->participant?->full_name,
+                    'program_name' => $doc->program?->name,
+                    'bsale_number' => $doc->metadata['bsale_number'] ?? null,
+                    'year' => $doc->created_at?->year,
+                    'file_exists' => $doc->exists(),
+                ];
+            });
 
-            // Paginate results
-            $total = $documents->count();
-            $page = (int) $request->get('page', 1);
-            $offset = ($page - 1) * $perPage;
-            $paginatedDocs = $documents->slice($offset, $perPage)->values();
+            // Get available years
+            $availableYears = \App\Models\GeneratedDocument::selectRaw('YEAR(created_at) as year')
+                ->distinct()
+                ->orderBy('year', 'desc')
+                ->pluck('year');
 
             return response()->json([
-                'documents' => $paginatedDocs,
-                'total' => $total,
-                'per_page' => $perPage,
-                'current_page' => $page,
-                'last_page' => ceil($total / $perPage),
+                'documents' => $documents,
+                'total' => $paginated->total(),
+                'per_page' => $paginated->perPage(),
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
                 'available_years' => $availableYears
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error listing BSale documents: ' . $e->getMessage());
-            return response()->json(['error' => 'Error al listar documentos BSale'], 500);
+            Log::error('Error listing generated documents: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Error al listar documentos: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Download a specific BSale document
+     * Download a generated document by ID
      */
-    public function downloadBsaleDocument(string $filename): BinaryFileResponse
+    public function downloadBsaleDocument($documentId): BinaryFileResponse
+    {
+        try {
+            // Try to find as document ID first
+            $document = \App\Models\GeneratedDocument::find($documentId);
+
+            // If not found and it looks like a filename, try the old way for backwards compatibility
+            if (!$document && is_string($documentId) && str_contains($documentId, '.pdf')) {
+                return $this->downloadBsaleDocumentLegacy($documentId);
+            }
+
+            if (!$document) {
+                abort(404, 'Documento no encontrado');
+            }
+
+            $fullPath = $document->getFullPath();
+
+            if (!file_exists($fullPath)) {
+                abort(404, 'Archivo físico no encontrado');
+            }
+
+            return response()->download($fullPath, $document->file_name, [
+                'Content-Type' => 'application/pdf',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading document: ' . $e->getMessage());
+            abort(500, 'Error al descargar el documento');
+        }
+    }
+
+    /**
+     * Download a BSale document by filename (legacy support)
+     */
+    private function downloadBsaleDocumentLegacy(string $filename): BinaryFileResponse
     {
         try {
             // Find the file in any year folder
             $basePath = 'bsale_documents';
             $yearFolders = Storage::directories($basePath);
-            
+
             $filePath = null;
             foreach ($yearFolders as $yearFolder) {
                 $possiblePath = $yearFolder . '/' . $filename;
@@ -938,14 +989,70 @@ class ReportController extends Controller
             }
 
             $fullPath = Storage::path($filePath);
-            
+
             return response()->download($fullPath, $filename, [
                 'Content-Type' => 'application/pdf',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error downloading BSale document: ' . $e->getMessage());
+            Log::error('Error downloading BSale document (legacy): ' . $e->getMessage());
             abort(500, 'Error al descargar el documento');
+        }
+    }
+
+    /**
+     * Resend a document by email
+     */
+    public function resendDocument(Request $request, $documentId)
+    {
+        try {
+            $document = \App\Models\GeneratedDocument::with(['orderDetail', 'payment'])->findOrFail($documentId);
+
+            $email = $request->input('email') ?? $document->email_sent_to ?? $document->orderDetail?->email;
+
+            if (!$email) {
+                return response()->json(['error' => 'No se encontró un email de destino'], 400);
+            }
+
+            if (!$document->exists()) {
+                return response()->json(['error' => 'El archivo físico no existe'], 404);
+            }
+
+            // Send email with document attached
+            $orderDetail = $document->orderDetail;
+            $payment = $document->payment;
+
+            if (!$orderDetail || !$payment) {
+                return response()->json(['error' => 'Faltan datos necesarios para enviar el documento'], 400);
+            }
+
+            Mail::send('Mails.resend_document', [
+                'customer_name' => $orderDetail->name,
+                'document_type' => $document->getTypeLabel(),
+                'company_name' => config('lat90.company.name'),
+            ], function ($message) use ($document, $email, $orderDetail) {
+                $message->to($email, $orderDetail->name)
+                    ->subject('Reenvío de documento - ' . $document->getTypeLabel())
+                    ->attach($document->getFullPath(), [
+                        'as' => $document->file_name,
+                        'mime' => 'application/pdf',
+                    ]);
+            });
+
+            // Mark as sent again
+            $document->markAsEmailSent($email);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento reenviado exitosamente a ' . $email
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error resending document: ' . $e->getMessage(), [
+                'document_id' => $documentId,
+                'exception' => $e
+            ]);
+            return response()->json(['error' => 'Error al reenviar el documento: ' . $e->getMessage()], 500);
         }
     }
 

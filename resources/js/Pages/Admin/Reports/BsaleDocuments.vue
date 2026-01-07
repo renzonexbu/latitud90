@@ -10,10 +10,10 @@
                         <div class="flex items-center justify-between mb-6">
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-900">
-                                    Documentos BSale
+                                    Documentos Generados
                                 </h2>
                                 <p class="text-sm text-gray-600 mt-1">
-                                    Gestión y descarga de documentos PDF generados por BSale
+                                    Gestión de comprobantes de pago, contratos de reserva y boletas BSale
                                 </p>
                             </div>
                             <Link
@@ -43,7 +43,24 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Document Type Filter -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Tipo de Documento
+                                </label>
+                                <select
+                                    v-model="filters.documentType"
+                                    @change="loadDocuments"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="">Todos los tipos</option>
+                                    <option value="payment_receipt">Comprobante de Pago</option>
+                                    <option value="contract">Contrato de Reserva</option>
+                                    <option value="bsale_invoice">Boleta Bsale</option>
+                                </select>
+                            </div>
+
                             <!-- Year Filter -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -70,7 +87,7 @@
                                     v-model="filters.search"
                                     @input="debounceSearch"
                                     type="text"
-                                    placeholder="Número BSale, ID de pago o nombre de archivo..."
+                                    placeholder="Participante, programa, email..."
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                                 />
                             </div>
@@ -179,9 +196,9 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                             </div>
-                            <p class="text-gray-600">No se encontraron documentos BSale</p>
+                            <p class="text-gray-600">No se encontraron documentos</p>
                             <p class="text-sm text-gray-500 mt-1">
-                                Los documentos se generan automáticamente cuando se procesan pagos con BSale
+                                Los documentos se generan automáticamente cuando se confirman pagos
                             </p>
                         </div>
 
@@ -191,22 +208,22 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Documento
+                                            Tipo
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Número BSale
+                                            Participante
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            ID Pago
+                                            Programa
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Año
+                                            Email Enviado
+                                        </th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Fecha Creación
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Tamaño
-                                        </th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Fecha Modificación
                                         </th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Acciones
@@ -214,54 +231,87 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="document in documents" :key="document.filename" class="hover:bg-gray-50">
+                                    <tr v-for="document in documents" :key="document.id" class="hover:bg-gray-50">
+                                        <!-- Tipo de Documento -->
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                                                </svg>
-                                                <div>
-                                                    <div class="text-sm font-medium text-gray-900">
-                                                        {{ document.filename }}
-                                                    </div>
-                                                </div>
+                                            <span
+                                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                                :class="{
+                                                    'bg-blue-100 text-blue-800': document.document_type === 'payment_receipt',
+                                                    'bg-purple-100 text-purple-800': document.document_type === 'contract',
+                                                    'bg-green-100 text-green-800': document.document_type === 'bsale_invoice'
+                                                }"
+                                            >
+                                                {{ document.document_type_label }}
+                                            </span>
+                                        </td>
+                                        <!-- Participante -->
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ document.participant_name || '-' }}
+                                            </div>
+                                            <div v-if="document.order_number" class="text-xs text-gray-500">
+                                                Orden: {{ document.order_number }}
                                             </div>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <span v-if="document.bsale_number" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                {{ document.bsale_number }}
-                                            </span>
-                                            <span v-else class="text-gray-400">-</span>
+                                        <!-- Programa -->
+                                        <td class="px-6 py-4">
+                                            <div class="text-sm text-gray-900">
+                                                {{ document.program_name || '-' }}
+                                            </div>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <span v-if="document.payment_id" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                #{{ document.payment_id }}
+                                        <!-- Email Enviado -->
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div v-if="document.email_sent" class="flex flex-col">
+                                                <span class="inline-flex items-center text-xs text-green-600">
+                                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                                    </svg>
+                                                    Enviado
+                                                </span>
+                                                <span class="text-xs text-gray-500">{{ document.email_sent_at }}</span>
+                                                <span v-if="document.email_send_count > 1" class="text-xs text-gray-500">
+                                                    ({{ document.email_send_count }} veces)
+                                                </span>
+                                            </div>
+                                            <span v-else class="inline-flex items-center text-xs text-gray-400">
+                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                                No enviado
                                             </span>
-                                            <span v-else class="text-gray-400">-</span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <span v-if="document.year" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                {{ document.year }}
-                                            </span>
-                                            <span v-else class="text-gray-400">-</span>
+                                        <!-- Fecha Creación -->
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ document.created_at }}
                                         </td>
+                                        <!-- Tamaño -->
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {{ document.size_formatted }}
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ document.modified_at_formatted }}
-                                        </td>
+                                        <!-- Acciones -->
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a
-                                                :href="route('admin.reports.bsale-documents.download', document.filename)"
-                                                target="_blank"
-                                                class="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                            >
-                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                                </svg>
-                                                Descargar
-                                            </a>
+                                            <div class="flex space-x-2">
+                                                <a
+                                                    :href="route('admin.reports.bsale-documents.download', document.id)"
+                                                    target="_blank"
+                                                    class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                                                    title="Descargar"
+                                                >
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                    </svg>
+                                                </a>
+                                                <button
+                                                    @click="openResendModal(document)"
+                                                    class="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700"
+                                                    title="Reenviar por email"
+                                                >
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -299,6 +349,47 @@
                 </div>
             </div>
         </div>
+
+        <!-- Resend Modal -->
+        <div v-if="showResendModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900">Reenviar Documento</h3>
+                    <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                            {{ selectedDocument?.document_type_label }}
+                        </p>
+                        <p v-if="selectedDocument?.participant_name" class="text-sm text-gray-500">
+                            Participante: {{ selectedDocument.participant_name }}
+                        </p>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email de destino</label>
+                        <input
+                            v-model="resendEmail"
+                            type="email"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="correo@ejemplo.com"
+                        />
+                    </div>
+                    <div class="mt-6 flex justify-end space-x-2">
+                        <button
+                            @click="closeResendModal"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            @click="resendDocument"
+                            :disabled="resending || !resendEmail"
+                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {{ resending ? 'Enviando...' : 'Enviar' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </AdminLayout>
 </template>
 
@@ -316,10 +407,17 @@ const downloadingZip = ref(false)
 const error = ref(null)
 
 const filters = ref({
+    documentType: '',
     year: '',
     search: '',
     perPage: 50
 })
+
+// Resend modal state
+const showResendModal = ref(false)
+const resendEmail = ref('')
+const resending = ref(false)
+const selectedDocument = ref(null)
 
 const pagination = ref({
     current_page: 1,
@@ -345,6 +443,7 @@ const loadDocuments = async (page = 1) => {
     try {
         const params = {
             page,
+            document_type: filters.value.documentType,
             year: filters.value.year,
             search: filters.value.search,
             per_page: filters.value.perPage
@@ -406,6 +505,46 @@ const downloadAllDocuments = async () => {
 const changePage = (page) => {
     if (page >= 1 && page <= pagination.value.last_page) {
         loadDocuments(page)
+    }
+}
+
+// Open resend modal
+const openResendModal = (document) => {
+    selectedDocument.value = document
+    resendEmail.value = document.email_sent_to || ''
+    showResendModal.value = true
+}
+
+// Close resend modal
+const closeResendModal = () => {
+    showResendModal.value = false
+    selectedDocument.value = null
+    resendEmail.value = ''
+}
+
+// Resend document via email
+const resendDocument = async () => {
+    if (!resendEmail.value) {
+        alert('Por favor ingresa un email válido')
+        return
+    }
+
+    resending.value = true
+
+    try {
+        const response = await axios.post(
+            route('admin.reports.bsale-documents.resend', selectedDocument.value.id),
+            { email: resendEmail.value }
+        )
+
+        alert('Documento reenviado exitosamente')
+        closeResendModal()
+        loadDocuments(pagination.value.current_page) // Refresh to show updated send count
+    } catch (err) {
+        alert('Error al reenviar: ' + (err.response?.data?.error || err.message))
+        console.error('Error resending document:', err)
+    } finally {
+        resending.value = false
     }
 }
 

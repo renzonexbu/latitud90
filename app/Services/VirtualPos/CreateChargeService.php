@@ -65,12 +65,18 @@ class CreateChargeService
                 'description' => "Cuota {$installment->installment_number} - Cobro manual",
             ];
 
+            // Agregar fecha de cobro si la cuota tiene fecha de vencimiento
+            if ($installment->due_date) {
+                $payload['charge_date'] = \Carbon\Carbon::parse($installment->due_date)->format('Y-m-d');
+            }
+
             Log::info('VirtualPos: Creando cargo manual', [
                 'subscription_id' => $subscription->id,
                 'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
                 'installment_id' => $installment->id,
                 'installment_number' => $installment->installment_number,
                 'amount' => $payload['amount'],
+                'charge_date' => $payload['charge_date'] ?? null,
                 'uuid' => $uuid,
             ]);
 
@@ -94,7 +100,7 @@ class CreateChargeService
                 if ($chargeId) {
                     $installment->update([
                         'virtualpos_charge_id' => $chargeId,
-                        'status' => 'processing',
+                        'status' => 'pending',
                     ]);
                 }
 

@@ -85,7 +85,7 @@
                                         <span class="text-gray-700 group-hover:text-indigo-700">Softland</span>
                                     </Link>
 
-                                    <!-- Documentos BSale -->
+                                    <!-- Documentos Generados -->
                                     <Link
                                         :href="route('admin.reports.bsale-documents')"
                                         class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-red-50 transition-colors group"
@@ -93,7 +93,7 @@
                                         <svg class="w-5 h-5 mr-3 text-red-400 group-hover:text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                         </svg>
-                                        <span class="text-gray-700 group-hover:text-red-700">Documentos BSale</span>
+                                        <span class="text-gray-700 group-hover:text-red-700">Documentos Generados</span>
                                     </Link>
 
                                     <!-- Aceptación TyC -->

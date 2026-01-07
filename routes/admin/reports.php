@@ -45,10 +45,11 @@ Route::get('/reports/export/softland-auxiliares', [ReportController::class, 'exp
 Route::get('/reports/preview/softland-auxiliares', [ReportController::class, 'previewSoftlandAuxiliares'])->name('reports.preview.softland-auxiliares');
 Route::get('/reports/export/softland-zip', [ReportController::class, 'exportSoftlandZip'])->name('reports.export.softland-zip');
 
-// BSale Documents
+// Generated Documents (Comprobantes, Contratos, BSale)
 Route::get('/reports/bsale-documents', [ReportController::class, 'bsaleDocuments'])->name('reports.bsale-documents');
 Route::get('/reports/bsale-documents/list', [ReportController::class, 'bsaleDocumentsList'])->name('reports.bsale-documents.list');
-Route::get('/reports/bsale-documents/download/{filename}', [ReportController::class, 'downloadBsaleDocument'])->name('reports.bsale-documents.download');
+Route::get('/reports/bsale-documents/download/{documentId}', [ReportController::class, 'downloadBsaleDocument'])->name('reports.bsale-documents.download');
+Route::post('/reports/bsale-documents/resend/{documentId}', [ReportController::class, 'resendDocument'])->name('reports.bsale-documents.resend');
 Route::get('/reports/bsale-documents/download-zip', [ReportController::class, 'downloadBsaleDocumentsZip'])->name('reports.bsale-documents.download-zip');
 
 // Document Downloads for Partial Account Report
