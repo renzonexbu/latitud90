@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Gestión de Cursos" />
+        <Head title="Gestión de Programas - Cursos" />
 
         <!-- Sistema de Alertas -->
         <AlertWrapper ref="alertWrapper" />
@@ -10,7 +10,7 @@
 
                 <!-- Header -->
                 <CoursesHeader
-                    subtitle="Visualización de cursos"
+                    subtitle="Visualización de programas - cursos"
                     :show-create-button="true"
                     @create-course="openCreateModal"
                 />
@@ -33,17 +33,17 @@
                             <BackpackIcon class="w-16 h-16 mx-auto" />
                         </div>
                         <h3 class="text-lg font-medium text-gray-900 mb-2">
-                            No hay cursos disponibles
+                            No hay programas - cursos disponibles
                         </h3>
                         <p class="text-gray-600 mb-6">
-                            Comienza creando tu primer curso para mostrar aquí.
+                            Comienza creando tu primer programa - curso para mostrar aquí.
                         </p>
                         <button
                             @click="openCreateModal"
                             class="bg-turquesa hover:bg-turquesa-dark text-white px-6 py-3 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
                         >
                             <CourseIcon stroke-color="white" class="w-5 h-5" />
-                            Agregar nuevo curso
+                            Agregar nuevo programa - curso
                         </button>
                     </div>
                 </div>

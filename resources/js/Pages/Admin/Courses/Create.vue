@@ -1,13 +1,13 @@
 <template>
     <AdminLayout>
-        <Head title="Crear Curso" />
+        <Head title="Crear Programa - Curso" />
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- Page Header -->
                 <div class="mb-8">
                     <h1 class="text-[#007e93] font-nexa-bold text-[32px] leading-[38px] font-bold">
-                        Crear Curso
+                        Crear Programa - Curso
                     </h1>
                     <p class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[20px] mt-2">
                         Selecciona una plantilla de programa y completa los detalles administrativos
@@ -71,14 +71,14 @@
                                         Detalle administrativo
                                     </div>
 
-                                    <!-- Acordeón 1: Precio del viaje -->
+                                    <!-- Acordeón 1: Precio del programa -->
                                     <div class="accordion-section">
                                         <div
                                             class="accordion-header"
                                             @click="priceOpen = !priceOpen"
                                         >
                                             <div class="accordion-title">
-                                                Precio del viaje
+                                                Precio del programa
                                             </div>
                                             <svg
                                                 class="accordion-arrow"
@@ -118,7 +118,7 @@
                                                     <div class="field-container">
                                                         <div class="field-wrapper">
                                                             <div class="field-label">
-                                                                Precio del viaje * (CLP)
+                                                                Precio del programa * (CLP)
                                                             </div>
                                                             <input
                                                                 type="text"
@@ -139,7 +139,7 @@
                                                     <div class="field-container">
                                                         <div class="field-wrapper">
                                                             <div class="field-label">
-                                                                Fecha de salida *
+                                                                Fecha de inicio *
                                                             </div>
                                                             <input
                                                                 type="date"
@@ -155,7 +155,7 @@
                                                     <div class="field-container">
                                                         <div class="field-wrapper">
                                                             <div class="field-label">
-                                                                Fecha final de pago *
+                                                                Fecha límite de pago *
                                                             </div>
                                                             <input
                                                                 type="date"
@@ -206,14 +206,14 @@
                                     <!-- Separator -->
                                     <div class="accordion-separator"></div>
 
-                                    <!-- Acordeón 2: Quienes viajan -->
+                                    <!-- Acordeón 2: Participantes -->
                                     <div class="accordion-section">
                                         <div
                                             class="accordion-header"
                                             @click="travelersOpen = !travelersOpen"
                                         >
                                             <div class="accordion-title">
-                                                Quienes viajan
+                                                Participantes
                                             </div>
                                             <svg
                                                 class="accordion-arrow"
@@ -372,12 +372,12 @@
                                                 <!-- Students File Upload -->
                                                 <div class="students-upload-section">
                                                     <div class="students-section-title">
-                                                        Carga de alumnos
+                                                        Carga de participantes
                                                     </div>
                                                     <div class="students-upload-field">
                                                         <div class="field-wrapper">
                                                             <div class="field-label">
-                                                                Adjunta la lista de alumnos *
+                                                                Adjunta la lista de participantes *
                                                             </div>
                                                             <label class="file-upload-area" for="students-file">
                                                                 <div class="upload-text">
@@ -972,11 +972,11 @@ const finalPaymentDateValidation = computed(() => {
     const departureDate = new Date(form.value.departure_date + 'T00:00:00');
     const finalPaymentDate = new Date(form.value.final_payment_date + 'T00:00:00');
 
-    // Validar que la fecha final de pago sea anterior a la fecha de salida
+    // Validar que la fecha límite de pago sea anterior a la fecha de inicio
     if (finalPaymentDate >= departureDate) {
         return {
             isValid: false,
-            message: 'La fecha final de pago debe ser anterior a la fecha de salida del viaje.'
+            message: 'La fecha límite de pago debe ser anterior a la fecha de inicio del programa.'
         };
     }
 
@@ -988,7 +988,7 @@ const finalPaymentDateValidation = computed(() => {
     if (diffDays < 60) {
         return {
             isValid: false,
-            message: `Debe haber al menos 60 días entre la fecha final de pago y la fecha de salida. Actualmente hay ${diffDays} días.`
+            message: `Debe haber al menos 60 días entre la fecha límite de pago y la fecha de inicio. Actualmente hay ${diffDays} días.`
         };
     }
 

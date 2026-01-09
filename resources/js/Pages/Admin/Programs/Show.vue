@@ -76,7 +76,7 @@
                     </div>
                     <div class="py-3 grid grid-cols-3 gap-4">
                       <dt class="text-sm font-medium text-gray-500">
-                        Fecha de Salida
+                        Fecha de Inicio
                       </dt>
                       <dd class="text-sm text-gray-900 col-span-2">
                         {{

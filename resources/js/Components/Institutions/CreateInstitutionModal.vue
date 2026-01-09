@@ -61,6 +61,8 @@
                         >
                             <option value="">Seleccione un tipo</option>
                             <option value="school">Escuela</option>
+                            <option value="colegio">Colegio</option>
+                            <option value="liceo">Liceo</option>
                             <option value="university">Universidad</option>
                             <option value="other">Otro</option>
                         </select>
