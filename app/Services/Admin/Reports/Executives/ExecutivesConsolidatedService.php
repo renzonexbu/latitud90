@@ -67,10 +67,10 @@ class ExecutivesConsolidatedService
                 'order.participantProgram',
                 'order.participantProgram.discounts',
                 'order.payments'
-            ])->where('status', 'completed')->orderBy('transaction_date', 'desc')->get();
-            
+            ])->where('status', 'completed')->orderBy('transaction_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
             \Illuminate\Support\Facades\Log::info('Pagos obtenidos sin filtros de fecha', [
-                'total_payments_no_filter' => $payments->count()
+                'total_payments_no_filter' => $payments->total()
             ]);
         }
 

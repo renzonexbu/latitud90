@@ -8,9 +8,9 @@
         </div>
 
         <!-- Filters Row -->
-        <div class="flex flex-wrap gap-5 items-center justify-start w-full relative">
+        <div class="flex flex-wrap gap-3 items-start justify-start w-full relative">
             <!-- Search Input -->
-            <div class="relative w-[297.28px]">
+            <div class="relative w-full sm:w-[280px] lg:w-[297.28px]">
                 <input
                     v-model="filters.search"
                     type="text"
@@ -29,7 +29,7 @@
             </div>
 
             <!-- Institution Dropdown -->
-            <div class="relative w-[200px]">
+            <div class="relative w-full sm:w-[160px] lg:w-[200px]">
                 <select
                     v-model="filters.institution"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -43,7 +43,7 @@
             </div>
 
             <!-- Education Level Dropdown -->
-            <div class="relative w-[180px]">
+            <div class="relative w-full sm:w-[150px] lg:w-[180px]">
                 <select
                     v-model="filters.level"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -57,7 +57,7 @@
             </div>
 
             <!-- Curso Dropdown -->
-            <div class="relative w-[120px]">
+            <div class="relative w-full sm:w-[100px] lg:w-[120px]">
                 <select
                     v-model="filters.course_number"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -71,7 +71,7 @@
             </div>
 
             <!-- Year Dropdown -->
-            <div class="relative w-[120px]">
+            <div class="relative w-full sm:w-[100px] lg:w-[120px]">
                 <select
                     v-model="filters.year"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -87,12 +87,13 @@
             <!-- Clear Filters Button -->
             <button
                 @click="clearFilters"
-                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+                class="h-[46px] px-4 sm:px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
             >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
-                Limpiar filtros
+                <span class="hidden sm:inline">Limpiar filtros</span>
+                <span class="sm:hidden">Limpiar</span>
             </button>
         </div>
     </div>

@@ -1,80 +1,80 @@
 <template>
     <div class="rounded-[20px] border border-gray-300 overflow-hidden">
         <!-- Table Header -->
-        <div class="bg-turquesa rounded-t-[20px] px-6 py-4 flex items-center justify-between h-[75px]">
-            <div class="text-white font-nexa-bold text-sm w-[200px]">
-                Nombre de institución
+        <div class="bg-turquesa rounded-t-[20px] px-4 py-4 flex items-center gap-2 h-[75px]">
+            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[140px]">
+                Institución
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
+            <div class="text-white font-nexa-bold text-xs text-center w-[80px]">
                 Nivel
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
+            <div class="text-white font-nexa-bold text-xs text-center w-[70px]">
                 Curso
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[60px]">
+            <div class="text-white font-nexa-bold text-xs text-center w-[50px]">
                 Año
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[200px]">
+            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[120px]">
                 Programa
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[200px]">
+            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[100px]">
                 Destino
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[120px]">
+            <div class="text-white font-nexa-bold text-xs text-center w-[60px]">
                 Alumnos
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[140px]">
-                % Recaudado
+            <div class="text-white font-nexa-bold text-xs text-center w-[90px]">
+                % Pago
             </div>
-            <div class="text-white font-nexa-bold text-sm text-center w-[220px]">
-                Recaudado / Total Curso
+            <div class="text-white font-nexa-bold text-xs text-center w-[160px]">
+                Recaudado / Total
             </div>
-            <div class="w-[60px] h-[20px] flex-shrink-0">
+            <div class="w-[40px] flex-shrink-0">
                 <!-- Empty space for actions column -->
             </div>
         </div>
 
         <!-- Table Body -->
         <div class="flex flex-col">
-            <div 
-                v-for="(course, index) in courses" 
+            <div
+                v-for="(course, index) in courses"
                 :key="course.id"
                 :class="[
-                    'px-6 py-[18px] flex items-center justify-between',
+                    'px-4 py-3 flex items-center gap-2',
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 ]"
             >
-                <div class="text-verde-oscuro font-nexa-bold text-sm w-[200px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[140px] truncate">
                     {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[80px] truncate">
                     {{ capitalizeWords(course.education_level) }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[70px]">
                     {{ course.course_display }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[60px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[50px]">
                     {{ course.year }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[120px] truncate">
                     {{ capitalizeWords(getProgramName(course)) }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[200px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[100px] truncate">
                     {{ capitalizeWords(getProgramDestination(course)) }}
                 </div>
-                <div class="text-verde-oscuro font-nexa-bold text-sm text-center w-[120px]">
+                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[60px]">
                     {{ course.total_students || 0 }}
                 </div>
-                <div class="w-[140px] flex justify-center">
-                    <div 
+                <div class="w-[90px] flex justify-center">
+                    <div
                         :class="[
-                            'rounded-xl px-2.5 py-1.5 flex items-center justify-center w-[120px]',
+                            'rounded-xl px-2 py-1 flex items-center justify-center w-full',
                             getStatusChipClass(course)
                         ]"
                     >
-                        <span 
+                        <span
                             :class="[
-                                'font-nexa-xbold text-sm text-center',
+                                'font-nexa-xbold text-xs text-center',
                                 getStatusTextClass(course)
                             ]"
                         >
@@ -82,16 +82,16 @@
                         </span>
                     </div>
                 </div>
-                <div class="text-verde-oscuro font-nexa-xbold text-sm text-center w-[220px]">
+                <div class="text-verde-oscuro font-nexa-xbold text-xs text-center w-[160px]">
                     {{ formatCurrency(course.course_paid_amount || 0) }} / {{ formatCurrency(course.course_total_amount || 0) }}
                 </div>
-                <div class="w-[60px] h-[20px] flex-shrink-0">
-                    <button 
+                <div class="w-[40px] flex-shrink-0 flex justify-center">
+                    <button
                         @click="editCourse(course.id)"
                         class="p-1 hover:bg-gray-100 rounded transition-colors"
                         :title="`Editar ${course.institution?.name || 'curso'}`"
                     >
-                        <EditPencilIcon fill-color="#C7C7C7" />
+                        <EditPencilIcon fill-color="#C7C7C7" class="w-4 h-4" />
                     </button>
                 </div>
             </div>

@@ -29,52 +29,36 @@
                                     </p>
                                 </div>
 
-                                <!-- Program Template Cards -->
-                                <div class="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                    <div
-                                        v-for="program in programs"
-                                        :key="program.id"
-                                        @click="selectProgram(program.id)"
-                                        :class="[
-                                            'border-2 rounded-lg p-4 cursor-pointer transition-all duration-200',
-                                            form.program_id === program.id
-                                                ? 'border-[#007e93] bg-[#007e93]/5'
-                                                : 'border-gray-200 hover:border-[#007e93]/50'
-                                        ]"
-                                    >
-                                        <div class="flex items-start gap-3">
-                                            <!-- Selection Radio -->
-                                            <div class="mt-1">
-                                                <div
-                                                    :class="[
-                                                        'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-                                                        form.program_id === program.id
-                                                            ? 'border-[#007e93] bg-[#007e93]'
-                                                            : 'border-gray-400'
-                                                    ]"
-                                                >
-                                                    <div
-                                                        v-if="form.program_id === program.id"
-                                                        class="w-2 h-2 bg-white rounded-full"
-                                                    ></div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Program Info -->
-                                            <div class="flex-1">
-                                                <h3 class="text-[#434343] font-nexa-bold text-[14px] leading-[18px] font-bold">
-                                                    {{ program.name }}
-                                                </h3>
-                                                <p class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[16px] mt-1">
-                                                    <span class="font-nexa-bold">Destino:</span> {{ program.destination }}
-                                                </p>
-                                            </div>
-                                        </div>
+                                <!-- Searchable Select for Program Templates -->
+                                <div class="field-wrapper">
+                                    <div class="field-label mb-2">
+                                        Buscar plantilla de programa *
                                     </div>
+                                    <SearchableSelect
+                                        :options="programsFormatted"
+                                        :value="form.program_id"
+                                        placeholder="Busca por nombre o destino"
+                                        @input="selectProgram"
+                                        search-key="searchText"
+                                    />
+                                    <span v-if="errors.program_id" class="text-red-500 text-sm mt-1">
+                                        {{ errors.program_id }}
+                                    </span>
                                 </div>
 
-                                <div v-if="errors.program_id" class="mt-4 text-red-500 text-xs">
-                                    {{ errors.program_id }}
+                                <!-- Selected Program Preview -->
+                                <div v-if="selectedProgram" class="mt-6 p-4 bg-[#007e93]/5 rounded-lg border border-[#007e93]/20">
+                                    <h3 class="text-[#007e93] font-nexa-bold text-[14px] leading-[18px] font-bold mb-2">
+                                        Plantilla seleccionada
+                                    </h3>
+                                    <div class="space-y-1">
+                                        <p class="text-[#434343] font-nexa-bold text-[12px] leading-[16px]">
+                                            {{ selectedProgram.name }}
+                                        </p>
+                                        <p class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[16px]">
+                                            <span class="font-nexa-bold">Destino:</span> {{ selectedProgram.destination }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -829,6 +813,7 @@
 import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 
 // Props
 const props = defineProps({
@@ -1178,6 +1163,16 @@ const toggleSubscriptionOption = (code, event) => {
 const selectProgram = (programId) => {
     form.value.program_id = programId;
 };
+
+// Format programs for SearchableSelect with searchable text
+const programsFormatted = computed(() => {
+    return props.programs.map(program => ({
+        id: program.id,
+        name: program.name,
+        destination: program.destination,
+        searchText: `${program.name} - ${program.destination}` // Combina nombre y destino para búsqueda
+    }));
+});
 
 // Format price with thousands separator (no decimals)
 const formatPrice = (value) => {

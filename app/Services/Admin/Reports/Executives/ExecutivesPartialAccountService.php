@@ -54,7 +54,7 @@ class ExecutivesPartialAccountService
                 ->leftJoin('installments as inst', 'ip.id', '=', 'inst.installment_plan_id')
                 ->leftJoin('participant_program_discounts as ppd', 'pp.id', '=', 'ppd.participant_program_id')
                 ->where('pp.program_id', $programCourseId)
-                ->groupBy('pp.id', 'p.id', 'pr.id')
+                ->groupBy('pp.id', 'p.id', 'pr.id', 'p.first_name', 'p.second_name', 'p.first_last_name', 'p.second_last_name', 'pp.individual_price')
                 ->select([
                     'pp.id as participant_program_id',
                     'p.id as participant_id',

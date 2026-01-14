@@ -23,9 +23,9 @@
         </div>
 
         <!-- Filters Row -->
-        <div class="flex flex-row gap-5 items-center justify-start flex-shrink-0 w-full relative">
+        <div class="flex flex-wrap gap-3 items-start justify-start w-full relative">
             <!-- Search Input -->
-            <div class="relative w-[297.28px]">
+            <div class="relative w-full sm:w-[280px] lg:w-[297.28px]">
                 <input
                     v-model="filters.search"
                     type="text"
@@ -33,7 +33,7 @@
                     class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
-                <button 
+                <button
                     class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-turquesa rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                     @click="performSearch"
                 >
@@ -44,7 +44,7 @@
             </div>
 
             <!-- Destination Dropdown -->
-            <div class="relative w-[203px]">
+            <div class="relative w-full sm:w-[160px] lg:w-[203px]">
                 <select
                     v-model="filters.destination"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -58,7 +58,7 @@
             </div>
 
             <!-- Payment Percentage Dropdown -->
-            <div class="relative w-[173.21px]">
+            <div class="relative w-full sm:w-[160px] lg:w-[173.21px]">
                 <select
                     v-model="filters.paymentPercentage"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -73,7 +73,7 @@
             </div>
 
             <!-- Status Dropdown -->
-            <div class="relative w-[150px]">
+            <div class="relative w-full sm:w-[140px] lg:w-[150px]">
                 <select
                     v-model="filters.status"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
@@ -86,9 +86,9 @@
             </div>
 
             <!-- Combined Institution, Level, Grade Dropdown -->
-            <div class="bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 flex flex-row items-center justify-start h-[46px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] min-w-[300px]">
+            <div class="bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 flex flex-row items-center justify-start h-[46px] shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] w-full sm:flex-1 lg:min-w-[300px] lg:flex-auto">
                 <!-- Institution -->
-                <div class="relative flex-1">
+                <div class="relative flex-1 min-w-[100px]">
                     <select
                         v-model="filters.institution"
                         class="w-full text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal bg-transparent border-none outline-none appearance-none pr-8"
@@ -100,12 +100,12 @@
                         </option>
                     </select>
                 </div>
-                
+
                 <!-- Separator -->
                 <div class="w-px h-[22px] bg-gray-300 mx-2"></div>
 
                 <!-- Level -->
-                <div class="relative w-20">
+                <div class="relative w-16 sm:w-20">
                     <select
                         v-model="filters.level"
                         class="w-full text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal bg-transparent border-none outline-none appearance-none pr-8"
@@ -122,7 +122,7 @@
                 <div class="w-px h-[22px] bg-gray-300 mx-2"></div>
 
                 <!-- Curso -->
-                <div class="relative w-20">
+                <div class="relative w-16 sm:w-20">
                     <select
                         v-model="filters.course_number"
                         class="w-full text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal bg-transparent border-none outline-none appearance-none pr-8"
@@ -139,12 +139,13 @@
             <!-- Clear Filters Button -->
             <button
                 @click="clearFilters"
-                class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
+                class="h-[46px] px-4 sm:px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2 whitespace-nowrap"
             >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
-                Limpiar filtros
+                <span class="hidden sm:inline">Limpiar filtros</span>
+                <span class="sm:hidden">Limpiar</span>
             </button>
         </div>
     </div>

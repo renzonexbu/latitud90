@@ -8,7 +8,7 @@
             :class="sidebarExpanded ? 'w-[250px]' : 'w-[102px]'"
         >
             <!-- Logo Section -->
-            <div class="flex items-center justify-center py-6">
+            <div class="flex items-center justify-center py-4">
                 <a href="/" class="text-lg font-bold">
                     <img
                         :src="images['logo-color']"
@@ -23,10 +23,10 @@
                 <NavLink
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <HouseIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.dashboard')
                                 ? 'text-turquesa'
@@ -46,10 +46,10 @@
                 <NavLink
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <BackpackIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.programs.*')
                                 ? 'text-turquesa'
@@ -70,10 +70,10 @@
                 <NavLink
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <LuggageIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.courses.*')
                                 ? 'text-turquesa'
@@ -94,10 +94,10 @@
                 <NavLink
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <PersonsIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.participants.*')
                                 ? 'text-turquesa'
@@ -118,10 +118,10 @@
                  <NavLink
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <PaymentsIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.payments.*')
                                 ? 'text-turquesa'
@@ -142,10 +142,10 @@
                 <NavLink
                     :href="route('admin.subscriptions.index')"
                     :active="route().current('admin.subscriptions.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <SubscriptionIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.subscriptions.*')
                                 ? 'text-turquesa'
@@ -166,10 +166,10 @@
                 <NavLink
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <ReportIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.reports.*')
                                 ? 'text-turquesa'
@@ -192,11 +192,11 @@
                 <NavLink
                     :href="route('admin.site-content.index')"
                     :active="route().current('admin.site-content.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                     title="Contenido del Sitio"
                 >
                     <svg
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.site-content.*')
                                 ? 'text-turquesa'
@@ -224,10 +224,10 @@
                     v-if="$page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')"
                     :href="route('admin.maintainer.index')"
                     :active="route().current('admin.maintainer.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-8"
+                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
                     <SettingsIcon
-                        class="w-8 h-8 transition-colors flex-shrink-0"
+                        class="w-6 h-6 transition-colors flex-shrink-0"
                         :class="
                             route().current('admin.maintainer.*')
                                 ? 'text-turquesa'
@@ -269,7 +269,7 @@
                             class="flex items-center w-full px-6 py-3 group transition-colors"
                         >
                             <UserIcon
-                                class="w-8 h-8 transition-colors flex-shrink-0"
+                                class="w-6 h-6 transition-colors flex-shrink-0"
                                 :class="
                                     route().current('admin.profile.edit') || route().current('admin.profile.*') || $page.url.includes('/admin/profile')
                                         ? 'text-turquesa'
@@ -324,8 +324,8 @@
         </aside>
 
         <!-- Page Content -->
-        <div class="flex-1 flex flex-col h-full ml-[126px]">
-            <main class="flex-1 overflow-y-auto">
+        <div class="flex-1 flex flex-col h-full ml-[108px] lg:ml-[126px]">
+            <main class="flex-1 overflow-y-auto overflow-x-hidden">
                 <slot />
             </main>
 
