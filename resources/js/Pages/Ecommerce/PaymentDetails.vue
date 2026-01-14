@@ -11,7 +11,7 @@
             <!-- Content Section -->
 			<div class="mt-6 text-center">
 				<h2 class="text-[#1C4F4A] font-nexa-bold text-[18px] leading-[22px]">
-					Ingrese los datos del comprador
+					Ingrese los datos del pagador
 				</h2>
 			</div>
 
