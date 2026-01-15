@@ -147,15 +147,66 @@ class CourseController extends Controller
         }
     }
 
+    /**
+     * Get participants for a specific program-course
+     */
+    public function getParticipants(Request $request)
+    {
+        $programCourseId = $request->input('program_course_id');
+
+        if (!$programCourseId) {
+            return response()->json(['error' => 'program_course_id es requerido'], 400);
+        }
+
+        $participants = $this->courseService->getParticipantsWithPaymentStatus($programCourseId);
+
+        return response()->json([
+            'participants' => $participants
+        ]);
+    }
+
+    /**
+     * Remove a participant from a program-course
+     * Only allows deletion if participant has NO payments
+     */
+    public function removeParticipant(Request $request)
+    {
+        $request->validate([
+            'participant_program_id' => 'required|exists:participant_program,id',
+        ]);
+
+        try {
+            $result = $this->courseService->removeParticipant($request->participant_program_id);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message']
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar participante: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function destroy(Course $course)
     {
         try {
             $this->courseService->deleteCourse($course);
-            
+
             return redirect()
                 ->route('admin.courses.index')
                 ->with('success', 'Curso eliminado exitosamente');
-                
+
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al eliminar el curso: ' . $e->getMessage()]);

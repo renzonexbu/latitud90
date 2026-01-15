@@ -38,11 +38,15 @@ class PaymentOptionSeeder extends Seeder
 			// Pago total - Webpay con link de pago
 			['code' => 'full_webpay_link', 'label' => 'Pago webpay con link de pago', 'mode' => 'full', 'gateway_code' => 'transbank', 'report_code' => 'WP', 'installments' => null, 'active' => true],
 
-			// Pagos presenciales
-			['code' => 'presential_office_card', 'label' => 'Pago con tarjeta en oficina', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'BX', 'installments' => null, 'active' => true],
-			['code' => 'presential_bank_transfer', 'label' => 'Transferencia bancaria', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TE', 'installments' => null, 'active' => true],
-			['code' => 'presential_check', 'label' => 'Cheque', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
-			['code' => 'presential_deposit', 'label' => 'Depósito', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TD', 'installments' => null, 'active' => true],
+			// Pagos presenciales - Códigos actualizados según sistema de reporte
+			['code' => 'presential_pos_office', 'label' => 'POS Oficina (TC)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TC', 'installments' => null, 'active' => true],
+			['code' => 'presential_khipu_link', 'label' => 'Link KP (KP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'KP', 'installments' => null, 'active' => true],
+			['code' => 'presential_subscription', 'label' => 'Suscripción Cuotas (PAT)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'PAT', 'installments' => null, 'active' => true],
+			['code' => 'presential_bank_transfer', 'label' => 'Transferencia Banco (TE)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'TE', 'installments' => null, 'active' => true],
+			['code' => 'presential_debit_credit', 'label' => 'Link TD/TC (VP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'VP', 'installments' => null, 'active' => true],
+			['code' => 'presential_international', 'label' => 'Link Internacional (VPI)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'VPI', 'installments' => null, 'active' => true],
+			['code' => 'presential_deposit', 'label' => 'Depósito (DP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'DP', 'installments' => null, 'active' => true],
+			['code' => 'presential_webpay', 'label' => 'Webpay (WP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'WP', 'installments' => null, 'active' => true],
 
 			// Pago mensual (Lat90) - LEGACY - Transferencia Khipu
 			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
@@ -51,7 +55,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'lat90_debit_credit_0', 'label' => 'Débito y crédito sin cuotas (Webpay)', 'mode' => 'lat90', 'gateway_code' => 'transbank', 'report_code' => 'VP', 'installments' => 0, 'active' => true],
 
 			// Suscripciones (VirtualPos) - Pagos recurrentes mensuales
-			['code' => 'subscription_virtualpos', 'label' => 'Suscripción mensual (VirtualPos)', 'mode' => 'subscription', 'gateway_code' => 'virtualpos', 'report_code' => 'SUB', 'installments' => null, 'active' => true],
+			['code' => 'subscription_virtualpos', 'label' => 'Suscripción mensual (VirtualPos)', 'mode' => 'subscription', 'gateway_code' => 'virtualpos', 'report_code' => 'PAT', 'installments' => null, 'active' => true],
 
 			// Devoluciones
 			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'NC', 'installments' => null, 'active' => true],

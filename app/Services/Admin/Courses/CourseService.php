@@ -618,10 +618,13 @@ class CourseService
             $interval = $finalPaymentDateTime->diff($departureDateClone);
             $daysDifference = $interval->days;
 
-            // Validar que haya al menos 60 días de diferencia
-            if ($daysDifference < 60) {
+            // Obtener el valor mínimo de días esperado (30 o 60 según lo seleccionado por el usuario)
+            $expectedMinDays = $minDaysBeforeDeparture ?? 60; // Por defecto 60 si no se especifica
+
+            // Validar que haya al menos la cantidad de días esperada de diferencia
+            if ($daysDifference < $expectedMinDays) {
                 throw new \Exception(
-                    "Debe haber al menos 60 días entre la fecha final de pago y la fecha de salida. " .
+                    "Debe haber al menos {$expectedMinDays} días entre la fecha final de pago y la fecha de salida. " .
                     "Actualmente hay {$daysDifference} días. " .
                     "Fecha final de pago: {$finalPaymentDateTime->format('d/m/Y')}, Fecha de salida: {$departureDateClone->format('d/m/Y')}."
                 );
@@ -1568,6 +1571,120 @@ class CourseService
                 'trace' => $e->getTraceAsString(),
             ]);
             // No lanzar excepción para no interrumpir la creación/actualización del curso
+        }
+    }
+
+    /**
+     * Get participants for a specific program-course with payment status
+     */
+    public function getParticipantsWithPaymentStatus(int $programCourseId): array
+    {
+        Log::info('getParticipantsWithPaymentStatus called', [
+            'programCourseId' => $programCourseId
+        ]);
+
+        $participantPrograms = \App\Models\ParticipantProgram::where('program_id', $programCourseId)
+            ->with(['participant'])
+            ->get();
+
+        Log::info('ParticipantPrograms found', [
+            'count' => $participantPrograms->count(),
+            'programCourseId' => $programCourseId
+        ]);
+
+        $participantsData = [];
+
+        foreach ($participantPrograms as $pp) {
+            $participant = $pp->participant;
+
+            // Check if participant has any payments
+            $hasPayments = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $programCourseId);
+            })->exists();
+
+            // Get total paid amount
+            $totalPaid = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $programCourseId);
+            })
+            ->whereIn('status', ['completed', 'approved'])
+            ->sum('amount');
+
+            $participantsData[] = [
+                'participant_program_id' => $pp->id,
+                'participant_id' => $participant->id,
+                'full_name' => $participant->full_name,
+                'rut' => $participant->rut,
+                'email' => $participant->email,
+                'enrollment_code' => $pp->enrollment_code,
+                'has_payments' => $hasPayments,
+                'total_paid' => $totalPaid,
+                'can_delete' => !$hasPayments,
+            ];
+        }
+
+        return $participantsData;
+    }
+
+    /**
+     * Remove a participant from a program-course
+     * Only if they have no payments
+     */
+    public function removeParticipant(int $participantProgramId): array
+    {
+        try {
+            $participantProgram = \App\Models\ParticipantProgram::findOrFail($participantProgramId);
+            $participant = $participantProgram->participant;
+
+            // Check if participant has payments
+            $hasPayments = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $participantProgram) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $participantProgram->program_id);
+            })->exists();
+
+            if ($hasPayments) {
+                return [
+                    'success' => false,
+                    'message' => 'No se puede eliminar el participante porque tiene transacciones registradas.'
+                ];
+            }
+
+            // Delete associated orders (if any without payments)
+            \App\Models\Order::where('participant_id', $participant->id)
+                ->where('program_id', $participantProgram->program_id)
+                ->delete();
+
+            // Delete installment plans (if any without payments)
+            \App\Models\InstallmentPlan::where('participant_id', $participant->id)
+                ->where('program_id', $participantProgram->program_id)
+                ->delete();
+
+            // Delete the participant_program relationship
+            $participantProgram->delete();
+
+            Log::info('Participante eliminado del programa-curso', [
+                'participant_program_id' => $participantProgramId,
+                'participant' => $participant->full_name,
+                'program_id' => $participantProgram->program_id
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Participante eliminado exitosamente.'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar participante', [
+                'participant_program_id' => $participantProgramId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al eliminar participante: ' . $e->getMessage()
+            ];
         }
     }
 }

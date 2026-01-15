@@ -19,7 +19,7 @@
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    Comprador
+                    Pagador
                 </div>
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
@@ -44,7 +44,7 @@
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                 >
-                    Gateway
+                    T. Pago
                 </div>
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
@@ -80,7 +80,7 @@
                         {{ getParticipantName(payment) }}
                     </div>
 
-                    <!-- Comprador -->
+                    <!-- Pagador -->
                     <div
                         class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
                     >
@@ -230,36 +230,31 @@ export default {
         getPaymentMethodDisplay(payment) {
             // Si es un installment (cuota de suscripción)
             if (payment.is_installment) {
-                return `VirtualPos - Cuota ${payment.installment_number}`;
+                return 'PAT';
             }
 
             // Si es una orden de suscripción (empieza con SUB-)
             if (payment.order?.order_number?.startsWith('SUB-')) {
-                return 'Suscripción';
+                return 'PAT';
             }
 
-            // Si tiene payment_option_id, mostrar información del paymentOption
+            // Si tiene payment_option_id, mostrar el código de reporte
             if (payment.payment_option_id && payment.payment_option) {
-                let displayText = payment.payment_option.gateway_code || payment.payment_option.label || "N/A";
-
-                // Convertir a Title Case y manejar casos especiales
-                if (displayText === 'refund') {
-                    return 'Reembolso';
+                // Prioritize report_code over gateway_code
+                if (payment.payment_option.report_code) {
+                    return payment.payment_option.report_code;
                 }
 
-                // Convertir a Title Case para todos los demás
-                return displayText
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                    .join(' ');
+                // Fallback a gateway_code
+                return payment.payment_option.gateway_code || "N/A";
             }
 
-            // Si no tiene payment_option_id, es un pago presencial
+            // Si no tiene payment_option_id, es un pago presencial sin código específico
             if (!payment.payment_option_id) {
                 return "Presencial";
             }
 
-            // Fallback al gateway del pago
+            // Fallback
             return payment.payment_gateway?.name || "N/A";
         },
 

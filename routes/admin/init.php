@@ -54,6 +54,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Gestión de colegios
     include __DIR__ . '/schools.php';
 
+    // Gestión de instituciones
+    include __DIR__ . '/institutions.php';
+
+    // Gestión de ejecutivos comerciales
+    include __DIR__ . '/executives.php';
+
     // Gestión de documentos procedimientos
     Route::resource('procedure-documents', \App\Http\Controllers\Admin\ProcedureDocumentsController::class);
     Route::get('procedure-documents/{procedureDocument}/download', [\App\Http\Controllers\Admin\ProcedureDocumentsController::class, 'download'])->name('procedure-documents.download');

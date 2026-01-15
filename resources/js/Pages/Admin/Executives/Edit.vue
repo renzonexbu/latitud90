@@ -1,17 +1,17 @@
 <template>
     <AdminLayout>
-        <Head title="Crear Institución" />
+        <Head title="Editar Ejecutivo" />
 
         <div class="py-6 lg:py-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-6">
                     <div>
-                        <h1 class="text-3xl font-nexa-bold text-verde-oscuro">Crear Institución</h1>
-                        <p class="text-gray-600 mt-2 font-nexa-regular">Agregar una nueva institución educativa</p>
+                        <h1 class="text-3xl font-nexa-bold text-verde-oscuro">Editar Ejecutivo</h1>
+                        <p class="text-gray-600 mt-2 font-nexa-regular">Modificar los datos del ejecutivo</p>
                     </div>
                     <Link
-                        :href="route('admin.institutions.index')"
+                        :href="route('admin.executives.index')"
                         class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-nexa-bold transition-colors flex items-center gap-2"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -28,7 +28,7 @@
                             <!-- Name -->
                             <div>
                                 <label for="name" class="block text-sm font-nexa-bold text-gray-700 mb-2">
-                                    Nombre de la Institución *
+                                    Nombre del Ejecutivo *
                                 </label>
                                 <input
                                     id="name"
@@ -37,64 +37,10 @@
                                     required
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
                                     :class="{ 'border-red-500': form.errors.name }"
-                                    placeholder="Ingrese el nombre de la institución"
+                                    placeholder="Ingrese el nombre completo"
                                 />
                                 <p v-if="form.errors.name" class="mt-1 text-sm text-red-600 font-nexa-regular">
                                     {{ form.errors.name }}
-                                </p>
-                            </div>
-
-                            <!-- Type -->
-                            <div>
-                                <label for="type" class="block text-sm font-nexa-bold text-gray-700 mb-2">
-                                    Tipo
-                                </label>
-                                <input
-                                    id="type"
-                                    v-model="form.type"
-                                    type="text"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
-                                    :class="{ 'border-red-500': form.errors.type }"
-                                    placeholder="Ej: Universidad, Colegio, Instituto"
-                                />
-                                <p v-if="form.errors.type" class="mt-1 text-sm text-red-600 font-nexa-regular">
-                                    {{ form.errors.type }}
-                                </p>
-                            </div>
-
-                            <!-- Address -->
-                            <div>
-                                <label for="address" class="block text-sm font-nexa-bold text-gray-700 mb-2">
-                                    Dirección
-                                </label>
-                                <input
-                                    id="address"
-                                    v-model="form.address"
-                                    type="text"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
-                                    :class="{ 'border-red-500': form.errors.address }"
-                                    placeholder="Ingrese la dirección"
-                                />
-                                <p v-if="form.errors.address" class="mt-1 text-sm text-red-600 font-nexa-regular">
-                                    {{ form.errors.address }}
-                                </p>
-                            </div>
-
-                            <!-- Phone -->
-                            <div>
-                                <label for="phone" class="block text-sm font-nexa-bold text-gray-700 mb-2">
-                                    Teléfono
-                                </label>
-                                <input
-                                    id="phone"
-                                    v-model="form.phone"
-                                    type="tel"
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
-                                    :class="{ 'border-red-500': form.errors.phone }"
-                                    placeholder="Ej: +56 9 1234 5678"
-                                />
-                                <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600 font-nexa-regular">
-                                    {{ form.errors.phone }}
                                 </p>
                             </div>
 
@@ -116,28 +62,28 @@
                                 </p>
                             </div>
 
-                            <!-- Website -->
+                            <!-- Phone -->
                             <div>
-                                <label for="website" class="block text-sm font-nexa-bold text-gray-700 mb-2">
-                                    Sitio Web
+                                <label for="phone" class="block text-sm font-nexa-bold text-gray-700 mb-2">
+                                    Teléfono
                                 </label>
                                 <input
-                                    id="website"
-                                    v-model="form.website"
-                                    type="url"
+                                    id="phone"
+                                    v-model="form.phone"
+                                    type="tel"
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
-                                    :class="{ 'border-red-500': form.errors.website }"
-                                    placeholder="https://www.ejemplo.com"
+                                    :class="{ 'border-red-500': form.errors.phone }"
+                                    placeholder="Ej: +56 9 1234 5678"
                                 />
-                                <p v-if="form.errors.website" class="mt-1 text-sm text-red-600 font-nexa-regular">
-                                    {{ form.errors.website }}
+                                <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600 font-nexa-regular">
+                                    {{ form.errors.phone }}
                                 </p>
                             </div>
 
                             <!-- Actions -->
                             <div class="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
                                 <Link
-                                    :href="route('admin.institutions.index')"
+                                    :href="route('admin.executives.index')"
                                     class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-nexa-bold transition-colors"
                                 >
                                     Cancelar
@@ -147,7 +93,7 @@
                                     :disabled="form.processing"
                                     class="px-6 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark font-nexa-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {{ form.processing ? 'Creando...' : 'Crear Institución' }}
+                                    {{ form.processing ? 'Guardando...' : 'Guardar Cambios' }}
                                 </button>
                             </div>
                         </div>
@@ -162,17 +108,18 @@
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
+const props = defineProps({
+    executive: Object
+});
+
 const form = useForm({
-    name: '',
-    type: '',
-    address: '',
-    phone: '',
-    email: '',
-    website: ''
+    name: props.executive.name || '',
+    email: props.executive.email || '',
+    phone: props.executive.phone || ''
 });
 
 const submit = () => {
-    form.post(route('admin.institutions.store'), {
+    form.put(route('admin.executives.update', props.executive.id), {
         preserveScroll: true
     });
 };

@@ -20,7 +20,12 @@ class SalesExecutive extends Model
 
 	public function programs()
 	{
-		return $this->hasMany(Program::class);
+		return $this->hasMany(ProgramCourse::class);
+	}
+
+	public function programCourses()
+	{
+		return $this->hasMany(ProgramCourse::class);
 	}
 
 	public function createdBy()

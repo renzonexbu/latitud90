@@ -155,6 +155,12 @@ class ProgramService
                         ->get();
 
                     foreach ($orders as $order) {
+                        // Si la orden tiene total_installments = 0, es un sistema sin cuotas (pagos presenciales)
+                        // No contar los OrderDetails como cuotas, solo como pagos para el porcentaje
+                        if ($order->total_installments == 0) {
+                            continue; // No contar cuotas para órdenes presenciales
+                        }
+
                         if ($order->orderDetails) {
                             $ecommerceOrderDetails = $order->orderDetails->filter(function($detail) {
                                 if ($detail->paymentOption && $detail->paymentOption->mode === 'presential') {

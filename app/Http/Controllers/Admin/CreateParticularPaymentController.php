@@ -12,6 +12,7 @@ use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Region;
 use App\Services\Admin\Payments\CreateParticularPaymentService;
+use App\Services\Admin\Installments\RegisterManualPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -21,6 +22,14 @@ class CreateParticularPaymentController extends Controller
     public function __construct(
         private CreateParticularPaymentService $createParticularPaymentService
     ) {}
+
+    /**
+     * Mostrar el menú de opciones para pagos presenciales
+     */
+    public function menu()
+    {
+        return Inertia::render('Admin/Payments/PresentialPaymentsMenu');
+    }
 
     /**
      * Mostrar el formulario de creación de pago presencial
@@ -55,12 +64,14 @@ class CreateParticularPaymentController extends Controller
         $countries = Country::where('name', 'Chile')->get();
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
+        $paymentTypeOptions = RegisterManualPaymentService::getPaymentSourceOptions();
 
         return Inertia::render('Admin/Payments/Create', [
             'programs' => $programCourses,
             'countries' => $countries,
             'regions' => $regions,
-            'documentTypes' => $documentTypes
+            'documentTypes' => $documentTypes,
+            'paymentTypeOptions' => $paymentTypeOptions
         ]);
     }
 
@@ -79,7 +90,7 @@ class CreateParticularPaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'presential_payment_type' => 'required|in:BX,TE,CH,DP',
+            'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP',
 
             // Datos del comprador
             'buyer_full_name' => 'required|string|max:255',
@@ -246,5 +257,17 @@ class CreateParticularPaymentController extends Controller
         }
 
         return 'partial_payments';
+    }
+
+    /**
+     * Obtener las opciones de tipo de pago disponibles
+     * Devuelve los códigos de reporte y etiquetas para el selector
+     */
+    public function getPaymentTypeOptions()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => RegisterManualPaymentService::getPaymentSourceOptions()
+        ]);
     }
 }

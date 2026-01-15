@@ -261,7 +261,7 @@ const closeModal = () => {
 };
 
 const handleCreatePayment = () => {
-    router.visit(route("admin.payments.presential.create"));
+    router.visit(route("admin.payments.presential.menu"));
 };
 
 const handleCreateRefund = () => {

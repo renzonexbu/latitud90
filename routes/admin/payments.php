@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\CreateParticularPaymentController;
 use App\Http\Controllers\Admin\CreateRefundController;
+use App\Http\Controllers\Admin\ImportManualPaymentsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('payments')->name('payments.')->group(function () {
@@ -30,9 +31,13 @@ Route::prefix('payments')->name('payments.')->group(function () {
     
     // Rutas para pagos presenciales
     Route::prefix('presential')->name('presential.')->group(function () {
+        Route::get('menu', [CreateParticularPaymentController::class, 'menu'])->name('menu');
         Route::get('create', [CreateParticularPaymentController::class, 'create'])->name('create');
         Route::post('store', [CreateParticularPaymentController::class, 'store'])->name('store');
-        Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantStatus'])->name('participant-status');
+        Route::get('import', [ImportManualPaymentsController::class, 'import'])->name('import');
+        Route::post('import-store', [ImportManualPaymentsController::class, 'importStore'])->name('import-store');
+        Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
+        Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
     });
     
     // Rutas para reembolsos

@@ -164,6 +164,9 @@
                     >
                         {{ link.label }}
                     </a>
+                    <a href="/guardian" class="placeholder">
+                        Iniciar Sesión
+                    </a>
                 </div>
                 <!-- Botón oculto temporalmente
                 <div class="boton-l" @click="scrollToHero">
@@ -273,6 +276,11 @@
                                     :target="link.external ? '_blank' : null"
                                 >
                                     {{ link.label }}
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/guardian" class="mobile-menu-link">
+                                    Iniciar Sesión
                                 </a>
                             </li>
                             <!-- Botón oculto temporalmente

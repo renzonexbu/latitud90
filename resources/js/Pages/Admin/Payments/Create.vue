@@ -50,12 +50,12 @@
                         </div>
 
                         <form @submit.prevent="submit" class="space-y-8">
-                            <!-- SECCIÓN 1: DATOS DEL COMPRADOR -->
+                            <!-- SECCIÓN 1: DATOS DEL PAGADOR -->
                             <div class="border-b border-gray-200 pb-6">
                                 <h3
                                     class="text-lg font-semibold text-gray-900 mb-6"
                                 >
-                                    Datos del Comprador
+                                    Datos del Pagador
                                 </h3>
 
                                 <!-- Tipo de Documento - Full Width -->
@@ -632,14 +632,13 @@
                                             <option value="">
                                                 Seleccione el tipo de pago
                                             </option>
-                                            <option value="BX">
-                                                Pago con tarjeta en oficina
+                                            <option
+                                                v-for="option in paymentTypeOptions"
+                                                :key="option.report_code"
+                                                :value="option.report_code"
+                                            >
+                                                {{ option.label }}
                                             </option>
-                                            <option value="TE">
-                                                Transferencia bancaria
-                                            </option>
-                                            <!-- <option value="CH">Cheque</option>
-                                            <option value="DP">Depósito</option> -->
                                         </select>
                                         <span
                                             v-if="
@@ -817,14 +816,17 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-
+    paymentTypeOptions: {
+        type: Array,
+        default: () => [],
+    },
     errors: {
         type: Object,
         default: () => ({}),
     },
 });
 
-// Formulario de datos del comprador
+// Formulario de datos del pagador
 const buyerForm = reactive({
     fullName: "",
     documentType: "",
@@ -1350,7 +1352,7 @@ const formatParticipantDocument = (participant) => {
 };
 
 const submit = () => {
-    // Combinar los datos del comprador con los datos del pago
+    // Combinar los datos del pagador con los datos del pago
     const combinedData = {
         ...form.data(),
         status: "completed", // Siempre completado para pagos presenciales

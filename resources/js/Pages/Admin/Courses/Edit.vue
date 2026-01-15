@@ -157,17 +157,19 @@
                                                             <div class="field-label">
                                                                 Fecha límite de pago *
                                                             </div>
-                                                            <input
-                                                                type="date"
-                                                                v-model="form.final_payment_date"
+                                                            <select
+                                                                v-model="form.payment_days_before"
                                                                 class="admin-input-text"
-                                                                :class="{ 'border-red-500': errors.final_payment_date || !finalPaymentDateValidation.isValid }"
-                                                            />
+                                                                :class="{ 'border-red-500': errors.final_payment_date }"
+                                                            >
+                                                                <option value="30">30 días antes</option>
+                                                                <option value="60">60 días antes</option>
+                                                            </select>
                                                             <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.final_payment_date }}
                                                             </span>
-                                                            <span v-if="!finalPaymentDateValidation.isValid" class="text-red-500 text-sm mt-1 block">
-                                                                {{ finalPaymentDateValidation.message }}
+                                                            <span v-if="calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
+                                                                Fecha calculada: {{ formatDateForDisplay(calculatedFinalPaymentDate) }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -436,6 +438,14 @@
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                    </div>
+
+                                                    <!-- Participants Management Component -->
+                                                    <div v-if="travelersOpen">
+                                                        <ParticipantsManagement
+                                                            v-if="programCourse?.id"
+                                                            :program-course-id="programCourse.id"
+                                                        />
                                                     </div>
                                                 </div>
                                             </div>
@@ -814,6 +824,7 @@ import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
+import ParticipantsManagement from '@/Components/Courses/ParticipantsManagement.vue';
 
 // Props
 const props = defineProps({
@@ -956,6 +967,26 @@ const getSubscriptionPaymentOptions = () => {
     return [];
 };
 
+// Calculate payment_days_before based on existing dates
+const calculatePaymentDaysBefore = () => {
+    if (!programCourse.value.departure_date || !programCourse.value.final_payment_date) {
+        return '60'; // Default value
+    }
+
+    const departureDate = new Date(programCourse.value.departure_date + 'T00:00:00');
+    const finalPaymentDate = new Date(programCourse.value.final_payment_date + 'T00:00:00');
+
+    const diffTime = departureDate - finalPaymentDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    // Si está más cerca de 30, retornar 30, si está más cerca de 60 o más, retornar 60
+    if (diffDays < 45) {
+        return '30';
+    } else {
+        return '60';
+    }
+};
+
 // Form data - Initialize with existing course data
 const form = ref({
     // Course fields
@@ -973,6 +1004,7 @@ const form = ref({
     code: programCourse.value.code || '',
     departure_date: formatDate(programCourse.value.departure_date),
     trip_price: programCourse.value.trip_price || '',
+    payment_days_before: calculatePaymentDaysBefore(),
     final_payment_date: formatDate(programCourse.value.final_payment_date),
 
     // Payment options
@@ -1092,25 +1124,38 @@ const maxInstallmentChoices = computed(() => {
     return choices;
 });
 
-// Validación de fecha final de pago
-const finalPaymentDateValidation = computed(() => {
-    if (!form.value.departure_date || !form.value.final_payment_date) {
-        return { isValid: true, message: '' };
+// Calcular fecha límite de pago automáticamente
+const calculatedFinalPaymentDate = computed(() => {
+    if (!form.value.departure_date || !form.value.payment_days_before) {
+        return null;
     }
 
     const departureDate = new Date(form.value.departure_date + 'T00:00:00');
-    const finalPaymentDate = new Date(form.value.final_payment_date + 'T00:00:00');
+    const daysToSubtract = parseInt(form.value.payment_days_before);
 
-    // Validar que la fecha límite de pago sea anterior a la fecha de inicio
-    if (finalPaymentDate >= departureDate) {
-        return {
-            isValid: false,
-            message: 'La fecha límite de pago debe ser anterior a la fecha de inicio del programa.'
-        };
+    // Restar los días a la fecha de inicio
+    const finalPaymentDate = new Date(departureDate);
+    finalPaymentDate.setDate(departureDate.getDate() - daysToSubtract);
+
+    // Retornar en formato YYYY-MM-DD
+    return finalPaymentDate.toISOString().split('T')[0];
+});
+
+// Validación de fecha final de pago (simplificada ya que el cálculo es automático)
+const finalPaymentDateValidation = computed(() => {
+    if (!form.value.departure_date || !form.value.payment_days_before) {
+        return { isValid: true, message: '' };
     }
 
     return { isValid: true, message: '' };
 });
+
+// Watcher para actualizar final_payment_date automáticamente
+watch([() => form.value.departure_date, () => form.value.payment_days_before], () => {
+    if (calculatedFinalPaymentDate.value) {
+        form.value.final_payment_date = calculatedFinalPaymentDate.value;
+    }
+}, { immediate: true });
 
 // Payment option functions
 const isPaymentOptionSelected = (option) => {
@@ -1278,6 +1323,16 @@ const formatFileSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Format date for display (DD/MM/YYYY)
+const formatDateForDisplay = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+};
+
 // Submit form
 const saveCourse = () => {
     console.log('=== SAVING COURSE ===');
@@ -1311,6 +1366,7 @@ const saveCourse = () => {
     if (form.value.departure_date) formData.append('departure_date', form.value.departure_date);
     if (form.value.trip_price) formData.append('trip_price', form.value.trip_price);
     if (form.value.final_payment_date) formData.append('final_payment_date', form.value.final_payment_date);
+    if (form.value.payment_days_before) formData.append('min_days_before_departure', form.value.payment_days_before);
 
     // Payment options - new structure
     if (form.value.payment_options && form.value.payment_options.length > 0) {

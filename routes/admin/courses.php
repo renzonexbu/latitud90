@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Route;
 
 // Courses Management
 Route::prefix('courses')->name('courses.')->group(function () {
+    // Participant management routes (must be before wildcard routes)
+    Route::get('/participants', [CourseController::class, 'getParticipants'])->name('participants.get');
+    Route::delete('/participants/remove', [CourseController::class, 'removeParticipant'])->name('participants.remove');
+
     // Resource routes for courses
     Route::get('/', [CourseController::class, 'index'])->name('index');
     Route::get('/create', [CourseController::class, 'create'])->name('create');
@@ -14,7 +18,7 @@ Route::prefix('courses')->name('courses.')->group(function () {
     Route::get('/{course}/edit', [CourseController::class, 'edit'])->name('edit');
     Route::put('/{course}', [CourseController::class, 'update'])->name('update');
     Route::delete('/{course}', [CourseController::class, 'destroy'])->name('destroy');
-    
+
     // Additional course actions
     Route::patch('/{course}/toggle-status', [CourseController::class, 'toggleStatus'])
         ->name('toggle-status');
