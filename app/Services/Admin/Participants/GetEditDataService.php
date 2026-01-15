@@ -209,9 +209,15 @@ class GetEditDataService
                         ->get();
 
                     foreach ($orders as $order) {
+                        // Si la orden tiene total_installments = 0, es un sistema sin cuotas (pagos presenciales)
+                        // No contar los OrderDetails como cuotas, solo como pagos para el porcentaje
+                        if ($order->total_installments == 0) {
+                            continue; // No contar cuotas para órdenes presenciales
+                        }
+
                         if ($order->orderDetails) {
                             $totalInstallments = $order->orderDetails->count();
-                            
+
                             foreach ($order->orderDetails as $detail) {
                                 if ($detail->is_paid) {
                                     $paidInstallments++;

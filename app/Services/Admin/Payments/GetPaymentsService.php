@@ -339,8 +339,9 @@ class GetPaymentsService
     private function getStats(): array
     {
         // Estadísticas básicas
-        $totalRevenue = Payment::where('status', 'completed')->sum('amount');
-        $completed = Payment::where('status', 'completed')->count();
+        // Incluir tanto 'completed' como 'approved' para pagos presenciales
+        $totalRevenue = Payment::whereIn('status', ['completed', 'approved'])->sum('amount');
+        $completed = Payment::whereIn('status', ['completed', 'approved'])->count();
         $pending = Payment::where('status', 'pending')->count();
         $failed = Payment::where('status', 'failed')->count();
         $authorized = Payment::where('status', 'authorized')->count();
@@ -371,11 +372,15 @@ class GetPaymentsService
     {
         $distribution = [];
 
-        // 1. Pagos Totales (Full) - órdenes con payment_type = 'total'
-        $fullPayments = Payment::where('status', 'completed')
+        // 1. Pagos Totales (Full) - órdenes con payment_type = 'total' del ecommerce
+        // Excluir pagos presenciales para evitar duplicación
+        $fullPayments = Payment::whereIn('status', ['completed', 'approved'])
             ->whereHas('order', function ($q) {
                 $q->where('payment_type', 'total')
                   ->where('order_number', 'NOT LIKE', 'SUB-%');
+            })
+            ->whereDoesntHave('paymentOption', function ($q) {
+                $q->where('mode', 'presential');
             })
             ->selectRaw('COUNT(*) as count, SUM(amount) as total')
             ->first();
@@ -397,10 +402,10 @@ class GetPaymentsService
             'total' => $subscriptionTotal,
         ];
 
-        // 3. Pagos Presenciales
-        $presentialPayments = Payment::where('status', 'completed')
-            ->whereHas('paymentGateway', function ($q) {
-                $q->where('code', 'presencial');
+        // 3. Pagos Presenciales (por payment_option con mode = 'presential')
+        $presentialPayments = Payment::whereIn('status', ['completed', 'approved'])
+            ->whereHas('paymentOption', function ($q) {
+                $q->where('mode', 'presential');
             })
             ->selectRaw('COUNT(*) as count, SUM(amount) as total')
             ->first();
@@ -412,7 +417,7 @@ class GetPaymentsService
         ];
 
         // 4. Devoluciones (montos negativos)
-        $refunds = Payment::where('status', 'completed')
+        $refunds = Payment::whereIn('status', ['completed', 'approved'])
             ->where('amount', '<', 0)
             ->selectRaw('COUNT(*) as count, SUM(ABS(amount)) as total')
             ->first();
@@ -438,7 +443,8 @@ class GetPaymentsService
 
         // Obtener pagos completados agrupados por opción de pago
         // Excluir suscripciones (mode = 'subscription') porque se cuentan desde installments
-        $paymentsByOption = Payment::where('status', 'completed')
+        // Incluir tanto 'completed' como 'approved' para pagos presenciales
+        $paymentsByOption = Payment::whereIn('status', ['completed', 'approved'])
             ->where('amount', '>', 0) // Excluir devoluciones
             ->with('paymentOption')
             ->get()

@@ -289,6 +289,19 @@ class CreateRefundController extends Controller
         })
         ->count();
 
+        // Si no hay planes de cuotas, buscar en orders_detail como fallback
+        if ($totalInstallments == 0) {
+            $orderDetails = OrderDetail::whereHas('order', function ($q) use ($participantId, $programId) {
+                $q->where('participant_id', $participantId)
+                    ->where('program_id', $programId)
+                    // Excluir órdenes presenciales sin sistema de cuotas
+                    ->where('total_installments', '!=', 0);
+            })->get();
+
+            $totalInstallments = $orderDetails->count();
+            $paidInstallments = $orderDetails->where('is_paid', true)->count();
+        }
+
         return $totalInstallments > 0 ? "{$paidInstallments}/{$totalInstallments}" : "0/0";
     }
 }

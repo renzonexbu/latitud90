@@ -201,7 +201,9 @@ class CreateParticularPaymentController extends Controller
             if ($totalInstallments == 0) {
                 $orderDetails = OrderDetail::whereHas('order', function ($q) use ($participantId, $programId) {
                     $q->where('participant_id', $participantId)
-                        ->where('program_id', $programId);
+                        ->where('program_id', $programId)
+                        // Excluir órdenes presenciales sin sistema de cuotas
+                        ->where('total_installments', '!=', 0);
                 })->get();
 
                 $totalInstallments = $orderDetails->count();
