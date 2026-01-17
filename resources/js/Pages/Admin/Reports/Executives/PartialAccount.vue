@@ -83,7 +83,7 @@ const onPageChanged = (page) => {
 };
 
 const goBack = () => {
-    router.get('/admin/reports');
+    router.get('/admin/reports/executives');
 };
 </script>
 

@@ -38,16 +38,18 @@ class AdminController extends Controller
             ->limit(5)
             ->get();
 
-        // Programas activos (máximo 3) con relaciones necesarias
-        // Nota: 'images' es un accessor (no relación), no se usa en with()
-        $activePrograms = Program::with(['programCourses.course.institution', 'programCourses.course.participants'])
+        // Plantillas más usadas (máximo 3) basadas en cantidad de programCourses
+        // Incluir el conteo de programCourses para mostrar
+        $mostUsedTemplates = Program::with(['programCourses.course.institution', 'programCourses.course.participants'])
             ->where('active', true)
+            ->withCount('programCourses')
+            ->orderBy('program_courses_count', 'desc')
             ->orderBy('created_at', 'desc')
             ->take(3)
             ->get();
 
         // Tabla de estado de pago por institución/programa basada en datos reales
-        $institutionsPayments = $activePrograms->flatMap(function ($program) {
+        $institutionsPayments = $mostUsedTemplates->flatMap(function ($program) {
             // Iterar sobre cada ProgramCourse del programa
             return $program->programCourses->map(function ($programCourse) use ($program) {
                 $course = $programCourse->course;
@@ -99,7 +101,7 @@ class AdminController extends Controller
             'stats' => $stats,
             'recentReservations' => $recentReservations,
             'recentPayments' => $recentPayments,
-            'activePrograms' => $activePrograms,
+            'mostUsedTemplates' => $mostUsedTemplates,
             'institutionsPayments' => $institutionsPayments,
             'permissions' => $this->getPermissionsData(),
         ]);

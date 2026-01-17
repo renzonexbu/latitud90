@@ -8,10 +8,10 @@
         <div class="p-4">
             <HomeHeader />
             <div class="mt-6">
-                <DashboardProgramsGrid :programs="activePrograms" />
+                <InstitutionsPaymentsTable :rows="institutionsPayments" />
             </div>
             <div class="mt-6">
-                <InstitutionsPaymentsTable :rows="institutionsPayments" />
+                <DashboardProgramsGrid :programs="mostUsedTemplates" />
             </div>
         </div>
     </AdminLayout>
@@ -37,7 +37,7 @@ export default {
         AlertWrapper,
     },
     props: {
-        activePrograms: {
+        mostUsedTemplates: {
             type: Array,
             default: () => [],
         },

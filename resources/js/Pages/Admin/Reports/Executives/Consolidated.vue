@@ -98,7 +98,7 @@ const exportData = () => {
 };
 
 const goBack = () => {
-    router.get('/admin/reports', {}, { preserveState: false });
+    router.get('/admin/reports/executives', {}, { preserveState: false });
 };
 </script>
 

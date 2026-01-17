@@ -21,6 +21,7 @@
             <!-- Navigation Icons -->
             <nav class="flex flex-col flex-1">
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -44,6 +45,7 @@
                     </span>
                 </NavLink>
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -68,6 +70,7 @@
                     </span>
                 </NavLink>
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -92,6 +95,7 @@
                     </span>
                 </NavLink>
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -116,6 +120,7 @@
                     </span>
                 </NavLink>
                  <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -140,6 +145,7 @@
                     </span>
                 </NavLink>
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.subscriptions.index')"
                     :active="route().current('admin.subscriptions.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -190,6 +196,7 @@
 
                 <!-- Contenido del Sitio -->
                 <NavLink
+                    v-if="!isEjecutivoComercial"
                     :href="route('admin.site-content.index')"
                     :active="route().current('admin.site-content.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -301,6 +308,7 @@
                                     Ver perfil
                                 </NavLink>
                                 <NavLink
+                                    v-if="!isEjecutivoComercial"
                                     :href="route('admin.users.index')"
                                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
@@ -405,6 +413,13 @@ export default {
             alertTitle: '',
             alertMessage: '',
         };
+    },
+    computed: {
+        isEjecutivoComercial() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   this.$page.props.auth.user.roles.includes('ejecutivo_comercial');
+        }
     },
     mounted() {
         // Cerrar dropdown cuando se hace clic fuera

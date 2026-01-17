@@ -151,6 +151,13 @@ class UsersController extends Controller
                         'editor_marketing',
                         'visualizador_marketing'
                     ])->values()
+                ],
+                'comercial' => [
+                    'name' => 'Comercial',
+                    'description' => 'Roles comerciales',
+                    'roles' => $allRoles->whereIn('name', [
+                        'ejecutivo_comercial'
+                    ])->values()
                 ]
             ];
         }

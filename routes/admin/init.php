@@ -13,7 +13,7 @@ Route::get('/dashboard', function () {
 
 
 // Rutas de administración
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'restrict.executive'])->prefix('admin')->name('admin.')->group(function () {
 
     // Dashboard de administración
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');

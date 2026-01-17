@@ -12,6 +12,7 @@
                                 Reportes Ejecutivo Comercial
                             </h2>
                             <Link
+                                v-if="!isEjecutivoComercial"
                                 :href="route('admin.reports.index')"
                                 class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
                             >
@@ -157,13 +158,22 @@
 </template>
 
 <script setup>
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
+import { computed } from 'vue';
 
 defineProps({
     documents: {
         type: Array,
         default: () => []
     }
+});
+
+const page = usePage();
+
+const isEjecutivoComercial = computed(() => {
+    return page.props.auth.user &&
+           page.props.auth.user.roles &&
+           page.props.auth.user.roles.includes('ejecutivo_comercial');
 });
 </script>

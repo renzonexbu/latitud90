@@ -77,6 +77,7 @@ trait HasPermissions
             'is_editor_marketing' => $this->userHasRole('editor_marketing'),
             'is_visualizador_contabilidad' => $this->userHasRole('visualizador_contabilidad'),
             'is_visualizador_marketing' => $this->userHasRole('visualizador_marketing'),
+            'is_ejecutivo_comercial' => $this->userHasRole('ejecutivo_comercial'),
         ];
     }
 
@@ -151,9 +152,17 @@ trait HasPermissions
      */
     public function belongsToMarketingGroup()
     {
-        return $this->isAdminMarketing() || 
-               $this->isEditorMarketing() || 
+        return $this->isAdminMarketing() ||
+               $this->isEditorMarketing() ||
                $this->isVisualizadorMarketing();
+    }
+
+    /**
+     * Verificar si el usuario es ejecutivo comercial
+     */
+    public function isEjecutivoComercial()
+    {
+        return $this->userHasRole('ejecutivo_comercial');
     }
 
     /**

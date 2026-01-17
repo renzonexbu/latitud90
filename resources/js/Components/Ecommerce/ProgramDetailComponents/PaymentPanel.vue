@@ -503,7 +503,7 @@ export default {
                 
                 codes.forEach(code => {
                     if (code.includes('khipu')) {
-                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, this.khipuWarning, 1);
+                        pushUnique('khipu', 'Pagar con Transferencia Khipu', null, null, 1);
                     } else if (code.includes('international')) {
                         pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales', 999);
                     } else if (code.includes('debit_credit')) {
@@ -534,12 +534,7 @@ export default {
             // Legacy fallback
             if (!this.program.enable_total_payment || !this.program.total_payment_method_id) return [];
             const baseOptions = this.filterPaymentOptionsByMethod(this.program.total_payment_method_id);
-            return baseOptions.map(opt => {
-                if (opt.value === 'khipu') {
-                    return { ...opt, warning: this.khipuWarning };
-                }
-                return opt;
-            });
+            return baseOptions;
         },
 
         // Obtener opciones de pago mensual (Latitud 90), basadas en códigos (nueva estructura)

@@ -1,7 +1,7 @@
 <template>
     <div>
         <div v-if="!programs || programs.length === 0" class="text-gray-500 text-sm">
-            No hay programas activos.
+            No hay plantillas disponibles.
         </div>
         <div v-else>
             <div
@@ -15,7 +15,7 @@
                     lineHeight: '28px',
                 }"
             >
-                Programas activos
+                Plantillas más usadas
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <ProgramCard
@@ -45,9 +45,8 @@ export default {
     },
     computed: {
         limitedPrograms() {
-            // Mostrar solo 3 programas activos
-            const actives = (this.programs || []).filter(p => p.active === true);
-            return actives.slice(0, 3);
+            // Los programas ya vienen ordenados por uso desde el backend (máximo 3)
+            return (this.programs || []).slice(0, 3);
         },
     },
     methods: {

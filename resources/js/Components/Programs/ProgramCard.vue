@@ -124,6 +124,14 @@
         >
             <!-- SVG Icon and Status Badge -->
             <div class="flex flex-col items-end gap-2">
+                <!-- Usage Count Badge (solo si hay program_courses_count) -->
+                <div
+                    v-if="program.program_courses_count !== undefined"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-turquesa text-white shadow-md"
+                >
+                    {{ program.program_courses_count }} {{ program.program_courses_count === 1 ? 'uso' : 'usos' }}
+                </div>
+
                 <!-- Cancelled Badge -->
                 <div
                     v-if="program.is_cancelled || program.participant_program_status === 'cancelled'"

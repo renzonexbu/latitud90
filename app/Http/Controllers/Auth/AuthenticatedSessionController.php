@@ -34,6 +34,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Redirigir según el rol del usuario
+        $user = $request->user();
+
+        if ($user->hasRole('ejecutivo_comercial')) {
+            return redirect()->intended(route('admin.reports.executives.index'));
+        }
+
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 

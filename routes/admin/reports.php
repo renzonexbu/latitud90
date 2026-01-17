@@ -96,10 +96,10 @@ Route::get('/reports/procedure-documents/download/{procedureDocument}', function
 })->name('reports.procedure-documents.download');
 
 // Ejecutivos/Apoderados: Consolidado de Área Ingresos y Estado de Cuenta Parcial
-// Estos reportes contienen información sensible del contacto pagador y requieren permiso especial
+// Estos reportes son accesibles por ejecutivos comerciales y roles con permiso especial
 use App\Http\Controllers\Admin\ExecutivesReportsController;
 Route::prefix('/reports/executives')->name('reports.executives.')
-    ->middleware('permission:ver_contacto_pagador')
+    ->middleware('permission:ver_reportes_executives|ver_contacto_pagador')
     ->group(function () {
         // Vista index de reportes de apoderados
         Route::get('/', [ExecutivesReportsController::class, 'index'])->name('index');
