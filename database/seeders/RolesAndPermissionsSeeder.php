@@ -103,7 +103,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $adminContabilidad->syncPermissions([
             'ver', 'editar', 'eliminar', 'crear',
             'crear_usuarios', 'editar_usuarios', 'eliminar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'eliminar_programas', 'crear_programas',
             'ver_participantes', 'editar_participantes', 'eliminar_participantes', 'crear_participantes',
             'ver_pagos', 'editar_pagos', 'crear_pagos', 'eliminar_pagos',
             'ver_reportes', 'exportar_reportes', 'ver_reportes_executives', 'ver_contacto_pagador',
@@ -123,7 +122,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $editorContabilidad->syncPermissions([
             'ver', 'editar', 'crear',
             'editar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'crear_programas',
             'ver_participantes', 'editar_participantes', 'crear_participantes',
             'ver_pagos', 'editar_pagos', 'crear_pagos',
             'ver_reportes', 'exportar_reportes',
@@ -143,7 +141,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $visualizadorContabilidad->syncPermissions([
             'ver',
             'ver_usuarios',
-            'ver_programas',
             'ver_participantes',
             'ver_pagos',
             'ver_reportes', 'exportar_reportes',

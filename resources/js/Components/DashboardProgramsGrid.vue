@@ -23,7 +23,8 @@
                     :key="program.id"
                     :program="normalizeProgram(program)"
                     mode="template"
-                    @click="goToEdit(program)"
+                    :class="isContabilidad ? 'pointer-events-none opacity-75' : 'cursor-pointer'"
+                    @click="!isContabilidad && goToEdit(program)"
                 />
             </div>
         </div>
@@ -47,6 +48,13 @@ export default {
         limitedPrograms() {
             // Los programas ya vienen ordenados por uso desde el backend (máximo 3)
             return (this.programs || []).slice(0, 3);
+        },
+        isContabilidad() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   (this.$page.props.auth.user.roles.includes('admin_contabilidad') ||
+                    this.$page.props.auth.user.roles.includes('editor_contabilidad') ||
+                    this.$page.props.auth.user.roles.includes('visualizador_contabilidad'));
         },
     },
     methods: {

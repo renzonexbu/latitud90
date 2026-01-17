@@ -45,7 +45,7 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing && !isContabilidad"
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -197,7 +197,7 @@
 
                 <!-- Contenido del Sitio -->
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isContabilidad"
                     :href="route('admin.site-content.index')"
                     :active="route().current('admin.site-content.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -309,7 +309,7 @@
                                     Ver perfil
                                 </NavLink>
                                 <NavLink
-                                    v-if="!isEjecutivoComercial && !isMarketing"
+                                    v-if="!isEjecutivoComercial && !isMarketing && !isContabilidad"
                                     :href="route('admin.users.index')"
                                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
@@ -427,6 +427,13 @@ export default {
                    (this.$page.props.auth.user.roles.includes('admin_marketing') ||
                     this.$page.props.auth.user.roles.includes('editor_marketing') ||
                     this.$page.props.auth.user.roles.includes('visualizador_marketing'));
+        },
+        isContabilidad() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   (this.$page.props.auth.user.roles.includes('admin_contabilidad') ||
+                    this.$page.props.auth.user.roles.includes('editor_contabilidad') ||
+                    this.$page.props.auth.user.roles.includes('visualizador_contabilidad'));
         }
     },
     mounted() {
