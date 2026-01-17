@@ -62,6 +62,24 @@ class RolesAndPermissionsSeeder extends Seeder
             'editar_instituciones',
             'eliminar_instituciones',
             'crear_instituciones',
+
+            // Permisos de contenido
+            'ver_contenido',
+            'editar_contenido',
+            'crear_contenido',
+            'eliminar_contenido',
+
+            // Permisos del mantenedor - Marketing Mails
+            'ver_marketing_mails',
+            'editar_marketing_mails',
+            'crear_marketing_mails',
+            'eliminar_marketing_mails',
+
+            // Permisos del mantenedor - Newsletter
+            'ver_newsletter',
+            'editar_newsletter',
+            'crear_newsletter',
+            'eliminar_newsletter',
         ];
 
         foreach ($permissions as $permission) {
@@ -93,16 +111,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver_instituciones', 'editar_instituciones', 'eliminar_instituciones', 'crear_instituciones'
         ]);
 
-        // Permisos para Admin de Marketing (control total sobre su grupo)
+        // Permisos para Admin de Marketing (solo plantillas, contenido, marketing mails y newsletter)
         $adminMarketing->syncPermissions([
-            'ver', 'editar', 'eliminar', 'crear',
-            'crear_usuarios', 'editar_usuarios', 'eliminar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'eliminar_programas', 'crear_programas',
-            'ver_participantes', 'editar_participantes', 'eliminar_participantes', 'crear_participantes',
-            'ver_pagos', 'editar_pagos', 'crear_pagos', 'eliminar_pagos',
-            'ver_reportes', 'exportar_reportes',
-            'ver_cursos', 'editar_cursos', 'eliminar_cursos', 'crear_cursos',
-            'ver_instituciones', 'editar_instituciones', 'eliminar_instituciones', 'crear_instituciones'
+            'ver_programas', // Solo visualización de plantillas
+            'ver_contenido', 'editar_contenido', 'crear_contenido', 'eliminar_contenido',
+            'ver_marketing_mails', 'editar_marketing_mails', 'crear_marketing_mails', 'eliminar_marketing_mails',
+            'ver_newsletter', 'editar_newsletter', 'crear_newsletter', 'eliminar_newsletter',
         ]);
 
         // Permisos para Editor de Contabilidad (casi todo excepto crear usuarios y eliminar)
@@ -117,16 +131,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver_instituciones', 'editar_instituciones', 'crear_instituciones'
         ]);
 
-        // Permisos para Editor de Marketing (casi todo excepto crear usuarios y eliminar)
+        // Permisos para Editor de Marketing (solo plantillas, contenido, marketing mails y newsletter - sin eliminar)
         $editorMarketing->syncPermissions([
-            'ver', 'editar', 'crear',
-            'editar_usuarios', 'ver_usuarios',
-            'ver_programas', 'editar_programas', 'crear_programas',
-            'ver_participantes', 'editar_participantes', 'crear_participantes',
-            'ver_pagos', 'editar_pagos', 'crear_pagos',
-            'ver_reportes', 'exportar_reportes',
-            'ver_cursos', 'editar_cursos', 'crear_cursos',
-            'ver_instituciones', 'editar_instituciones', 'crear_instituciones'
+            'ver_programas', // Solo visualización de plantillas
+            'ver_contenido', 'editar_contenido', 'crear_contenido',
+            'ver_marketing_mails', 'editar_marketing_mails', 'crear_marketing_mails',
+            'ver_newsletter', 'editar_newsletter', 'crear_newsletter',
         ]);
 
         // Permisos para Visualizador de Contabilidad (solo ver)
@@ -141,16 +151,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'ver_instituciones'
         ]);
 
-        // Permisos para Visualizador de Marketing (solo ver)
+        // Permisos para Visualizador de Marketing (solo ver plantillas, contenido, marketing mails y newsletter)
         $visualizadorMarketing->syncPermissions([
-            'ver',
-            'ver_usuarios',
-            'ver_programas',
-            'ver_participantes',
-            'ver_pagos',
-            'ver_reportes', 'exportar_reportes',
-            'ver_cursos',
-            'ver_instituciones'
+            'ver_programas', // Solo visualización de plantillas
+            'ver_contenido',
+            'ver_marketing_mails',
+            'ver_newsletter',
         ]);
 
         // Permisos para Ejecutivo Comercial (solo reportes de executives)

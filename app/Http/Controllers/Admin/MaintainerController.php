@@ -20,7 +20,20 @@ class MaintainerController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('role:super_admin');
+        // Allow marketing roles to access index, newsletter, and marketing mails
+        $this->middleware('role:super_admin')->except([
+            'index',
+            'newsletter',
+            'exportNewsletter',
+            'editNewsletter',
+            'updateNewsletter',
+            'destroyNewsletter',
+            'marketingMails',
+            'toggleMarketingMailStatus',
+            'destroyMarketingMail',
+            'exportMarketingMails',
+            'syncMarketingMails'
+        ]);
     }
 
     public function index()

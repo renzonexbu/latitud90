@@ -21,7 +21,7 @@
             <!-- Navigation Icons -->
             <nav class="flex flex-col flex-1">
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -70,7 +70,7 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.courses.index')"
                     :active="route().current('admin.courses.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -95,7 +95,7 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.participants.index')"
                     :active="route().current('admin.participants.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -120,7 +120,7 @@
                     </span>
                 </NavLink>
                  <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.payments.index')"
                     :active="route().current('admin.payments.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -145,7 +145,7 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isEjecutivoComercial"
+                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.subscriptions.index')"
                     :active="route().current('admin.subscriptions.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -170,6 +170,7 @@
                     </span>
                 </NavLink>
                 <NavLink
+                    v-if="!isMarketing"
                     :href="route('admin.reports.index')"
                     :active="route().current('admin.reports.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -226,9 +227,9 @@
                     </span>
                 </NavLink>
 
-                <!-- Mantenedor - Solo para Super Admin -->
+                <!-- Mantenedor - Para Super Admin y Marketing -->
                 <NavLink
-                    v-if="$page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')"
+                    v-if="($page.props.auth.user && $page.props.auth.user.roles && $page.props.auth.user.roles.includes('super_admin')) || isMarketing"
                     :href="route('admin.maintainer.index')"
                     :active="route().current('admin.maintainer.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -308,7 +309,7 @@
                                     Ver perfil
                                 </NavLink>
                                 <NavLink
-                                    v-if="!isEjecutivoComercial"
+                                    v-if="!isEjecutivoComercial && !isMarketing"
                                     :href="route('admin.users.index')"
                                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                                     @click="showingUserDropdown = false"
@@ -419,6 +420,13 @@ export default {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
                    this.$page.props.auth.user.roles.includes('ejecutivo_comercial');
+        },
+        isMarketing() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   (this.$page.props.auth.user.roles.includes('admin_marketing') ||
+                    this.$page.props.auth.user.roles.includes('editor_marketing') ||
+                    this.$page.props.auth.user.roles.includes('visualizador_marketing'));
         }
     },
     mounted() {

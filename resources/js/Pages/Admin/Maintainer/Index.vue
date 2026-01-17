@@ -12,7 +12,7 @@
 
             <!-- Content Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Gestión de Newsletter -->
+                <!-- Gestión de Newsletter - Visible para Super Admin y Marketing -->
                 <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <SettingsIcon class="w-8 h-8 text-turquesa mr-3" />
@@ -31,7 +31,7 @@
                     </button>
                 </div>
 
-                <!-- Marketing Mails -->
+                <!-- Marketing Mails - Visible para Super Admin y Marketing -->
                 <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,8 +52,8 @@
                     </button>
                 </div>
 
-                <!-- Actividad de Usuarios -->
-                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <!-- Actividad de Usuarios - Solo Super Admin -->
+                <div v-if="isSuperAdmin" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <ReportIcon class="w-8 h-8 text-turquesa mr-3" />
                         <h3 class="text-lg font-semibold text-gray-900">
@@ -71,8 +71,8 @@
                     </button>
                 </div>
 
-                <!-- Plantillas de Documentos -->
-                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <!-- Plantillas de Documentos - Solo Super Admin -->
+                <div v-if="isSuperAdmin" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -92,8 +92,8 @@
                     </button>
                 </div>
 
-                <!-- Términos y Condiciones -->
-                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <!-- Términos y Condiciones - Solo Super Admin -->
+                <div v-if="isSuperAdmin" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
@@ -113,8 +113,8 @@
                     </button>
                 </div>
 
-                <!-- Documentos Procedimientos -->
-                <div class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <!-- Documentos Procedimientos - Solo Super Admin -->
+                <div v-if="isSuperAdmin" class="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                     <div class="flex items-center mb-4">
                         <svg class="w-8 h-8 text-turquesa mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
@@ -147,8 +147,8 @@
                             Información de Permisos
                         </h3>
                         <div class="mt-2 text-sm text-blue-700">
-                            <p><strong>Rol:</strong> Super Administrador</p>
-                            <p><strong>Permisos:</strong> Acceso total al sistema</p>
+                            <p><strong>Rol:</strong> {{ userRoleDisplay }}</p>
+                            <p><strong>Permisos:</strong> {{ userPermissionsDisplay }}</p>
                             <p><strong>Último acceso:</strong> {{ new Date().toLocaleString('es-CL') }}</p>
                         </div>
                     </div>
@@ -181,10 +181,28 @@ export default {
             default: () => ({})
         }
     },
-    mounted() {
-        // Verificar que el usuario tenga permisos de super admin
-        if (!this.userPermissions.is_super_admin) {
-            this.$inertia.visit(route('admin.dashboard'));
+    computed: {
+        isSuperAdmin() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   this.$page.props.auth.user.roles.includes('super_admin');
+        },
+        isMarketing() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   (this.$page.props.auth.user.roles.includes('admin_marketing') ||
+                    this.$page.props.auth.user.roles.includes('editor_marketing') ||
+                    this.$page.props.auth.user.roles.includes('visualizador_marketing'));
+        },
+        userRoleDisplay() {
+            if (this.isSuperAdmin) return 'Super Administrador';
+            if (this.isMarketing) return 'Marketing';
+            return 'Usuario';
+        },
+        userPermissionsDisplay() {
+            if (this.isSuperAdmin) return 'Acceso total al sistema';
+            if (this.isMarketing) return 'Acceso a Newsletter y Marketing Mails';
+            return 'Acceso limitado';
         }
     },
     methods: {
