@@ -4,15 +4,24 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\EmergencyContact;
 use App\Models\Participant;
+use App\Traits\AdminLogging;
 
 class UpdateEmergencyContactService
 {
+    use AdminLogging;
     public function update(array $data, Participant $participant): void
     {
         $contact = EmergencyContact::findOrFail($data['contact_id']);
         if ($contact->participant_id !== $participant->id) {
             throw new \Exception('El contacto no pertenece a este participante');
         }
+
+        // Capturar valores anteriores para logging
+        $oldValues = [
+            'name' => $contact->name,
+            'email' => $contact->email,
+            'phone' => $contact->code_phone . ' ' . $contact->phone,
+        ];
 
         $documentType = $data['document_type'] ?? 1;
         $documentNumber = $data['document_number'] ?? '';
@@ -33,6 +42,26 @@ class UpdateEmergencyContactService
             'birth_date' => !empty($data['birth_date']) ? $data['birth_date'] : null,
             'address' => $data['address'] ?? null,
         ]);
+
+        // Admin logging
+        $newValues = [
+            'name' => $contact->name,
+            'email' => $contact->email,
+            'phone' => $contact->code_phone . ' ' . $contact->phone,
+        ];
+
+        $this->logUpdate(
+            'participants',
+            'EmergencyContact',
+            $contact->id,
+            "Contacto de emergencia actualizado: {$contact->name} del participante {$participant->name}",
+            $oldValues,
+            $newValues,
+            [
+                'participant_id' => $participant->id,
+                'participant_name' => $participant->name
+            ]
+        );
     }
 
     public function delete(array $data, Participant $participant): void
@@ -47,7 +76,30 @@ class UpdateEmergencyContactService
             throw new \Exception('No se puede eliminar el último contacto de emergencia. Debe mantener al menos un contacto.');
         }
 
+        // Capturar valores para logging antes de eliminar
+        $oldValues = [
+            'name' => $contact->name,
+            'email' => $contact->email,
+            'phone' => $contact->code_phone . ' ' . $contact->phone,
+        ];
+
+        $contactId = $contact->id;
+        $contactName = $contact->name;
+
         $contact->delete();
+
+        // Admin logging
+        $this->logDelete(
+            'participants',
+            'EmergencyContact',
+            $contactId,
+            "Contacto de emergencia eliminado: {$contactName} del participante {$participant->name}",
+            $oldValues,
+            [
+                'participant_id' => $participant->id,
+                'participant_name' => $participant->name
+            ]
+        );
     }
 
     /**

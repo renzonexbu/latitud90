@@ -9,6 +9,7 @@
         "barryvdh/laravel-dompdf": "^3.0",
         "fakerphp/faker": "^1.24",
         "firebase/php-jwt": "^6.11",
+        "google/apiclient": "^2.0",
         "guzzlehttp/guzzle": "^7.9",
         "inertiajs/inertia-laravel": "^2.0",
         "intervention/image": "^3.11",

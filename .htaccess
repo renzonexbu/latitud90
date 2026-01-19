@@ -1,6 +1,14 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Forzar HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Permitir acceso a .well-known para verificación SSL
+    RewriteCond %{REQUEST_URI} !^/\.well-known/
+
     # Redirigir todo al directorio public
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>

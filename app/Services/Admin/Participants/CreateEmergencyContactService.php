@@ -4,10 +4,12 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
 use App\Models\EmergencyContact;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 
 class CreateEmergencyContactService
 {
+    use AdminLogging;
     /**
      * Crear nuevos contactos de emergencia para un participante
      *
@@ -43,6 +45,23 @@ class CreateEmergencyContactService
                     'birth_date' => $contactData['birth_date'] ?? null,
                     'address' => $contactData['address'] ?? null,
                 ]);
+
+                // Admin logging
+                $this->logCreate(
+                    'participants',
+                    'EmergencyContact',
+                    $contact->id,
+                    "Contacto de emergencia creado: {$contact->name} para participante {$participant->name}",
+                    [
+                        'name' => $contact->name,
+                        'email' => $contact->email,
+                        'phone' => $contact->code_phone . ' ' . $contact->phone,
+                    ],
+                    [
+                        'participant_id' => $participant->id,
+                        'participant_name' => $participant->name
+                    ]
+                );
 
                 $createdContacts[] = $contact;
             }

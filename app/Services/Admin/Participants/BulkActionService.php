@@ -3,10 +3,12 @@
 namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 
 class BulkActionService
 {
+    use AdminLogging;
     /**
      * Ejecutar acciones masivas en participantes
      *
@@ -46,6 +48,21 @@ class BulkActionService
                 'affected_count' => $affectedCount,
                 'participant_ids' => $participantIds
             ]);
+
+            // Admin logging
+            $this->logAction(
+                'bulk_' . $action,
+                'participants',
+                "Acción masiva '{$action}' ejecutada en {$affectedCount} participantes",
+                'Participant',
+                null,
+                null,
+                ['action' => $action],
+                [
+                    'affected_count' => $affectedCount,
+                    'participant_ids' => $participantIds
+                ]
+            );
 
             return [
                 'success' => true,

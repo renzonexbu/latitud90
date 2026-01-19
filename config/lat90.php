@@ -66,12 +66,14 @@ return [
     |
     | require_email_verification: Controla si los apoderados deben verificar
     | su email antes de poder usar su cuenta
-    |   - true  = El apoderado debe verificar su email para iniciar sesión
+    |   - true  = El apoderado debe verificar su email para iniciar sesión (RECOMENDADO)
     |   - false = El apoderado puede usar su cuenta sin verificar el email
+    |
+    | Por defecto: true (verificación obligatoria para mayor seguridad)
     |
     */
     'guardian' => [
-        'require_email_verification' => env('GUARDIAN_REQUIRE_EMAIL_VERIFICATION', false),
+        'require_email_verification' => env('GUARDIAN_REQUIRE_EMAIL_VERIFICATION', true),
     ],
 
     /*

@@ -13,17 +13,31 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear/Actualizar Super Admin - Clave: 12345678
-        $superAdmin = User::updateOrCreate(
-            ['email' => 'admin@test.com'],
+        // Crear/Actualizar Super Admin Principal (oculto en listado) - Clave: 12345678
+        $superAdminDev = User::updateOrCreate(
+            ['email' => 'yohan@nexbu.com'],
             [
-                'name' => 'Super Administrador',
+                'name' => 'Super Admin',
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
-        $superAdmin->syncRoles(['super_admin']);
+        $superAdminDev->syncRoles(['super_admin']);
+
+        // Crear/Actualizar Super Admin Carolina - Clave: 12345678
+        $superAdminCarolina = User::updateOrCreate(
+            ['email' => 'ccampillay@latitud90.com'],
+            [
+                'name' => 'Carolina Campillai',
+                'email_verified_at' => now(),
+                'password' => Hash::make('12345678'),
+                'remember_token' => null,
+                'is_active' => true,
+            ]
+        );
+        $superAdminCarolina->syncRoles(['super_admin']);
 
         // Crear/Actualizar Admin de Contabilidad - Clave: 12345678
         $adminContabilidad = User::updateOrCreate(
@@ -33,6 +47,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
         $adminContabilidad->syncRoles(['admin_contabilidad']);
@@ -45,6 +60,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
         $adminMarketing->syncRoles(['admin_marketing']);
@@ -57,9 +73,62 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
         $editorContabilidad->syncRoles(['editor_contabilidad']);
+
+        // Crear/Actualizar Super Admin - Liliam García - Clave: 12345678
+        $adminLorena = User::updateOrCreate(
+            ['email' => 'lgarcia@latitud90.com'],
+            [
+                'name' => 'Liliam García',
+                'email_verified_at' => now(),
+                'password' => Hash::make('12345678'),
+                'remember_token' => null,
+                'is_active' => true,
+            ]
+        );
+        $adminLorena->syncRoles(['super_admin']);
+
+        // Crear/Actualizar Super Admin - Camila Gutiérrez - Clave: 12345678
+        $adminCamila = User::updateOrCreate(
+            ['email' => 'cgutierrez@latitud90.com'],
+            [
+                'name' => 'Camila Gutiérrez',
+                'email_verified_at' => now(),
+                'password' => Hash::make('12345678'),
+                'remember_token' => null,
+                'is_active' => true,
+            ]
+        );
+        $adminCamila->syncRoles(['super_admin']);
+
+        // Crear/Actualizar Super Admin - Pagos - Clave: 12345678
+        $adminPagos = User::updateOrCreate(
+            ['email' => 'pagos@latitud90.com'],
+            [
+                'name' => 'Pagos Latitud 90',
+                'email_verified_at' => now(),
+                'password' => Hash::make('12345678'),
+                'remember_token' => null,
+                'is_active' => true,
+            ]
+        );
+        $adminPagos->syncRoles(['super_admin']);
+
+        // Crear/Actualizar Super Admin - Jonathan Miller - Clave: 12345678
+        $adminJonathan = User::updateOrCreate(
+            ['email' => 'jmiller@latitud90.com'],
+            [
+                'name' => 'Jonathan Miller',
+                'email_verified_at' => now(),
+                'password' => Hash::make('12345678'),
+                'remember_token' => null,
+                'is_active' => true,
+            ]
+        );
+        $adminJonathan->syncRoles(['super_admin']);
 
         // Crear/Actualizar Editor de Marketing - Clave: 12345678
         $editorMarketing = User::updateOrCreate(
@@ -69,33 +138,10 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
         $editorMarketing->syncRoles(['editor_marketing']);
-
-        // Crear/Actualizar Visualizador de Contabilidad - Clave: 12345678
-        $visualizadorContabilidad = User::updateOrCreate(
-            ['email' => 'visualizador.contabilidad@test.com'],
-            [
-                'name' => 'Visualizador Contabilidad',
-                'email_verified_at' => now(),
-                'password' => Hash::make('12345678'),
-                'remember_token' => null,
-            ]
-        );
-        $visualizadorContabilidad->syncRoles(['visualizador_contabilidad']);
-
-        // Crear/Actualizar Visualizador de Marketing - Clave: 12345678
-        $visualizadorMarketing = User::updateOrCreate(
-            ['email' => 'visualizador.marketing@test.com'],
-            [
-                'name' => 'Visualizador Marketing',
-                'email_verified_at' => now(),
-                'password' => Hash::make('12345678'),
-                'remember_token' => null,
-            ]
-        );
-        $visualizadorMarketing->syncRoles(['visualizador_marketing']);
 
         // Crear/Actualizar Ejecutivo Comercial - Clave: 12345678
         $ejecutivoComercial = User::updateOrCreate(
@@ -105,6 +151,7 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
                 'password' => Hash::make('12345678'),
                 'remember_token' => null,
+                'is_active' => true,
             ]
         );
         $ejecutivoComercial->syncRoles(['ejecutivo_comercial']);

@@ -4,11 +4,13 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
 use App\Models\ParticipantStatusHistory;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ToggleActiveStatusService
 {
+    use AdminLogging;
     /**
      * Cambiar el estado activo/inactivo de un participante
      *
@@ -47,6 +49,21 @@ class ToggleActiveStatusService
                 'comment' => $comment,
                 'changed_by' => Auth::id()
             ]);
+
+            // Admin logging
+            $this->logStatusChange(
+                'participants',
+                'Participant',
+                $participant->id,
+                $previousStatus ? 'activo' : 'inactivo',
+                $newStatus ? 'activo' : 'inactivo',
+                "Estado del participante {$participantName} cambiado a {$action}",
+                [
+                    'participant_name' => $participantName,
+                    'participant_document' => $participant->document_number,
+                    'comment' => $comment
+                ]
+            );
 
             return [
                 'success' => true,

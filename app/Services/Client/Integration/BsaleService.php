@@ -48,6 +48,97 @@ class BsaleService
     }
 
     /**
+     * Obtener detalles de un tipo de documento específico
+     */
+    public function getDocumentTypeDetails(int $documentTypeId): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->token,
+            ])->get($this->baseUrl . "/document_types/{$documentTypeId}.json");
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Bsale getDocumentTypeDetails error', [
+                'document_type_id' => $documentTypeId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener folios disponibles para un tipo de documento específico
+     */
+    public function getAvailableFolios(int $documentTypeId): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->token,
+            ])->get($this->baseUrl . '/document_types/number_availables.json', [
+                'documenttypeid' => $documentTypeId,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::warning('Bsale getAvailableFolios response', [
+                'document_type_id' => $documentTypeId,
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Bsale getAvailableFolios error', [
+                'document_type_id' => $documentTypeId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Obtener información del CAF (Código de Autorización de Folio) vigente
+     */
+    public function getCafDetails(int $documentTypeId): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->token,
+            ])->get($this->baseUrl . '/document_types/caf.json', [
+                'documenttypeid' => $documentTypeId,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::warning('Bsale getCafDetails response', [
+                'document_type_id' => $documentTypeId,
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Bsale getCafDetails error', [
+                'document_type_id' => $documentTypeId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Obtener el ID del tipo de documento por nombre
      */
     public function getDocumentTypeIdByName(string $name): ?int

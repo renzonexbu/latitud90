@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\ProgramSubscription;
 use App\Services\Admin\Installments\RegisterManualPaymentService;
 use App\Services\Shared\OrderNumberGenerator;
+use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,7 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class ImportManualPaymentsService
 {
+    use AdminLogging;
     protected $registerManualPaymentService;
 
     // Expected column headers in the Excel file (at least one variation of each must be present)
@@ -136,6 +138,24 @@ class ImportManualPaymentsService
 
                 // Clean up temporary file
                 Storage::delete($path);
+
+                // Admin logging
+                $this->logAction(
+                    'import',
+                    'payments',
+                    "Importación masiva de pagos manuales completada",
+                    'Payment',
+                    null,
+                    null,
+                    null,
+                    [
+                        'file_name' => $file->getClientOriginalName(),
+                        'total_rows_processed' => $stats['successful'] + $stats['skipped'] + $stats['failed'],
+                        'successful' => $stats['successful'],
+                        'skipped' => $stats['skipped'],
+                        'failed' => $stats['failed'],
+                    ]
+                );
 
                 return [
                     'success' => true,

@@ -6,12 +6,14 @@ use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\Order;
 use App\Models\OrderDetail;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
 class RegisterManualPaymentService
 {
+    use AdminLogging;
     /**
      * Registrar un pago manual para una cuota específica
      *
@@ -160,6 +162,28 @@ class RegisterManualPaymentService
                 'order_id' => $order->id,
                 'participant_id' => $order->participant_id,
             ]);
+
+            // Admin logging
+            $this->logCreate(
+                'payments',
+                'Payment',
+                $payment->id,
+                "Pago manual registrado para cuota #{$installment->installment_number} del participante {$participant->name}",
+                [
+                    'payment_source' => $paymentSource,
+                    'amount' => $amount,
+                    'payment_date' => $paymentDate,
+                    'transaction_reference' => $transactionReference
+                ],
+                [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installment->installment_number,
+                    'order_id' => $order->id,
+                    'participant_id' => $participant->id,
+                    'participant_name' => $participant->name,
+                    'notes' => $notes
+                ]
+            );
 
             return [
                 'success' => true,

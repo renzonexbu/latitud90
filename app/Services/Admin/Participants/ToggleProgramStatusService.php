@@ -4,11 +4,13 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\ParticipantProgram;
 use App\Models\ProgramCourse;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
 class ToggleProgramStatusService
 {
+    use AdminLogging;
     /**
      * Toggle el status del programa entre pending_payment y cancelled
      *
@@ -63,6 +65,23 @@ class ToggleProgramStatusService
             $message = $newStatus === 'cancelled'
                 ? 'Participante desvinculado del programa exitosamente.'
                 : 'Participante re-vinculado al programa exitosamente.';
+
+            // Admin logging
+            $this->logStatusChange(
+                'participants',
+                'ParticipantProgram',
+                $participantProgram->id,
+                $previousStatus,
+                $newStatus,
+                "Estado del programa cambiado para participante {$participant->name}: {$previousStatus} → {$newStatus}",
+                [
+                    'participant_id' => $participantId,
+                    'participant_name' => $participant->name,
+                    'program_course_id' => $programCourseId,
+                    'program_code' => $programCourse->code,
+                    'enrollment_code' => $enrollmentCode
+                ]
+            );
 
             return [
                 'success' => true,

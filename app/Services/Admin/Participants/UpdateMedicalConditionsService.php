@@ -3,10 +3,12 @@
 namespace App\Services\Admin\Participants;
 
 use App\Models\Participant;
+use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Log;
 
 class UpdateMedicalConditionsService
 {
+    use AdminLogging;
     /**
      * Actualiza solo las condiciones médicas de un participante
      *
@@ -17,6 +19,12 @@ class UpdateMedicalConditionsService
     public function execute(array $data, Participant $participant): Participant
     {
         try {
+            // Capturar valores anteriores para logging
+            $oldValues = [
+                'allergies' => $participant->allergies,
+                'intolerances' => $participant->intolerances,
+                'dietary_restrictions' => $participant->dietary_restrictions,
+            ];
 
             // Preparar solo los datos médicos para actualización
             $updateData = [
@@ -27,6 +35,26 @@ class UpdateMedicalConditionsService
 
             // Actualizar el participante
             $participant->update($updateData);
+
+            // Admin logging
+            $newValues = [
+                'allergies' => $participant->allergies,
+                'intolerances' => $participant->intolerances,
+                'dietary_restrictions' => $participant->dietary_restrictions,
+            ];
+
+            $this->logUpdate(
+                'participants',
+                'Participant',
+                $participant->id,
+                "Condiciones médicas actualizadas del participante {$participant->name}",
+                $oldValues,
+                $newValues,
+                [
+                    'participant_name' => $participant->name,
+                    'participant_document' => $participant->document_number
+                ]
+            );
 
             return $participant;
 

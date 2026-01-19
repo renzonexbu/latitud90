@@ -77,6 +77,29 @@ class LoginGuardianService
                 ];
             }
 
+            // Verificar si requiere verificación de email (por defecto SIEMPRE es true)
+            $requiresVerification = config('lat90.guardian.require_email_verification', true);
+
+            \Log::info('Email verification check', [
+                'user_id' => $guardianUser->id,
+                'requires_verification' => $requiresVerification,
+                'email_verified_at' => $guardianUser->email_verified_at
+            ]);
+
+            if ($requiresVerification && !$guardianUser->email_verified_at) {
+                \Log::warning('Email not verified', [
+                    'user_id' => $guardianUser->id,
+                    'email' => $guardianUser->email
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.',
+                    'requires_verification' => true,
+                    'email' => $guardianUser->email
+                ];
+            }
+
             // Autenticar con el guard 'guardian'
             \Log::info('Attempting to authenticate with guardian guard', [
                 'user_id' => $guardianUser->id,
