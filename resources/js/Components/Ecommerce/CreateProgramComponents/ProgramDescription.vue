@@ -3,45 +3,12 @@
         <div class="program-form-container">
             <div class="program-form-header">
                 <div class="descripcion-del-programa">
-                    Descripción del Programa
+                    Descripción de la Plantilla
                 </div>
 
-                <!-- Acordeón 1: Detalle del programa -->
+                <!-- Contenido principal (sin acordeón) -->
                 <div class="accordion-section">
-                    <div
-                        class="accordion-header"
-                        @click="detailsOpen = !detailsOpen"
-                    >
-                        <div class="accordion-title">Detalle del programa</div>
-                        <svg
-                            class="accordion-arrow"
-                            :class="{ rotated: detailsOpen }"
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="26"
-                            height="14"
-                            viewBox="0 0 26 14"
-                            fill="none"
-                        >
-                            <g clip-path="url(#clip0_833_13975)">
-                                <path
-                                    d="M19.0873 3.27314L20.2008 4.38775L14.1319 10.4588C14.0347 10.5566 13.919 10.6343 13.7917 10.6873C13.6643 10.7403 13.5277 10.7676 13.3897 10.7676C13.2518 10.7676 13.1152 10.7403 12.9878 10.6873C12.8604 10.6343 12.7448 10.5566 12.6475 10.4588L6.57544 4.38775L7.689 3.27419L13.3881 8.97227L19.0873 3.27314Z"
-                                    fill="#007E93"
-                                />
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_833_13975">
-                                    <rect
-                                        width="12.6173"
-                                        height="25.2128"
-                                        fill="white"
-                                        transform="translate(26 0.691406) rotate(90)"
-                                    />
-                                </clipPath>
-                            </defs>
-                        </svg>
-                    </div>
-                    <transition name="accordion-slide">
-                        <div v-if="detailsOpen" class="accordion-content">
+                    <div class="accordion-content" style="padding-top: 0;">
                             <div class="name-field-row">
                                 <!-- Solo nombre del programa (sin código) para plantillas -->
                                 <div v-if="mode.includes('template')" class="field-container" style="flex: 1;">
@@ -116,8 +83,9 @@
                                     </div>
                                 </template>
                             </div>
-                            <div class="destination-date-row">
-                                <div class="field-container" :style="mode.includes('template') ? 'flex: 1;' : ''">
+                            <!-- Destino y Fecha solo para programas completos, no para plantillas -->
+                            <div v-if="!mode.includes('template')" class="destination-date-row">
+                                <div class="field-container">
                                     <div class="field-wrapper">
                                         <div class="destino">Destino *</div>
                                         <input
@@ -138,8 +106,7 @@
                                         </span>
                                     </div>
                                 </div>
-                                <!-- Fecha de salida solo para programas completos, no para plantillas -->
-                                <div v-if="!mode.includes('template')" class="field-container">
+                                <div class="field-container">
                                     <div class="field-wrapper">
                                         <div class="fecha-de-salida">
                                             Fecha de salida *
@@ -207,8 +174,8 @@
                                             <div class="upload-text">
                                                 <div class="upload-main-text">
                                                     Adjunta las imágenes que
-                                                    quieras mostrar en el
-                                                    programa
+                                                    quieras mostrar en la
+                                                    plantilla
                                                 </div>
                                                 <div class="upload-sub-text">
                                                     PNG, JPG hasta 15MB cada una
@@ -283,8 +250,7 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </transition>
+                    </div>
                 </div>
 
                 <!-- Separador -->
@@ -450,7 +416,6 @@ const formData = ref({ ...props.modelValue });
 const isSyncingFromProps = ref(false);
 
 // Estados para los acordeones
-const detailsOpen = ref(true); // Abierto por defecto
 const pillarsOpen = ref(false);
 
 // Estado para las imágenes

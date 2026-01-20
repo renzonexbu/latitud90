@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Gestión de Programas" />
+        <Head title="Gestión de Plantillas" />
 
         <!-- Sistema de Alertas -->
         <AlertWrapper ref="alertWrapper" />
@@ -10,7 +10,7 @@
 
                 <!-- Header -->
                 <ProgramsHeader
-                    subtitle="Visualización de programas"
+                    subtitle="Visualización de plantillas"
                     :create-route="route('admin.programs.create')"
                     :show-create-button="true"
                 />
@@ -216,7 +216,7 @@ export default {
                 confirm(
                     `¿Estás seguro de ${
                         program.active ? "desactivar" : "activar"
-                    } este programa?`
+                    } esta plantilla?`
                 )
             ) {
                 router.patch(

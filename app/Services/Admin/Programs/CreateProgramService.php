@@ -45,9 +45,10 @@ class CreateProgramService
             $programData['pillars'] = implode(', ', $pillars);
 
             // Crear el programa (plantilla) sin archivos por ahora
+            // destination ya no es parte de la plantilla, ahora está en program_courses
             $program = Program::create([
                 'name' => $programData['name'],
-                'destination' => $programData['destination'],
+                'destination' => null, // Ya no se usa, el destino está en program_courses
                 'trip_description' => null, // Campo eliminado del frontend
                 'images_folder' => null, // Se actualizará después
                 'pillars' => $programData['pillars'] ?? null,
@@ -77,7 +78,7 @@ class CreateProgramService
                 'programs',
                 'Program',
                 $program->id,
-                "Plantilla de programa creada: {$program->name} - {$program->destination}",
+                "Plantilla de programa creada: {$program->name}",
                 $program->toArray(),
                 [
                     'has_files' => !empty($processedData['images_folder']) || !empty($processedData['itinerary_file_path']),

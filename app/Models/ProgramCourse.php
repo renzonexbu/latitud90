@@ -15,6 +15,7 @@ class ProgramCourse extends Model
         'course_id',
         'code',
         'name',
+        'destination',
         'departure_date',
         'trip_price',
         'final_payment_date',

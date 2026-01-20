@@ -23,7 +23,7 @@ class CreateProgramRequest extends FormRequest
         return [
             // Campos básicos de la plantilla
             'name' => 'required|string|max:255',
-            'destination' => 'required|string|max:255',
+            // destination ya no es parte de la plantilla, ahora está en program_courses
 
             // Imágenes (obligatorias)
             'images' => 'required|array|min:1', // Al menos una imagen es obligatoria
@@ -54,10 +54,6 @@ class CreateProgramRequest extends FormRequest
             'name.required' => 'El nombre de la plantilla es obligatorio.',
             'name.string' => 'El nombre debe ser texto.',
             'name.max' => 'El nombre no puede exceder 255 caracteres.',
-
-            'destination.required' => 'El destino es obligatorio.',
-            'destination.string' => 'El destino debe ser texto.',
-            'destination.max' => 'El destino no puede exceder 255 caracteres.',
 
             'images.required' => 'Debe adjuntar al menos una imagen.',
             'images.array' => 'Las imágenes deben ser enviadas como un array.',

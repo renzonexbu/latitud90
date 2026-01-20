@@ -2,6 +2,18 @@
     <AdminLayout>
         <Head title="Crear Programa - Curso" />
 
+        <!-- Alerta de errores de validación -->
+        <Alerts
+            v-if="showErrorAlert"
+            :show="showErrorAlert"
+            type="error"
+            title="Error de validación"
+            :message="errorMessage"
+            :auto-close="true"
+            :duration="8000"
+            @close="closeErrorAlert"
+        />
+
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- Page Header -->
@@ -52,11 +64,8 @@
                                         Plantilla seleccionada
                                     </h3>
                                     <div class="space-y-1">
-                                        <p class="text-[#434343] font-nexa-bold text-[12px] leading-[16px]">
+                                        <p class="text-[#434343] font-nexa-bold text-[14px] leading-[18px]">
                                             {{ selectedProgram.name }}
-                                        </p>
-                                        <p class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[16px]">
-                                            <span class="font-nexa-bold">Destino:</span> {{ selectedProgram.destination }}
                                         </p>
                                     </div>
                                 </div>
@@ -118,6 +127,26 @@
                                                     <div class="field-container">
                                                         <div class="field-wrapper">
                                                             <div class="field-label">
+                                                                Destino *
+                                                            </div>
+                                                            <input
+                                                                type="text"
+                                                                v-model="form.destination"
+                                                                placeholder="Ej: Torres del Paine"
+                                                                class="admin-input-text"
+                                                                :class="{ 'border-red-500': errors.destination }"
+                                                            />
+                                                            <span v-if="errors.destination" class="text-red-500 text-sm mt-1">
+                                                                {{ errors.destination }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="price-fields-row">
+                                                    <div class="field-container">
+                                                        <div class="field-wrapper">
+                                                            <div class="field-label">
                                                                 Precio del programa * (CLP)
                                                             </div>
                                                             <input
@@ -133,6 +162,9 @@
                                                             </span>
                                                         </div>
                                                     </div>
+                                                    <div class="field-container">
+                                                        <!-- Campo vacío para mantener alineación -->
+                                                    </div>
                                                 </div>
 
                                                 <div class="price-fields-row">
@@ -144,6 +176,7 @@
                                                             <input
                                                                 type="date"
                                                                 v-model="form.departure_date"
+                                                                :min="todayDate"
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.departure_date }"
                                                             />
@@ -528,8 +561,8 @@
                                                             <span v-if="errors.full_payment_options" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.full_payment_options }}
                                                             </span>
-                                                            <div v-if="fullPaymentChoices.length < fullPaymentChoicesBase.length && form.final_payment_date" class="text-blue-600 text-sm mt-1">
-                                                                ℹ️ Algunas opciones de cuotas no están disponibles debido a la fecha final de pago
+                                                            <div v-if="fullPaymentChoices.length < fullPaymentChoicesBase.length && form.departure_date" class="text-blue-600 text-sm mt-1">
+                                                                ℹ️ Algunas opciones de cuotas no están disponibles debido a la fecha de salida
                                                             </div>
                                                         </div>
                                                     </div>
@@ -800,11 +833,12 @@
 
 <script setup>
 import { Head, useForm, Link, router, usePage } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import CreateExecutiveModal from '@/Components/Sales/CreateExecutiveModal.vue';
 import CreateInstitutionModal from '@/Components/Institutions/CreateInstitutionModal.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
+import Alerts from '@/Components/Alerts.vue';
 
 // Props
 const props = defineProps({
@@ -844,6 +878,10 @@ const showInstitutionModal = ref(false);
 const isSubmitting = ref(false);
 const fileInput = ref(null);
 
+// Alert state for validation errors
+const showErrorAlert = ref(false);
+const errorMessage = ref('');
+
 // Reactive arrays for institutions and executives
 const institutions = ref(props.institutions);
 const salesExecutives = ref(props.salesExecutives);
@@ -863,6 +901,7 @@ const form = ref({
     // Program plan fields
     program_id: '',
     code: '',
+    destination: '',
     departure_date: '',
     trip_price: '',
     payment_days_before: '60', // Default: 60 días antes
@@ -922,13 +961,14 @@ watch(
 );
 
 // Computed properties for filtering payment options based on date
+// Pago total (cuotas tarjeta sin interés) se valida contra departure_date
 const fullPaymentChoices = computed(() => {
-    if (!form.value.final_payment_date) {
+    if (!form.value.departure_date) {
         return fullPaymentChoicesBase;
     }
 
     const now = new Date();
-    const end = new Date(form.value.final_payment_date + 'T00:00:00');
+    const end = new Date(form.value.departure_date + 'T00:00:00');
 
     let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
     if (now.getDate() > end.getDate()) months -= 1;
@@ -964,6 +1004,12 @@ const maxInstallmentChoices = computed(() => {
         choices.push({ value: '1', label: '1' });
     }
     return choices;
+});
+
+// Fecha de hoy para validación del input date
+const todayDate = computed(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
 });
 
 // Calcular fecha límite de pago automáticamente
@@ -1047,8 +1093,7 @@ const programsFormatted = computed(() => {
     return props.programs.map(program => ({
         id: program.id,
         name: program.name,
-        destination: program.destination,
-        searchText: `${program.name} - ${program.destination}` // Combina nombre y destino para búsqueda
+        searchText: program.name // Solo el nombre para búsqueda (destino ya no está en plantillas)
     }));
 });
 
@@ -1209,6 +1254,7 @@ const saveCourse = () => {
     // Program plan fields
     if (form.value.program_id) formData.append('program_id', form.value.program_id);
     if (form.value.code) formData.append('code', form.value.code);
+    if (form.value.destination) formData.append('destination', form.value.destination);
     if (form.value.departure_date) formData.append('departure_date', form.value.departure_date);
     if (form.value.trip_price) formData.append('trip_price', form.value.trip_price);
     if (form.value.final_payment_date) formData.append('final_payment_date', form.value.final_payment_date);
@@ -1264,6 +1310,14 @@ const saveCourse = () => {
         onError: (errors) => {
             console.error('Validation errors:', errors);
             isSubmitting.value = false;
+
+            // Mostrar alerta con los errores
+            const errorList = Object.values(errors);
+            errorMessage.value = errorList.join(' | ');
+            showErrorAlert.value = true;
+
+            // Scroll al inicio
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         onFinish: () => {
             isSubmitting.value = false;
@@ -1281,6 +1335,11 @@ const handleExecutiveCreated = (newExecutive) => {
 const handleInstitutionCreated = (newInstitution) => {
     institutions.value.push(newInstitution);
     form.value.institutionId = newInstitution.id;
+};
+
+// Close error alert
+const closeErrorAlert = () => {
+    showErrorAlert.value = false;
 };
 </script>
 

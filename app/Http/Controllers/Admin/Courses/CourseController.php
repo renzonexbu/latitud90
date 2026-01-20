@@ -78,8 +78,25 @@ class CourseController extends Controller
                     'importErrors' => $e->getErrors(),
                 ])
                 ->with('importErrorDetails', $e->toArray());
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Manejar errores de base de datos con mensajes en español
+            $errorMessage = 'Error al crear el curso';
+
+            // Detectar error de código duplicado
+            if ($e->errorInfo[1] == 1062 && str_contains($e->getMessage(), 'program_courses_code_unique')) {
+                $errorMessage = 'El código del programa ya está en uso. Por favor, usa un código diferente.';
+            } elseif ($e->errorInfo[1] == 1062) {
+                $errorMessage = 'Ya existe un registro con estos datos. Por favor, verifica la información ingresada.';
+            } else {
+                $errorMessage .= ': ' . $e->getMessage();
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $errorMessage]);
         } catch (\Exception $e) {
             return back()
+                ->withInput()
                 ->withErrors(['error' => 'Error al crear el curso: ' . $e->getMessage()]);
         }
     }
@@ -141,8 +158,25 @@ class CourseController extends Controller
                     'importErrors' => $e->getErrors(),
                 ])
                 ->with('importErrorDetails', $e->toArray());
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Manejar errores de base de datos con mensajes en español
+            $errorMessage = 'Error al actualizar el curso';
+
+            // Detectar error de código duplicado
+            if ($e->errorInfo[1] == 1062 && str_contains($e->getMessage(), 'program_courses_code_unique')) {
+                $errorMessage = 'El código del programa ya está en uso. Por favor, usa un código diferente.';
+            } elseif ($e->errorInfo[1] == 1062) {
+                $errorMessage = 'Ya existe un registro con estos datos. Por favor, verifica la información ingresada.';
+            } else {
+                $errorMessage .= ': ' . $e->getMessage();
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $errorMessage]);
         } catch (\Exception $e) {
             return back()
+                ->withInput()
                 ->withErrors(['error' => 'Error al actualizar el curso: ' . $e->getMessage()]);
         }
     }

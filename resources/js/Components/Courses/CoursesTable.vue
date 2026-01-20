@@ -15,7 +15,7 @@
                 Año
             </div>
             <div class="text-white font-nexa-bold text-xs flex-1 min-w-[120px]">
-                Programa
+                Plantilla
             </div>
             <div class="text-white font-nexa-bold text-xs flex-1 min-w-[100px]">
                 Destino
@@ -120,13 +120,15 @@ export default {
         },
         getProgramName(course) {
             // Laravel serializa las relaciones en snake_case
+            // Obtener el nombre de la plantilla (Program.name)
             const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
-            return programCourse?.name || 'Sin Programa';
+            return programCourse?.program?.name || 'Sin Plantilla';
         },
         getProgramDestination(course) {
             // Laravel serializa las relaciones en snake_case
+            // El destino ahora está en ProgramCourse, no en Program
             const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
-            return programCourse?.program?.destination || 'N/a';
+            return programCourse?.destination || programCourse?.program?.destination || 'N/a';
         },
         getStatusChipClass(course) {
             const percentage = course.payment_percentage;

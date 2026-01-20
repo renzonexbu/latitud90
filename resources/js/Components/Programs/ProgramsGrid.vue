@@ -6,10 +6,10 @@
             class="text-center py-12"
         >
             <div class="text-gray-500 text-lg mb-4">
-                No hay programas disponibles
+                No hay plantillas disponibles
             </div>
             <div class="text-gray-400 text-sm">
-                Crea tu primer programa para comenzar
+                Crea tu primera plantilla para comenzar
             </div>
         </div>
 

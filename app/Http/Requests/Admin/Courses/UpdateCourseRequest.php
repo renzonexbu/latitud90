@@ -44,6 +44,13 @@ class UpdateCourseRequest extends CourseRequest
      */
     public function rules(): array
     {
+        // Obtener el ID del curso actual
+        $courseId = $this->route('course');
+
+        // Buscar el program_course_id asociado al curso
+        $programCourse = \App\Models\Course::with('programCourses')->find($courseId)?->programCourses->first();
+        $programCourseId = $programCourse ? $programCourse->id : null;
+
         return array_merge($this->commonRules(), [
             // Campos del curso
             'institutionId' => ['required', 'exists:institutions,id'],
@@ -53,8 +60,9 @@ class UpdateCourseRequest extends CourseRequest
 
             // Campos del plan de programa (ProgramCourse)
             'program_id' => ['required', 'exists:programs,id'],
-            'code' => ['required', 'string', 'max:50'],
-            'departure_date' => ['required', 'date'],
+            'code' => ['required', 'string', 'max:50', 'unique:program_courses,code,' . $programCourseId],
+            'destination' => ['required', 'string', 'max:255'],
+            'departure_date' => ['required', 'date', 'after_or_equal:today'],
             'trip_price' => ['required', 'numeric', 'min:0'],
             'final_payment_date' => ['required', 'date', 'before_or_equal:departure_date'],
 
@@ -107,10 +115,16 @@ class UpdateCourseRequest extends CourseRequest
             // Código
             'code.required' => 'El código del programa es obligatorio',
             'code.max' => 'El código no puede exceder 50 caracteres',
+            'code.unique' => 'El código del programa ya está en uso. Por favor, usa un código diferente',
+
+            // Destino
+            'destination.required' => 'El destino es obligatorio',
+            'destination.max' => 'El destino no puede exceder 255 caracteres',
 
             // Fechas
             'departure_date.required' => 'La fecha de salida es obligatoria',
             'departure_date.date' => 'La fecha de salida debe ser una fecha válida',
+            'departure_date.after_or_equal' => 'La fecha de salida debe ser igual o posterior a hoy',
             'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
             'final_payment_date.date' => 'La fecha límite de pago debe ser una fecha válida',
             'final_payment_date.before_or_equal' => 'La fecha límite de pago debe ser anterior o igual a la fecha de salida',

@@ -118,7 +118,7 @@ trait AdminLogging
     protected function logView(
         string $module,
         string $resourceType,
-        int $resourceId,
+        ?int $resourceId,
         ?string $description = null,
         ?array $additionalData = null
     ): void {

@@ -2,6 +2,18 @@
     <AdminLayout>
         <Head title="Crear Institución" />
 
+        <!-- Alerta de errores de validación -->
+        <Alerts
+            v-if="showErrorAlert"
+            :show="showErrorAlert"
+            type="error"
+            title="Error de validación"
+            :message="errorMessage"
+            :auto-close="true"
+            :duration="8000"
+            @close="closeErrorAlert"
+        />
+
         <div class="py-6 lg:py-12">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Header -->
@@ -160,7 +172,9 @@
 
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import Alerts from '@/Components/Alerts.vue';
 
 const form = useForm({
     name: '',
@@ -171,10 +185,28 @@ const form = useForm({
     website: ''
 });
 
+// Alert state for validation errors
+const showErrorAlert = ref(false);
+const errorMessage = ref('');
+
 const submit = () => {
     form.post(route('admin.institutions.store'), {
-        preserveScroll: true
+        preserveScroll: true,
+        onError: (errors) => {
+            // Mostrar alerta con los errores
+            const errorList = Object.values(errors);
+            errorMessage.value = errorList.join(' | ');
+            showErrorAlert.value = true;
+
+            // Scroll al inicio
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     });
+};
+
+// Close error alert
+const closeErrorAlert = () => {
+    showErrorAlert.value = false;
 };
 </script>
 

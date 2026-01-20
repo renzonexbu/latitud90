@@ -24,7 +24,7 @@ class UpdateProgramRequest extends FormRequest
         return [
             // Campos básicos de la plantilla (todos opcionales en edición)
             'name' => 'nullable|string|max:255',
-            'destination' => 'nullable|string|max:255',
+            // destination ya no es parte de la plantilla, ahora está en program_courses
 
             // Imágenes (opcionales en edición, solo validar tipo si se envían)
             'images' => 'nullable|array',
@@ -101,9 +101,6 @@ class UpdateProgramRequest extends FormRequest
         return [
             'name.string' => 'El nombre debe ser texto.',
             'name.max' => 'El nombre no puede exceder 255 caracteres.',
-
-            'destination.string' => 'El destino debe ser texto.',
-            'destination.max' => 'El destino no puede exceder 255 caracteres.',
 
             // Mensajes para imágenes
             'images.array' => 'Las imágenes deben ser enviadas como un array.',

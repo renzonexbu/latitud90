@@ -68,9 +68,7 @@ class UpdateProgramService
             if (isset($programData['name'])) {
                 $updateData['name'] = $programData['name'];
             }
-            if (isset($programData['destination'])) {
-                $updateData['destination'] = $programData['destination'];
-            }
+            // destination ya no es parte de la plantilla, ahora está en program_courses
             if (isset($programData['pillars'])) {
                 $updateData['pillars'] = $programData['pillars'];
             }
@@ -102,7 +100,7 @@ class UpdateProgramService
                 'programs',
                 'Program',
                 $program->id,
-                "Plantilla de programa actualizada: {$program->name} - {$program->destination}",
+                "Plantilla de programa actualizada: {$program->name}",
                 $originalData,
                 $program->toArray()
             );

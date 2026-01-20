@@ -61,6 +61,7 @@ class CourseService
                 'program_id' => $data['program_id'],
                 'course_id' => $course->id,
                 'code' => $data['code'],
+                'destination' => $data['destination'] ?? null,
                 'departure_date' => $data['departure_date'],
                 'trip_price' => $data['trip_price'],
                 'final_payment_date' => $data['final_payment_date'],
@@ -221,7 +222,8 @@ class CourseService
                 $coursePart .= ' ' . strtoupper($grade);
             }
 
-            $destination = $program->destination;
+            // Usar destination de $data (ProgramCourse) con fallback a program.destination
+            $destination = $data['destination'] ?? $program->destination;
 
             // Usar el año de la fecha de salida (departure_date) en lugar del año del curso
             $departureDate = $data['departure_date'] ?? null;
@@ -368,6 +370,7 @@ class CourseService
             $programCourse->update([
                 'program_id' => $data['program_id'],
                 'code' => $data['code'],
+                'destination' => $data['destination'] ?? $programCourse->destination,
                 'departure_date' => $data['departure_date'],
                 'trip_price' => $data['trip_price'],
                 'final_payment_date' => $data['final_payment_date'],
@@ -483,6 +486,7 @@ class CourseService
             'program_id' => $data['program_id'],
             'course_id' => $course->id,
             'code' => $data['code'],
+            'destination' => $data['destination'] ?? null,
             'departure_date' => $data['departure_date'],
             'trip_price' => $data['trip_price'],
             'final_payment_date' => $data['final_payment_date'],
@@ -545,7 +549,7 @@ class CourseService
 
     /**
      * Valida que el número de cuotas no exceda el máximo permitido
-     * basado en la fecha de salida y los días mínimos antes de la salida
+     * basado en la fecha final de pago (que debe ser 30 o 60 días antes de la salida)
      */
     private function validateSubscriptionMonths(array $data, ?ProgramCourse $existingProgramCourse = null): void
     {
@@ -562,6 +566,7 @@ class CourseService
 
         // Obtener valores de $data o del ProgramCourse existente
         $departureDate = $data['departure_date'] ?? ($existingProgramCourse?->departure_date?->format('Y-m-d') ?? null);
+        $finalPaymentDate = $data['final_payment_date'] ?? ($existingProgramCourse?->final_payment_date?->format('Y-m-d') ?? null);
         $minDaysBeforeDeparture = $data['min_days_before_departure'] ?? ($existingProgramCourse?->min_days_before_departure ?? 30);
 
         // Validar que existan los datos necesarios
@@ -569,22 +574,42 @@ class CourseService
             throw new \Exception('Se requiere la fecha de salida para configurar pagos por suscripción.');
         }
 
+        if (!$finalPaymentDate) {
+            throw new \Exception('Se requiere la fecha final de pago para configurar pagos por suscripción.');
+        }
+
         $subscriptionMaxMonths = (int) $subscriptionMaxMonths;
         $minDaysBeforeDeparture = (int) $minDaysBeforeDeparture;
         $departureDate = new \DateTime($departureDate);
+        $finalPaymentDateTime = new \DateTime($finalPaymentDate);
         $now = new \DateTime();
 
-        // Calcular la fecha límite del último pago
-        $lastPaymentDeadline = clone $departureDate;
-        $lastPaymentDeadline->modify("-{$minDaysBeforeDeparture} days");
+        // Validar que la fecha final de pago sea anterior a la fecha de salida
+        if ($finalPaymentDateTime >= $departureDate) {
+            throw new \Exception(
+                "La fecha final de pago ({$finalPaymentDateTime->format('d/m/Y')}) debe ser anterior a la fecha de salida ({$departureDate->format('d/m/Y')})."
+            );
+        }
 
-        // Calcular los meses disponibles desde ahora hasta la fecha límite
-        $yearsDiff = $lastPaymentDeadline->format('Y') - $now->format('Y');
-        $monthsDiff = $lastPaymentDeadline->format('m') - $now->format('m');
+        // Validar que la fecha final de pago respete los días mínimos antes de la salida
+        $interval = $finalPaymentDateTime->diff($departureDate);
+        $daysDifference = $interval->days;
+
+        if ($daysDifference < $minDaysBeforeDeparture) {
+            throw new \Exception(
+                "Debe haber al menos {$minDaysBeforeDeparture} días entre la fecha final de pago y la fecha de salida. " .
+                "Actualmente hay {$daysDifference} días. " .
+                "Fecha final de pago: {$finalPaymentDateTime->format('d/m/Y')}, Fecha de salida: {$departureDate->format('d/m/Y')}."
+            );
+        }
+
+        // Calcular los meses disponibles desde ahora hasta la fecha final de pago
+        $yearsDiff = $finalPaymentDateTime->format('Y') - $now->format('Y');
+        $monthsDiff = $finalPaymentDateTime->format('m') - $now->format('m');
         $availableMonths = ($yearsDiff * 12) + $monthsDiff;
 
-        // Ajustar si el día actual es mayor que el día de la fecha límite
-        if ($now->format('d') > $lastPaymentDeadline->format('d')) {
+        // Ajustar si el día actual es mayor que el día de la fecha final de pago
+        if ($now->format('d') > $finalPaymentDateTime->format('d')) {
             $availableMonths -= 1;
         }
 
@@ -595,40 +620,9 @@ class CourseService
         if ($subscriptionMaxMonths > $availableMonths) {
             throw new \Exception(
                 "El número máximo de cuotas ({$subscriptionMaxMonths}) excede el límite permitido ({$availableMonths} meses). " .
-                    "Esto se debe a que el último pago debe realizarse al menos {$minDaysBeforeDeparture} días antes de la fecha de salida " .
-                    "({$departureDate->format('d/m/Y')}). Por favor, reduce el número de cuotas o ajusta la fecha de salida."
+                    "Esto se debe a que el último pago debe realizarse antes de la fecha final de pago " .
+                    "({$finalPaymentDateTime->format('d/m/Y')}). Por favor, reduce el número de cuotas o ajusta la fecha final de pago."
             );
-        }
-
-        // Validar que la fecha final de pago respete los días mínimos antes de la salida
-        $finalPaymentDate = $data['final_payment_date'] ?? ($existingProgramCourse?->final_payment_date?->format('Y-m-d') ?? null);
-
-        if ($finalPaymentDate && $departureDate) {
-            $finalPaymentDateTime = new \DateTime($finalPaymentDate);
-            $departureDateClone = clone $departureDate;
-
-            // Verificar que la fecha final de pago sea anterior a la fecha de salida
-            if ($finalPaymentDateTime >= $departureDateClone) {
-                throw new \Exception(
-                    "La fecha final de pago ({$finalPaymentDateTime->format('d/m/Y')}) debe ser anterior a la fecha de salida ({$departureDateClone->format('d/m/Y')})."
-                );
-            }
-
-            // Calcular la diferencia en días
-            $interval = $finalPaymentDateTime->diff($departureDateClone);
-            $daysDifference = $interval->days;
-
-            // Obtener el valor mínimo de días esperado (30 o 60 según lo seleccionado por el usuario)
-            $expectedMinDays = $minDaysBeforeDeparture ?? 60; // Por defecto 60 si no se especifica
-
-            // Validar que haya al menos la cantidad de días esperada de diferencia
-            if ($daysDifference < $expectedMinDays) {
-                throw new \Exception(
-                    "Debe haber al menos {$expectedMinDays} días entre la fecha final de pago y la fecha de salida. " .
-                    "Actualmente hay {$daysDifference} días. " .
-                    "Fecha final de pago: {$finalPaymentDateTime->format('d/m/Y')}, Fecha de salida: {$departureDateClone->format('d/m/Y')}."
-                );
-            }
         }
     }
 

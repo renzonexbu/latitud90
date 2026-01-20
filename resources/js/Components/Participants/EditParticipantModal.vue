@@ -844,18 +844,20 @@ const loadExistingDiscounts = () => {
         discounts.value = [];
         return;
     }
-    
-    const course = props.participant.courses.find((c) => c.id == courseId);
-    const program = course?.programCourses?.[0]?.program || course?.program_courses?.[0]?.program;
 
-    if (!course || !program) {
+    const course = props.participant.courses.find((c) => c.id == courseId);
+    // Obtener el programCourse (no la plantilla program)
+    const programCourse = course?.programCourses?.[0] || course?.program_courses?.[0];
+
+    if (!course || !programCourse) {
         discounts.value = [];
         return;
     }
 
-    // Buscar el participant_program_id usando los datos del componente padre
+    // Buscar el participant_program_id usando el programCourse.id
+    // NOTA: participant_program.program_id guarda el ID del ProgramCourse, no del Program template
     const participantProgram = props.participantProgramsWithDiscounts?.find(
-        pp => pp.program_id === program.id
+        pp => pp.program_id === programCourse.id
     );
 
     if (participantProgram && participantProgram.discounts) {

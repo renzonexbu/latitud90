@@ -465,8 +465,8 @@
                                         <span v-if="errors.full_payment_options" class="text-red-500 text-sm mt-1">
                                             {{ errors.full_payment_options }}
                                         </span>
-                                        <div v-if="fullPaymentChoices.length < fullPaymentChoicesBase.length && formData.final_payment_date" class="text-blue-600 text-sm mt-1">
-                                            ℹ️ Algunas opciones de cuotas no están disponibles debido a la fecha final de pago
+                                        <div v-if="fullPaymentChoices.length < fullPaymentChoicesBase.length && props.departureDate" class="text-blue-600 text-sm mt-1">
+                                            ℹ️ Algunas opciones de cuotas no están disponibles debido a la fecha de salida
                                         </div>
                                     </div>
                                 </div>
@@ -633,6 +633,10 @@ const props = defineProps({
     hasExistingCourse: {
         type: Boolean,
         default: false
+    },
+    departureDate: {
+        type: String,
+        default: ''
     }
 });
 
@@ -664,16 +668,17 @@ const fullPaymentChoicesBase = [
     { code: 'full_international', label: 'Pago Internacional (Webpay)', installments: null },
 ];
 
-// Opciones de pago filtradas según la fecha final de pago
+// Opciones de pago filtradas según la fecha de salida (departure_date)
+// Pago total (cuotas tarjeta sin interés) se valida contra departure_date
 const fullPaymentChoices = computed(() => {
-    if (!formData.value.final_payment_date) {
+    if (!props.departureDate) {
         return fullPaymentChoicesBase; // Si no hay fecha, mostrar todas
     }
 
     const now = new Date();
-    const end = new Date(formData.value.final_payment_date + 'T00:00:00');
-    
-    // Calcular meses completos entre hoy y la fecha final
+    const end = new Date(props.departureDate + 'T00:00:00');
+
+    // Calcular meses completos entre hoy y la fecha de salida
     let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
     if (now.getDate() > end.getDate()) months -= 1; // Mes incompleto
     const availableMonths = Math.max(0, months);
@@ -939,9 +944,9 @@ onMounted(() => {
     initializeFormattedPrice();
     initializeFormattedDiscountAmount();
     
-    // Actualizar opciones de pago automáticamente si hay fecha final de pago
+    // Actualizar opciones de suscripción automáticamente si hay fecha final de pago
     if (formData.value.final_payment_date) {
-        updatePaymentOptionsAutomatically();
+        updateSubscriptionOptionsAutomatically();
     }
     
     // Emitir el estado inicial
@@ -1066,18 +1071,30 @@ watch(() => formData.value.installments_payment_method, (newValue) => {
     emit('update:modelValue', formData.value);
 }, { immediate: true });
 
-// Watcher para actualizar opciones de pago automáticamente cuando cambie la fecha final de pago
+// Watcher para actualizar opciones de pago de suscripción cuando cambie la fecha final de pago
+// (Las suscripciones/mensualidades se validan contra final_payment_date)
 watch(() => formData.value.final_payment_date, (newValue, oldValue) => {
+    if (newValue && newValue !== oldValue) {
+        // Actualizar max installments según la nueva fecha
+        nextTick(() => {
+            updateSubscriptionOptionsAutomatically();
+        });
+    }
+});
+
+// Watcher para actualizar opciones de pago total cuando cambie la fecha de salida
+// (Cuotas de tarjeta sin interés se validan contra departure_date)
+watch(() => props.departureDate, (newValue, oldValue) => {
     if (newValue && newValue !== oldValue) {
         try {
             const now = new Date();
-            const finalPaymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
-            
-            // Calcular meses disponibles
-            let months = (finalPaymentDate.getFullYear() - now.getFullYear()) * 12 + (finalPaymentDate.getMonth() - now.getMonth());
-            if (now.getDate() > finalPaymentDate.getDate()) months -= 1;
+            const departureDate = new Date(newValue + 'T00:00:00');
+
+            // Calcular meses disponibles hasta la fecha de salida
+            let months = (departureDate.getFullYear() - now.getFullYear()) * 12 + (departureDate.getMonth() - now.getMonth());
+            if (now.getDate() > departureDate.getDate()) months -= 1;
             const availableMonths = Math.max(0, months);
-            
+
             // Filtrar opciones de pago total según meses disponibles
             const validFullOptions = fullPaymentChoicesBase.filter(option => {
                 if (option.installments === null || option.installments === 0) {
@@ -1085,26 +1102,17 @@ watch(() => formData.value.final_payment_date, (newValue, oldValue) => {
                 }
                 return option.installments <= availableMonths;
             });
-            
-            // Actualizar opciones disponibles
-            if (validFullOptions.length < fullPaymentChoicesBase.length) {
-                console.error(`Opciones de pago actualizadas automáticamente. Meses disponibles: ${availableMonths}`);
-                
-                // Filtrar opciones seleccionadas que ya no son válidas
-                if (formData.value.full_payment_options) {
-                    formData.value.full_payment_options = formData.value.full_payment_options.filter(option => 
-                        validFullOptions.some(valid => valid.code === option)
-                    );
-                }
+
+            // Filtrar opciones seleccionadas que ya no son válidas
+            if (formData.value.full_payment_options) {
+                formData.value.full_payment_options = formData.value.full_payment_options.filter(option =>
+                    validFullOptions.some(valid => valid.code === option)
+                );
+                emit('update:modelValue', formData.value);
             }
         } catch (error) {
-            console.error('Error al actualizar opciones de pago automáticamente:', error);
+            console.error('Error al actualizar opciones de pago total:', error);
         }
-        
-        // Esperar un momento para que se procese el cambio
-        nextTick(() => {
-            updatePaymentOptionsAutomatically();
-        });
     }
 });
 
@@ -1258,40 +1266,26 @@ const viewPaymentStates = () => {
     emit('navigate-to-course');
 };
 
-// Función para actualizar opciones de pago automáticamente
-const updatePaymentOptionsAutomatically = () => {
+// Función para actualizar opciones de suscripción automáticamente (basado en final_payment_date)
+const updateSubscriptionOptionsAutomatically = () => {
     try {
+        if (!formData.value.final_payment_date) return;
+
         const now = new Date();
         const finalPaymentDate = new Date(formData.value.final_payment_date + 'T00:00:00');
-        
-        // Calcular meses disponibles
+
+        // Calcular meses disponibles hasta la fecha final de pago
         let months = (finalPaymentDate.getFullYear() - now.getFullYear()) * 12 + (finalPaymentDate.getMonth() - now.getMonth());
         if (now.getDate() > finalPaymentDate.getDate()) months -= 1;
         const availableMonths = Math.max(0, months);
-        
-        // Filtrar opciones de pago total según meses disponibles
-        const validFullOptions = fullPaymentChoicesBase.filter(option => {
-            if (option.installments === null || option.installments === 0) {
-                return true;
-            }
-            return option.installments <= availableMonths;
-        });
-        
-        // Actualizar opciones disponibles
-        if (validFullOptions.length < fullPaymentChoicesBase.length) {
-            // Filtrar opciones seleccionadas que ya no son válidas
-            if (formData.value.full_payment_options) {
-                formData.value.full_payment_options = formData.value.full_payment_options.filter(option => 
-                    validFullOptions.some(valid => valid.code === option)
-                );
-            }
-            
-            // Emitir cambios
+
+        // Si el max_installments seleccionado excede los meses disponibles, ajustarlo
+        if (formData.value.max_installments && parseInt(formData.value.max_installments) > availableMonths) {
+            formData.value.max_installments = availableMonths > 0 ? availableMonths.toString() : '1';
             emit('update:modelValue', formData.value);
         }
-        
     } catch (error) {
-        console.error('Error actualizando opciones de pago automáticamente:', error);
+        console.error('Error actualizando opciones de suscripción:', error);
     }
 };
 

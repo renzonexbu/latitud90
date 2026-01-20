@@ -183,12 +183,20 @@
             v-if="mode === 'template'"
             class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4"
         >
-            <!-- Destination Card -->
+            <!-- Template Name and Destination Card -->
             <div
-                class="bg-white rounded-[12px] p-3 sm:p-4 flex items-center justify-center self-stretch flex-shrink-0 relative"
+                class="bg-white rounded-[12px] p-3 sm:p-4 flex flex-col items-center justify-center self-stretch flex-shrink-0 relative gap-1"
             >
+                <!-- Template Name -->
                 <div
-                    class="text-[#4B8D7F] text-center font-outfit text-base sm:text-lg font-semibold leading-5 sm:leading-6"
+                    class="text-[#007e93] text-center font-outfit text-base sm:text-lg font-bold leading-5 sm:leading-6"
+                >
+                    {{ program.name }}
+                </div>
+                <!-- Destination (si existe) -->
+                <div
+                    v-if="programDestination"
+                    class="text-[#4B8D7F] text-center font-outfit text-xs sm:text-sm font-medium leading-4 sm:leading-5"
                 >
                     {{ programDestination }}
                 </div>

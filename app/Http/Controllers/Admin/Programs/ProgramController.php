@@ -109,6 +109,16 @@ class ProgramController extends Controller
         }
     }
 
+    /**
+     * Verificar si la plantilla puede ser eliminada
+     */
+    public function canDelete(Program $program)
+    {
+        $result = $this->deleteProgramService->canDelete($program);
+
+        return response()->json($result);
+    }
+
     public function destroy(Program $program)
     {
         try {
@@ -117,7 +127,7 @@ class ProgramController extends Controller
             return redirect()->route('admin.programs.index')
                 ->with('success', 'Plantilla de programa eliminada exitosamente.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Error al eliminar la plantilla: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 

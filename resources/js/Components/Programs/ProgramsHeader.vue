@@ -3,7 +3,7 @@
         <!-- Left side - Breadcrumb and title -->
         <div class="flex flex-row gap-4 items-center justify-start flex-shrink-0 relative">
             <div class="text-[30px] leading-9 font-normal text-turquesa font-nexa-xbold">
-                Programa
+                Plantilla
             </div>
             <div class="w-0 h-[35px] relative overflow-visible">
                 <!-- Vector separator - you can replace this with an actual SVG or icon -->
@@ -52,7 +52,7 @@
                         </svg>
                     </div>
                     <div class="text-white text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start">
-                        Crear programa
+                        Crear plantilla
                     </div>
                 </Link>
             </div>
@@ -71,11 +71,11 @@ export default {
     props: {
         subtitle: {
             type: String,
-            default: "Visualización de programas"
+            default: "Visualización de plantillas"
         },
         createRoute: {
             type: String,
-            default: "/admin/programs/create"
+            default: "/admin/templates/create"
         },
         showCreateButton: {
             type: Boolean,

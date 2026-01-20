@@ -6,10 +6,37 @@ use App\Models\Program;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
 
 class DeleteProgramService
 {
     use AdminLogging;
+
+    /**
+     * Verificar si la plantilla puede ser eliminada
+     *
+     * @param Program $program
+     * @return array ['can_delete' => bool, 'message' => string, 'courses_count' => int]
+     */
+    public function canDelete(Program $program): array
+    {
+        $coursesCount = $program->programCourses()->count();
+
+        if ($coursesCount > 0) {
+            return [
+                'can_delete' => false,
+                'message' => "No se puede eliminar esta plantilla porque está siendo utilizada por {$coursesCount} curso(s).",
+                'courses_count' => $coursesCount,
+            ];
+        }
+
+        return [
+            'can_delete' => true,
+            'message' => 'La plantilla puede ser eliminada.',
+            'courses_count' => 0,
+        ];
+    }
+
     /**
      * Eliminar un programa y sus archivos asociados
      *
@@ -19,37 +46,46 @@ class DeleteProgramService
      */
     public function execute(Program $program): bool
     {
+        // Verificar si se puede eliminar
+        $canDeleteResult = $this->canDelete($program);
+        if (!$canDeleteResult['can_delete']) {
+            throw new \Exception($canDeleteResult['message']);
+        }
+
         try {
             // Guardar datos del programa antes de eliminarlo para el log
             $programData = $program->toArray();
 
-            // Eliminar archivos asociados si existen
+            // Eliminar archivos PDF asociados si existen
             $this->deleteProgramFiles($program);
+
+            // Eliminar carpeta de imágenes si existe
+            $this->deleteProgramImages($program);
 
             $program->delete();
 
             // Log the program deletion
             $this->logDelete(
                 'programs',
-                'Program',
+                'ProgramTemplate',
                 $programData['id'],
-                "Programa eliminado: {$programData['name']} - {$programData['destination']}",
+                "Plantilla de programa eliminada: {$programData['name']}",
                 $programData,
                 [
-                    'had_course' => !empty($programData['course_id']),
                     'had_files' => !empty($programData['itinerary_file']) || !empty($programData['travel_assistance_coverage']),
+                    'had_images' => !empty($programData['images_folder']),
                 ]
             );
 
-            Log::info('Programa eliminado exitosamente', [
-                'program_id' => $program->id,
-                'program_name' => $program->name
+            Log::info('Plantilla de programa eliminada exitosamente', [
+                'program_id' => $programData['id'],
+                'program_name' => $programData['name']
             ]);
 
             return true;
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar programa', [
+            Log::error('Error al eliminar plantilla de programa', [
                 'program_id' => $program->id,
                 'error' => $e->getMessage()
             ]);
@@ -58,7 +94,7 @@ class DeleteProgramService
     }
 
     /**
-     * Eliminar archivos asociados al programa
+     * Eliminar archivos PDF asociados al programa
      *
      * @param Program $program
      * @return void
@@ -73,6 +109,31 @@ class DeleteProgramService
         }
         if ($program->equipment_list) {
             Storage::disk('public')->delete($program->equipment_list);
+        }
+    }
+
+    /**
+     * Eliminar carpeta de imágenes del programa
+     *
+     * @param Program $program
+     * @return void
+     */
+    private function deleteProgramImages(Program $program): void
+    {
+        if (!$program->images_folder) {
+            return;
+        }
+
+        // Construir la ruta correcta para las imágenes
+        $relativePath = str_replace('public/', '', $program->images_folder);
+        $fullPath = storage_path('app/public/' . $relativePath);
+
+        if (File::isDirectory($fullPath)) {
+            File::deleteDirectory($fullPath);
+            Log::info('Carpeta de imágenes eliminada', [
+                'program_id' => $program->id,
+                'path' => $fullPath
+            ]);
         }
     }
 }

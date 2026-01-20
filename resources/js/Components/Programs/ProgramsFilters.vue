@@ -7,7 +7,7 @@
             </div>
             <div class="flex flex-row gap-[15.77px] items-center justify-start flex-shrink-0 relative">
                 <div class="text-[15.77px] leading-[20.27px] font-normal text-black font-nexa-regular w-[173px] h-[21px] flex items-end justify-start">
-                    Ver programas activos
+                    Ver plantillas activas
                 </div>
                 <!-- Toggle Switch -->
                 <div 
@@ -29,7 +29,7 @@
                 <input
                     v-model="filters.search"
                     type="text"
-                    placeholder="Buscar programa"
+                    placeholder="Buscar plantilla"
                     class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />

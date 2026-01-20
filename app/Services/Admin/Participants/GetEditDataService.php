@@ -227,8 +227,15 @@ class GetEditDataService
                     }
                 }
 
-                // Crear resumen de cuotas si hay cuotas
-                if ($totalInstallments > 0) {
+                // Verificar si tiene suscripción activa (necesario para mostrar cuotas)
+                $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->where('status', 'ACTIVA')
+                    ->first();
+
+                // Crear resumen de cuotas SOLO si hay suscripción activa o plan de cuotas activo
+                // No mostrar cuotas para pagos presenciales o descuentos
+                if ($totalInstallments > 0 && ($activeSubscription !== null || $installmentPlan !== null)) {
                     $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
                 }
 
@@ -254,11 +261,7 @@ class GetEditDataService
                     $array['participant_program_status'] = $participantProgramStatus; // Status del participant_program
                     $array['is_cancelled'] = $isCancelled; // Bandera para saber si está cancelado
 
-                    // Verificar si tiene suscripción activa
-                    $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id)
-                        ->where('program_id', $programCourse->id)
-                        ->where('status', 'ACTIVA')
-                        ->first();
+                    // Usar la variable $activeSubscription ya calculada arriba
                     $array['has_active_subscription'] = $activeSubscription !== null;
 
                     $array['course'] = [

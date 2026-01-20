@@ -53,7 +53,8 @@ class StoreCourseRequest extends CourseRequest
 
             // Campos del plan de programa (ProgramCourse)
             'program_id' => ['required', 'exists:programs,id'],
-            'code' => ['required', 'string', 'max:50'],
+            'code' => ['required', 'string', 'max:50', 'unique:program_courses,code'],
+            'destination' => ['required', 'string', 'max:255'],
             'departure_date' => ['required', 'date', 'after:today'],
             'trip_price' => ['required', 'numeric', 'min:0'],
             'final_payment_date' => ['required', 'date', 'before_or_equal:departure_date'],
@@ -105,6 +106,11 @@ class StoreCourseRequest extends CourseRequest
             // Código
             'code.required' => 'El código del programa es obligatorio',
             'code.max' => 'El código no puede exceder 50 caracteres',
+            'code.unique' => 'El código del programa ya está en uso. Por favor, usa un código diferente',
+
+            // Destino
+            'destination.required' => 'El destino es obligatorio',
+            'destination.max' => 'El destino no puede exceder 255 caracteres',
 
             // Fechas
             'departure_date.required' => 'La fecha de salida es obligatoria',
