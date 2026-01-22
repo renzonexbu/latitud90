@@ -1,6 +1,6 @@
 <template>
-    <div v-if="show" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" @click.self="closeModal">
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[500px] w-full modal-content">
+    <div v-if="show" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div @click.stop class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[500px] w-full modal-content">
             <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
                 <div class="flex flex-row gap-[20px] items-start justify-end w-full">
                     <div class="text-[#434343] text-center font-nexa-bold text-[24px] leading-[28px] font-bold flex-1 text-center">
@@ -17,23 +17,23 @@
                     <div class="flex flex-col gap-[10px]">
                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">Código *</label>
                         <input v-model="form.code" type="text" placeholder="SE-001" :class="inputClass('code')" />
-                        <span v-if="errors.code" class="text-red-500 text-xs mt-1">{{ errors.code }}</span>
+                        <span v-if="localErrors.code" class="text-red-500 text-xs mt-1">{{ getError('code') }}</span>
                     </div>
                     <div class="flex flex-col gap-[10px]">
                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">Nombre *</label>
                         <input v-model="form.name" type="text" placeholder="Nombre" :class="inputClass('name')" />
-                        <span v-if="errors.name" class="text-red-500 text-xs mt-1">{{ errors.name }}</span>
+                        <span v-if="localErrors.name" class="text-red-500 text-xs mt-1">{{ getError('name') }}</span>
                     </div>
                     <div class="flex flex-row gap-[18px]">
                         <div class="flex flex-col gap-[10px] flex-1">
                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">Email</label>
                             <input v-model="form.email" type="email" placeholder="email@ejecutivo.com" :class="inputClass('email')" />
-                            <span v-if="errors.email" class="text-red-500 text-xs mt-1">{{ errors.email }}</span>
+                            <span v-if="localErrors.email" class="text-red-500 text-xs mt-1">{{ getError('email') }}</span>
                         </div>
                         <div class="flex flex-col gap-[10px] flex-1">
                             <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">Teléfono</label>
                             <input v-model="form.phone" type="tel" placeholder="000000000" :class="inputClass('phone')" />
-                            <span v-if="errors.phone" class="text-red-500 text-xs mt-1">{{ errors.phone }}</span>
+                            <span v-if="localErrors.phone" class="text-red-500 text-xs mt-1">{{ getError('phone') }}</span>
                         </div>
                     </div>
                 </div>
@@ -55,8 +55,7 @@ import axios from 'axios';
 export default {
     name: 'CreateExecutiveModal',
     props: {
-        show: { type: Boolean, default: false },
-        errors: { type: Object, default: () => ({}) }
+        show: { type: Boolean, default: false }
     },
     data() {
         return {
@@ -72,6 +71,10 @@ export default {
                 this.localErrors[field] ? 'border-red-500' : 'border-[#5b5b5b]'
             ]
         },
+        getError(field) {
+            const error = this.localErrors[field];
+            return Array.isArray(error) ? error[0] : error;
+        },
         closeModal() {
             this.$emit('close');
             this.form = { code: '', name: '', email: '', phone: '' };
@@ -85,11 +88,18 @@ export default {
                 const { data } = await axios.post(route('admin.sales-executives.store'), this.form);
                 if (data && data.success && data.executive) {
                     this.$emit('executive-created', data.executive);
-                    this.closeModal();
+                    this.$emit('success', 'Ejecutivo comercial creado exitosamente');
+                    this.form = { code: '', name: '', email: '', phone: '' };
+                    this.localErrors = {};
+                    this.$emit('close');
                 }
             } catch (error) {
                 if (error.response && error.response.data && error.response.data.errors) {
                     this.localErrors = error.response.data.errors;
+                } else if (error.response && error.response.data && error.response.data.message) {
+                    this.$emit('error', error.response.data.message);
+                } else {
+                    this.$emit('error', 'Error al crear el ejecutivo comercial');
                 }
             } finally {
                 this.isSubmitting = false;

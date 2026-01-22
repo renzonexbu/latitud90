@@ -91,6 +91,19 @@
                             >
                         </div>
 
+                        <!-- Estado Participante -->
+                        <div class="relative min-w-[150px]">
+                            <select
+                                v-model="filters.participant_status"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                                @change="applyFilters"
+                            >
+                                <option value="">Todos</option>
+                                <option value="active">Activos</option>
+                                <option value="inactive">De baja</option>
+                            </select>
+                        </div>
+
                         <!-- Clear Filters Button -->
                         <button
                             @click="clearFilters"
@@ -134,6 +147,9 @@
                                 </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                                     Programa
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]">
+                                    Estado
                                 </div>
                             </div>
 
@@ -189,6 +205,18 @@
                                     <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
                                         <div>{{ participant.program_name }}</div>
                                         <div class="text-[12px] text-[#888888]">{{ participant.program_code }}</div>
+                                    </div>
+
+                                    <!-- Estado Participante -->
+                                    <div class="flex justify-center items-center w-[80px]">
+                                        <div
+                                            :class="[
+                                                'rounded-[12px] px-[10px] py-[6px] font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
+                                                participant.participant_is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800',
+                                            ]"
+                                        >
+                                            {{ participant.participant_is_active ? 'Activo' : 'Baja' }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -262,7 +290,8 @@ const props = defineProps({
 const filters = reactive({
     program_id: props.filters?.program_id || '',
     sales_executive_id: props.filters?.sales_executive_id || '',
-    search: props.filters?.search || ''
+    search: props.filters?.search || '',
+    participant_status: props.filters?.participant_status || ''
 })
 
 const isExporting = ref(false)
@@ -350,6 +379,7 @@ const clearFilters = () => {
     filters.program_id = ''
     filters.sales_executive_id = ''
     filters.search = ''
+    filters.participant_status = ''
     applyFilters()
 }
 

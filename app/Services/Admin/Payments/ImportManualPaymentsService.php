@@ -46,8 +46,15 @@ class ImportManualPaymentsService
         $this->registerManualPaymentService = $registerManualPaymentService;
     }
 
+    // Chunk size for processing large files
+    protected const CHUNK_SIZE = 500;
+
+    // Maximum details to return (to avoid memory issues)
+    protected const MAX_DETAILS = 1000;
+
     /**
      * Process the uploaded Excel file and import manual payments
+     * Uses chunked processing for large files (10k-100k rows)
      */
     public function processExcel($file): array
     {
@@ -66,22 +73,46 @@ class ImportManualPaymentsService
 
             Log::info('Archivo Excel guardado temporalmente', ['path' => $fullPath]);
 
-            // Load the spreadsheet
-            $spreadsheet = IOFactory::load($fullPath);
+            // Load the spreadsheet with memory optimization
+            $reader = IOFactory::createReaderForFile($fullPath);
+            $reader->setReadDataOnly(true); // Only read data, skip styles/formatting
+            $spreadsheet = $reader->load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
 
-            Log::info('Archivo Excel cargado', ['total_rows' => count($rows)]);
+            // Get total rows for logging
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
 
-            // Find the header row
-            $headerRowIndex = $this->findHeaderRow($rows);
+            Log::info('Archivo Excel cargado', [
+                'total_rows' => $highestRow,
+                'highest_column' => $highestColumn
+            ]);
+
+            // Find header row using iterator (only first 20 rows)
+            $headerRowIndex = null;
+            $headers = [];
+
+            foreach ($worksheet->getRowIterator(1, min(20, $highestRow)) as $rowIndex => $row) {
+                $cellIterator = $row->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = $cell->getValue();
+                }
+
+                if ($this->isHeaderRow($rowData)) {
+                    $headerRowIndex = $rowIndex;
+                    $headers = array_map('trim', $rowData);
+                    break;
+                }
+            }
 
             if ($headerRowIndex === null) {
                 throw new \Exception('No se encontró la fila de encabezados en el archivo Excel. Verifica que contenga las columnas requeridas.');
             }
 
-            $headers = array_map('trim', $rows[$headerRowIndex]);
-            Log::info('Encabezados encontrados', ['headers' => $headers, 'row' => $headerRowIndex + 1]);
+            Log::info('Encabezados encontrados', ['headers' => $headers, 'row' => $headerRowIndex]);
 
             // Validate required headers
             $this->validateHeaders($headers);
@@ -89,84 +120,106 @@ class ImportManualPaymentsService
             // Get column indices
             $columnIndices = $this->getColumnIndices($headers);
 
-            // Process data rows (skip header and any rows before it)
-            $dataRows = array_slice($rows, $headerRowIndex + 1);
+            // Process data rows in chunks
+            $dataStartRow = $headerRowIndex + 1;
+            $currentChunk = [];
+            $chunkCount = 0;
+            $processedRows = 0;
 
-            DB::beginTransaction();
+            Log::info('Iniciando procesamiento por chunks', [
+                'chunk_size' => self::CHUNK_SIZE,
+                'data_start_row' => $dataStartRow,
+                'total_data_rows' => $highestRow - $headerRowIndex
+            ]);
 
-            try {
-                foreach ($dataRows as $rowIndex => $row) {
-                    $rowNumber = $headerRowIndex + $rowIndex + 2; // +2 because arrays are 0-indexed and we skipped header
+            foreach ($worksheet->getRowIterator($dataStartRow) as $rowIndex => $row) {
+                $cellIterator = $row->getCellIterator('A', $highestColumn);
+                $cellIterator->setIterateOnlyExistingCells(false);
 
-                    // Skip empty rows
-                    if ($this->isEmptyRow($row)) {
-                        Log::info("Fila {$rowNumber} vacía, omitiendo");
-                        continue;
-                    }
-
-                    // Build row data array
-                    $rowData = [];
-                    foreach ($columnIndices as $key => $index) {
-                        $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
-                    }
-
-                    Log::info("Procesando fila {$rowNumber}", ['data' => $rowData]);
-
-                    // Process this payment row
-                    $result = $this->processPaymentRow($rowData, $rowNumber, false);
-
-                    $details[] = [
-                        'row' => $rowNumber,
-                        'status' => $result['status'],
-                        'message' => $result['message'],
-                        'data' => $result['data'] ?? null // Incluir los datos que se guardarían
-                    ];
-
-                    if ($result['status'] === 'success') {
-                        $stats['successful']++;
-                    } elseif ($result['status'] === 'skipped') {
-                        $stats['skipped']++;
-                    } else {
-                        $stats['failed']++;
-                        Log::error("Error en fila {$rowNumber}: {$result['message']}", ['data' => $rowData]);
-                    }
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = $cell->getValue();
                 }
 
-                DB::commit();
+                // Skip empty rows
+                if ($this->isEmptyRow($rowData)) {
+                    continue;
+                }
 
-                Log::info('Importación de pagos completada', ['stats' => $stats]);
-
-                // Clean up temporary file
-                Storage::delete($path);
-
-                // Admin logging
-                $this->logAction(
-                    'import',
-                    'payments',
-                    "Importación masiva de pagos manuales completada",
-                    'Payment',
-                    null,
-                    null,
-                    null,
-                    [
-                        'file_name' => $file->getClientOriginalName(),
-                        'total_rows_processed' => $stats['successful'] + $stats['skipped'] + $stats['failed'],
-                        'successful' => $stats['successful'],
-                        'skipped' => $stats['skipped'],
-                        'failed' => $stats['failed'],
-                    ]
-                );
-
-                return [
-                    'success' => true,
-                    'stats' => $stats,
-                    'details' => $details
+                $currentChunk[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $rowData
                 ];
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Error durante el procesamiento de filas, rollback ejecutado: ' . $e->getMessage());
-                throw $e;
+
+                // Process chunk when full
+                if (count($currentChunk) >= self::CHUNK_SIZE) {
+                    $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats);
+                    $details = $chunkResult['details'];
+                    $stats = $chunkResult['stats'];
+
+                    $chunkCount++;
+                    $processedRows += count($currentChunk);
+
+                    Log::info("Chunk {$chunkCount} procesado", [
+                        'rows_in_chunk' => count($currentChunk),
+                        'total_processed' => $processedRows,
+                        'stats' => $stats
+                    ]);
+
+                    // Clear chunk and free memory
+                    $currentChunk = [];
+                    gc_collect_cycles();
+                }
             }
+
+            // Process remaining rows
+            if (!empty($currentChunk)) {
+                $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats);
+                $details = $chunkResult['details'];
+                $stats = $chunkResult['stats'];
+
+                $chunkCount++;
+                $processedRows += count($currentChunk);
+
+                Log::info("Chunk final {$chunkCount} procesado", [
+                    'rows_in_chunk' => count($currentChunk),
+                    'total_processed' => $processedRows,
+                    'stats' => $stats
+                ]);
+            }
+
+            // Clean up
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            Storage::delete($path);
+            gc_collect_cycles();
+
+            Log::info('Importación de pagos completada', ['stats' => $stats, 'chunks_processed' => $chunkCount]);
+
+            // Admin logging
+            $this->logAction(
+                'import',
+                'payments',
+                "Importación masiva de pagos manuales completada",
+                'Payment',
+                null,
+                null,
+                null,
+                [
+                    'file_name' => $file->getClientOriginalName(),
+                    'total_rows_processed' => $stats['successful'] + $stats['skipped'] + $stats['failed'],
+                    'successful' => $stats['successful'],
+                    'skipped' => $stats['skipped'],
+                    'failed' => $stats['failed'],
+                    'chunks_processed' => $chunkCount,
+                ]
+            );
+
+            return [
+                'success' => true,
+                'stats' => $stats,
+                'details' => $details
+            ];
         } catch (\Exception $e) {
             Log::error('Error al procesar archivo Excel: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
@@ -177,6 +230,91 @@ class ImportManualPaymentsService
                 'error' => $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Process a chunk of rows with its own transaction
+     */
+    private function processChunk(array $chunk, array $columnIndices, array $details, array $stats): array
+    {
+        DB::beginTransaction();
+
+        try {
+            foreach ($chunk as $item) {
+                $rowNumber = $item['row_index'];
+                $row = $item['data'];
+
+                // Build row data array
+                $rowData = [];
+                foreach ($columnIndices as $key => $index) {
+                    $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
+                }
+
+                // Process this payment row
+                $result = $this->processPaymentRow($rowData, $rowNumber, false);
+
+                // Only store details for non-success results or if under limit
+                if ($result['status'] !== 'success' || count($details) < self::MAX_DETAILS) {
+                    $details[] = [
+                        'row' => $rowNumber,
+                        'status' => $result['status'],
+                        'message' => $result['message'],
+                        'data' => $result['data'] ?? null
+                    ];
+                }
+
+                if ($result['status'] === 'success') {
+                    $stats['successful']++;
+                } elseif ($result['status'] === 'skipped') {
+                    $stats['skipped']++;
+                } else {
+                    $stats['failed']++;
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error en chunk, rollback ejecutado: ' . $e->getMessage());
+
+            // Mark all remaining rows in chunk as failed
+            $stats['failed'] += count($chunk);
+            $details[] = [
+                'row' => 'chunk',
+                'status' => 'error',
+                'message' => 'Error en bloque de filas: ' . $e->getMessage(),
+                'data' => null
+            ];
+        }
+
+        return [
+            'details' => $details,
+            'stats' => $stats
+        ];
+    }
+
+    /**
+     * Check if a row is the header row
+     */
+    private function isHeaderRow(array $row): bool
+    {
+        $normalizedRow = array_map(function($cell) {
+            return strtolower(trim($cell ?? ''));
+        }, $row);
+
+        $rowString = implode('|', $normalizedRow);
+
+        $foundHeaders = 0;
+        foreach ($this->expectedHeaders as $headerVariations) {
+            foreach ($headerVariations as $headerVariation) {
+                if (stripos($rowString, $headerVariation) !== false) {
+                    $foundHeaders++;
+                    break;
+                }
+            }
+        }
+
+        return $foundHeaders >= 4;
     }
 
     /**
@@ -357,6 +495,7 @@ class ImportManualPaymentsService
                 'transaction_date' => $paymentDate,
                 'installments_number' => 1,
                 'document_type' => 'B2',
+                'authorization_code' => $rowData['nro_aut'] ?? null,
             ]);
 
             // 10. Update order status
@@ -388,39 +527,6 @@ class ImportManualPaymentsService
                 ]
             ];
         }
-    }
-
-    /**
-     * Find the header row in the Excel file
-     */
-    private function findHeaderRow(array $rows): ?int
-    {
-        foreach ($rows as $index => $row) {
-            // Normalize the row cells
-            $normalizedRow = array_map(function($cell) {
-                return strtolower(trim($cell));
-            }, $row);
-
-            $rowString = implode('|', $normalizedRow);
-
-            // Check if this row contains the expected headers
-            $foundHeaders = 0;
-            foreach ($this->expectedHeaders as $field => $headerVariations) {
-                foreach ($headerVariations as $headerVariation) {
-                    if (stripos($rowString, $headerVariation) !== false) {
-                        $foundHeaders++;
-                        break; // Found this header, move to next field
-                    }
-                }
-            }
-
-            // If we found at least 4 of the 5 required headers, consider it the header row
-            if ($foundHeaders >= 4) {
-                return $index;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -474,9 +580,9 @@ class ImportManualPaymentsService
         }, $headers);
 
         $fieldMappings = [
-            'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno'],
+            'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno', 'rut participante'],
             'nro_negocio' => ['nro. negocio', 'nro negocio', 'numero negocio', 'numero de negocio'],
-            'nro_aut' => ['nro. aut.', 'nro aut', 'nro. aut', 'numero autorizacion', 'num. aut.'],
+            'nro_aut' => ['nro. aut.', 'nro aut', 'nro. aut', 'numero autorizacion', 'num. aut.', 'nro. autorización', 'nro autorizacion', 'nro. autorizacion'],
             'monto' => ['monto', 'valor', 'pago y/o dev.', 'pago y/o dev', 'pago', 'precio'],
             'fecha_pago' => ['fecha de pago', 'fecha pago', 'fecha_pago', 'fecha', 'fecha de pag'],
             'tipo_pago' => ['tipo de pago', 'tipo pago', 'tipo_pago', 'tipo', 'forma pago', 'forma de pago'],
@@ -485,6 +591,7 @@ class ImportManualPaymentsService
             'nombre' => ['nombre del participante', 'nombre participante', 'nombre', 'alumno (a)', 'alumno'],
             'contacto_pagador' => ['contacto pagador', 'nombre pagador', 'pagador'],
             'email_contacto_pagador' => ['email contacto pagador', 'email pagador', 'correo pagador', 'correo contacto pagador'],
+            'cuotas' => ['# cuotas', 'cuotas', 'numero cuotas', 'nro cuotas', 'nro. cuotas'],
         ];
 
         foreach ($fieldMappings as $field => $possibleHeaders) {

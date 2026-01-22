@@ -191,20 +191,20 @@ class PaymentConfirmationService
      */
     private function confirmVirtualPosPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
     {
-        $paymentId = $gatewayData['payment_id'] ?? null;
+        // VirtualPos puede recibir el ID como 'payment_id', 'token', o 'token_ws'
+        $paymentId = $gatewayData['payment_id'] ?? $gatewayData['token'] ?? $gatewayData['token_ws'] ?? null;
 
-        $this->logInfo('PaymentConfirmationService: confirmVirtualPosPayment', [
+        $this->logInfo('=== GATEWAY: Iniciando confirmación VirtualPOS ===', [
             'order_detail_id' => $orderDetail->id,
-            'gateway_data' => $gatewayData,
             'payment_id' => $paymentId,
+            'gateway_data_keys' => array_keys($gatewayData),
         ]);
 
         if (!$paymentId) {
-            $this->logError('PaymentConfirmationService: ID de pago de VirtualPOS no proporcionado', [
+            $this->logError('=== GATEWAY ERROR: ID de pago VirtualPOS no proporcionado ===', [
                 'order_detail_id' => $orderDetail->id,
                 'gateway_data' => $gatewayData,
             ]);
-            // No crear registro de pago fallido para errores técnicos de retroceso
             $pendingPayment->markAsFailed('Error al procesar el pago');
             return [
                 'success' => false,
@@ -214,13 +214,33 @@ class PaymentConfirmationService
         }
 
         try {
+            $this->logInfo('=== GATEWAY: Consultando estado en VirtualPOS ===', [
+                'payment_id' => $paymentId,
+            ]);
+
             $result = $this->virtualPosService->confirmTransaction($paymentId);
+
+            $this->logInfo('=== GATEWAY: Respuesta de VirtualPOS recibida ===', [
+                'success' => $result['success'] ?? false,
+                'status' => $result['status'] ?? 'unknown',
+                'authorization_code' => $result['authorization_code'] ?? null,
+                'amount' => $result['amount'] ?? null,
+                'error' => $result['error'] ?? null,
+            ]);
 
             // Validar status según documentación de VirtualPOS
             if ($result['success'] && in_array($result['status'], \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES)) {
-                // Pago aprobado
+                $this->logInfo('=== GATEWAY: Pago APROBADO - Iniciando processSuccessfulPayment ===', [
+                    'order_detail_id' => $orderDetail->id,
+                    'virtualpos_status' => $result['status'],
+                ]);
+
                 $this->processSuccessfulPayment($orderDetail, $result, 'virtualpos', $sessionId);
                 $pendingPayment->markAsConfirmed();
+
+                $this->logInfo('=== GATEWAY: processSuccessfulPayment completado ===', [
+                    'order_detail_id' => $orderDetail->id,
+                ]);
 
                 return [
                     'success' => true,
@@ -231,6 +251,13 @@ class PaymentConfirmationService
             } else {
                 // Pago rechazado por VirtualPOS
                 $errorMessage = $result['error'] ?? 'Pago rechazado por VirtualPOS';
+
+                $this->logWarning('=== GATEWAY: Pago RECHAZADO por VirtualPOS ===', [
+                    'order_detail_id' => $orderDetail->id,
+                    'virtualpos_status' => $result['status'] ?? 'unknown',
+                    'error_message' => $errorMessage,
+                ]);
+
                 $this->processFailedPayment($orderDetail, $result, 'virtualpos', $errorMessage);
                 $pendingPayment->markAsFailed($errorMessage);
 
@@ -242,13 +269,14 @@ class PaymentConfirmationService
                 ];
             }
         } catch (\Exception $e) {
-            $this->logError('PaymentConfirmationService: Error confirming VirtualPOS payment', [
+            $this->logError('=== GATEWAY ERROR: Excepción en confirmación VirtualPOS ===', [
                 'error' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $paymentId,
             ], $e);
 
-            // No crear registro de pago fallido para errores técnicos
             $pendingPayment->markAsFailed('Error técnico: ' . $e->getMessage());
 
             return [
@@ -264,7 +292,8 @@ class PaymentConfirmationService
      */
     private function confirmTransbankPayment(OrderDetail $orderDetail, array $gatewayData, PendingPayment $pendingPayment, string $sessionId = null): array
     {
-        $token = $gatewayData['token'] ?? null;
+        // Transbank puede recibir el token como 'token' o 'token_ws'
+        $token = $gatewayData['token'] ?? $gatewayData['token_ws'] ?? null;
 
         $this->logInfo('PaymentConfirmationService: confirmTransbankPayment', [
             'order_detail_id' => $orderDetail->id,
@@ -452,7 +481,7 @@ class PaymentConfirmationService
      */
     private function processSuccessfulPayment(OrderDetail $orderDetail, array $result, string $gatewayType, string $sessionId = null): void
     {
-        $this->logInfo('PaymentConfirmationService: processSuccessfulPayment iniciado', [
+        $this->logInfo('=== PASO 1/10: INICIO processSuccessfulPayment ===', [
             'order_detail_id' => $orderDetail->id,
             'gateway_type' => $gatewayType,
             'order_detail_status' => $orderDetail->status,
@@ -460,12 +489,22 @@ class PaymentConfirmationService
             'session_id' => $sessionId,
         ]);
 
-        // Buscar pago existente por order_detail_id (sin importar external_payment_id)
+        // PASO 2: Buscar pago existente
+        $this->logInfo('=== PASO 2/10: Buscando pago existente ===', [
+            'order_detail_id' => $orderDetail->id,
+        ]);
+
         $payment = Payment::where('order_detail_id', $orderDetail->id)
             ->latest()
             ->first();
 
-        // Determinar la fecha de transacción
+        $this->logInfo('=== PASO 2/10: Resultado búsqueda pago ===', [
+            'payment_found' => $payment ? true : false,
+            'payment_id' => $payment?->id,
+            'payment_status' => $payment?->status,
+        ]);
+
+        // PASO 3: Determinar la fecha de transacción
         $transactionDate = null;
         if (isset($result['transaction_date'])) {
             $transactionDate = $this->parseTransactionDate($result['transaction_date']);
@@ -474,11 +513,14 @@ class PaymentConfirmationService
         } elseif (isset($result['updated_at'])) {
             $transactionDate = $this->parseTransactionDate($result['updated_at']);
         } else {
-            // Si no hay fecha específica en la respuesta, usar la fecha actual
             $transactionDate = now()->setTimezone('America/Santiago');
         }
 
-        // Extraer datos específicos según el tipo de gateway
+        // PASO 4: Extraer y sanitizar datos del gateway
+        $this->logInfo('=== PASO 3/10: Extrayendo datos del gateway ===', [
+            'gateway_type' => $gatewayType,
+        ]);
+
         $authorizationCode = $result['authorization_code'] ?? $result['auth_code'] ?? null;
         $cardType = null;
         $installmentsNumber = null;
@@ -490,7 +532,10 @@ class PaymentConfirmationService
         if ($gatewayType === 'virtualpos') {
             $cardType = $result['payment_method'] ?? $result['payment_type'] ?? null;
             $installmentsNumber = $result['installments'] ?? null;
-            $installmentAmount = $result['installment_amount'] ?? null;
+
+            // Sanitizar valores que pueden venir como string vacío
+            $rawInstallmentAmount = $result['installment_amount'] ?? null;
+            $installmentAmount = ($rawInstallmentAmount !== '' && $rawInstallmentAmount !== null) ? $rawInstallmentAmount : null;
 
             // Extraer datos de la estructura anidada de VirtualPos
             $data = $result['data'] ?? [];
@@ -509,8 +554,14 @@ class PaymentConfirmationService
             if (!$installmentsNumber && !empty($orderData['installments'])) {
                 $installmentsNumber = $orderData['installments'];
             }
+
+            // Sanitizar más valores que pueden venir como string vacío
+            $authorizationCode = ($authorizationCode !== '' && $authorizationCode !== null) ? $authorizationCode : null;
+            $cardNumber = ($cardNumber !== '' && $cardNumber !== null) ? $cardNumber : null;
+            $cardType = ($cardType !== '' && $cardType !== null) ? $cardType : null;
+            $installmentsNumber = ($installmentsNumber !== '' && $installmentsNumber !== null) ? $installmentsNumber : null;
+
         } elseif ($gatewayType === 'transbank') {
-            // Para Transbank, extraer datos del full_response
             $fullResponse = $result['full_response'] ?? [];
             $details = $fullResponse['details'] ?? [];
             $firstDetail = $details[0] ?? null;
@@ -521,11 +572,9 @@ class PaymentConfirmationService
                 $cardNumber = $fullResponse['card_detail']['card_number'] ?? null;
             }
         } elseif ($gatewayType === 'khipu') {
-            // Para Khipu, verificar si viene de VirtualPos (producción) o Khipu nativo (QA)
             $isVirtualPosMode = $this->khipuService->isProductionMode();
 
             if ($isVirtualPosMode) {
-                // VirtualPos para Khipu (producción) - estructura similar a virtualpos
                 $data = $result['data'] ?? [];
                 $paymentData = $data['payment'] ?? [];
                 $orderData = $paymentData['order'] ?? [];
@@ -542,28 +591,12 @@ class PaymentConfirmationService
                 if (!$installmentsNumber && !empty($orderData['installments'])) {
                     $installmentsNumber = $orderData['installments'];
                 }
-
-                $this->logInfo('PaymentConfirmationService: Khipu via VirtualPos fields mapped', [
-                    'auth_code' => $authorizationCode,
-                    'card_number' => $cardNumber,
-                    'card_type' => $cardType,
-                    'installments' => $installmentsNumber,
-                ]);
             } else {
-                // Khipu nativo (QA) - el tipo de tarjeta es 'KHIPU' (transferencia)
                 $cardType = 'KHIPU';
-
-                // Extraer banco si está disponible
                 $data = $result['data'] ?? [];
                 if (!empty($data['bank'])) {
-                    // Guardar el nombre del banco en card_number como referencia
                     $cardNumber = $data['bank'];
                 }
-
-                $this->logInfo('PaymentConfirmationService: Khipu native fields mapped', [
-                    'card_type' => $cardType,
-                    'bank' => $data['bank'] ?? null,
-                ]);
             }
         }
 
@@ -572,87 +605,208 @@ class PaymentConfirmationService
             $cardType = $this->normalizeCardType($cardType);
         }
 
-        if (!$payment) {
-            // Crear registro de pago solo si no existe
-            $paymentData = [
-                'order_id' => $orderDetail->order_id,
-                'order_detail_id' => $orderDetail->id,
-                'payment_gateway_id' => $orderDetail->payment_gateway_id,
-                'payment_option_id' => $orderDetail->payment_option_id,
-                'buy_order' => $orderDetail->order->order_number,
-                'session_id' => $orderDetail->order->session_id ?? null,
-                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
-                'amount' => $orderDetail->amount,
-                'status' => 'completed',
-                'transaction_date' => $transactionDate,
-                'authorization_code' => $authorizationCode,
-                'card_type' => $cardType,
-                'installments_number' => $installmentsNumber,
-                'installment_amount' => $installmentAmount,
-                'vci' => $vci,
-                'card_number' => $cardNumber,
-                'gateway_response' => $result,
-                'email_sent' => false, // Marcar que aún no se ha enviado el email
-                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
-            ];
-
-            \Log::info('=== CREATING PAYMENT (SUCCESSFUL) ===', $paymentData);
-
-            $payment = Payment::create($paymentData);
-        } else {
-            // Actualizar el pago existente
-            $updateData = [
-                'status' => 'completed',
-                'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
-                'authorization_code' => $authorizationCode,
-                'card_type' => $cardType,
-                'installments_number' => $installmentsNumber,
-                'installment_amount' => $installmentAmount,
-                'vci' => $vci,
-                'card_number' => $cardNumber,
-                'gateway_response' => $result,
-                'email_sent' => false,
-                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
-            ];
-
-            // Solo actualizar transaction_date si no está establecido o si viene en la respuesta
-            if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['paid_at'])) {
-                $updateData['transaction_date'] = $transactionDate;
-            }
-
-            $payment->update($updateData);
-        }
-
-        // Actualizar estado del order detail
-        $orderDetail->update([
-            'status' => 'paid',
-            'is_paid' => true,
-            'paid_at' => now()->setTimezone('America/Santiago'),
+        $this->logInfo('=== PASO 3/10: Datos extraídos del gateway ===', [
+            'authorization_code' => $authorizationCode,
+            'card_type' => $cardType,
+            'card_number' => $cardNumber,
+            'installments_number' => $installmentsNumber,
+            'installment_amount' => $installmentAmount,
+            'transaction_date' => $transactionDate,
         ]);
 
-        // Procesar cuotas si aplica
-        $this->processInstallments($orderDetail, $payment);
+        // PASO 5: Crear o actualizar Payment
+        $this->logInfo('=== PASO 4/10: Creando/actualizando Payment ===', [
+            'action' => $payment ? 'update' : 'create',
+            'payment_id' => $payment?->id,
+        ]);
 
-        // Generar boleta en Bsale si es programa de entrega el mismo año
-        $this->generateBsaleInvoice($orderDetail, $payment);
+        try {
+            if (!$payment) {
+                $paymentData = [
+                    'order_id' => $orderDetail->order_id,
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_gateway_id' => $orderDetail->payment_gateway_id,
+                    'payment_option_id' => $orderDetail->payment_option_id,
+                    'buy_order' => $orderDetail->order->order_number,
+                    'session_id' => $orderDetail->order->session_id ?? null,
+                    'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
+                    'amount' => $orderDetail->amount,
+                    'status' => 'completed',
+                    'transaction_date' => $transactionDate,
+                    'authorization_code' => $authorizationCode,
+                    'card_type' => $cardType,
+                    'installments_number' => $installmentsNumber,
+                    'installment_amount' => $installmentAmount,
+                    'vci' => $vci,
+                    'card_number' => $cardNumber,
+                    'gateway_response' => $result,
+                    'email_sent' => false,
+                    'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+                ];
 
-        // Enviar email de confirmación
-        $this->sendSuccessEmail($orderDetail, $payment);
+                $payment = Payment::create($paymentData);
 
-        // Actualizar el estado de la orden principal
-        $orderDetail->order->refreshStatus();
+                $this->logInfo('=== PASO 4/10: Payment CREADO exitosamente ===', [
+                    'payment_id' => $payment->id,
+                ]);
+            } else {
+                $updateData = [
+                    'status' => 'completed',
+                    'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? $payment->external_payment_id,
+                    'authorization_code' => $authorizationCode,
+                    'card_type' => $cardType,
+                    'installments_number' => $installmentsNumber,
+                    'installment_amount' => $installmentAmount,
+                    'vci' => $vci,
+                    'card_number' => $cardNumber,
+                    'gateway_response' => $result,
+                    'email_sent' => false,
+                    'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+                ];
 
-        // Registrar pago completado en analytics
-        $this->analyticsService->recordPaymentCompletedFromBackend($orderDetail, [
-            'payment_method' => $orderDetail->paymentGateway->name ?? null,
-            'session_id' => $sessionId, // Pasar el session_id al analytics
-        ], null);
+                if (!$payment->transaction_date || isset($result['transaction_date']) || isset($result['paid_at'])) {
+                    $updateData['transaction_date'] = $transactionDate;
+                }
 
-        $this->logInfo('PaymentConfirmationService: Payment processed successfully', [
+                $payment->update($updateData);
+
+                $this->logInfo('=== PASO 4/10: Payment ACTUALIZADO exitosamente ===', [
+                    'payment_id' => $payment->id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 4/10: ERROR creando/actualizando Payment ===', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+            ], $e);
+            throw $e;
+        }
+
+        // PASO 6: Actualizar OrderDetail
+        $this->logInfo('=== PASO 5/10: Actualizando OrderDetail ===', [
+            'order_detail_id' => $orderDetail->id,
+        ]);
+
+        try {
+            $orderDetail->update([
+                'status' => 'paid',
+                'is_paid' => true,
+                'paid_at' => now()->setTimezone('America/Santiago'),
+            ]);
+
+            $this->logInfo('=== PASO 5/10: OrderDetail actualizado exitosamente ===', [
+                'order_detail_id' => $orderDetail->id,
+                'new_status' => 'paid',
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 5/10: ERROR actualizando OrderDetail ===', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+            ], $e);
+            throw $e;
+        }
+
+        // PASO 7: Procesar cuotas
+        $this->logInfo('=== PASO 6/10: Procesando cuotas ===', [
+            'order_detail_id' => $orderDetail->id,
+            'payment_id' => $payment->id,
+        ]);
+
+        try {
+            $this->processInstallments($orderDetail, $payment);
+            $this->logInfo('=== PASO 6/10: Cuotas procesadas exitosamente ===');
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 6/10: ERROR procesando cuotas ===', [
+                'error' => $e->getMessage(),
+            ], $e);
+            // No lanzar excepción para no interrumpir el flujo
+        }
+
+        // PASO 8: Generar boleta Bsale
+        $this->logInfo('=== PASO 7/10: Generando boleta Bsale ===', [
+            'order_detail_id' => $orderDetail->id,
+            'payment_id' => $payment->id,
+            'document_type' => $payment->document_type,
+        ]);
+
+        try {
+            $this->generateBsaleInvoice($orderDetail, $payment);
+
+            // Recargar payment para obtener datos de Bsale actualizados
+            $payment->refresh();
+
+            $this->logInfo('=== PASO 7/10: Proceso Bsale completado ===', [
+                'bsale_document_id' => $payment->bsale_document_id,
+                'bsale_number' => $payment->bsale_number,
+                'bsale_token' => $payment->bsale_token,
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 7/10: ERROR generando boleta Bsale ===', [
+                'error' => $e->getMessage(),
+            ], $e);
+            // No lanzar excepción para no interrumpir el flujo
+        }
+
+        // PASO 9: Enviar email
+        $this->logInfo('=== PASO 8/10: Enviando email de confirmación ===', [
+            'order_detail_id' => $orderDetail->id,
+            'payment_id' => $payment->id,
+            'customer_email' => $orderDetail->email,
+        ]);
+
+        try {
+            $this->sendSuccessEmail($orderDetail, $payment);
+
+            // Recargar payment para verificar estado del email
+            $payment->refresh();
+
+            $this->logInfo('=== PASO 8/10: Proceso de email completado ===', [
+                'email_sent' => $payment->email_sent,
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 8/10: ERROR enviando email ===', [
+                'error' => $e->getMessage(),
+            ], $e);
+            // No lanzar excepción para no interrumpir el flujo
+        }
+
+        // PASO 10: Actualizar estado de la orden
+        $this->logInfo('=== PASO 9/10: Actualizando estado de la orden ===', [
+            'order_id' => $orderDetail->order_id,
+        ]);
+
+        try {
+            $orderDetail->order->refreshStatus();
+            $this->logInfo('=== PASO 9/10: Estado de orden actualizado ===', [
+                'order_status' => $orderDetail->order->status,
+            ]);
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 9/10: ERROR actualizando estado de orden ===', [
+                'error' => $e->getMessage(),
+            ], $e);
+        }
+
+        // PASO 11: Analytics
+        $this->logInfo('=== PASO 10/10: Registrando en analytics ===');
+
+        try {
+            $this->analyticsService->recordPaymentCompletedFromBackend($orderDetail, [
+                'payment_method' => $orderDetail->paymentGateway->name ?? null,
+                'session_id' => $sessionId,
+            ], null);
+            $this->logInfo('=== PASO 10/10: Analytics registrado exitosamente ===');
+        } catch (\Exception $e) {
+            $this->logError('=== PASO 10/10: ERROR registrando analytics ===', [
+                'error' => $e->getMessage(),
+            ], $e);
+        }
+
+        $this->logInfo('=== PROCESO COMPLETADO: processSuccessfulPayment ===', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'gateway_type' => $gatewayType,
             'email_sent' => $payment->email_sent,
+            'bsale_number' => $payment->bsale_number,
             'order_detail_status' => $orderDetail->status,
             'order_detail_is_paid' => $orderDetail->is_paid,
             'order_status' => $orderDetail->order->status,
@@ -800,14 +954,34 @@ class PaymentConfirmationService
      */
     public function getPaymentData(int $orderDetailId): array
     {
-        $orderDetail = OrderDetail::with(['order.program', 'payments', 'paymentGateway'])->findOrFail($orderDetailId);
+        $orderDetail = OrderDetail::with(['order.program', 'order.programCourse', 'payments', 'paymentGateway'])->findOrFail($orderDetailId);
 
         $payment = $orderDetail->payments->first();
+
+        // En la nueva arquitectura, program_id apunta a program_courses
+        // Priorizar programCourse si existe, si no, usar program
+        $programCourse = $orderDetail->order->programCourse ?? null;
+        $program = $orderDetail->order->program ?? null;
+
+        // Construir objeto de programa para la vista
+        // Si existe programCourse, usarlo. Si no, usar program como fallback.
+        $programData = null;
+        if ($programCourse) {
+            $programData = (object) [
+                'id' => $programCourse->id,
+                'name' => $programCourse->name ?? $program->name ?? null,
+                'destination' => $programCourse->destination,
+                'departure_date' => $programCourse->departure_date,
+            ];
+        } elseif ($program) {
+            $programData = $program;
+        }
 
         return [
             'order_detail' => $orderDetail,
             'order' => $orderDetail->order,
-            'program' => $orderDetail->order->program ?? null,
+            'program' => $programData,
+            'program_course' => $programCourse,
             'payment' => $payment,
             // Campos derivados para la vista
             'gateway_type' => optional($orderDetail->paymentGateway)->code ?? optional($orderDetail->paymentGateway)->name ?? null,

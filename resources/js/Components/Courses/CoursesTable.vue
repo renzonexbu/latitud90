@@ -2,7 +2,10 @@
     <div class="rounded-[20px] border border-gray-300 overflow-hidden">
         <!-- Table Header -->
         <div class="bg-turquesa rounded-t-[20px] px-4 py-4 flex items-center gap-2 h-[75px]">
-            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[140px]">
+            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[200px]">
+                Nombre del Programa
+            </div>
+            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[120px]">
                 Institución
             </div>
             <div class="text-white font-nexa-bold text-xs text-center w-[80px]">
@@ -14,14 +17,11 @@
             <div class="text-white font-nexa-bold text-xs text-center w-[50px]">
                 Año
             </div>
-            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[120px]">
-                Plantilla
-            </div>
             <div class="text-white font-nexa-bold text-xs flex-1 min-w-[100px]">
                 Destino
             </div>
             <div class="text-white font-nexa-bold text-xs text-center w-[60px]">
-                Alumnos
+                Participantes
             </div>
             <div class="text-white font-nexa-bold text-xs text-center w-[90px]">
                 % Pago
@@ -44,7 +44,10 @@
                     index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                 ]"
             >
-                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[140px] truncate">
+                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[200px] truncate" :title="getProgramCourseName(course)">
+                    {{ capitalizeWords(getProgramCourseName(course)) }}
+                </div>
+                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[120px] truncate">
                     {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[80px] truncate">
@@ -55,9 +58,6 @@
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[50px]">
                     {{ course.year }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[120px] truncate">
-                    {{ capitalizeWords(getProgramName(course)) }}
                 </div>
                 <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[100px] truncate">
                     {{ capitalizeWords(getProgramDestination(course)) }}
@@ -118,11 +118,10 @@ export default {
             // Emit event to parent component or navigate to edit page
             this.$emit('edit-course', courseId);
         },
-        getProgramName(course) {
-            // Laravel serializa las relaciones en snake_case
-            // Obtener el nombre de la plantilla (Program.name)
+        getProgramCourseName(course) {
+            // Obtener el nombre completo del ProgramCourse (como lo ve el cliente)
             const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
-            return programCourse?.program?.name || 'Sin Plantilla';
+            return programCourse?.name || 'Sin nombre';
         },
         getProgramDestination(course) {
             // Laravel serializa las relaciones en snake_case

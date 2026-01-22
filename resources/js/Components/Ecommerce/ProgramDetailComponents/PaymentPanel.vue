@@ -1206,7 +1206,7 @@ export default {
             return this.paymentFormContent?.subtitle?.value || 'Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito, débito o Khipu, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por';
         },
         totalPaymentTitle() {
-            return this.paymentFormContent?.total_payment_title?.value || 'Pagar con Tarjeta Crédito, Débito o Khipu';
+            return this.paymentFormContent?.total_payment_title?.value || 'Pagar con Tarjeta Crédito, Débito';
         },
         subscriptionTitle() {
             return this.paymentFormContent?.subscription_title?.value || 'Suscribir pago Automático (PAT)';

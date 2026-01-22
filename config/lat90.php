@@ -87,7 +87,7 @@ return [
     |
     */
     'payment' => [
-        'use_virtualpos' => env('USE_VIRTUALPOS', false),
+        'use_virtualpos' => env('USE_VIRTUALPOS', true),
     ],
 
     /*

@@ -12,7 +12,7 @@ class VirtualPosService
     use SystemLogging;
     
     // Constantes para estados de pago aprobados
-    const APPROVED_STATUSES = ['approved', 'paid', 'success', 'aprobado'];
+    const APPROVED_STATUSES = ['approved', 'paid', 'success', 'aprobado', 'pagado'];
     
     // Constantes para estados de pago rechazados
     const REJECTED_STATUSES = ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'];
@@ -176,12 +176,41 @@ class VirtualPosService
 
     /**
      * Confirmar transacción de VirtualPOS
+     * Intenta con todas las configuraciones hasta encontrar la transacción
      */
     public function confirmTransaction($paymentId)
     {
+        // Lista de configuraciones a probar (en orden de probabilidad)
+        $configKeys = ['no_cuotes', '3_cuotes', '6_cuotes', '9_cuotes', '12_cuotes', 'international'];
+
+        foreach ($configKeys as $configKey) {
+            if (!isset($this->config[$configKey])) {
+                continue;
+            }
+
+            $result = $this->tryConfirmWithConfig($paymentId, $configKey);
+
+            // Si encontró la transacción (éxito o rechazo válido), retornar
+            if ($result['found']) {
+                return $result['data'];
+            }
+        }
+
+        // Si ninguna configuración encontró la transacción
+        return [
+            'success' => false,
+            'error' => 'Transacción no encontrada en VirtualPOS',
+            'full_response' => ['error' => 'E-020', 'message' => 'No se encontró la transacción en ninguna configuración']
+        ];
+    }
+
+    /**
+     * Intentar confirmar transacción con una configuración específica
+     */
+    private function tryConfirmWithConfig($paymentId, $configKey): array
+    {
         try {
-            // Determinar configuración (usar no_cuotes por defecto para consultas)
-            $config = $this->config['no_cuotes'];
+            $config = $this->config[$configKey];
 
             // Generar firma JWT para consulta GET
             $signature = $this->generateJWTSignature($config, ['payment_id' => $paymentId]);
@@ -192,11 +221,10 @@ class VirtualPosService
                 'Signature' => $signature
             ];
 
-            $this->logInfo('VirtualPOS confirmTransaction request', [
+            $this->logInfo('VirtualPOS tryConfirmWithConfig request', [
                 'payment_id' => $paymentId,
-                'commerce_code' => $config['commerce_code'],
+                'config_key' => $configKey,
                 'url' => $this->baseUrl . "/payment/{$paymentId}",
-                'headers' => $headers
             ]);
 
             $response = $this->client->get($this->baseUrl . "/payment/{$paymentId}", [
@@ -205,21 +233,32 @@ class VirtualPosService
 
             $result = json_decode($response->getBody()->getContents(), true);
 
-            $this->logInfo('VirtualPOS confirmTransaction response', [
+            // Si es error E-020 (no existe), no se encontró con esta config
+            if (isset($result['error']['error_code']) && $result['error']['error_code'] === 'E-020') {
+                return ['found' => false, 'data' => null];
+            }
+
+            $this->logInfo('VirtualPOS tryConfirmWithConfig response', [
                 'payment_id' => $paymentId,
+                'config_key' => $configKey,
                 'http_status' => $response->getStatusCode(),
                 'response' => $result,
             ]);
 
-            if ($response->getStatusCode() === 200) {
+            if ($response->getStatusCode() === 200 || isset($result['payment'])) {
                 $status = $result['status'] ?? 'unknown';
                 $isApproved = in_array($status, self::APPROVED_STATUSES);
 
-                // Extraer datos anidados según la respuesta de ejemplo provista por el usuario
+                // Extraer datos anidados
                 $paymentData = $result['payment'] ?? [];
                 $orderData = $paymentData['order'] ?? [];
 
-                // VirtualPOS: auth_code va en payment.authorization_code
+                // Extraer estado del pago anidado si existe
+                if (isset($orderData['status'])) {
+                    $status = $orderData['status'];
+                    $isApproved = in_array($status, self::APPROVED_STATUSES);
+                }
+
                 $authorizationCode = $paymentData['auth_code']
                     ?? $paymentData['authorization_code']
                     ?? $orderData['auth_code']
@@ -227,7 +266,6 @@ class VirtualPosService
                     ?? $result['authorization_code']
                     ?? null;
 
-                // Número de cuotas y monto de cuota (si vienen)
                 $installmentsNumber = $paymentData['installment_number']
                     ?? $paymentData['installments']
                     ?? $orderData['installment_number']
@@ -239,37 +277,63 @@ class VirtualPosService
                     ?? $orderData['installment_amount']
                     ?? null;
 
+                // Sanitizar valores vacíos a null para evitar errores de cast decimal
+                $installmentsNumber = $this->sanitizeEmptyToNull($installmentsNumber);
+                $installmentAmount = $this->sanitizeEmptyToNull($installmentAmount);
+                $authorizationCode = $this->sanitizeEmptyToNull($authorizationCode);
+
                 return [
-                    'success' => $isApproved,
-                    'status' => $status,
-                    'authorization_code' => $authorizationCode,
-                    'transaction_id' => $result['transaction_id'] ?? $paymentId,
-                    'amount' => $result['amount'] ?? ($orderData['amount'] ?? null),
-                    'currency' => $result['currency'] ?? 'CLP',
-                    'payment_method' => $result['payment_method'] ?? null,
-                    'installments' => $installmentsNumber,
-                    'installment_amount' => $installmentAmount,
-                    'full_response' => $result,
-                    'error' => $isApproved ? null : ($result['message'] ?? 'Pago no aprobado')
+                    'found' => true,
+                    'data' => [
+                        'success' => $isApproved,
+                        'status' => $status,
+                        'authorization_code' => $authorizationCode,
+                        'transaction_id' => $result['transaction_id'] ?? $paymentId,
+                        'amount' => $result['amount'] ?? ($orderData['amount'] ?? null),
+                        'currency' => $result['currency'] ?? 'CLP',
+                        'payment_method' => $result['payment_method'] ?? null,
+                        'installments' => $installmentsNumber,
+                        'installment_amount' => $installmentAmount,
+                        'full_response' => $result,
+                        'config_used' => $configKey,
+                        'error' => $isApproved ? null : ($result['message'] ?? 'Pago no aprobado')
+                    ]
                 ];
             } else {
                 return [
-                    'success' => false,
-                    'error' => $result['message'] ?? 'Error al consultar transacción en VirtualPOS',
-                    'full_response' => $result
+                    'found' => true,
+                    'data' => [
+                        'success' => false,
+                        'error' => $result['message'] ?? 'Error al consultar transacción en VirtualPOS',
+                        'full_response' => $result,
+                        'config_used' => $configKey,
+                    ]
                 ];
             }
-        } catch (\Exception $e) {
-            $this->logError('VirtualPOS confirmTransaction error', [
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            // Error 4xx - verificar si es E-020 (no encontrado)
+            $response = $e->getResponse();
+            $body = json_decode($response->getBody()->getContents(), true);
+
+            if (isset($body['error']['error_code']) && $body['error']['error_code'] === 'E-020') {
+                return ['found' => false, 'data' => null];
+            }
+
+            $this->logError('VirtualPOS tryConfirmWithConfig client error', [
                 'payment_id' => $paymentId,
+                'config_key' => $configKey,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ], $e);
 
-            return [
-                'success' => false,
-                'error' => 'Error de conexión con VirtualPOS: ' . $e->getMessage()
-            ];
+            return ['found' => false, 'data' => null];
+        } catch (\Exception $e) {
+            $this->logError('VirtualPOS tryConfirmWithConfig error', [
+                'payment_id' => $paymentId,
+                'config_key' => $configKey,
+                'error' => $e->getMessage(),
+            ], $e);
+
+            return ['found' => false, 'data' => null];
         }
     }
 
@@ -323,6 +387,11 @@ class VirtualPosService
 
             $installmentAmount = $paymentData['installment_amount']
                 ?? ($notificationData['payment']['installment_amount'] ?? null);
+
+            // Sanitizar valores vacíos a null para evitar errores de cast decimal
+            $authorizationCode = $this->sanitizeEmptyToNull($authorizationCode);
+            $installmentsNumber = $this->sanitizeEmptyToNull($installmentsNumber);
+            $installmentAmount = $this->sanitizeEmptyToNull($installmentAmount);
 
             return [
                 'success' => $isApproved,
@@ -642,5 +711,17 @@ class VirtualPosService
         // Por ahora retornamos true, pero deberías implementar la validación real
         $this->logInfo('VirtualPOS notification validation: Implementar validación de firma');
         return true;
+    }
+
+    /**
+     * Sanitizar valores vacíos a null para evitar errores de cast decimal
+     * VirtualPOS puede retornar "" en lugar de null para campos numéricos
+     */
+    private function sanitizeEmptyToNull($value)
+    {
+        if ($value === '' || $value === null) {
+            return null;
+        }
+        return $value;
     }
 }

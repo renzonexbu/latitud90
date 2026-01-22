@@ -173,7 +173,6 @@
                                                             <input
                                                                 type="date"
                                                                 v-model="form.departure_date"
-                                                                :min="todayDate"
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.departure_date }"
                                                             />
@@ -194,11 +193,22 @@
                                                             >
                                                                 <option value="30">30 días antes</option>
                                                                 <option value="60">60 días antes</option>
+                                                                <option value="custom">Otra fecha</option>
                                                             </select>
+                                                            <input
+                                                                v-if="form.payment_days_before === 'custom'"
+                                                                v-model="form.custom_final_payment_date"
+                                                                type="date"
+                                                                class="admin-input-text mt-2"
+                                                                :class="{ 'border-red-500': customPaymentDateError }"
+                                                            />
+                                                            <span v-if="customPaymentDateError" class="text-red-500 text-sm mt-1">
+                                                                {{ customPaymentDateError }}
+                                                            </span>
                                                             <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.final_payment_date }}
                                                             </span>
-                                                            <span v-if="calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
+                                                            <span v-if="form.payment_days_before !== 'custom' && calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
                                                                 Fecha calculada: {{ formatDateForDisplay(calculatedFinalPaymentDate) }}
                                                             </span>
                                                         </div>
@@ -350,6 +360,8 @@
                                                                 <option value="4">4°</option>
                                                                 <option value="5">5°</option>
                                                                 <option value="6">6°</option>
+                                                                <option value="7">7°</option>
+                                                                <option value="8">8°</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -369,6 +381,8 @@
                                                                 <option value="C">C</option>
                                                                 <option value="D">D</option>
                                                                 <option value="E">E</option>
+                                                                <option value="F">F</option>
+                                                                <option value="G">G</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -825,6 +839,21 @@
 
                     <!-- Action Buttons -->
                     <div class="mt-8 flex justify-center gap-4">
+                        <button
+                            type="button"
+                            @click="checkCanDeleteProgram"
+                            :disabled="isCheckingDelete"
+                            class="bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-full font-nexa-bold transition-colors inline-flex items-center gap-2"
+                        >
+                            <svg v-if="isCheckingDelete" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            Eliminar programa
+                        </button>
                         <Link
                             :href="route('admin.courses.index')"
                             class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-full font-nexa-bold transition-colors inline-flex items-center gap-2"
@@ -844,6 +873,67 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- Modal de confirmación para eliminar programa -->
+                <Modal :show="showDeleteModal" @close="closeDeleteModal">
+                    <div class="p-6">
+                        <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 rounded-full" :class="canDelete ? 'bg-red-100' : 'bg-yellow-100'">
+                            <svg v-if="canDelete" class="w-6 h-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <svg v-else class="w-6 h-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+
+                        <h3 class="text-lg font-bold text-center text-gray-900 mb-2">
+                            {{ canDelete ? 'Eliminar Programa' : 'No se puede eliminar' }}
+                        </h3>
+
+                        <div v-if="canDelete" class="text-center">
+                            <p class="text-gray-600 mb-4">
+                                ¿Estás seguro de que deseas eliminar el programa <strong>{{ deleteInfo.program_name }}</strong>?
+                            </p>
+                            <p class="text-sm text-red-600 mb-4">
+                                Esta acción eliminará permanentemente el programa, todos los participantes inscritos y sus datos asociados. Esta acción no se puede deshacer.
+                            </p>
+                        </div>
+
+                        <div v-else class="text-center">
+                            <p class="text-gray-600 mb-4">
+                                El programa <strong>{{ deleteInfo.program_name }}</strong> no puede ser eliminado por las siguientes razones:
+                            </p>
+                            <ul class="text-left text-sm text-red-600 bg-red-50 rounded-lg p-4 mb-4 list-disc list-inside">
+                                <li v-for="(reason, index) in deleteReasons" :key="index" class="mb-1">
+                                    {{ reason }}
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="flex justify-center gap-3 mt-6">
+                            <button
+                                type="button"
+                                @click="closeDeleteModal"
+                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-full font-nexa-bold transition-colors"
+                            >
+                                {{ canDelete ? 'Cancelar' : 'Entendido' }}
+                            </button>
+                            <button
+                                v-if="canDelete"
+                                type="button"
+                                @click="confirmDeleteProgram"
+                                :disabled="isDeleting"
+                                class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-full font-nexa-bold transition-colors inline-flex items-center gap-2"
+                            >
+                                <svg v-if="isDeleting" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                {{ isDeleting ? 'Eliminando...' : 'Sí, eliminar' }}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             </div>
         </div>
     </AdminLayout>
@@ -856,6 +946,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 import ParticipantsManagement from '@/Components/Courses/ParticipantsManagement.vue';
 import Alerts from '@/Components/Alerts.vue';
+import Modal from '@/Components/Modal.vue';
 
 // Props
 const props = defineProps({
@@ -885,6 +976,24 @@ const props = defineProps({
 const page = usePage();
 const importErrorDetails = computed(() => page.props.importErrorDetails || null);
 
+// Reactive errors from Inertia page props
+const errors = computed(() => page.props.errors || {});
+
+// Watch for errors from Inertia (when they come through page props)
+watch(errors, (newErrors) => {
+    if (newErrors && Object.keys(newErrors).length > 0) {
+        console.error('Validation errors from Inertia props:', newErrors);
+        const errorList = Object.values(newErrors);
+        errorMessage.value = errorList.join(' | ');
+        showErrorAlert.value = true;
+        isSubmitting.value = false;
+        // Scroll al inicio para mostrar la alerta
+        nextTick(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+}, { immediate: true, deep: true });
+
 // Accordion states
 const priceOpen = ref(true);
 const travelersOpen = ref(true);
@@ -905,6 +1014,14 @@ const fileInput = ref(null);
 // Alert state for validation errors
 const showErrorAlert = ref(false);
 const errorMessage = ref('');
+
+// Delete program state
+const showDeleteModal = ref(false);
+const isCheckingDelete = ref(false);
+const isDeleting = ref(false);
+const canDelete = ref(false);
+const deleteReasons = ref([]);
+const deleteInfo = ref({ program_name: '', program_code: '' });
 
 // Get programCourse data (first one from the course)
 // Laravel puede serializar como 'program_courses' o 'programCourses'
@@ -1014,11 +1131,14 @@ const calculatePaymentDaysBefore = () => {
     const diffTime = departureDate - finalPaymentDate;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // Si está más cerca de 30, retornar 30, si está más cerca de 60 o más, retornar 60
-    if (diffDays < 45) {
+    // Si es exactamente 30 o 60 días, retornar esos valores
+    if (diffDays === 30) {
         return '30';
-    } else {
+    } else if (diffDays === 60) {
         return '60';
+    } else {
+        // Fecha personalizada
+        return 'custom';
     }
 };
 
@@ -1042,6 +1162,7 @@ const form = ref({
     trip_price: programCourse.value.trip_price || '',
     payment_days_before: calculatePaymentDaysBefore(),
     final_payment_date: formatDate(programCourse.value.final_payment_date),
+    custom_final_payment_date: calculatePaymentDaysBefore() === 'custom' ? formatDate(programCourse.value.final_payment_date) : '',
 
     // Payment options
     payment_options: getPaymentOptions(),
@@ -1161,15 +1282,9 @@ const maxInstallmentChoices = computed(() => {
     return choices;
 });
 
-// Fecha de hoy para validación del input date
-const todayDate = computed(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-});
-
 // Calcular fecha límite de pago automáticamente
 const calculatedFinalPaymentDate = computed(() => {
-    if (!form.value.departure_date || !form.value.payment_days_before) {
+    if (!form.value.departure_date || !form.value.payment_days_before || form.value.payment_days_before === 'custom') {
         return null;
     }
 
@@ -1184,21 +1299,29 @@ const calculatedFinalPaymentDate = computed(() => {
     return finalPaymentDate.toISOString().split('T')[0];
 });
 
-// Validación de fecha final de pago (simplificada ya que el cálculo es automático)
-const finalPaymentDateValidation = computed(() => {
-    if (!form.value.departure_date || !form.value.payment_days_before) {
-        return { isValid: true, message: '' };
+// Validación de fecha personalizada
+const customPaymentDateError = computed(() => {
+    if (form.value.payment_days_before !== 'custom') {
+        return null;
     }
-
-    return { isValid: true, message: '' };
+    if (!form.value.custom_final_payment_date) {
+        return 'Debe seleccionar una fecha';
+    }
+    return null;
 });
 
 // Watcher para actualizar final_payment_date automáticamente
-watch([() => form.value.departure_date, () => form.value.payment_days_before], () => {
-    if (calculatedFinalPaymentDate.value) {
+watch([() => form.value.departure_date, () => form.value.payment_days_before, () => form.value.custom_final_payment_date], () => {
+    if (form.value.payment_days_before === 'custom') {
+        // Usar fecha personalizada
+        if (form.value.custom_final_payment_date) {
+            form.value.final_payment_date = form.value.custom_final_payment_date;
+        }
+    } else if (calculatedFinalPaymentDate.value) {
+        // Usar fecha calculada
         form.value.final_payment_date = calculatedFinalPaymentDate.value;
     }
-}, { immediate: true });
+}, { immediate: false }); // No immediate para evitar sobrescribir el valor inicial en custom
 
 // Payment option functions
 const isPaymentOptionSelected = (option) => {
@@ -1490,6 +1613,100 @@ const saveCourse = () => {
 // Close error alert
 const closeErrorAlert = () => {
     showErrorAlert.value = false;
+};
+
+// Check if program can be deleted
+const checkCanDeleteProgram = async () => {
+    const pcId = programCourse.value?.id;
+    if (!pcId) {
+        errorMessage.value = 'No se encontró el programa asociado al curso.';
+        showErrorAlert.value = true;
+        return;
+    }
+
+    isCheckingDelete.value = true;
+
+    try {
+        const response = await fetch(route('admin.courses.program.can-delete', { program_course_id: pcId }), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        const data = await response.json();
+
+        canDelete.value = data.can_delete;
+        deleteReasons.value = data.reasons || [];
+        deleteInfo.value = {
+            program_name: data.program_name || programCourse.value?.name || 'Este programa',
+            program_code: data.program_code || programCourse.value?.code || '',
+        };
+
+        showDeleteModal.value = true;
+    } catch (error) {
+        console.error('Error checking if program can be deleted:', error);
+        errorMessage.value = 'Error al verificar si el programa puede ser eliminado.';
+        showErrorAlert.value = true;
+    } finally {
+        isCheckingDelete.value = false;
+    }
+};
+
+// Close delete modal
+const closeDeleteModal = () => {
+    showDeleteModal.value = false;
+    canDelete.value = false;
+    deleteReasons.value = [];
+};
+
+// Confirm and execute program deletion
+const confirmDeleteProgram = async () => {
+    const pcId = programCourse.value?.id;
+    if (!pcId) return;
+
+    isDeleting.value = true;
+
+    try {
+        const response = await fetch(route('admin.courses.program.delete'), {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+            },
+            body: JSON.stringify({ program_course_id: pcId }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            closeDeleteModal();
+            // Redirect to courses index with success message
+            router.visit(route('admin.courses.index'), {
+                preserveState: false,
+                onSuccess: () => {
+                    // The flash message will be handled by the index page
+                },
+            });
+        } else {
+            closeDeleteModal();
+            errorMessage.value = data.message || 'No se pudo eliminar el programa.';
+            if (data.reasons && data.reasons.length > 0) {
+                errorMessage.value += ' ' + data.reasons.join(' ');
+            }
+            showErrorAlert.value = true;
+        }
+    } catch (error) {
+        console.error('Error deleting program:', error);
+        closeDeleteModal();
+        errorMessage.value = 'Error al eliminar el programa. Por favor, intente nuevamente.';
+        showErrorAlert.value = true;
+    } finally {
+        isDeleting.value = false;
+    }
 };
 </script>
 

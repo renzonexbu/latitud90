@@ -67,9 +67,8 @@
         </div>
 
         <!-- Create Institution Modal -->
-        <CreateInstitutionModal 
-            :show="showCreateInstitutionModal" 
-            :errors="errors"
+        <CreateInstitutionModal
+            :show="showCreateInstitutionModal"
             @close="closeCreateInstitutionModal"
             @institution-created="handleInstitutionCreated"
         />

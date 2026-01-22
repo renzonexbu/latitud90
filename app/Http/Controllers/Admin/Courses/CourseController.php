@@ -146,8 +146,8 @@ class CourseController extends Controller
             $this->courseService->updateCourse($course, $request->validated());
 
             return redirect()
-                ->route('admin.courses.edit', $course)
-                ->with('success', 'Curso actualizado exitosamente');
+                ->route('admin.courses.index')
+                ->with('success', 'Programa actualizado exitosamente');
 
         } catch (\App\Exceptions\ParticipantImportException $e) {
             // Manejar errores de importación de participantes
@@ -244,6 +244,62 @@ class CourseController extends Controller
         } catch (\Exception $e) {
             return back()
                 ->withErrors(['error' => 'Error al eliminar el curso: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Verificar si un programa puede ser eliminado
+     * Retorna las razones por las que no se puede eliminar (si las hay)
+     */
+    public function canDeleteProgram(Request $request)
+    {
+        $request->validate([
+            'program_course_id' => 'required|exists:program_courses,id',
+        ]);
+
+        $result = $this->courseService->canDeleteProgram($request->program_course_id);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Eliminar un programa completamente
+     * Solo si no tiene pagos, descuentos o suscripciones activas
+     */
+    public function deleteProgram(Request $request)
+    {
+        $request->validate([
+            'program_course_id' => 'required|exists:program_courses,id',
+        ]);
+
+        try {
+            $result = $this->courseService->deleteProgram($request->program_course_id);
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message'],
+                    'reasons' => $result['reasons'] ?? []
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'deleted_counts' => $result['deleted_counts'] ?? []
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error al eliminar programa', [
+                'program_course_id' => $request->program_course_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el programa: ' . $e->getMessage()
+            ], 500);
         }
     }
 

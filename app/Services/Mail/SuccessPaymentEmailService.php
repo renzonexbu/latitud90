@@ -5,6 +5,7 @@ namespace App\Services\Mail;
 use App\Models\GeneratedDocument;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\PaymentConfirmationLog;
 use App\Services\DocumentStorageService;
 use App\Services\PDF\PaymentReceiptService;
 use App\Services\PDF\ContractService;
@@ -123,6 +124,44 @@ class SuccessPaymentEmailService
                 $this->documentStorageService->markDocumentAsEmailSent($bsaleDoc, $emailData['customer_email']);
             }
 
+            // Preparar lista de attachments para el log
+            $attachmentsList = [];
+            if ($pdfPath) {
+                $attachmentsList[] = [
+                    'type' => 'payment_receipt',
+                    'name' => 'Comprobante_Pago_' . $emailData['order_number'] . '.pdf',
+                    'path' => $pdfPath
+                ];
+            }
+            if ($shouldSendContract && $contractPdfPath) {
+                $attachmentsList[] = [
+                    'type' => 'contract',
+                    'name' => 'Contrato_Reserva_' . $emailData['order_number'] . '.pdf',
+                    'path' => $contractPdfPath
+                ];
+            }
+            if ($bsalePdfPath) {
+                $attachmentsList[] = [
+                    'type' => 'bsale_invoice',
+                    'name' => 'Boleta_Bsale_' . $emailData['order_number'] . '.pdf',
+                    'path' => $bsalePdfPath
+                ];
+            }
+
+            // Registrar envío exitoso en payment_confirmation_logs
+            PaymentConfirmationLog::logEmailSent(
+                $payment,
+                $orderDetail,
+                $emailData['customer_email'],
+                $attachmentsList,
+                [
+                    'order_number' => $emailData['order_number'],
+                    'receipt_doc_id' => $receiptDoc ? $receiptDoc->id : null,
+                    'contract_doc_id' => $contractDoc ? $contractDoc->id : null,
+                    'bsale_doc_id' => $bsaleDoc ? $bsaleDoc->id : null,
+                ]
+            );
+
             $this->logInfo('SuccessPaymentEmailService: Email con PDF adjunto enviado exitosamente', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
@@ -137,6 +176,22 @@ class SuccessPaymentEmailService
 
             return true;
         } catch (\Exception $e) {
+            // Registrar fallo en payment_confirmation_logs
+            $emailAddress = isset($emailData) && isset($emailData['customer_email'])
+                ? $emailData['customer_email']
+                : $orderDetail->email;
+
+            PaymentConfirmationLog::logEmailFailed(
+                $payment,
+                $orderDetail,
+                $emailAddress,
+                $e->getMessage(),
+                [
+                    'error_line' => $e->getLine(),
+                    'error_file' => $e->getFile(),
+                ]
+            );
+
             $this->logError('SuccessPaymentEmailService: Error enviando email', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,

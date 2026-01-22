@@ -42,7 +42,7 @@ class PartialAccountFilters
             // We need to filter by payment status at the query level
             // This requires calculating the payment status in the query
             $paymentStatus = $filters['paymentStatus'];
-            
+
             if ($paymentStatus === 'paid') {
                 // Paid: total paid >= individual price (use individual_price from participant_program)
                 $query->havingRaw('COALESCE(SUM(pay.amount), 0) >= COALESCE(pp.individual_price, 0)');
@@ -52,6 +52,20 @@ class PartialAccountFilters
             } elseif ($paymentStatus === 'partial') {
                 // Partial: some payment made but not fully paid
                 $query->havingRaw('COALESCE(SUM(pay.amount), 0) > 0 AND COALESCE(SUM(pay.amount), 0) < COALESCE(pp.individual_price, 0)');
+            }
+        }
+
+        // Apply participant status filter if provided (uses pp.is_active from participant_program)
+        if (!empty($filters['participantStatusFilter'])) {
+            $participantStatus = $filters['participantStatusFilter'];
+
+            if ($participantStatus === 'active') {
+                $query->where(function($q) {
+                    $q->where('pp.is_active', true)
+                      ->orWhereNull('pp.is_active');
+                });
+            } elseif ($participantStatus === 'inactive') {
+                $query->where('pp.is_active', false);
             }
         }
 

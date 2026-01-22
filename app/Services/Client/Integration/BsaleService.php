@@ -4,6 +4,7 @@ namespace App\Services\Client\Integration;
 
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\PaymentConfirmationLog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -207,36 +208,34 @@ class BsaleService
 
     /**
      * Generar boleta automáticamente al confirmar pago
+     * Solo genera boleta si el document_type del pago es "B2" (boleta)
+     * Si es "AC" (anticipo/contrato) no genera documento en Bsale
      */
     public function generateInvoice(OrderDetail $orderDetail, Payment $payment): ?array
     {
         try {
-            // Verificar si el programa es de entrega el mismo año
             $program = $orderDetail->order->programCourse;
-            $isSameYear = $this->isSameYearDelivery($program);
-            
-            // Log para debugging
+
+            // Usar el document_type del Payment para decidir si generar boleta
+            // B2 = Boleta (programa mismo año) → generar en Bsale
+            // AC = Anticipo/Contrato (programa otro año) → NO generar en Bsale
+            $documentType = $payment->document_type;
+            $shouldGenerateBoleta = $documentType === 'B2';
+
             Log::info('BsaleService: Verificando generación de boleta', [
                 'order_detail_id' => $orderDetail->id,
-                'program_id' => $program->id ?? null,
+                'payment_id' => $payment->id,
+                'payment_document_type' => $documentType,
+                'should_generate_boleta' => $shouldGenerateBoleta,
                 'program_name' => $program->name ?? null,
                 'departure_date' => $program->departure_date ?? null,
-                'current_year' => now()->year,
-                'departure_year' => $program->departure_date ? $program->departure_date->year : null,
-                'is_same_year' => $isSameYear,
-                'invert_same_year_logic' => $this->invertSameYearLogic,
             ]);
-            
-            // BSale documents should be generated for same-year programs (not reservations)
-            // Different year programs get contracts instead of BSale documents
-            $shouldSkip = $this->invertSameYearLogic ? $isSameYear : !$isSameYear;
-            
-            Log::info('BsaleService: Decisión de generación', [
-                'should_skip' => $shouldSkip,
-                'will_generate' => !$shouldSkip,
-            ]);
-            
-            if ($shouldSkip) {
+
+            if (!$shouldGenerateBoleta) {
+                Log::info('BsaleService: No se genera boleta - document_type es AC (anticipo/contrato)', [
+                    'payment_id' => $payment->id,
+                    'document_type' => $documentType,
+                ]);
                 return null;
             }
 
@@ -246,33 +245,25 @@ class BsaleService
                 throw new \Exception('No se pudo crear/obtener el cliente en Bsale');
             }
 
-
             // Crear documento (boleta) en Bsale
             $documentData = $this->createDocument($orderDetail, $payment, $customerId);
-            
+
+            Log::info('BsaleService: Boleta generada exitosamente', [
+                'payment_id' => $payment->id,
+                'bsale_number' => $documentData['number'] ?? null,
+                'bsale_token' => $documentData['token'] ?? null,
+            ]);
 
             return $documentData;
 
         } catch (\Exception $e) {
-
+            Log::error('BsaleService: Error generando boleta', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
             // No lanzar excepción para no interrumpir el flujo de pago
             return null;
         }
-    }
-
-    /**
-     * Verificar si el programa es de entrega el mismo año
-     */
-    private function isSameYearDelivery($program): bool
-    {
-        if (!$program->departure_date) {
-            return false;
-        }
-
-        $currentYear = now()->year;
-        $departureYear = $program->departure_date->year;
-
-        return $departureYear === $currentYear;
     }
 
     /**
@@ -283,7 +274,10 @@ class BsaleService
         try {
             // Ensure relationships are loaded including document type and convert to array
             $data = $orderDetail->load(['country', 'region', 'city', 'documentType'])->toArray();
-            
+
+            // Obtener datos del participante como fallback
+            $participant = $orderDetail->order->participant ?? null;
+
             // Construir dirección
             $address = '';
             if (isset($data['country']) && !empty($data['country']['name'])) {
@@ -292,14 +286,33 @@ class BsaleService
             if (isset($data['region']) && !empty($data['region']['name'])) {
                 $address .= ($address ? ', ' : '') . $data['region']['name'];
             }
-            
+
             // Comuna
             $comuna = isset($data['city']) && !empty($data['city']['name']) ? $data['city']['name'] : '';
-            
+
             // Handle passport document type - use fixed RUT 55.555.555-5
+            // Usar document_number del OrderDetail, o del participante como fallback
             $documentNumber = $data['document_number'];
+            if (empty($documentNumber) && $participant) {
+                $documentNumber = $participant->document_number;
+                // Formatear RUT si no tiene formato
+                if ($documentNumber && strlen($documentNumber) >= 8 && !str_contains($documentNumber, '-')) {
+                    $dv = substr($documentNumber, -1);
+                    $numero = substr($documentNumber, 0, -1);
+                    $documentNumber = number_format((int)$numero, 0, '', '.') . '-' . $dv;
+                }
+            }
+
+            // Si aún no hay document_number, no podemos crear cliente en Bsale
+            if (empty($documentNumber)) {
+                Log::warning('BsaleService: No se puede crear cliente - document_number vacío', [
+                    'order_detail_id' => $orderDetail->id,
+                ]);
+                return null;
+            }
+
             $documentTypeName = '';
-            
+
             // Check document type from loaded relationship
             if (isset($data['document_type']) && !empty($data['document_type']['name'])) {
                 $documentTypeName = $data['document_type']['name'];
@@ -309,23 +322,31 @@ class BsaleService
                 $documentTypeName = $documentType ? $documentType->name : '';
             }
 
-            
+
             if (strtoupper($documentTypeName) === 'PASAPORTE') {
                 $documentNumber = '55.555.555-5';
-            } else {
-                // For RUT, keep original formatting with dots and hyphens
-                // BSale expects RUT in format XX.XXX.XXX-X
-                $documentNumber = $documentNumber; // Keep as is: "25.808.242-7"
+            }
+
+            // Obtener nombre - usar OrderDetail o participante como fallback
+            $customerName = $orderDetail->name;
+            if (empty($customerName) && $participant) {
+                $customerName = $participant->full_name;
+            }
+
+            // Obtener email - usar OrderDetail o email por defecto
+            $customerEmail = $orderDetail->email;
+            if (empty($customerEmail)) {
+                $customerEmail = 'pagos@latitud90.com';
             }
 
             // For BSale document type 3, company field is required
             // Use customer's full name as company to satisfy BSale requirement
-            $fullName = $this->extractFirstName($orderDetail->name) . ' ' . $this->extractLastName($orderDetail->name);
-            
+            $fullName = $this->extractFirstName($customerName) . ' ' . $this->extractLastName($customerName);
+
             $customerData = [
-                'firstName' => $this->extractFirstName($orderDetail->name),
-                'lastName' => $this->extractLastName($orderDetail->name),
-                'email' => $orderDetail->email,
+                'firstName' => $this->extractFirstName($customerName),
+                'lastName' => $this->extractLastName($customerName),
+                'email' => $customerEmail,
                 'code' => $documentNumber, // BSale uses 'code' field for RUT
                 'documentNumber' => $documentNumber,
                 'documentTypeId' => $this->getDocumentTypeId($orderDetail->document_type),
@@ -456,6 +477,9 @@ class BsaleService
         // Item description: "Programa de Estudio" + participant full name in uppercase
         $itemDetail = "Programa de Estudio\n    " . ($participantFullName ?: 'PARTICIPANTE');
 
+        // Determinar si es boleta exenta (IDs 29, 41) o afecta
+        $isExempt = in_array($this->documentTypeId, [29, 41]);
+
         $documentData = [
             'clientId' => $customerId,
             'documentTypeId' => $this->documentTypeId,
@@ -468,7 +492,13 @@ class BsaleService
                     'comment' => $itemDetail,
                     'quantity' => 1,
                     'netUnitValue' => $payment->amount,
-                    'taxId' => 1, // IVA
+                    'taxId' => $isExempt ? 0 : 1, // 0 para exento, 1 para IVA
+                ]
+            ],
+            'payments' => [
+                [
+                    'paymentTypeId' => 10, // WEBPAY
+                    'amount' => $payment->amount,
                 ]
             ]
         ];
@@ -572,6 +602,19 @@ class BsaleService
             
             if ($response->successful()) {
                 file_put_contents($filePath, $response->body());
+
+                // Registrar evento en payment_confirmation_logs
+                $orderDetail = $payment->orderDetail;
+                if ($orderDetail) {
+                    PaymentConfirmationLog::logBsaleInvoiceGenerated(
+                        $payment,
+                        $orderDetail,
+                        $payment->bsale_document_id,
+                        $bsaleNumber,
+                        $filePath,
+                        ['file_size' => filesize($filePath)]
+                    );
+                }
             } else {
                 Log::error('BSale PDF Download Failed:', [
                     'status' => $response->status(),

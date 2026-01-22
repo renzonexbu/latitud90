@@ -1,5 +1,5 @@
 <template>
-  <Head title="Iniciar Sesión - Apoderado" />
+  <Head title="Iniciar Sesión - Pagador" />
 
   <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="login-card">
@@ -10,7 +10,7 @@
         </div>
         <h2 class="login-title">Iniciar Sesión</h2>
         <p class="login-subtitle">
-          Acceso para apoderados
+          Acceso para pagadores
         </p>
       </div>
 

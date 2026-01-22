@@ -71,9 +71,6 @@
                             RUT
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-nexa-bold text-gray-700 uppercase tracking-wider">
-                            Email
-                        </th>
-                        <th class="px-4 py-3 text-left text-xs font-nexa-bold text-gray-700 uppercase tracking-wider">
                             Código Inscripción
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-nexa-bold text-gray-700 uppercase tracking-wider">
@@ -100,9 +97,6 @@
                         </td>
                         <td class="px-4 py-3 text-sm font-nexa-regular text-gray-700">
                             {{ participant.rut }}
-                        </td>
-                        <td class="px-4 py-3 text-sm font-nexa-regular text-gray-700">
-                            {{ participant.email }}
                         </td>
                         <td class="px-4 py-3 text-sm font-nexa-regular text-gray-700">
                             {{ participant.enrollment_code }}

@@ -14,6 +14,18 @@
             @close="closeErrorAlert"
         />
 
+        <!-- Alerta de éxito -->
+        <Alerts
+            v-if="showSuccessAlert"
+            :show="showSuccessAlert"
+            type="success"
+            :title="successTitle"
+            :message="successMessage"
+            :auto-close="true"
+            :duration="5000"
+            @close="closeSuccessAlert"
+        />
+
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <!-- Page Header -->
@@ -176,7 +188,6 @@
                                                             <input
                                                                 type="date"
                                                                 v-model="form.departure_date"
-                                                                :min="todayDate"
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.departure_date }"
                                                             />
@@ -197,11 +208,22 @@
                                                             >
                                                                 <option value="30">30 días antes</option>
                                                                 <option value="60">60 días antes</option>
+                                                                <option value="custom">Otra fecha</option>
                                                             </select>
+                                                            <input
+                                                                v-if="form.payment_days_before === 'custom'"
+                                                                v-model="form.custom_final_payment_date"
+                                                                type="date"
+                                                                class="admin-input-text mt-2"
+                                                                :class="{ 'border-red-500': customPaymentDateError }"
+                                                            />
+                                                            <span v-if="customPaymentDateError" class="text-red-500 text-sm mt-1">
+                                                                {{ customPaymentDateError }}
+                                                            </span>
                                                             <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.final_payment_date }}
                                                             </span>
-                                                            <span v-if="calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
+                                                            <span v-if="form.payment_days_before !== 'custom' && calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
                                                                 Fecha calculada: {{ formatDateForDisplay(calculatedFinalPaymentDate) }}
                                                             </span>
                                                         </div>
@@ -351,6 +373,8 @@
                                                                 <option value="4">4°</option>
                                                                 <option value="5">5°</option>
                                                                 <option value="6">6°</option>
+                                                                <option value="7">7°</option>
+                                                                <option value="8">8°</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -370,6 +394,8 @@
                                                                 <option value="C">C</option>
                                                                 <option value="D">D</option>
                                                                 <option value="E">E</option>
+                                                                <option value="F">F</option>
+                                                                <option value="G">G</option>
                                                             </select>
                                                         </div>
                                                     </div>
@@ -822,11 +848,15 @@
             :show="showExecutiveModal"
             @close="showExecutiveModal = false"
             @executive-created="handleExecutiveCreated"
+            @success="handleModalSuccess"
+            @error="handleModalError"
         />
         <CreateInstitutionModal
             :show="showInstitutionModal"
             @close="showInstitutionModal = false"
             @institution-created="handleInstitutionCreated"
+            @success="handleModalSuccess"
+            @error="handleModalError"
         />
     </AdminLayout>
 </template>
@@ -864,6 +894,24 @@ const props = defineProps({
 const page = usePage();
 const importErrorDetails = computed(() => page.props.importErrorDetails || null);
 
+// Reactive errors from Inertia page props
+const errors = computed(() => page.props.errors || {});
+
+// Watch for errors from Inertia (when they come through page props)
+watch(errors, (newErrors) => {
+    if (newErrors && Object.keys(newErrors).length > 0) {
+        console.error('Validation errors from Inertia props:', newErrors);
+        const errorList = Object.values(newErrors);
+        errorMessage.value = errorList.join(' | ');
+        showErrorAlert.value = true;
+        isSubmitting.value = false;
+        // Scroll al inicio para mostrar la alerta
+        nextTick(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+}, { immediate: true, deep: true });
+
 // Accordion states
 const priceOpen = ref(true);
 const travelersOpen = ref(true);
@@ -881,6 +929,11 @@ const fileInput = ref(null);
 // Alert state for validation errors
 const showErrorAlert = ref(false);
 const errorMessage = ref('');
+
+// Alert state for success messages
+const showSuccessAlert = ref(false);
+const successTitle = ref('');
+const successMessage = ref('');
 
 // Reactive arrays for institutions and executives
 const institutions = ref(props.institutions);
@@ -906,6 +959,7 @@ const form = ref({
     trip_price: '',
     payment_days_before: '60', // Default: 60 días antes
     final_payment_date: '',
+    custom_final_payment_date: '', // Para fecha personalizada
 
     // Payment options (using same structure as programs)
     payment_options: [], // ['full_payment', 'subscription']
@@ -1006,15 +1060,9 @@ const maxInstallmentChoices = computed(() => {
     return choices;
 });
 
-// Fecha de hoy para validación del input date
-const todayDate = computed(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-});
-
 // Calcular fecha límite de pago automáticamente
 const calculatedFinalPaymentDate = computed(() => {
-    if (!form.value.departure_date || !form.value.payment_days_before) {
+    if (!form.value.departure_date || !form.value.payment_days_before || form.value.payment_days_before === 'custom') {
         return null;
     }
 
@@ -1029,18 +1077,26 @@ const calculatedFinalPaymentDate = computed(() => {
     return finalPaymentDate.toISOString().split('T')[0];
 });
 
-// Validación de fecha final de pago (simplificada ya que el cálculo es automático)
-const finalPaymentDateValidation = computed(() => {
-    if (!form.value.departure_date || !form.value.payment_days_before) {
-        return { isValid: true, message: '' };
+// Validación de fecha personalizada
+const customPaymentDateError = computed(() => {
+    if (form.value.payment_days_before !== 'custom') {
+        return null;
     }
-
-    return { isValid: true, message: '' };
+    if (!form.value.custom_final_payment_date) {
+        return 'Debe seleccionar una fecha';
+    }
+    return null;
 });
 
 // Watcher para actualizar final_payment_date automáticamente
-watch([() => form.value.departure_date, () => form.value.payment_days_before], () => {
-    if (calculatedFinalPaymentDate.value) {
+watch([() => form.value.departure_date, () => form.value.payment_days_before, () => form.value.custom_final_payment_date], () => {
+    if (form.value.payment_days_before === 'custom') {
+        // Usar fecha personalizada
+        if (form.value.custom_final_payment_date) {
+            form.value.final_payment_date = form.value.custom_final_payment_date;
+        }
+    } else if (calculatedFinalPaymentDate.value) {
+        // Usar fecha calculada
         form.value.final_payment_date = calculatedFinalPaymentDate.value;
     }
 }, { immediate: true });
@@ -1329,17 +1385,42 @@ const saveCourse = () => {
 const handleExecutiveCreated = (newExecutive) => {
     salesExecutives.value.push(newExecutive);
     form.value.sales_executive_id = newExecutive.id;
+    showSuccess('Ejecutivo creado', 'El ejecutivo comercial fue creado exitosamente');
 };
 
 // Handle institution created
 const handleInstitutionCreated = (newInstitution) => {
     institutions.value.push(newInstitution);
     form.value.institutionId = newInstitution.id;
+    showSuccess('Institución creada', 'La institución fue creada exitosamente');
+};
+
+// Handle modal success events
+const handleModalSuccess = (message) => {
+    showSuccess('Éxito', message);
+};
+
+// Handle modal error events
+const handleModalError = (message) => {
+    errorMessage.value = message;
+    showErrorAlert.value = true;
+};
+
+// Show success alert
+const showSuccess = (title, message) => {
+    successTitle.value = title;
+    successMessage.value = message;
+    showSuccessAlert.value = true;
 };
 
 // Close error alert
 const closeErrorAlert = () => {
     showErrorAlert.value = false;
+};
+
+// Close success alert
+const closeSuccessAlert = () => {
+    showSuccessAlert.value = false;
 };
 </script>
 

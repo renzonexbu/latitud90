@@ -29,7 +29,7 @@ class PartialAccountDataProvider
         $result = $query
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
-                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at', 'pp.is_active',
                 'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id', 'pgc.name',
                 'pr.id',
                 'c.education_level', 'c.course_number',
@@ -44,6 +44,7 @@ class PartialAccountDataProvider
                 'p.email',
                 'p.document_number',
                 'p.phone',
+                DB::raw('COALESCE(pp.is_active, 1) as participant_is_active'),
                 'pp.id as participant_program_id',
                 'pp.enrollment_code',
                 'pp.individual_price',
@@ -73,7 +74,7 @@ class PartialAccountDataProvider
         $result = $query
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
-                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at',
+                'pp.id', 'pp.enrollment_code', 'pp.individual_price', 'pp.status', 'pp.created_at', 'pp.is_active',
                 'pgc.id', 'pgc.departure_date', 'pgc.sales_executive_id', 'pgc.name',
                 'pr.id',
                 'c.education_level', 'c.course_number',
@@ -88,6 +89,7 @@ class PartialAccountDataProvider
                 'p.email',
                 'p.document_number',
                 'p.phone',
+                DB::raw('COALESCE(pp.is_active, 1) as participant_is_active'),
                 'pp.id as participant_program_id',
                 'pp.enrollment_code',
                 'pp.individual_price',

@@ -111,3 +111,12 @@ Route::prefix('/reports/executives')->name('reports.executives.')
         Route::get('/export/consolidated', [ExecutivesReportsController::class, 'exportConsolidated'])->name('export.consolidated');
         Route::get('/export/partial-account', [ExecutivesReportsController::class, 'exportPartialAccount'])->name('export.partial-account');
     });
+
+// Historial de Confirmaciones de Pago
+use App\Http\Controllers\Admin\Reports\PaymentConfirmationLogsController;
+Route::prefix('/reports/payment-confirmations')->name('reports.payment-confirmations.')
+    ->group(function () {
+        Route::get('/', [PaymentConfirmationLogsController::class, 'index'])->name('index');
+        Route::get('/{payment}', [PaymentConfirmationLogsController::class, 'show'])->name('show');
+        Route::post('/{payment}/resend', [PaymentConfirmationLogsController::class, 'resend'])->name('resend');
+    });

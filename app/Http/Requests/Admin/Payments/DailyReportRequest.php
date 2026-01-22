@@ -15,7 +15,7 @@ class DailyReportRequest extends FormRequest
     {
         return [
             'date' => 'required|date',
-            'program_id' => 'nullable|exists:programs,id',
+            'program_id' => 'nullable|exists:program_courses,id',
             'executive_id' => 'nullable|exists:users,id',
             'payment_method' => 'nullable|in:transbank_webpay,khipu,cash,transfer',
         ];

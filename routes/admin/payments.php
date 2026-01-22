@@ -4,31 +4,28 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\CreateParticularPaymentController;
 use App\Http\Controllers\Admin\CreateRefundController;
 use App\Http\Controllers\Admin\ImportManualPaymentsController;
+use App\Http\Controllers\Admin\Reports\PaymentConfirmationLogsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('payments')->name('payments.')->group(function () {
-    // Rutas principales de pagos
+    // Rutas principales de pagos (sin parámetros dinámicos primero)
     Route::get('/', [PaymentController::class, 'index'])->name('index');
     Route::get('/create', [PaymentController::class, 'create'])->name('create');
     Route::post('/store', [PaymentController::class, 'store'])->name('store');
-    Route::get('/{payment}', [PaymentController::class, 'show'])->name('show');
-    Route::get('/{payment}/edit', [PaymentController::class, 'edit'])->name('edit');
-    Route::put('/{payment}', [PaymentController::class, 'update'])->name('update');
-    Route::delete('/{payment}', [PaymentController::class, 'destroy'])->name('destroy');
-    
-    // Acciones específicas de pagos
-    Route::patch('{payment}/confirm', [PaymentController::class, 'confirm'])->name('confirm');
-    Route::patch('{payment}/cancel', [PaymentController::class, 'cancel'])->name('cancel');
-    Route::post('{payment}/refund', [PaymentController::class, 'refund'])->name('refund');
-    
+
     // Reportes y exportaciones
     Route::get('export', [PaymentController::class, 'export'])->name('export');
     Route::get('pending-report', [PaymentController::class, 'pendingReport'])->name('pending-report');
     Route::get('revenue-report', [PaymentController::class, 'revenueReport'])->name('revenue-report');
-    
+
     // Estado de participantes
     Route::post('participant-status', [PaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
-    
+
+    // Historial de Confirmaciones de Pago (ANTES de rutas con {payment})
+    Route::get('confirmations', [PaymentConfirmationLogsController::class, 'index'])->name('confirmations.index');
+    Route::get('confirmations/{payment}', [PaymentConfirmationLogsController::class, 'show'])->name('confirmations.show');
+    Route::post('confirmations/{payment}/resend', [PaymentConfirmationLogsController::class, 'resend'])->name('confirmations.resend');
+
     // Rutas para pagos presenciales
     Route::prefix('presential')->name('presential.')->group(function () {
         Route::get('menu', [CreateParticularPaymentController::class, 'menu'])->name('menu');
@@ -39,7 +36,7 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
         Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
     });
-    
+
     // Rutas para reembolsos
     Route::prefix('refunds')->name('refunds.')->group(function () {
         Route::get('menu', [CreateRefundController::class, 'menu'])->name('menu');
@@ -50,4 +47,13 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::post('participant-status', [CreateRefundController::class, 'getParticipantStatus'])->name('participant-status');
     });
 
+    // Rutas con parámetros dinámicos {payment} AL FINAL
+    Route::get('/{payment}', [PaymentController::class, 'show'])->name('show');
+    Route::get('/{payment}/edit', [PaymentController::class, 'edit'])->name('edit');
+    Route::put('/{payment}', [PaymentController::class, 'update'])->name('update');
+    Route::delete('/{payment}', [PaymentController::class, 'destroy'])->name('destroy');
+    Route::patch('{payment}/confirm', [PaymentController::class, 'confirm'])->name('confirm');
+    Route::patch('{payment}/cancel', [PaymentController::class, 'cancel'])->name('cancel');
+    Route::post('{payment}/refund', [PaymentController::class, 'refund'])->name('refund');
+    Route::post('{payment}/reconfirm', [PaymentController::class, 'reconfirm'])->name('reconfirm');
 });

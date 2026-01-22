@@ -420,8 +420,36 @@ class CreateCourseService
                 ]
             );
             
+        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+            Log::error('Error de formato de archivo Excel', [
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('El archivo no tiene un formato válido de Excel. Por favor, asegúrate de subir un archivo .xlsx, .xls o .csv válido.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Error de base de datos al procesar estudiantes', [
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \Exception('Error al guardar los datos de los participantes. Verifica que el formato del archivo sea correcto y que los datos no estén duplicados.');
         } catch (\Exception $e) {
-            throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
+            Log::error('Error al procesar el archivo de estudiantes', [
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Detectar errores comunes y dar mensajes más claros
+            $message = $e->getMessage();
+            if (str_contains($message, 'Undefined array key') || str_contains($message, 'array_combine')) {
+                throw new \Exception('El formato del archivo no es compatible. Asegúrate de que las columnas tengan los nombres correctos (RUT, Nombre, Apellido, etc.).');
+            }
+            if (str_contains($message, 'Cannot read file') || str_contains($message, 'Could not find')) {
+                throw new \Exception('No se pudo leer el archivo. El archivo puede estar corrupto o no ser un Excel válido.');
+            }
+
+            throw new \Exception('Ocurrió un error inesperado al procesar el archivo de estudiantes. Verifica el formato del archivo e intenta nuevamente.');
         }
     }
 

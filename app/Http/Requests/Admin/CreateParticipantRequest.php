@@ -22,7 +22,7 @@ class CreateParticipantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'first_last_name' => 'required|string|max:255',
             'second_last_name' => 'nullable|string|max:255',
             'first_name' => 'required|string|max:255',

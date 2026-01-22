@@ -12,6 +12,7 @@
                 :show-create-button="true"
                 @create-payment="handleCreatePayment"
                 @create-refund="handleCreateRefund"
+                @view-confirmations="handleViewConfirmations"
             />
 
             <!-- Estadísticas -->
@@ -174,6 +175,7 @@
                 <PaymentsTable
                     :payments="payments.data"
                     @show-payment-details="showPaymentModal"
+                    @payment-reconfirmed="handlePaymentReconfirmed"
                 />
 
                 <!-- Paginación -->
@@ -268,9 +270,20 @@ const handleCreateRefund = () => {
     router.visit(route("admin.payments.refunds.menu"));
 };
 
+const handleViewConfirmations = () => {
+    router.visit(route("admin.payments.confirmations.index"));
+};
+
 const handleFiltersChanged = (newFilters) => {
     router.get(route("admin.payments.index"), newFilters, {
         preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const handlePaymentReconfirmed = (payment, result) => {
+    // Refrescar la página para obtener los datos actualizados
+    router.reload({
         preserveScroll: true,
     });
 };

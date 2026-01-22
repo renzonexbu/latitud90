@@ -107,7 +107,7 @@ class ReportController extends Controller
     public function partialAccount(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'participantSearch', 'paymentStatus', 'page']);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'participantSearch', 'paymentStatus', 'participantStatusFilter', 'page']);
             
             
             // Use the new PartialAccountService
@@ -505,11 +505,11 @@ class ReportController extends Controller
     public function exportPartialAccount(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'paymentStatus']);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'participantId', 'paymentStatus', 'participantStatusFilter']);
             $selectedFields = json_decode($request->get('fields', '{}'), true);
             $format = $request->get('format', 'xlsx');
             $includeAll = $request->get('include_all', 'current');
-            
+
             $partialAccountService = app(\App\Services\Admin\Reports\PartialReport\PartialAccountService::class);
             $data = $partialAccountService->getExportData($filters, $selectedFields, $includeAll);
             

@@ -122,7 +122,7 @@ class ContractService
         return [
             // Datos del contrato
             'folio' => $folio,
-            'fecha' => $payment->created_at->format('d \d\e F \d\e Y'),
+            'fecha' => $payment->created_at->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'ciudad' => config('lat90.company.city', 'Santiago de Chile'),
 
             // Datos del prestador de servicios
@@ -145,7 +145,7 @@ class ContractService
             'alumno_tipo_documento' => $documentTypeName,
 
             // Datos del programa
-            'cotizacion_fecha' => $program->created_at->format('d \d\e F \d\e Y'),
+            'cotizacion_fecha' => $program->created_at->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'programa_anio' => $program->departure_date ? $program->departure_date->format('Y') : date('Y'),
             'programa_nombre' => $program->name,
 

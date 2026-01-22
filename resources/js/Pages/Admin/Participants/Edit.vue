@@ -70,12 +70,12 @@
                             <div
                                 :class="[
                                     'px-3 py-1 rounded-full text-xs font-medium',
-                                    participant.is_active 
+                                    participant.is_active
                                         ? 'bg-green-100 text-green-800 border border-green-200'
                                         : 'bg-red-100 text-red-800 border border-red-200'
                                 ]"
                             >
-                                {{ participant.is_active ? 'Activo' : 'Inactivo' }}
+                                {{ participant.is_active ? 'Activo' : 'Baja' }}
                             </div>
                             <!-- Info Tooltip -->
                             <div class="relative group">
@@ -83,9 +83,9 @@
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                 </svg>
                                 <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-[9999] pointer-events-none">
-                                    {{ participant.is_active 
-                                        ? 'Participante visible en el flujo de compra' 
-                                        : 'Participante oculto del flujo de compra' 
+                                    {{ participant.is_active
+                                        ? 'Participante visible en el flujo de compra'
+                                        : 'Participante dado de baja'
                                     }}
                                     <div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                                 </div>
@@ -153,37 +153,6 @@
                                                             <path
                                                                 d="M16.1402 1.39297C15.5891 0.842436 14.8419 0.533203 14.0629 0.533203C13.2839 0.533203 12.5367 0.842436 11.9856 1.39297L2.17204 11.2065C1.83831 11.5399 1.60378 11.9595 1.49465 12.4184L0.595571 16.197C0.571227 16.2994 0.57351 16.4062 0.602201 16.5075C0.630891 16.6087 0.685034 16.7009 0.759465 16.7752C0.833896 16.8496 0.926133 16.9036 1.02738 16.9322C1.12863 16.9608 1.23551 16.9629 1.33783 16.9385L5.11561 16.0386C5.57484 15.9296 5.99472 15.695 6.32835 15.3612L7.27341 14.4161C7.15439 13.8787 7.11922 13.3262 7.16913 12.7781L5.45718 14.4908C5.28475 14.6632 5.06799 14.7848 4.8307 14.8414L2.02589 15.5098L2.69343 12.705C2.75008 12.4669 2.8716 12.2501 3.04403 12.0777L11.2532 3.86606L13.6672 6.28003L12.0036 7.94354C12.5515 7.89501 13.1036 7.93017 13.6409 8.04781L16.1402 5.54845C16.6908 4.99729 17 4.25013 17 3.47112C17 2.69211 16.6908 1.94413 16.1402 1.39297ZM12.8559 2.26413C13.0144 2.10563 13.2026 1.9799 13.4097 1.89412C13.6168 1.80833 13.8388 1.76418 14.0629 1.76418C14.2871 1.76418 14.509 1.80833 14.7161 1.89412C14.9232 1.9799 15.1114 2.10563 15.2699 2.26413C15.4284 2.42264 15.5541 2.61081 15.6399 2.8179C15.7257 3.025 15.7698 3.24696 15.7698 3.47112C15.7698 3.69528 15.7257 3.91724 15.6399 4.12434C15.5541 4.33143 15.4284 4.5196 15.2699 4.67811L14.5375 5.40887L12.1235 2.99571L12.8559 2.26413ZM9.83846 10.3665C9.89973 10.5788 9.91753 10.8013 9.89079 11.0206C9.86406 11.2399 9.79334 11.4516 9.68287 11.643C9.5724 11.8343 9.42445 12.0014 9.24788 12.1342C9.07131 12.267 8.86976 12.3629 8.65528 12.416L8.17577 12.535C8.09851 13.0267 8.10018 13.5275 8.1807 14.0187L8.62408 14.1254C8.8405 14.1776 9.04406 14.2732 9.2224 14.4064C9.40073 14.5396 9.55011 14.7077 9.66147 14.9005C9.77282 15.0933 9.84382 15.3066 9.87016 15.5277C9.89649 15.7487 9.8776 15.9728 9.81465 16.1864L9.66111 16.7045C10.0224 17.0214 10.4329 17.2792 10.8804 17.4615L11.2852 17.0353C11.4386 16.874 11.6232 16.7455 11.8278 16.6577C12.0324 16.5699 12.2527 16.5247 12.4754 16.5247C12.698 16.5247 12.9183 16.5699 13.1229 16.6577C13.3275 16.7455 13.5121 16.874 13.6655 17.0353L14.0752 17.4672C14.5194 17.2861 14.9305 17.0328 15.2921 16.7176L15.1295 16.1543C15.0682 15.942 15.0505 15.7195 15.0773 15.5001C15.104 15.2807 15.1748 15.069 15.2854 14.8777C15.3959 14.6863 15.544 14.5192 15.7206 14.3865C15.8973 14.2537 16.0989 14.1579 16.3135 14.1049L16.7922 13.9859C16.8694 13.4942 16.8678 12.9933 16.7873 12.5022L16.3439 12.3954C16.1275 12.3432 15.924 12.2476 15.7458 12.1143C15.5676 11.981 15.4183 11.8129 15.307 11.6201C15.1957 11.4274 15.1248 11.214 15.0985 10.993C15.0722 10.772 15.0912 10.548 15.1541 10.3345L15.3068 9.81642C14.9454 9.49841 14.5336 9.24259 14.0884 9.05938L13.6836 9.4847C13.5302 9.64619 13.3455 9.77478 13.1408 9.86265C12.9362 9.95051 12.7157 9.99583 12.493 9.99583C12.2703 9.99583 12.0499 9.95051 11.8452 9.86265C11.6405 9.77478 11.4559 9.64619 11.3024 9.4847L10.8935 9.05364C10.4469 9.23427 10.0363 9.48881 9.67589 9.80328L9.83846 10.3665ZM12.4848 14.4908C11.8279 14.4908 11.2942 13.9399 11.2942 13.2592C11.2942 12.5794 11.8279 12.0276 12.4848 12.0276C13.1417 12.0276 13.6754 12.5794 13.6754 13.2592C13.6754 13.9399 13.1417 14.4908 12.4848 14.4908Z"
                                                                 fill="#C7C7C7"
-                                                            />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        @click="confirmToggleParticipantStatus"
-                                                        :class="[
-                                                            'rounded-[112.894px] border flex h-[40px] w-[40px] items-center justify-center relative overflow-visible transition-colors',
-                                                            participant.is_active
-                                                                ? 'border-red-500 bg-red-50 hover:bg-red-100'
-                                                                : 'border-green-500 bg-green-50 hover:bg-green-100'
-                                                        ]"
-                                                        :title="participant.is_active ? 'Desactivar participante' : 'Activar participante'"
-                                                    >
-                                                        <!-- Toggle Status Icon -->
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            width="16"
-                                                            height="16"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            class="flex-shrink-0"
-                                                        >
-                                                            <path
-                                                                v-if="participant.is_active"
-                                                                d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
-                                                                fill="#DC2626"
-                                                            />
-                                                            <path
-                                                                v-else
-                                                                d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"
-                                                                fill="#10B981"
                                                             />
                                                         </svg>
                                                     </button>
@@ -389,11 +358,41 @@
                                 :key="program.id"
                                 class="relative group"
                             >
+                                <!-- Status Badge on card -->
+                                <div class="absolute top-3 right-3 z-10">
+                                    <span
+                                        :class="[
+                                            'px-2 py-1 text-xs font-medium rounded-full',
+                                            program.participant_program_is_active !== false
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                        ]"
+                                    >
+                                        {{ program.participant_program_is_active !== false ? 'Activo' : 'Baja' }}
+                                    </span>
+                                </div>
+
                                 <ProgramCard
                                     :program="program"
                                     mode="programCourse"
                                     @click="handleProgramCardClick(program)"
                                 />
+
+                                <!-- Action buttons overlay -->
+                                <div class="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        @click.stop="openProgramDeactivateModal(program)"
+                                        :class="[
+                                            'px-3 py-1.5 text-xs font-medium rounded-full transition-colors shadow-md',
+                                            program.participant_program_is_active !== false
+                                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                                : 'bg-green-500 hover:bg-green-600 text-white'
+                                        ]"
+                                        :title="program.participant_program_is_active !== false ? 'Dar de baja de este programa' : 'Reactivar en este programa'"
+                                    >
+                                        {{ program.participant_program_is_active !== false ? 'Dar de baja' : 'Reactivar' }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -440,15 +439,15 @@
             @close="closeEmergencyContactsModal"
         />
 
-        <!-- Deactivate Participant Modal -->
+        <!-- Dar de Baja Participant Modal -->
         <Modal :show="showDeactivateModal" @close="closeDeactivateModal">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">
-                    Desactivar Participante
+                    Dar de baja Participante
                 </h2>
 
                 <p class="text-gray-700 mb-4">
-                    Estás a punto de desactivar al participante <strong>{{ getFullName(participant) }}</strong>.
+                    Estás a punto de dar de baja al participante <strong>{{ getFullName(participant) }}</strong>.
                 </p>
 
                 <p class="text-sm text-gray-600 mb-4">
@@ -464,7 +463,7 @@
                         v-model="deactivateComment"
                         rows="4"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007e93] focus:border-[#007e93]"
-                        placeholder="Explica por qué deseas desactivar a este participante..."
+                        placeholder="Explica por qué deseas dar de baja a este participante..."
                         required
                     ></textarea>
                 </div>
@@ -482,7 +481,73 @@
                         @click="submitDeactivation"
                         class="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     >
-                        Desactivar Participante
+                        Dar de baja
+                    </button>
+                </div>
+            </div>
+        </Modal>
+
+        <!-- Dar de Baja en Programa Modal -->
+        <Modal :show="showProgramDeactivateModal" @close="closeProgramDeactivateModal">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">
+                    {{ selectedProgramForDeactivation?.participant_program_is_active !== false ? 'Dar de baja en Programa' : 'Reactivar en Programa' }}
+                </h2>
+
+                <p class="text-gray-700 mb-2">
+                    <span v-if="selectedProgramForDeactivation?.participant_program_is_active !== false">
+                        Estás a punto de dar de baja al participante <strong>{{ getFullName(participant) }}</strong>
+                        del programa <strong>{{ selectedProgramForDeactivation?.code }} - {{ selectedProgramForDeactivation?.name }}</strong>.
+                    </span>
+                    <span v-else>
+                        Estás a punto de reactivar al participante <strong>{{ getFullName(participant) }}</strong>
+                        en el programa <strong>{{ selectedProgramForDeactivation?.code }} - {{ selectedProgramForDeactivation?.name }}</strong>.
+                    </span>
+                </p>
+
+                <p class="text-sm text-gray-600 mb-4">
+                    <span v-if="selectedProgramForDeactivation?.participant_program_is_active !== false">
+                        Esta acción solo afectará la visibilidad del participante en este programa específico en el flujo de compra.
+                        Podrás seguir editándolo y sus otros programas no se verán afectados.
+                    </span>
+                    <span v-else>
+                        El participante volverá a ser visible en este programa en el flujo de compra.
+                    </span>
+                </p>
+
+                <div class="mb-6" v-if="selectedProgramForDeactivation?.participant_program_is_active !== false">
+                    <label for="program-deactivate-comment" class="block text-sm font-medium text-gray-700 mb-2">
+                        Comentario (requerido) *
+                    </label>
+                    <textarea
+                        id="program-deactivate-comment"
+                        v-model="programDeactivateComment"
+                        rows="4"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#007e93] focus:border-[#007e93]"
+                        placeholder="Explica por qué deseas dar de baja al participante de este programa..."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button
+                        type="button"
+                        @click="closeProgramDeactivateModal"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007e93]"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        @click="submitProgramDeactivation"
+                        :class="[
+                            'px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2',
+                            selectedProgramForDeactivation?.participant_program_is_active !== false
+                                ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                                : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                        ]"
+                    >
+                        {{ selectedProgramForDeactivation?.participant_program_is_active !== false ? 'Dar de baja' : 'Reactivar' }}
                     </button>
                 </div>
             </div>
@@ -633,6 +698,11 @@ const showDeactivateModal = ref(false);
 const deactivateComment = ref('');
 const preSelectedCourseId = ref(null);
 
+// Per-program deactivation modal state
+const showProgramDeactivateModal = ref(false);
+const programDeactivateComment = ref('');
+const selectedProgramForDeactivation = ref(null);
+
 // Modal functions
 const openEditModal = () => {
     preSelectedCourseId.value = null;
@@ -662,11 +732,11 @@ const closeEmergencyContactsModal = () => {
 
 const confirmToggleParticipantStatus = () => {
     if (props.participant.is_active) {
-        // Si está activo, mostrar modal para pedir comentario antes de desactivar
+        // Si está activo, mostrar modal para pedir comentario antes de dar de baja
         showDeactivateModal.value = true;
     } else {
-        // Si está inactivo, activar directamente
-        const message = `¿Estás seguro de que quieres activar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
+        // Si está dado de baja, reactivar directamente
+        const message = `¿Estás seguro de que quieres reactivar al participante "${getFullName(props.participant)}"?\n\nEsta acción permitirá que el participante vuelva a ser visible en el flujo de compra.`;
 
         if (confirm(message)) {
             router.delete(route('admin.participants.destroy', props.participant.id), {
@@ -674,12 +744,12 @@ const confirmToggleParticipantStatus = () => {
                     router.reload();
                 },
                 onError: (errors) => {
-                    console.error('❌ Error al cambiar estado del participante:', {
+                    console.error('❌ Error al reactivar participante:', {
                         participantId: props.participant.id,
                         isActive: props.participant.is_active,
                         errors: errors
                     });
-                    alert('❌ Error al cambiar el estado del participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
+                    alert('❌ Error al reactivar el participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
                 }
             });
         }
@@ -693,7 +763,7 @@ const closeDeactivateModal = () => {
 
 const submitDeactivation = () => {
     if (!deactivateComment.value.trim()) {
-        alert('Por favor, ingresa un comentario explicando por qué deseas desactivar al participante.');
+        alert('Por favor, ingresa un comentario explicando por qué deseas dar de baja al participante.');
         return;
     }
 
@@ -706,11 +776,54 @@ const submitDeactivation = () => {
             router.reload();
         },
         onError: (errors) => {
-            console.error('❌ Error al desactivar participante:', {
+            console.error('❌ Error al dar de baja participante:', {
                 participantId: props.participant.id,
                 errors: errors
             });
-            alert('❌ Error al desactivar el participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
+            alert('❌ Error al dar de baja el participante. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
+        }
+    });
+};
+
+// Per-program deactivation functions
+const openProgramDeactivateModal = (program) => {
+    selectedProgramForDeactivation.value = program;
+    programDeactivateComment.value = '';
+    showProgramDeactivateModal.value = true;
+};
+
+const closeProgramDeactivateModal = () => {
+    showProgramDeactivateModal.value = false;
+    selectedProgramForDeactivation.value = null;
+    programDeactivateComment.value = '';
+};
+
+const submitProgramDeactivation = () => {
+    const isActive = selectedProgramForDeactivation.value?.participant_program_is_active !== false;
+
+    // Si es dar de baja, requerir comentario
+    if (isActive && !programDeactivateComment.value.trim()) {
+        alert('Por favor, ingresa un comentario explicando por qué deseas dar de baja al participante de este programa.');
+        return;
+    }
+
+    router.post(route('admin.participants.toggle-program-active', {
+        participant: props.participant.id,
+        program: selectedProgramForDeactivation.value.id
+    }), {
+        comment: programDeactivateComment.value
+    }, {
+        onSuccess: () => {
+            closeProgramDeactivateModal();
+            router.reload();
+        },
+        onError: (errors) => {
+            console.error('❌ Error al cambiar estado del participante en programa:', {
+                participantId: props.participant.id,
+                programId: selectedProgramForDeactivation.value?.id,
+                errors: errors
+            });
+            alert('❌ Error al cambiar el estado. Por favor, inténtalo de nuevo o contacta al soporte técnico.');
         }
     });
 };

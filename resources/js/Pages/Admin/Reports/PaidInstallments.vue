@@ -97,6 +97,19 @@
                             >
                         </div>
 
+                        <!-- Estado Participante -->
+                        <div class="relative min-w-[150px]">
+                            <select
+                                v-model="filters.participant_status"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                                @change="applyFilters"
+                            >
+                                <option value="">Todos</option>
+                                <option value="active">Activos</option>
+                                <option value="inactive">De baja</option>
+                            </select>
+                        </div>
+
                         <!-- Clear Filters Button -->
                         <button
                             @click="clearFilters"
@@ -139,6 +152,9 @@
                                     Cuota
                                 </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Estado Plan
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]">
                                     Estado
                                 </div>
                             </div>
@@ -188,9 +204,21 @@
                                         {{ record.installment_label }}
                                     </div>
 
-                                    <!-- Estado -->
+                                    <!-- Estado Plan -->
                                     <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[100px]">
                                         {{ record.plan_status }}
+                                    </div>
+
+                                    <!-- Estado Participante -->
+                                    <div class="flex justify-center items-center w-[80px]">
+                                        <div
+                                            :class="[
+                                                'rounded-[12px] px-[10px] py-[6px] font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
+                                                record.participant_is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800',
+                                            ]"
+                                        >
+                                            {{ record.participant_is_active ? 'Activo' : 'Baja' }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -257,7 +285,8 @@ const filters = reactive({
     program_id: props.filters?.program_id || '',
     date_from: props.filters?.date_from || '',
     date_to: props.filters?.date_to || '',
-    search: props.filters?.search || ''
+    search: props.filters?.search || '',
+    participant_status: props.filters?.participant_status || ''
 })
 
 const isExporting = ref(false)
@@ -316,6 +345,7 @@ const clearFilters = () => {
     filters.date_from = ''
     filters.date_to = ''
     filters.search = ''
+    filters.participant_status = ''
     applyFilters()
 }
 

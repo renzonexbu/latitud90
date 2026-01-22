@@ -182,6 +182,7 @@ class PaymentScheduleSummaryDataProvider
                 'p.second_last_name',
                 'p.document_number',
                 'p.email as participant_email',
+                DB::raw('COALESCE(pp.is_active, 1) as participant_is_active'),
                 'pp.created_at as incorporation_date',
                 'pp.individual_price',
                 'pgc.id as program_course_id',
@@ -203,13 +204,12 @@ class PaymentScheduleSummaryDataProvider
                 END as final_amount'),
                 DB::raw('COUNT(ip.id) as installment_plans_count')
             )
-            ->where('p.is_active', true)
             ->whereIn('p.status', ['pending_payment', 'confirmed'])
             ->whereNotIn('ppd.discount_type', ['released']) // Excluir liberados
             ->orWhereNull('ppd.discount_type')
             ->groupBy(
                 'p.id', 'p.first_name', 'p.first_last_name', 'p.second_last_name',
-                'p.document_number', 'p.email', 'pp.created_at', 'pp.individual_price',
+                'p.document_number', 'p.email', 'pp.is_active', 'pp.created_at', 'pp.individual_price',
                 'pgc.id', 'pgc.name', 'pgc.code', 'pgc.final_payment_date', 'prog.id', 'se.name',
                 'ec.name', 'ec.email', 'ec.phone', 'ec.relationship',
                 'ppd.amount', 'ppd.percent'
@@ -224,7 +224,19 @@ class PaymentScheduleSummaryDataProvider
         if (!empty($filters['sales_executive_id'])) {
             $query->where('se.id', $filters['sales_executive_id']);
         }
-        
+
+        // Filtrar por estado del participante (usa pp.is_active de participant_program)
+        if (!empty($filters['participant_status'])) {
+            if ($filters['participant_status'] === 'active') {
+                $query->where(function($q) {
+                    $q->where('pp.is_active', true)
+                      ->orWhereNull('pp.is_active');
+                });
+            } elseif ($filters['participant_status'] === 'inactive') {
+                $query->where('pp.is_active', false);
+            }
+        }
+
         if (!empty($filters['search'])) {
             $search = '%' . $filters['search'] . '%';
             $query->where(function($q) use ($search) {

@@ -16,11 +16,13 @@ class ParticipantProgram extends Model
         'program_id',
         'enrollment_code',
         'individual_price',
-        'status'
+        'status',
+        'is_active'
     ];
 
     protected $casts = [
-        'individual_price' => 'decimal:2'
+        'individual_price' => 'decimal:2',
+        'is_active' => 'boolean'
     ];
 
     public function participant()

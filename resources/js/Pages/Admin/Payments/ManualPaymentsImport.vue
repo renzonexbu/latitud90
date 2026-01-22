@@ -5,6 +5,44 @@
         <!-- Sistema de Alertas -->
         <AlertWrapper ref="alertWrapper" />
 
+        <!-- Processing Overlay -->
+        <div v-if="form.processing" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+                <div class="flex flex-col items-center">
+                    <!-- Spinner -->
+                    <div class="relative">
+                        <div class="w-16 h-16 border-4 border-turquesa/20 rounded-full"></div>
+                        <div class="w-16 h-16 border-4 border-turquesa border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                    </div>
+
+                    <!-- Title -->
+                    <h3 class="mt-6 text-xl font-nexa-bold text-verde-oscuro">
+                        Procesando archivo...
+                    </h3>
+
+                    <!-- Message -->
+                    <p class="mt-2 text-gray-600 font-nexa-regular text-center">
+                        Esto puede tardar varios minutos dependiendo del tamaño del archivo.
+                    </p>
+
+                    <!-- File info -->
+                    <div v-if="form.file" class="mt-4 px-4 py-2 bg-gray-100 rounded-lg">
+                        <p class="text-sm text-gray-700 font-nexa-regular">
+                            <span class="font-nexa-bold">{{ form.file.name }}</span>
+                            <span class="text-gray-500 ml-2">({{ formatFileSize(form.file.size) }})</span>
+                        </p>
+                    </div>
+
+                    <!-- Warning -->
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p class="text-xs text-yellow-800 font-nexa-regular text-center">
+                            Por favor, no cierres esta ventana ni navegues a otra página mientras se procesa el archivo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="py-6 lg:py-12">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Header -->
@@ -22,58 +60,6 @@
                     <p class="text-gray-600 font-nexa-regular">
                         Carga múltiples pagos presenciales desde un archivo Excel
                     </p>
-                </div>
-
-                <!-- Instructions Card -->
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-                    <h3 class="font-nexa-bold text-verde-oscuro mb-3 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Formato del archivo Excel
-                    </h3>
-                    <p class="text-sm text-gray-700 mb-3 font-nexa-regular">
-                        El archivo debe contener las siguientes columnas:
-                    </p>
-                    <ul class="text-sm text-gray-700 space-y-2 font-nexa-regular">
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">RUT:</span>
-                            <span>RUT del participante (ej: 12345678-9)</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Código de Inscripción:</span>
-                            <span>Código único del participante en el programa</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Monto:</span>
-                            <span>Monto del pago (número positivo)</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Fecha de Pago:</span>
-                            <span>Fecha del pago (DD/MM/YYYY o YYYY-MM-DD)</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Tipo de Pago:</span>
-                            <span>Efectivo, Transferencia, Online, Cheque u Otro</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Referencia/Comprobante:</span>
-                            <span>(Opcional) Número de comprobante o referencia</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Notas:</span>
-                            <span>(Opcional) Notas adicionales sobre el pago</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="font-nexa-bold min-w-[180px]">Nombre del Participante:</span>
-                            <span>(Opcional) Nombre completo para validación</span>
-                        </li>
-                    </ul>
-                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <p class="text-sm text-yellow-800 font-nexa-regular">
-                            <strong>Nota:</strong> Los participantes que ya tengan una suscripción activa (VirtualPos) serán omitidos automáticamente y se reportarán en los resultados.
-                        </p>
-                    </div>
                 </div>
 
                 <!-- Upload Form -->
@@ -356,6 +342,7 @@ const page = usePage();
 const fileInput = ref(null);
 const dragOver = ref(false);
 const results = ref(null);
+const alertWrapper = ref(null);
 
 const form = useForm({
     file: null
@@ -430,11 +417,45 @@ const submit = () => {
             // Handle success - results will be in flash data
             if (page.props.flash.importResults) {
                 results.value = page.props.flash.importResults;
+
+                // Mostrar alerta según los resultados
+                const { successful, failed, skipped } = results.value;
+
+                if (failed === 0 && skipped === 0) {
+                    // Todo exitoso
+                    alertWrapper.value?.showSuccess(
+                        'Importación completada',
+                        `Se importaron ${successful} pagos exitosamente.`
+                    );
+                } else if (successful > 0) {
+                    // Parcialmente exitoso
+                    alertWrapper.value?.showWarning(
+                        'Importación completada con observaciones',
+                        `${successful} pagos importados, ${skipped} omitidos, ${failed} con errores.`
+                    );
+                } else {
+                    // Todo falló
+                    alertWrapper.value?.showError(
+                        'Error en la importación',
+                        `No se pudo importar ningún pago. ${skipped} omitidos, ${failed} con errores.`
+                    );
+                }
+            } else {
+                // Si no hay resultados pero fue exitoso
+                alertWrapper.value?.showSuccess(
+                    'Proceso completado',
+                    'El archivo fue procesado correctamente.'
+                );
             }
             form.reset();
         },
-        onError: () => {
-            // Errors will be shown automatically via form.errors
+        onError: (errors) => {
+            // Mostrar alerta de error
+            const errorMessage = errors.file || 'Ocurrió un error al procesar el archivo.';
+            alertWrapper.value?.showError(
+                'Error al importar',
+                errorMessage
+            );
         }
     });
 };
@@ -469,5 +490,19 @@ const submit = () => {
 
 .hover\:text-turquesa-dark:hover {
     color: #006477;
+}
+
+.border-turquesa {
+    border-color: #007e93;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 </style>

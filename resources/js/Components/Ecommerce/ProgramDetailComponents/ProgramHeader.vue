@@ -16,7 +16,7 @@
     <div class="bg-[#007E93] rounded-[52px] p-[11px_14px] flex justify-center items-center gap-[10px] w-fit md:w-auto mt-2 md:mt-0">
       <div class="text-[#D3D3D3] text-center font-nexa text-sm leading-[18px] font-bold">
         <span class="font-nexa-regular">
-          Salida
+          Inicio
         </span>
         <span class="font-nexa-bold font-bold">
           {{ formatDate(departureDate) }}

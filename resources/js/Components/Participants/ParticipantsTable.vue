@@ -158,14 +158,14 @@
 
                     <!-- Acciones -->
                     <div class="flex gap-4 items-center justify-center w-[140px]">
-                        <!-- Estado Activo/Inactivo -->
+                        <!-- Estado Activo/Baja del programa -->
                         <div
                             :class="[
                                 'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
                                 participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
                             ]"
                         >
-                            {{ participant.is_active ? 'Activo' : 'Inactivo' }}
+                            {{ participant.is_active ? 'Activo' : 'Baja' }}
                         </div>
 
                         <!-- Edit Button -->

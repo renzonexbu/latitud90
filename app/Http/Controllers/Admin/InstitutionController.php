@@ -72,6 +72,15 @@ class InstitutionController extends Controller
             ]);
 
             if ($validator->fails()) {
+                // Si es una petición AJAX (desde modal), devolver JSON
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'errors' => $validator->errors()->toArray(),
+                        'message' => 'Error en la validación de datos.'
+                    ], 422);
+                }
+
                 return back()
                     ->withErrors($validator)
                     ->withInput()
@@ -95,11 +104,37 @@ class InstitutionController extends Controller
                 'user_id' => auth()->id()
             ]);
 
+            // Si es una petición AJAX (desde modal), devolver JSON
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'institution' => [
+                        'id' => $institution->id,
+                        'name' => $institution->name,
+                        'type' => $institution->type,
+                        'address' => $institution->address,
+                        'phone' => $institution->phone,
+                        'email' => $institution->email,
+                        'website' => $institution->website,
+                    ],
+                    'message' => 'Institución creada exitosamente.'
+                ]);
+            }
+
             return redirect()
                 ->route('admin.institutions.index')
                 ->with('success', 'Institución creada exitosamente.');
         } catch (\Exception $e) {
             Log::error('Error al crear institución: ' . $e->getMessage());
+
+            // Si es una petición AJAX (desde modal), devolver JSON
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al crear la institución: ' . $e->getMessage()
+                ], 500);
+            }
+
             return back()
                 ->withInput()
                 ->with('error', 'Error al crear la institución: ' . $e->getMessage());

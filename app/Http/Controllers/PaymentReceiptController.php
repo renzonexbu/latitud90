@@ -35,16 +35,14 @@ class PaymentReceiptController extends Controller
 
             // Verificar que el pago esté completado
             if ($payment->status !== 'completed') {
-                return response()->json([
-                    'error' => 'El pago no está completado'
-                ], 400);
+                return redirect()->back()
+                    ->with('error', 'El comprobante no está disponible porque el pago aún no ha sido completado.');
             }
 
             // Verificar que el pago pertenezca al order detail
             if ($payment->order_detail_id !== $orderDetail->id) {
-                return response()->json([
-                    'error' => 'El pago no corresponde al detalle de orden'
-                ], 400);
+                return redirect()->back()
+                    ->with('error', 'El pago no corresponde al detalle de orden especificado.');
             }
 
             // Generar PDF
@@ -62,10 +60,18 @@ class PaymentReceiptController extends Controller
                 'Content-Disposition' => 'inline; filename="comprobante_pago_' . $orderDetail->order->order_number . '.pdf"'
             ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()
+                ->with('error', 'Parámetros inválidos para generar el comprobante.');
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Error al generar el comprobante: ' . $e->getMessage()
-            ], 500);
+            \Log::error('Error generando comprobante de pago', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $request->order_detail_id ?? null,
+                'payment_id' => $request->payment_id ?? null,
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Ocurrió un error al generar el comprobante. Por favor intente nuevamente.');
         }
     }
 }

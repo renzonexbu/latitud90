@@ -85,6 +85,11 @@ class Payment extends Model
         return $this->belongsTo(PaymentOption::class, 'payment_option_id');
     }
 
+    public function confirmationLogs()
+    {
+        return $this->hasMany(PaymentConfirmationLog::class, 'payment_id');
+    }
+
     /**
      * Relación para acceder al participante a través de orderDetail -> order -> participant
      */

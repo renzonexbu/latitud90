@@ -92,6 +92,10 @@ class GetParticipantsService
             ->leftJoin('program_courses as pgc', 'pgc.course_id', '=', 'c.id')
             ->leftJoin('programs as pr', 'pr.id', '=', 'pgc.program_id')
             ->leftJoin('institutions as i', 'i.id', '=', 'c.institution_id')
+            ->leftJoin('participant_program as pp', function ($join) {
+                $join->on('pp.participant_id', '=', 'p.id')
+                    ->on('pp.program_id', '=', 'pgc.id');
+            })
             ->leftJoin('orders as o', function ($join) {
                 $join->on('o.participant_id', '=', 'p.id')
                     ->on('o.program_id', '=', 'pgc.id');
@@ -108,7 +112,7 @@ class GetParticipantsService
                 'p.second_name',
                 'p.document_number',
                 'p.document_type',
-                'p.is_active',
+                'pp.is_active',
                 'pc.id',
                 'pc.individual_price',
                 'pc.status',
@@ -130,7 +134,7 @@ class GetParticipantsService
                 'p.second_name',
                 'p.document_number',
                 'p.document_type',
-                'p.is_active',
+                DB::raw('COALESCE(pp.is_active, 1) as is_active'),
                 'pc.id as participant_course_id',
                 'pc.individual_price',
                 'pc.status as enrollment_status',

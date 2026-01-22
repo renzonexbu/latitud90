@@ -25,6 +25,38 @@
             v-if="showCreateButton"
             class="flex flex-row items-center justify-end flex-shrink-0 relative gap-4"
         >
+            <!-- Confirmation History Button Container -->
+            <div class="relative">
+                <!-- Confirmation History Button -->
+                <button
+                    @click="handleViewConfirmations"
+                    class="bg-[#3b82f6] rounded-[112.89px] px-[18px] py-[14px] flex flex-row gap-[11.29px] items-center justify-center hover:bg-[#2563eb] transition-colors"
+                >
+                    <div
+                        class="flex-shrink-0 relative overflow-hidden"
+                        style="width: 22px; height: 22px; aspect-ratio: 1/1"
+                    >
+                        <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            stroke-width="2"
+                        >
+                            <path
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
+                        </svg>
+                    </div>
+                    <div
+                        class="text-white text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start"
+                    >
+                        Historial de Confirmaciones
+                    </div>
+                </button>
+            </div>
+
             <!-- Create Refund Button Container -->
             <div class="relative">
                 <!-- Create Refund Button -->
@@ -112,6 +144,9 @@ export default {
         },
         handleCreateRefund() {
             this.$emit("create-refund");
+        },
+        handleViewConfirmations() {
+            this.$emit("view-confirmations");
         },
     },
 };

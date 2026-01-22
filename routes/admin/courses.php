@@ -10,6 +10,10 @@ Route::prefix('courses')->name('courses.')->group(function () {
     Route::get('/participants', [CourseController::class, 'getParticipants'])->name('participants.get');
     Route::delete('/participants/remove', [CourseController::class, 'removeParticipant'])->name('participants.remove');
 
+    // Program deletion routes (must be before wildcard routes)
+    Route::get('/program/can-delete', [CourseController::class, 'canDeleteProgram'])->name('program.can-delete');
+    Route::delete('/program/delete', [CourseController::class, 'deleteProgram'])->name('program.delete');
+
     // Resource routes for courses
     Route::get('/', [CourseController::class, 'index'])->name('index');
     Route::get('/create', [CourseController::class, 'create'])->name('create');

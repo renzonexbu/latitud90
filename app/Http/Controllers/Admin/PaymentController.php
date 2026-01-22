@@ -19,6 +19,7 @@ use App\Services\Admin\Payments\DeletePaymentService;
 use App\Services\Admin\Payments\GetInstallmentScheduleService;
 use App\Services\Admin\Payments\GetAccountStatementService;
 use App\Services\Admin\Payments\GetParticipantPaymentStatusService;
+use App\Services\Admin\Payments\ReconfirmPaymentService;
 
 class PaymentController extends Controller
 {
@@ -32,6 +33,7 @@ class PaymentController extends Controller
     protected $getInstallmentScheduleService;
     protected $getAccountStatementService;
     protected $getParticipantPaymentStatusService;
+    protected $reconfirmPaymentService;
 
     public function __construct(
         ReportsService $reportsService,
@@ -43,7 +45,8 @@ class PaymentController extends Controller
         DeletePaymentService $deletePaymentService,
         GetInstallmentScheduleService $getInstallmentScheduleService,
         GetAccountStatementService $getAccountStatementService,
-        GetParticipantPaymentStatusService $getParticipantPaymentStatusService
+        GetParticipantPaymentStatusService $getParticipantPaymentStatusService,
+        ReconfirmPaymentService $reconfirmPaymentService
     ) {
         $this->reportsService = $reportsService;
         $this->getPaymentsService = $getPaymentsService;
@@ -55,6 +58,7 @@ class PaymentController extends Controller
         $this->getInstallmentScheduleService = $getInstallmentScheduleService;
         $this->getAccountStatementService = $getAccountStatementService;
         $this->getParticipantPaymentStatusService = $getParticipantPaymentStatusService;
+        $this->reconfirmPaymentService = $reconfirmPaymentService;
     }
 
     public function index(Request $request)
@@ -92,7 +96,7 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'program_id' => 'required|exists:programs,id',
+            'program_id' => 'required|exists:program_courses,id',
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'status' => 'required|in:pending,completed,failed,authorized',
@@ -216,6 +220,26 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el estado de pagos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reconfirmar un pago consultando VirtualPOS
+     */
+    public function reconfirm(Request $request, Payment $payment)
+    {
+        try {
+            $skipEmail = $request->boolean('skip_email', false);
+            $skipBsale = $request->boolean('skip_bsale', false);
+
+            $result = $this->reconfirmPaymentService->execute($payment, $skipEmail, $skipBsale);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al reconfirmar el pago: ' . $e->getMessage()
             ], 500);
         }
     }

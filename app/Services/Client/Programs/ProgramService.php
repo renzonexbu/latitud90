@@ -90,6 +90,11 @@ class ProgramService
                     ->with('discounts')
                     ->first();
 
+                // Si el participante está dado de baja de este programa específico, no mostrarlo
+                if ($participantProgram && $participantProgram->is_active === false) {
+                    continue;
+                }
+
                 if ($participantProgram && $participantProgram->discounts) {
                     foreach ($participantProgram->discounts as $discount) {
                         if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {

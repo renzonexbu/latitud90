@@ -4,7 +4,7 @@ namespace App\Services\Admin\Participants;
 
 use App\Models\Course;
 use App\Models\Institution;
-use App\Models\Program;
+use App\Models\ProgramCourse;
 
 class GetCreateDataService
 {
@@ -26,14 +26,20 @@ class GetCreateDataService
             ->orderBy('name')
             ->get();
 
-        // Obtener programas activos o con status 'reserva' (programas futuros)
-        $programs = Program::with(['course.institution'])
-            ->where(function($query) {
-                $query->where('active', true)
-                      ->orWhere('status', 'reserva');
-            })
-            ->orderBy('name')
-            ->get();
+        // Obtener program_courses activos (cursos específicos/planes de programas)
+        $programs = ProgramCourse::with(['program', 'course.institution'])
+            ->where('active', true)
+            ->orderBy('departure_date', 'desc')
+            ->get()
+            ->map(function ($programCourse) {
+                return [
+                    'id' => $programCourse->id,
+                    'name' => $programCourse->name ?? $programCourse->program->name ?? 'Sin nombre',
+                    'destination' => $programCourse->destination ?? $programCourse->program->destination ?? 'Sin destino',
+                    'year' => $programCourse->course->year ?? date('Y'),
+                    'departure_date' => $programCourse->departure_date,
+                ];
+            });
 
 
         return [

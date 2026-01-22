@@ -34,3 +34,6 @@ Route::delete('participants/{participant}/emergency-contact', [ParticipantEmerge
 
 // Program status toggle route
 Route::post('participants/{participant}/programs/{program}/toggle-status', [ParticipantProgramController::class, 'toggleProgramStatus'])->name('participants.toggle-program-status');
+
+// Program active status toggle route (dar de baja/reactivar por programa individual)
+Route::post('participants/{participant}/programs/{program}/toggle-active', [ParticipantProgramController::class, 'toggleProgramActiveStatus'])->name('participants.toggle-program-active');

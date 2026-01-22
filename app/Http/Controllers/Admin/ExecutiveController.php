@@ -23,6 +23,7 @@ class ExecutiveController extends Controller
                 ->map(function ($executive) {
                     return [
                         'id' => $executive->id,
+                        'code' => $executive->code,
                         'name' => $executive->name,
                         'email' => $executive->email,
                         'phone' => $executive->phone,
@@ -55,10 +56,13 @@ class ExecutiveController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
+                'code' => 'required|string|max:50|unique:sales_executives,code',
                 'name' => 'required|string|max:255',
                 'email' => 'nullable|email|max:255',
                 'phone' => 'nullable|string|max:20',
             ], [
+                'code.required' => 'El código del ejecutivo es obligatorio.',
+                'code.unique' => 'Este código ya está en uso por otro ejecutivo.',
                 'name.required' => 'El nombre del ejecutivo es obligatorio.',
                 'email.email' => 'El formato del email no es válido.',
             ]);
@@ -71,6 +75,7 @@ class ExecutiveController extends Controller
             }
 
             $executive = SalesExecutive::create([
+                'code' => $request->code,
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
@@ -102,6 +107,7 @@ class ExecutiveController extends Controller
             return Inertia::render('Admin/Executives/Edit', [
                 'executive' => [
                     'id' => $executive->id,
+                    'code' => $executive->code,
                     'name' => $executive->name,
                     'email' => $executive->email,
                     'phone' => $executive->phone,
@@ -120,10 +126,13 @@ class ExecutiveController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
+                'code' => 'required|string|max:50|unique:sales_executives,code,' . $executive->id,
                 'name' => 'required|string|max:255',
                 'email' => 'nullable|email|max:255',
                 'phone' => 'nullable|string|max:20',
             ], [
+                'code.required' => 'El código del ejecutivo es obligatorio.',
+                'code.unique' => 'Este código ya está en uso por otro ejecutivo.',
                 'name.required' => 'El nombre del ejecutivo es obligatorio.',
                 'email.email' => 'El formato del email no es válido.',
             ]);
@@ -136,6 +145,7 @@ class ExecutiveController extends Controller
             }
 
             $executive->update([
+                'code' => $request->code,
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,

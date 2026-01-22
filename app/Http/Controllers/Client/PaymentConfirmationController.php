@@ -65,9 +65,16 @@ class PaymentConfirmationController extends Controller
                         return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
                             ->with('status', 'canceled');
                     }
-                    // Si está aprobado, redirigir directamente al éxito
-                    // El webhook se encargará del procesamiento para evitar duplicación
+                    // Si está aprobado, confirmar el pago y redirigir al éxito
                     elseif (in_array($status, \App\Services\Client\PaymentGateway\VirtualPosService::APPROVED_STATUSES)) {
+                        // Confirmar el pago antes de redirigir (el servicio detecta duplicados)
+                        // Pasar el payment_id para que el servicio pueda consultar VirtualPOS
+                        $this->paymentConfirmationService->confirmPayment(
+                            (int) $orderDetailId,
+                            'virtualpos',
+                            ['payment_id' => $paymentId]
+                        );
+
                         return redirect()->route('payment.success', ['orderDetailId' => $orderDetailId]);
                     }
                 }
@@ -145,6 +152,19 @@ class PaymentConfirmationController extends Controller
             $result = $virtualPosService->handleWebhookNotification($notificationData, $orderDetailId);
 
             if (!$result['success']) {
+                // Si es callback de usuario, redirigir a la página de fallo
+                if ($orderDetailId !== null) {
+                    Log::warning('VirtualPOS webhook failed - redirecting user to failure page', [
+                        'order_detail_id' => $orderDetailId,
+                        'error' => $result['error'] ?? 'Unknown error',
+                        'result' => $result,
+                    ]);
+
+                    return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
+                        ->with('error', $result['error'] ?? 'Error al procesar el pago.');
+                }
+
+                // Si es webhook server-to-server, retornar JSON
                 if (isset($result['error']) && $result['error'] === 'Payment not found') {
                     return response()->json(['error' => 'Payment not found'], 404);
                 }
@@ -171,8 +191,15 @@ class PaymentConfirmationController extends Controller
                     'order_detail_id' => $payment->order_detail_id,
                     'payment_id' => $paymentId,
                     'status' => $status,
-                    'result' => $result
+                    'result' => $result,
+                    'is_user_callback' => $orderDetailId !== null,
                 ]);
+
+                // Si tiene $orderDetailId es un callback de usuario (redirect desde VirtualPOS)
+                // Si no tiene $orderDetailId es una notificación webhook (server-to-server)
+                if ($orderDetailId !== null) {
+                    return redirect()->route('payment.success', ['orderDetailId' => $payment->order_detail_id]);
+                }
 
                 return response()->json(['success' => true]);
             } elseif ($isRejected) {
@@ -194,11 +221,12 @@ class PaymentConfirmationController extends Controller
                     'order_detail_id' => $payment->order_detail_id,
                     'payment_id' => $paymentId,
                     'status' => $status,
-                    'result' => $result
+                    'result' => $result,
+                    'is_user_callback' => $orderDetailId !== null,
                 ]);
 
-                // Si tenemos order_detail_id, redirigir a la página de fallo
-                if ($payment->order_detail_id) {
+                // Si tiene $orderDetailId es un callback de usuario, redirigir a la página de fallo
+                if ($orderDetailId !== null && $payment->order_detail_id) {
                     return redirect()->route('payment.failure', ['orderDetailId' => $payment->order_detail_id])
                         ->with('status', 'canceled');
                 }
@@ -209,8 +237,15 @@ class PaymentConfirmationController extends Controller
                     'order_detail_id' => $payment->order_detail_id ?? $orderDetailId,
                     'payment_id' => $paymentId,
                     'status' => $status,
-                    'result' => $result
+                    'result' => $result,
+                    'is_user_callback' => $orderDetailId !== null,
                 ]);
+
+                // Si es callback de usuario, redirigir a fallo con mensaje de error
+                if ($orderDetailId !== null && $payment->order_detail_id) {
+                    return redirect()->route('payment.failure', ['orderDetailId' => $payment->order_detail_id])
+                        ->with('error', 'Estado de pago desconocido. Por favor contacte a soporte.');
+                }
 
                 return response()->json(['error' => 'Unknown payment status'], 400);
             }
@@ -218,8 +253,15 @@ class PaymentConfirmationController extends Controller
             Log::error('VirtualPOS webhook error', [
                 'order_detail_id' => $orderDetailId,
                 'error' => $e->getMessage(),
-                'data' => $request->all()
+                'data' => $request->all(),
+                'is_user_callback' => $orderDetailId !== null,
             ], $e);
+
+            // Si es callback de usuario, redirigir a fallo
+            if ($orderDetailId !== null) {
+                return redirect()->route('payment.failure', ['orderDetailId' => $orderDetailId])
+                    ->with('error', 'Error procesando el pago. Por favor contacte a soporte.');
+            }
 
             return response()->json(['error' => 'Internal server error'], 500);
         }

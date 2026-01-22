@@ -5,6 +5,7 @@ namespace App\Services\Client\Payment;
 use App\Models\OrderDetail;
 use App\Models\Payment;
 use App\Services\Client\PaymentGateway\TransbankService;
+use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Traits\SystemLogging;
 use Illuminate\Http\Request;
 
@@ -12,11 +13,12 @@ class ConfirmTransbankService
 {
     use SystemLogging;
     public function __construct(
-        private TransbankService $transbankService
+        private TransbankService $transbankService,
+        private VirtualPosService $virtualPosService
     ) {}
 
     /**
-     * Confirmar transacción de Transbank
+     * Confirmar transacción de Transbank o VirtualPos según configuración
      *
      * @param Request $request
      * @return array
@@ -31,8 +33,22 @@ class ConfirmTransbankService
         $orderDetailId = (int) $request->input('orderDetailId');
         $token = $request->input('token_ws');
 
+        // Verificar flag para usar VirtualPOS (producción) o Transbank (pruebas)
+        $useVirtualPos = config('lat90.payment.use_virtualpos', true);
+
+        $this->logInfo('ConfirmTransbankService: Starting confirmation', [
+            'order_detail_id' => $orderDetailId,
+            'token' => $token,
+            'use_virtualpos' => $useVirtualPos,
+        ]);
+
         try {
-            $confirmation = $this->transbankService->confirmTransaction($token);
+            // Usar el servicio correspondiente según la configuración
+            if ($useVirtualPos) {
+                $confirmation = $this->virtualPosService->confirmTransaction($token);
+            } else {
+                $confirmation = $this->transbankService->confirmTransaction($token);
+            }
 
             // Buscar registro de Payment por token o buy_order
             $payment = Payment::where('token', $token)->latest()->first();
@@ -87,9 +103,11 @@ class ConfirmTransbankService
                 'redirect' => $redirectUrl,
             ];
         } catch (\Throwable $e) {
-            $this->logError('ConfirmTransbankService: Error confirming Transbank transaction', [
+            $this->logError('ConfirmTransbankService: Error confirming transaction', [
                 'error' => $e->getMessage(),
                 'order_detail_id' => $orderDetailId,
+                'use_virtualpos' => $useVirtualPos,
+                'token' => $token,
             ], $e);
             
             return [

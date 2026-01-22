@@ -1,12 +1,11 @@
 <template>
-    <!-- Modal Backdrop -->
-    <div 
-        v-if="show" 
+    <!-- Modal Backdrop - No se cierra al hacer clic afuera -->
+    <div
+        v-if="show"
         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-        @click.self="closeModal"
     >
-        <!-- Modal Content -->
-        <div class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[500px] w-full modal-content">
+        <!-- Modal Content - @click.stop previene propagación -->
+        <div @click.stop class="bg-white rounded-[20px] border border-[#d3d3d3] p-6 max-w-[500px] w-full modal-content">
             <!-- Header -->
             <div class="flex flex-col gap-[20px] items-end justify-center mb-6">
                 <div class="flex flex-row gap-[20px] items-start justify-end w-full">
@@ -35,16 +34,16 @@
                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
                             Nombre de institución *
                         </label>
-                        <input 
+                        <input
                             v-model="form.name"
                             type="text"
                             placeholder="Escriba el nombre de la institución"
                             :class="[
                                 'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
-                                errors.name ? 'border-red-500' : 'border-[#5b5b5b]'
+                                localErrors.name ? 'border-red-500' : 'border-[#5b5b5b]'
                             ]"
                         />
-                        <span v-if="errors.name" class="text-red-500 text-xs mt-1">{{ errors.name }}</span>
+                        <span v-if="localErrors.name" class="text-red-500 text-xs mt-1">{{ getError('name') }}</span>
                     </div>
 
                     <!-- Tipo de institución -->
@@ -52,11 +51,11 @@
                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
                             Tipo de institución *
                         </label>
-                        <select 
+                        <select
                             v-model="form.type"
                             :class="[
                                 'bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none',
-                                errors.type ? 'border-red-500' : 'border-[#5b5b5b]'
+                                localErrors.type ? 'border-red-500' : 'border-[#5b5b5b]'
                             ]"
                         >
                             <option value="">Seleccione un tipo</option>
@@ -66,7 +65,7 @@
                             <option value="university">Universidad</option>
                             <option value="other">Otro</option>
                         </select>
-                        <span v-if="errors.type" class="text-red-500 text-xs mt-1">{{ errors.type }}</span>
+                        <span v-if="localErrors.type" class="text-red-500 text-xs mt-1">{{ getError('type') }}</span>
                     </div>
 
                     <!-- Dirección -->
@@ -80,10 +79,10 @@
                             placeholder="Dirección de la institución"
                             :class="[
                                 'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
-                                errors.address ? 'border-red-500' : 'border-[#5b5b5b]'
+                                localErrors.address ? 'border-red-500' : 'border-[#5b5b5b]'
                             ]"
                         />
-                        <span v-if="errors.address" class="text-red-500 text-xs mt-1">{{ errors.address }}</span>
+                        <span v-if="localErrors.address" class="text-red-500 text-xs mt-1">{{ getError('address') }}</span>
                     </div>
 
                     <!-- Contact row -->
@@ -99,10 +98,10 @@
                                 placeholder="email@institucion.com"
                                 :class="[
                                     'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
-                                    errors.email ? 'border-red-500' : 'border-[#5b5b5b]'
+                                    localErrors.email ? 'border-red-500' : 'border-[#5b5b5b]'
                                 ]"
                             />
-                            <span v-if="errors.email" class="text-red-500 text-xs mt-1">{{ errors.email }}</span>
+                            <span v-if="localErrors.email" class="text-red-500 text-xs mt-1">{{ getError('email') }}</span>
                         </div>
 
                         <!-- Teléfono -->
@@ -116,10 +115,10 @@
                                 placeholder="000000000"
                                 :class="[
                                     'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
-                                    errors.phone ? 'border-red-500' : 'border-[#5b5b5b]'
+                                    localErrors.phone ? 'border-red-500' : 'border-[#5b5b5b]'
                                 ]"
                             />
-                            <span v-if="errors.phone" class="text-red-500 text-xs mt-1">{{ errors.phone }}</span>
+                            <span v-if="localErrors.phone" class="text-red-500 text-xs mt-1">{{ getError('phone') }}</span>
                         </div>
                     </div>
 
@@ -134,10 +133,10 @@
                             placeholder="https://www.institucion.com"
                             :class="[
                                 'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
-                                errors.website ? 'border-red-500' : 'border-[#5b5b5b]'
+                                localErrors.website ? 'border-red-500' : 'border-[#5b5b5b]'
                             ]"
                         />
-                        <span v-if="errors.website" class="text-red-500 text-xs mt-1">{{ errors.website }}</span>
+                        <span v-if="localErrors.website" class="text-red-500 text-xs mt-1">{{ getError('website') }}</span>
                     </div>
                 </div>
 
@@ -172,15 +171,12 @@ export default {
         show: {
             type: Boolean,
             default: false
-        },
-        errors: {
-            type: Object,
-            default: () => ({})
         }
     },
     data() {
         return {
             isSubmitting: false,
+            localErrors: {},
             form: {
                 name: "",
                 type: "",
@@ -205,22 +201,41 @@ export default {
                 phone: "",
                 website: ""
             };
+            this.localErrors = {};
             this.isSubmitting = false;
+        },
+        getError(field) {
+            if (this.localErrors[field]) {
+                return Array.isArray(this.localErrors[field])
+                    ? this.localErrors[field][0]
+                    : this.localErrors[field];
+            }
+            return '';
+        },
+        clearErrors() {
+            this.localErrors = {};
         },
         async saveInstitution() {
             this.isSubmitting = true;
-            
+            this.clearErrors();
+
             try {
                 const response = await axios.post(route('admin.institutions.store'), this.form);
-                
+
                 if (response.data.success) {
                     this.$emit('institution-created', response.data.institution);
-                    this.closeModal();
+                    this.$emit('success', 'Institución creada exitosamente');
+                    this.resetForm();
+                    this.$emit('close');
                 }
             } catch (error) {
                 console.error('Error creating institution:', error);
                 if (error.response && error.response.data.errors) {
-                    this.$emit('errors', error.response.data.errors);
+                    this.localErrors = error.response.data.errors;
+                } else if (error.response && error.response.data.message) {
+                    this.$emit('error', error.response.data.message);
+                } else {
+                    this.$emit('error', 'Error al crear la institución');
                 }
             } finally {
                 this.isSubmitting = false;

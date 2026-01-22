@@ -78,6 +78,7 @@ class PartialAccountTransformer
             'participant_email' => $enrollment->email,
             'participant_document' => $this->formatDocument($enrollment->document_number, $participant),
             'participant_phone' => $enrollment->phone,
+            'participant_is_active' => $enrollment->participant_is_active ?? true,
             'program_name' => $enrollment->program_name,
             'program_departure_date' => $enrollment->departure_date ?? null,
             'enrollment_code' => $enrollment->enrollment_code,

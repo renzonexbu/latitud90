@@ -1,5 +1,5 @@
 <template>
-  <Head title="Vista de Pruebas - Apoderado" />
+  <Head title="Vista de Pruebas - Pagador" />
 
   <div class="min-h-screen bg-gray-50">
     <!-- Header -->
@@ -132,7 +132,7 @@
                   <span class="detail-value">{{ link.invitation_code }}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">Apoderado Principal:</span>
+                  <span class="detail-label">Pagador Principal:</span>
                   <span class="badge" :class="link.is_primary ? 'badge-primary' : 'badge-secondary'">
                     {{ link.is_primary ? 'Sí' : 'No' }}
                   </span>

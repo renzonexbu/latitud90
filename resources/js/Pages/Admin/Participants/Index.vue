@@ -347,14 +347,24 @@ export default {
             // Filtro de búsqueda
             if (this.localFilters.search) {
                 const searchTerm = this.localFilters.search.toLowerCase();
-                filtered = filtered.filter(participant => 
-                    participant.first_name?.toLowerCase().includes(searchTerm) ||
-                    participant.second_name?.toLowerCase().includes(searchTerm) ||
-                    participant.first_last_name?.toLowerCase().includes(searchTerm) ||
-                    participant.second_last_name?.toLowerCase().includes(searchTerm) ||
-                    participant.document_number?.toLowerCase().includes(searchTerm) ||
-                    this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
-                );
+                // Normalizar el término de búsqueda para RUT (eliminar puntos y guiones)
+                const normalizedSearchTerm = searchTerm.replace(/[.\-]/g, '');
+
+                filtered = filtered.filter(participant => {
+                    // Normalizar el document_number del participante para comparación de RUT
+                    const normalizedDocNumber = (participant.document_number || '').toLowerCase().replace(/[.\-]/g, '');
+
+                    return (
+                        participant.first_name?.toLowerCase().includes(searchTerm) ||
+                        participant.second_name?.toLowerCase().includes(searchTerm) ||
+                        participant.first_last_name?.toLowerCase().includes(searchTerm) ||
+                        participant.second_last_name?.toLowerCase().includes(searchTerm) ||
+                        // Buscar por document_number: tanto con formato como sin formato
+                        participant.document_number?.toLowerCase().includes(searchTerm) ||
+                        normalizedDocNumber.includes(normalizedSearchTerm) ||
+                        this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
+                    );
+                });
             }
 
             // Filtro por programa

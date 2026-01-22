@@ -144,6 +144,41 @@
                     <div
                         class="flex gap-2 items-center justify-center w-[80px]"
                     >
+                        <!-- Reconfirm Button (solo para pagos pendientes con token) -->
+                        <button
+                            v-if="payment.status === 'pending' && payment.token"
+                            @click.stop="reconfirmPayment(payment)"
+                            :disabled="reconfirmingId === payment.id"
+                            class="w-[22px] h-[22px] hover:opacity-75 transition-opacity disabled:opacity-50"
+                            :title="reconfirmingId === payment.id ? 'Reconfirmando...' : 'Reconfirmar con VirtualPOS'"
+                        >
+                            <!-- Loading spinner -->
+                            <svg
+                                v-if="reconfirmingId === payment.id"
+                                class="animate-spin"
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                            >
+                                <circle cx="12" cy="12" r="10" stroke="#007e93" stroke-width="2" stroke-linecap="round" stroke-dasharray="31.4 31.4" />
+                            </svg>
+                            <!-- Refresh icon -->
+                            <svg
+                                v-else
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#007e93"
+                                stroke-width="2"
+                            >
+                                <path d="M23 4v6h-6" />
+                                <path d="M1 20v-6h6" />
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                            </svg>
+                        </button>
+
                         <!-- View Details Button -->
                         <button
                             @click.stop="$emit('show-payment-details', payment)"
@@ -167,10 +202,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Toast de notificación -->
+        <div
+            v-if="toastMessage"
+            :class="[
+                'fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 max-w-md',
+                toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+            ]"
+        >
+            {{ toastMessage }}
+        </div>
     </div>
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
     name: "PaymentsTable",
     props: {
@@ -179,10 +227,59 @@ export default {
             default: () => [],
         },
     },
-    
 
+    data() {
+        return {
+            reconfirmingId: null,
+            toastMessage: '',
+            toastType: 'success',
+        };
+    },
 
     methods: {
+        async reconfirmPayment(payment) {
+            if (this.reconfirmingId) return;
+
+            this.reconfirmingId = payment.id;
+            this.toastMessage = '';
+
+            try {
+                const response = await axios.post(route('admin.payments.reconfirm', payment.id));
+
+                if (response.data.success) {
+                    this.showToast(response.data.message, 'success');
+
+                    // Actualizar el estado del pago localmente
+                    if (response.data.payment) {
+                        Object.assign(payment, response.data.payment);
+                    } else if (response.data.status) {
+                        payment.status = response.data.status;
+                    }
+
+                    // Emitir evento para que el padre pueda refrescar si es necesario
+                    this.$emit('payment-reconfirmed', payment, response.data);
+                } else {
+                    this.showToast(response.data.message || 'Error al reconfirmar el pago', 'error');
+                }
+            } catch (error) {
+                console.error('Error reconfirmando pago:', error);
+                const message = error.response?.data?.message || 'Error al reconfirmar el pago';
+                this.showToast(message, 'error');
+            } finally {
+                this.reconfirmingId = null;
+            }
+        },
+
+        showToast(message, type = 'success') {
+            this.toastMessage = message;
+            this.toastType = type;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                this.toastMessage = '';
+            }, 5000);
+        },
+
         toCapitalCase(text) {
             if (!text) return '';
             return text
@@ -327,5 +424,19 @@ export default {
 
 .bg-turquesa {
     background-color: #007e93;
+}
+
+/* Animation for loading spinner */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 </style>

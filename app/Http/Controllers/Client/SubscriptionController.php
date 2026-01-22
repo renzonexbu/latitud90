@@ -41,7 +41,7 @@ class SubscriptionController extends Controller
             }
 
             $request->validate([
-                'program_id' => 'required|exists:programs,id',
+                'program_id' => 'required|exists:program_courses,id',
                 'document' => 'required|string',
                 'document_type' => 'required|string',
                 'installments' => 'required|integer|min:1'
@@ -52,8 +52,8 @@ class SubscriptionController extends Controller
             $documentType = $request->input('document_type');
             $installments = $request->input('installments');
 
-            // Verificar que el programa existe
-            $program = Program::findOrFail($programId);
+            // Verificar que el programa existe (program_courses)
+            $program = ProgramCourse::findOrFail($programId);
 
             // Buscar participante
             $participant = Participant::where('document', $document)

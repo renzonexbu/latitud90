@@ -1,5 +1,5 @@
 <template>
-    <Head title="Registro de Apoderado" />
+    <Head title="Registro de Pagador" />
 
     <div
         class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
@@ -10,7 +10,7 @@
                 <div class="register-logo">
                     <img src="/images/logo-color.png" alt="Latitud90" />
                 </div>
-                <h2 class="register-title">Registro de Apoderado</h2>
+                <h2 class="register-title">Registro de Pagador</h2>
                 <p class="register-subtitle">
                     Crea tu cuenta para gestionar los programas de tus hijos
                 </p>

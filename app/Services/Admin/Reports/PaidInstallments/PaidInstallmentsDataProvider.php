@@ -4,6 +4,7 @@ namespace App\Services\Admin\Reports\PaidInstallments;
 
 use App\Models\Installment;
 use App\Models\ProgramCourse;
+use App\Models\ParticipantProgram;
 use App\Models\Document;
 use Illuminate\Support\Collection;
 
@@ -92,6 +93,26 @@ class PaidInstallmentsDataProvider
             });
         }
 
+        // Filtrar por estado del participante (usa is_active de participant_program)
+        if (!empty($filters['participant_status'])) {
+            $query->whereHas('installmentPlan', function ($q) use ($filters) {
+                $q->whereExists(function ($subquery) use ($filters) {
+                    $subquery->from('participant_program as pp_filter')
+                        ->whereColumn('pp_filter.participant_id', 'installment_plans.participant_id')
+                        ->whereColumn('pp_filter.program_id', 'installment_plans.program_id');
+
+                    if ($filters['participant_status'] === 'active') {
+                        $subquery->where(function($q2) {
+                            $q2->where('pp_filter.is_active', true)
+                               ->orWhereNull('pp_filter.is_active');
+                        });
+                    } elseif ($filters['participant_status'] === 'inactive') {
+                        $subquery->where('pp_filter.is_active', false);
+                    }
+                });
+            });
+        }
+
         // Ordenar por fecha de pago descendente
         $query->orderBy('paid_at', 'desc');
 
@@ -114,12 +135,22 @@ class PaidInstallmentsDataProvider
                 $documentNumber = '11.111.111-1';
             }
 
+            // Obtener is_active de participant_program
+            $participantProgramIsActive = true;
+            if ($plan?->participant_id && $plan?->program_id) {
+                $participantProgram = ParticipantProgram::where('participant_id', $plan->participant_id)
+                    ->where('program_id', $plan->program_id)
+                    ->first();
+                $participantProgramIsActive = $participantProgram?->is_active ?? true;
+            }
+
             return [
                 'id' => $installment->id,
                 'program_code' => $programCode,
                 'participant_name' => $participant?->full_name ?? 'N/A',
                 'document_type' => $documentTypeName,
                 'participant_document' => $documentNumber,
+                'participant_is_active' => $participantProgramIsActive,
                 'amount' => $installment->amount,
                 'paid_at' => $installment->paid_at?->format('d/m/Y H:i:s'),
                 'paid_at_raw' => $installment->paid_at,

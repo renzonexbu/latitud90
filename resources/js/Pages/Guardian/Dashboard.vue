@@ -1,5 +1,5 @@
 <template>
-  <Head title="Dashboard - Apoderado" />
+  <Head title="Dashboard - Pagador" />
 
   <GuardianLayout>
     <div class="p-8">

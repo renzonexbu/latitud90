@@ -5,6 +5,7 @@ namespace App\Services\PDF;
 use App\Models\DocumentTemplate;
 use App\Models\OrderDetail;
 use App\Models\Payment;
+use App\Models\PaymentConfirmationLog;
 use App\Traits\SystemLogging;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -58,6 +59,25 @@ class DocumentTemplateService
                 'filename' => $filename,
             ]);
 
+            // Registrar evento en payment_confirmation_logs
+            if ($type === DocumentTemplate::TYPE_CONTRACT) {
+                PaymentConfirmationLog::logContractGenerated(
+                    $payment,
+                    $orderDetail,
+                    $tempPath,
+                    $filename,
+                    ['template_id' => $template->id]
+                );
+            } elseif ($type === DocumentTemplate::TYPE_PAYMENT_RECEIPT) {
+                PaymentConfirmationLog::logPaymentReceiptGenerated(
+                    $payment,
+                    $orderDetail,
+                    $tempPath,
+                    $filename,
+                    ['template_id' => $template->id]
+                );
+            }
+
             return $tempPath;
         } catch (\Exception $e) {
             $this->logError('DocumentTemplateService: Error generando PDF', [
@@ -110,10 +130,11 @@ class DocumentTemplateService
         // Formatear número de documento del participante
         $participantDocumentNumber = $this->formatDocumentNumber($participant->document_number, $documentTypeName);
 
-        // Obtener el contacto de emergencia como apoderado
-        $emergencyContact = $participant->emergencyContacts()->first();
-        $apoderadoNombre = $emergencyContact ? $this->capitalizeWords($emergencyContact->name) : 'N/A';
-        $apoderadoDocument = $emergencyContact ? $this->formatDocumentNumber($emergencyContact->document_number, 'RUT') : 'N/A';
+        // Usar siempre los datos del pagador del OrderDetail
+        $apoderadoNombre = $orderDetail->name ?? 'N/A';
+        $apoderadoDocument = $orderDetail->document_number
+            ? $this->formatDocumentNumber($orderDetail->document_number, 'RUT')
+            : 'N/A';
 
         // Generar folio del contrato
         $programCode = $program->code ?? 'PROG';
@@ -138,7 +159,7 @@ class DocumentTemplateService
 
         return [
             'folio' => $folio,
-            'fecha' => $payment->created_at->format('d \d\e F \d\e Y'),
+            'fecha' => $payment->created_at->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'ciudad' => config('lat90.company.city', 'Santiago de Chile'),
             'prestador_nombre' => config('lat90.company.legal_name', 'Experiencias Educativas y Capacitaciones SpA'),
             'prestador_rut' => config('lat90.company.rut', '76.203.719-K'),
@@ -152,7 +173,7 @@ class DocumentTemplateService
             'alumno_nombre' => $participantFullName,
             'alumno_documento_label' => $alumnoDocumentoLabel,
             'alumno_rut' => $participantDocumentNumber,
-            'cotizacion_fecha' => $program->created_at->format('d \d\e F \d\e Y'),
+            'cotizacion_fecha' => $program->created_at->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'programa_anio' => $program->departure_date ? $program->departure_date->format('Y') : date('Y'),
             'programa_nombre' => $program->name,
             'prestador_nombre_firma' => config('lat90.company.legal_name', 'Experiencias Educativas y Capacitaciones SpA'),
@@ -193,7 +214,7 @@ class DocumentTemplateService
 
         return [
             'folio' => $program->code ?? 'N/A',
-            'fecha' => $payment->created_at->format('d \d\e F, Y'),
+            'fecha' => $payment->created_at->locale('es')->translatedFormat('d \d\e F, Y'),
             'monto' => number_format($payment->amount, 0, ',', '.'),
             'apoderado_nombre' => $orderDetail->name ?? 'N/A',
             'alumno_nombre' => $participantFullName,
@@ -201,7 +222,7 @@ class DocumentTemplateService
             'document_type' => $documentTypeLabel,
             'valor_programa' => number_format($totalDue, 0, ',', '.'),
             'destino' => $program->destination ?? $program->name ?? 'N/A',
-            'fecha_programa' => $program->departure_date ? $program->departure_date->format('F, Y') : 'Por definir',
+            'fecha_programa' => $program->departure_date ? $program->departure_date->locale('es')->translatedFormat('F, Y') : 'Por definir',
             'monto_abono' => number_format($payment->amount, 0, ',', '.'),
             'fecha_abono' => $payment->created_at->format('d-m-Y'),
             'saldo_abonado' => number_format($totalPaid, 0, ',', '.'),
@@ -233,8 +254,11 @@ class DocumentTemplateService
     /**
      * Capitalizar palabras en una cadena
      */
-    private function capitalizeWords(string $string): string
+    private function capitalizeWords(?string $string): string
     {
+        if ($string === null) {
+            return '';
+        }
         return ucwords(strtolower($string));
     }
 

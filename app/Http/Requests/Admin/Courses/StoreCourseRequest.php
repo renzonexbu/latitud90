@@ -26,16 +26,23 @@ class StoreCourseRequest extends CourseRequest
         $enableTotalPayment = in_array('full_payment', $paymentOptions) && !empty($fullPaymentOptions);
         $enableSubscriptionPayment = in_array('subscription', $paymentOptions) && !empty($subscriptionPaymentOptions);
 
-        // Set default grade to 'A' if not provided or empty
+        // Allow empty grade (set to null if empty or '---')
         $grade = $this->input('grade');
         if (empty($grade) || $grade === '---') {
-            $grade = 'A';
+            $grade = null;
+        }
+
+        // Allow empty courseNumber (set to null if empty or '---')
+        $courseNumber = $this->input('courseNumber');
+        if (empty($courseNumber) || $courseNumber === '---') {
+            $courseNumber = null;
         }
 
         $this->merge([
             'enable_total_payment' => $enableTotalPayment,
             'enable_subscription_payment' => $enableSubscriptionPayment,
             'grade' => $grade,
+            'courseNumber' => $courseNumber,
         ]);
     }
 
@@ -55,9 +62,9 @@ class StoreCourseRequest extends CourseRequest
             'program_id' => ['required', 'exists:programs,id'],
             'code' => ['required', 'string', 'max:50', 'unique:program_courses,code'],
             'destination' => ['required', 'string', 'max:255'],
-            'departure_date' => ['required', 'date', 'after:today'],
+            'departure_date' => ['required', 'date'],
             'trip_price' => ['required', 'numeric', 'min:0'],
-            'final_payment_date' => ['required', 'date', 'before_or_equal:departure_date'],
+            'final_payment_date' => ['required', 'date'],
 
             // Opciones de pago
             'enable_total_payment' => ['nullable', 'boolean'],
@@ -115,10 +122,8 @@ class StoreCourseRequest extends CourseRequest
             // Fechas
             'departure_date.required' => 'La fecha de salida es obligatoria',
             'departure_date.date' => 'La fecha de salida debe ser una fecha válida',
-            'departure_date.after' => 'La fecha de salida debe ser posterior a hoy',
-            'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
+                        'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
             'final_payment_date.date' => 'La fecha límite de pago debe ser una fecha válida',
-            'final_payment_date.before_or_equal' => 'La fecha límite de pago debe ser anterior o igual a la fecha de salida',
 
             // Precio
             'trip_price.required' => 'El precio del viaje es obligatorio',

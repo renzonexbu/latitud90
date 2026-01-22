@@ -39,6 +39,11 @@
                 <div
                     class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
                 >
+                    Estado Pago
+                </div>
+                <div
+                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
+                >
                     Estado
                 </div>
                 <!-- Columna de acciones (vacía en header) -->
@@ -97,7 +102,7 @@
                         ${{ formatPrice(account.pending_amount) }}
                     </div>
 
-                    <!-- Estado -->
+                    <!-- Estado Pago -->
                     <div class="flex justify-center items-center w-[100px]">
                         <div
                             :class="[
@@ -106,6 +111,18 @@
                             ]"
                         >
                             {{ getStatusLabel(account.status) }}
+                        </div>
+                    </div>
+
+                    <!-- Estado Participante -->
+                    <div class="flex justify-center items-center w-[80px]">
+                        <div
+                            :class="[
+                                'rounded-[12px] px-[10px] py-[6px] font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
+                                account.participant_is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800',
+                            ]"
+                        >
+                            {{ account.participant_is_active ? 'Activo' : 'Baja' }}
                         </div>
                     </div>
 

@@ -346,6 +346,21 @@ class CourseService
             $monthsChanged = isset($data['subscription_max_months']) &&
                 $data['subscription_max_months'] != $programCourse->subscription_max_months;
 
+            // Verificar si cambió el año de la fecha de salida (afecta boleta vs contrato)
+            $departureDateChanged = $this->hasDepartureDateYearChanged($programCourse, $data);
+
+            // Si cambió el año de departure_date, verificar si hay pagos o suscripciones
+            if ($departureDateChanged) {
+                $hasPaymentsOrSubscriptions = $this->hasPaymentsOrSubscriptions($programCourse);
+
+                if ($hasPaymentsOrSubscriptions) {
+                    throw new \Exception(
+                        'No se puede cambiar el año de la fecha de salida porque ya existen pagos o suscripciones para este programa. ' .
+                        'Los documentos fiscales (boleta/contrato) ya fueron generados con la fecha anterior.'
+                    );
+                }
+            }
+
             // Si el plan existe y hay cambios en el monto/cuotas, verificar suscripciones activas
             if ($programCourse->virtualpos_plan_id && ($priceChanged || $monthsChanged)) {
                 $hasActiveSubscriptions = $this->virtualPosPlanService->hasActiveSubscriptions(
@@ -389,6 +404,11 @@ class CourseService
             // Actualizar nombre del plan
             $programCourse->name = $this->generateProgramCourseName($institution, $course, $program, $data);
             $programCourse->save();
+
+            // Si el precio cambió, actualizar los precios de los participantes
+            if ($priceChanged) {
+                $this->updateParticipantPrices($programCourse, $data['trip_price']);
+            }
 
             // Procesar archivos PDF del programa
             $this->processProgramFiles($programCourse, $data);
@@ -583,25 +603,6 @@ class CourseService
         $departureDate = new \DateTime($departureDate);
         $finalPaymentDateTime = new \DateTime($finalPaymentDate);
         $now = new \DateTime();
-
-        // Validar que la fecha final de pago sea anterior a la fecha de salida
-        if ($finalPaymentDateTime >= $departureDate) {
-            throw new \Exception(
-                "La fecha final de pago ({$finalPaymentDateTime->format('d/m/Y')}) debe ser anterior a la fecha de salida ({$departureDate->format('d/m/Y')})."
-            );
-        }
-
-        // Validar que la fecha final de pago respete los días mínimos antes de la salida
-        $interval = $finalPaymentDateTime->diff($departureDate);
-        $daysDifference = $interval->days;
-
-        if ($daysDifference < $minDaysBeforeDeparture) {
-            throw new \Exception(
-                "Debe haber al menos {$minDaysBeforeDeparture} días entre la fecha final de pago y la fecha de salida. " .
-                "Actualmente hay {$daysDifference} días. " .
-                "Fecha final de pago: {$finalPaymentDateTime->format('d/m/Y')}, Fecha de salida: {$departureDate->format('d/m/Y')}."
-            );
-        }
 
         // Calcular los meses disponibles desde ahora hasta la fecha final de pago
         $yearsDiff = $finalPaymentDateTime->format('Y') - $now->format('Y');
@@ -1140,13 +1141,36 @@ class CourseService
         } catch (\App\Exceptions\ParticipantImportException $e) {
             // Re-lanzar la excepción de importación para que sea manejada por el controlador
             throw $e;
+        } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+            Log::error('Error de formato de archivo Excel', [
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('El archivo no tiene un formato válido de Excel. Por favor, asegúrate de subir un archivo .xlsx, .xls o .csv válido.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Error de base de datos al procesar estudiantes', [
+                'course_id' => $course->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \Exception('Error al guardar los datos de los participantes. Verifica que el formato del archivo sea correcto y que los datos no estén duplicados.');
         } catch (\Exception $e) {
             Log::error('Error al procesar el archivo de estudiantes', [
                 'course_id' => $course->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            throw new \Exception('Error al procesar el archivo de estudiantes: ' . $e->getMessage());
+
+            // Detectar errores comunes y dar mensajes más claros
+            $message = $e->getMessage();
+            if (str_contains($message, 'Undefined array key') || str_contains($message, 'array_combine')) {
+                throw new \Exception('El formato del archivo no es compatible. Asegúrate de que las columnas tengan los nombres correctos (RUT, Nombre, Apellido, etc.).');
+            }
+            if (str_contains($message, 'Cannot read file') || str_contains($message, 'Could not find')) {
+                throw new \Exception('No se pudo leer el archivo. El archivo puede estar corrupto o no ser un Excel válido.');
+            }
+
+            throw new \Exception('Ocurrió un error inesperado al procesar el archivo de estudiantes. Verifica el formato del archivo e intenta nuevamente.');
         }
     }
 
@@ -1434,6 +1458,90 @@ class CourseService
     }
 
     /**
+     * Actualizar precios individuales de participantes cuando cambia el precio del programa
+     */
+    private function updateParticipantPrices(ProgramCourse $programCourse, float $newPrice): void
+    {
+        try {
+            // Actualizar todos los participantes en participant_program que tienen este program_course
+            $updatedCount = DB::table('participant_program')
+                ->where('program_id', $programCourse->id)
+                ->update([
+                    'individual_price' => $newPrice,
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Precios de participantes actualizados', [
+                'program_course_id' => $programCourse->id,
+                'new_price' => $newPrice,
+                'updated_count' => $updatedCount,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar precios de participantes', [
+                'program_course_id' => $programCourse->id,
+                'new_price' => $newPrice,
+                'error' => $e->getMessage(),
+            ]);
+            // No lanzar excepción para no interrumpir la actualización del curso
+        }
+    }
+
+    /**
+     * Verificar si el año de la fecha de salida cambió
+     */
+    private function hasDepartureDateYearChanged(ProgramCourse $programCourse, array $data): bool
+    {
+        if (!isset($data['departure_date'])) {
+            return false;
+        }
+
+        $currentDepartureDate = $programCourse->departure_date;
+        if (!$currentDepartureDate) {
+            return false;
+        }
+
+        $newDepartureDate = new \DateTime($data['departure_date']);
+        $currentYear = $currentDepartureDate->year;
+        $newYear = (int) $newDepartureDate->format('Y');
+
+        return $currentYear !== $newYear;
+    }
+
+    /**
+     * Verificar si hay pagos aprobados o suscripciones activas para el programa
+     */
+    private function hasPaymentsOrSubscriptions(ProgramCourse $programCourse): bool
+    {
+        // Verificar pagos aprobados
+        $hasApprovedPayments = \App\Models\Payment::whereHas('order', function ($query) use ($programCourse) {
+            $query->where('program_id', $programCourse->id);
+        })->whereIn('status', ['approved', 'completed'])->exists();
+
+        if ($hasApprovedPayments) {
+            return true;
+        }
+
+        // Verificar suscripciones activas en VirtualPos
+        if ($programCourse->virtualpos_plan_id) {
+            try {
+                $hasActiveSubscriptions = $this->virtualPosPlanService->hasActiveSubscriptions(
+                    $programCourse->virtualpos_plan_id
+                );
+                if ($hasActiveSubscriptions) {
+                    return true;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error verificando suscripciones activas', [
+                    'program_course_id' => $programCourse->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Procesar y guardar archivos PDF del programa
      */
     private function processProgramFiles(ProgramCourse $programCourse, array $data): void
@@ -1591,26 +1699,23 @@ class CourseService
         foreach ($participantPrograms as $pp) {
             $participant = $pp->participant;
 
-            // Check if participant has any payments
-            $hasPayments = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
-                $q->where('participant_id', $participant->id)
-                  ->where('program_id', $programCourseId);
-            })->exists();
-
-            // Get total paid amount
+            // Get total paid amount (only completed/approved payments with amount > 0)
             $totalPaid = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourseId) {
                 $q->where('participant_id', $participant->id)
                   ->where('program_id', $programCourseId);
             })
             ->whereIn('status', ['completed', 'approved'])
+            ->where('amount', '>', 0)
             ->sum('amount');
+
+            // has_payments is true only if there are actual confirmed payments with amount > 0
+            $hasPayments = $totalPaid > 0;
 
             $participantsData[] = [
                 'participant_program_id' => $pp->id,
                 'participant_id' => $participant->id,
                 'full_name' => $participant->full_name,
-                'rut' => $participant->rut,
-                'email' => $participant->email,
+                'rut' => $participant->document_number,
                 'enrollment_code' => $pp->enrollment_code,
                 'has_payments' => $hasPayments,
                 'total_paid' => $totalPaid,
@@ -1644,6 +1749,10 @@ class CourseService
                 ];
             }
 
+            // Get the ProgramCourse to find the Course
+            $programCourse = ProgramCourse::find($participantProgram->program_id);
+            $courseId = $programCourse?->course_id;
+
             // Delete associated orders (if any without payments)
             \App\Models\Order::where('participant_id', $participant->id)
                 ->where('program_id', $participantProgram->program_id)
@@ -1657,10 +1766,24 @@ class CourseService
             // Delete the participant_program relationship
             $participantProgram->delete();
 
+            // Also delete from participant_course pivot table so the count updates
+            if ($courseId) {
+                DB::table('participant_course')
+                    ->where('participant_id', $participant->id)
+                    ->where('course_id', $courseId)
+                    ->delete();
+
+                Log::info('Participante eliminado de participant_course', [
+                    'participant_id' => $participant->id,
+                    'course_id' => $courseId,
+                ]);
+            }
+
             Log::info('Participante eliminado del programa-curso', [
                 'participant_program_id' => $participantProgramId,
                 'participant' => $participant->full_name,
-                'program_id' => $participantProgram->program_id
+                'program_id' => $participantProgram->program_id,
+                'course_id' => $courseId
             ]);
 
             return [
@@ -1679,6 +1802,281 @@ class CourseService
                 'success' => false,
                 'message' => 'Error al eliminar participante: ' . $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Verificar si un programa puede ser eliminado
+     * Valida que NO existan: pagos, descuentos aplicados, o suscripciones activas
+     *
+     * @param int $programCourseId
+     * @return array ['can_delete' => bool, 'reasons' => array]
+     */
+    public function canDeleteProgram(int $programCourseId): array
+    {
+        $reasons = [];
+
+        $programCourse = ProgramCourse::find($programCourseId);
+
+        if (!$programCourse) {
+            return [
+                'can_delete' => false,
+                'reasons' => ['El programa no existe.']
+            ];
+        }
+
+        // 1. Verificar pagos completados o aprobados
+        $approvedPaymentsCount = \App\Models\Payment::whereHas('order', function ($q) use ($programCourseId) {
+            $q->where('program_id', $programCourseId);
+        })
+        ->whereIn('status', ['completed', 'approved'])
+        ->count();
+
+        if ($approvedPaymentsCount > 0) {
+            $reasons[] = "Existen {$approvedPaymentsCount} pago(s) confirmado(s) asociado(s) al programa.";
+        }
+
+        // 2. Verificar pagos pendientes o en proceso (cualquier pago registrado)
+        $pendingPaymentsCount = \App\Models\Payment::whereHas('order', function ($q) use ($programCourseId) {
+            $q->where('program_id', $programCourseId);
+        })
+        ->whereNotIn('status', ['completed', 'approved', 'failed', 'rejected', 'cancelled'])
+        ->count();
+
+        if ($pendingPaymentsCount > 0) {
+            $reasons[] = "Existen {$pendingPaymentsCount} pago(s) pendiente(s) o en proceso.";
+        }
+
+        // 3. Verificar suscripciones activas en VirtualPos
+        if ($programCourse->virtualpos_plan_id) {
+            try {
+                $hasActiveSubscriptions = $this->virtualPosPlanService->hasActiveSubscriptions(
+                    $programCourse->virtualpos_plan_id
+                );
+
+                if ($hasActiveSubscriptions) {
+                    $reasons[] = "Existen suscripciones activas en VirtualPos para este programa.";
+                }
+            } catch (\Exception $e) {
+                Log::warning('Error verificando suscripciones en VirtualPos', [
+                    'program_course_id' => $programCourseId,
+                    'error' => $e->getMessage(),
+                ]);
+                // Si hay error consultando VirtualPos, ser conservador y no permitir eliminar
+                $reasons[] = "No se pudo verificar el estado de suscripciones en VirtualPos.";
+            }
+        }
+
+        // 4. Verificar órdenes con cuotas pagadas (orders_detail.is_paid = true)
+        $paidInstallmentsCount = \App\Models\OrderDetail::whereHas('order', function ($q) use ($programCourseId) {
+            $q->where('program_id', $programCourseId);
+        })
+        ->where('is_paid', true)
+        ->count();
+
+        if ($paidInstallmentsCount > 0) {
+            $reasons[] = "Existen {$paidInstallmentsCount} cuota(s) marcada(s) como pagada(s).";
+        }
+
+        // 5. Verificar planes de cuotas con pagos realizados (installments.is_paid = true)
+        $paidInstallmentPlansCount = DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.program_id', $programCourseId)
+            ->where('installments.is_paid', true)
+            ->count();
+
+        if ($paidInstallmentPlansCount > 0) {
+            $reasons[] = "Existen {$paidInstallmentPlansCount} cuota(s) de suscripción pagada(s).";
+        }
+
+        return [
+            'can_delete' => empty($reasons),
+            'reasons' => $reasons,
+            'program_name' => $programCourse->name,
+            'program_code' => $programCourse->code,
+        ];
+    }
+
+    /**
+     * Eliminar un programa completamente con todas sus relaciones
+     * SOLO si pasa todas las validaciones de canDeleteProgram
+     *
+     * @param int $programCourseId
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function deleteProgram(int $programCourseId): array
+    {
+        // Primero validar si se puede eliminar
+        $canDelete = $this->canDeleteProgram($programCourseId);
+
+        if (!$canDelete['can_delete']) {
+            return [
+                'success' => false,
+                'message' => 'No se puede eliminar el programa.',
+                'reasons' => $canDelete['reasons']
+            ];
+        }
+
+        return DB::transaction(function () use ($programCourseId) {
+            $programCourse = ProgramCourse::findOrFail($programCourseId);
+            $courseId = $programCourse->course_id;
+            $programName = $programCourse->name;
+            $programCode = $programCourse->code;
+
+            $deletedCounts = [
+                'participant_program_discounts' => 0,
+                'installments' => 0,
+                'installment_plans' => 0,
+                'order_details' => 0,
+                'payments' => 0,
+                'orders' => 0,
+                'participant_programs' => 0,
+                'virtualpos_plans' => 0,
+                'payment_options' => 0,
+                'participant_course' => 0,
+                'course' => 0,
+            ];
+
+            // Obtener IDs de participant_programs para este programa
+            $participantProgramIds = \App\Models\ParticipantProgram::where('program_id', $programCourseId)
+                ->pluck('id')
+                ->toArray();
+
+            // Obtener IDs de participantes para limpiar participant_course
+            $participantIds = \App\Models\ParticipantProgram::where('program_id', $programCourseId)
+                ->pluck('participant_id')
+                ->toArray();
+
+            // Obtener IDs de órdenes para este programa
+            $orderIds = \App\Models\Order::where('program_id', $programCourseId)
+                ->pluck('id')
+                ->toArray();
+
+            // Obtener IDs de installment_plans
+            $installmentPlanIds = \App\Models\InstallmentPlan::where('program_id', $programCourseId)
+                ->pluck('id')
+                ->toArray();
+
+            // 1. Eliminar descuentos de participantes
+            if (!empty($participantProgramIds)) {
+                $deletedCounts['participant_program_discounts'] = \App\Models\ParticipantProgramDiscount::whereIn('participant_program_id', $participantProgramIds)
+                    ->delete();
+            }
+
+            // 2. Eliminar installments (cuotas de planes de suscripción)
+            if (!empty($installmentPlanIds)) {
+                $deletedCounts['installments'] = DB::table('installments')
+                    ->whereIn('installment_plan_id', $installmentPlanIds)
+                    ->delete();
+            }
+
+            // 3. Eliminar installment_plans
+            $deletedCounts['installment_plans'] = \App\Models\InstallmentPlan::where('program_id', $programCourseId)
+                ->delete();
+
+            // 4. Eliminar order_details
+            if (!empty($orderIds)) {
+                $deletedCounts['order_details'] = \App\Models\OrderDetail::whereIn('order_id', $orderIds)
+                    ->delete();
+            }
+
+            // 5. Eliminar payments (solo fallidos/cancelados ya que validamos antes)
+            if (!empty($orderIds)) {
+                $deletedCounts['payments'] = \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->delete();
+            }
+
+            // 6. Eliminar orders
+            $deletedCounts['orders'] = \App\Models\Order::where('program_id', $programCourseId)
+                ->delete();
+
+            // 7. Eliminar participant_programs
+            $deletedCounts['participant_programs'] = \App\Models\ParticipantProgram::where('program_id', $programCourseId)
+                ->delete();
+
+            // 8. Eliminar virtualpos_plans locales (si existen)
+            $deletedCounts['virtualpos_plans'] = VirtualPosPlan::where('program_course_id', $programCourseId)
+                ->delete();
+
+            // 9. Eliminar relación pivot program_course_payment_option
+            $deletedCounts['payment_options'] = DB::table('program_course_payment_option')
+                ->where('program_course_id', $programCourseId)
+                ->delete();
+
+            // 10. Eliminar de participant_course (pivot) para sincronizar conteo
+            if (!empty($participantIds) && $courseId) {
+                $deletedCounts['participant_course'] = DB::table('participant_course')
+                    ->whereIn('participant_id', $participantIds)
+                    ->where('course_id', $courseId)
+                    ->delete();
+            }
+
+            // 11. Eliminar archivos PDF asociados al programa
+            $this->deleteProgramFiles($programCourse);
+
+            // 12. Eliminar el ProgramCourse
+            $programCourse->delete();
+
+            // 13. Eliminar el Course asociado y su archivo de estudiantes
+            $course = Course::find($courseId);
+            if ($course) {
+                // Eliminar archivo de estudiantes si existe
+                if ($course->students_file_path) {
+                    try {
+                        Storage::disk('public')->delete($course->students_file_path);
+                        Log::info("Archivo de estudiantes eliminado: {$course->students_file_path}");
+                    } catch (\Exception $e) {
+                        Log::warning("Error eliminando archivo de estudiantes", [
+                            'path' => $course->students_file_path,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
+                $deletedCounts['course'] = 1;
+                $course->delete();
+            }
+
+            Log::info('Programa y curso eliminados completamente', [
+                'program_course_id' => $programCourseId,
+                'program_name' => $programName,
+                'program_code' => $programCode,
+                'course_id' => $courseId,
+                'deleted_counts' => $deletedCounts,
+                'deleted_by' => auth()->id(),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => "Programa '{$programName}' eliminado exitosamente.",
+                'deleted_counts' => $deletedCounts
+            ];
+        });
+    }
+
+    /**
+     * Eliminar archivos PDF asociados al programa
+     */
+    private function deleteProgramFiles(ProgramCourse $programCourse): void
+    {
+        $fileFields = [
+            'terms_file_path',
+            'itinerary_file_path',
+            'contract_file_path',
+        ];
+
+        foreach ($fileFields as $field) {
+            if (!empty($programCourse->$field)) {
+                try {
+                    Storage::disk('public')->delete($programCourse->$field);
+                    Log::info("Archivo eliminado: {$programCourse->$field}");
+                } catch (\Exception $e) {
+                    Log::warning("Error eliminando archivo {$field}", [
+                        'path' => $programCourse->$field,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
     }
 }

@@ -70,6 +70,7 @@ class GetEditDataService
                 'participant_id' => $pp->participant_id,
                 'program_id' => $pp->program_id, // Este es el program_course_id
                 'status' => $pp->status,
+                'is_active' => $pp->is_active ?? true, // Estado activo/baja del programa
                 'enrollment_code' => $pp->enrollment_code,
                 'discounts' => $pp->discounts->map(function ($discount) {
                     return [
@@ -239,10 +240,12 @@ class GetEditDataService
                     $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
                 }
 
-                    // Obtener el status desde participant_program usando el enrollment_code específico
-                    $participantProgramStatus = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                    // Obtener el status y is_active desde participant_program usando el enrollment_code específico
+                    $participantProgramRecord = \App\Models\ParticipantProgram::where('participant_id', $participant->id)
                         ->where('enrollment_code', $enrollmentCode)
-                        ->value('status') ?? 'pending_payment';
+                        ->first();
+                    $participantProgramStatus = $participantProgramRecord?->status ?? 'pending_payment';
+                    $participantProgramIsActive = $participantProgramRecord?->is_active ?? true;
 
                     // Usar los datos del program_course (que tiene trip_price, departure_date, name específicos)
                     $array = $programCourse->toArray();
@@ -259,6 +262,7 @@ class GetEditDataService
                     $array['paid_installments'] = $paidInstallments;
                     $array['installments_summary'] = $installmentsSummary;
                     $array['participant_program_status'] = $participantProgramStatus; // Status del participant_program
+                    $array['participant_program_is_active'] = $participantProgramIsActive; // Estado activo/baja del programa
                     $array['is_cancelled'] = $isCancelled; // Bandera para saber si está cancelado
 
                     // Usar la variable $activeSubscription ya calculada arriba
