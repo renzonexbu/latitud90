@@ -72,14 +72,19 @@ class CourseDataService
 
     private function calculateTotalAmount($course, $activeParticipants, $program = null, $programCourse = null): float
     {
-        // Total del curso = precio del viaje × cantidad de alumnos activos
-        if ($programCourse && $programCourse->trip_price) {
-            $tripPrice = (float) $programCourse->trip_price;
-            $totalStudents = $activeParticipants->count();
-            return $tripPrice * $totalStudents;
+        if (!$programCourse) {
+            return 0.0;
         }
 
-        return 0.0;
+        // Calcular el total sumando el precio final de cada participante (considerando descuentos)
+        $totalAmount = 0.0;
+
+        foreach ($activeParticipants as $participant) {
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $totalAmount += $priceData['final_price'] ?? 0;
+        }
+
+        return $totalAmount;
     }
 
     private function calculatePaidAmount($course, $program = null, $programCourse = null): float
@@ -125,14 +130,16 @@ class CourseDataService
         if ($program && $programCourse) {
             $program->makeVisible(['trip_price', 'name', 'destination']);
 
-            // Calculate total amount from active participants
+            // Calculate total amount from active participants (considering discounts)
             $participants = $course->participants ?? collect();
             $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
 
-            // Total del curso = precio del viaje × cantidad de alumnos activos
-            $tripPrice = (float) ($programCourse->trip_price ?? 0);
-            $totalStudents = $activeParticipants->count();
-            $courseTotalAmount = $tripPrice * $totalStudents;
+            // Total del curso = suma del precio final de cada participante (con descuentos)
+            $courseTotalAmount = 0.0;
+            foreach ($activeParticipants as $participant) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                $courseTotalAmount += $priceData['final_price'] ?? 0;
+            }
 
             // Calculate paid amount (pagos normales + cuotas de suscripciones)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id

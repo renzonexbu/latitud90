@@ -31,6 +31,19 @@ class ParticipantPriceHelper
         // 4. Calcular precio final
         $finalPrice = max(0, $basePrice + $adjustments - $discounts);
 
+        // LOG para depuración
+        \Illuminate\Support\Facades\Log::info('ParticipantPriceHelper::calculateParticipantPrice', [
+            'participant_id' => $participant->id,
+            'participant_name' => $participant->full_name,
+            'program_course_id' => $programCourse->id ?? 'N/A',
+            'program_course_name' => $programCourse->name ?? 'N/A',
+            'trip_price' => $programCourse->trip_price ?? 0,
+            'PRECIO_BASE' => $basePrice,
+            'AJUSTES' => $adjustments,
+            'DESCUENTOS' => $discounts,
+            'PRECIO_FINAL' => $finalPrice,
+        ]);
+
         return [
             'base_price' => $basePrice,
             'adjustments' => $adjustments,
@@ -50,35 +63,69 @@ class ParticipantPriceHelper
         // IMPORTANTE: Program NO tiene relación course, solo ProgramCourse
         $course = $isProgramCourse ? $programCourse->course : null;
 
-        // 1. Intentar obtener desde participant_program (program_id apunta a program_courses)
-        if ($programCourseId) {
-            $pp = DB::table('participant_program')
+        $source = 'NINGUNO';
+        $price = 0.0;
+
+        // 1. PRIMERO: Buscar en el pivote participant_course (consulta directa para evitar problemas de carga de relaciones)
+        if ($course) {
+            $pivot = DB::table('participant_course')
                 ->where('participant_id', $participant->id)
-                ->where('program_id', $programCourseId) // program_id ahora apunta a program_courses
+                ->where('course_id', $course->id)
                 ->first();
 
-            if ($pp && $pp->individual_price) {
-                return (float) $pp->individual_price;
+            \Illuminate\Support\Facades\Log::info('getBasePrice - Buscando en participant_course', [
+                'participant_id' => $participant->id,
+                'course_id' => $course->id,
+                'pivot_encontrado' => $pivot ? 'SI' : 'NO',
+                'pivot_individual_price' => $pivot->individual_price ?? 'NULL',
+            ]);
+
+            if ($pivot && $pivot->individual_price && $pivot->individual_price > 0) {
+                $source = 'participant_course.individual_price';
+                $price = (float) $pivot->individual_price;
             }
         }
 
-        // 2. Fallback al pivote participant_course
-        if ($course) {
-            $pivotParticipant = $course->participants
-                ->firstWhere('id', $participant->id);
+        // 2. Fallback: Buscar en participant_program.individual_price
+        if ($price == 0 && $programCourseId) {
+            $pp = DB::table('participant_program')
+                ->where('participant_id', $participant->id)
+                ->where('program_id', $programCourseId)
+                ->first();
 
-            if ($pivotParticipant && $pivotParticipant->pivot) {
-                return (float) ($pivotParticipant->pivot->individual_price ?? 0);
+            \Illuminate\Support\Facades\Log::info('getBasePrice - Buscando en participant_program', [
+                'participant_id' => $participant->id,
+                'program_course_id' => $programCourseId,
+                'pp_encontrado' => $pp ? 'SI' : 'NO',
+                'pp_individual_price' => $pp->individual_price ?? 'NULL',
+            ]);
+
+            if ($pp && $pp->individual_price && $pp->individual_price > 0) {
+                $source = 'participant_program.individual_price';
+                $price = (float) $pp->individual_price;
             }
         }
 
         // 3. Fallback al precio individual del participante
-        if ($participant->individual_price) {
-            return (float) $participant->individual_price;
+        if ($price == 0 && $participant->individual_price && $participant->individual_price > 0) {
+            $source = 'participant.individual_price';
+            $price = (float) $participant->individual_price;
         }
 
         // 4. Fallback al precio del programa/program_course
-        return (float) $programCourse->trip_price;
+        if ($price == 0) {
+            $source = 'programCourse.trip_price';
+            $price = (float) ($programCourse->trip_price ?? 0);
+        }
+
+        \Illuminate\Support\Facades\Log::info('getBasePrice - RESULTADO FINAL', [
+            'participant_id' => $participant->id,
+            'FUENTE_DEL_PRECIO' => $source,
+            'PRECIO_BASE_FINAL' => $price,
+            'trip_price_programa' => $programCourse->trip_price ?? 0,
+        ]);
+
+        return $price;
     }
     
     /**
@@ -91,13 +138,15 @@ class ParticipantPriceHelper
         // IMPORTANTE: Program NO tiene relación course, solo ProgramCourse
         $course = $isProgramCourse ? $programCourse->course : null;
 
-        // Solo considerar ajustes del pivote participant_course (sistema antiguo)
+        // Consulta directa al pivote para evitar problemas de carga de relaciones
         if ($course) {
-            $pivotParticipant = $course->participants
-                ->firstWhere('id', $participant->id);
+            $pivot = DB::table('participant_course')
+                ->where('participant_id', $participant->id)
+                ->where('course_id', $course->id)
+                ->first();
 
-            if ($pivotParticipant && $pivotParticipant->pivot) {
-                return (float) ($pivotParticipant->pivot->price_adjustments ?? 0);
+            if ($pivot && $pivot->price_adjustments) {
+                return (float) $pivot->price_adjustments;
             }
         }
 

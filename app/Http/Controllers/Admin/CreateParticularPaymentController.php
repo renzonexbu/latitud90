@@ -90,18 +90,13 @@ class CreateParticularPaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP',
+            'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP',
 
-            // Datos del comprador
+            // Datos del comprador (simplificado)
             'buyer_full_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'required|email|max:255',
-            'buyer_phone' => 'required|string|max:255',
-            'buyer_code_phone' => 'required|string|max:10',
-            'buyer_country' => 'required|exists:countries,id',
-            'buyer_region' => 'required|exists:regions,id',
-            'buyer_city' => 'required|exists:comunes,id',
         ]);
 
         if ($validator->fails()) {

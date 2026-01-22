@@ -245,32 +245,49 @@ class Payment extends Model
 
             // Cargar la relación programCourse si no está cargada (arquitectura nueva)
             if (!$this->relationLoaded('programCourse')) {
-                $this->load('programCourse.program');
+                $this->load('programCourse');
             }
 
-            // Si no hay programa directamente, intentar obtenerlo a través de order
+            // Si no hay programCourse directamente, intentar obtenerlo a través de order
             if (!$this->programCourse && !$this->relationLoaded('order')) {
-                $this->load('order.programCourse.program');
+                $this->load('order.programCourse');
             }
 
             $programCourse = $this->programCourse ?? $this->order?->programCourse;
-            $program = $programCourse?->program;
 
-            // Si no hay programa, por defecto B2 (Boleta)
-            if (!$program) {
+            // Si no hay programCourse, por defecto B2 (Boleta)
+            if (!$programCourse) {
+                Log::info('Payment::determineDocumentType - No programCourse found, defaulting to B2', [
+                    'payment_id' => $this->id,
+                ]);
                 return 'B2';
             }
 
             $currentYear = now()->year;
-            $programYear = $program->departure_date ? $program->departure_date->year : $currentYear;
+            // Usar departure_date del ProgramCourse (arquitectura nueva), no del Program
+            $departureDate = $programCourse->departure_date ?? $programCourse->start_date;
+            $programYear = $departureDate ? \Carbon\Carbon::parse($departureDate)->year : $currentYear;
 
             // Si la fecha de salida del programa es en el año posterior (reserva)
             if ($programYear > $currentYear) {
-                return 'AC'; // Reserva
+                Log::info('Payment::determineDocumentType - Determined AC (anticipo/reserva)', [
+                    'payment_id' => $this->id,
+                    'program_course_id' => $programCourse->id,
+                    'departure_date' => $departureDate,
+                    'program_year' => $programYear,
+                    'current_year' => $currentYear,
+                ]);
+                return 'AC'; // Reserva/Anticipo
             }
 
-            // Si es el mismo año, decidir entre Boleta (B2) o Factura (FF)
-            // Por defecto usamos Boleta, pero se puede extender la lógica según necesidades
+            // Si es el mismo año, es Boleta (B2)
+            Log::info('Payment::determineDocumentType - Determined B2 (boleta)', [
+                'payment_id' => $this->id,
+                'program_course_id' => $programCourse->id,
+                'departure_date' => $departureDate,
+                'program_year' => $programYear,
+                'current_year' => $currentYear,
+            ]);
             return 'B2'; // Boleta
             
         } catch (\Exception $e) {

@@ -1,100 +1,124 @@
 <template>
-    <div class="rounded-[20px] border border-gray-300 overflow-hidden">
-        <!-- Table Header -->
-        <div class="bg-turquesa rounded-t-[20px] px-4 py-4 flex items-center gap-2 h-[75px]">
-            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[200px]">
-                Nombre del Programa
-            </div>
-            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[120px]">
-                Institución
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[80px]">
-                Nivel
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[70px]">
-                Curso
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[50px]">
-                Año
-            </div>
-            <div class="text-white font-nexa-bold text-xs flex-1 min-w-[100px]">
-                Destino
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[60px]">
-                Participantes
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[90px]">
-                % Pago
-            </div>
-            <div class="text-white font-nexa-bold text-xs text-center w-[160px]">
-                Recaudado / Total
-            </div>
-            <div class="w-[40px] flex-shrink-0">
-                <!-- Empty space for actions column -->
-            </div>
-        </div>
+    <div class="bg-white rounded-lg border border-gray-200">
+        <!-- Scroll Container -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs" style="min-width: 1400px;">
+                <!-- Table Header -->
+                <thead class="bg-[#007e93] sticky top-0 z-10">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[280px]">
+                            Nombre del Programa
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
+                            Institución
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Nivel
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Curso
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Año
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Destino
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Código
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Participantes
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            % Pago
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                            Recaudado / Total
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
-        <!-- Table Body -->
-        <div class="flex flex-col">
-            <div
-                v-for="(course, index) in courses"
-                :key="course.id"
-                :class="[
-                    'px-4 py-3 flex items-center gap-2',
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                ]"
-            >
-                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[200px] truncate" :title="getProgramCourseName(course)">
-                    {{ capitalizeWords(getProgramCourseName(course)) }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[120px] truncate">
-                    {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[80px] truncate">
-                    {{ capitalizeWords(course.education_level) }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[70px]">
-                    {{ course.course_display }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[50px]">
-                    {{ course.year }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs flex-1 min-w-[100px] truncate">
-                    {{ capitalizeWords(getProgramDestination(course)) }}
-                </div>
-                <div class="text-verde-oscuro font-nexa-bold text-xs text-center w-[60px]">
-                    {{ course.total_students || 0 }}
-                </div>
-                <div class="w-[90px] flex justify-center">
-                    <div
+                        </th>
+                    </tr>
+                </thead>
+
+                <!-- Table Body -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr
+                        v-for="(course, index) in courses"
+                        :key="course.id"
                         :class="[
-                            'rounded-xl px-2 py-1 flex items-center justify-center w-full',
-                            getStatusChipClass(course)
+                            'hover:bg-gray-50 transition-colors',
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         ]"
                     >
-                        <span
-                            :class="[
-                                'font-nexa-xbold text-xs text-center',
-                                getStatusTextClass(course)
-                            ]"
-                        >
-                            {{ getCoursePaymentPercentage(course) }}
-                        </span>
-                    </div>
-                </div>
-                <div class="text-verde-oscuro font-nexa-xbold text-xs text-center w-[160px]">
-                    {{ formatCurrency(course.course_paid_amount || 0) }} / {{ formatCurrency(course.course_total_amount || 0) }}
-                </div>
-                <div class="w-[40px] flex-shrink-0 flex justify-center">
-                    <button
-                        @click="editCourse(course.id)"
-                        class="p-1 hover:bg-gray-100 rounded transition-colors"
-                        :title="`Editar ${course.institution?.name || 'curso'}`"
-                    >
-                        <EditPencilIcon fill-color="#C7C7C7" class="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ capitalizeWords(getProgramCourseName(course)) }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ capitalizeWords(course.education_level) }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ course.course_display }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ course.year }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ capitalizeWords(getProgramDestination(course)) }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ getProgramCode(course) }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ course.total_students || 0 }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="[
+                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    getStatusChipClass(course)
+                                ]"
+                            >
+                                {{ getCoursePaymentPercentage(course) }}
+                            </span>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-gray-900">
+                                {{ formatCurrency(course.course_paid_amount || 0) }} / {{ formatCurrency(course.course_total_amount || 0) }}
+                            </div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <button
+                                @click="editCourse(course.id)"
+                                class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
+                                :title="`Editar ${course.institution?.name || 'curso'}`"
+                            >
+                                <EditPencilIcon fill-color="#C7C7C7" />
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </template>
@@ -129,6 +153,11 @@ export default {
             const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
             return programCourse?.destination || programCourse?.program?.destination || 'N/a';
         },
+        getProgramCode(course) {
+            // Obtener el código del ProgramCourse
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.code || 'N/A';
+        },
         getStatusChipClass(course) {
             const percentage = course.payment_percentage;
             
@@ -145,10 +174,6 @@ export default {
             } else {
                 return 'bg-[#d54a42]'; // Rojo para menos de 25%
             }
-        },
-        
-        getStatusTextClass(course) {
-            return 'text-white';
         },
         
         getPaymentPercentage(course) {
@@ -184,17 +209,13 @@ export default {
 <style scoped>
 /* Custom font classes - add these to your Tailwind config or use existing ones */
 .font-nexa-bold {
-    font-family: 'Nexa-Bold', sans-serif;
+    font-family: "Nexa-Bold", sans-serif;
     font-weight: 700;
 }
 
 .font-nexa-xbold {
-    font-family: 'Nexa-XBold', sans-serif;
+    font-family: "Nexa-XBold", sans-serif;
     font-weight: 400;
-}
-
-.text-verde-oscuro {
-    color: #1c4f4a;
 }
 
 .bg-turquesa {

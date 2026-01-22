@@ -1,19 +1,8 @@
 <template>
-    <div
-        class="bg-white rounded-[20px] pt-[30px] pr-[30px] pb-[15px] pl-[30px] flex flex-col gap-[17px] items-end justify-end w-full"
-    >
+    <div class="bg-white rounded-[20px] p-6 flex flex-col gap-4 w-full">
         <!-- Header row: title + search -->
         <div class="flex flex-row items-center justify-between w-full">
-            <div
-                :style="{
-                    color: 'var(--Colores-OP2-Verde-oscuro, #1C4F4A)',
-                    fontFamily: 'Nexa',
-                    fontSize: 'var(--Numeros-Subtitulo-S, 20px)',
-                    fontStyle: 'normal',
-                    fontWeight: 400,
-                    lineHeight: '28px',
-                }"
-            >
+            <div class="text-[#1C4F4A] font-nexa text-[20px] font-normal leading-[28px]">
                 Estado de pago por institución
             </div>
             <div class="relative w-[310px]">
@@ -46,94 +35,97 @@
             </div>
         </div>
 
-        <!-- Table -->
-        <div
-            class="rounded-[20px] border border-colores-neutro-gris-3 w-full overflow-hidden"
-        >
-            <!-- Head -->
-            <div
-                class="bg-turquesa text-white flex flex-row items-center justify-between h-[67.51px] px-[25px]"
-            >
-                <div class="w-[150px] text-left">Nombre de institución</div>
-                <div class="w-[90px] text-center">Nivel</div>
-                <div class="w-[53px] text-center">Curso</div>
-                <div class="w-[39px] text-center">Año</div>
-                <div class="w-[150px] text-center">Programa</div>
-                <div class="w-[150px] text-center">Destino</div>
-                <div class="w-[90px] text-center">Alumnos</div>
-                <div class="w-[110px] text-center">Estado</div>
-                <div class="w-[160px] text-center">Recaudado / Total</div>
-                <div class="w-[18px]"></div>
-            </div>
+        <!-- Table with horizontal scroll -->
+        <div class="bg-white rounded-lg border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs" style="min-width: 1200px;">
+                    <!-- Head -->
+                    <thead class="bg-[#007e93] sticky top-0 z-10">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Institución</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Nivel</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Curso</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Año</th>
+                            <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">Programa</th>
+                            <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">Destino</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Participantes</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">% Pago</th>
+                            <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Recaudado / Total</th>
+                        </tr>
+                    </thead>
 
-            <!-- Body rows -->
-            <div
-                v-for="(row, index) in filteredRows"
-                :key="row.id || index"
-                :class="
-                    index % 2 === 0 ? 'bg-white' : 'bg-colores-neutro-gris-1'
-                "
-                class="flex flex-row items-center justify-between px-[25px] py-[17px]"
-            >
-                <div
-                    class="w-[150px] text-left text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ row.institutionName }}
-                </div>
-                <div
-                    class="w-[90px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ capitalize(row.educationLevel) }}
-                </div>
-                <div class="w-[53px] text-center text-colores-op2-verde-oscuro truncate">
-                    {{ row.course !== undefined && row.course !== null ? row.course : '—' }}
-                </div>
-                <div
-                    class="w-[39px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ row.year }}
-                </div>
-                <div
-                    class="w-[150px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ capitalize(row.programName) }}
-                </div>
-                <div
-                    class="w-[150px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ capitalize(row.destination) }}
-                </div>
-                <div
-                    class="w-[90px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ row.students }}
-                </div>
-
-                <!-- Estado badge -->
-                <div class="w-[110px] flex items-center justify-center">
-                    <div
-                        :style="badgeStyle(row.percent ?? 0)"
-                        class="flex w-[100px] py-[6px] px-[10px] justify-center items-center gap-[10px] rounded-[12px] text-white"
-                    >
-                        <span
-                            class="font-[Nexa-XBold] text-[13px] leading-[13px]"
-                            >{{ row.percent ?? 0 }}%</span
+                    <!-- Body rows -->
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr
+                            v-for="(row, index) in paginatedRows"
+                            :key="row.id || index"
+                            :class="[
+                                'hover:bg-gray-50 transition-colors',
+                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                            ]"
                         >
-                    </div>
-                </div>
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <div class="text-xs font-medium text-gray-900">
+                                    {{ capitalize(row.institutionName) }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">
+                                <div class="text-xs text-gray-900">
+                                    {{ capitalize(row.educationLevel) }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">
+                                <div class="text-xs text-gray-900">
+                                    {{ row.course !== undefined && row.course !== null ? row.course : '—' }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">
+                                <div class="text-xs text-gray-900">
+                                    {{ row.year }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <div class="text-xs font-medium text-[#1c4f4a]">
+                                    {{ capitalize(row.programName) }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <div class="text-xs font-medium text-[#1c4f4a]">
+                                    {{ capitalize(row.destination) }}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 whitespace-nowrap text-center">
+                                <div class="text-xs text-gray-900">
+                                    {{ row.students }}
+                                </div>
+                            </td>
 
-                <div
-                    class="w-[160px] text-center text-colores-op2-verde-oscuro truncate"
-                >
-                    {{ formatAmount(row.totalCollected) }} / {{ formatAmount(row.targetAmount) }}
-                </div>
-                <div class="w-[18px]"></div>
+                            <!-- Estado badge -->
+                            <td class="px-2 py-2 whitespace-nowrap text-center">
+                                <span
+                                    :class="[
+                                        'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                        getBadgeClass(row.percent ?? 0)
+                                    ]"
+                                >
+                                    {{ row.percent ?? 0 }}%
+                                </span>
+                            </td>
+
+                            <td class="px-2 py-2 whitespace-nowrap text-right">
+                                <div class="text-xs font-bold text-gray-900">
+                                    {{ formatAmount(row.totalCollected) }} / {{ formatAmount(row.targetAmount) }}
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
         <!-- Footer pagination -->
         <div class="flex flex-row items-center justify-end gap-4">
-            <div class="w-[143px] h-[14px] flex-shrink-0 text-verde-oscuro font-nexa text-[14.582px] font-normal leading-[18.749px]">
+            <div class="text-[#1C4F4A] font-nexa text-[14px] font-normal leading-[18px]">
                 Total {{ totalRows }} Programas
             </div>
             <div
@@ -141,16 +133,11 @@
                 :key="page"
                 @click="goToPage(page)"
                 :class="[
-                    'flex w-[26.647px] h-[26.028px] px-[11.155px] py-[6.197px] items-center gap-[6.996px] rounded-[69.961px] relative overflow-hidden cursor-pointer',
-                    currentPage === page ? 'bg-verde-oscuro' : 'border border-gris-3',
+                    'flex w-[26px] h-[26px] items-center justify-center rounded-full cursor-pointer',
+                    currentPage === page ? 'bg-[#1C4F4A] text-white' : 'border border-gray-300 text-gray-400',
                 ]"
             >
-                <div :class="[
-                        'text-center font-nexa w-[4.338px] h-[9.915px] flex-shrink-0 text-[9.915px] leading-[13.634px] font-normal',
-                        currentPage === page ? 'text-blanco' : 'text-gris-3',
-                    ]">
-                    {{ page }}
-                </div>
+                <span class="text-[10px] font-nexa">{{ page }}</span>
             </div>
         </div>
     </div>
@@ -195,26 +182,30 @@ export default {
         },
     },
     methods: {
-        badgeStyle(percent) {
-            // Colores según porcentaje
-            // < 33%: Amarillo, 33-66%: Azul Oscuro, > 66%: Verde Oscuro
-            let bg = "var(--Colores-OP2-Amarillo, #FFB232)";
-            if (percent >= 66) bg = "var(--Colores-OP2-Verde-oscuro, #1C4F4A)";
-            else if (percent >= 33)
-                bg = "var(--Colores-Primario-Azul-oscuro, #0A3250)";
-            return { background: bg };
+        getBadgeClass(percent) {
+            // Colores según porcentaje - mismo estilo que CoursesTable
+            if (percent >= 100) {
+                return 'bg-[#1a4b75]'; // Azul oscuro para 100%
+            } else if (percent >= 75) {
+                return 'bg-[#4b8d7f]'; // Verde para 75%+
+            } else if (percent >= 50) {
+                return 'bg-yellow-500'; // Amarillo para 50%+
+            } else if (percent >= 25) {
+                return 'bg-orange-500'; // Naranja para 25%+
+            } else {
+                return 'bg-[#d54a42]'; // Rojo para menos de 25%
+            }
         },
         formatAmount(value) {
-            if (value === null || value === undefined) return "";
+            if (value === null || value === undefined) return "$0";
             try {
-                // Mostrar como CLP con signo de peso
                 return new Intl.NumberFormat("es-CL", {
                     style: "currency",
                     currency: "CLP",
                     maximumFractionDigits: 0,
                 }).format(value);
             } catch (e) {
-                return `${value}`;
+                return `$${value}`;
             }
         },
         capitalize(text) {
@@ -234,3 +225,23 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+.font-nexa-bold {
+    font-family: "Nexa-Bold", sans-serif;
+    font-weight: 700;
+}
+
+.font-nexa-xbold {
+    font-family: "Nexa-XBold", sans-serif;
+    font-weight: 400;
+}
+
+.font-nexa {
+    font-family: "Nexa", sans-serif;
+}
+
+.bg-turquesa {
+    background-color: #007e93;
+}
+</style>

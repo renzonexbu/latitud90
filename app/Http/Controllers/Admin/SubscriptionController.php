@@ -7,6 +7,8 @@ use App\Models\ProgramSubscription;
 use App\Models\Installment;
 use App\Models\InstallmentPlan;
 use App\Models\VirtualPosPlan;
+use App\Models\OrderDetail;
+use App\Models\Payment;
 use App\Services\Admin\Subscriptions\GetSubscriptionsService;
 use App\Services\Admin\Subscriptions\ChargeAttempts\ChargeAttemptsService;
 use App\Services\Admin\Subscriptions\ChargeAttempts\ChargeAttemptsDataProvider;
@@ -14,10 +16,13 @@ use App\Services\Admin\Subscriptions\ChargeAttempts\ExportService as ChargeAttem
 use App\Services\VirtualPos\CancelSubscriptionService;
 use App\Services\VirtualPos\SyncSubscriptionService;
 use App\Services\VirtualPos\CreateChargeService;
+use App\Services\Mail\SuccessPaymentEmailService;
+use App\Jobs\SyncSubscriptionPaymentsJob;
 use App\Models\ProgramCourse;
 use App\Models\SalesExecutive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -170,30 +175,280 @@ class SubscriptionController extends Controller
 
     /**
      * Sincronizar suscripción con VirtualPos
+     * Este método usa el job de sincronización para detectar pagos nuevos y enviar emails
      */
     public function syncWithVirtualPos(ProgramSubscription $subscription)
     {
-        Log::channel('daily')->info('=== ADMIN: Sincronizar suscripción con VirtualPos ===', [
+        Log::channel('daily')->info('=== ADMIN: Sincronizar suscripción con VirtualPos (con detección de pagos) ===', [
             'subscription_id' => $subscription->id,
             'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
             'current_status' => $subscription->status,
             'user_id' => auth()->id(),
         ]);
 
-        $result = $this->syncSubscriptionService->sync($subscription);
+        try {
+            // Usar el job de sincronización de forma síncrona
+            // Este job detecta pagos nuevos, crea Payment, marca cuotas como pagadas y envía emails
+            SyncSubscriptionPaymentsJob::dispatchSync($subscription->id);
 
-        Log::channel('daily')->info('ADMIN: Resultado de sincronización', [
+            Log::channel('daily')->info('ADMIN: Sincronización con detección de pagos completada', [
+                'subscription_id' => $subscription->id,
+            ]);
+
+            // Recargar la suscripción para mostrar datos actualizados
+            $subscription->refresh();
+
+            return back()->with('success', 'Suscripción sincronizada correctamente. Si se detectaron pagos nuevos, se enviaron los correos correspondientes.');
+
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('ADMIN: Error en sincronización', [
+                'subscription_id' => $subscription->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Error al sincronizar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reenviar email de confirmación de pago para una cuota específica
+     */
+    public function resendPaymentEmail(ProgramSubscription $subscription, Request $request)
+    {
+        Log::channel('daily')->info('=== ADMIN: Reenviar email de pago ===', [
             'subscription_id' => $subscription->id,
-            'success' => $result['success'],
-            'message' => $result['message'],
-            'data' => $result['data'] ?? null,
+            'installment_number' => $request->installment_number,
+            'user_id' => auth()->id(),
         ]);
 
-        if ($result['success']) {
-            return back()->with('success', $result['message']);
-        }
+        $request->validate([
+            'installment_number' => 'required|integer|min:1',
+        ]);
 
-        return back()->with('error', $result['message']);
+        $installmentNumber = $request->installment_number;
+
+        try {
+            // Buscar el plan de cuotas
+            $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->first();
+
+            if (!$installmentPlan) {
+                return back()->with('error', 'No se encontró plan de cuotas para esta suscripción.');
+            }
+
+            // Buscar la cuota
+            $installment = $installmentPlan->installments()
+                ->where('installment_number', $installmentNumber)
+                ->first();
+
+            if (!$installment) {
+                return back()->with('error', "No se encontró la cuota #{$installmentNumber}.");
+            }
+
+            if (!$installment->is_paid) {
+                return back()->with('error', "La cuota #{$installmentNumber} no está marcada como pagada.");
+            }
+
+            // Obtener el Payment - primero por payment_id, si no existe buscar por virtualpos_charge_id
+            $payment = null;
+
+            if ($installment->payment_id) {
+                $payment = Payment::find($installment->payment_id);
+            }
+
+            // Si no tiene payment_id pero tiene virtualpos_charge_id, buscar el Payment por external_payment_id
+            if (!$payment && $installment->virtualpos_charge_id) {
+                $payment = Payment::where('external_payment_id', $installment->virtualpos_charge_id)->first();
+
+                // Si encontramos el Payment, actualizar la cuota para futuras consultas
+                if ($payment) {
+                    $installment->update([
+                        'payment_id' => $payment->id,
+                        'payment_order_detail_id' => $payment->order_detail_id,
+                    ]);
+
+                    Log::channel('daily')->info('ADMIN: Vinculación de pago corregida automáticamente', [
+                        'installment_id' => $installment->id,
+                        'payment_id' => $payment->id,
+                        'virtualpos_charge_id' => $installment->virtualpos_charge_id,
+                    ]);
+                }
+            }
+
+            if (!$payment) {
+                return back()->with('error', "No se encontró el registro de pago para la cuota #{$installmentNumber}. Verifique que el pago exista en la tabla payments.");
+            }
+
+            $orderDetail = $payment->orderDetail;
+            if (!$orderDetail) {
+                Log::channel('daily')->error('ADMIN: No se encontró orderDetail para el payment', [
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $payment->order_detail_id,
+                ]);
+                return back()->with('error', 'No se encontró el detalle de la orden.');
+            }
+
+            Log::channel('daily')->info('ADMIN: Preparando envío de email de pago', [
+                'subscription_id' => $subscription->id,
+                'installment_number' => $installmentNumber,
+                'payment_id' => $payment->id,
+                'order_detail_id' => $orderDetail->id,
+                'participant_id' => $orderDetail->participant_id ?? 'N/A',
+            ]);
+
+            // Enviar email usando el servicio existente
+            $emailService = new SuccessPaymentEmailService();
+            $result = $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+
+            Log::channel('daily')->info('ADMIN: Resultado del envío de email', [
+                'subscription_id' => $subscription->id,
+                'installment_number' => $installmentNumber,
+                'result' => $result ? 'ENVIADO' : 'FALLIDO',
+            ]);
+
+            if ($result) {
+                Log::channel('daily')->info('ADMIN: Email de pago reenviado exitosamente', [
+                    'subscription_id' => $subscription->id,
+                    'installment_number' => $installmentNumber,
+                    'payment_id' => $payment->id,
+                ]);
+
+                return back()->with('success', "Email de confirmación de pago de la cuota #{$installmentNumber} reenviado exitosamente.");
+            }
+
+            Log::channel('daily')->warning('ADMIN: El servicio de email retornó false', [
+                'subscription_id' => $subscription->id,
+                'installment_number' => $installmentNumber,
+            ]);
+
+            return back()->with('error', 'Error al enviar el email. Revise los logs para más detalles.');
+
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('ADMIN: Error reenviando email de pago', [
+                'subscription_id' => $subscription->id,
+                'installment_number' => $installmentNumber,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Reenviar email de confirmación de suscripción exitosa
+     */
+    public function resendSubscriptionEmail(ProgramSubscription $subscription)
+    {
+        Log::channel('daily')->info('=== ADMIN: Reenviar email de suscripción ===', [
+            'subscription_id' => $subscription->id,
+            'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+            'user_id' => auth()->id(),
+        ]);
+
+        try {
+            // Cargar relaciones necesarias
+            $subscription->load(['participant', 'programCourse.program', 'programCourse.course.institution']);
+
+            $participant = $subscription->participant;
+            $programCourse = $subscription->programCourse;
+
+            if (!$participant || !$programCourse) {
+                return back()->with('error', 'Datos incompletos de la suscripción.');
+            }
+
+            // Obtener el plan de cuotas para información adicional
+            $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->with(['installments' => function ($query) {
+                    $query->orderBy('installment_number');
+                }])
+                ->first();
+
+            // Determinar datos del comprador
+            $buyerData = $subscription->buyer_data ?? [];
+            $buyerEmail = $buyerData['email'] ?? $participant->email;
+
+            // Construir nombre del comprador
+            $buyerName = trim(
+                ($buyerData['first_name'] ?? '') . ' ' .
+                ($buyerData['second_name'] ?? '') . ' ' .
+                ($buyerData['first_last_name'] ?? '') . ' ' .
+                ($buyerData['second_last_name'] ?? '')
+            );
+            $buyerName = preg_replace('/\s+/', ' ', $buyerName);
+            if (empty(trim($buyerName))) {
+                $buyerName = $participant->full_name;
+            }
+
+            // Obtener primera fecha de cobro
+            $firstChargeDate = 'Por confirmar';
+            if ($installmentPlan && $installmentPlan->installments->isNotEmpty()) {
+                $firstInstallment = $installmentPlan->installments->first();
+                $firstChargeDate = \Carbon\Carbon::parse($firstInstallment->due_date)->format('d/m/Y');
+            } elseif (!empty($subscription->charge_program) && count($subscription->charge_program) > 0) {
+                $firstCharge = $subscription->charge_program[0];
+                $firstChargeDate = isset($firstCharge['charge_date'])
+                    ? \Carbon\Carbon::parse($firstCharge['charge_date'])->format('d/m/Y')
+                    : 'Por confirmar';
+            }
+
+            // Formatear método de pago
+            $paymentMethodData = $subscription->payment_method;
+            $paymentMethod = 'Tarjeta de Crédito/Débito';
+            if (is_array($paymentMethodData)) {
+                $brand = $paymentMethodData['card_brand'] ?? $paymentMethodData['brand'] ?? '';
+                $last4 = $paymentMethodData['last_four_digits'] ?? $paymentMethodData['last4'] ?? '';
+                if ($brand && $last4) {
+                    $paymentMethod = strtoupper($brand) . ' •••• ' . $last4;
+                }
+            }
+
+            // Preparar datos del email según la plantilla subscription_success
+            $emailData = [
+                'company_name' => config('lat90.company.name', 'Latitud 90'),
+                'customer_name' => $buyerName,
+                'participant_name' => $participant->full_name,
+                'program_name' => $programCourse->name,
+                'first_charge_date' => $firstChargeDate,
+                'subscription_amount' => number_format($subscription->amount, 0, ',', '.'),
+                'total_installments' => $subscription->installments,
+                'payment_method' => $paymentMethod,
+                'subscription_id' => $subscription->virtualpos_subscription_id,
+            ];
+
+            Log::channel('daily')->info('ADMIN: Preparando envío de email de suscripción', [
+                'subscription_id' => $subscription->id,
+                'email_destinatario' => $buyerEmail,
+                'buyer_name' => $buyerName,
+                'participant_name' => $participant->full_name,
+                'program_name' => $programCourse->name,
+            ]);
+
+            // Enviar email de confirmación de suscripción
+            Mail::send('Mails.subscription_success', $emailData, function ($message) use ($buyerEmail, $buyerName, $programCourse) {
+                $message->to($buyerEmail, $buyerName)
+                    ->subject('Confirmación de Suscripción - ' . $programCourse->name);
+            });
+
+            Log::channel('daily')->info('ADMIN: Email de suscripción ENVIADO exitosamente', [
+                'subscription_id' => $subscription->id,
+                'email' => $buyerEmail,
+                'resultado' => 'ENVIADO',
+            ]);
+
+            return back()->with('success', 'Email de confirmación de suscripción reenviado exitosamente a ' . $buyerEmail);
+
+        } catch (\Exception $e) {
+            Log::channel('daily')->error('ADMIN: Error reenviando email de suscripción', [
+                'subscription_id' => $subscription->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Error al enviar el email: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -159,8 +159,10 @@ class GuardianParticipantService
 
                 if ($participantProgram && $participantProgram->discounts) {
                     foreach ($participantProgram->discounts as $discount) {
-                        if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
-                            $discountAmount += $basePrice;
+                        if ($discount->discount_type === 'released') {
+                            // Liberado usa el porcentaje almacenado (puede ser cualquier %)
+                            $discountPercent = $discount->percent ?? 100;
+                            $discountAmount += ($basePrice * $discountPercent / 100);
                         } elseif ($discount->percent) {
                             $discountAmount += ($basePrice * $discount->percent / 100);
                         } elseif ($discount->amount) {
@@ -275,8 +277,10 @@ class GuardianParticipantService
 
         if ($participantProgram && $participantProgram->discounts) {
             foreach ($participantProgram->discounts as $discount) {
-                if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
-                    $discountAmount += $basePrice;
+                if ($discount->discount_type === 'released') {
+                    // Liberado usa el porcentaje almacenado (puede ser cualquier %)
+                    $discountPercent = $discount->percent ?? 100;
+                    $discountAmount += ($basePrice * $discountPercent / 100);
                 } elseif ($discount->percent) {
                     $discountAmount += ($basePrice * $discount->percent / 100);
                 } elseif ($discount->amount) {

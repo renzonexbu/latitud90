@@ -467,30 +467,55 @@ class SubscriptionController extends Controller
             // Crear las cuotas individuales usando el charge_program de VirtualPos
             $chargeProgram = $response['suscription']['charge_program'] ?? $response['charge_program'] ?? [];
 
-            if (empty($chargeProgram)) {
-                throw new Exception('No se recibió charge_program de VirtualPos');
-            }
+            // Estados que indican pago exitoso (incluye 'procesando' para cobros inmediatos)
+            $approvedStatuses = ['pagado', 'procesando', 'aprobado', 'approved', 'paid', 'success'];
 
-            foreach ($chargeProgram as $index => $charge) {
-                // Convertir el status de VirtualPos a nuestro formato
-                $status = 'pending';
-                $isPaid = false;
-                if (isset($charge['status'])) {
-                    if ($charge['status'] === 'pagado') {
-                        $status = 'paid';
-                        $isPaid = true;
+            // Si VirtualPos devuelve charge_program, usar esos datos
+            if (!empty($chargeProgram)) {
+                foreach ($chargeProgram as $index => $charge) {
+                    // Convertir el status de VirtualPos a nuestro formato
+                    $status = 'pending';
+                    $isPaid = false;
+                    if (isset($charge['status'])) {
+                        $chargeStatus = strtolower($charge['status']);
+                        if (in_array($chargeStatus, $approvedStatuses)) {
+                            $status = 'paid';
+                            $isPaid = true;
+                        }
                     }
-                }
 
-                $installmentPlan->installments()->create([
-                    'installment_number' => $index + 1,
-                    'virtualpos_charge_id' => $charge['id'],
-                    'amount' => $charge['amount'],
-                    'due_date' => $charge['charge_date'],
-                    'status' => $status,
-                    'is_paid' => $isPaid,
-                    'paid_at' => $isPaid ? now() : null,
+                    $installmentPlan->installments()->create([
+                        'installment_number' => $index + 1,
+                        'virtualpos_charge_id' => $charge['id'] ?? null,
+                        'amount' => $charge['amount'],
+                        'due_date' => $charge['charge_date'],
+                        'status' => $status,
+                        'is_paid' => $isPaid,
+                        'paid_at' => $isPaid ? now() : null,
+                    ]);
+                }
+            } else {
+                // Si no hay charge_program (respuesta inicial antes de completar pago),
+                // crear cuotas con datos estimados. Se actualizarán en returnUrl.
+                Log::warning('createFromConfirmation: VirtualPos no devolvió charge_program inicial, creando cuotas estimadas', [
+                    'subscription_id' => $subscription->id,
+                    'installments' => $installments
                 ]);
+
+                $monthlyAmount = ceil($totalAmount / $installments);
+                $chargeDate = now();
+
+                for ($i = 0; $i < $installments; $i++) {
+                    $installmentPlan->installments()->create([
+                        'installment_number' => $i + 1,
+                        'virtualpos_charge_id' => null, // Se actualizará después
+                        'amount' => $monthlyAmount,
+                        'due_date' => $chargeDate->copy()->addMonths($i)->format('Y-m-d'),
+                        'status' => 'pending',
+                        'is_paid' => false,
+                        'paid_at' => null,
+                    ]);
+                }
             }
 
             DB::commit();
@@ -612,6 +637,9 @@ class SubscriptionController extends Controller
                             'total_charges' => count($chargeProgram)
                         ]);
 
+                        // Estados que indican pago exitoso (incluye 'procesando' para cobros inmediatos)
+                        $approvedStatuses = ['pagado', 'procesando', 'aprobado', 'approved', 'paid', 'success'];
+
                         foreach ($chargeProgram as $index => $charge) {
                             // Buscar si ya existe una cuota con este virtualpos_charge_id
                             $installment = $installmentPlan->installments()
@@ -622,7 +650,8 @@ class SubscriptionController extends Controller
                             $status = 'pending';
                             $isPaid = false;
                             if (isset($charge['status'])) {
-                                if ($charge['status'] === 'pagado') {
+                                $chargeStatus = strtolower($charge['status']);
+                                if (in_array($chargeStatus, $approvedStatuses)) {
                                     $status = 'paid';
                                     $isPaid = true;
                                 }
@@ -670,22 +699,69 @@ class SubscriptionController extends Controller
             if ($virtualPosStatus === 'ACTIVA') {
                 Log::info('Suscripción ACTIVA, redirigiendo a success');
 
-                // IMPORTANTE: Disparar sincronización de pagos inmediatamente
-                // para registrar el primer pago en Payment y OrderDetail
-                try {
-                    Log::info('Disparando SyncSubscriptionPaymentsJob para registrar primer pago', [
-                        'subscription_id' => $subscription->id
-                    ]);
+                // IMPORTANTE: Ejecutar sincronización de pagos DE FORMA SÍNCRONA con reintentos
+                // para registrar el primer pago en Payment y OrderDetail ANTES de mostrar la página de éxito
+                $maxRetries = 5;
+                $retryDelay = 2; // segundos entre reintentos
+                $paymentProcessed = false;
 
-                    \App\Jobs\SyncSubscriptionPaymentsJob::dispatch($subscription->id);
+                for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+                    try {
+                        Log::info('Ejecutando SyncSubscriptionPaymentsJob (intento ' . $attempt . '/' . $maxRetries . ')', [
+                            'subscription_id' => $subscription->id
+                        ]);
 
-                    Log::info('SyncSubscriptionPaymentsJob despachado exitosamente');
-                } catch (\Exception $e) {
-                    Log::error('Error despachando SyncSubscriptionPaymentsJob', [
+                        // Ejecutar el job de forma SÍNCRONA (dispatchSync)
+                        \App\Jobs\SyncSubscriptionPaymentsJob::dispatchSync($subscription->id);
+
+                        // Verificar si el primer pago fue registrado
+                        $firstPayment = \App\Models\Payment::whereHas('orderDetail', function($query) use ($order) {
+                            $query->where('order_id', $order->id)
+                                  ->where('installment_number', 1);
+                        })->first();
+
+                        if ($firstPayment) {
+                            Log::info('Primer pago registrado exitosamente', [
+                                'subscription_id' => $subscription->id,
+                                'payment_id' => $firstPayment->id,
+                                'attempt' => $attempt
+                            ]);
+                            $paymentProcessed = true;
+                            break;
+                        }
+
+                        // Si no se encontró el pago, esperar antes del siguiente intento
+                        if ($attempt < $maxRetries) {
+                            Log::info('Primer pago aún no detectado, reintentando en ' . $retryDelay . 's', [
+                                'subscription_id' => $subscription->id,
+                                'attempt' => $attempt
+                            ]);
+                            sleep($retryDelay);
+
+                            // Refrescar datos de VirtualPos antes del siguiente intento
+                            $virtualPosResponse = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
+                            $subscription->update([
+                                'charge_program' => $virtualPosResponse['suscription']['charge_program'] ?? null,
+                            ]);
+                        }
+
+                    } catch (\Exception $e) {
+                        Log::error('Error ejecutando SyncSubscriptionPaymentsJob (intento ' . $attempt . ')', [
+                            'subscription_id' => $subscription->id,
+                            'error' => $e->getMessage()
+                        ]);
+
+                        if ($attempt < $maxRetries) {
+                            sleep($retryDelay);
+                        }
+                    }
+                }
+
+                if (!$paymentProcessed) {
+                    Log::warning('No se pudo registrar el primer pago después de ' . $maxRetries . ' intentos', [
                         'subscription_id' => $subscription->id,
-                        'error' => $e->getMessage()
+                        'note' => 'El job programado lo procesará posteriormente'
                     ]);
-                    // No detener el flujo, el job se ejecutará en el siguiente ciclo programado
                 }
 
                 // Verificar si la primera cuota está pagada y enviar email
@@ -1066,11 +1142,50 @@ class SubscriptionController extends Controller
     public function failure(Request $request, int $subscriptionId)
     {
         try {
-            // TODO: Cargar información del error
+            // Cargar la suscripción para obtener el estado real
+            $subscription = ProgramSubscription::find($subscriptionId);
+
+            $errorMessage = 'Error desconocido';
+
+            if ($subscription) {
+                $status = $subscription->status;
+                $apiResponse = $subscription->api_response ?? [];
+
+                // Mapear estados de VirtualPOS a mensajes amigables
+                $statusMessages = [
+                    'SUSCRIPCION_FALLIDA' => 'La suscripción no pudo ser procesada. Por favor verifica los datos de tu tarjeta e intenta nuevamente.',
+                    'CANCELADA' => 'La suscripción fue cancelada.',
+                    'PENDIENTE' => 'La suscripción está pendiente de confirmación.',
+                    'RECHAZADA' => 'La tarjeta fue rechazada. Verifica que tengas fondos suficientes o intenta con otra tarjeta.',
+                    'TIMEOUT' => 'El tiempo para completar la transacción ha expirado. Por favor intenta nuevamente.',
+                    'ERROR_BANCO' => 'Hubo un error con el banco emisor de tu tarjeta. Contacta a tu banco para más información.',
+                ];
+
+                // Intentar obtener mensaje del estado
+                if ($status && isset($statusMessages[$status])) {
+                    $errorMessage = $statusMessages[$status];
+                } elseif ($status) {
+                    // Si hay estado pero no está mapeado, mostrar el estado
+                    $errorMessage = "Error en la suscripción (Estado: {$status}). Por favor contacta a soporte si el problema persiste.";
+                }
+
+                // Si hay un mensaje de error específico en api_response, usarlo
+                if (isset($apiResponse['error']['message'])) {
+                    $errorMessage = $apiResponse['error']['message'];
+                } elseif (isset($apiResponse['suscription']['error_message'])) {
+                    $errorMessage = $apiResponse['suscription']['error_message'];
+                }
+
+                Log::info('Mostrando página de fallo de suscripción', [
+                    'subscription_id' => $subscriptionId,
+                    'status' => $status,
+                    'error_message' => $errorMessage
+                ]);
+            }
 
             return inertia('Subscription/Failure', [
                 'subscription_id' => $subscriptionId,
-                'error' => $request->query('error', 'Error desconocido')
+                'error' => $errorMessage
             ]);
 
         } catch (Exception $e) {

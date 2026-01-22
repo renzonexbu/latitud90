@@ -93,6 +93,19 @@ class ExecutivesPartialAccountService
                     ->where('program_id', $programCourseId)
                     ->pluck('id')->all();
 
+                // Calcular aportes (pagos con report_code 'AP')
+                $aporteAmount = 0;
+                if (!empty($orderIds)) {
+                    $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                        ->where('status', 'completed')
+                        ->whereHas('paymentOption', function($q) {
+                            $q->where('report_code', 'AP');
+                        })
+                        ->sum('amount');
+                }
+                // Sumar aportes a scholarship
+                $scholarship += $aporteAmount;
+
                 $paidInstallments = 0;
                 $overdueInstallments = 0;
                 $totalInstallments = 0;
@@ -124,7 +137,16 @@ class ExecutivesPartialAccountService
                             ->sum('amount');
                     } else {
                         // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
-                        $abono = (float) $row->abono;
+                        // Excluir pagos de tipo Aporte (AP) ya que se cuentan en scholarship
+                        $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                            ->where('status', 'completed')
+                            ->where(function($q) {
+                                $q->whereNull('payment_option_id')
+                                  ->orWhereHas('paymentOption', function($sq) {
+                                      $sq->where('report_code', '!=', 'AP');
+                                  });
+                            })
+                            ->sum('amount');
                     }
                 }
 
@@ -177,6 +199,7 @@ class ExecutivesPartialAccountService
             'TE' => 'Transferencia',
             'VP' => 'Pago en VirtualPos',
             'VPI' => 'Pago Internacional',
+            'AP' => 'Aporte',
         ];
 
         return $mapping[$code] ?? $code;

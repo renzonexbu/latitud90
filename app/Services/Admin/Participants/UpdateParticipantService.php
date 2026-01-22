@@ -64,13 +64,25 @@ class UpdateParticipantService
             // Actualizar el participante
             $participant->update($updateData);
 
-            // Si se especificó un curso, actualizar el pivot del curso con el precio individual
+            // Si se especificó un curso/programa, actualizar el pivot del curso con el precio individual
             if (!empty($data['pivot_course_id'])) {
-                $course = Course::find((int) $data['pivot_course_id']);
+                // El pivot_course_id puede ser un ProgramCourse.id (desde el nuevo frontend) o un Course.id (legacy)
+                // Primero intentamos buscar como ProgramCourse, luego como Course
+                $programCourse = ProgramCourse::find((int) $data['pivot_course_id']);
+                $course = null;
+
+                if ($programCourse) {
+                    // Encontrado como ProgramCourse, obtener el Course asociado
+                    $course = $programCourse->course;
+                } else {
+                    // Fallback: buscar como Course.id (compatibilidad legacy)
+                    $course = Course::find((int) $data['pivot_course_id']);
+                    if ($course) {
+                        $programCourse = $course->programCourses()->first();
+                    }
+                }
 
                 if ($course) {
-                    // Obtener el program_course desde el curso para validaciones y descuentos
-                    $programCourse = $course->programCourses()->first();
 
                     // VALIDACIÓN: Verificar si hay suscripción activa antes de permitir cambios de precio/descuentos
                     if ($programCourse && (array_key_exists('individual_price', $data) || array_key_exists('price_adjustments', $data) || !empty($data['discounts']))) {
@@ -84,16 +96,16 @@ class UpdateParticipantService
                         }
                     }
 
-                    // Actualizar el pivot del curso con el precio individual
+                    // Actualizar el pivot del curso con el precio individual (usar $course->id, no pivot_course_id que puede ser ProgramCourse.id)
                     if (array_key_exists('individual_price', $data)) {
-                        $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
+                        $participant->courses()->updateExistingPivot($course->id, [
                             'individual_price' => $data['individual_price']
                         ]);
                     }
 
                     // Actualizar ajustes de precio si se proporcionan
                     if (array_key_exists('price_adjustments', $data)) {
-                        $participant->courses()->updateExistingPivot((int) $data['pivot_course_id'], [
+                        $participant->courses()->updateExistingPivot($course->id, [
                             'price_adjustments' => $data['price_adjustments'],
                             'adjustment_reason' => $data['adjustment_reason'] ?? null
                         ]);
@@ -206,10 +218,11 @@ class UpdateParticipantService
                         $amount = $discountData['value'] ?? null;
                         $discountType = 'scholarship';
                     } elseif ($discountData['type'] === 'liberado') {
-                        $percent = 100; // Liberado = 100%
+                        // Liberado ahora acepta cualquier porcentaje
+                        $percent = $discountData['value'] ?? 100;
                         $discountType = 'released';
                     }
-                    
+
                     $discount->update([
                         'percent' => $percent,
                         'amount' => $amount,
@@ -232,10 +245,11 @@ class UpdateParticipantService
                     $amount = $discountData['value'] ?? null;
                     $discountType = 'scholarship';
                 } elseif ($discountData['type'] === 'liberado') {
-                    $percent = 100; // Liberado = 100%
+                    // Liberado ahora acepta cualquier porcentaje
+                    $percent = $discountData['value'] ?? 100;
                     $discountType = 'released';
                 }
-                
+
                 $newDiscount = ParticipantProgramDiscount::create([
                     'participant_program_id' => $participantProgramId,
                     'percent' => $percent,

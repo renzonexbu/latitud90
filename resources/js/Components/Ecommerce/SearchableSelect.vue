@@ -102,6 +102,7 @@ export default {
             }
         },
         options: {
+            immediate: true,
             handler(newOptions) {
                 // Si las opciones cambian (como cuando se selecciona una región diferente),
                 // verificar si la opción seleccionada aún existe en las nuevas opciones
@@ -113,6 +114,13 @@ export default {
                         this.searchTerm = '';
                         this.$emit('input', '');
                     }
+                }
+
+                // Auto-seleccionar si solo hay una opción y no hay valor seleccionado
+                if (newOptions && newOptions.length === 1 && !this.value && !this.selectedOption) {
+                    this.selectedOption = newOptions[0];
+                    this.searchTerm = newOptions[0][this.searchKey];
+                    this.$emit('input', newOptions[0].id);
                 }
             },
             deep: true
@@ -145,11 +153,26 @@ export default {
             // Pequeño delay para permitir que el click en las opciones funcione
             setTimeout(() => {
                 this.showDropdown = false;
-                
-                // Si hay un término de búsqueda pero no coincide con la opción seleccionada, limpiar
-                if (this.searchTerm && this.selectedOption && 
-                    this.searchTerm !== this.selectedOption[this.searchKey]) {
-                    this.searchTerm = this.selectedOption[this.searchKey];
+
+                // Si hay un término de búsqueda, intentar auto-seleccionar si coincide exactamente
+                if (this.searchTerm) {
+                    const exactMatch = this.options.find(opt =>
+                        opt[this.searchKey].toLowerCase() === this.searchTerm.toLowerCase()
+                    );
+
+                    if (exactMatch && (!this.selectedOption || this.selectedOption.id !== exactMatch.id)) {
+                        // Auto-seleccionar la opción que coincide exactamente
+                        this.selectedOption = exactMatch;
+                        this.searchTerm = exactMatch[this.searchKey];
+                        this.$emit('input', exactMatch.id);
+                    } else if (this.selectedOption && this.searchTerm !== this.selectedOption[this.searchKey]) {
+                        // Si no coincide exactamente, restaurar al valor seleccionado
+                        this.searchTerm = this.selectedOption[this.searchKey];
+                    } else if (!this.selectedOption && !exactMatch) {
+                        // Si no hay selección y no coincide con nada, limpiar
+                        this.searchTerm = '';
+                        this.$emit('input', '');
+                    }
                 }
             }, 150);
         },

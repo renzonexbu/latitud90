@@ -73,8 +73,10 @@ class ProgramDetailService
 
                 if ($participantProgram && $participantProgram->discounts) {
                     foreach ($participantProgram->discounts as $discount) {
-                        if ($discount->discount_type === 'released' || ($discount->percent && $discount->percent >= 100)) {
-                            $participantDiscounts += $basePrice;
+                        if ($discount->discount_type === 'released') {
+                            // Liberado usa el porcentaje almacenado (puede ser cualquier %)
+                            $discountPercent = $discount->percent ?? 100;
+                            $participantDiscounts += ($basePrice * $discountPercent / 100);
                         } elseif ($discount->percent) {
                             $participantDiscounts += ($basePrice * $discount->percent / 100);
                         } elseif ($discount->amount) {

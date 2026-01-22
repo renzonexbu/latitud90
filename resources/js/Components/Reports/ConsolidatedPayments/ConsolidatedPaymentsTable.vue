@@ -1,22 +1,22 @@
 <template>
-    <div class="bg-white rounded-[20px] overflow-hidden">
+    <div class="bg-white rounded-lg border border-gray-200">
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-[#1c4f4a]">
+            <table class="w-full text-xs" style="min-width: 1600px;">
+                <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Código (Programa)</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">RUT Alumno</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nombre del Alumno</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Pago o Devolución $</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Documentos N° Boleta o NC</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tipo de Documento</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">N° Reserva</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Forma de Pago</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">N° Cuotas Pagadas</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Fecha de Pago</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Aporte o becas</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Liberado</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">Valor total prog.</th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">Código</th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">RUT Alumno</th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Nombre del Alumno</th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Pago/Devolución</th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">N° Boleta/NC</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Tipo Doc</th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">N° Reserva</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">F. Pago</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Cuotas</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Fecha Pago</th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Aporte/Becas</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Liberado</th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Valor Total</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -28,21 +28,21 @@
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                         ]"
                     >
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.program_code || row.program_id || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ formatRut(row.participant_rut || row.participant_document) }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.participant_name || row.participant_full_name || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap text-right" :class="row.is_refund ? 'text-red-600 font-semibold' : 'text-green-700 font-semibold'">${{ formatCurrency(row.payment_amount) }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.invoice_number || row.document_number || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.document_type || row.document_type_code || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.reservation_number || row.buy_order || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ row.payment_method_name || row.payment_method_code || 'N/A' }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap text-center">{{ row.paid_installments_display || formatInstallments(row.paid_installments, row.total_installments) }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap">{{ formatDate(row.payment_date) }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap text-right">${{ formatCurrency(row.external_contribution || row.scholarship_amount) }}</td>
-                        <td class="px-4 py-4 whitespace-nowrap text-center">
+                        <td class="px-2 py-2 whitespace-nowrap text-xs">{{ row.program_code || row.program_id || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs">{{ formatRut(row.participant_rut || row.participant_document) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs font-medium">{{ row.participant_name || row.participant_full_name || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-right font-bold" :class="row.is_refund ? 'text-red-600' : 'text-green-700'">${{ formatCurrency(row.payment_amount) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs">{{ row.invoice_number || row.document_number || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-center">{{ row.document_type || row.document_type_code || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs">{{ row.reservation_number || row.buy_order || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-center">{{ row.payment_method_name || row.payment_method_code || 'N/A' }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-center">{{ row.paid_installments_display || formatInstallments(row.paid_installments, row.total_installments) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-center">{{ formatDate(row.payment_date) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-right">${{ formatCurrency(row.external_contribution || row.scholarship_amount) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-center">
                             <span :class="row.released ? 'text-green-600' : 'text-gray-500'">{{ row.released ? 'Sí' : 'No' }}</span>
                         </td>
-                        <td class="px-4 py-4 whitespace-nowrap text-right">${{ formatCurrency(row.total_program_value || row.program_total_value) }}</td>
+                        <td class="px-2 py-2 whitespace-nowrap text-xs text-right font-bold">${{ formatCurrency(row.total_program_value || row.program_total_value) }}</td>
                     </tr>
                 </tbody>
             </table>

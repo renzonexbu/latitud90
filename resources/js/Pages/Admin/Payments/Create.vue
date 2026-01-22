@@ -249,93 +249,7 @@
                                             />
                                         </div>
 
-                                        <!-- Número de celular -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label
-                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                            >
-                                                Número de celular *
-                                            </label>
-                                            <div class="flex">
-                                                <select
-                                                    v-model="
-                                                        buyerForm.code_phone
-                                                    "
-                                                    class="w-[70px] h-[46px] bg-white border border-[#5B5B5B] rounded-l border-r-0 flex items-center justify-center gap-2 px-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none"
-                                                >
-                                                    <option value="+56">
-                                                        🇨🇱
-                                                    </option>
-                                                    <option value="+54">
-                                                        🇦🇷
-                                                    </option>
-                                                    <option value="+51">
-                                                        🇵🇪
-                                                    </option>
-                                                    <option value="+598">
-                                                        🇺🇾
-                                                    </option>
-                                                </select>
-                                                <input
-                                                    type="tel"
-                                                    placeholder="9-- --- ---"
-                                                    class="flex-1 h-[46px] bg-white border rounded-r px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                                    v-model="buyerForm.phone"
-                                                />
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right Column - Location Information -->
-                                    <div class="flex flex-col gap-[18px]">
-                                        <!-- País -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label
-                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                            >
-                                                País *
-                                            </label>
-                                            <SearchableSelect
-                                                ref="countrySelect"
-                                                :options="countries"
-                                                :value="buyerForm.country"
-                                                placeholder="Busca y selecciona tu país"
-                                                @input="handleCountryChange"
-                                                search-key="name"
-                                            />
-                                        </div>
-
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label
-                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                            >
-                                                Región *
-                                            </label>
-                                            <SearchableSelect
-                                                :options="regions"
-                                                :value="buyerForm.region"
-                                                placeholder="Busca y selecciona tu región"
-                                                @input="handleRegionChange"
-                                                search-key="name"
-                                            />
-                                        </div>
-
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label
-                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                            >
-                                                Comuna *
-                                            </label>
-                                            <SearchableSelect
-                                                :options="filteredComunes"
-                                                :value="buyerForm.city"
-                                                placeholder="Busca y selecciona tu comuna"
-                                                :disabled="!buyerForm.region"
-                                                @input="handleCityChange"
-                                                search-key="name"
-                                            />
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
 
@@ -794,21 +708,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
+import { ref, reactive, computed, onMounted, nextTick } from "vue";
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
-import SearchableSelect from "@/Components/Ecommerce/SearchableSelect.vue";
 
 const props = defineProps({
     programs: {
-        type: Array,
-        default: () => [],
-    },
-    countries: {
-        type: Array,
-        default: () => [],
-    },
-    regions: {
         type: Array,
         default: () => [],
     },
@@ -826,17 +731,12 @@ const props = defineProps({
     },
 });
 
-// Formulario de datos del pagador
+// Formulario de datos del pagador (simplificado)
 const buyerForm = reactive({
     fullName: "",
     documentType: "",
     documentNumber: "",
     email: "",
-    phone: "",
-    code_phone: "+56",
-    country: "",
-    region: "",
-    city: "",
 });
 
 // Formulario de información del pago
@@ -865,20 +765,6 @@ const rutValidation = reactive({
 });
 
 // Computed properties
-const filteredComunes = computed(() => {
-    if (!buyerForm.region) {
-        return [];
-    }
-
-    const selectedRegion = props.regions.find((r) => r.id == buyerForm.region);
-
-    if (!selectedRegion || !selectedRegion.comunes) {
-        return [];
-    }
-
-    return selectedRegion.comunes;
-});
-
 const isRutDocument = computed(() => {
     if (!buyerForm.documentType) return false;
     const selectedDocType = props.documentTypes.find(
@@ -893,10 +779,6 @@ const isBuyerFormValid = computed(() => {
         documentType: buyerForm.documentType !== "",
         documentNumber: buyerForm.documentNumber.trim() !== "",
         email: buyerForm.email.trim() !== "",
-        phone: buyerForm.phone.trim() !== "",
-        country: buyerForm.country !== "",
-        region: buyerForm.region !== "",
-        city: buyerForm.city !== "",
     };
 
     const basicValidation = Object.values(validations).every((v) => v === true);
@@ -1036,29 +918,9 @@ const searchFrequentClient = async () => {
 };
 
 const autocompleteForm = (clientData) => {
-    // Autocompletar todos los campos del formulario
+    // Autocompletar los campos del formulario simplificado
     buyerForm.fullName = clientData.full_name;
     buyerForm.email = clientData.email;
-    buyerForm.phone = clientData.phone;
-    buyerForm.code_phone = clientData.phone_code;
-    buyerForm.country = clientData.country_id;
-    buyerForm.region = clientData.region_id;
-
-    // Para la comuna, esperar a que se carguen las comunas después de establecer la región
-    nextTick(() => {
-        // Esperar un poco más para que las comunas se carguen completamente
-        setTimeout(() => {
-            if (filteredComunes.value.length > 0) {
-                buyerForm.city = clientData.comune_id;
-            } else {
-                setTimeout(() => {
-                    if (filteredComunes.value.length > 0) {
-                        buyerForm.city = clientData.comune_id;
-                    }
-                }, 200);
-            }
-        }, 300);
-    });
 };
 
 const validateDocument = () => {
@@ -1145,24 +1007,6 @@ const calculateDv = (body) => {
     }
     const dv = 11 - (sum % 11);
     return dv === 10 ? "K" : dv === 11 ? "0" : dv.toString();
-};
-
-const handleCountryChange = (countryId) => {
-    buyerForm.country = countryId;
-};
-
-const handleRegionChange = (regionId) => {
-    buyerForm.region = regionId;
-    buyerForm.city = ""; // Limpiar comuna
-
-    // Verificar las comunas disponibles
-    if (regionId) {
-        const selectedRegion = props.regions.find((r) => r.id == regionId);
-    }
-};
-
-const handleCityChange = (cityId) => {
-    buyerForm.city = cityId;
 };
 
 // Métodos del formulario de pago
@@ -1360,11 +1204,6 @@ const submit = () => {
         buyer_document_type: buyerForm.documentType,
         buyer_document_number: buyerForm.documentNumber,
         buyer_email: buyerForm.email,
-        buyer_phone: buyerForm.phone,
-        buyer_code_phone: buyerForm.code_phone,
-        buyer_country: buyerForm.country,
-        buyer_region: buyerForm.region,
-        buyer_city: buyerForm.city,
     };
 
     // Crear un nuevo formulario con los datos combinados

@@ -134,9 +134,10 @@ class GetEditDataService
 
                     if ($participantProgram && $participantProgram->discounts) {
                         foreach ($participantProgram->discounts as $discount) {
-                            if ($discount->discount_type === 'released' || $discount->percent >= 100) {
-                                // Liberado = 100% del precio base
-                                $discounts += $basePrice;
+                            if ($discount->discount_type === 'released') {
+                                // Liberado usa el porcentaje almacenado (puede ser cualquier %)
+                                $discountPercent = $discount->percent ?? 100;
+                                $discounts += ($basePrice * $discountPercent / 100);
                             } elseif ($discount->percent) {
                                 // Descuento porcentual
                                 $discounts += ($basePrice * $discount->percent / 100);

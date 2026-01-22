@@ -37,6 +37,24 @@
                 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
                     <form @submit.prevent="submit" class="p-6">
                         <div class="max-w-2xl mx-auto space-y-6">
+                            <!-- Code -->
+                            <div>
+                                <label for="code" class="block text-sm font-nexa-bold text-gray-700 mb-2">
+                                    Código
+                                </label>
+                                <input
+                                    id="code"
+                                    v-model="form.code"
+                                    type="text"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular"
+                                    :class="{ 'border-red-500': form.errors.code }"
+                                    placeholder="Ej: INST001"
+                                />
+                                <p v-if="form.errors.code" class="mt-1 text-sm text-red-600 font-nexa-regular">
+                                    {{ form.errors.code }}
+                                </p>
+                            </div>
+
                             <!-- Name -->
                             <div>
                                 <label for="name" class="block text-sm font-nexa-bold text-gray-700 mb-2">
@@ -181,6 +199,7 @@ const props = defineProps({
 });
 
 const form = useForm({
+    code: props.institution.code || '',
     name: props.institution.name || '',
     type: props.institution.type || '',
     address: props.institution.address || '',

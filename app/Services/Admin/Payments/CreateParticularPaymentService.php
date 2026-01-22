@@ -691,12 +691,17 @@ class CreateParticularPaymentService
     private function mapPresentialPaymentTypeToOption(string $presentialType): string
     {
         $mapping = [
-            'BX' => 'presential_office_card',      // Pago con tarjeta en oficina
+            'TC' => 'presential_pos_office',       // POS Oficina
+            'KP' => 'presential_khipu_link',       // Link Khipu
+            'PAT' => 'presential_subscription',    // Suscripción Cuotas
             'TE' => 'presential_bank_transfer',    // Transferencia bancaria
-            'CH' => 'presential_check',            // Cheque
+            'VP' => 'presential_debit_credit',     // Link TD/TC
+            'VPI' => 'presential_international',   // Link Internacional
             'DP' => 'presential_deposit',          // Depósito
+            'WP' => 'presential_webpay',           // Webpay
+            'AP' => 'presential_aporte',           // Aporte
         ];
 
-        return $mapping[$presentialType] ?? 'presential_office_card'; // Default a tarjeta en oficina
+        return $mapping[$presentialType] ?? 'presential_pos_office'; // Default a POS Oficina
     }
 }

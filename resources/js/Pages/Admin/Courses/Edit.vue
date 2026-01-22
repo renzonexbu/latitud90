@@ -1241,11 +1241,15 @@ const fullPaymentChoices = computed(() => {
     }
 
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Normalizar a inicio del día
     const end = new Date(form.value.departure_date + 'T00:00:00');
 
-    let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
-    if (now.getDate() > end.getDate()) months -= 1;
-    const availableMonths = Math.max(0, months);
+    // Calcular días exactos de diferencia
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Cada cuota = 30 días aproximadamente
+    const availableMonths = Math.max(0, Math.floor(diffDays / 30));
 
     return fullPaymentChoicesBase.filter(option => {
         if (option.installments === null || option.installments === 0) {
@@ -1262,10 +1266,15 @@ const maxInstallmentChoices = computed(() => {
     // Usar la fecha final de pago como límite para calcular cuotas
     if (form.value.final_payment_date) {
         const now = new Date();
+        now.setHours(0, 0, 0, 0); // Normalizar a inicio del día
         const end = new Date(form.value.final_payment_date + 'T00:00:00');
-        let months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth());
-        if (now.getDate() > end.getDate()) months -= 1;
-        maxByDate = Math.max(0, months);
+
+        // Calcular días exactos de diferencia
+        const diffTime = end.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // Cada cuota = 30 días aproximadamente
+        maxByDate = Math.max(0, Math.floor(diffDays / 30));
     }
 
     const hardMax = 12;

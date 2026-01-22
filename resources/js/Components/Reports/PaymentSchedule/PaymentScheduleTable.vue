@@ -1,178 +1,127 @@
 <template>
-    <div class="bg-white rounded-[20px] overflow-hidden">
+    <div class="bg-white rounded-lg border border-gray-200">
         <!-- Table Container -->
-        <div class="flex flex-col gap-0">
-            <!-- Table Header -->
-            <div
-                class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
-            >
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                >
-                    Participante
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                >
-                    Programa
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                >
-                    N° Cuota
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                >
-                    Fecha Vencimiento
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Monto Cuota
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                >
-                    Estado
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Días Vencimiento
-                </div>
-                <!-- Columna de acciones -->
-                <div class="w-[80px]"></div>
-            </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs" style="min-width: 1200px;">
+                <!-- Table Header -->
+                <thead class="bg-[#007e93] sticky top-0 z-10">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                            Participante
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
+                            Programa
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            N° Cuota
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Fecha Vencimiento
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Monto Cuota
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Estado
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Días Vencimiento
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
-            <!-- Table Body -->
-            <div class="flex flex-col">
-                <div
-                    v-for="(schedule, index) in schedules"
-                    :key="schedule.id"
-                    :class="[
-                        'px-5 py-[14px] flex items-center justify-between',
-                        index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
-                    ]"
-                >
-                    <!-- Participante -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
+                        </th>
+                    </tr>
+                </thead>
+
+                <!-- Table Body -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr
+                        v-for="(schedule, index) in schedules"
+                        :key="schedule.id"
+                        :class="[
+                            'hover:bg-gray-50 transition-colors',
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                        ]"
                     >
-                        <div class="text-center">
-                            <div class="font-semibold">
+                        <!-- Participante -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
                                 {{ schedule.participant_name }}
                             </div>
-                            <div class="text-xs text-gray-500">
+                            <div class="text-[10px] text-gray-500">
                                 {{ schedule.participant_email }}
                             </div>
-                            <div class="text-xs text-gray-400">
+                            <div class="text-[10px] text-gray-400">
                                 {{ formatRut(schedule.participant_document) }}
                             </div>
-                        </div>
-                    </div>
+                        </td>
 
-                    <!-- Programa -->
-                    <div
-                        class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold">
+                        <!-- Programa -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
                                 {{ schedule.program_name }}
                             </div>
-                            <div class="text-xs text-gray-500">
-                                {{
-                                    formatDate(schedule.program_departure_date)
-                                }}
+                            <div class="text-[10px] text-gray-500">
+                                {{ formatDate(schedule.program_departure_date) }}
                             </div>
-                        </div>
-                    </div>
+                        </td>
 
-                    <!-- N° Cuota -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                    >
-                        {{ schedule.installment_number }}
-                    </div>
+                        <!-- N° Cuota -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ schedule.installment_number }}
+                            </div>
+                        </td>
 
-                    <!-- Fecha Vencimiento -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                    >
-                        {{ formatDate(schedule.due_date) }}
-                    </div>
+                        <!-- Fecha Vencimiento -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ formatDate(schedule.due_date) }}
+                            </div>
+                        </td>
 
-                    <!-- Monto Cuota -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        <div class="text-center">
-                            <div class="font-semibold">
+                        <!-- Monto Cuota -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-gray-900">
                                 ${{ formatPrice(schedule.amount) }}
                             </div>
-                            <div
-                                v-if="schedule.discount_amount > 0"
-                                class="text-xs text-red-500"
-                            >
+                            <div v-if="schedule.discount_amount > 0" class="text-[10px] text-red-500">
                                 -${{ formatPrice(schedule.discount_amount) }}
                             </div>
-                        </div>
-                    </div>
+                        </td>
 
-                    <!-- Estado -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                    >
-                        <span
-                            :class="getStatusClass(schedule.status)"
-                            class="px-2 py-1 text-xs font-semibold rounded-full"
-                        >
-                            {{ getStatusLabel(schedule.status) }}
-                        </span>
-                    </div>
-
-                    <!-- Días Vencimiento -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        <span :class="getDaysClass(schedule.days_overdue)">
-                            {{ schedule.days_overdue || 0 }} días
-                        </span>
-                    </div>
-
-                    <!-- Acciones -->
-                    <div class="w-[80px] flex justify-center">
-                        <button
-                            @click="$emit('view-details', schedule)"
-                            class="w-[30px] h-[30px] hover:opacity-75 transition-opacity flex items-center justify-center"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="16"
-                                viewBox="0 0 24 16"
-                                fill="none"
-                                class="w-[30px] h-[20px]"
+                        <!-- Estado -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="getStatusClass(schedule.status)"
+                                class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full"
                             >
-                                <path
-                                    d="M12 2C6 2 2 8 2 8C2 8 6 14 12 14C18 14 22 8 22 8C22 8 18 2 12 2Z"
-                                    stroke="#C7C7C7"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                                <path
-                                    d="M12 10.5C13.3807 10.5 14.5 9.38071 14.5 8C14.5 6.61929 13.3807 5.5 12 5.5C10.6193 5.5 9.5 6.61929 9.5 8C9.5 9.38071 10.6193 10.5 12 10.5Z"
-                                    stroke="#C7C7C7"
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                {{ getStatusLabel(schedule.status) }}
+                            </span>
+                        </td>
+
+                        <!-- Días Vencimiento -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span :class="getDaysClass(schedule.days_overdue)" class="text-xs">
+                                {{ schedule.days_overdue || 0 }} días
+                            </span>
+                        </td>
+
+                        <!-- Acciones -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <button
+                                @click="$emit('view-details', schedule)"
+                                class="w-[18px] h-[18px] hover:opacity-75 transition-opacity"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C7C7C7" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- Mensaje cuando no hay datos -->

@@ -83,17 +83,15 @@ class RealTimePaymentOptionsService
     
     /**
      * Calcular meses disponibles hasta la fecha final de pago
+     * Usa días exactos: cada cuota = 30 días aproximadamente
      */
     private function calculateAvailableMonths(Carbon $today, Carbon $finalPaymentDate): int
     {
-        $months = ($finalPaymentDate->year - $today->year) * 12 + ($finalPaymentDate->month - $today->month);
-        
-        // Si el día del mes de hoy es mayor al de la fecha final, restar un mes (mes incompleto)
-        if ($today->day > $finalPaymentDate->day) {
-            $months -= 1;
-        }
-        
-        return max(0, $months);
+        // Calcular días exactos de diferencia
+        $diffDays = $today->diffInDays($finalPaymentDate, false);
+
+        // Cada cuota = 30 días aproximadamente
+        return max(0, (int) floor($diffDays / 30));
     }
     
     /**

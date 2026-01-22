@@ -1,50 +1,47 @@
 <template>
-    <div class="bg-white rounded-[20px] overflow-hidden w-full">
-        <div class="overflow-x-auto w-full">
-            <table class="w-full min-w-full">
+    <div class="bg-white rounded-lg border border-gray-200">
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
                 <!-- Table Header -->
-                <thead class="bg-[#1c4f4a]">
+                <thead class="bg-[#1c4f4a] sticky top-0 z-10">
                     <tr>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-24">
-                            Nro. Programa
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Nro. Prog.
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
-                            N° de Identificación
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Identificación
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-48">
-                            Nombres y Apellidos
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
+                            Nombre
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-24">
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Estado
                         </th>
-                        <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-28">
-                            Pago y/o Dev.
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Pago/Dev.
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
-                            Nro. Documento
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Nro. Doc.
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-28">
-                            Tipo de Documento
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Tipo Doc.
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Forma Pago
                         </th>
-                        <th class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-28">
-                            Fecha de Pago
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Fecha Pago
                         </th>
-                        <th v-if="isAdmin" class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-32">
+                        <th v-if="isAdmin" class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
                             Contacto Pagador
                         </th>
-                        <th v-if="isAdmin" class="px-3 py-3 text-left text-xs font-medium text-white uppercase tracking-wider w-40">
-                            Email Contacto Pagador
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Aporte/Beca
                         </th>
-                        <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-28">
-                            Aporte o Beca
-                        </th>
-                        <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-28">
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Liberado
                         </th>
-                        <th class="px-3 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-28">
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Precio
                         </th>
                     </tr>
@@ -61,99 +58,92 @@
                         ]"
                     >
                         <!-- Nro. Programa -->
-                        <td class="px-3 py-4 whitespace-nowrap w-24">
-                            <div class="text-sm font-medium text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
                                 {{ item.program_number || 'N/A' }}
                             </div>
                         </td>
 
                         <!-- N° de Identificación -->
-                        <td class="px-3 py-4 whitespace-nowrap w-32">
-                            <div class="text-sm text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
                                 {{ formatRut(item.identification_number) }}
                             </div>
                         </td>
 
                         <!-- Nombres y Apellidos -->
-                        <td class="px-3 py-4 w-48">
-                            <div class="text-sm text-[#1c4f4a] font-medium">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-[#1c4f4a] font-medium">
                                 {{ item.full_name || 'N/A' }}
                             </div>
                         </td>
 
                         <!-- Estado -->
-                        <td class="px-3 py-4 whitespace-nowrap w-24">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" :class="getStatusClass(item.status)">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <span class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full" :class="getStatusClass(item.status)">
                                 {{ getStatusLabel(item.status) }}
                             </span>
                         </td>
 
                         <!-- Pago y/o Dev. -->
-                        <td class="px-3 py-4 whitespace-nowrap text-right w-28">
-                            <div class="text-sm font-bold" :class="getPaymentAmountClass(item.payment_or_refund)">
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold" :class="getPaymentAmountClass(item.payment_or_refund)">
                                 ${{ formatPrice(item.payment_or_refund) }}
                             </div>
                         </td>
 
                         <!-- Nro. Documento -->
-                        <td class="px-3 py-4 whitespace-nowrap w-32">
-                            <div class="text-sm text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
                                 {{ item.document_number || 'N/A' }}
                             </div>
                         </td>
 
                         <!-- Tipo de Documento -->
-                        <td class="px-3 py-4 whitespace-nowrap w-28">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <span class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-800">
                                 {{ item.document_type || 'N/A' }}
                             </span>
                         </td>
 
                         <!-- Forma Pago -->
-                        <td class="px-3 py-4 whitespace-nowrap w-32">
-                            <div class="text-sm text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
                                 {{ item.payment_form || 'N/A' }}
                             </div>
                         </td>
 
                         <!-- Fecha de Pago -->
-                        <td class="px-3 py-4 whitespace-nowrap w-28">
-                            <div class="text-sm text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
                                 {{ item.payment_date || 'N/A' }}
                             </div>
                         </td>
 
                         <!-- Contacto Pagador (solo visible para super_admin) -->
-                        <td v-if="isAdmin" class="px-3 py-4 whitespace-nowrap w-32">
-                            <div class="text-sm text-gray-900">
+                        <td v-if="isAdmin" class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
                                 {{ item.payer_contact || 'N/A' }}
                             </div>
                         </td>
 
-                        <!-- Email Contacto Pagador (solo visible para super_admin) -->
-                        <td v-if="isAdmin" class="px-3 py-4 whitespace-nowrap w-40">
-                            <div class="text-sm text-gray-900">
-                                {{ item.payer_email || 'N/A' }}
-                            </div>
-                        </td>
-
                         <!-- Aporte o Beca -->
-                        <td class="px-3 py-4 whitespace-nowrap text-right w-28">
-                            <div class="text-sm font-bold text-blue-600">
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-blue-600">
                                 ${{ formatPrice(item.scholarship_or_grant) }}
                             </div>
                         </td>
 
                         <!-- Liberado -->
-                        <td class="px-3 py-4 whitespace-nowrap text-right w-28">
-                            <div class="text-sm font-bold text-green-600">
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-green-600">
                                 ${{ formatPrice(item.liberated) }}
                             </div>
                         </td>
 
                         <!-- Precio -->
-                        <td class="px-3 py-4 whitespace-nowrap text-right w-28">
-                            <div class="text-sm font-bold text-gray-900">
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-gray-900">
                                 ${{ formatPrice(item.price) }}
                             </div>
                         </td>

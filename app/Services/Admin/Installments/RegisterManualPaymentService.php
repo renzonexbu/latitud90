@@ -250,6 +250,7 @@ class RegisterManualPaymentService
             ['value' => 'manual_international', 'label' => 'Link Internacional (VPI)', 'report_code' => 'VPI'],
             ['value' => 'manual_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
             ['value' => 'manual_webpay', 'label' => 'Webpay (WP)', 'report_code' => 'WP'],
+            ['value' => 'manual_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
         ];
     }
 
@@ -268,6 +269,7 @@ class RegisterManualPaymentService
             'manual_international' => 'presential_international',    // VPI
             'manual_deposit' => 'presential_deposit',                // DP
             'manual_webpay' => 'presential_webpay',                  // WP
+            'manual_aporte' => 'presential_aporte',                  // AP
         ];
 
         $paymentOptionCode = $mapping[$paymentSource] ?? null;

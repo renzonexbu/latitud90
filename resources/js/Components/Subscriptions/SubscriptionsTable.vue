@@ -1,216 +1,181 @@
 <template>
-    <div class="bg-white rounded-[20px] overflow-hidden min-h-[600px]">
+    <div class="bg-white rounded-lg border border-gray-200">
         <!-- Table Container -->
-        <div class="flex flex-col gap-0">
-            <!-- Table Header -->
-            <div
-                class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
-            >
-                <!-- Checkbox para seleccionar todos -->
-                <div class="w-[40px] flex items-center justify-center">
-                    <input
-                        type="checkbox"
-                        :checked="allSelected"
-                        @change="toggleAll"
-                        class="w-5 h-5 rounded border-white text-turquesa focus:ring-white cursor-pointer"
-                    />
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
-                >
-                    ID
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]"
-                >
-                    Participante
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[200px]"
-                >
-                    Programa
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                >
-                    Institución
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                >
-                    Plan
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Cuotas
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Monto Total
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Estado
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Fecha
-                </div>
-                <!-- Columna de acciones (vacía en header) -->
-                <div class="w-[80px]"></div>
-            </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs" style="min-width: 1400px;">
+                <!-- Table Header -->
+                <thead class="bg-[#007e93] sticky top-0 z-10">
+                    <tr>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[40px]">
+                            <input
+                                type="checkbox"
+                                :checked="allSelected"
+                                @change="toggleAll"
+                                class="w-4 h-4 rounded border-white text-turquesa focus:ring-white cursor-pointer"
+                            />
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            ID
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[160px]">
+                            Participante
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
+                            Programa
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                            Institución
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Plan
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Cuotas
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Monto Total
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Estado
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Fecha
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[60px]">
 
-            <!-- Table Body -->
-            <div class="flex flex-col overflow-y-auto min-h-[500px] pb-4">
-                <div
-                    v-for="(subscription, index) in subscriptions"
-                    :key="subscription.id"
-                    :class="[
-                        'px-5 py-[14px] flex items-center justify-between cursor-pointer',
-                        index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
-                    ]"
-                    @click="$emit('show-subscription-details', subscription)"
-                >
-                    <!-- Checkbox -->
-                    <div class="w-[40px] flex items-center justify-center">
-                        <input
-                            type="checkbox"
-                            :checked="isSelected(subscription.id)"
-                            @click="toggleSubscription(subscription.id, $event)"
-                            class="w-5 h-5 rounded border-gray-300 text-turquesa focus:ring-turquesa cursor-pointer"
-                        />
-                    </div>
+                        </th>
+                    </tr>
+                </thead>
 
-                    <!-- ID -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]"
+                <!-- Table Body -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr
+                        v-for="(subscription, index) in subscriptions"
+                        :key="subscription.id"
+                        :class="[
+                            'hover:bg-gray-50 transition-colors cursor-pointer',
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                        ]"
+                        @click="$emit('show-subscription-details', subscription)"
                     >
-                        #{{ subscription.id }}
-                    </div>
+                        <!-- Checkbox -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <input
+                                type="checkbox"
+                                :checked="isSelected(subscription.id)"
+                                @click="toggleSubscription(subscription.id, $event)"
+                                class="w-4 h-4 rounded border-gray-300 text-turquesa focus:ring-turquesa cursor-pointer"
+                            />
+                        </td>
 
-                    <!-- Participante -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]"
-                    >
-                        {{ subscription.participant.name }}
-                    </div>
+                        <!-- ID -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                #{{ subscription.id }}
+                            </div>
+                        </td>
 
-                    <!-- Programa -->
-                    <div
-                        class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[200px]"
-                    >
-                        {{ subscription.program.name }}
-                    </div>
+                        <!-- Participante -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ subscription.participant.name }}
+                            </div>
+                        </td>
 
-                    <!-- Institución -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                    >
-                        {{ subscription.institution.name }}
-                    </div>
+                        <!-- Programa -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ subscription.program.name }}
+                            </div>
+                        </td>
 
-                    <!-- Plan Type -->
-                    <div class="flex justify-center items-center w-[100px]">
-                        <div
-                            v-if="subscription.plan?.is_personalized"
-                            class="rounded-[12px] px-[8px] py-[4px] bg-purple-500 text-white font-nexa-xbold text-[11px] leading-[13px] text-center"
-                            :title="getPlanTooltip(subscription)"
-                        >
-                            Personalizado
-                        </div>
-                        <div
-                            v-else
-                            class="text-[#5b5b5b] font-nexa-bold text-[11px] leading-[13px] text-center"
-                        >
-                            General
-                        </div>
-                    </div>
+                        <!-- Institución -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ subscription.institution.name }}
+                            </div>
+                        </td>
 
-                    <!-- Cuotas pagadas/total -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ subscription.paid_installments }}/{{ subscription.total_installments }}
-                    </div>
-
-                    <!-- Monto Total -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        ${{ formatPrice(subscription.total_amount) }}
-                    </div>
-
-                    <!-- Estado -->
-                    <div class="flex justify-center items-center w-[120px]">
-                        <div
-                            :class="[
-                                'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[14px] leading-[13px] text-center flex items-center justify-center',
-                                getStatusClass(subscription.status),
-                            ]"
-                        >
-                            {{ getStatusLabel(subscription.status) }}
-                        </div>
-                    </div>
-
-                    <!-- Fecha -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ formatDate(subscription.created_at) }}
-                    </div>
-
-                    <!-- Acciones -->
-                    <div
-                        class="flex gap-2 items-center justify-center w-[80px]"
-                    >
-                        <!-- View Details Button -->
-                        <button
-                            @click.stop="$emit('show-subscription-details', subscription)"
-                            class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
-                            title="Ver detalles"
-                        >
-                            <svg
-                                width="18"
-                                height="19"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#C7C7C7"
-                                stroke-width="2"
+                        <!-- Plan Type -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                v-if="subscription.plan?.is_personalized"
+                                class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-purple-500 text-white"
+                                :title="getPlanTooltip(subscription)"
                             >
-                                <path
-                                    d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                                />
-                                <circle cx="12" cy="12" r="3" />
-                            </svg>
-                        </button>
+                                Personalizado
+                            </span>
+                            <span v-else class="text-xs text-gray-600">
+                                General
+                            </span>
+                        </td>
 
-                        <!-- Cancel Button - Solo para suscripciones activas -->
-                        <button
-                            v-if="subscription.status === 'ACTIVA' || subscription.status === 'SUSCRIBIENDO'"
-                            @click.stop="$emit('cancel-subscription', subscription)"
-                            class="w-[18px] h-[19px] hover:opacity-75 transition-opacity text-red-500"
-                            title="Cancelar suscripción"
-                        >
-                            <svg
-                                width="18"
-                                height="19"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
+                        <!-- Cuotas pagadas/total -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ subscription.paid_installments }}/{{ subscription.total_installments }}
+                            </div>
+                        </td>
+
+                        <!-- Monto Total -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-gray-900">
+                                ${{ formatPrice(subscription.total_amount) }}
+                            </div>
+                        </td>
+
+                        <!-- Estado -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="[
+                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    getStatusClass(subscription.status),
+                                ]"
                             >
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="15" y1="9" x2="9" y2="15" />
-                                <line x1="9" y1="9" x2="15" y2="15" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                {{ getStatusLabel(subscription.status) }}
+                            </span>
+                        </td>
+
+                        <!-- Fecha -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ formatDate(subscription.created_at) }}
+                            </div>
+                        </td>
+
+                        <!-- Acciones -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="flex gap-1 items-center justify-center">
+                                <!-- View Details Button -->
+                                <button
+                                    @click.stop="$emit('show-subscription-details', subscription)"
+                                    class="w-[18px] h-[18px] hover:opacity-75 transition-opacity"
+                                    title="Ver detalles"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C7C7C7" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                </button>
+
+                                <!-- Cancel Button - Solo para suscripciones activas -->
+                                <button
+                                    v-if="subscription.status === 'ACTIVA' || subscription.status === 'SUSCRIBIENDO'"
+                                    @click.stop="$emit('cancel-subscription', subscription)"
+                                    class="w-[18px] h-[18px] hover:opacity-75 transition-opacity text-red-500"
+                                    title="Cancelar suscripción"
+                                >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="15" y1="9" x2="9" y2="15" />
+                                        <line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </template>

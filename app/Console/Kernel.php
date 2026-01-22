@@ -21,9 +21,10 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/pending-payments.log'));
 
-        // Sincronizar pagos de suscripciones con VirtualPos cada hora
+        // Sincronizar pagos de suscripciones con VirtualPos cada 5 minutos
+        // Detecta pagos nuevos (estado 'pagado' o 'procesando') y envía emails
         $schedule->command('subscriptions:sync-payments --all')
-            ->hourly()
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/subscription-payments-sync.log'));

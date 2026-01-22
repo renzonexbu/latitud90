@@ -100,22 +100,17 @@ class PaymentController extends Controller
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'status' => 'required|in:pending,completed,failed,authorized',
-            'presential_payment_type' => 'required|in:BX,TE,CH,DP',
+            'presential_payment_type' => 'required|in:BX,TE,CH,DP,AP',
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string',
             'notes' => 'nullable|string',
             'installment_id' => 'nullable|exists:installments,id', // Opcional: ID de cuota a marcar como pagada
 
-            // Datos del comprador
+            // Datos del comprador (simplificado)
             'buyer_full_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'required|email|max:255',
-            'buyer_phone' => 'required|string|max:255',
-            'buyer_code_phone' => 'required|string|max:10',
-            'buyer_country' => 'required|exists:countries,id',
-            'buyer_region' => 'required|exists:regions,id',
-            'buyer_city' => 'required|exists:comunes,id',
         ]);
 
         try {

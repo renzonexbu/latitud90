@@ -58,8 +58,29 @@
                             Cancelar Suscripción
                         </button>
                         <button
+                            @click="resendSubscriptionEmail"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                            :disabled="isProcessing"
+                        >
+                            <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                ></path>
+                            </svg>
+                            Reenviar Email Suscripción
+                        </button>
+                        <button
                             @click="syncWithVirtualPos"
                             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            :disabled="isProcessing"
                         >
                             <svg
                                 class="w-5 h-5"
@@ -452,6 +473,18 @@
                                             <span v-else-if="installment.status === 'cancelled'" class="text-red-600 text-xs font-medium">
                                                 Cancelado
                                             </span>
+                                            <!-- Botón Reenviar Email (solo para cuotas pagadas) -->
+                                            <button
+                                                v-if="installment.is_paid"
+                                                @click="resendPaymentEmail(installment)"
+                                                class="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 transition-colors"
+                                                :disabled="isProcessing"
+                                                title="Reenviar email de pago"
+                                            >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -825,13 +858,59 @@ const cancelSubscription = () => {
 };
 
 const syncWithVirtualPos = () => {
+    isProcessing.value = true;
     router.post(
         route("admin.subscriptions.sync", props.subscription.id),
         {},
         {
             preserveScroll: true,
+            onFinish: () => {
+                isProcessing.value = false;
+            },
         }
     );
+};
+
+const resendSubscriptionEmail = () => {
+    if (
+        confirm(
+            `¿Reenviar el email de confirmación de suscripción a ${props.subscription.participant.email}?`
+        )
+    ) {
+        isProcessing.value = true;
+        router.post(
+            route("admin.subscriptions.resend-subscription-email", props.subscription.id),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    isProcessing.value = false;
+                },
+            }
+        );
+    }
+};
+
+const resendPaymentEmail = (installment) => {
+    if (
+        confirm(
+            `¿Reenviar el email de confirmación de pago de la cuota ${installment.installment_number}?`
+        )
+    ) {
+        isProcessing.value = true;
+        router.post(
+            route("admin.subscriptions.resend-payment-email", props.subscription.id),
+            {
+                installment_number: installment.installment_number,
+            },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    isProcessing.value = false;
+                },
+            }
+        );
+    }
 };
 
 const createCharge = (installment) => {

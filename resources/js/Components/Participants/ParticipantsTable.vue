@@ -1,183 +1,140 @@
 <template>
-    <div class="bg-white rounded-[20px] overflow-hidden">
-        <!-- Table Container -->
-        <div class="flex flex-col gap-0">
-            <!-- Table Header -->
-            <div
-                class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]"
-            >
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    RUT / PASAPORTE
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Nombre
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Apellido
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                >
-                    Institución
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                >
-                    Nivel
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                >
-                    Programa
-                </div>
+    <div class="bg-white rounded-lg border border-gray-200">
+        <!-- Table Container with horizontal scroll -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs" style="min-width: 1400px;">
+                <!-- Table Header -->
+                <thead class="bg-[#007e93] sticky top-0 z-10">
+                    <tr>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            RUT / Pasaporte
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
+                            Nombre
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
+                            Apellido
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
+                            Institución
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Nivel
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
+                            Programa
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Estado Pago
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">
+                            Total Pagado
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[100px]">
 
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]"
-                >
-                    Estado de pago
-                </div>
-                <div
-                    class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                >
-                    Total pagado
-                </div>
-                <!-- Columna de acciones (vacía en header) -->
-                <div class="w-[140px]"></div>
-            </div>
+                        </th>
+                    </tr>
+                </thead>
 
-            <!-- Table Body -->
-            <div class="flex flex-col h-[574px] overflow-hidden">
-                <div
-                    v-for="(participant, index) in participants"
-                    :key="
-                        participant.id +
-                        '-' +
-                        (getFirstCourseInfo(participant, 'program', 'code') ||
-                            'none')
-                    "
-                    :class="[
-                        'px-5 py-[14px] flex items-center justify-between',
-                        index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
-                    ]"
-                >
-                    <!-- RUT/PASAPORTE -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
+                <!-- Table Body -->
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr
+                        v-for="(participant, index) in participants"
+                        :key="participant.id + '-' + (getFirstCourseInfo(participant, 'program', 'code') || 'none')"
+                        :class="[
+                            'hover:bg-gray-50 transition-colors',
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
+                        ]"
                     >
-                        {{ formatDocument(participant.document_number, participant.document_type) }}
-                    </div>
+                        <!-- RUT/PASAPORTE -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ formatDocument(participant.document_number, participant.document_type) }}
+                            </div>
+                        </td>
 
-                    <!-- Nombre -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ getFullName(participant) }}
-                    </div>
+                        <!-- Nombre -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ getFullName(participant) }}
+                            </div>
+                        </td>
 
-                    <!-- Apellido -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{ getFullLastName(participant) }}
-                    </div>
+                        <!-- Apellido -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ getFullLastName(participant) }}
+                            </div>
+                        </td>
 
-                    <!-- Institución -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                    >
-                        {{
-                            capitalizeWords(
-                                getFirstCourseInfo(
-                                    participant,
-                                    "institution",
-                                    "name"
-                                ) || "N/A"
-                            )
-                        }}
-                    </div>
+                        <!-- Institución -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ capitalizeWords(getFirstCourseInfo(participant, "institution", "name") || "N/A") }}
+                            </div>
+                        </td>
 
-                    <!-- Nivel -->
-                    <div
-                        class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]"
-                    >
-                        {{ formatCourseInfo(participant) }}
-                    </div>
+                        <!-- Nivel -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ formatCourseInfo(participant) }}
+                            </div>
+                        </td>
 
-                    <!-- Programa -->
-                    <div
-                        class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]"
-                    >
-                        {{
-                            capitalizeWords(
-                                getFirstCourseInfo(
-                                    participant,
-                                    "program",
-                                    "name"
-                                ) || "N/A"
-                            )
-                        }}
-                    </div>
+                        <!-- Programa -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ capitalizeWords(getFirstCourseInfo(participant, "program", "name") || "N/A") }}
+                            </div>
+                        </td>
 
-                    <!-- Estado de pago -->
-                    <div class="flex justify-center items-center w-[100px]">
-                        <div
-                            :class="[
-                                'rounded-[12px] px-[8px] py-[6px] text-white font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
-                                getPaymentStatusClass(
-                                    getFirstCoursePivotStatus(participant),
-                                    getFirstCoursePivotPercentage(participant)
-                                ),
-                            ]"
-                        >
-                            {{
-                                getPaymentStatusText(
-                                    getFirstCoursePivotStatus(participant),
-                                    getFirstCoursePivotPercentage(participant)
-                                )
-                            }}
-                        </div>
-                    </div>
+                        <!-- Estado de pago -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="[
+                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    getPaymentStatusClass(
+                                        getFirstCoursePivotStatus(participant),
+                                        getFirstCoursePivotPercentage(participant)
+                                    ),
+                                ]"
+                            >
+                                {{ getPaymentStatusText(getFirstCoursePivotStatus(participant), getFirstCoursePivotPercentage(participant)) }}
+                            </span>
+                        </td>
 
-                    <!-- Total pagado -->
-                    <div
-                        class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]"
-                    >
-                        {{
-                            formatPaymentPair(
-                                getPaidAmount(participant),
-                                getTotalDue(participant)
-                            )
-                        }}
-                    </div>
+                        <!-- Total pagado -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs font-bold text-gray-900">
+                                {{ formatPaymentPair(getPaidAmount(participant), getTotalDue(participant)) }}
+                            </div>
+                        </td>
 
-                    <!-- Acciones -->
-                    <div class="flex gap-4 items-center justify-center w-[140px]">
-                        <!-- Estado Activo/Baja del programa -->
-                        <div
-                            :class="[
-                                'rounded-[12px] px-[10px] py-[6px] text-white font-nexa-xbold text-[12px] leading-[13px] text-center flex items-center justify-center',
-                                participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
-                            ]"
-                        >
-                            {{ participant.is_active ? 'Activo' : 'Baja' }}
-                        </div>
+                        <!-- Acciones -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="flex gap-2 items-center justify-center">
+                                <!-- Estado Activo/Baja del programa -->
+                                <span
+                                    :class="[
+                                        'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                        participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
+                                    ]"
+                                >
+                                    {{ participant.is_active ? 'Activo' : 'Baja' }}
+                                </span>
 
-                        <!-- Edit Button -->
-                        <button
-                            @click="$emit('edit-participant', participant.id)"
-                            class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
-                        >
-                            <EditPencilIcon fill-color="#C7C7C7" />
-                        </button>
-                    </div>
-                </div>
-            </div>
+                                <!-- Edit Button -->
+                                <button
+                                    @click="$emit('edit-participant', participant.id)"
+                                    class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
+                                >
+                                    <EditPencilIcon fill-color="#C7C7C7" />
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </template>

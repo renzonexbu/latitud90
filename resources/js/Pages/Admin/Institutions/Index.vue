@@ -20,6 +20,15 @@
                             </svg>
                             Volver a Cursos
                         </Link>
+                        <button
+                            @click="showImportModal = true"
+                            class="px-4 py-2 border border-turquesa text-turquesa rounded-lg hover:bg-turquesa hover:text-white font-nexa-bold transition-colors flex items-center gap-2"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            Carga Masiva
+                        </button>
                         <Link
                             :href="route('admin.institutions.create')"
                             class="bg-turquesa hover:bg-turquesa-dark text-white px-6 py-2 rounded-lg font-nexa-bold transition-colors flex items-center gap-2"
@@ -33,6 +42,15 @@
                 </div>
 
                 <!-- Success Message -->
+                <div v-if="successMessage" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2 text-green-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        {{ successMessage }}
+                    </div>
+                </div>
+
                 <div v-if="$page.props.flash.success" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
                     <div class="flex items-center gap-2 text-green-800">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,6 +61,15 @@
                 </div>
 
                 <!-- Error Message -->
+                <div v-if="errorMessage" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-2 text-red-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        {{ errorMessage }}
+                    </div>
+                </div>
+
                 <div v-if="$page.props.flash.error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                     <div class="flex items-center gap-2 text-red-800">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,13 +85,13 @@
                         <thead class="bg-turquesa">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                    Código
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Nombre
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Tipo
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
-                                    Teléfono
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Email
@@ -85,13 +112,13 @@
                             </tr>
                             <tr v-for="institution in institutions" :key="institution.id" class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.code || '-' }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-nexa-bold text-verde-oscuro">{{ institution.name }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.type || '-' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.phone || '-' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.email || '-' }}</div>
@@ -131,16 +158,132 @@
                 </div>
             </div>
         </div>
+
+        <!-- Import Modal -->
+        <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div @click.stop class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between p-4 border-b">
+                    <h3 class="text-lg font-nexa-bold text-verde-oscuro">Carga Masiva de Instituciones</h3>
+                    <button @click="closeImportModal" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-4">
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 font-nexa-regular mb-2">
+                            Sube un archivo Excel (.xlsx, .xls) o CSV con las siguientes columnas:
+                        </p>
+                        <ul class="text-xs text-gray-500 font-nexa-regular list-disc ml-4 mb-4">
+                            <li><strong>Nombre</strong> (requerido)</li>
+                            <li>Código (opcional)</li>
+                            <li>Tipo (opcional): school, colegio, liceo, university, other</li>
+                            <li>Email (opcional)</li>
+                            <li>Teléfono (opcional)</li>
+                            <li>Dirección (opcional)</li>
+                            <li>Sitio web (opcional)</li>
+                        </ul>
+                        <p class="text-xs text-gray-500 font-nexa-regular italic">
+                            Si el nombre o código ya existe, se actualizará la institución existente.
+                        </p>
+                    </div>
+
+                    <!-- File Input -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-turquesa transition-colors">
+                        <input
+                            type="file"
+                            ref="fileInput"
+                            @change="handleFileSelect"
+                            accept=".xlsx,.xls,.csv"
+                            class="hidden"
+                        />
+                        <div v-if="!selectedFile" @click="$refs.fileInput.click()" class="cursor-pointer">
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <p class="text-sm text-gray-600 font-nexa-regular">
+                                Haz clic para seleccionar un archivo
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                Excel (.xlsx, .xls) o CSV
+                            </p>
+                        </div>
+                        <div v-else class="flex items-center justify-center gap-3">
+                            <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <div class="text-left">
+                                <p class="text-sm font-nexa-bold text-gray-700">{{ selectedFile.name }}</p>
+                                <p class="text-xs text-gray-500">{{ formatFileSize(selectedFile.size) }}</p>
+                            </div>
+                            <button @click.stop="removeFile" class="text-red-500 hover:text-red-700 ml-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Import Results -->
+                    <div v-if="importResult" class="mt-4 p-3 rounded-lg" :class="importResult.success ? 'bg-green-50' : 'bg-red-50'">
+                        <p class="text-sm font-nexa-bold" :class="importResult.success ? 'text-green-800' : 'text-red-800'">
+                            {{ importResult.message }}
+                        </p>
+                        <div v-if="importResult.stats" class="mt-2 text-xs text-gray-600">
+                            <span class="inline-block mr-3">Creadas: <strong class="text-green-600">{{ importResult.stats.created }}</strong></span>
+                            <span class="inline-block mr-3">Actualizadas: <strong class="text-blue-600">{{ importResult.stats.updated }}</strong></span>
+                            <span class="inline-block mr-3">Omitidas: <strong class="text-yellow-600">{{ importResult.stats.skipped }}</strong></span>
+                            <span class="inline-block">Errores: <strong class="text-red-600">{{ importResult.stats.failed }}</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex justify-end gap-3 p-4 border-t">
+                    <button
+                        @click="closeImportModal"
+                        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-nexa-bold transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        @click="uploadFile"
+                        :disabled="!selectedFile || isUploading"
+                        class="px-4 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark font-nexa-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <svg v-if="isUploading" class="animate-spin w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        {{ isUploading ? 'Importando...' : 'Importar' }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </AdminLayout>
 </template>
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import axios from 'axios';
 
 const props = defineProps({
     institutions: Array
 });
+
+const showImportModal = ref(false);
+const selectedFile = ref(null);
+const isUploading = ref(false);
+const importResult = ref(null);
+const successMessage = ref(null);
+const errorMessage = ref(null);
+const fileInput = ref(null);
 
 const confirmDelete = (institution) => {
     if (institution.courses_count > 0) {
@@ -153,6 +296,72 @@ const confirmDelete = (institution) => {
             preserveScroll: true
         });
     }
+};
+
+const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        selectedFile.value = file;
+        importResult.value = null;
+    }
+};
+
+const removeFile = () => {
+    selectedFile.value = null;
+    importResult.value = null;
+    if (fileInput.value) {
+        fileInput.value.value = '';
+    }
+};
+
+const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const uploadFile = async () => {
+    if (!selectedFile.value) return;
+
+    isUploading.value = true;
+    importResult.value = null;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile.value);
+
+    try {
+        const response = await axios.post(route('admin.institutions.import'), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        importResult.value = response.data;
+
+        if (response.data.success) {
+            successMessage.value = response.data.message;
+            setTimeout(() => {
+                router.reload({ only: ['institutions'] });
+            }, 1500);
+        }
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        importResult.value = {
+            success: false,
+            message: error.response?.data?.message || 'Error al importar el archivo'
+        };
+        errorMessage.value = importResult.value.message;
+    } finally {
+        isUploading.value = false;
+    }
+};
+
+const closeImportModal = () => {
+    showImportModal.value = false;
+    selectedFile.value = null;
+    importResult.value = null;
 };
 </script>
 
@@ -185,5 +394,13 @@ const confirmDelete = (institution) => {
 
 .hover\:text-turquesa-dark:hover {
     color: #006477;
+}
+
+.border-turquesa {
+    border-color: #007e93;
+}
+
+.hover\:border-turquesa:hover {
+    border-color: #007e93;
 }
 </style>

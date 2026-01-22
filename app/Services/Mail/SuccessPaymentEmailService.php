@@ -26,6 +26,12 @@ class SuccessPaymentEmailService
 
     /**
      * Enviar email de confirmación de pago exitoso
+     *
+     * Lógica de adjuntos:
+     * - Programa MISMO AÑO (con boleta bsale): Solo enviar boleta bsale
+     * - Programa AÑO POSTERIOR (sin boleta):
+     *   - 1ra cuota: Contrato + Comprobante de anticipo
+     *   - 2da+ cuota: Solo comprobante de anticipo
      */
     public function sendSuccessPaymentEmail(OrderDetail $orderDetail, Payment $payment): bool
     {
@@ -38,17 +44,8 @@ class SuccessPaymentEmailService
         try {
             $emailData = $this->prepareEmailData($orderDetail, $payment);
 
-            // Generar PDF de comprobante
-            $pdfService = new PaymentReceiptService();
-            $pdfPath = $pdfService->generatePaymentReceipt($orderDetail, $payment);
-
-            // Verificar si se debe enviar el contrato
-            $shouldSendContract = $this->shouldSendContract($orderDetail, $payment);
-
-            if ($shouldSendContract) {
-                $contractService = new ContractService();
-                $contractPdfPath = $contractService->generateContract($orderDetail, $payment);
-            }
+            // Verificar si el programa es del mismo año (usará boleta bsale)
+            $isSameYear = $this->isProgramSameYear($orderDetail);
 
             // Descargar PDF de Bsale si existe
             $bsalePdfPath = null;
@@ -56,15 +53,56 @@ class SuccessPaymentEmailService
                 $bsalePdfPath = $this->downloadBsalePdf($payment);
             }
 
-            Mail::send('Mails.success_payment', $emailData, function ($message) use ($emailData, $pdfPath, $contractPdfPath, $shouldSendContract, $bsalePdfPath) {
+            // Determinar qué adjuntos enviar según la lógica de negocio
+            $shouldSendReceipt = false;
+            $shouldSendContract = false;
+
+            if ($bsalePdfPath && $isSameYear) {
+                // Programa del MISMO AÑO con boleta: Solo enviar boleta bsale
+                // NO enviar comprobante de anticipo ni contrato
+                $this->logInfo('SuccessPaymentEmailService: Programa mismo año - Solo enviando boleta bsale', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                ]);
+            } else {
+                // Programa de AÑO POSTERIOR: Enviar comprobante de anticipo
+                $shouldSendReceipt = true;
+
+                // Verificar si se debe enviar el contrato (solo primera cuota)
+                $shouldSendContract = $this->shouldSendContract($orderDetail, $payment);
+
+                $this->logInfo('SuccessPaymentEmailService: Programa año posterior - Enviando comprobante de anticipo', [
+                    'order_detail_id' => $orderDetail->id,
+                    'payment_id' => $payment->id,
+                    'should_send_contract' => $shouldSendContract,
+                ]);
+            }
+
+            // Generar PDF de comprobante solo si corresponde
+            if ($shouldSendReceipt) {
+                $pdfService = new PaymentReceiptService();
+                $pdfPath = $pdfService->generatePaymentReceipt($orderDetail, $payment);
+            }
+
+            // Generar contrato solo si corresponde
+            if ($shouldSendContract) {
+                $contractService = new ContractService();
+                $contractPdfPath = $contractService->generateContract($orderDetail, $payment);
+            }
+
+            Mail::send('Mails.success_payment', $emailData, function ($message) use ($emailData, $pdfPath, $contractPdfPath, $shouldSendContract, $shouldSendReceipt, $bsalePdfPath) {
                 $message->to($emailData['customer_email'], $emailData['customer_name'])
-                    ->subject($emailData['subject'])
-                    ->attach($pdfPath, [
+                    ->subject($emailData['subject']);
+
+                // Adjuntar comprobante de anticipo solo si corresponde (año posterior)
+                if ($shouldSendReceipt && $pdfPath) {
+                    $message->attach($pdfPath, [
                         'as' => 'Comprobante_Pago_' . $emailData['order_number'] . '.pdf',
                         'mime' => 'application/pdf',
                     ]);
+                }
 
-                // Adjuntar contrato si corresponde
+                // Adjuntar contrato si corresponde (primera cuota año posterior)
                 if ($shouldSendContract && $contractPdfPath) {
                     $message->attach($contractPdfPath, [
                         'as' => 'Contrato_Reserva_' . $emailData['order_number'] . '.pdf',
@@ -72,7 +110,7 @@ class SuccessPaymentEmailService
                     ]);
                 }
 
-                // Adjuntar PDF de Bsale si existe
+                // Adjuntar PDF de Bsale si existe (programa mismo año)
                 if ($bsalePdfPath) {
                     $message->attach($bsalePdfPath, [
                         'as' => 'Boleta_Bsale_' . $emailData['order_number'] . '.pdf',
@@ -126,7 +164,7 @@ class SuccessPaymentEmailService
 
             // Preparar lista de attachments para el log
             $attachmentsList = [];
-            if ($pdfPath) {
+            if ($shouldSendReceipt && $pdfPath) {
                 $attachmentsList[] = [
                     'type' => 'payment_receipt',
                     'name' => 'Comprobante_Pago_' . $emailData['order_number'] . '.pdf',
@@ -215,9 +253,36 @@ class SuccessPaymentEmailService
 
 
     /**
+     * Verificar si el programa es del mismo año actual
+     * Determina si se debe enviar boleta bsale (mismo año) o comprobante de anticipo (año posterior)
+     */
+    private function isProgramSameYear(OrderDetail $orderDetail): bool
+    {
+        $programCourse = $orderDetail->order->programCourse;
+        $currentYear = now()->year;
+        $programStartYear = null;
+
+        if ($programCourse && $programCourse->departure_date) {
+            $programStartYear = $programCourse->departure_date->year;
+        }
+
+        $isSameYear = ($programStartYear === $currentYear);
+
+        $this->logInfo('SuccessPaymentEmailService: Verificando año del programa', [
+            'order_detail_id' => $orderDetail->id,
+            'program_start_year' => $programStartYear,
+            'current_year' => $currentYear,
+            'is_same_year' => $isSameYear,
+        ]);
+
+        return $isSameYear;
+    }
+
+    /**
      * Verificar si se debe enviar el contrato
      * Se envía solo en pago total o primera cuota del pago mensual
-     * NO se envía contrato de reserva si el programa inicia en el mismo año
+     * NOTA: Este método solo se llama para programas de año posterior (no mismo año)
+     * La verificación del año ya se hace en sendSuccessPaymentEmail()
      */
     private function shouldSendContract(OrderDetail $orderDetail, Payment $payment): bool
     {
@@ -236,19 +301,8 @@ class SuccessPaymentEmailService
 
         $currentInstallment = $orderDetail->installment_number;
 
-        // Verificar si el programa inicia en el mismo año
-        $programCourse = $orderDetail->order->programCourse;
-        $currentYear = now()->year;
-        $programStartYear = null;
-
-        if ($programCourse && $programCourse->departure_date) {
-            $programStartYear = $programCourse->departure_date->year;
-        }
-
-        $isSameYear = ($programStartYear === $currentYear);
-
         // Log para debugging
-        $this->logInfo('SuccessPaymentEmailService: Verificando envío de contrato', [
+        $this->logInfo('SuccessPaymentEmailService: Verificando envío de contrato (año posterior)', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'total_installments' => $totalInstallments,
@@ -257,21 +311,7 @@ class SuccessPaymentEmailService
             'is_first_installment' => ($currentInstallment == 1),
             'installment_plan_id' => $installmentPlanId,
             'installment_id' => $installment ? $installment->id : 'null',
-            'program_start_year' => $programStartYear,
-            'current_year' => $currentYear,
-            'is_same_year' => $isSameYear,
         ]);
-
-        // NO enviar contrato de reserva si el programa inicia en el mismo año
-        if ($isSameYear) {
-            $this->logInfo('SuccessPaymentEmailService: NO enviando contrato - Programa inicia en el mismo año', [
-                'order_detail_id' => $orderDetail->id,
-                'payment_id' => $payment->id,
-                'program_start_year' => $programStartYear,
-                'current_year' => $currentYear,
-            ]);
-            return false;
-        }
 
         // Si es pago total (una sola cuota)
         if ($totalInstallments == 1) {

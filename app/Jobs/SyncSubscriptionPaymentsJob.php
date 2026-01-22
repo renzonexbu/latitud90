@@ -13,6 +13,7 @@ use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
 use App\Services\VirtualPos\CreateChargeService;
+use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Helpers\PaymentDocumentTypeHelper;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -331,25 +332,32 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $newPayments = [];
 
+        // Estados válidos que indican un pago exitoso/procesado
+        // Incluye 'procesando' porque VirtualPOS lo usa para cobros inmediatos exitosos
+        $approvedStatuses = array_map('strtolower', VirtualPosService::APPROVED_STATUSES);
+        $approvedStatuses[] = 'procesando'; // Estado de cobro inmediato exitoso
+
         // Buscar charges que están pagados en VirtualPOS
         foreach ($currentCharges as $currentCharge) {
             $chargeId = $currentCharge['id'] ?? null;
             $currentStatus = strtolower($currentCharge['status'] ?? '');
 
-            if (!$chargeId || $currentStatus !== 'pagado') {
+            if (!$chargeId || !in_array($currentStatus, $approvedStatuses)) {
                 continue;
             }
 
-            // LÓGICA CORREGIDA: Si el charge está pagado en VirtualPOS pero NO existe
+            // LÓGICA CORREGIDA: Si el charge está pagado/procesando en VirtualPOS pero NO existe
             // en nuestra BD, entonces es un pago nuevo que debemos procesar.
             // No importa si ya estaba pagado en el charge_program guardado anteriormente,
             // lo importante es si tenemos el Payment registrado en la BD.
+            // NOTA: 'procesando' se incluye porque VirtualPOS lo usa para cobros inmediatos exitosos.
             if (!$this->isChargeAlreadyProcessed($chargeId)) {
                 Log::info('SyncSubscriptionPayments: Pago nuevo detectado', [
                     'charge_id' => $chargeId,
                     'amount' => $currentCharge['amount'] ?? 0,
                     'charge_date' => $currentCharge['charge_date'] ?? null,
-                    'status' => $currentStatus
+                    'status' => $currentStatus,
+                    'is_immediate_charge' => $currentStatus === 'procesando'
                 ]);
                 $newPayments[] = $currentCharge;
             }
@@ -873,6 +881,8 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
     /**
      * Enviar email de pago exitoso con PDFs
+     * El servicio SuccessPaymentEmailService determina automáticamente si enviar contrato
+     * basándose en: si es primera cuota Y si el programa NO es del mismo año
      */
     protected function sendSuccessEmail(
         ProgramSubscription $subscription,
@@ -882,14 +892,11 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     ): void
     {
         try {
-            // Determinar si debe enviar contrato (solo primera cuota)
-            $sendContract = ($installmentNumber === 1);
-
             // Enviar email usando el servicio existente
+            // El servicio determina automáticamente si incluir contrato/boleta
             $this->emailService->sendSuccessPaymentEmail(
                 $orderDetail,
-                $payment,
-                $sendContract
+                $payment
             );
 
             // Marcar email como enviado
@@ -897,14 +904,14 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
             Log::info('SyncSubscriptionPayments: Email de pago exitoso enviado', [
                 'payment_id' => $payment->id,
-                'installment_number' => $installmentNumber,
-                'contract_sent' => $sendContract
+                'installment_number' => $installmentNumber
             ]);
 
         } catch (Exception $e) {
             Log::error('SyncSubscriptionPayments: Error enviando email', [
                 'payment_id' => $payment->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             // No lanzar excepción, continuar con el proceso
         }

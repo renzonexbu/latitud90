@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Institution;
+use App\Services\Admin\Institutions\ImportInstitutionsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -23,6 +24,7 @@ class InstitutionController extends Controller
                 ->map(function ($institution) {
                     return [
                         'id' => $institution->id,
+                        'code' => $institution->code,
                         'name' => $institution->name,
                         'type' => $institution->type,
                         'address' => $institution->address,
@@ -59,6 +61,7 @@ class InstitutionController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
+                'code' => 'nullable|string|max:50',
                 'name' => 'required|string|max:255',
                 'type' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
@@ -72,8 +75,8 @@ class InstitutionController extends Controller
             ]);
 
             if ($validator->fails()) {
-                // Si es una petición AJAX (desde modal), devolver JSON
-                if ($request->wantsJson() || $request->ajax()) {
+                // Si es una petición AJAX (desde modal) pero NO es Inertia, devolver JSON
+                if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
                     return response()->json([
                         'success' => false,
                         'errors' => $validator->errors()->toArray(),
@@ -88,6 +91,7 @@ class InstitutionController extends Controller
             }
 
             $institution = Institution::create([
+                'code' => $request->code,
                 'name' => $request->name,
                 'type' => $request->type,
                 'address' => $request->address,
@@ -104,12 +108,13 @@ class InstitutionController extends Controller
                 'user_id' => auth()->id()
             ]);
 
-            // Si es una petición AJAX (desde modal), devolver JSON
-            if ($request->wantsJson() || $request->ajax()) {
+            // Si es una petición AJAX (desde modal) pero NO es Inertia, devolver JSON
+            if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
                 return response()->json([
                     'success' => true,
                     'institution' => [
                         'id' => $institution->id,
+                        'code' => $institution->code,
                         'name' => $institution->name,
                         'type' => $institution->type,
                         'address' => $institution->address,
@@ -127,8 +132,8 @@ class InstitutionController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al crear institución: ' . $e->getMessage());
 
-            // Si es una petición AJAX (desde modal), devolver JSON
-            if ($request->wantsJson() || $request->ajax()) {
+            // Si es una petición AJAX (desde modal) pero NO es Inertia, devolver JSON
+            if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Error al crear la institución: ' . $e->getMessage()
@@ -150,6 +155,7 @@ class InstitutionController extends Controller
             return Inertia::render('Admin/Institutions/Edit', [
                 'institution' => [
                     'id' => $institution->id,
+                    'code' => $institution->code,
                     'name' => $institution->name,
                     'type' => $institution->type,
                     'address' => $institution->address,
@@ -172,6 +178,7 @@ class InstitutionController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
+                'code' => 'nullable|string|max:50',
                 'name' => 'required|string|max:255',
                 'type' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
@@ -192,6 +199,7 @@ class InstitutionController extends Controller
             }
 
             $institution->update([
+                'code' => $request->code,
                 'name' => $request->name,
                 'type' => $request->type,
                 'address' => $request->address,
@@ -214,6 +222,59 @@ class InstitutionController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Error al actualizar la institución: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import institutions from Excel file
+     */
+    public function import(Request $request, ImportInstitutionsService $importService)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            ], [
+                'file.required' => 'Debe seleccionar un archivo.',
+                'file.mimes' => 'El archivo debe ser de tipo Excel (xlsx, xls) o CSV.',
+                'file.max' => 'El archivo no debe superar los 10MB.',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()->toArray(),
+                    'message' => 'Error en la validación del archivo.'
+                ], 422);
+            }
+
+            $result = $importService->processExcel($request->file('file'));
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'stats' => $result['stats'],
+                    'details' => $result['details'],
+                    'message' => sprintf(
+                        'Importación completada: %d creadas, %d actualizadas, %d omitidas, %d con errores.',
+                        $result['stats']['created'],
+                        $result['stats']['updated'],
+                        $result['stats']['skipped'],
+                        $result['stats']['failed']
+                    )
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['error'] ?? 'Error al procesar el archivo.'
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Error al importar instituciones: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al importar instituciones: ' . $e->getMessage()
+            ], 500);
         }
     }
 

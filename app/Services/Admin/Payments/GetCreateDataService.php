@@ -24,12 +24,13 @@ class GetCreateDataService
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
         
-        // Métodos de pago presenciales
-        $presentialPaymentMethods = [
-            ['id' => 'cash', 'name' => 'Efectivo'],
-            ['id' => 'debit', 'name' => 'Tarjeta de Débito'],
-            ['id' => 'credit', 'name' => 'Tarjeta de Crédito'],
-            ['id' => 'transfer', 'name' => 'Transferencia Bancaria'],
+        // Tipos de pago presencial para el formulario
+        $paymentTypeOptions = [
+            ['value' => 'presential_office_card', 'label' => 'Boleta/Efectivo (BX)', 'report_code' => 'BX'],
+            ['value' => 'presential_bank_transfer', 'label' => 'Transferencia Electrónica (TE)', 'report_code' => 'TE'],
+            ['value' => 'presential_check', 'label' => 'Cheque (CH)', 'report_code' => 'CH'],
+            ['value' => 'presential_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
+            ['value' => 'presential_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
         ];
 
         return [
@@ -37,7 +38,7 @@ class GetCreateDataService
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes,
-            'presentialPaymentMethods' => $presentialPaymentMethods
+            'paymentTypeOptions' => $paymentTypeOptions
         ];
     }
 }

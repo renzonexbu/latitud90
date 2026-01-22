@@ -67,6 +67,12 @@ class HandleInertiaRequests extends Middleware
                 'guardian' => $guardianData, // Solo usuarios guardian (guard 'guardian')
             ],
             '_csrf' => csrf_token(),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
         ];
     }
 }

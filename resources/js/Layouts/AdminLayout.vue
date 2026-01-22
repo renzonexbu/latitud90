@@ -333,8 +333,8 @@
         </aside>
 
         <!-- Page Content -->
-        <div class="flex-1 flex flex-col h-full ml-[108px] lg:ml-[126px]">
-            <main class="flex-1 overflow-y-auto overflow-x-hidden">
+        <div class="flex-1 flex flex-col h-full ml-[108px] lg:ml-[126px] min-w-0">
+            <main class="flex-1 overflow-y-auto overflow-x-auto">
                 <slot />
             </main>
 

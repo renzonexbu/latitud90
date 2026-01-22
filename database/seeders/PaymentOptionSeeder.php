@@ -47,6 +47,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'presential_international', 'label' => 'Link Internacional (VPI)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'VPI', 'installments' => null, 'active' => true],
 			['code' => 'presential_deposit', 'label' => 'Depósito (DP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'DP', 'installments' => null, 'active' => true],
 			['code' => 'presential_webpay', 'label' => 'Webpay (WP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'WP', 'installments' => null, 'active' => true],
+			['code' => 'presential_aporte', 'label' => 'Aporte (AP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'AP', 'installments' => null, 'active' => true],
 
 			// Pago mensual (Lat90) - LEGACY - Transferencia Khipu
 			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],

@@ -286,16 +286,20 @@
                             <select
                                 v-model="form.pivot_course_id"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :disabled="programsWithPendingBalance.length === 0"
                             >
                                 <option value="">-- Selecciona --</option>
                                 <option
-                                    v-for="prog in participantPrograms || []"
+                                    v-for="prog in programsWithPendingBalance"
                                     :key="prog.id"
                                     :value="prog.id"
                                 >
                                     {{ (prog.name || 'Sin programa') + ' - ' + (prog.code || '') }}
                                 </option>
                             </select>
+                            <p v-if="programsWithPendingBalance.length === 0" class="text-yellow-600 text-xs mt-1">
+                                No hay programas con saldo pendiente para aplicar descuentos
+                            </p>
 
                             <!-- Botón de Toggle Status del Programa -->
                             <button
@@ -393,7 +397,7 @@
                                             >
                                                 <option value="percent">Porcentaje (%)</option>
                                                 <option value="amount">Monto fijo (CLP)</option>
-                                                <option value="liberado">Liberado (100%)</option>
+                                                <option value="liberado">Liberado</option>
                                             </select>
                                         </div>
 
@@ -404,14 +408,12 @@
                                             </label>
                                             <input
                                                 v-model.number="discount.value"
-                                                :type="discount.type === 'percent' ? 'number' : 'number'"
-                                                :min="discount.type === 'percent' ? 0 : 0"
-                                                :max="discount.type === 'percent' ? 100 : null"
-                                                :step="discount.type === 'percent' ? 0.01 : 1"
-                                                :disabled="discount.type === 'liberado'"
+                                                type="number"
+                                                :min="0"
+                                                :max="discount.type === 'percent' || discount.type === 'liberado' ? 100 : null"
+                                                :step="discount.type === 'percent' || discount.type === 'liberado' ? 0.01 : 1"
                                                 :placeholder="getDiscountValuePlaceholder(discount.type)"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-turquesa focus:border-transparent"
-                                                :class="{ 'bg-gray-100': discount.type === 'liberado' }"
                                             />
                                         </div>
                                     </div>
@@ -432,10 +434,15 @@
 
                             <!-- Resumen del descuento -->
                             <div class="text-sm text-gray-600 bg-white p-2 rounded border">
-                                <strong>Descuento calculado:</strong> 
-                                ${{ formatNumber(calculateDiscountAmount(discount)) }} 
+                                <strong>Descuento calculado:</strong>
+                                ${{ formatNumber(calculateDiscountAmount(discount)) }}
                                 <span v-if="discount.type === 'percent'">({{ discount.value || 0 }}%)</span>
-                                <span v-if="discount.type === 'liberado'">(100%)</span>
+                                <span v-if="discount.type === 'liberado'" class="inline-flex items-center">
+                                    ({{ discount.value || 0 }}%)
+                                    <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                                        LIBERADO
+                                    </span>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -736,24 +743,13 @@ const currentInstallmentPlan = computed(() => {
     if (!form.value.pivot_course_id || !props.participantProgramsWithDiscounts) {
         return null;
     }
-    
-    // Buscar el plan de cuotas para el curso seleccionado
-    // Primero encontrar el curso en participant.courses para obtener el program_id
-    const course = props.participant?.courses?.find(c => c.id == form.value.pivot_course_id);
-    const program = course?.programCourses?.[0]?.program || course?.program_courses?.[0]?.program;
 
-    if (!course || !program) {
-        console.error('❌ No se pudo encontrar el curso o el programa asociado');
-        return null;
-    }
-
-    // Ahora buscar en participantProgramsWithDiscounts usando el program_id
+    // NOTA: pivot_course_id contiene el ProgramCourse.id (no Course.id)
+    // Buscar directamente en participantProgramsWithDiscounts usando el program_id (que es el ProgramCourse.id)
     const participantProgram = props.participantProgramsWithDiscounts.find(
-        pp => pp.program_id === program.id
+        pp => pp.program_id == form.value.pivot_course_id
     );
-    
-    // Debug information removed for production
-    
+
     return participantProgram?.installment_plan || null;
 });
 
@@ -813,6 +809,36 @@ const currentProgram = computed(() => {
     return program || null;
 });
 
+// Filtrar programas disponibles para el dropdown
+// Mostrar programas con saldo pendiente, con descuentos existentes, o el programa actualmente seleccionado
+const programsWithPendingBalance = computed(() => {
+    if (!props.participantPrograms || props.participantPrograms.length === 0) {
+        return [];
+    }
+
+    const currentSelectedId = form.value.pivot_course_id;
+
+    // Obtener IDs de programas que tienen descuentos existentes
+    const programsWithDiscountsIds = (props.participantProgramsWithDiscounts || [])
+        .filter(pp => pp.discounts && pp.discounts.length > 0)
+        .map(pp => pp.program_id);
+
+    // Mostrar programas con saldo pendiente (balance > 0), con descuentos existentes, O el programa actualmente seleccionado
+    return props.participantPrograms.filter(prog => {
+        const balance = prog.participant_balance ?? 0;
+        const hasExistingDiscounts = programsWithDiscountsIds.includes(prog.id);
+        // Incluir si tiene saldo pendiente, tiene descuentos existentes, o es el programa actualmente seleccionado
+        return balance > 0 || hasExistingDiscounts || prog.id == currentSelectedId;
+    });
+});
+
+// Verificar si el programa actual ya está completamente pagado (para mostrar advertencia)
+const currentProgramFullyPaid = computed(() => {
+    if (!currentProgram.value) return false;
+    const balance = currentProgram.value.participant_balance ?? 0;
+    return balance <= 0;
+});
+
 // Obtener el status actual del programa en participant_program
 const currentProgramStatus = computed(() => {
     if (!currentProgram.value) {
@@ -839,25 +865,16 @@ const formatDateForInput = (dateString) => {
 
 // Cargar descuentos existentes desde la tabla participant_program_discounts
 const loadExistingDiscounts = () => {
-    const courseId = form.value.pivot_course_id;
-    if (!courseId || !props.participant || !props.participant.courses) {
+    const programCourseId = form.value.pivot_course_id;
+    if (!programCourseId) {
         discounts.value = [];
         return;
     }
 
-    const course = props.participant.courses.find((c) => c.id == courseId);
-    // Obtener el programCourse (no la plantilla program)
-    const programCourse = course?.programCourses?.[0] || course?.program_courses?.[0];
-
-    if (!course || !programCourse) {
-        discounts.value = [];
-        return;
-    }
-
-    // Buscar el participant_program_id usando el programCourse.id
-    // NOTA: participant_program.program_id guarda el ID del ProgramCourse, no del Program template
+    // NOTA: pivot_course_id contiene el ProgramCourse.id (no Course.id)
+    // Buscar directamente en participantProgramsWithDiscounts usando el program_id (que es el ProgramCourse.id)
     const participantProgram = props.participantProgramsWithDiscounts?.find(
-        pp => pp.program_id === programCourse.id
+        pp => pp.program_id == programCourseId
     );
 
     if (participantProgram && participantProgram.discounts) {
@@ -865,15 +882,16 @@ const loadExistingDiscounts = () => {
             // Determinar el tipo basado en los datos almacenados
             let type = "percent";
             let value = discount.percent || 0;
-            
-            if (discount.amount && discount.amount > 0) {
+
+            // Si discount_type es 'released', es un liberado (con cualquier porcentaje)
+            if (discount.discount_type === 'released') {
+                type = "liberado";
+                value = discount.percent || 100; // Usar el porcentaje almacenado
+            } else if (discount.amount && discount.amount > 0) {
                 type = "amount";
                 value = discount.amount;
-            } else if (discount.discount_type === 'released' || (discount.percent && discount.percent >= 100)) {
-                type = "liberado";
-                value = 100;
             }
-            
+
             return {
                 id: discount.id,
                 type: type,
@@ -892,6 +910,11 @@ watch(
     () => props.participant,
     (newParticipant) => {
         if (newParticipant && Object.keys(newParticipant).length > 0) {
+            // NOTA: pivot_course_id debe contener ProgramCourse.id (no Course.id)
+            // Usar preSelectedCourseId (que ya es ProgramCourse.id) o el primer programa de participantPrograms
+            const defaultProgramCourseId = props.preSelectedCourseId ||
+                (props.participantPrograms && props.participantPrograms[0]?.id) || "";
+
             form.value = {
                 first_last_name: newParticipant.first_last_name || "",
                 second_last_name: newParticipant.second_last_name || "",
@@ -902,14 +925,12 @@ watch(
                 email: newParticipant.email || "",
                 code_phone: newParticipant.code_phone || "+56",
                 phone: newParticipant.phone || "",
-                pivot_course_id: props.preSelectedCourseId || (newParticipant.courses && newParticipant.courses[0]?.id) || "",
+                pivot_course_id: defaultProgramCourseId,
                 individual_price: newParticipant.individual_price ?? "",
             };
 
             // Cargar descuentos existentes si los hay
             loadExistingDiscounts();
-            
-            // Data loaded - debug logging removed for production
         }
     },
     { immediate: true, deep: true }
@@ -918,13 +939,14 @@ watch(
 // Sincronizar cuando cambie el preSelectedCourseId
 watch(
     () => props.preSelectedCourseId,
-    (newCourseId) => {
-        if (newCourseId && props.participant && props.participant.courses) {
-            // Verificar que el curso existe en la lista del participante
-            const courseExists = props.participant.courses.some(c => c.id == newCourseId);
-            if (courseExists) {
-                form.value.pivot_course_id = newCourseId;
-                // Recargar descuentos para el nuevo curso seleccionado
+    (newProgramCourseId) => {
+        if (newProgramCourseId && props.participantPrograms) {
+            // NOTA: preSelectedCourseId contiene ProgramCourse.id
+            // Verificar que el programa existe en participantPrograms
+            const programExists = props.participantPrograms.some(p => p.id == newProgramCourseId);
+            if (programExists) {
+                form.value.pivot_course_id = newProgramCourseId;
+                // Recargar descuentos para el programa seleccionado
                 loadExistingDiscounts();
             }
         }
@@ -994,7 +1016,7 @@ const getDiscountValueLabel = (type) => {
     switch (type) {
         case "percent": return "Porcentaje (%)";
         case "amount": return "Monto (CLP)";
-        case "liberado": return "Liberado";
+        case "liberado": return "Porcentaje (%)";
         default: return "Valor";
     }
 };
@@ -1003,27 +1025,24 @@ const getDiscountValuePlaceholder = (type) => {
     switch (type) {
         case "percent": return "Ej: 10";
         case "amount": return "Ej: 50000";
-        case "liberado": return "100%";
+        case "liberado": return "Ej: 50 (%)";
         default: return "";
     }
 };
 
 const calculateDiscountAmount = (discount) => {
     const basePrice = Number(form.value.individual_price || 0);
-    
-    if (discount.type === "liberado") {
-        return basePrice;
-    }
-    
-    if (discount.type === "percent") {
+
+    if (discount.type === "liberado" || discount.type === "percent") {
+        // Liberado ahora usa porcentaje variable (igual que percent)
         const percentage = Math.max(0, Math.min(100, Number(discount.value || 0)));
         return (basePrice * percentage) / 100;
     }
-    
+
     if (discount.type === "amount") {
         return Math.min(basePrice, Math.max(0, Number(discount.value || 0)));
     }
-    
+
     return 0;
 };
 
@@ -1046,6 +1065,38 @@ const totalDiscountPercentage = computed(() => {
 });
 
 const updateParticipant = () => {
+    // Validar descuentos antes de enviar
+    if (discounts.value.length > 0) {
+        // Validar que hay un programa seleccionado
+        if (!form.value.pivot_course_id) {
+            alert('Debes seleccionar un programa para aplicar los descuentos.');
+            return;
+        }
+
+        // Validar cada descuento
+        for (let i = 0; i < discounts.value.length; i++) {
+            const discount = discounts.value[i];
+
+            // Validar descripción
+            if (!discount.comment || discount.comment.trim() === '') {
+                alert(`El descuento #${i + 1} debe tener una descripción.`);
+                return;
+            }
+
+            // Validar valor para todos los tipos
+            if (!discount.value || discount.value <= 0) {
+                alert(`El descuento #${i + 1} debe tener un valor mayor a 0.`);
+                return;
+            }
+
+            // Validar porcentaje máximo (aplica a percent y liberado)
+            if ((discount.type === 'percent' || discount.type === 'liberado') && discount.value > 100) {
+                alert(`El descuento #${i + 1} no puede ser mayor al 100%.`);
+                return;
+            }
+        }
+    }
+
     isSubmitting.value = true;
 
     const formData = new FormData();
@@ -1058,18 +1109,18 @@ const updateParticipant = () => {
     formData.append("email", form.value.email);
     formData.append("code_phone", form.value.code_phone);
     formData.append("phone", form.value.phone);
-    
+
     if (form.value.pivot_course_id) {
         formData.append("pivot_course_id", form.value.pivot_course_id);
     }
-    
+
     if (form.value.individual_price !== "") {
         formData.append("individual_price", form.value.individual_price);
     }
 
     // Enviar los descuentos como JSON para procesarlos en el backend
     formData.append("discounts", JSON.stringify(discounts.value));
-    
+
     formData.append("_method", "PUT");
 
     router.post(

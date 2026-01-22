@@ -51,7 +51,7 @@ class ExportService
             
             // Verificar si tiene permiso para ver columnas de contacto pagador
             $isAdmin = $this->canViewPayerContact();
-            $lastColumnForMerge = $isAdmin ? 'N' : 'L';
+            $lastColumnForMerge = $isAdmin ? 'M' : 'L';
 
             // Línea 1: Título
             $sheet->setCellValue('A1', 'Consolidado de Pagos');
@@ -85,13 +85,12 @@ class ExportService
                     'H4' => 'Forma Pago',
                     'I4' => 'Fecha de Pago',
                     'J4' => 'Contacto Pagador',
-                    'K4' => 'Email Contacto Pagador',
-                    'L4' => 'Aporte o Beca',
-                    'M4' => 'Liberado',
-                    'N4' => 'Precio'
+                    'K4' => 'Aporte o Beca',
+                    'L4' => 'Liberado',
+                    'M4' => 'Precio'
                 ];
-                $headerRange = 'A4:N4';
-                $lastColumn = 'N';
+                $headerRange = 'A4:M4';
+                $lastColumn = 'M';
             } else {
                 // Sin columnas de contacto pagador
                 $headers = [
@@ -148,18 +147,17 @@ class ExportService
                 $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
 
                 if ($isAdmin) {
-                    // Incluir columnas de contacto pagador solo para super_admin
+                    // Incluir columna de contacto pagador solo para super_admin
                     $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
-                    $sheet->setCellValue('K' . $row, $item['payer_email'] ?? 'N/A');
-                    $sheet->setCellValue('L' . $row, $item['scholarship_or_grant'] ?? 0);
-                    $sheet->setCellValue('M' . $row, $item['liberated'] ?? 0);
-                    $sheet->setCellValue('N' . $row, $item['price'] ?? 0);
+                    $sheet->setCellValue('K' . $row, $item['scholarship_or_grant'] ?? 0);
+                    $sheet->setCellValue('L' . $row, $item['liberated'] ?? 0);
+                    $sheet->setCellValue('M' . $row, $item['price'] ?? 0);
 
                     // Aplicar formato de moneda a las columnas numéricas
                     $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
                     $sheet->getStyle('M' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('N' . $row)->getNumberFormat()->setFormatCode('#,##0');
                 } else {
                     // Sin columnas de contacto pagador
                     $sheet->setCellValue('J' . $row, $item['scholarship_or_grant'] ?? 0);
@@ -622,7 +620,6 @@ class ExportService
                 'Forma Pago',
                 'Fecha de Pago',
                 'Contacto Pagador',
-                'Email Contacto Pagador',
                 'Aporte o Beca',
                 'Liberado',
                 'Precio'
@@ -666,7 +663,6 @@ class ExportService
                         $item['payment_form'] ?? 'N/A',
                         $item['payment_date'] ?? 'N/A',
                         $item['payer_contact'] ?? 'N/A',
-                        $item['payer_email'] ?? 'N/A',
                         number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
                         number_format($item['liberated'] ?? 0, 0, ',', '.'),
                         number_format($item['price'] ?? 0, 0, ',', '.')

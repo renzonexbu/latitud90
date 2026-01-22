@@ -605,17 +605,16 @@ class CourseService
         $now = new \DateTime();
 
         // Calcular los meses disponibles desde ahora hasta la fecha final de pago
-        $yearsDiff = $finalPaymentDateTime->format('Y') - $now->format('Y');
-        $monthsDiff = $finalPaymentDateTime->format('m') - $now->format('m');
-        $availableMonths = ($yearsDiff * 12) + $monthsDiff;
+        // Usa días exactos: cada cuota = 30 días aproximadamente
+        $diffDays = $now->diff($finalPaymentDateTime)->days;
 
-        // Ajustar si el día actual es mayor que el día de la fecha final de pago
-        if ($now->format('d') > $finalPaymentDateTime->format('d')) {
-            $availableMonths -= 1;
+        // Si la fecha final es anterior a hoy, diffDays será positivo pero debemos considerar el signo
+        if ($finalPaymentDateTime < $now) {
+            $diffDays = -$diffDays;
         }
 
-        // Asegurar que no sea negativo
-        $availableMonths = max(0, $availableMonths);
+        // Cada cuota = 30 días aproximadamente
+        $availableMonths = max(0, (int) floor($diffDays / 30));
 
         // Validar que las cuotas solicitadas no excedan el máximo disponible
         if ($subscriptionMaxMonths > $availableMonths) {
@@ -1779,16 +1778,36 @@ class CourseService
                 ]);
             }
 
+            // Verificar si el participante quedó huérfano (sin ningún programa asociado)
+            $hasOtherPrograms = \App\Models\ParticipantProgram::where('participant_id', $participant->id)->exists();
+
+            $participantDeleted = false;
+            if (!$hasOtherPrograms) {
+                // El participante no tiene más programas, eliminarlo completamente
+                $participantName = $participant->full_name;
+                $participantId = $participant->id;
+                $participant->delete();
+                $participantDeleted = true;
+
+                Log::info('Participante huérfano eliminado completamente', [
+                    'participant_id' => $participantId,
+                    'participant_name' => $participantName,
+                ]);
+            }
+
             Log::info('Participante eliminado del programa-curso', [
                 'participant_program_id' => $participantProgramId,
-                'participant' => $participant->full_name,
+                'participant' => $participant->full_name ?? 'N/A',
                 'program_id' => $participantProgram->program_id,
-                'course_id' => $courseId
+                'course_id' => $courseId,
+                'participant_fully_deleted' => $participantDeleted,
             ]);
 
             return [
                 'success' => true,
-                'message' => 'Participante eliminado exitosamente.'
+                'message' => $participantDeleted
+                    ? 'Participante eliminado completamente del sistema.'
+                    : 'Participante eliminado del programa (aún tiene otros programas asociados).'
             ];
 
         } catch (\Exception $e) {

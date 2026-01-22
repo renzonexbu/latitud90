@@ -29,6 +29,23 @@
             <!-- Content -->
             <form @submit.prevent="saveInstitution" class="modal-form">
                 <div class="flex flex-col gap-4">
+                    <!-- Código de institución -->
+                    <div class="flex flex-col gap-[10px]">
+                        <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
+                            Código
+                        </label>
+                        <input
+                            v-model="form.code"
+                            type="text"
+                            placeholder="Ej: INST001"
+                            :class="[
+                                'w-full h-[46px] bg-white rounded-lg border p-4 text-left font-nexa-bold text-[12px] leading-[18px] font-bold shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none placeholder-[#c7c7c7]',
+                                localErrors.code ? 'border-red-500' : 'border-[#5b5b5b]'
+                            ]"
+                        />
+                        <span v-if="localErrors.code" class="text-red-500 text-xs mt-1">{{ getError('code') }}</span>
+                    </div>
+
                     <!-- Nombre de institución -->
                     <div class="flex flex-col gap-[10px]">
                         <label class="text-[#5b5b5b] text-left font-nexa-bold text-[12px] leading-[13px] font-bold">
@@ -178,6 +195,7 @@ export default {
             isSubmitting: false,
             localErrors: {},
             form: {
+                code: "",
                 name: "",
                 type: "",
                 address: "",
@@ -194,6 +212,7 @@ export default {
         },
         resetForm() {
             this.form = {
+                code: "",
                 name: "",
                 type: "",
                 address: "",

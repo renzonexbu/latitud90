@@ -240,10 +240,6 @@ class StorePaymentService
                     'document_type' => $request->buyer_document_type,
                     'document_number' => RutHelper::clean($request->buyer_document_number),
                     'email' => $request->buyer_email,
-                    'phone' => $request->buyer_phone,
-                    'country' => $request->buyer_country,
-                    'region' => $request->buyer_region,
-                    'city' => $request->buyer_city,
                 ]
             ],
             'currency' => 'CLP',
@@ -264,6 +260,7 @@ class StorePaymentService
             'TE' => 'presential_bank_transfer',    // Transferencia bancaria
             'CH' => 'presential_check',            // Cheque
             'DP' => 'presential_deposit',          // Depósito
+            'AP' => 'presential_aporte',           // Aporte
         ];
 
         $result = $mapping[$presentialPaymentType] ?? 'presential_office_card'; // Default fallback
@@ -492,6 +489,7 @@ class StorePaymentService
             'TE' => 'manual_transfer',   // Transferencia Electrónica
             'CH' => 'manual_check',      // Cheque
             'DP' => 'manual_other',      // Depósito u otro
+            'AP' => 'manual_aporte',     // Aporte
         ];
 
         return $mapping[$presentialPaymentType] ?? 'manual_cash';

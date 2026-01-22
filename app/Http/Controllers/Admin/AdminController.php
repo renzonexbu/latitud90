@@ -7,6 +7,7 @@ use App\Models\Program;
 use App\Models\Participant;
 use App\Models\Payment;
 use App\Traits\HasPermissions;
+use App\Helpers\ParticipantPriceHelper;
 use Inertia\Inertia;
 use Carbon\Carbon;
 
@@ -59,9 +60,13 @@ class AdminController extends Controller
                 $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
                 $totalStudents = $activeParticipants->count();
 
-                // Objetivo: precio del programa × cantidad de alumnos activos
-                $tripPrice = (float) ($programCourse->trip_price ?? 0);
-                $target = $tripPrice * $totalStudents;
+                // Calcular el total sumando el precio final de cada participante (considerando descuentos)
+                // Misma lógica que CourseDataService
+                $target = 0.0;
+                foreach ($activeParticipants as $participant) {
+                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                    $target += $priceData['final_price'] ?? 0;
+                }
 
                 // Recaudado: pagos normales + cuotas de suscripciones pagadas
                 // 1. Pagos normales completados
@@ -89,7 +94,7 @@ class AdminController extends Controller
                     'course' => $course->course_number ?? '—',
                     'year' => $programCourse->year ?? Carbon::now()->year,
                     'programName' => ($programCourse->code ?? '') . ' - ' . ($programCourse->name ?? $program->name),
-                    'destination' => $program->destination,
+                    'destination' => $programCourse->destination ?? $program->destination ?? '—',
                     'students' => $totalStudents,
                     'percent' => $percent,
                     'totalCollected' => round($collected, 2),
