@@ -1061,7 +1061,11 @@ class PaymentConfirmationService
     }
 
     /**
-     * Enviar email de confirmación de pago exitoso
+     * Registrar email de confirmación de pago para envío diferido
+     *
+     * NOTA: El email NO se envía inmediatamente. El comando payments:send-pending-emails
+     * se encarga de enviar los emails después de un delay configurable (default 10 min).
+     * Esto permite que BSale genere la boleta antes de enviar el email al cliente.
      */
     private function sendSuccessEmail(OrderDetail $orderDetail, Payment $payment): void
     {
@@ -1071,7 +1075,7 @@ class PaymentConfirmationService
 
             // Verificar si ya se envió un email para este pago
             if ($payment->email_sent) {
-                $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo envío duplicado', [
+                $this->logInfo('PaymentConfirmationService: Email ya enviado anteriormente, omitiendo registro', [
                     'order_detail_id' => $orderDetail->id,
                     'payment_id' => $payment->id,
                     'customer_email' => $orderDetail->email,
@@ -1079,12 +1083,9 @@ class PaymentConfirmationService
                 return;
             }
 
-            // Marcar inmediatamente que se está enviando el email para evitar duplicados
-            $payment->update(['email_sent' => true]);
-
-            // Verificación adicional: solo enviar email si el pago está realmente completado
+            // Verificación adicional: solo registrar email si el pago está realmente completado
             if ($payment->status !== 'completed') {
-                $this->logWarning('PaymentConfirmationService: No se envía email - pago no está completado', [
+                $this->logWarning('PaymentConfirmationService: No se registra email - pago no está completado', [
                     'order_detail_id' => $orderDetail->id,
                     'payment_id' => $payment->id,
                     'payment_status' => $payment->status,
@@ -1094,7 +1095,7 @@ class PaymentConfirmationService
 
             // Verificar que el order detail esté pagado
             if (!$orderDetail->is_paid || $orderDetail->status !== 'paid') {
-                $this->logWarning('PaymentConfirmationService: No se envía email - order detail no está pagado', [
+                $this->logWarning('PaymentConfirmationService: No se registra email - order detail no está pagado', [
                     'order_detail_id' => $orderDetail->id,
                     'payment_id' => $payment->id,
                     'order_detail_status' => $orderDetail->status,
@@ -1103,26 +1104,21 @@ class PaymentConfirmationService
                 return;
             }
 
-            $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+            // NO enviar email inmediatamente - dejar email_sent = false
+            // El comando payments:send-pending-emails enviará el email después del delay configurado
+            // Esto permite que BSale genere la boleta antes de enviar el correo al cliente
+            $delayMinutes = config('lat90.payment.email_delay_minutes', 10);
 
-            if ($emailSent) {
-                $this->logInfo('PaymentConfirmationService: Email enviado exitosamente', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            } else {
-                // Si falla el envío, revertir el flag de email_sent
-                $payment->update(['email_sent' => false]);
-                
-                $this->logWarning('PaymentConfirmationService: Error al enviar email de confirmación', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'customer_email' => $orderDetail->email,
-                ]);
-            }
+            $this->logInfo('PaymentConfirmationService: Email registrado para envío diferido', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'customer_email' => $orderDetail->email,
+                'delay_minutes' => $delayMinutes,
+                'scheduled_send_at' => now()->addMinutes($delayMinutes)->toDateTimeString(),
+            ]);
+
         } catch (\Exception $e) {
-            $this->logError('PaymentConfirmationService: Excepción al enviar email', [
+            $this->logError('PaymentConfirmationService: Excepción al registrar email', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'customer_email' => $orderDetail->email,

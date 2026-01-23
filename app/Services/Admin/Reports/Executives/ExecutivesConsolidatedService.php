@@ -100,10 +100,12 @@ class ExecutivesConsolidatedService
             $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
-            // Descuentos/Becas
+            // Descuentos/Becas (solo tipo 'scholarship', excluir 'discount' que son descuentos simples)
             $scholarship = 0;
             if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                $scholarship = $participantProgram->discounts()->sum('amount');
+                $scholarship = $participantProgram->discounts()
+                    ->where('discount_type', 'scholarship')
+                    ->sum('amount');
             }
 
             // Monto liberado (descuento tipo 'released')
@@ -259,10 +261,12 @@ class ExecutivesConsolidatedService
             $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
-            // Descuentos/Becas
+            // Descuentos/Becas (solo tipo 'scholarship', excluir 'discount' que son descuentos simples)
             $scholarship = 0;
             if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                $scholarship = $participantProgram->discounts()->sum('amount');
+                $scholarship = $participantProgram->discounts()
+                    ->where('discount_type', 'scholarship')
+                    ->sum('amount');
             }
 
             // Monto liberado (descuento tipo 'released')

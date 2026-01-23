@@ -209,14 +209,14 @@ class UpdateParticipantService
                     // Mapear el tipo y valor a percent/amount según corresponda
                     $percent = null;
                     $amount = null;
-                    $discountType = 'scholarship'; // Por defecto
-                    
+                    $discountType = 'discount'; // Por defecto: descuento simple (no aparece en Aporte/Beca)
+
                     if ($discountData['type'] === 'percent') {
                         $percent = $discountData['value'] ?? null;
-                        $discountType = 'scholarship';
+                        $discountType = 'discount'; // Descuento simple, se resta del precio total
                     } elseif ($discountData['type'] === 'amount') {
                         $amount = $discountData['value'] ?? null;
-                        $discountType = 'scholarship';
+                        $discountType = 'discount'; // Descuento simple, se resta del precio total
                     } elseif ($discountData['type'] === 'liberado') {
                         // Liberado ahora acepta cualquier porcentaje
                         $percent = $discountData['value'] ?? 100;
@@ -236,14 +236,14 @@ class UpdateParticipantService
                 // Mapear el tipo y valor a percent/amount según corresponda
                 $percent = null;
                 $amount = null;
-                $discountType = 'scholarship'; // Por defecto
-                
+                $discountType = 'discount'; // Por defecto: descuento simple (no aparece en Aporte/Beca)
+
                 if ($discountData['type'] === 'percent') {
                     $percent = $discountData['value'] ?? null;
-                    $discountType = 'scholarship';
+                    $discountType = 'discount'; // Descuento simple, se resta del precio total
                 } elseif ($discountData['type'] === 'amount') {
                     $amount = $discountData['value'] ?? null;
-                    $discountType = 'scholarship';
+                    $discountType = 'discount'; // Descuento simple, se resta del precio total
                 } elseif ($discountData['type'] === 'liberado') {
                     // Liberado ahora acepta cualquier porcentaje
                     $percent = $discountData['value'] ?? 100;

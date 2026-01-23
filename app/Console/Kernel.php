@@ -79,9 +79,11 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/monthly-participants-without-payments.log'));
 
-        // Enviar emails pendientes de pagos exitosos - cada día a las 8:00 AM
+        // Enviar emails pendientes de pagos exitosos - cada minuto
+        // El comando aplica un delay configurable (default 10 min) antes de enviar
+        // para permitir que BSale genere la boleta
         $schedule->command('payments:send-pending-emails')
-            ->dailyAt('08:00')
+            ->everyMinute()
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/pending-payment-emails.log'));

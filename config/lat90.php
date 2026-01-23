@@ -88,6 +88,24 @@ return [
     */
     'payment' => [
         'use_virtualpos' => env('USE_VIRTUALPOS', true),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Configuración de Emails de Pago
+        |--------------------------------------------------------------------------
+        |
+        | email_delay_minutes: Minutos de espera antes de enviar el email de confirmación
+        |                      después de un pago exitoso. Esto permite que BSale genere
+        |                      la boleta antes de que el usuario reciba el correo.
+        |                      Default: 10 minutos
+        |
+        | email_max_attempts: Número máximo de intentos para enviar el email
+        |                     antes de marcarlo como fallido.
+        |                     Default: 5 intentos
+        |
+        */
+        'email_delay_minutes' => env('PAYMENT_EMAIL_DELAY_MINUTES', 10),
+        'email_max_attempts' => env('PAYMENT_EMAIL_MAX_ATTEMPTS', 5),
     ],
 
     /*

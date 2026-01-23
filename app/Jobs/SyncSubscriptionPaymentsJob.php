@@ -880,9 +880,12 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     }
 
     /**
-     * Enviar email de pago exitoso con PDFs
-     * El servicio SuccessPaymentEmailService determina automáticamente si enviar contrato
-     * basándose en: si es primera cuota Y si el programa NO es del mismo año
+     * Registrar email de pago exitoso para envío diferido
+     *
+     * NOTA: El email NO se envía inmediatamente. El comando payments:send-pending-emails
+     * se encarga de enviar los emails después de un delay configurable (default 10 min).
+     * Esto permite que BSale genere la boleta y que VirtualPOS confirme el pago
+     * antes de enviar el email al cliente.
      */
     protected function sendSuccessEmail(
         ProgramSubscription $subscription,
@@ -892,23 +895,19 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     ): void
     {
         try {
-            // Enviar email usando el servicio existente
-            // El servicio determina automáticamente si incluir contrato/boleta
-            $this->emailService->sendSuccessPaymentEmail(
-                $orderDetail,
-                $payment
-            );
+            // NO enviar email inmediatamente - dejar email_sent = false
+            // El comando payments:send-pending-emails enviará el email después del delay configurado
+            $delayMinutes = config('lat90.payment.email_delay_minutes', 10);
 
-            // Marcar email como enviado
-            $payment->update(['email_sent' => true]);
-
-            Log::info('SyncSubscriptionPayments: Email de pago exitoso enviado', [
+            Log::info('SyncSubscriptionPayments: Email registrado para envío diferido', [
                 'payment_id' => $payment->id,
-                'installment_number' => $installmentNumber
+                'installment_number' => $installmentNumber,
+                'delay_minutes' => $delayMinutes,
+                'scheduled_send_at' => now()->addMinutes($delayMinutes)->toDateTimeString(),
             ]);
 
         } catch (Exception $e) {
-            Log::error('SyncSubscriptionPayments: Error enviando email', [
+            Log::error('SyncSubscriptionPayments: Error registrando email para envío diferido', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()

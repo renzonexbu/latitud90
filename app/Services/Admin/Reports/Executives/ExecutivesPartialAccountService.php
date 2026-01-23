@@ -67,8 +67,9 @@ class ExecutivesPartialAccountService
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
                     DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pg.name END) as payment_method'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type != "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
+                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "scholarship" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
+                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "discount" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as simple_discounts'),
                 ]);
 
             $results = $query->get();
@@ -84,9 +85,12 @@ class ExecutivesPartialAccountService
                 // Convertir a Capital Case (primera letra de cada palabra en mayúscula)
                 $participantName = ucwords(strtolower($participantName));
 
-                $price = (float) $row->price;
+                $basePrice = (float) $row->price;
                 $scholarship = (float) $row->scholarship;
                 $released = (float) $row->released;
+                $simpleDiscounts = (float) ($row->simple_discounts ?? 0);
+                // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
+                $price = $basePrice - $simpleDiscounts;
 
                 // Calcular cuotas pagadas y vencidas solo para pagos completed
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
@@ -150,7 +154,7 @@ class ExecutivesPartialAccountService
                     }
                 }
 
-                // Por pagar = Precio - Abono - Becas - Liberado
+                // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
                 $porPagar = max($price - $abono - $scholarship - $released, 0);
 
                 $items->push([

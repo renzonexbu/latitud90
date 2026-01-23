@@ -528,23 +528,32 @@ class ExportService
                 }
             }
 
-            // Descuentos: scholarship vs released
+            // Descuentos: scholarship (Aporte/Beca) vs released (Liberado) vs discount (descuento simple)
+            $basePrice = $price; // Guardar precio base original
             $scholarship = 0.0;
             $released = 0.0;
+            $simpleDiscounts = 0.0;
             foreach ($pp->discounts as $disc) {
                 $discAmount = 0.0;
                 if (!is_null($disc->amount)) {
                     $discAmount = (float) $disc->amount;
                 } elseif (!is_null($disc->percent)) {
-                    $discAmount = round($price * ((float) $disc->percent) / 100.0, 2);
+                    $discAmount = round($basePrice * ((float) $disc->percent) / 100.0, 2);
                 }
                 if ($disc->discount_type === 'released') {
                     $released += $discAmount;
-                } else {
+                } elseif ($disc->discount_type === 'scholarship') {
                     $scholarship += $discAmount;
+                } else {
+                    // discount_type = 'discount' - descuentos simples que no aparecen en Aporte/Beca
+                    $simpleDiscounts += $discAmount;
                 }
             }
 
+            // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
+            $price = $basePrice - $simpleDiscounts;
+
+            // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
             $porPagar = max($price - $abono - $scholarship - $released, 0);
 
             // Escribir fila
