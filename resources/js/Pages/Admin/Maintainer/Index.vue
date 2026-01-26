@@ -190,9 +190,7 @@ export default {
         isMarketing() {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
-                   (this.$page.props.auth.user.roles.includes('admin_marketing') ||
-                    this.$page.props.auth.user.roles.includes('editor_marketing') ||
-                    this.$page.props.auth.user.roles.includes('visualizador_marketing'));
+                   this.$page.props.auth.user.roles.includes('marketing');
         },
         userRoleDisplay() {
             if (this.isSuperAdmin) return 'Super Administrador';

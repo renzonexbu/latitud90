@@ -453,8 +453,8 @@ export default {
             // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas (Webpay)',    description: null },
-                { value: 'international',  label: 'Pago Internacional (Webpay)',    description: null },
+                { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas',    description: null },
+                { value: 'international',  label: 'Pago Internacional',    description: null },
             ],
         };
     },
@@ -505,7 +505,7 @@ export default {
                     if (code.includes('khipu')) {
                         pushUnique('khipu', 'Pagar con Transferencia Khipu', null, null, 1);
                     } else if (code.includes('international')) {
-                        pushUnique('international', 'Pagar con Pago Internacional (Webpay)', null, 'Pago con tarjetas internacionales', 999);
+                        pushUnique('international', 'Pagar con Pago Internacional', null, 'Pago con tarjetas internacionales', 999);
                     } else if (code.includes('debit_credit')) {
                         const match = code.match(/(\d+)(?!.*\d)/);
                         if (match) {
@@ -518,12 +518,12 @@ export default {
                                 else if (n === 9) order = 5;
                                 else if (n === 12) order = 6;
                                 else order = 7 + n; // Otros números después
-                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés (Webpay)`, null, null, order);
+                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés`, null, null, order);
                             } else {
-                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, null, 2);
+                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas', null, null, 2);
                             }
                         } else {
-                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas (Webpay)', null, null, 2);
+                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas', null, null, 2);
                         }
                     }
                 });
@@ -556,32 +556,32 @@ export default {
                 case 1: // Todos los medios (Débito/Crédito/Transferencia/Internacional)
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
-                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
-                
+
                 case 2: // Solo pago con Tarjeta (Débito/Crédito/Internacional)
                     return [
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
-                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
-                
+
                 case 3: // Solo pago transferencia
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
                     ];
-                
+
                 case 4: // Solo pago contado (Débito/Transferencia)
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
                     ];
-                
+
                 default:
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas (Webpay)',    description: null },
-                        { value: 'international',  label: 'Pagar con Pago Internacional (Webpay)',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
             }
         },
@@ -1203,7 +1203,7 @@ export default {
             return this.paymentFormContent?.title?.value || 'Seleccione la forma de pago';
         },
         paymentFormSubtitle() {
-            return this.paymentFormContent?.subtitle?.value || 'Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito, débito o Khipu, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por';
+            return this.paymentFormContent?.subtitle?.value || 'Selecciona la forma de pago que mejor se adapte a ti, pago con tarjeta de crédito o débito, o pago automático con PAT. Para cualquier consulta, no dudes en escribirnos por';
         },
         totalPaymentTitle() {
             return this.paymentFormContent?.total_payment_title?.value || 'Pagar con Tarjeta Crédito, Débito';

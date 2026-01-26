@@ -27,9 +27,13 @@ class CourseController extends Controller
         $courses = $this->dataService->getCourseList($request->all());
         $courses = $this->dataService->calculateCourseMetrics($courses);
 
+        // Obtener TODOS los cursos sin paginación para el filtrado del frontend
+        $allCourses = $this->dataService->getAllCourses();
+        $allCourses = $this->dataService->calculateCourseMetrics($allCourses);
+
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
-            'allCourses' => $courses->getCollection(),
+            'allCourses' => $allCourses,
             'filters' => $request->only(['search', 'status']),
             'programs' => Program::where('active', true)->get(),
             'institutions' => Institution::active()->orderBy('name')->get(),

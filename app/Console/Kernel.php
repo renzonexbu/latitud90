@@ -14,70 +14,85 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
 
-        // Procesar pagos pendientes cada minuto
-        $schedule->command('payments:process-pending')
-            ->everyMinute()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/pending-payments.log'));
+        // =====================================================================
+        // TEMPORALMENTE COMENTADOS PARA PRUEBAS - DESCOMENTAR EN PRODUCCIÓN
+        // =====================================================================
 
-        // Sincronizar pagos de suscripciones con VirtualPos cada 5 minutos
-        // Detecta pagos nuevos (estado 'pagado' o 'procesando') y envía emails
-        $schedule->command('subscriptions:sync-payments --all')
-            ->everyFiveMinutes()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/subscription-payments-sync.log'));
+        // // Procesar pagos pendientes cada minuto
+        // $schedule->command('payments:process-pending')
+        //     ->everyMinute()
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/pending-payments.log'));
 
-        // Sincronizar installments con charge_program de VirtualPos cada 8 horas
-        $schedule->command('subscription:sync-installments')
-            ->cron('0 */8 * * *')
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/subscription-installments-sync.log'));
+        // // Sincronizar pagos de suscripciones con VirtualPos cada 5 minutos
+        // // Detecta pagos nuevos (estado 'pagado' o 'procesando') y envía emails
+        // $schedule->command('subscriptions:sync-payments --all')
+        //     ->everyFiveMinutes()
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/subscription-payments-sync.log'));
 
-        // Verificar cuotas vencidas cada minuto (para pruebas)
-        // TODO: Cambiar a cada 12 horas en producción
-        $schedule->command('installments:check-overdue')
-            ->everyMinute()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/overdue-installments.log'));
+        // // Sincronizar installments con charge_program de VirtualPos cada 8 horas
+        // $schedule->command('subscription:sync-installments')
+        //     ->cron('0 */8 * * *')
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/subscription-installments-sync.log'));
 
-        // Limpiar logs antiguos cada 12 horas
-        $schedule->command('logs:cleanup')
-            ->twiceDaily(6, 18) // 6:00 AM y 6:00 PM
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/log-cleanup.log'));
+        // // Verificar cuotas vencidas cada minuto (para pruebas)
+        // // TODO: Cambiar a cada 12 horas en producción
+        // $schedule->command('installments:check-overdue')
+        //     ->everyMinute()
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/overdue-installments.log'));
 
-        // Verificar salud del sistema cada 6 horas
-        $schedule->command('system:health-check')
-            ->everyFourHours()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/system-health.log'));
+        // // Limpiar logs antiguos cada 12 horas
+        // $schedule->command('logs:cleanup')
+        //     ->twiceDaily(6, 18) // 6:00 AM y 6:00 PM
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/log-cleanup.log'));
 
-        // Actualizar opciones de pago y cuotas automáticamente cada día a las 6:00 AM
-        $schedule->command('payment-options:update')
-            ->everyMinute()
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/payment-options-update.log'));
+        // // Verificar salud del sistema cada 6 horas
+        // $schedule->command('system:health-check')
+        //     ->everyFourHours()
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/system-health.log'));
 
-        // Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
-        $schedule->command('marketing:process-emails')
-            ->twiceDaily(6, 18)
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/marketing-emails.log'));
+        // // Actualizar opciones de pago y cuotas automáticamente cada día a las 6:00 AM
+        // $schedule->command('payment-options:update')
+        //     ->everyMinute()
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/payment-options-update.log'));
 
-        // Reporte mensual de participantes sin pagos - primer día de cada mes a las 9:00 AM
-        $schedule->command('participants:monthly-without-payments')
-            ->monthlyOn(1, '09:00')
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/monthly-participants-without-payments.log'));
+        // // Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
+        // $schedule->command('marketing:process-emails')
+        //     ->twiceDaily(6, 18)
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/marketing-emails.log'));
+
+        // // Reporte mensual de participantes sin pagos - primer día de cada mes a las 9:00 AM
+        // $schedule->command('participants:monthly-without-payments')
+        //     ->monthlyOn(1, '09:00')
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/monthly-participants-without-payments.log'));
+
+        // // Enviar recordatorios a participantes sin pagos iniciados - cada día a las 9:00 AM
+        // $schedule->command('reminders:send-no-payment')
+        //     ->dailyAt('09:00')
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo(storage_path('logs/no-payment-reminders.log'));
+
+        // =====================================================================
+        // ACTIVO PARA PRUEBAS - Envío de emails de confirmación de pago
+        // =====================================================================
 
         // Enviar emails pendientes de pagos exitosos - cada minuto
         // El comando aplica un delay configurable (default 10 min) antes de enviar
@@ -87,13 +102,6 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground()
             ->appendOutputTo(storage_path('logs/pending-payment-emails.log'));
-
-        // Enviar recordatorios a participantes sin pagos iniciados - cada día a las 9:00 AM
-        $schedule->command('reminders:send-no-payment')
-            ->dailyAt('09:00')
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo(storage_path('logs/no-payment-reminders.log'));
     }
 
     /**

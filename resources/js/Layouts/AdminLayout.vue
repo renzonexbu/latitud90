@@ -45,7 +45,7 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isEjecutivoComercial && !isMarketing && !isContabilidad"
+                    v-if="isSuperAdmin || isContabilidad"
                     :href="route('admin.programs.index')"
                     :active="route().current('admin.programs.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -69,31 +69,85 @@
                         Plantillas
                     </span>
                 </NavLink>
-                <NavLink
-                    v-if="!isEjecutivoComercial && !isMarketing"
-                    :href="route('admin.courses.index')"
-                    :active="route().current('admin.courses.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
-                >
-                    <LuggageIcon
-                        class="w-6 h-6 transition-colors flex-shrink-0"
-                        :class="
-                            route().current('admin.courses.*')
-                                ? 'text-turquesa'
-                                : 'text-gray-400 group-hover:text-turquesa'
-                        "
-                        stroke-color="currentColor"
-                    />
-                    <span
-                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
-                        :class="[
-                            route().current('admin.courses.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
-                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                        ]"
+                <!-- Programas - Cursos con Submenú -->
+                <div v-if="!isEjecutivoComercial && !isMarketing" class="relative courses-dropdown-container">
+                    <button
+                        @click="toggleCoursesMenu"
+                        class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
+                        :class="route().current('admin.courses.*') || route().current('admin.executives.*') || route().current('admin.institutions.*') ? 'bg-gray-50' : ''"
                     >
-                        Programas - Cursos
-                    </span>
-                </NavLink>
+                        <LuggageIcon
+                            class="w-6 h-6 transition-colors flex-shrink-0"
+                            :class="
+                                route().current('admin.courses.*') || route().current('admin.executives.*') || route().current('admin.institutions.*')
+                                    ? 'text-turquesa'
+                                    : 'text-gray-400 group-hover:text-turquesa'
+                            "
+                            stroke-color="currentColor"
+                        />
+                        <span
+                            class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                            :class="[
+                                route().current('admin.courses.*') || route().current('admin.executives.*') || route().current('admin.institutions.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                                sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                            ]"
+                        >
+                            Programas - Cursos
+                        </span>
+                        <svg
+                            v-if="sidebarExpanded"
+                            class="w-4 h-4 ml-auto transition-transform duration-200"
+                            :class="[
+                                showingCoursesMenu ? 'rotate-180' : '',
+                                route().current('admin.courses.*') || route().current('admin.executives.*') || route().current('admin.institutions.*') ? 'text-turquesa' : 'text-gray-400'
+                            ]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenú de Programas - Cursos -->
+                    <div
+                        v-show="showingCoursesMenu && sidebarExpanded"
+                        class="flex flex-col pl-10 py-1 bg-gray-50 rounded-b-lg"
+                    >
+                        <NavLink
+                            :href="route('admin.courses.index')"
+                            :active="route().current('admin.courses.index')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingCoursesMenu = false"
+                        >
+                            Ver todos
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.executives.index')"
+                            :active="route().current('admin.executives.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingCoursesMenu = false"
+                        >
+                            Ejecutivos
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.institutions.index')"
+                            :active="route().current('admin.institutions.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingCoursesMenu = false"
+                        >
+                            Instituciones
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.courses.create')"
+                            :active="route().current('admin.courses.create')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingCoursesMenu = false"
+                        >
+                            Agregar nuevo programa - curso
+                        </NavLink>
+                    </div>
+                </div>
                 <NavLink
                     v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.participants.index')"
@@ -119,31 +173,85 @@
                         Participantes
                     </span>
                 </NavLink>
-                 <NavLink
-                    v-if="!isEjecutivoComercial && !isMarketing"
-                    :href="route('admin.payments.index')"
-                    :active="route().current('admin.payments.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
-                >
-                    <PaymentsIcon
-                        class="w-6 h-6 transition-colors flex-shrink-0"
-                        :class="
-                            route().current('admin.payments.*')
-                                ? 'text-turquesa'
-                                : 'text-gray-400 group-hover:text-turquesa'
-                        "
-                        stroke-color="currentColor"
-                    />
-                    <span
-                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
-                        :class="[
-                            route().current('admin.payments.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
-                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                        ]"
+                <!-- Pagos con Submenú -->
+                <div v-if="!isEjecutivoComercial && !isMarketing" class="relative payments-dropdown-container">
+                    <button
+                        @click="togglePaymentsMenu"
+                        class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
+                        :class="route().current('admin.payments.*') ? 'bg-gray-50' : ''"
                     >
-                        Pagos
-                    </span>
-                </NavLink>
+                        <PaymentsIcon
+                            class="w-6 h-6 transition-colors flex-shrink-0"
+                            :class="
+                                route().current('admin.payments.*')
+                                    ? 'text-turquesa'
+                                    : 'text-gray-400 group-hover:text-turquesa'
+                            "
+                            stroke-color="currentColor"
+                        />
+                        <span
+                            class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                            :class="[
+                                route().current('admin.payments.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                                sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                            ]"
+                        >
+                            Pagos
+                        </span>
+                        <svg
+                            v-if="sidebarExpanded"
+                            class="w-4 h-4 ml-auto transition-transform duration-200"
+                            :class="[
+                                showingPaymentsMenu ? 'rotate-180' : '',
+                                route().current('admin.payments.*') ? 'text-turquesa' : 'text-gray-400'
+                            ]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenú de Pagos -->
+                    <div
+                        v-show="showingPaymentsMenu && sidebarExpanded"
+                        class="flex flex-col pl-10 py-1 bg-gray-50 rounded-b-lg"
+                    >
+                        <NavLink
+                            :href="route('admin.payments.index')"
+                            :active="route().current('admin.payments.index')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingPaymentsMenu = false"
+                        >
+                            Ver todos los pagos
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.payments.confirmations.index')"
+                            :active="route().current('admin.payments.confirmations.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingPaymentsMenu = false"
+                        >
+                            Historial de Confirmaciones
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.payments.refunds.menu')"
+                            :active="route().current('admin.payments.refunds.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingPaymentsMenu = false"
+                        >
+                            Procesar Reembolso
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.payments.presential.menu')"
+                            :active="route().current('admin.payments.presential.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingPaymentsMenu = false"
+                        >
+                            Registrar Pago Presencial
+                        </NavLink>
+                    </div>
+                </div>
                 <NavLink
                     v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.subscriptions.index')"
@@ -170,8 +278,8 @@
                     </span>
                 </NavLink>
                 <NavLink
-                    v-if="!isMarketing"
-                    :href="route('admin.reports.index')"
+                    v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin"
+                    :href="reportsRoute"
                     :active="route().current('admin.reports.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                 >
@@ -197,7 +305,7 @@
 
                 <!-- Contenido del Sitio -->
                 <NavLink
-                    v-if="!isEjecutivoComercial && !isContabilidad"
+                    v-if="isMarketing || isSuperAdmin"
                     :href="route('admin.site-content.index')"
                     :active="route().current('admin.site-content.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -406,6 +514,8 @@ export default {
         return {
             showingNavigationDropdown: false,
             showingUserDropdown: false,
+            showingPaymentsMenu: false,
+            showingCoursesMenu: false,
             sidebarExpanded: false,
             images,
             backgroundImage,
@@ -424,21 +534,49 @@ export default {
         isMarketing() {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
-                   (this.$page.props.auth.user.roles.includes('admin_marketing') ||
-                    this.$page.props.auth.user.roles.includes('editor_marketing') ||
-                    this.$page.props.auth.user.roles.includes('visualizador_marketing'));
+                   this.$page.props.auth.user.roles.includes('marketing');
         },
         isContabilidad() {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
-                   (this.$page.props.auth.user.roles.includes('admin_contabilidad') ||
-                    this.$page.props.auth.user.roles.includes('editor_contabilidad') ||
-                    this.$page.props.auth.user.roles.includes('visualizador_contabilidad'));
+                   this.$page.props.auth.user.roles.includes('contabilidad');
+        },
+        isSuperAdmin() {
+            return this.$page.props.auth.user &&
+                   this.$page.props.auth.user.roles &&
+                   this.$page.props.auth.user.roles.includes('super_admin');
+        },
+        reportsRoute() {
+            // Si es ejecutivo comercial (solo o con marketing), redirigir a reportes de ejecutivos
+            if (this.isEjecutivoComercial && !this.isContabilidad && !this.isSuperAdmin) {
+                return this.route('admin.reports.executives.index');
+            }
+            // Para otros roles (contabilidad, super admin), mostrar reportes generales
+            return this.route('admin.reports.index');
+        }
+    },
+    watch: {
+        sidebarExpanded(newVal) {
+            // Cerrar los submenús cuando el sidebar se colapsa
+            if (!newVal) {
+                this.showingPaymentsMenu = false;
+                this.showingCoursesMenu = false;
+            }
         }
     },
     mounted() {
         // Cerrar dropdown cuando se hace clic fuera
         document.addEventListener('click', this.closeUserDropdown);
+
+        // Si estamos en una página de pagos, abrir el submenú automáticamente
+        if (this.route().current('admin.payments.*')) {
+            this.showingPaymentsMenu = true;
+        }
+
+        // Si estamos en una página de cursos/ejecutivos/instituciones, abrir el submenú automáticamente
+        if (this.route().current('admin.courses.*') || this.route().current('admin.executives.*') || this.route().current('admin.institutions.*')) {
+            this.showingCoursesMenu = true;
+        }
         
         // Detectar y mostrar flash messages como alertas
         this.detectFlashMessages();
@@ -466,6 +604,22 @@ export default {
             if (dropdown && !dropdown.contains(event.target)) {
                 this.showingUserDropdown = false;
             }
+            // También cerrar el menú de pagos si se hace clic fuera
+            const paymentsDropdown = this.$el.querySelector('.payments-dropdown-container');
+            if (paymentsDropdown && !paymentsDropdown.contains(event.target)) {
+                this.showingPaymentsMenu = false;
+            }
+            // También cerrar el menú de cursos si se hace clic fuera
+            const coursesDropdown = this.$el.querySelector('.courses-dropdown-container');
+            if (coursesDropdown && !coursesDropdown.contains(event.target)) {
+                this.showingCoursesMenu = false;
+            }
+        },
+        togglePaymentsMenu() {
+            this.showingPaymentsMenu = !this.showingPaymentsMenu;
+        },
+        toggleCoursesMenu() {
+            this.showingCoursesMenu = !this.showingCoursesMenu;
         },
         clearFlashMessage(type) {
             this.$page.props.flash[type] = null;

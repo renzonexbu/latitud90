@@ -20,29 +20,21 @@ class GetUsersService
 
         // Filtrar según el grupo del usuario autenticado
         $currentUser = auth()->user();
-        
+
         // Super admin puede ver todos los usuarios
         if ($this->isSuperAdmin()) {
             // No aplicar filtros adicionales
-        } 
-        // Admin de contabilidad solo ve usuarios de su grupo
-        elseif ($this->isAdminContabilidad() || $this->isEditorContabilidad() || $this->isVisualizadorContabilidad()) {
+        }
+        // Contabilidad solo ve usuarios de contabilidad
+        elseif ($this->isContabilidad()) {
             $query->whereHas('roles', function ($q) {
-                $q->whereIn('name', [
-                    'admin_contabilidad',
-                    'editor_contabilidad', 
-                    'visualizador_contabilidad'
-                ]);
+                $q->where('name', 'contabilidad');
             });
         }
-        // Admin de marketing solo ve usuarios de su grupo
-        elseif ($this->isAdminMarketing() || $this->isEditorMarketing() || $this->isVisualizadorMarketing()) {
+        // Marketing solo ve usuarios de marketing
+        elseif ($this->isMarketing()) {
             $query->whereHas('roles', function ($q) {
-                $q->whereIn('name', [
-                    'admin_marketing',
-                    'editor_marketing',
-                    'visualizador_marketing'
-                ]);
+                $q->where('name', 'marketing');
             });
         }
 

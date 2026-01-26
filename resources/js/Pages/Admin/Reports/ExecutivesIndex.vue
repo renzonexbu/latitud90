@@ -174,6 +174,6 @@ const page = usePage();
 const isEjecutivoComercial = computed(() => {
     return page.props.auth.user &&
            page.props.auth.user.roles &&
-           page.props.auth.user.roles.includes('ejecutivo_comercial');
+           page.props.auth.user.roles.includes('marketing');
 });
 </script>

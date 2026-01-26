@@ -27,11 +27,10 @@ class SuccessPaymentEmailService
     /**
      * Enviar email de confirmación de pago exitoso
      *
-     * Lógica de adjuntos:
-     * - Programa MISMO AÑO (con boleta bsale): Solo enviar boleta bsale
-     * - Programa AÑO POSTERIOR (sin boleta):
-     *   - 1ra cuota: Contrato + Comprobante de anticipo
-     *   - 2da+ cuota: Solo comprobante de anticipo
+     * Lógica de adjuntos (determinada por PaymentDocumentTypeHelper):
+     * - B2 (Boleta): Pago mismo año o posterior al programa → Boleta BSale
+     * - CR + AC (Contrato + Anticipo): Primera cuota suscripción año anterior → Contrato + Comprobante
+     * - AC (Anticipo): Cuotas siguientes año anterior → Solo Comprobante
      */
     public function sendSuccessPaymentEmail(OrderDetail $orderDetail, Payment $payment): bool
     {
@@ -44,50 +43,61 @@ class SuccessPaymentEmailService
         try {
             $emailData = $this->prepareEmailData($orderDetail, $payment);
 
-            // Verificar si el programa es del mismo año (usará boleta bsale)
-            $isSameYear = $this->isProgramSameYear($orderDetail);
+            // Usar los tipos de documento pre-calculados del Payment (si existen)
+            // Estos son establecidos por el comando payments:send-pending-emails
+            $documentTypes = $payment->generated_document_types ?? [];
 
-            // Descargar PDF de Bsale si existe
+            // Si no hay tipos pre-calculados, usar el helper para determinarlos (fallback)
+            if (empty($documentTypes)) {
+                $documentTypes = \App\Helpers\PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
+                $this->logInfo('SuccessPaymentEmailService: Usando tipos de documento calculados (fallback)', [
+                    'payment_id' => $payment->id,
+                    'document_types' => $documentTypes,
+                ]);
+            } else {
+                $this->logInfo('SuccessPaymentEmailService: Usando tipos de documento pre-calculados', [
+                    'payment_id' => $payment->id,
+                    'document_types' => $documentTypes,
+                ]);
+            }
+
+            // Determinar qué adjuntos enviar según los tipos de documento
+            $shouldSendBoleta = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_BOLETA, $documentTypes);
+            $shouldSendContract = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_CONTRATO, $documentTypes);
+            $shouldSendReceipt = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_ANTICIPO, $documentTypes);
+
+            // Descargar/obtener PDF de Bsale si corresponde
             $bsalePdfPath = null;
-            if ($payment->bsale_document_id && $payment->bsale_number) {
+            if ($shouldSendBoleta && $payment->bsale_document_id && $payment->bsale_number) {
                 $bsalePdfPath = $this->downloadBsalePdf($payment);
             }
 
-            // Determinar qué adjuntos enviar según la lógica de negocio
-            $shouldSendReceipt = false;
-            $shouldSendContract = false;
+            $this->logInfo('SuccessPaymentEmailService: Documentos a adjuntar', [
+                'order_detail_id' => $orderDetail->id,
+                'payment_id' => $payment->id,
+                'document_types' => $documentTypes,
+                'should_send_boleta' => $shouldSendBoleta,
+                'should_send_contract' => $shouldSendContract,
+                'should_send_receipt' => $shouldSendReceipt,
+                'has_bsale_pdf' => !empty($bsalePdfPath),
+            ]);
 
-            if ($bsalePdfPath && $isSameYear) {
-                // Programa del MISMO AÑO con boleta: Solo enviar boleta bsale
-                // NO enviar comprobante de anticipo ni contrato
-                $this->logInfo('SuccessPaymentEmailService: Programa mismo año - Solo enviando boleta bsale', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                ]);
-            } else {
-                // Programa de AÑO POSTERIOR: Enviar comprobante de anticipo
-                $shouldSendReceipt = true;
-
-                // Verificar si se debe enviar el contrato (solo primera cuota)
-                $shouldSendContract = $this->shouldSendContract($orderDetail, $payment);
-
-                $this->logInfo('SuccessPaymentEmailService: Programa año posterior - Enviando comprobante de anticipo', [
-                    'order_detail_id' => $orderDetail->id,
-                    'payment_id' => $payment->id,
-                    'should_send_contract' => $shouldSendContract,
-                ]);
-            }
-
-            // Generar PDF de comprobante solo si corresponde
+            // Usar PDF de comprobante pre-generado o generar nuevo
             if ($shouldSendReceipt) {
-                $pdfService = new PaymentReceiptService();
-                $pdfPath = $pdfService->generatePaymentReceipt($orderDetail, $payment);
+                $pdfPath = $payment->receipt_path;
+                if (!$pdfPath || !file_exists($pdfPath)) {
+                    $pdfService = new PaymentReceiptService();
+                    $pdfPath = $pdfService->generatePaymentReceipt($orderDetail, $payment);
+                }
             }
 
-            // Generar contrato solo si corresponde
+            // Usar PDF de contrato pre-generado o generar nuevo
             if ($shouldSendContract) {
-                $contractService = new ContractService();
-                $contractPdfPath = $contractService->generateContract($orderDetail, $payment);
+                $contractPdfPath = $payment->contract_path;
+                if (!$contractPdfPath || !file_exists($contractPdfPath)) {
+                    $contractService = new ContractService();
+                    $contractPdfPath = $contractService->generateContract($orderDetail, $payment);
+                }
             }
 
             Mail::send('Mails.success_payment', $emailData, function ($message) use ($emailData, $pdfPath, $contractPdfPath, $shouldSendContract, $shouldSendReceipt, $bsalePdfPath) {

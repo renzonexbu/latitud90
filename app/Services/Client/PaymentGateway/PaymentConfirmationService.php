@@ -722,53 +722,37 @@ class PaymentConfirmationService
             // No lanzar excepción para no interrumpir el flujo
         }
 
-        // PASO 8: Generar boleta Bsale
-        $this->logInfo('=== PASO 7/10: Generando boleta Bsale ===', [
+        // ======================================================================
+        // PASO 7/10: DIFERIDO - Generación de documentos (BSale/Contrato/Anticipo)
+        // ======================================================================
+        // NO se genera documento aquí. El Job payments:send-pending-emails se encarga de:
+        // 1. Re-verificar el estado del pago con la pasarela
+        // 2. Determinar el tipo de documento según año del programa vs año del pago
+        // 3. Generar el documento apropiado (Boleta BSale, Contrato, o Anticipo)
+        // 4. Enviar el email con los documentos adjuntos
+        // ======================================================================
+        $this->logInfo('=== PASO 7/10: Documento DIFERIDO al Job ===', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'document_type' => $payment->document_type,
+            'note' => 'La generación de documentos se hará en el Job payments:send-pending-emails',
         ]);
 
-        try {
-            $this->generateBsaleInvoice($orderDetail, $payment);
-
-            // Recargar payment para obtener datos de Bsale actualizados
-            $payment->refresh();
-
-            $this->logInfo('=== PASO 7/10: Proceso Bsale completado ===', [
-                'bsale_document_id' => $payment->bsale_document_id,
-                'bsale_number' => $payment->bsale_number,
-                'bsale_token' => $payment->bsale_token,
-            ]);
-        } catch (\Exception $e) {
-            $this->logError('=== PASO 7/10: ERROR generando boleta Bsale ===', [
-                'error' => $e->getMessage(),
-            ], $e);
-            // No lanzar excepción para no interrumpir el flujo
-        }
-
-        // PASO 9: Enviar email
-        $this->logInfo('=== PASO 8/10: Enviando email de confirmación ===', [
+        // ======================================================================
+        // PASO 8/10: DIFERIDO - Email de confirmación
+        // ======================================================================
+        // NO se envía email aquí. El Job payments:send-pending-emails se encarga de:
+        // 1. Esperar el delay configurado (default 10 min)
+        // 2. Re-verificar confirmación del pago
+        // 3. Generar documentos apropiados
+        // 4. Enviar email con adjuntos
+        // ======================================================================
+        $this->logInfo('=== PASO 8/10: Email DIFERIDO al Job ===', [
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'customer_email' => $orderDetail->email,
+            'note' => 'El email se enviará desde el Job payments:send-pending-emails después del delay configurado',
         ]);
-
-        try {
-            $this->sendSuccessEmail($orderDetail, $payment);
-
-            // Recargar payment para verificar estado del email
-            $payment->refresh();
-
-            $this->logInfo('=== PASO 8/10: Proceso de email completado ===', [
-                'email_sent' => $payment->email_sent,
-            ]);
-        } catch (\Exception $e) {
-            $this->logError('=== PASO 8/10: ERROR enviando email ===', [
-                'error' => $e->getMessage(),
-            ], $e);
-            // No lanzar excepción para no interrumpir el flujo
-        }
 
         // PASO 10: Actualizar estado de la orden
         $this->logInfo('=== PASO 9/10: Actualizando estado de la orden ===', [
@@ -805,11 +789,10 @@ class PaymentConfirmationService
             'order_detail_id' => $orderDetail->id,
             'payment_id' => $payment->id,
             'gateway_type' => $gatewayType,
-            'email_sent' => $payment->email_sent,
-            'bsale_number' => $payment->bsale_number,
             'order_detail_status' => $orderDetail->status,
             'order_detail_is_paid' => $orderDetail->is_paid,
             'order_status' => $orderDetail->order->status,
+            'note' => 'Documentos y email se generarán/enviarán desde el Job payments:send-pending-emails',
         ]);
     }
 

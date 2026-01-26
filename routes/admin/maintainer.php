@@ -10,11 +10,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('maintainer')->name('maintainer.')->group(function () {
         // Página principal del mantenedor - Super Admin y Marketing
         Route::get('/', [MaintainerController::class, 'index'])
-            ->middleware('role:super_admin,admin_marketing,editor_marketing,visualizador_marketing')
+            ->middleware('role:super_admin,marketing')
             ->name('index');
 
         // Marketing Mails - Super Admin y Marketing
-        Route::prefix('marketing-mails')->name('marketing.mails.')->middleware('role:super_admin,admin_marketing,editor_marketing,visualizador_marketing')->group(function () {
+        Route::prefix('marketing-mails')->name('marketing.mails.')->middleware('role:super_admin,marketing')->group(function () {
             Route::get('/', [MaintainerController::class, 'marketingMails'])->name('index');
             Route::post('/sync', [MaintainerController::class, 'syncMarketingMails'])->name('sync');
             Route::post('/{id}/toggle-status', [MaintainerController::class, 'toggleMarketingMailStatus'])->name('toggle-status');
@@ -23,7 +23,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
 
         // Newsletter - Super Admin y Marketing
-        Route::prefix('newsletter')->name('newsletter.')->middleware('role:super_admin,admin_marketing,editor_marketing,visualizador_marketing')->group(function () {
+        Route::prefix('newsletter')->name('newsletter.')->middleware('role:super_admin,marketing')->group(function () {
             Route::get('/', [MaintainerController::class, 'newsletter'])->name('index');
             Route::get('/{id}/edit', [MaintainerController::class, 'editNewsletter'])->name('edit');
             Route::put('/{id}', [MaintainerController::class, 'updateNewsletter'])->name('update');

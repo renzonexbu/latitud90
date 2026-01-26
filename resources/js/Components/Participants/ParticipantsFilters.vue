@@ -1,18 +1,18 @@
 <template>
     <div class="flex flex-col gap-[18px] items-start justify-start relative">
         <!-- Header Row con título y búsqueda -->
-        <div class="flex flex-row items-center justify-between w-full relative gap-[510px]">
+        <div class="flex flex-row items-center justify-between w-full relative gap-4">
             <!-- Título -->
             <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
                 Filtros de busqueda
             </div>
-            
+
             <!-- Campo de búsqueda -->
-            <div class="relative w-[445px]">
+            <div class="relative w-[350px]">
                 <input
                     v-model="filters.search"
                     type="text"
-                    placeholder="Buscar participante"
+                    placeholder="Buscar por código, nombre, RUT..."
                     class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
@@ -29,66 +29,21 @@
 
         <!-- Filtros Row -->
         <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-            <!-- Programa de viaje -->
-            <div class="relative flex-1">
+            <!-- Estado del participante -->
+            <div class="relative flex-shrink-0 w-[170px]">
                 <select
-                    v-model="filters.program"
+                    v-model="filters.active"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
                     @change="performSearch"
                 >
-                    <option value="">Programa de viaje</option>
-                    <option v-for="program in uniquePrograms" :key="program" :value="program">
-                        {{ capitalizeWords(program) }}
-                    </option>
+                    <option value="">Estado del participante</option>
+                    <option :value="true">Activo</option>
+                    <option :value="false">Inactivo</option>
                 </select>
             </div>
-
-            <!-- Institución -->
-            <div class="relative flex-shrink-0 w-[129px]">
-                <select
-                    v-model="filters.institution"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Institución</option>
-                    <option v-for="institution in uniqueInstitutions" :key="institution" :value="institution">
-                        {{ capitalizeWords(institution) }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- Nivel de educación -->
-            <div class="relative flex-shrink-0 w-[134px]">
-                <select
-                    v-model="filters.level"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Nivel de educación</option>
-                    <option v-for="level in uniqueLevels" :key="level" :value="level">
-                        {{ capitalizeWords(level) }}
-                    </option>
-                </select>
-            </div>
-
-            <!-- Curso -->
-            <div class="relative flex-shrink-0 w-[110px]">
-                <select
-                    v-model="filters.course_number"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Curso</option>
-                    <option v-for="num in uniqueCourseNumbers" :key="num" :value="num">
-                        {{ num }}
-                    </option>
-                </select>
-            </div>
-
-            
 
             <!-- Estado de pago -->
-            <div class="relative flex-shrink-0 w-[134px]">
+            <div class="relative flex-shrink-0 w-[150px]">
                 <select
                     v-model="filters.paymentStatus"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
@@ -98,19 +53,6 @@
                     <option value="pending_payment">Pendiente de Pago</option>
                     <option value="confirmed">Completado</option>
                     <option value="cancelled">Liberado</option>
-                </select>
-            </div>
-
-            <!-- Estado activo/inactivo -->
-            <div class="relative flex-shrink-0 w-[134px]">
-                <select
-                    v-model="filters.active"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
-                >
-                    <option value="">Estado del participante</option>
-                    <option :value="true">Activo</option>
-                    <option :value="false">Inactivo</option>
                 </select>
             </div>
 
@@ -147,60 +89,19 @@ export default {
         return {
             filters: {
                 search: this.initialFilters.search || "",
-                program: this.initialFilters.program || "",
-                institution: this.initialFilters.institution || "",
-                level: this.initialFilters.level || "",
-                course_number: this.initialFilters.course_number || "",
                 paymentStatus: this.initialFilters.paymentStatus || "",
                 active: this.initialFilters.active !== undefined ? this.initialFilters.active : "",
             }
         };
     },
-    computed: {
-        // Obtener programas únicos de los participantes
-        uniquePrograms() {
-            const programs = this.participants
-                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].program?.name : null))
-                .filter(program => program && program.trim() !== '');
-            return [...new Set(programs)].sort();
-        },
-        
-        // Obtener instituciones únicas
-        uniqueInstitutions() {
-            const institutions = this.participants
-                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].institution?.name : null))
-                .filter(institution => institution && institution.trim() !== '');
-            return [...new Set(institutions)].sort();
-        },
-        
-        // Obtener niveles educativos únicos
-        uniqueLevels() {
-            const levels = this.participants
-                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].education_level : null))
-                .filter(level => level && level.trim() !== '');
-            return [...new Set(levels)].sort();
-        },
-        
-        // Obtener cursos únicos (course_number)
-        uniqueCourseNumbers() {
-            const numbers = this.participants
-                .map(participant => (participant.courses && participant.courses.length > 0 ? participant.courses[0].course_number : null))
-                .filter(num => num !== null && num !== undefined && num.toString().trim() !== '');
-            return [...new Set(numbers)].sort((a, b) => Number(a) - Number(b));
-        }
-    },
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
         }, 300),
-        
+
         clearFilters() {
             this.filters = {
                 search: "",
-                program: "",
-                institution: "",
-                level: "",
-                course_number: "",
                 paymentStatus: "",
                 active: "",
             };

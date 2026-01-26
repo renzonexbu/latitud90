@@ -107,14 +107,15 @@ export default {
         // Programas filtrados
         filteredPrograms() {
             let filtered = [...this.allProgramsData];
-            
+
             // Filtro por búsqueda
             if (this.localFilters.search) {
                 const searchTerm = this.localFilters.search.toLowerCase();
-                filtered = filtered.filter(program => 
-                    program.name.toLowerCase().includes(searchTerm) ||
-                    program.destination.toLowerCase().includes(searchTerm)
-                );
+                filtered = filtered.filter(program => {
+                    const name = (program.name || '').toLowerCase();
+                    const destination = (program.destination || '').toLowerCase();
+                    return name.includes(searchTerm) || destination.includes(searchTerm);
+                });
             }
             
             // Filtro por destino

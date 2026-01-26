@@ -30,6 +30,18 @@ class CourseDataService
     }
 
     /**
+     * Get all courses without pagination (for frontend filtering)
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getAllCourses(): Collection
+    {
+        return Course::with(['programCourses.program', 'createdBy', 'institution', 'participants'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
      * Calculate metrics for a collection or paginator of courses
      *
      * @param  \Illuminate\Support\Collection|\Illuminate\Pagination\LengthAwarePaginator  $courses
@@ -57,6 +69,9 @@ class CourseDataService
             $course->course_paid_amount = $coursePaidAmount;
             $course->course_payment_percentage = $coursePaymentPercentage;
             $course->total_students = $activeParticipants->count();
+
+            // Agregar código del programa directamente para facilitar búsqueda en frontend
+            $course->program_code = $programCourse?->code ?? '';
 
             return $course;
         };

@@ -2,38 +2,38 @@
     <div class="bg-white rounded-lg border border-gray-200">
         <!-- Table Container -->
         <div class="overflow-x-auto">
-            <table class="w-full text-xs" style="min-width: 1300px;">
+            <table class="w-full text-xs" style="min-width: 1100px;">
                 <!-- Table Header -->
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            ID
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
-                            Participante
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[130px]">
+                            Fecha / Hora
                         </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
                             Pagador
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
-                            Programa
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
-                            Institución
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Monto
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Tipo de Pago
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            N° Cuota
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Estado
                         </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            T. Pago
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            Código
                         </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Fecha
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Apellido
                         </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[60px]">
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Nombre
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
                         </th>
                     </tr>
@@ -50,17 +50,10 @@
                         ]"
                         @click="$emit('show-payment-details', payment)"
                     >
-                        <!-- ID -->
+                        <!-- Fecha / Hora -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">
-                                {{ payment.id }}
-                            </div>
-                        </td>
-
-                        <!-- Participante -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-gray-900">
-                                {{ getParticipantName(payment) }}
+                                {{ formatDateTime(payment) }}
                             </div>
                         </td>
 
@@ -71,24 +64,24 @@
                             </div>
                         </td>
 
-                        <!-- Programa -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-[#1c4f4a]">
-                                {{ payment.order?.program_course?.name || "N/A" }}
-                            </div>
-                        </td>
-
-                        <!-- Institución -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ getInstitutionName(payment) }}
-                            </div>
-                        </td>
-
                         <!-- Monto -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">
                                 ${{ formatPrice(payment.amount) }}
+                            </div>
+                        </td>
+
+                        <!-- Tipo de Pago -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ getPaymentMethodDisplay(payment) }}
+                            </div>
+                        </td>
+
+                        <!-- N° Cuota -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ getInstallmentNumber(payment) }}
                             </div>
                         </td>
 
@@ -104,17 +97,24 @@
                             </span>
                         </td>
 
-                        <!-- Gateway -->
+                        <!-- Código (de Programa) -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">
-                                {{ getPaymentMethodDisplay(payment) }}
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ getProgramCode(payment) }}
                             </div>
                         </td>
 
-                        <!-- Fecha -->
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">
-                                {{ formatDate(payment.transaction_date_formatted || payment.transaction_date || payment.created_at) }}
+                        <!-- Apellido (participante) -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ getParticipantLastName(payment) }}
+                            </div>
+                        </td>
+
+                        <!-- Nombre (participante) -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ getParticipantFirstName(payment) }}
                             </div>
                         </td>
 
@@ -384,6 +384,97 @@ export default {
             } catch (error) {
                 return "Error Date";
             }
+        },
+
+        formatDateTime(payment) {
+            const date = payment.transaction_date_formatted || payment.transaction_date || payment.created_at;
+            if (!date) {
+                // Fallback al ID si no hay fecha
+                return `ID: ${payment.id}`;
+            }
+
+            try {
+                const dateObj = new Date(date);
+                if (isNaN(dateObj.getTime())) {
+                    return `ID: ${payment.id}`;
+                }
+
+                // Formato: dd/mm/yyyy HH:mm
+                const dateStr = dateObj.toLocaleDateString("es-CL", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                });
+                const timeStr = dateObj.toLocaleTimeString("es-CL", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                });
+                return `${dateStr} ${timeStr}`;
+            } catch (error) {
+                return `ID: ${payment.id}`;
+            }
+        },
+
+        getInstallmentNumber(payment) {
+            // Para cuotas de suscripción
+            if (payment.is_installment && payment.installment_number) {
+                return payment.installment_number;
+            }
+            // Para pagos normales, buscar en order_detail
+            if (payment.order_detail?.installment_number) {
+                return payment.order_detail.installment_number;
+            }
+            // Si es pago total (no cuota), mostrar "—"
+            return "—";
+        },
+
+        getProgramCode(payment) {
+            // Para installments, el código puede venir en order.program_course
+            if (payment.order?.program_course?.code) {
+                return payment.order.program_course.code;
+            }
+            // Buscar también con underscore (respuesta del backend puede variar)
+            if (payment.order?.programCourse?.code) {
+                return payment.order.programCourse.code;
+            }
+            return "N/A";
+        },
+
+        getParticipantLastName(payment) {
+            // Para installments
+            if (payment.is_installment && payment.order?.participant) {
+                const p = payment.order.participant;
+                const lastName = p.first_last_name || '';
+                const secondLastName = p.second_last_name || '';
+                return this.toCapitalCase(`${lastName} ${secondLastName}`.trim()) || "N/A";
+            }
+            // Para pagos normales
+            if (payment.order?.participant) {
+                const p = payment.order.participant;
+                const lastName = p.first_last_name || '';
+                const secondLastName = p.second_last_name || '';
+                return this.toCapitalCase(`${lastName} ${secondLastName}`.trim()) || "N/A";
+            }
+            return "N/A";
+        },
+
+        getParticipantFirstName(payment) {
+            // Para installments
+            if (payment.is_installment && payment.order?.participant) {
+                const p = payment.order.participant;
+                const firstName = p.first_name || '';
+                const secondName = p.second_name || '';
+                return this.toCapitalCase(`${firstName} ${secondName}`.trim()) || "N/A";
+            }
+            // Para pagos normales
+            if (payment.order?.participant) {
+                const p = payment.order.participant;
+                const firstName = p.first_name || '';
+                const secondName = p.second_name || '';
+                return this.toCapitalCase(`${firstName} ${secondName}`.trim()) || "N/A";
+            }
+            return "N/A";
         },
     },
 };

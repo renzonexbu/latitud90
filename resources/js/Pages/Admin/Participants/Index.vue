@@ -274,7 +274,6 @@ export default {
             currentPage: 1,
             localFilters: {
                 search: "",
-                program: "",
                 institution: "",
                 level: "",
                 course_number: "",
@@ -337,6 +336,11 @@ export default {
                 ],
                 __paid_amount: enr.paid_amount ?? 0,
                 __total_due: enr.total_due ?? 0,
+                __discounts: enr.discounts ?? 0,
+                __contribution: enr.contribution ?? 0,
+                __released_amount: enr.released_amount ?? 0,
+                __program_code: enr.program_code ?? '',
+                __enrollment_code: enr.enrollment_code ?? '',
             }));
             
             return result;
@@ -353,6 +357,9 @@ export default {
                 filtered = filtered.filter(participant => {
                     // Normalizar el document_number del participante para comparación de RUT
                     const normalizedDocNumber = (participant.document_number || '').toLowerCase().replace(/[.\-]/g, '');
+                    // Obtener código de inscripción y código del programa
+                    const enrollmentCode = (participant.__enrollment_code || '').toLowerCase();
+                    const programCode = (participant.__program_code || '').toLowerCase();
 
                     return (
                         participant.first_name?.toLowerCase().includes(searchTerm) ||
@@ -362,16 +369,13 @@ export default {
                         // Buscar por document_number: tanto con formato como sin formato
                         participant.document_number?.toLowerCase().includes(searchTerm) ||
                         normalizedDocNumber.includes(normalizedSearchTerm) ||
-                        this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm)
+                        this.getFirstCourseInfo(participant, 'institution', 'name')?.toLowerCase().includes(searchTerm) ||
+                        // Buscar por código de inscripción (contiene)
+                        enrollmentCode.includes(searchTerm) ||
+                        // Buscar por código de programa (contiene)
+                        programCode.includes(searchTerm)
                     );
                 });
-            }
-
-            // Filtro por programa
-            if (this.localFilters.program) {
-                filtered = filtered.filter(participant => 
-                    this.getFirstCourseInfo(participant, 'program', 'name') === this.localFilters.program
-                );
             }
 
             // Filtro por institución

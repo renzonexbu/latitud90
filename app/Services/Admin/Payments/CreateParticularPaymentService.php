@@ -93,17 +93,26 @@ class CreateParticularPaymentService
                 $data['amount']
             );
 
+            // Manejar APORTE (AP) - Actualizar campo contribution en participant_program
+            $presentialPaymentType = strtoupper(trim($data['presential_payment_type'] ?? ''));
+            if ($presentialPaymentType === 'AP') {
+                $this->handleAportePayment($participant->id, $programCourse->id, $data['amount']);
+            }
+
             // Actualizar estado de la orden
             $order->refreshStatus();
 
             DB::commit();
 
             // Log the payment creation
+            $isAporte = $presentialPaymentType === 'AP';
+            $paymentTypeLabel = $isAporte ? 'Aporte' : 'Pago particular';
+
             $this->logCreate(
                 'payments',
                 'Payment',
                 $payment->id,
-                "Pago particular creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
+                "{$paymentTypeLabel} creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
                 $payment->toArray(),
                 [
                     'order_id' => $order->id,
@@ -114,17 +123,19 @@ class CreateParticularPaymentService
                     'paid_amount' => $paidAmount + $data['amount'],
                     'remaining_balance' => $previousBalance - $data['amount'],
                     'payment_code' => $data['payment_code'] ?? null,
+                    'is_aporte' => $isAporte,
                 ]
             );
 
-            Log::info('Pago presencial creado exitosamente', [
+            Log::info($isAporte ? 'Aporte presencial creado exitosamente' : 'Pago presencial creado exitosamente', [
                 'payment_id' => $payment->id,
                 'order_id' => $order->id,
                 'participant_id' => $participant->id,
                 'program_course_id' => $programCourse->id,
                 'program_id' => $programCourse->program->id ?? null,
                 'amount' => $data['amount'],
-                'payment_code' => $data['payment_code'] ?? null
+                'payment_code' => $data['payment_code'] ?? null,
+                'is_aporte' => $isAporte,
             ]);
 
             return [
@@ -703,5 +714,43 @@ class CreateParticularPaymentService
         ];
 
         return $mapping[$presentialType] ?? 'presential_pos_office'; // Default a POS Oficina
+    }
+
+    /**
+     * Manejar pago de tipo APORTE (AP)
+     * Los aportes actualizan el campo contribution en participant_program
+     */
+    private function handleAportePayment(int $participantId, int $programCourseId, float $paymentAmount): void
+    {
+        // Buscar el registro participant_program
+        $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participantId)
+            ->where('program_id', $programCourseId)
+            ->first();
+
+        if (!$participantProgram) {
+            Log::warning('No se encontró participant_program para registrar aporte', [
+                'participant_id' => $participantId,
+                'program_course_id' => $programCourseId,
+                'payment_amount' => $paymentAmount,
+            ]);
+            return;
+        }
+
+        // Actualizar el campo contribution sumando el nuevo aporte
+        $currentContribution = (float) ($participantProgram->contribution ?? 0);
+        $newContribution = $currentContribution + $paymentAmount;
+
+        $participantProgram->update([
+            'contribution' => $newContribution
+        ]);
+
+        Log::info('Aporte registrado y actualizado en participant_program', [
+            'participant_id' => $participantId,
+            'program_course_id' => $programCourseId,
+            'participant_program_id' => $participantProgram->id,
+            'previous_contribution' => $currentContribution,
+            'payment_amount' => $paymentAmount,
+            'new_contribution' => $newContribution,
+        ]);
     }
 }

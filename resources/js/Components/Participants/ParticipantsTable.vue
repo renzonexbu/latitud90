@@ -2,35 +2,38 @@
     <div class="bg-white rounded-lg border border-gray-200">
         <!-- Table Container with horizontal scroll -->
         <div class="overflow-x-auto">
-            <table class="w-full text-xs" style="min-width: 1400px;">
+            <table class="w-full text-xs" style="min-width: 1100px;">
                 <!-- Table Header -->
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            Código de Inscripción
+                        </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
-                            RUT / Pasaporte
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
-                            Nombre
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
                             Apellido
                         </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
-                            Institución
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
-                            Nivel
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
-                            Programa
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Nombre
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Estado Pago
+                            Estado
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[90px]">
+                            Descuentos
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[90px]">
+                            Aporte
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            Monto Liberado
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Estado de Pago
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">
-                            Total Pagado
+                            Total Pagado / Saldo
                         </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[100px]">
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
                         </th>
                     </tr>
@@ -46,17 +49,10 @@
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50',
                         ]"
                     >
-                        <!-- RUT/PASAPORTE -->
+                        <!-- Código de Inscripción -->
                         <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ formatDocument(participant.document_number, participant.document_type) }}
-                            </div>
-                        </td>
-
-                        <!-- Nombre -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-gray-900">
-                                {{ getFullName(participant) }}
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ participant.__enrollment_code || "N/A" }}
                             </div>
                         </td>
 
@@ -67,28 +63,47 @@
                             </div>
                         </td>
 
-                        <!-- Institución -->
+                        <!-- Nombre -->
                         <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ capitalizeWords(getFirstCourseInfo(participant, "institution", "name") || "N/A") }}
+                            <div class="text-xs font-medium text-gray-900">
+                                {{ getFullName(participant) }}
                             </div>
                         </td>
 
-                        <!-- Nivel -->
+                        <!-- Estado (Activo/Baja) -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs font-medium text-[#1c4f4a]">
-                                {{ formatCourseInfo(participant) }}
+                            <span
+                                :class="[
+                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
+                                ]"
+                            >
+                                {{ participant.is_active ? 'Activo' : 'Baja' }}
+                            </span>
+                        </td>
+
+                        <!-- Descuentos -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs text-gray-900">
+                                {{ formatCurrency(participant.__discounts || 0) }}
                             </div>
                         </td>
 
-                        <!-- Programa -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-[#1c4f4a]">
-                                {{ capitalizeWords(getFirstCourseInfo(participant, "program", "name") || "N/A") }}
+                        <!-- Aporte -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs text-gray-900">
+                                {{ formatCurrency(participant.__contribution || 0) }}
                             </div>
                         </td>
 
-                        <!-- Estado de pago -->
+                        <!-- Monto Liberado -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs text-gray-900">
+                                {{ formatCurrency(participant.__released_amount || 0) }}
+                            </div>
+                        </td>
+
+                        <!-- Estado de Pago -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <span
                                 :class="[
@@ -103,34 +118,21 @@
                             </span>
                         </td>
 
-                        <!-- Total pagado -->
+                        <!-- Total Pagado / Saldo -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">
-                                {{ formatPaymentPair(getPaidAmount(participant), getTotalDue(participant)) }}
+                                {{ formatPaidVsSaldo(participant) }}
                             </div>
                         </td>
 
                         <!-- Acciones -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="flex gap-2 items-center justify-center">
-                                <!-- Estado Activo/Baja del programa -->
-                                <span
-                                    :class="[
-                                        'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
-                                        participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
-                                    ]"
-                                >
-                                    {{ participant.is_active ? 'Activo' : 'Baja' }}
-                                </span>
-
-                                <!-- Edit Button -->
-                                <button
-                                    @click="$emit('edit-participant', participant.id)"
-                                    class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
-                                >
-                                    <EditPencilIcon fill-color="#C7C7C7" />
-                                </button>
-                            </div>
+                            <button
+                                @click="$emit('edit-participant', participant.id)"
+                                class="w-[18px] h-[19px] hover:opacity-75 transition-opacity"
+                            >
+                                <EditPencilIcon fill-color="#C7C7C7" />
+                            </button>
                         </td>
                     </tr>
                 </tbody>
@@ -319,6 +321,23 @@ export default {
             return `$${parseInt(p).toLocaleString()} / $${parseInt(
                 t
             ).toLocaleString()}`;
+        },
+
+        formatCurrency(amount) {
+            if (!amount || amount === 0) return '$0';
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(amount);
+        },
+
+        formatPaidVsSaldo(participant) {
+            const paid = this.getPaidAmount(participant);
+            const total = this.getTotalDue(participant);
+            const saldo = Math.max(0, total - paid);
+            return `${this.formatCurrency(paid)} / ${this.formatCurrency(saldo)}`;
         },
 
         capitalizeWords(string) {

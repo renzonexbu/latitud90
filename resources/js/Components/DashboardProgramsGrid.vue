@@ -52,9 +52,7 @@ export default {
         isContabilidad() {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
-                   (this.$page.props.auth.user.roles.includes('admin_contabilidad') ||
-                    this.$page.props.auth.user.roles.includes('editor_contabilidad') ||
-                    this.$page.props.auth.user.roles.includes('visualizador_contabilidad'));
+                   this.$page.props.auth.user.roles.includes('contabilidad');
         },
     },
     methods: {

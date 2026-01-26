@@ -113,6 +113,7 @@ class GetParticipantsService
                 'p.document_number',
                 'p.document_type',
                 'pp.is_active',
+                'pp.enrollment_code',
                 'pc.id',
                 'pc.individual_price',
                 'pc.status',
@@ -135,6 +136,7 @@ class GetParticipantsService
                 'p.document_number',
                 'p.document_type',
                 DB::raw('COALESCE(pp.is_active, 1) as is_active'),
+                'pp.enrollment_code',
                 'pc.id as participant_course_id',
                 'pc.individual_price',
                 'pc.status as enrollment_status',
@@ -160,6 +162,8 @@ class GetParticipantsService
             if ($participant && $programCourse) {
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
                 $enrollment->total_due = $priceData['final_price'];
+                $enrollment->discounts = $priceData['discounts'];
+                $enrollment->base_price = $priceData['base_price'];
 
                 // Calcular monto pagado correctamente (incluyendo reembolsos como negativos)
                 $paidAmount = Payment::whereHas('order', function($q) use ($enrollment) {
@@ -170,9 +174,32 @@ class GetParticipantsService
                     ->sum('amount');
 
                 $enrollment->paid_amount = round($paidAmount, 2);
+
+                // Calcular monto liberado (reembolsos) - usar amount con valor absoluto
+                $refundedAmount = Payment::whereHas('order', function($q) use ($enrollment) {
+                        $q->where('participant_id', $enrollment->participant_id)
+                          ->where('program_id', $enrollment->program_course_id);
+                    })
+                    ->whereIn('status', ['refunded', 'partially_refunded'])
+                    ->sum('amount');
+
+                // Los reembolsos pueden ser negativos, tomar valor absoluto
+                $enrollment->released_amount = round(abs($refundedAmount ?? 0), 2);
+
+                // Obtener aporte (contribución del participante) desde participant_program
+                $pp = DB::table('participant_program')
+                    ->where('participant_id', $enrollment->participant_id)
+                    ->where('program_id', $enrollment->program_course_id)
+                    ->first();
+
+                $enrollment->contribution = $pp->contribution ?? 0;
             } else {
                 $enrollment->total_due = $enrollment->individual_price ?? 0;
                 $enrollment->paid_amount = 0;
+                $enrollment->discounts = 0;
+                $enrollment->base_price = $enrollment->individual_price ?? 0;
+                $enrollment->released_amount = 0;
+                $enrollment->contribution = 0;
             }
 
             return $enrollment;

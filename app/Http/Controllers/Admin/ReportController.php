@@ -70,6 +70,15 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
+        // Si el usuario es ejecutivo comercial (y no es contabilidad ni super admin),
+        // redirigir a reportes de ejecutivos
+        $user = auth()->user();
+        if ($user && $user->hasRole('ejecutivo_comercial') &&
+            !$user->hasRole('contabilidad') &&
+            !$user->hasRole('super_admin')) {
+            return redirect()->route('admin.reports.executives.index');
+        }
+
         $data = $this->getIndexDataService->execute($request);
         return Inertia::render('Admin/Reports/Index', $data);
     }

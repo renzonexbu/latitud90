@@ -48,6 +48,11 @@ class UsersController extends Controller
             'roles' => 'array',
         ]);
 
+        // Validar combinaciones de roles
+        if ($request->has('roles') && is_array($request->roles)) {
+            $this->validateRolesCombination($request->roles);
+        }
+
         $user = (new CreateUserService())->execute($request);
 
         // Asignar roles si se proporcionaron
@@ -89,6 +94,11 @@ class UsersController extends Controller
             'is_active' => 'boolean',
             'roles' => 'array',
         ]);
+
+        // Validar combinaciones de roles
+        if ($request->has('roles') && is_array($request->roles)) {
+            $this->validateRolesCombination($request->roles);
+        }
 
         (new UpdateUserService())->execute($request, $user);
 
@@ -156,60 +166,59 @@ class UsersController extends Controller
                 ],
                 'contabilidad' => [
                     'name' => 'Contabilidad',
-                    'description' => 'Grupo de contabilidad',
-                    'roles' => $allRoles->whereIn('name', [
-                        'admin_contabilidad',
-                        'editor_contabilidad',
-                        'visualizador_contabilidad'
-                    ])->values()
+                    'description' => 'Administrador de Contabilidad',
+                    'roles' => $allRoles->whereIn('name', ['contabilidad'])->values()
                 ],
                 'marketing' => [
                     'name' => 'Marketing',
-                    'description' => 'Grupo de marketing',
-                    'roles' => $allRoles->whereIn('name', [
-                        'admin_marketing',
-                        'editor_marketing',
-                        'visualizador_marketing'
-                    ])->values()
+                    'description' => 'Administrador de Marketing',
+                    'roles' => $allRoles->whereIn('name', ['marketing'])->values()
                 ],
                 'comercial' => [
                     'name' => 'Comercial',
                     'description' => 'Roles comerciales',
-                    'roles' => $allRoles->whereIn('name', [
-                        'ejecutivo_comercial'
-                    ])->values()
-                ]
-            ];
-        }
-        // Admin de contabilidad solo puede asignar roles de su grupo
-        elseif ($this->isAdminContabilidad()) {
-            $availableRoles = [
-                'contabilidad' => [
-                    'name' => 'Contabilidad',
-                    'description' => 'Grupo de contabilidad',
-                    'roles' => $allRoles->whereIn('name', [
-                        'admin_contabilidad',
-                        'editor_contabilidad',
-                        'visualizador_contabilidad'
-                    ])->values()
-                ]
-            ];
-        }
-        // Admin de marketing solo puede asignar roles de su grupo
-        elseif ($this->isAdminMarketing()) {
-            $availableRoles = [
-                'marketing' => [
-                    'name' => 'Marketing',
-                    'description' => 'Grupo de marketing',
-                    'roles' => $allRoles->whereIn('name', [
-                        'admin_marketing',
-                        'editor_marketing',
-                        'visualizador_marketing'
-                    ])->values()
+                    'roles' => $allRoles->whereIn('name', ['ejecutivo_comercial'])->values()
                 ]
             ];
         }
 
         return $availableRoles;
+    }
+
+    /**
+     * Validar que la combinación de roles sea válida
+     */
+    private function validateRolesCombination(array $roles)
+    {
+        // Super admin no puede tener otros roles
+        if (in_array('super_admin', $roles) && count($roles) > 1) {
+            abort(422, 'El rol Super Admin no puede combinarse con otros roles.');
+        }
+
+        // Contabilidad no puede tener marketing ni ejecutivo_comercial
+        if (in_array('contabilidad', $roles)) {
+            if (in_array('marketing', $roles)) {
+                abort(422, 'Los roles Contabilidad y Marketing no pueden combinarse.');
+            }
+            if (in_array('ejecutivo_comercial', $roles)) {
+                abort(422, 'Los roles Contabilidad y Ejecutivo Comercial no pueden combinarse.');
+            }
+        }
+
+        // Marketing solo puede combinarse con ejecutivo_comercial
+        if (in_array('marketing', $roles)) {
+            $otherRoles = array_diff($roles, ['marketing', 'ejecutivo_comercial']);
+            if (!empty($otherRoles)) {
+                abort(422, 'El rol Marketing solo puede combinarse con Ejecutivo Comercial.');
+            }
+        }
+
+        // Ejecutivo comercial solo puede combinarse con marketing
+        if (in_array('ejecutivo_comercial', $roles)) {
+            $otherRoles = array_diff($roles, ['ejecutivo_comercial', 'marketing']);
+            if (!empty($otherRoles)) {
+                abort(422, 'El rol Ejecutivo Comercial solo puede combinarse con Marketing.');
+            }
+        }
     }
 }

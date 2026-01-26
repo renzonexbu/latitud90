@@ -88,13 +88,14 @@ class AdminController extends Controller
 
                 $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
 
+                // Obtener ejecutivo comercial
+                $executive = $programCourse->salesExecutive;
+
                 return [
                     'institutionName' => optional($course->institution)->name ?? '—',
-                    'educationLevel' => $course->education_level ?? '—',
-                    'course' => $course->course_number ?? '—',
-                    'year' => $programCourse->year ?? Carbon::now()->year,
-                    'programName' => ($programCourse->code ?? '') . ' - ' . ($programCourse->name ?? $program->name),
+                    'programCode' => $programCourse->code ?? '—',
                     'destination' => $programCourse->destination ?? $program->destination ?? '—',
+                    'executiveName' => $executive ? $executive->name : '—',
                     'students' => $totalStudents,
                     'percent' => $percent,
                     'totalCollected' => round($collected, 2),

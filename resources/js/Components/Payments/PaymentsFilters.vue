@@ -44,16 +44,16 @@
                 </select>
             </div>
 
-            <!-- Programa Dropdown -->
-            <div class="relative w-[200px]">
+            <!-- Código de Programa Dropdown -->
+            <div class="relative w-[180px]">
                 <select
                     v-model="filters.program_id"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
-                    <option value="">Todos los Programas</option>
+                    <option value="">Código de Programa</option>
                     <option v-for="program in programs" :key="program.id" :value="program.id">
-                        {{ capitalizeWords(program.name) }}
+                        {{ program.code || program.name }}
                     </option>
                 </select>
             </div>

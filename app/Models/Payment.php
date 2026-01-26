@@ -42,7 +42,12 @@ class Payment extends Model
         'bsale_document_id',
         'bsale_number',
         'bsale_token',
-        'document_type'
+        'document_type',
+        'email_attempts',
+        'email_last_error',
+        'contract_path',
+        'receipt_path',
+        'generated_document_types'
     ];
 
     protected $casts = [
@@ -55,7 +60,9 @@ class Payment extends Model
         'installments_number' => 'integer',
         'installment_amount' => 'decimal:2',
         'email_sent' => 'boolean',
-        'email_sent_at' => 'datetime:America/Santiago'
+        'email_sent_at' => 'datetime:America/Santiago',
+        'email_attempts' => 'integer',
+        'generated_document_types' => 'array'
     ];
 
     protected $appends = [

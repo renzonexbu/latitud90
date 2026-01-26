@@ -165,14 +165,13 @@ export default {
         filteredCourses() {
             let filtered = [...this.allCourses];
             
-            // Filtro por búsqueda
+            // Filtro por código de programa (contiene)
             if (this.localFilters.search) {
                 const searchTerm = this.localFilters.search.toLowerCase();
-                filtered = filtered.filter(course => 
-                    course.institution?.name?.toLowerCase().includes(searchTerm) ||
-                    course.education_level?.toLowerCase().includes(searchTerm) ||
-                    course.course_display?.toLowerCase().includes(searchTerm)
-                );
+                filtered = filtered.filter(course => {
+                    const programCode = (course.program_code || '').toLowerCase();
+                    return programCode.includes(searchTerm);
+                });
             }
             
             // Filtro por institución

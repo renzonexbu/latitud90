@@ -15,33 +15,9 @@ class RestrictExecutiveCommercialAccess
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
-
-        // Si el usuario es ejecutivo comercial
-        if ($user && $user->hasRole('ejecutivo_comercial')) {
-            $currentPath = $request->path();
-
-            // Permitir acceso solo a rutas específicas
-            $allowedPaths = [
-                'admin/reports/executives',
-                'admin/profile',
-                'logout',
-            ];
-
-            $isAllowed = false;
-            foreach ($allowedPaths as $allowedPath) {
-                if (str_starts_with($currentPath, $allowedPath)) {
-                    $isAllowed = true;
-                    break;
-                }
-            }
-
-            // Si intenta acceder a una ruta no permitida, redirigir a su página de reportes
-            if (!$isAllowed) {
-                return redirect()->route('admin.reports.executives.index')
-                    ->with('error', 'No tienes permisos para acceder a esta sección.');
-            }
-        }
+        // Este middleware ya no es necesario ya que el rol ejecutivo_comercial
+        // ha sido integrado en el rol de marketing con permisos específicos.
+        // Se mantiene por compatibilidad pero no aplica restricciones.
 
         return $next($request);
     }

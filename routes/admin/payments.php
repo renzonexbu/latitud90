@@ -32,6 +32,7 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('create', [CreateParticularPaymentController::class, 'create'])->name('create');
         Route::post('store', [CreateParticularPaymentController::class, 'store'])->name('store');
         Route::get('import', [ImportManualPaymentsController::class, 'import'])->name('import');
+        Route::post('import-preview', [ImportManualPaymentsController::class, 'preview'])->name('import-preview');
         Route::post('import-store', [ImportManualPaymentsController::class, 'importStore'])->name('import-store');
         Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
         Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
@@ -43,6 +44,7 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('create', [CreateRefundController::class, 'create'])->name('create');
         Route::post('store', [CreateRefundController::class, 'store'])->name('store');
         Route::get('import', [CreateRefundController::class, 'import'])->name('import');
+        Route::post('import-preview', [CreateRefundController::class, 'preview'])->name('import-preview');
         Route::post('import-store', [CreateRefundController::class, 'importStore'])->name('import-store');
         Route::post('participant-status', [CreateRefundController::class, 'getParticipantStatus'])->name('participant-status');
     });

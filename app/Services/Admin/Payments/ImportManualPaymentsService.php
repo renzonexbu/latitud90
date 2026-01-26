@@ -2,16 +2,23 @@
 
 namespace App\Services\Admin\Payments;
 
+use App\Helpers\ParticipantPriceHelper;
 use App\Helpers\RutHelper;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Models\Installment;
 use App\Models\InstallmentPlan;
 use App\Models\Order;
 use App\Models\OrderDetail;
+use App\Models\Participant;
 use App\Models\ParticipantProgram;
 use App\Models\Payment;
+use App\Models\PaymentGateway;
+use App\Models\PaymentOption;
+use App\Models\ProgramCourse;
 use App\Models\ProgramSubscription;
 use App\Services\Admin\Installments\RegisterManualPaymentService;
 use App\Services\Shared\OrderNumberGenerator;
+use App\Services\Subscription\SubscriptionRecalculationService;
 use App\Traits\AdminLogging;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -51,6 +58,230 @@ class ImportManualPaymentsService
 
     // Maximum details to return (to avoid memory issues)
     protected const MAX_DETAILS = 1000;
+
+    /**
+     * Preview the uploaded Excel file WITHOUT inserting into database
+     * Shows what would be imported for user confirmation
+     *
+     * IMPORTANTE: Procesa TODAS las filas del archivo (sin límite) por chunks
+     * para que el usuario pueda validar EXACTAMENTE lo que se va a insertar
+     */
+    public function previewExcel($file): array
+    {
+        $details = [];
+        $stats = [
+            'successful' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+        ];
+
+        try {
+            // Save the file temporarily
+            $filename = uniqid() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('temp', $filename);
+            $fullPath = Storage::path($path);
+
+            Log::info('Archivo Excel guardado temporalmente para preview', ['path' => $fullPath]);
+
+            // Load the spreadsheet with memory optimization
+            $reader = IOFactory::createReaderForFile($fullPath);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($fullPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+
+            // Get total rows for logging
+            $highestRow = $worksheet->getHighestRow();
+            $highestColumn = $worksheet->getHighestColumn();
+
+            Log::info('Archivo Excel cargado para preview', [
+                'total_rows' => $highestRow,
+                'highest_column' => $highestColumn
+            ]);
+
+            // Find header row
+            $headerRowIndex = null;
+            $headers = [];
+
+            foreach ($worksheet->getRowIterator(1, min(20, $highestRow)) as $rowIndex => $row) {
+                $cellIterator = $row->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = $cell->getValue();
+                }
+
+                if ($this->isHeaderRow($rowData)) {
+                    $headerRowIndex = $rowIndex;
+                    $headers = array_map('trim', $rowData);
+                    break;
+                }
+            }
+
+            if ($headerRowIndex === null) {
+                throw new \Exception('No se encontró la fila de encabezados en el archivo Excel. Verifica que contenga las columnas requeridas.');
+            }
+
+            // Validate required headers
+            $this->validateHeaders($headers);
+
+            // Get column indices
+            $columnIndices = $this->getColumnIndices($headers);
+
+            // Process data rows for preview por CHUNKS (NO database inserts)
+            $dataStartRow = $headerRowIndex + 1;
+            $totalDataRows = $highestRow - $headerRowIndex;
+            $currentChunk = [];
+            $chunkCount = 0;
+            $rowCount = 0;
+
+            Log::info('⏳ Iniciando preview de TODAS las filas por chunks', [
+                'data_start_row' => $dataStartRow,
+                'total_data_rows' => $totalDataRows,
+                'chunk_size' => self::CHUNK_SIZE
+            ]);
+
+            foreach ($worksheet->getRowIterator($dataStartRow) as $rowIndex => $row) {
+                $cellIterator = $row->getCellIterator('A', $highestColumn);
+                $cellIterator->setIterateOnlyExistingCells(false);
+
+                $rowData = [];
+                foreach ($cellIterator as $cell) {
+                    $rowData[] = $cell->getValue();
+                }
+
+                // Skip empty rows
+                if ($this->isEmptyRow($rowData)) {
+                    continue;
+                }
+
+                $currentChunk[] = [
+                    'row_index' => $rowIndex,
+                    'data' => $rowData
+                ];
+
+                // Process chunk when full
+                if (count($currentChunk) >= self::CHUNK_SIZE) {
+                    $chunkResult = $this->previewChunk($currentChunk, $columnIndices, $details, $stats);
+                    $details = $chunkResult['details'];
+                    $stats = $chunkResult['stats'];
+
+                    $chunkCount++;
+                    $rowCount += count($currentChunk);
+
+                    Log::info("Preview chunk {$chunkCount} procesado", [
+                        'rows_in_chunk' => count($currentChunk),
+                        'total_previewed' => $rowCount,
+                        'stats' => $stats
+                    ]);
+
+                    // Clear chunk and free memory
+                    $currentChunk = [];
+                    gc_collect_cycles();
+                }
+            }
+
+            // Process remaining rows
+            if (!empty($currentChunk)) {
+                $chunkResult = $this->previewChunk($currentChunk, $columnIndices, $details, $stats);
+                $details = $chunkResult['details'];
+                $stats = $chunkResult['stats'];
+
+                $chunkCount++;
+                $rowCount += count($currentChunk);
+
+                Log::info("Preview chunk final {$chunkCount} procesado", [
+                    'rows_in_chunk' => count($currentChunk),
+                    'total_previewed' => $rowCount,
+                    'stats' => $stats
+                ]);
+            }
+
+            // Clean up
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            Storage::delete($path);
+            gc_collect_cycles();
+
+            Log::info('✅ Preview de pagos completado', [
+                'stats' => $stats,
+                'total_rows_previewed' => $rowCount,
+                'chunks_processed' => $chunkCount
+            ]);
+
+            return [
+                'success' => true,
+                'stats' => $stats,
+                'details' => $details,
+                'total_rows' => $totalDataRows,
+                'previewed_rows' => $rowCount,
+                'chunks_processed' => $chunkCount
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error al previsualizar archivo Excel: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Preview a chunk of rows WITHOUT database inserts
+     * Mismo flujo que processChunk pero SIN transacciones ni inserts
+     */
+    private function previewChunk(array $chunk, array $columnIndices, array $details, array $stats): array
+    {
+        try {
+            foreach ($chunk as $item) {
+                $rowNumber = $item['row_index'];
+                $row = $item['data'];
+
+                // Build row data array
+                $rowData = [];
+                foreach ($columnIndices as $key => $index) {
+                    $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
+                }
+
+                // Validate and preview this row (NO database insert)
+                $result = $this->previewPaymentRow($rowData, $rowNumber);
+
+                $details[] = [
+                    'row' => $rowNumber,
+                    'status' => $result['status'],
+                    'message' => $result['message'],
+                    'data' => $result['data'] ?? null
+                ];
+
+                if ($result['status'] === 'success') {
+                    $stats['successful']++;
+                } elseif ($result['status'] === 'skipped') {
+                    $stats['skipped']++;
+                } else {
+                    $stats['failed']++;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error en preview chunk: ' . $e->getMessage());
+
+            // Mark all rows in chunk as failed
+            $stats['failed'] += count($chunk);
+            $details[] = [
+                'row' => 'chunk',
+                'status' => 'error',
+                'message' => 'Error en bloque de filas: ' . $e->getMessage(),
+                'data' => null
+            ];
+        }
+
+        return [
+            'details' => $details,
+            'stats' => $stats
+        ];
+    }
 
     /**
      * Process the uploaded Excel file and import manual payments
@@ -125,11 +356,14 @@ class ImportManualPaymentsService
             $currentChunk = [];
             $chunkCount = 0;
             $processedRows = 0;
+            $totalDataRows = $highestRow - $headerRowIndex;
+            $importStartTime = microtime(true);
 
-            Log::info('Iniciando procesamiento por chunks', [
+            Log::info('⏳ Iniciando importación masiva de pagos', [
                 'chunk_size' => self::CHUNK_SIZE,
                 'data_start_row' => $dataStartRow,
-                'total_data_rows' => $highestRow - $headerRowIndex
+                'total_data_rows' => $totalDataRows,
+                'timestamp' => now()->format('Y-m-d H:i:s')
             ]);
 
             foreach ($worksheet->getRowIterator($dataStartRow) as $rowIndex => $row) {
@@ -160,10 +394,23 @@ class ImportManualPaymentsService
                     $chunkCount++;
                     $processedRows += count($currentChunk);
 
-                    Log::info("Chunk {$chunkCount} procesado", [
+                    // Calculate progress metrics
+                    $progressPercent = round(($processedRows / $totalDataRows) * 100, 1);
+                    $elapsedTime = microtime(true) - $importStartTime;
+                    $avgTimePerRow = $elapsedTime / $processedRows;
+                    $remainingRows = $totalDataRows - $processedRows;
+                    $estimatedRemainingTime = $remainingRows * $avgTimePerRow;
+
+                    Log::info("📊 Chunk {$chunkCount}/{$totalDataRows} procesado", [
                         'rows_in_chunk' => count($currentChunk),
                         'total_processed' => $processedRows,
-                        'stats' => $stats
+                        'progress_percent' => $progressPercent . '%',
+                        'elapsed_seconds' => round($elapsedTime, 1),
+                        'avg_seconds_per_row' => round($avgTimePerRow, 2),
+                        'estimated_remaining_seconds' => round($estimatedRemainingTime, 1),
+                        'successful' => $stats['successful'],
+                        'failed' => $stats['failed'],
+                        'skipped' => $stats['skipped']
                     ]);
 
                     // Clear chunk and free memory
@@ -194,7 +441,19 @@ class ImportManualPaymentsService
             Storage::delete($path);
             gc_collect_cycles();
 
-            Log::info('Importación de pagos completada', ['stats' => $stats, 'chunks_processed' => $chunkCount]);
+            // Calculate final metrics
+            $totalElapsedTime = microtime(true) - $importStartTime;
+            $avgTimePerRow = $processedRows > 0 ? $totalElapsedTime / $processedRows : 0;
+
+            Log::info('✅ Importación de pagos completada exitosamente', [
+                'stats' => $stats,
+                'chunks_processed' => $chunkCount,
+                'total_rows_processed' => $processedRows,
+                'total_elapsed_seconds' => round($totalElapsedTime, 1),
+                'avg_seconds_per_row' => round($avgTimePerRow, 2),
+                'rows_per_minute' => round($processedRows / ($totalElapsedTime / 60), 1),
+                'timestamp' => now()->format('Y-m-d H:i:s')
+            ]);
 
             // Admin logging
             $this->logAction(
@@ -234,12 +493,34 @@ class ImportManualPaymentsService
 
     /**
      * Process a chunk of rows with its own transaction
+     * OPTIMIZADO: Pre-carga payment gateways/options y cachea montos pagados
      */
     private function processChunk(array $chunk, array $columnIndices, array $details, array $stats): array
     {
+        $startTime = microtime(true);
+
         DB::beginTransaction();
 
         try {
+            // OPTIMIZACIÓN 1: Pre-cargar payment gateway y options UNA VEZ por chunk
+            $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
+            $paymentOptions = PaymentOption::whereIn('code', [
+                'presential_pos_office',
+                'presential_khipu_link',
+                'presential_subscription',
+                'presential_bank_transfer',
+                'presential_debit_credit',
+                'presential_international',
+                'presential_deposit',
+                'presential_webpay',
+                'presential_aporte'
+            ])->get()->keyBy('code');
+
+            // OPTIMIZACIÓN 2: Caché de montos pagados (se actualiza después de cada pago)
+            $paidAmountCache = [];
+
+            $rowsProcessed = 0;
+
             foreach ($chunk as $item) {
                 $rowNumber = $item['row_index'];
                 $row = $item['data'];
@@ -250,8 +531,14 @@ class ImportManualPaymentsService
                     $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
                 }
 
-                // Process this payment row
-                $result = $this->processPaymentRow($rowData, $rowNumber, false);
+                // Process this payment row with optimizations
+                $result = $this->processPaymentRowOptimized(
+                    $rowData,
+                    $rowNumber,
+                    $paymentGateway,
+                    $paymentOptions,
+                    $paidAmountCache
+                );
 
                 // Only store details for non-success results or if under limit
                 if ($result['status'] !== 'success' || count($details) < self::MAX_DETAILS) {
@@ -270,9 +557,24 @@ class ImportManualPaymentsService
                 } else {
                     $stats['failed']++;
                 }
+
+                $rowsProcessed++;
             }
 
             DB::commit();
+
+            $elapsedTime = round(microtime(true) - $startTime, 2);
+            $avgTimePerRow = $rowsProcessed > 0 ? round($elapsedTime / $rowsProcessed, 2) : 0;
+
+            Log::info("✅ Chunk procesado", [
+                'rows_processed' => $rowsProcessed,
+                'elapsed_seconds' => $elapsedTime,
+                'avg_seconds_per_row' => $avgTimePerRow,
+                'successful' => $stats['successful'],
+                'failed' => $stats['failed'],
+                'skipped' => $stats['skipped']
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error en chunk, rollback ejecutado: ' . $e->getMessage());
@@ -318,10 +620,10 @@ class ImportManualPaymentsService
     }
 
     /**
-     * Process a single payment row
-     * @param bool $debugMode Si es true, solo prepara y loguea los datos sin guardar en BD
+     * Preview a single payment row WITHOUT database insert
+     * Returns what would be inserted for user confirmation
      */
-    private function processPaymentRow(array $rowData, int $rowNumber, bool $debugMode = false): array
+    private function previewPaymentRow(array $rowData, int $rowNumber): array
     {
         try {
             // Validate row data
@@ -330,189 +632,336 @@ class ImportManualPaymentsService
                 return [
                     'status' => 'error',
                     'message' => $validation['error'],
-                    'data' => [
-                        'row_data' => $rowData,
-                    ]
+                    'data' => ['row_data' => $rowData]
                 ];
             }
 
             // 1. Build enrollment code from RUT and Nro. Negocio
-            // Format: [RUT_WITHOUT_DOTS_OR_HYPHENS]-[NRO_NEGOCIO]
-            // Example: 122088901-1001
             $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
             $nroNegocio = trim($rowData['nro_negocio']);
             $enrollmentCode = $cleanRut . '-' . $nroNegocio;
 
-            Log::info("Enrollment code construido", [
-                'rut_original' => $rowData['rut'],
-                'rut_limpio' => $cleanRut,
-                'nro_negocio' => $nroNegocio,
-                'enrollment_code' => $enrollmentCode
-            ]);
-
             // 2. Find participant by enrollment code
-            $participantProgram = ParticipantProgram::where('enrollment_code', $enrollmentCode)->first();
+            $participantProgram = ParticipantProgram::with(['participant', 'programCourse.program'])
+                ->where('enrollment_code', $enrollmentCode)
+                ->first();
 
             if (!$participantProgram) {
                 return [
                     'status' => 'error',
                     'message' => "No se encontró participante con código de inscripción: {$enrollmentCode}",
-                    'data' => [
-                        'row_data' => $rowData,
-                    ]
+                    'data' => ['row_data' => $rowData]
                 ];
             }
 
             $participant = $participantProgram->participant;
             $programCourse = $participantProgram->programCourse;
 
-            Log::info("Participante encontrado", [
-                'participant_id' => $participant->id,
-                'name' => $participant->full_name,
-                'enrollment_code' => $enrollmentCode
-            ]);
+            if (!$participant || !$programCourse) {
+                return [
+                    'status' => 'error',
+                    'message' => "Datos incompletos para código de inscripción: {$enrollmentCode}",
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
 
-            // 2. Check if participant has an active subscription
-            $hasSubscription = ProgramSubscription::where('participant_id', $participant->id)
-                ->where('program_id', $participantProgram->program_id)
-                ->where('status', 'ACTIVA')
-                ->exists();
-
-            if ($hasSubscription) {
-                Log::info("Participante tiene suscripción activa, omitiendo", [
-                    'participant_id' => $participant->id,
-                    'enrollment_code' => $enrollmentCode
-                ]);
-
+            // 3. Validate no active subscription
+            $subscriptionValidation = $this->validateNoActiveSubscription($participant->id, $programCourse->id);
+            if (!$subscriptionValidation['valid']) {
                 return [
                     'status' => 'skipped',
-                    'message' => "Participante {$participant->full_name} ya tiene suscripción activa - omitido",
+                    'message' => $subscriptionValidation['message'],
                     'data' => [
                         'row_data' => $rowData,
-                        'participant' => [
-                            'id' => $participant->id,
-                            'name' => $participant->full_name,
-                            'email' => $participant->email,
-                            'rut' => $participant->rut,
-                        ],
-                        'program' => [
-                            'id' => $programCourse->id,
-                            'name' => $programCourse->name,
-                            'code' => $programCourse->code,
-                        ],
+                        'participant' => $participant->full_name,
+                        'program' => $programCourse->name
                     ]
                 ];
             }
 
-            // 3. Find or create the order for this participant
-            $order = Order::where('participant_program_id', $participantProgram->id)->first();
+            // 4. Calculate participant price
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $totalAmount = (float) $priceData['final_price'];
 
-            if (!$order) {
-                Log::info("No se encontró orden, creando automáticamente", [
-                    'participant_id' => $participant->id,
-                    'participant_program_id' => $participantProgram->id
-                ]);
+            // 5. Calculate paid amount
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
+            $previousBalance = max($totalAmount - $paidAmount, 0);
 
-                // Get the total amount from the participant's program cost
-                $totalAmount = $programCourse->cost ?? 0;
+            // 6. Parse payment data
+            $paymentAmount = $this->parseAmount($rowData['monto']);
+            $paymentDate = $this->parseDate($rowData['fecha_pago']);
+            $paymentType = $this->mapPaymentType($rowData['tipo_pago']);
+            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
 
-                // Create order WITHOUT installment system
-                $order = Order::create([
-                    'participant_id' => $participant->id,
-                    'program_id' => $programCourse->id,
-                    'participant_program_id' => $participantProgram->id,
+            // 7. Calculate new balance
+            $newPaidAmount = $paidAmount + $paymentAmount;
+            $newBalance = max($totalAmount - $newPaidAmount, 0);
+
+            $paymentTypeLabel = $isAporte ? 'APORTE' : 'Pago';
+
+            // Return preview data WITHOUT inserting
+            return [
+                'status' => 'success',
+                'message' => "{$paymentTypeLabel} de $" . number_format($paymentAmount, 0, ',', '.') .
+                    " para {$participant->full_name}. " .
+                    "Saldo anterior: $" . number_format($previousBalance, 0, ',', '.') .
+                    " → Nuevo saldo: $" . number_format($newBalance, 0, ',', '.'),
+                'data' => [
+                    'enrollment_code' => $enrollmentCode,
+                    'participant_name' => $participant->full_name,
+                    'participant_rut' => $participant->rut,
+                    'program_name' => $programCourse->name,
+                    'payment_amount' => $paymentAmount,
+                    'payment_date' => $paymentDate->format('Y-m-d'),
+                    'payment_type' => $paymentType,
+                    'payment_type_label' => $paymentTypeLabel,
+                    'is_aporte' => $isAporte,
+                    'previous_balance' => $previousBalance,
+                    'new_balance' => $newBalance,
                     'total_amount' => $totalAmount,
-                    'discount' => 0,
-                    'final_amount' => $totalAmount,
-                    'total_installments' => 0, // No installments for presential payments
-                    'payment_type' => 'total', // Mark as total payment
-                    'status' => 'pending',
-                    'notes' => 'Orden creada para pagos presenciales (sin sistema de cuotas)',
-                    'order_number' => app(OrderNumberGenerator::class)->generate(),
-                    'session_id' => null,
-                ]);
+                    'paid_amount' => $paidAmount,
+                    'buyer_name' => $rowData['contacto_pagador'] ?? ($participant->first_name . ' ' . $participant->first_last_name),
+                    'buyer_email' => $this->validateEmail($rowData['email_contacto_pagador'] ?? null)
+                        ? $rowData['email_contacto_pagador']
+                        : $participant->email,
+                    'reference' => $rowData['referencia'] ?? null,
+                    'notes' => $rowData['notas'] ?? null,
+                ]
+            ];
 
-                Log::info("Orden creada exitosamente (sin sistema de cuotas)", [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number
-                ]);
+        } catch (\Exception $e) {
+            Log::error("Error previsualizando fila {$rowNumber}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'row_data' => $rowData
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => "Error en fila {$rowNumber}: " . $e->getMessage(),
+                'data' => ['row_data' => $rowData]
+            ];
+        }
+    }
+
+    /**
+     * Process a single payment row - Similar to CreateParticularPaymentService
+     */
+    private function processPaymentRow(array $rowData, int $rowNumber): array
+    {
+        try {
+            // Validate row data
+            $validation = $this->validateRowData($rowData, $rowNumber);
+            if (!$validation['valid']) {
+                return [
+                    'status' => 'error',
+                    'message' => $validation['error'],
+                    'data' => ['row_data' => $rowData]
+                ];
             }
 
-            // 4. Parse payment data
-            $paymentAmount = floatval(str_replace(['.', ','], ['', '.'], $rowData['monto']));
+            // 1. Build enrollment code from RUT and Nro. Negocio
+            $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
+            $nroNegocio = trim($rowData['nro_negocio']);
+            $enrollmentCode = $cleanRut . '-' . $nroNegocio;
+
+            Log::info("Procesando fila {$rowNumber}", [
+                'enrollment_code' => $enrollmentCode,
+                'monto' => $rowData['monto']
+            ]);
+
+            // 2. Find participant by enrollment code
+            $participantProgram = ParticipantProgram::with(['participant', 'programCourse.program'])
+                ->where('enrollment_code', $enrollmentCode)
+                ->first();
+
+            if (!$participantProgram) {
+                return [
+                    'status' => 'error',
+                    'message' => "No se encontró participante con código de inscripción: {$enrollmentCode}",
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
+
+            $participant = $participantProgram->participant;
+            $programCourse = $participantProgram->programCourse;
+
+            if (!$participant || !$programCourse) {
+                return [
+                    'status' => 'error',
+                    'message' => "Datos incompletos para código de inscripción: {$enrollmentCode}",
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
+
+            // 3. Validate no active subscription (same as CreateParticularPaymentService)
+            $subscriptionValidation = $this->validateNoActiveSubscription($participant->id, $programCourse->id);
+            if (!$subscriptionValidation['valid']) {
+                return [
+                    'status' => 'skipped',
+                    'message' => $subscriptionValidation['message'],
+                    'data' => [
+                        'row_data' => $rowData,
+                        'participant' => $participant->full_name,
+                        'program' => $programCourse->name
+                    ]
+                ];
+            }
+
+            // 4. Calculate participant price using ParticipantPriceHelper (includes discounts, contributions)
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $totalAmount = (float) $priceData['final_price'];
+            $discounts = (float) $priceData['discounts'];
+            $basePrice = (float) $priceData['base_price'];
+
+            // 5. Calculate paid amount
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
+            $previousBalance = max($totalAmount - $paidAmount, 0);
+
+            // 6. Parse payment data
+            $paymentAmount = $this->parseAmount($rowData['monto']);
             $paymentDate = $this->parseDate($rowData['fecha_pago']);
             $paymentType = $this->mapPaymentType($rowData['tipo_pago']);
 
-            // 5. Get payment_option_id for the payment type
-            $paymentOptionId = $this->getPaymentOptionIdBySource($paymentType);
-
-            // 6. Buyer data
-            $buyerName = $rowData['contacto_pagador'] ?? ($participant->first_name . ' ' . $participant->last_name);
-            $buyerEmailFromData = $rowData['email_contacto_pagador'] ?? null;
-            $buyerEmail = ($buyerEmailFromData && filter_var($buyerEmailFromData, FILTER_VALIDATE_EMAIL))
-                ? $buyerEmailFromData
-                : $participant->email;
-
-            // 7. Count existing payments to generate unique identifiers
-            $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
-            $paymentNumber = $existingPaymentsCount + 1;
-
-            Log::info("Registrando pago presencial directo (sin cuotas)", [
-                'order_id' => $order->id,
-                'payment_number' => $paymentNumber,
-                'amount' => $paymentAmount
+            Log::info("Montos calculados para {$participant->full_name}", [
+                'base_price' => $basePrice,
+                'discounts' => $discounts,
+                'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount,
+                'previous_balance' => $previousBalance,
+                'payment_amount' => $paymentAmount
             ]);
 
-            // 8. Create OrderDetail
+            // 7. Validate payment amount against balance
+            if ($paymentAmount > $previousBalance && $previousBalance > 0) {
+                // Solo advertir si el monto excede significativamente (más de $100 de diferencia)
+                if (($paymentAmount - $previousBalance) > 100) {
+                    Log::warning("Monto de pago excede saldo pendiente", [
+                        'payment_amount' => $paymentAmount,
+                        'previous_balance' => $previousBalance,
+                        'difference' => $paymentAmount - $previousBalance,
+                        'participant' => $participant->full_name
+                    ]);
+                }
+            }
+
+            // 8. Get payment gateway and option
+            $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
+            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago']);
+            $paymentOption = PaymentOption::where('code', $paymentOptionCode)->first();
+
+            // 9. Find or create the order
+            $order = $this->findOrCreateOrder($participant, $programCourse, $participantProgram, $totalAmount, $discounts);
+
+            // 10. Create order detail with buyer data
+            $buyerName = $rowData['contacto_pagador'] ?? ($participant->first_name . ' ' . $participant->first_last_name);
+            $buyerEmail = $this->validateEmail($rowData['email_contacto_pagador'] ?? null)
+                ? $rowData['email_contacto_pagador']
+                : $participant->email;
+
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
-                'installment_number' => null, // No hay cuotas
-                'amount' => $paymentAmount,
-                'due_date' => $paymentDate,
-                'status' => 'paid',
-                'is_paid' => true,
-                'paid_at' => $paymentDate,
+                'payment_option_id' => $paymentOption?->id,
+                'payment_gateway_id' => $paymentGateway?->id,
                 'name' => $buyerName,
                 'email' => $buyerEmail,
-                'phone' => null,
-                'code_phone' => null,
-                'document_type' => null,
-                'document_number' => null,
                 'country' => null,
                 'region' => null,
                 'city' => null,
+                'code_phone' => null,
+                'phone' => null,
+                'document_type' => null,
+                'document_number' => null,
+                'installment_number' => null,
+                'installments_number' => $rowData['cuotas'] ?? null,
+                'base_amount' => $paymentAmount,
+                'discount_amount' => 0,
+                'amount' => $paymentAmount,
+                'due_date' => $paymentDate,
+                'is_paid' => true,
+                'status' => 'paid',
+                'paid_at' => $paymentDate,
+                'gateway_response' => [
+                    'notes' => $rowData['notas'] ?? null,
+                    'created_manually' => true,
+                    'payment_type' => 'presential',
+                    'import_row' => $rowNumber
+                ]
             ]);
 
-            // 9. Create Payment
+            // 11. Create payment
+            $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
+            $paymentNumber = $existingPaymentsCount + 1;
+
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
+                'payment_gateway_id' => $paymentGateway?->id,
+                'payment_option_id' => $paymentOption?->id,
                 'buy_order' => $order->order_number . '-P' . $paymentNumber,
                 'amount' => $paymentAmount,
                 'status' => 'approved',
-                'payment_gateway_id' => null,
-                'payment_option_id' => $paymentOptionId,
                 'transaction_date' => $paymentDate,
-                'installments_number' => 1,
-                'document_type' => 'B2',
                 'authorization_code' => $rowData['nro_aut'] ?? null,
+                'payment_code' => $rowData['referencia'] ?? null,
+                'gateway_response' => [
+                    'notes' => $rowData['notas'] ?? null,
+                    'created_manually' => true,
+                    'payment_type' => 'presential',
+                    'import_row' => $rowNumber,
+                    'buyer_data' => [
+                        'full_name' => $buyerName,
+                        'email' => $buyerEmail,
+                    ]
+                ],
+                'currency' => 'CLP',
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
             ]);
 
-            // 10. Update order status
+            // 12. Handle APORTE (AP) - Update contribution field
+            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
+            if ($isAporte) {
+                $this->handleAportePayment($participantProgram, $paymentAmount);
+            }
+
+            // 13. Handle installment restructure (same as CreateParticularPaymentService)
+            $this->handleInstallmentRestructure($participant, $programCourse, $paymentAmount);
+
+            // 14. Handle subscription adjustment if needed
+            $this->handleSubscriptionAdjustment($participant->id, $programCourse->id, $paymentAmount);
+
+            // 15. Update order status
             $order->refreshStatus();
 
-            Log::info("✅ Pago presencial registrado exitosamente", [
+            $newPaidAmount = $paidAmount + $paymentAmount;
+            $newBalance = max($totalAmount - $newPaidAmount, 0);
+
+            $paymentTypeLabel = $isAporte ? 'APORTE' : 'Pago';
+
+            Log::info("✅ {$paymentTypeLabel} importado exitosamente", [
                 'payment_id' => $payment->id,
-                'order_detail_id' => $orderDetail->id,
+                'participant' => $participant->full_name,
                 'amount' => $paymentAmount,
-                'order_id' => $order->id,
-                'participant' => $participant->full_name
+                'is_aporte' => $isAporte,
+                'new_paid_amount' => $newPaidAmount,
+                'new_balance' => $newBalance
             ]);
 
             return [
                 'status' => 'success',
-                'message' => "Pago de \${$paymentAmount} registrado exitosamente para {$participant->full_name} (RUT: {$participant->rut})"
+                'message' => "{$paymentTypeLabel} de $" . number_format($paymentAmount, 0, ',', '.') .
+                    " registrado para {$participant->full_name}. " .
+                    "Saldo anterior: $" . number_format($previousBalance, 0, ',', '.') .
+                    " → Nuevo saldo: $" . number_format($newBalance, 0, ',', '.'),
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'participant' => $participant->full_name,
+                    'amount' => $paymentAmount,
+                    'is_aporte' => $isAporte,
+                    'previous_balance' => $previousBalance,
+                    'new_balance' => $newBalance
+                ]
             ];
+
         } catch (\Exception $e) {
             Log::error("Error procesando fila {$rowNumber}: " . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
@@ -522,10 +971,569 @@ class ImportManualPaymentsService
             return [
                 'status' => 'error',
                 'message' => "Error en fila {$rowNumber}: " . $e->getMessage(),
+                'data' => ['row_data' => $rowData]
+            ];
+        }
+    }
+
+    /**
+     * Process a single payment row - VERSIÓN OPTIMIZADA
+     * Usa datos pre-cargados (payment gateway/options) y caché de montos pagados
+     *
+     * @param array $rowData Datos de la fila del Excel
+     * @param int $rowNumber Número de fila
+     * @param PaymentGateway|null $paymentGateway Gateway pre-cargado
+     * @param \Illuminate\Support\Collection $paymentOptions Opciones de pago pre-cargadas (keyBy code)
+     * @param array $paidAmountCache Caché de montos pagados (referencia)
+     */
+    private function processPaymentRowOptimized(
+        array $rowData,
+        int $rowNumber,
+        ?PaymentGateway $paymentGateway,
+        $paymentOptions,
+        array &$paidAmountCache
+    ): array {
+        try {
+            // Validate row data
+            $validation = $this->validateRowData($rowData, $rowNumber);
+            if (!$validation['valid']) {
+                return [
+                    'status' => 'error',
+                    'message' => $validation['error'],
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
+
+            // 1. Build enrollment code from RUT and Nro. Negocio
+            $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
+            $nroNegocio = trim($rowData['nro_negocio']);
+            $enrollmentCode = $cleanRut . '-' . $nroNegocio;
+
+            // 2. Find participant by enrollment code
+            $participantProgram = ParticipantProgram::with(['participant', 'programCourse.program'])
+                ->where('enrollment_code', $enrollmentCode)
+                ->first();
+
+            if (!$participantProgram) {
+                return [
+                    'status' => 'error',
+                    'message' => "No se encontró participante con código de inscripción: {$enrollmentCode}",
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
+
+            $participant = $participantProgram->participant;
+            $programCourse = $participantProgram->programCourse;
+
+            if (!$participant || !$programCourse) {
+                return [
+                    'status' => 'error',
+                    'message' => "Datos incompletos para código de inscripción: {$enrollmentCode}",
+                    'data' => ['row_data' => $rowData]
+                ];
+            }
+
+            // 3. Validate no active subscription
+            $subscriptionValidation = $this->validateNoActiveSubscription($participant->id, $programCourse->id);
+            if (!$subscriptionValidation['valid']) {
+                return [
+                    'status' => 'skipped',
+                    'message' => $subscriptionValidation['message'],
+                    'data' => [
+                        'row_data' => $rowData,
+                        'participant' => $participant->full_name,
+                        'program' => $programCourse->name
+                    ]
+                ];
+            }
+
+            // 3.5. CHECK IF PAYMENT ALREADY EXISTS (to avoid duplicates)
+            $paymentAmount = $this->parseAmount($rowData['monto']);
+            $paymentDate = $this->parseDate($rowData['fecha_pago']);
+
+            $existingPayment = $this->checkIfPaymentExists(
+                $participant->id,
+                $programCourse->id,
+                $paymentAmount,
+                $paymentDate
+            );
+
+            if ($existingPayment) {
+                return [
+                    'status' => 'skipped',
+                    'message' => "Pago ya existe para {$participant->full_name} (${paymentAmount} el {$paymentDate->format('d/m/Y')})",
+                    'data' => [
+                        'row_data' => $rowData,
+                        'participant' => $participant->full_name,
+                        'program' => $programCourse->name,
+                        'existing_payment_id' => $existingPayment->id,
+                        'reason' => 'duplicate'
+                    ]
+                ];
+            }
+
+            // 4. Calculate participant price
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $totalAmount = (float) $priceData['final_price'];
+            $discounts = (float) $priceData['discounts'];
+
+            // 5. OPTIMIZADO: Calculate paid amount usando caché
+            $paidAmount = $this->calculatePaidAmountCached($participant->id, $programCourse->id, $paidAmountCache);
+            $previousBalance = max($totalAmount - $paidAmount, 0);
+            $paymentType = $this->mapPaymentType($rowData['tipo_pago']);
+
+            // 7. Validate payment amount against balance
+            if ($paymentAmount > $previousBalance && $previousBalance > 0) {
+                if (($paymentAmount - $previousBalance) > 100) {
+                    Log::warning("Monto de pago excede saldo pendiente", [
+                        'payment_amount' => $paymentAmount,
+                        'previous_balance' => $previousBalance,
+                        'difference' => $paymentAmount - $previousBalance,
+                        'participant' => $participant->full_name
+                    ]);
+                }
+            }
+
+            // 8. OPTIMIZADO: Usar payment gateway y option pre-cargados
+            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago']);
+            $paymentOption = $paymentOptions->get($paymentOptionCode);
+
+            // 9. Find or create the order
+            $order = $this->findOrCreateOrder($participant, $programCourse, $participantProgram, $totalAmount, $discounts);
+
+            // 10. Create order detail with buyer data
+            $buyerName = $rowData['contacto_pagador'] ?? ($participant->first_name . ' ' . $participant->first_last_name);
+            $buyerEmail = $this->validateEmail($rowData['email_contacto_pagador'] ?? null)
+                ? $rowData['email_contacto_pagador']
+                : $participant->email;
+
+            $orderDetail = OrderDetail::create([
+                'order_id' => $order->id,
+                'payment_option_id' => $paymentOption?->id,
+                'payment_gateway_id' => $paymentGateway?->id,
+                'name' => $buyerName,
+                'email' => $buyerEmail,
+                'country' => null,
+                'region' => null,
+                'city' => null,
+                'code_phone' => null,
+                'phone' => null,
+                'document_type' => null,
+                'document_number' => null,
+                'installment_number' => null,
+                'installments_number' => $rowData['cuotas'] ?? null,
+                'base_amount' => $paymentAmount,
+                'discount_amount' => 0,
+                'amount' => $paymentAmount,
+                'due_date' => $paymentDate,
+                'is_paid' => true,
+                'status' => 'paid',
+                'paid_at' => $paymentDate,
+                'gateway_response' => [
+                    'notes' => $rowData['notas'] ?? null,
+                    'created_manually' => true,
+                    'payment_type' => 'presential',
+                    'import_row' => $rowNumber
+                ]
+            ]);
+
+            // 11. Create payment
+            $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
+            $paymentNumber = $existingPaymentsCount + 1;
+
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'order_detail_id' => $orderDetail->id,
+                'payment_gateway_id' => $paymentGateway?->id,
+                'payment_option_id' => $paymentOption?->id,
+                'buy_order' => $order->order_number . '-P' . $paymentNumber,
+                'amount' => $paymentAmount,
+                'status' => 'approved',
+                'transaction_date' => $paymentDate,
+                'authorization_code' => $rowData['nro_aut'] ?? null,
+                'payment_code' => $rowData['referencia'] ?? null,
+                'gateway_response' => [
+                    'notes' => $rowData['notas'] ?? null,
+                    'created_manually' => true,
+                    'payment_type' => 'presential',
+                    'import_row' => $rowNumber,
+                    'buyer_data' => [
+                        'full_name' => $buyerName,
+                        'email' => $buyerEmail,
+                    ]
+                ],
+                'currency' => 'CLP',
+                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+            ]);
+
+            // 12. Handle APORTE (AP) - Update contribution field
+            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
+            if ($isAporte) {
+                $this->handleAportePayment($participantProgram, $paymentAmount);
+            }
+
+            // 13. OPTIMIZADO: Handle installment restructure SIN duplicar calculateParticipantPrice
+            $this->handleInstallmentRestructureOptimized(
+                $participant,
+                $programCourse,
+                $paymentAmount,
+                $totalAmount,
+                $paidAmount,
+                $paidAmountCache
+            );
+
+            // 14. OPCIONAL: Skip subscription adjustment para acelerar (se puede ejecutar después)
+            // $this->handleSubscriptionAdjustment($participant->id, $programCourse->id, $paymentAmount);
+
+            // 15. Update order status
+            $order->refreshStatus();
+
+            // 16. OPTIMIZADO: Actualizar caché con el nuevo pago
+            $cacheKey = "{$participant->id}_{$programCourse->id}";
+            $paidAmountCache[$cacheKey] = $paidAmount + $paymentAmount;
+
+            $newPaidAmount = $paidAmount + $paymentAmount;
+            $newBalance = max($totalAmount - $newPaidAmount, 0);
+            $paymentTypeLabel = $isAporte ? 'APORTE' : 'Pago';
+
+            return [
+                'status' => 'success',
+                'message' => "{$paymentTypeLabel} de $" . number_format($paymentAmount, 0, ',', '.') .
+                    " registrado para {$participant->full_name}. " .
+                    "Saldo anterior: $" . number_format($previousBalance, 0, ',', '.') .
+                    " → Nuevo saldo: $" . number_format($newBalance, 0, ',', '.'),
                 'data' => [
-                    'row_data' => $rowData,
+                    'payment_id' => $payment->id,
+                    'participant' => $participant->full_name,
+                    'amount' => $paymentAmount,
+                    'is_aporte' => $isAporte,
+                    'previous_balance' => $previousBalance,
+                    'new_balance' => $newBalance
                 ]
             ];
+
+        } catch (\Exception $e) {
+            Log::error("Error procesando fila {$rowNumber}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'row_data' => $rowData
+            ]);
+
+            return [
+                'status' => 'error',
+                'message' => "Error en fila {$rowNumber}: " . $e->getMessage(),
+                'data' => ['row_data' => $rowData]
+            ];
+        }
+    }
+
+    /**
+     * Validate no active subscription (similar to CreateParticularPaymentService)
+     */
+    private function validateNoActiveSubscription(int $participantId, int $programId): array
+    {
+        $activeSubscription = ProgramSubscription::where('participant_id', $participantId)
+            ->where('program_id', $programId)
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+            ->first();
+
+        if (!$activeSubscription) {
+            return ['valid' => true];
+        }
+
+        // Check for failed charges (can allow payment in this case)
+        $failedCharges = \App\Models\ChargeAttempt::where('program_subscription_id', $activeSubscription->id)
+            ->where('status', 'failed')
+            ->whereHas('installment', function ($query) {
+                $query->whereIn('status', ['pending', 'overdue']);
+            })
+            ->count();
+
+        if ($failedCharges === 0) {
+            return [
+                'valid' => false,
+                'message' => "Participante tiene suscripción activa sin cobros rechazados - omitido"
+            ];
+        }
+
+        // Has failed charges, allow presential payment
+        return ['valid' => true];
+    }
+
+    /**
+     * Calculate paid amount for participant
+     * OPTIMIZADO: Usa JOIN en lugar de whereHas para mejor rendimiento con índices
+     */
+    private function calculatePaidAmount(int $participantId, int $programId): float
+    {
+        return (float) Payment::join('orders', 'payments.order_id', '=', 'orders.id')
+            ->where('orders.participant_id', $participantId)
+            ->where('orders.program_id', $programId)
+            ->whereIn('payments.status', ['completed', 'approved'])
+            ->sum('payments.amount');
+    }
+
+    /**
+     * Calculate paid amount for participant (versión con caché)
+     * Usa el índice compuesto idx_orders_participant_program_date
+     */
+    private function calculatePaidAmountCached(int $participantId, int $programId, array &$cache): float
+    {
+        $cacheKey = "{$participantId}_{$programId}";
+
+        if (!isset($cache[$cacheKey])) {
+            $cache[$cacheKey] = $this->calculatePaidAmount($participantId, $programId);
+        }
+
+        return $cache[$cacheKey];
+    }
+
+    /**
+     * Find or create order for participant
+     */
+    private function findOrCreateOrder(Participant $participant, ProgramCourse $programCourse, ParticipantProgram $participantProgram, float $totalAmount, float $discounts): Order
+    {
+        // Try to find existing order
+        $order = Order::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->first();
+
+        if ($order) {
+            return $order;
+        }
+
+        // Create new order
+        return Order::create([
+            'participant_id' => $participant->id,
+            'program_id' => $programCourse->id,
+            'participant_program_id' => $participantProgram->id,
+            'total_amount' => $totalAmount + $discounts, // Base price
+            'discount' => $discounts,
+            'final_amount' => $totalAmount,
+            'total_installments' => 1,
+            'payment_type' => 'total',
+            'status' => 'pending',
+            'order_number' => app(OrderNumberGenerator::class)->generate(),
+            'notes' => 'Orden creada desde importación masiva de pagos'
+        ]);
+    }
+
+    /**
+     * Handle installment restructure after payment (same as CreateParticularPaymentService)
+     */
+    private function handleInstallmentRestructure(Participant $participant, ProgramCourse $programCourse, float $paymentAmount): void
+    {
+        $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$installmentPlan) {
+            return;
+        }
+
+        // Calculate current amounts using ParticipantPriceHelper
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+        $totalAmount = (float) $priceData['final_price'];
+        $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
+        $remainingBalance = max($totalAmount - $paidAmount, 0);
+
+        if ($remainingBalance <= 0) {
+            // Fully paid - mark all pending installments as paid
+            $installmentPlan->installments()
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'notes' => 'Marcada como pagada por importación masiva'
+                ]);
+
+            $installmentPlan->update([
+                'status' => 'completed',
+                'end_date' => now()
+            ]);
+
+            Log::info('Plan de cuotas completado por importación masiva', [
+                'installment_plan_id' => $installmentPlan->id,
+                'participant_id' => $participant->id
+            ]);
+            return;
+        }
+
+        // Get pending installments
+        $pendingInstallments = $installmentPlan->installments()
+            ->where('status', 'pending')
+            ->orderBy('installment_number')
+            ->get();
+
+        if ($pendingInstallments->isEmpty()) {
+            return;
+        }
+
+        // Redistribute remaining balance among pending installments
+        $installmentCount = $pendingInstallments->count();
+        $baseAmount = floor($remainingBalance / $installmentCount);
+        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
+
+        foreach ($pendingInstallments as $index => $installment) {
+            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
+
+            $installment->update([
+                'amount' => $newAmount,
+                'adjusted_at' => now(),
+                'adjustment_reason' => 'Reestructuración por importación masiva de pagos'
+            ]);
+        }
+
+        Log::info('Cuotas reestructuradas por importación masiva', [
+            'installment_plan_id' => $installmentPlan->id,
+            'remaining_balance' => $remainingBalance,
+            'pending_installments' => $installmentCount
+        ]);
+    }
+
+    /**
+     * Handle installment restructure after payment - VERSIÓN OPTIMIZADA
+     * NO duplica las llamadas a calculateParticipantPrice y calculatePaidAmount
+     *
+     * @param Participant $participant
+     * @param ProgramCourse $programCourse
+     * @param float $paymentAmount Monto del pago actual
+     * @param float $totalAmount Total adeudado (ya calculado)
+     * @param float $previousPaidAmount Monto ya pagado ANTES de este pago
+     * @param array $paidAmountCache Caché de montos pagados (referencia)
+     */
+    private function handleInstallmentRestructureOptimized(
+        Participant $participant,
+        ProgramCourse $programCourse,
+        float $paymentAmount,
+        float $totalAmount,
+        float $previousPaidAmount,
+        array &$paidAmountCache
+    ): void {
+        $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+            ->where('program_id', $programCourse->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$installmentPlan) {
+            return;
+        }
+
+        // OPTIMIZADO: Usar valores ya calculados en lugar de recalcular
+        $newPaidAmount = $previousPaidAmount + $paymentAmount;
+        $remainingBalance = max($totalAmount - $newPaidAmount, 0);
+
+        if ($remainingBalance <= 0) {
+            // Fully paid - OPTIMIZADO: Batch update en lugar de loop
+            $installmentPlan->installments()
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'paid',
+                    'paid_at' => now(),
+                    'notes' => 'Marcada como pagada por importación masiva'
+                ]);
+
+            $installmentPlan->update([
+                'status' => 'completed',
+                'end_date' => now()
+            ]);
+
+            Log::info('Plan de cuotas completado por importación masiva', [
+                'installment_plan_id' => $installmentPlan->id,
+                'participant_id' => $participant->id
+            ]);
+            return;
+        }
+
+        // Get pending installments
+        $pendingInstallments = $installmentPlan->installments()
+            ->where('status', 'pending')
+            ->orderBy('installment_number')
+            ->get();
+
+        if ($pendingInstallments->isEmpty()) {
+            return;
+        }
+
+        // Redistribute remaining balance among pending installments
+        $installmentCount = $pendingInstallments->count();
+        $baseAmount = floor($remainingBalance / $installmentCount);
+        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
+
+        // OPTIMIZADO: Preparar datos para batch update
+        $installmentUpdates = [];
+        foreach ($pendingInstallments as $index => $installment) {
+            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
+            $installmentUpdates[$installment->id] = $newAmount;
+        }
+
+        // OPTIMIZADO: Batch update usando query builder en lugar de loop individual
+        foreach ($installmentUpdates as $installmentId => $newAmount) {
+            Installment::where('id', $installmentId)->update([
+                'amount' => $newAmount,
+                'adjusted_at' => now(),
+                'adjustment_reason' => 'Reestructuración por importación masiva de pagos'
+            ]);
+        }
+
+        Log::info('Cuotas reestructuradas por importación masiva', [
+            'installment_plan_id' => $installmentPlan->id,
+            'remaining_balance' => $remainingBalance,
+            'pending_installments' => $installmentCount
+        ]);
+    }
+
+    /**
+     * Handle APORTE payment - Update contribution field in participant_program
+     */
+    private function handleAportePayment(ParticipantProgram $participantProgram, float $paymentAmount): void
+    {
+        // Get current contribution and add the new aporte
+        $currentContribution = (float) ($participantProgram->contribution ?? 0);
+        $newContribution = $currentContribution + $paymentAmount;
+
+        $participantProgram->update([
+            'contribution' => $newContribution
+        ]);
+
+        Log::info('Aporte registrado y actualizado en participant_program', [
+            'participant_program_id' => $participantProgram->id,
+            'previous_contribution' => $currentContribution,
+            'aporte_amount' => $paymentAmount,
+            'new_contribution' => $newContribution
+        ]);
+    }
+
+    /**
+     * Handle subscription adjustment (same as CreateParticularPaymentService)
+     */
+    private function handleSubscriptionAdjustment(int $participantId, int $programId, float $paymentAmount): void
+    {
+        try {
+            $recalculationService = app(SubscriptionRecalculationService::class);
+
+            $result = $recalculationService->processPaymentWithSubscriptionAdjustment(
+                $participantId,
+                $programId,
+                $paymentAmount,
+                'payment'
+            );
+
+            if ($result['has_subscription'] && $result['subscription_cancelled']) {
+                Log::info('Suscripción ajustada por importación masiva', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'old_subscription_id' => $result['old_subscription_id'] ?? null,
+                    'new_subscription_id' => $result['new_subscription_id'] ?? null
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error manejando ajuste de suscripción en importación masiva', [
+                'participant_id' => $participantId,
+                'program_id' => $programId,
+                'error' => $e->getMessage()
+            ]);
+            // Don't throw - payment was already processed
         }
     }
 
@@ -536,7 +1544,6 @@ class ImportManualPaymentsService
     {
         $missingHeaders = [];
 
-        // Normalize headers for comparison
         $normalizedHeaders = array_map(function($header) {
             return strtolower(trim($header));
         }, $headers);
@@ -544,7 +1551,6 @@ class ImportManualPaymentsService
         foreach ($this->expectedHeaders as $field => $headerVariations) {
             $found = false;
 
-            // Check if any variation of this header exists
             foreach ($headerVariations as $headerVariation) {
                 foreach ($normalizedHeaders as $normalizedHeader) {
                     if ($normalizedHeader === $headerVariation ||
@@ -557,7 +1563,6 @@ class ImportManualPaymentsService
             }
 
             if (!$found) {
-                // Use the first variation as the display name
                 $missingHeaders[] = ucfirst($headerVariations[0]);
             }
         }
@@ -574,7 +1579,6 @@ class ImportManualPaymentsService
     {
         $indices = [];
 
-        // Normalize headers for comparison
         $normalizedHeaders = array_map(function($header) {
             return strtolower(trim($header));
         }, $headers);
@@ -596,7 +1600,6 @@ class ImportManualPaymentsService
 
         foreach ($fieldMappings as $field => $possibleHeaders) {
             foreach ($normalizedHeaders as $index => $normalizedHeader) {
-                // Check if the normalized header matches any of the possible headers
                 foreach ($possibleHeaders as $possibleHeader) {
                     if ($normalizedHeader === $possibleHeader ||
                         stripos($normalizedHeader, $possibleHeader) !== false ||
@@ -616,32 +1619,27 @@ class ImportManualPaymentsService
      */
     private function validateRowData(array $data, int $rowNumber): array
     {
-        // Check RUT (required to build enrollment code)
         if (empty($data['rut'])) {
             return ['valid' => false, 'error' => "RUT vacío en fila {$rowNumber}"];
         }
 
-        // Check Nro. Negocio (required to build enrollment code)
         if (empty($data['nro_negocio'])) {
             return ['valid' => false, 'error' => "Número de negocio vacío en fila {$rowNumber}"];
         }
 
-        // Check amount
-        if (empty($data['monto']) || !is_numeric(str_replace(['.', ','], ['', '.'], $data['monto']))) {
-            return ['valid' => false, 'error' => "Monto inválido en fila {$rowNumber}"];
+        if (empty($data['monto'])) {
+            return ['valid' => false, 'error' => "Monto vacío en fila {$rowNumber}"];
         }
 
-        $amount = floatval(str_replace(['.', ','], ['', '.'], $data['monto']));
+        $amount = $this->parseAmount($data['monto']);
         if ($amount <= 0) {
             return ['valid' => false, 'error' => "El monto debe ser mayor a cero en fila {$rowNumber}"];
         }
 
-        // Check payment date
         if (empty($data['fecha_pago'])) {
             return ['valid' => false, 'error' => "Fecha de pago vacía en fila {$rowNumber}"];
         }
 
-        // Check payment type
         if (empty($data['tipo_pago'])) {
             return ['valid' => false, 'error' => "Tipo de pago vacío en fila {$rowNumber}"];
         }
@@ -650,28 +1648,52 @@ class ImportManualPaymentsService
     }
 
     /**
+     * Parse amount from various formats
+     */
+    private function parseAmount($value): float
+    {
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        // Remove currency symbols and spaces
+        $cleaned = preg_replace('/[^0-9,.-]/', '', $value);
+
+        // Handle Chilean format: 1.234.567 or 1.234.567,89
+        if (preg_match('/^\d{1,3}(\.\d{3})*(,\d+)?$/', $cleaned)) {
+            $cleaned = str_replace('.', '', $cleaned);
+            $cleaned = str_replace(',', '.', $cleaned);
+        }
+        // Handle standard format: 1,234,567.89
+        elseif (preg_match('/^\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
+            $cleaned = str_replace(',', '', $cleaned);
+        }
+        // Simple format with comma as decimal
+        elseif (strpos($cleaned, ',') !== false && strpos($cleaned, '.') === false) {
+            $cleaned = str_replace(',', '.', $cleaned);
+        }
+
+        return (float) $cleaned;
+    }
+
+    /**
      * Parse date from Excel
      */
     private function parseDate($dateValue): Carbon
     {
-        // If it's a numeric value (Excel date format)
         if (is_numeric($dateValue)) {
             return Carbon::instance(ExcelDate::excelToDateTimeObject($dateValue));
         }
 
-        // Try to parse as string
         try {
-            // Try DD/MM/YYYY format
             if (preg_match('/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/', $dateValue, $matches)) {
-                return Carbon::createFromFormat('d/m/Y', $dateValue);
+                return Carbon::createFromFormat('d/m/Y', str_replace('-', '/', $dateValue));
             }
 
-            // Try YYYY-MM-DD format
             if (preg_match('/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/', $dateValue)) {
                 return Carbon::parse($dateValue);
             }
 
-            // Try general parsing
             return Carbon::parse($dateValue);
         } catch (\Exception $e) {
             Log::warning("No se pudo parsear fecha: {$dateValue}, usando fecha actual");
@@ -681,27 +1703,48 @@ class ImportManualPaymentsService
 
     /**
      * Map payment type from report codes to manual payment sources
-     * Todos los códigos de forma de pago del sistema
      */
     private function mapPaymentType(string $type): string
     {
         $type = strtoupper(trim($type));
 
-        // Map report codes to manual payment sources
         $mappings = [
-            'TC' => 'manual_card_office',    // POS Oficina
-            'KP' => 'manual_transfer',       // Link KP (Khipu)
-            'PAT' => 'manual_subscription',  // Suscripción Cuotas
-            'TE' => 'manual_transfer',       // Transferencia Banco
-            'VP' => 'manual_card',           // Link TD/TC (Tarjeta Débito/Crédito)
-            'VPI' => 'manual_international', // Link Internacional
-            'DP' => 'manual_deposit',        // Depósito
-            'WP' => 'manual_webpay',         // Webpay
-            // Códigos legacy
-            'BX' => 'manual_card_office',    // Tarjeta presencial (legacy)
+            'TC' => 'manual_card_office',
+            'KP' => 'manual_transfer',
+            'PAT' => 'manual_subscription',
+            'TE' => 'manual_transfer',
+            'VP' => 'manual_card',
+            'VPI' => 'manual_international',
+            'DP' => 'manual_deposit',
+            'WP' => 'manual_webpay',
+            'BX' => 'manual_card_office',
+            'AP' => 'manual_aporte',
         ];
 
         return $mappings[$type] ?? 'manual_card';
+    }
+
+    /**
+     * Map presential payment type to payment option code
+     */
+    private function mapPresentialPaymentTypeToOption(string $type): string
+    {
+        $type = strtoupper(trim($type));
+
+        $mapping = [
+            'TC' => 'presential_pos_office',
+            'KP' => 'presential_khipu_link',
+            'PAT' => 'presential_subscription',
+            'TE' => 'presential_bank_transfer',
+            'VP' => 'presential_debit_credit',
+            'VPI' => 'presential_international',
+            'DP' => 'presential_deposit',
+            'WP' => 'presential_webpay',
+            'BX' => 'presential_pos_office',
+            'AP' => 'presential_aporte',
+        ];
+
+        return $mapping[$type] ?? 'presential_pos_office';
     }
 
     /**
@@ -710,7 +1753,7 @@ class ImportManualPaymentsService
     private function isEmptyRow(array $row): bool
     {
         foreach ($row as $cell) {
-            if (!empty(trim($cell))) {
+            if (!empty(trim($cell ?? ''))) {
                 return false;
             }
         }
@@ -718,31 +1761,13 @@ class ImportManualPaymentsService
     }
 
     /**
-     * Get payment_option_id based on payment_source
-     * Maps internal codes (manual_*) to presential payment options in DB
+     * Validate email format
      */
-    private function getPaymentOptionIdBySource(string $paymentSource): ?int
+    private function validateEmail(?string $email): bool
     {
-        // Map payment_source to payment_option code
-        $mapping = [
-            'manual_card_office' => 'presential_pos_office',         // TC
-            'manual_transfer' => 'presential_bank_transfer',         // TE/KP
-            'manual_subscription' => 'presential_subscription',      // PAT
-            'manual_card' => 'presential_debit_credit',              // VP
-            'manual_international' => 'presential_international',    // VPI
-            'manual_deposit' => 'presential_deposit',                // DP
-            'manual_webpay' => 'presential_webpay',                  // WP
-        ];
-
-        $paymentOptionCode = $mapping[$paymentSource] ?? null;
-
-        if (!$paymentOptionCode) {
-            return null;
+        if (empty($email)) {
+            return false;
         }
-
-        // Find payment_option_id in database
-        $paymentOption = \App\Models\PaymentOption::where('code', $paymentOptionCode)->first();
-
-        return $paymentOption?->id;
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
 }

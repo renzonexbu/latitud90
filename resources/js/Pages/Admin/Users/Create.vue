@@ -40,13 +40,9 @@ const isRoleSelected = (roleName) => {
 
 const getRoleDisplayName = (roleName) => {
     const roleNames = {
-        'super_admin': 'Super Administrador',
-        'admin_contabilidad': 'Administrador de Contabilidad',
-        'editor_contabilidad': 'Editor de Contabilidad',
-        'visualizador_contabilidad': 'Visualizador de Contabilidad',
-        'admin_marketing': 'Administrador de Marketing',
-        'editor_marketing': 'Editor de Marketing',
-        'visualizador_marketing': 'Visualizador de Marketing'
+        'super_admin': 'Super Admin',
+        'contabilidad': 'Contabilidad',
+        'marketing': 'Marketing'
     };
     return roleNames[roleName] || roleName;
 };
@@ -54,12 +50,8 @@ const getRoleDisplayName = (roleName) => {
 const getRoleDescription = (roleName) => {
     const roleDescriptions = {
         'super_admin': 'Acceso total al sistema',
-        'admin_contabilidad': 'Control total sobre el grupo de contabilidad',
-        'editor_contabilidad': 'Puede editar pero no crear usuarios ni eliminar',
-        'visualizador_contabilidad': 'Solo puede visualizar información',
-        'admin_marketing': 'Control total sobre el grupo de marketing',
-        'editor_marketing': 'Puede editar pero no crear usuarios ni eliminar',
-        'visualizador_marketing': 'Solo puede visualizar información'
+        'contabilidad': 'Administrador de Contabilidad - Control total sobre contabilidad',
+        'marketing': 'Administrador de Marketing - Gestión de contenido y reportes comerciales'
     };
     return roleDescriptions[roleName] || '';
 };

@@ -43,14 +43,12 @@
                     <thead class="bg-[#007e93] sticky top-0 z-10">
                         <tr>
                             <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Institución</th>
-                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Nivel</th>
-                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Curso</th>
-                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Año</th>
-                            <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">Programa</th>
+                            <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">Código de Programa</th>
                             <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">Destino</th>
+                            <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">Ejecutivo Comercial</th>
                             <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Participantes</th>
                             <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">% Pago</th>
-                            <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Recaudado / Total</th>
+                            <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">Recaudado Total</th>
                         </tr>
                     </thead>
 
@@ -64,43 +62,37 @@
                                 index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                             ]"
                         >
+                            <!-- Institución -->
                             <td class="px-2 py-2 whitespace-nowrap">
                                 <div class="text-xs font-medium text-gray-900">
                                     {{ capitalize(row.institutionName) }}
                                 </div>
                             </td>
+                            <!-- Código de Programa -->
                             <td class="px-2 py-2 whitespace-nowrap text-center">
-                                <div class="text-xs text-gray-900">
-                                    {{ capitalize(row.educationLevel) }}
-                                </div>
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-center">
-                                <div class="text-xs text-gray-900">
-                                    {{ row.course !== undefined && row.course !== null ? row.course : '—' }}
-                                </div>
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-center">
-                                <div class="text-xs text-gray-900">
-                                    {{ row.year }}
-                                </div>
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap">
                                 <div class="text-xs font-medium text-[#1c4f4a]">
-                                    {{ capitalize(row.programName) }}
+                                    {{ row.programCode || '—' }}
                                 </div>
                             </td>
+                            <!-- Destino -->
                             <td class="px-2 py-2 whitespace-nowrap">
                                 <div class="text-xs font-medium text-[#1c4f4a]">
                                     {{ capitalize(row.destination) }}
                                 </div>
                             </td>
+                            <!-- Ejecutivo Comercial -->
+                            <td class="px-2 py-2 whitespace-nowrap">
+                                <div class="text-xs text-gray-900">
+                                    {{ capitalize(row.executiveName) }}
+                                </div>
+                            </td>
+                            <!-- Participantes -->
                             <td class="px-2 py-2 whitespace-nowrap text-center">
                                 <div class="text-xs text-gray-900">
                                     {{ row.students }}
                                 </div>
                             </td>
-
-                            <!-- Estado badge -->
+                            <!-- % Pago badge -->
                             <td class="px-2 py-2 whitespace-nowrap text-center">
                                 <span
                                     :class="[
@@ -111,7 +103,7 @@
                                     {{ row.percent ?? 0 }}%
                                 </span>
                             </td>
-
+                            <!-- Recaudado Total -->
                             <td class="px-2 py-2 whitespace-nowrap text-right">
                                 <div class="text-xs font-bold text-gray-900">
                                     {{ formatAmount(row.totalCollected) }} / {{ formatAmount(row.targetAmount) }}
@@ -165,9 +157,10 @@ export default {
             if (!term) return this.rows;
             return this.rows.filter((r) => {
                 const a = (r.institutionName || "").toLowerCase();
-                const b = (r.programName || "").toLowerCase();
+                const b = (r.programCode || "").toLowerCase();
                 const c = (r.destination || "").toLowerCase();
-                return a.includes(term) || b.includes(term) || c.includes(term);
+                const d = (r.executiveName || "").toLowerCase();
+                return a.includes(term) || b.includes(term) || c.includes(term) || d.includes(term);
             });
         },
         paginatedRows() {

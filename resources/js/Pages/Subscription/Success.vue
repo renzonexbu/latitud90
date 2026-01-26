@@ -128,7 +128,7 @@
           <div>
             <h3 class="text-lg font-semibold text-blue-900 mb-2">Confirmacion por correo</h3>
             <p class="text-blue-800 text-sm">
-              En unos minutos recibiras un correo electronico con la confirmacion de tu pago y los documentos asociados (comprobante y/o boleta).
+              En unos minutos recibiras un correo electronico con la confirmacion de tu pago y los documentos asociados.
             </p>
           </div>
         </div>

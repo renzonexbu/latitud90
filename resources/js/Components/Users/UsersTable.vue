@@ -167,12 +167,8 @@ export default {
         getRoleClass(roleName) {
             const roleClasses = {
                 'super_admin': 'bg-purple-600',
-                'admin_contabilidad': 'bg-blue-600',
-                'editor_contabilidad': 'bg-blue-500',
-                'visualizador_contabilidad': 'bg-blue-400',
-                'admin_marketing': 'bg-green-600',
-                'editor_marketing': 'bg-green-500',
-                'visualizador_marketing': 'bg-green-400',
+                'contabilidad': 'bg-blue-600',
+                'marketing': 'bg-green-600'
             };
             return roleClasses[roleName] || 'bg-gray-500';
         },
@@ -180,12 +176,8 @@ export default {
         getRoleLabel(roleName) {
             const roleLabels = {
                 'super_admin': 'Super Admin',
-                'admin_contabilidad': 'Admin Cont.',
-                'editor_contabilidad': 'Editor Cont.',
-                'visualizador_contabilidad': 'Visual. Cont.',
-                'admin_marketing': 'Admin Mkt.',
-                'editor_marketing': 'Editor Mkt.',
-                'visualizador_marketing': 'Visual. Mkt.',
+                'contabilidad': 'Contabilidad',
+                'marketing': 'Marketing'
             };
             return roleLabels[roleName] || roleName;
         },

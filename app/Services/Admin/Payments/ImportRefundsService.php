@@ -31,6 +31,131 @@ class ImportRefundsService
     }
 
     /**
+     * Preview archivo Excel de devoluciones WITHOUT inserting into database
+     * Shows what would be imported for user confirmation
+     */
+    public function previewExcel($file): array
+    {
+        try {
+            // Guardar el archivo temporalmente
+            $filePath = $file->store('temp/refunds', 'public');
+            $fullPath = storage_path('app/public/' . $filePath);
+
+            // Leer el archivo Excel
+            $spreadsheet = IOFactory::load($fullPath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $rows = $worksheet->toArray();
+
+            // Buscar dinámicamente la fila que contiene los headers
+            $headerRowIndex = $this->findHeaderRow($rows);
+            if ($headerRowIndex === -1) {
+                throw new \Exception("No se encontraron los headers requeridos en el archivo Excel");
+            }
+
+            // Extraer headers y datos
+            $headers = $rows[$headerRowIndex];
+            $dataRows = array_slice($rows, $headerRowIndex + 1);
+
+            Log::info('=== PREVIEW DE DEVOLUCIONES ===');
+            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1));
+            Log::info('Número de filas de datos: ' . count($dataRows));
+
+            // Validar headers
+            $this->validateHeaders($headers);
+
+            // Preview de cada fila (NO insertar en BD)
+            $results = [
+                'processed' => 0,
+                'successful' => 0,
+                'warnings' => 0,
+                'errors' => 0,
+                'details' => []
+            ];
+
+            $previewLimit = 500; // Limit preview to first 500 rows
+            $rowCount = 0;
+
+            foreach ($dataRows as $rowIndex => $row) {
+                if ($rowCount >= $previewLimit) {
+                    break;
+                }
+
+                // Saltar filas vacías
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Asegurar que la fila tenga el mismo número de columnas que los headers
+                while (count($row) < count($headers)) {
+                    $row[] = '';
+                }
+
+                $rowData = array_combine($headers, $row);
+                $results['processed']++;
+
+                try {
+                    // Preview de la fila (NO insertar en BD)
+                    $result = $this->previewRefundRow($rowData, $headerRowIndex + 2 + $rowIndex);
+
+                    if ($result['success']) {
+                        $results['successful']++;
+                        if ($result['warning']) {
+                            $results['warnings']++;
+                        }
+                    } else {
+                        $results['errors']++;
+                    }
+
+                    $results['details'][] = $result;
+
+                } catch (\Exception $e) {
+                    Log::error('Error en preview fila ' . ($headerRowIndex + 2 + $rowIndex) . ': ' . $e->getMessage());
+                    $results['errors']++;
+                    $results['details'][] = [
+                        'row' => $headerRowIndex + 2 + $rowIndex,
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                        'warning' => false
+                    ];
+                }
+
+                $rowCount++;
+            }
+
+            // Limpiar archivo temporal
+            unlink($fullPath);
+
+            Log::info('Preview de devoluciones completado', [
+                'stats' => $results,
+                'rows_previewed' => $rowCount
+            ]);
+
+            return [
+                'success' => true,
+                'results' => $results,
+                'total_rows' => count($dataRows),
+                'previewed_rows' => $rowCount
+            ];
+
+        } catch (\Exception $e) {
+            // Limpiar archivo temporal si existe
+            if (isset($fullPath) && file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+
+            Log::error('Error en preview de devoluciones', [
+                'error' => $e->getMessage(),
+                'file' => $file->getClientOriginalName()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Procesar archivo Excel de devoluciones
      */
     public function processExcel($file): array
@@ -245,6 +370,98 @@ class ImportRefundsService
                 throw new \Exception("Header requerido no encontrado: {$expected}");
             }
         }
+    }
+
+    /**
+     * Preview una fila de devolución WITHOUT database insert
+     * Returns what would be inserted for user confirmation
+     */
+    private function previewRefundRow(array $rowData, int $rowNumber): array
+    {
+        $result = [
+            'row' => $rowNumber,
+            'success' => false,
+            'error' => null,
+            'warning' => false,
+            'warning_message' => null,
+            'data' => null
+        ];
+
+        try {
+            // Validar datos de la fila
+            $validation = $this->validateRowData($rowData, $rowNumber);
+            if (!$validation['valid']) {
+                $result['error'] = $validation['error'];
+                return $result;
+            }
+
+            // Buscar la relación participant_program por enrollment_code
+            $enrollmentCode = trim($rowData['Negocio Afiliado']);
+            $participantProgram = ParticipantProgram::where('enrollment_code', $enrollmentCode)->first();
+
+            if (!$participantProgram) {
+                $result['error'] = "Código de inscripción '{$enrollmentCode}' no encontrado";
+                return $result;
+            }
+
+            // Encontrar el ProgramCourse correspondiente
+            $order = Order::where('participant_id', $participantProgram->participant_id)
+                ->whereHas('programCourse', function($q) use ($participantProgram) {
+                    $q->where('program_id', $participantProgram->program_id);
+                })
+                ->first();
+
+            if (!$order) {
+                $result['error'] = "No se encontró una orden asociada a este código de inscripción";
+                return $result;
+            }
+
+            $programCourseId = $order->program_id;
+            $participant = Participant::find($participantProgram->participant_id);
+            $programCourse = ProgramCourse::find($programCourseId);
+            $cleanRut = RutHelper::clean(trim($rowData['RUT']));
+
+            // Calcular monto pagado para validación
+            $paidAmount = $this->calculatePaidAmount($participant->id, $programCourseId);
+            $refundAmount = abs(floatval($rowData['Total']));
+
+            // Validar que el monto pagado sea suficiente
+            if ($paidAmount < $refundAmount) {
+                $result['error'] = "Monto pagado insuficiente. Pagado: $" . number_format($paidAmount) . ", Devolución: $" . number_format($refundAmount);
+                return $result;
+            }
+
+            // Advertencia si el monto pagado es justo
+            if ($paidAmount == $refundAmount) {
+                $result['warning'] = true;
+                $result['warning_message'] = "El participante quedará con saldo 0 después de la devolución";
+            }
+
+            // Calculate new balance
+            $newBalance = $paidAmount - $refundAmount;
+
+            // Return preview data WITHOUT inserting
+            $result['success'] = true;
+            $result['data'] = [
+                'enrollment_code' => $enrollmentCode,
+                'participant_name' => $participant->first_name . ' ' . $participant->first_last_name,
+                'participant_rut' => $participant->rut,
+                'program_name' => $programCourse->name,
+                'refund_amount' => $refundAmount,
+                'transaction_date' => $this->parseDate($rowData['Fecha']),
+                'sii_code' => trim($rowData['Cod. SII']),
+                'document_number' => trim($rowData['N. Documento']),
+                'client_rut' => $cleanRut,
+                'client_name' => trim($rowData['Nombre del Cliente']),
+                'paid_amount' => $paidAmount,
+                'new_balance' => $newBalance,
+            ];
+
+        } catch (\Exception $e) {
+            $result['error'] = $e->getMessage();
+        }
+
+        return $result;
     }
 
     /**

@@ -239,7 +239,7 @@
                                             <label
                                                 class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                             >
-                                                Correo electrónico *
+                                                Correo electrónico
                                             </label>
                                             <input
                                                 type="email"
@@ -778,7 +778,7 @@ const isBuyerFormValid = computed(() => {
         fullName: buyerForm.fullName.trim() !== "",
         documentType: buyerForm.documentType !== "",
         documentNumber: buyerForm.documentNumber.trim() !== "",
-        email: buyerForm.email.trim() !== "",
+        // Email es opcional para pagos presenciales
     };
 
     const basicValidation = Object.values(validations).every((v) => v === true);

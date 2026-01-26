@@ -2,36 +2,24 @@
     <div class="bg-white rounded-lg border border-gray-200">
         <!-- Scroll Container -->
         <div class="overflow-x-auto">
-            <table class="w-full text-xs" style="min-width: 1400px;">
+            <table class="w-full text-xs" style="min-width: 900px;">
                 <!-- Table Header -->
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[280px]">
-                            Nombre del Programa
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            Código
                         </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">
                             Institución
                         </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Nivel
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Curso
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Año
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">
                             Destino
-                        </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
-                            Código
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Participantes
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            % Pago
+                            % de Pago
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
                             Recaudado / Total
@@ -52,46 +40,31 @@
                             index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         ]"
                     >
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-gray-900">
-                                {{ capitalizeWords(getProgramCourseName(course)) }}
-                            </div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
-                            </div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">
-                                {{ capitalizeWords(course.education_level) }}
-                            </div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">
-                                {{ course.course_display }}
-                            </div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">
-                                {{ course.year }}
-                            </div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-[#1c4f4a]">
-                                {{ capitalizeWords(getProgramDestination(course)) }}
-                            </div>
-                        </td>
+                        <!-- Código -->
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs font-medium text-[#1c4f4a]">
                                 {{ getProgramCode(course) }}
                             </div>
                         </td>
+                        <!-- Institución -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
+                            </div>
+                        </td>
+                        <!-- Destino -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ capitalizeWords(getProgramDestination(course)) }}
+                            </div>
+                        </td>
+                        <!-- Participantes -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">
                                 {{ course.total_students || 0 }}
                             </div>
                         </td>
+                        <!-- % de Pago -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <span
                                 :class="[
@@ -102,11 +75,13 @@
                                 {{ getCoursePaymentPercentage(course) }}
                             </span>
                         </td>
+                        <!-- Recaudado / Total -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">
                                 {{ formatCurrency(course.course_paid_amount || 0) }} / {{ formatCurrency(course.course_total_amount || 0) }}
                             </div>
                         </td>
+                        <!-- Acciones -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <button
                                 @click="editCourse(course.id)"

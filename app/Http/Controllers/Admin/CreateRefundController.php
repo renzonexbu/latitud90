@@ -41,6 +41,51 @@ class CreateRefundController extends Controller
     }
 
     /**
+     * Preview la importación desde Excel WITHOUT inserting into database
+     * Shows what would be imported for user confirmation
+     */
+    public function preview(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx,xls|max:10240', // 10MB máximo
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first()
+            ], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+
+            // Preview el archivo Excel (NO database inserts)
+            $result = $this->importRefundsService->previewExcel($file);
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'results' => $result['results'],
+                    'total_rows' => $result['total_rows'] ?? 0,
+                    'previewed_rows' => $result['previewed_rows'] ?? 0,
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'error' => $result['error']
+                ], 422);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Procesar la importación desde Excel
      */
     public function importStore(Request $request)

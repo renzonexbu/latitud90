@@ -17,12 +17,12 @@
 
                     <!-- Title -->
                     <h3 class="mt-6 text-xl font-nexa-bold text-verde-oscuro">
-                        Procesando archivo...
+                        {{ isConfirming ? 'Insertando pagos en la base de datos...' : 'Procesando archivo...' }}
                     </h3>
 
                     <!-- Message -->
                     <p class="mt-2 text-gray-600 font-nexa-regular text-center">
-                        Esto puede tardar varios minutos dependiendo del tamaño del archivo.
+                        {{ isConfirming ? 'Por favor espera mientras se insertan los pagos.' : 'Esto puede tardar varios minutos dependiendo del tamaño del archivo.' }}
                     </p>
 
                     <!-- File info -->
@@ -38,6 +38,156 @@
                         <p class="text-xs text-yellow-800 font-nexa-regular text-center">
                             Por favor, no cierres esta ventana ni navegues a otra página mientras se procesa el archivo.
                         </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Modal -->
+        <div v-if="showPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl w-full max-w-7xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+                <!-- Modal Header -->
+                <div class="bg-turquesa text-white px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-2xl font-nexa-bold">Vista Previa de Importación</h3>
+                        <p class="text-sm font-nexa-regular mt-1 opacity-90">
+                            Revisa los datos antes de confirmar la inserción en la base de datos
+                        </p>
+                    </div>
+                    <button @click="closePreview" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Stats Summary -->
+                <div v-if="previewData" class="px-6 py-4 bg-gray-50 border-b">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-nexa-bold text-verde-oscuro">{{ previewData.stats.successful }}</div>
+                            <div class="text-sm text-gray-600 font-nexa-regular">Pagos válidos</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-nexa-bold text-yellow-600">{{ previewData.stats.skipped }}</div>
+                            <div class="text-sm text-gray-600 font-nexa-regular">Registros omitidos</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-nexa-bold text-red-600">{{ previewData.stats.failed }}</div>
+                            <div class="text-sm text-gray-600 font-nexa-regular">Registros con errores</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-nexa-bold text-blue-600">{{ previewData.previewed_rows }}</div>
+                            <div class="text-sm text-gray-600 font-nexa-regular">Filas procesadas</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Content -->
+                <div class="flex-1 overflow-y-auto px-6 py-4">
+                    <div v-if="previewData && previewData.details" class="space-y-4">
+                        <!-- Success Records -->
+                        <div v-if="successfulDetails.length > 0" class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-green-50 px-4 py-3 border-b border-green-200">
+                                <h4 class="font-nexa-bold text-green-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Pagos Válidos ({{ successfulDetails.length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-96 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in successfulDetails" :key="'success-' + index"
+                                        class="p-3 bg-green-50 rounded border border-green-200 text-sm">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <div class="font-nexa-bold text-green-900 mb-1">
+                                                    Fila {{ detail.row }}: {{ detail.data?.participant_name }}
+                                                </div>
+                                                <div class="text-green-800 font-nexa-regular grid grid-cols-2 gap-x-4 gap-y-1">
+                                                    <div><span class="font-semibold">RUT:</span> {{ detail.data?.participant_rut }}</div>
+                                                    <div><span class="font-semibold">Programa:</span> {{ detail.data?.program_name }}</div>
+                                                    <div><span class="font-semibold">Monto:</span> ${{ formatNumber(detail.data?.payment_amount) }}</div>
+                                                    <div><span class="font-semibold">Tipo:</span> {{ detail.data?.payment_type_label }}</div>
+                                                    <div><span class="font-semibold">Saldo Anterior:</span> ${{ formatNumber(detail.data?.previous_balance) }}</div>
+                                                    <div><span class="font-semibold">Nuevo Saldo:</span> ${{ formatNumber(detail.data?.new_balance) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Skipped Records -->
+                        <div v-if="skippedDetails.length > 0" class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-yellow-50 px-4 py-3 border-b border-yellow-200">
+                                <h4 class="font-nexa-bold text-yellow-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    Registros Omitidos ({{ skippedDetails.length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-96 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in skippedDetails" :key="'skipped-' + index"
+                                        class="p-3 bg-yellow-50 rounded border border-yellow-200 text-sm">
+                                        <div class="font-nexa-bold text-yellow-900 mb-1">Fila {{ detail.row }}</div>
+                                        <div class="text-yellow-800 font-nexa-regular">{{ detail.message }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Failed Records -->
+                        <div v-if="failedDetails.length > 0" class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-red-50 px-4 py-3 border-b border-red-200">
+                                <h4 class="font-nexa-bold text-red-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Registros con Errores ({{ failedDetails.length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-96 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in failedDetails" :key="'failed-' + index"
+                                        class="p-3 bg-red-50 rounded border border-red-200 text-sm">
+                                        <div class="font-nexa-bold text-red-900 mb-1">Fila {{ detail.row }}</div>
+                                        <div class="text-red-800 font-nexa-regular">{{ detail.message }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t flex justify-between items-center">
+                    <div class="text-sm text-gray-600 font-nexa-regular">
+                        <span v-if="previewData && previewData.stats.successful > 0" class="text-verde-oscuro font-nexa-bold">
+                            {{ previewData.stats.successful }} pagos válidos
+                        </span>
+                        <span v-if="previewData && previewData.stats.failed > 0" class="ml-3 text-red-600 font-nexa-bold">
+                            {{ previewData.stats.failed }} con errores
+                        </span>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="closePreview"
+                            class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-nexa-bold transition-colors">
+                            Cancelar
+                        </button>
+                        <button @click="confirmImport"
+                            :disabled="!previewData || previewData.stats.successful === 0 || form.processing"
+                            class="px-6 py-2 bg-turquesa hover:bg-turquesa-dark text-white font-nexa-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <svg v-if="form.processing" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Confirmar e Insertar Pagos
+                        </button>
                     </div>
                 </div>
             </div>
@@ -64,7 +214,7 @@
 
                 <!-- Upload Form -->
                 <div class="bg-white shadow-sm rounded-lg p-6">
-                    <form @submit.prevent="submit">
+                    <form @submit.prevent="submitPreview">
                         <!-- File Upload Area -->
                         <div
                             @dragover.prevent="dragOver = true"
@@ -139,7 +289,7 @@
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                {{ form.processing ? 'Procesando...' : 'Importar Pagos' }}
+                                {{ form.processing ? 'Procesando...' : 'Ver Vista Previa' }}
                             </button>
                             <Link
                                 :href="route('admin.payments.presential.menu')"
@@ -171,161 +321,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Omitted Records -->
-                    <div v-if="skippedDetails.length > 0" class="bg-white shadow-sm rounded-lg p-6">
-                        <h3 class="font-nexa-bold text-yellow-800 mb-4 text-lg flex items-center gap-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                            </svg>
-                            Registros Omitidos ({{ skippedDetails.length }})
-                        </h3>
-                        <p class="text-sm text-gray-600 font-nexa-regular mb-4">
-                            Los siguientes registros fueron omitidos y no se procesaron:
-                        </p>
-                        <div class="space-y-4">
-                            <div
-                                v-for="(detail, index) in skippedDetails"
-                                :key="'skipped-' + index"
-                                class="border border-yellow-300 rounded-lg overflow-hidden"
-                            >
-                                <div class="bg-yellow-50 p-4">
-                                    <div class="flex items-start justify-between">
-                                        <div>
-                                            <div class="font-nexa-bold text-yellow-900 text-base mb-1">
-                                                Fila {{ detail.row }} del Excel
-                                            </div>
-                                            <div class="text-yellow-800 font-nexa-regular text-sm">
-                                                <span class="font-semibold">Motivo:</span> {{ detail.message }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="bg-white p-4 border-t border-yellow-200">
-                                    <div class="font-nexa-bold text-gray-700 mb-3">Datos del Excel:</div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                        <div v-if="detail.data?.row_data?.rut">
-                                            <span class="font-semibold text-gray-600">RUT:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.rut }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.nro_negocio">
-                                            <span class="font-semibold text-gray-600">Nro. Negocio:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.nro_negocio }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.monto">
-                                            <span class="font-semibold text-gray-600">Monto:</span>
-                                            <span class="ml-2">${{ detail.data.row_data.monto }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.fecha_pago">
-                                            <span class="font-semibold text-gray-600">Fecha de Pago:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.fecha_pago }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.tipo_pago">
-                                            <span class="font-semibold text-gray-600">Tipo de Pago:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.tipo_pago }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.contacto_pagador">
-                                            <span class="font-semibold text-gray-600">Pagador:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.contacto_pagador }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.email_contacto_pagador">
-                                            <span class="font-semibold text-gray-600">Email Pagador:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.email_contacto_pagador }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.referencia">
-                                            <span class="font-semibold text-gray-600">Referencia:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.referencia }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.notas" class="md:col-span-2">
-                                            <span class="font-semibold text-gray-600">Notas:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.notas }}</span>
-                                        </div>
-                                    </div>
-                                    <!-- Participant Info if available -->
-                                    <div v-if="detail.data?.participant" class="mt-4 pt-4 border-t border-gray-200">
-                                        <div class="font-nexa-bold text-gray-700 mb-2">Participante identificado:</div>
-                                        <div class="text-sm text-gray-600">
-                                            {{ detail.data.participant.name }} ({{ detail.data.participant.rut }})
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Failed Records -->
-                    <div v-if="failedDetails.length > 0" class="bg-white shadow-sm rounded-lg p-6">
-                        <h3 class="font-nexa-bold text-red-800 mb-4 text-lg flex items-center gap-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            Registros con Errores ({{ failedDetails.length }})
-                        </h3>
-                        <p class="text-sm text-gray-600 font-nexa-regular mb-4">
-                            Los siguientes registros no pudieron ser procesados debido a errores:
-                        </p>
-                        <div class="space-y-4">
-                            <div
-                                v-for="(detail, index) in failedDetails"
-                                :key="'failed-' + index"
-                                class="border border-red-300 rounded-lg overflow-hidden"
-                            >
-                                <div class="bg-red-50 p-4">
-                                    <div class="flex items-start justify-between">
-                                        <div>
-                                            <div class="font-nexa-bold text-red-900 text-base mb-1">
-                                                Fila {{ detail.row }} del Excel
-                                            </div>
-                                            <div class="text-red-800 font-nexa-regular text-sm">
-                                                <span class="font-semibold">Error:</span> {{ detail.message }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="bg-white p-4 border-t border-red-200">
-                                    <div class="font-nexa-bold text-gray-700 mb-3">Datos del Excel:</div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                        <div v-if="detail.data?.row_data?.rut">
-                                            <span class="font-semibold text-gray-600">RUT:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.rut }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.nro_negocio">
-                                            <span class="font-semibold text-gray-600">Nro. Negocio:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.nro_negocio }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.monto">
-                                            <span class="font-semibold text-gray-600">Monto:</span>
-                                            <span class="ml-2">${{ detail.data.row_data.monto }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.fecha_pago">
-                                            <span class="font-semibold text-gray-600">Fecha de Pago:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.fecha_pago }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.tipo_pago">
-                                            <span class="font-semibold text-gray-600">Tipo de Pago:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.tipo_pago }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.contacto_pagador">
-                                            <span class="font-semibold text-gray-600">Pagador:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.contacto_pagador }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.email_contacto_pagador">
-                                            <span class="font-semibold text-gray-600">Email Pagador:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.email_contacto_pagador }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.referencia">
-                                            <span class="font-semibold text-gray-600">Referencia:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.referencia }}</span>
-                                        </div>
-                                        <div v-if="detail.data?.row_data?.notas" class="md:col-span-2">
-                                            <span class="font-semibold text-gray-600">Notas:</span>
-                                            <span class="ml-2">{{ detail.data.row_data.notas }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -337,26 +332,35 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AlertWrapper from '@/Components/Admin/AlertWrapper.vue';
+import axios from 'axios';
 
 const page = usePage();
 const fileInput = ref(null);
 const dragOver = ref(false);
 const results = ref(null);
 const alertWrapper = ref(null);
+const showPreviewModal = ref(false);
+const previewData = ref(null);
+const isConfirming = ref(false);
 
 const form = useForm({
     file: null
 });
 
-// Computed properties to filter skipped and failed details
+// Computed properties to filter details
+const successfulDetails = computed(() => {
+    if (!previewData.value || !previewData.value.details) return [];
+    return previewData.value.details.filter(detail => detail.status === 'success');
+});
+
 const skippedDetails = computed(() => {
-    if (!results.value || !results.value.details) return [];
-    return results.value.details.filter(detail => detail.status === 'skipped');
+    if (!previewData.value || !previewData.value.details) return [];
+    return previewData.value.details.filter(detail => detail.status === 'skipped');
 });
 
 const failedDetails = computed(() => {
-    if (!results.value || !results.value.details) return [];
-    return results.value.details.filter(detail => detail.status === 'error');
+    if (!previewData.value || !previewData.value.details) return [];
+    return previewData.value.details.filter(detail => detail.status === 'error');
 });
 
 const handleFileSelect = (event) => {
@@ -400,6 +404,8 @@ const removeFile = () => {
     if (fileInput.value) {
         fileInput.value.value = '';
     }
+    previewData.value = null;
+    showPreviewModal.value = false;
 };
 
 const formatFileSize = (bytes) => {
@@ -410,10 +416,56 @@ const formatFileSize = (bytes) => {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 };
 
-const submit = () => {
+const formatNumber = (value) => {
+    if (!value) return '0';
+    return new Intl.NumberFormat('es-CL').format(value);
+};
+
+const submitPreview = async () => {
+    if (!form.file) {
+        alertWrapper.value?.showError('Error', 'Debe seleccionar un archivo para importar.');
+        return;
+    }
+
+    form.processing = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('file', form.file);
+
+        const response = await axios.post(route('admin.payments.presential.import-preview'), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        if (response.data.success) {
+            previewData.value = response.data;
+            showPreviewModal.value = true;
+        } else {
+            alertWrapper.value?.showError('Error al previsualizar', response.data.error || 'Ocurrió un error al procesar el archivo.');
+        }
+    } catch (error) {
+        console.error('Error al previsualizar:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al procesar el archivo.';
+        alertWrapper.value?.showError('Error al previsualizar', errorMessage);
+    } finally {
+        form.processing = false;
+    }
+};
+
+const closePreview = () => {
+    showPreviewModal.value = false;
+};
+
+const confirmImport = () => {
+    isConfirming.value = true;
     form.post(route('admin.payments.presential.import-store'), {
         preserveScroll: true,
         onSuccess: () => {
+            showPreviewModal.value = false;
+            isConfirming.value = false;
+
             // Handle success - results will be in flash data
             if (page.props.flash.importResults) {
                 results.value = page.props.flash.importResults;
@@ -448,8 +500,12 @@ const submit = () => {
                 );
             }
             form.reset();
+            previewData.value = null;
         },
         onError: (errors) => {
+            isConfirming.value = false;
+            showPreviewModal.value = false;
+
             // Mostrar alerta de error
             const errorMessage = errors.file || 'Ocurrió un error al procesar el archivo.';
             alertWrapper.value?.showError(

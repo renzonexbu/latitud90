@@ -45,9 +45,14 @@
                                             v-model="selectedRoles"
                                             :value="role.name"
                                             type="checkbox"
-                                            class="h-4 w-4 text-turquesa focus:ring-turquesa border-gray-300 rounded"
+                                            :disabled="isRoleDisabled(role.name)"
+                                            class="h-4 w-4 text-turquesa focus:ring-turquesa border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
-                                        <label :for="`role-${role.id}`" class="ml-3 flex flex-col">
+                                        <label
+                                            :for="`role-${role.id}`"
+                                            class="ml-3 flex flex-col"
+                                            :class="{ 'opacity-50 cursor-not-allowed': isRoleDisabled(role.name) }"
+                                        >
                                             <span class="text-sm font-medium text-gray-900">{{ getRoleDisplayName(role.name) }}</span>
                                             <span class="text-xs text-gray-500">{{ getRoleDescription(role.name) }}</span>
                                         </label>
@@ -139,13 +144,10 @@ const saveRoles = async () => {
 
 const getRoleDisplayName = (roleName) => {
     const roleNames = {
-        'super_admin': 'Super Administrador',
-        'admin_contabilidad': 'Administrador de Contabilidad',
-        'editor_contabilidad': 'Editor de Contabilidad',
-        'visualizador_contabilidad': 'Visualizador de Contabilidad',
-        'admin_marketing': 'Administrador de Marketing',
-        'editor_marketing': 'Editor de Marketing',
-        'visualizador_marketing': 'Visualizador de Marketing'
+        'super_admin': 'Super Admin',
+        'contabilidad': 'Contabilidad',
+        'marketing': 'Marketing',
+        'ejecutivo_comercial': 'Ejecutivo Comercial'
     };
     return roleNames[roleName] || roleName;
 };
@@ -153,14 +155,71 @@ const getRoleDisplayName = (roleName) => {
 const getRoleDescription = (roleName) => {
     const roleDescriptions = {
         'super_admin': 'Acceso total al sistema',
-        'admin_contabilidad': 'Control total sobre el grupo de contabilidad',
-        'editor_contabilidad': 'Puede editar pero no crear usuarios ni eliminar',
-        'visualizador_contabilidad': 'Solo puede visualizar información',
-        'admin_marketing': 'Control total sobre el grupo de marketing',
-        'editor_marketing': 'Puede editar pero no crear usuarios ni eliminar',
-        'visualizador_marketing': 'Solo puede visualizar información'
+        'contabilidad': 'Administrador de Contabilidad - Control total sobre contabilidad',
+        'marketing': 'Administrador de Marketing - Gestión de contenido y reportes comerciales',
+        'ejecutivo_comercial': 'Acceso limitado a reportes de ejecutivos comerciales'
     };
     return roleDescriptions[roleName] || '';
+};
+
+/**
+ * Determinar si un rol debe estar deshabilitado según los roles seleccionados
+ */
+const isRoleDisabled = (roleName) => {
+    // Si no hay roles seleccionados, ninguno está deshabilitado
+    if (selectedRoles.value.length === 0) {
+        return false;
+    }
+
+    // Si el rol ya está seleccionado, no está deshabilitado
+    if (selectedRoles.value.includes(roleName)) {
+        return false;
+    }
+
+    // Super admin seleccionado: deshabilitar todos los demás
+    if (selectedRoles.value.includes('super_admin')) {
+        return true;
+    }
+
+    // Contabilidad seleccionado: deshabilitar marketing, ejecutivo_comercial y super_admin
+    if (selectedRoles.value.includes('contabilidad')) {
+        return ['marketing', 'ejecutivo_comercial', 'super_admin'].includes(roleName);
+    }
+
+    // Marketing seleccionado: deshabilitar contabilidad y super_admin
+    if (selectedRoles.value.includes('marketing')) {
+        return ['contabilidad', 'super_admin'].includes(roleName);
+    }
+
+    // Ejecutivo comercial seleccionado: deshabilitar contabilidad y super_admin
+    if (selectedRoles.value.includes('ejecutivo_comercial')) {
+        return ['contabilidad', 'super_admin'].includes(roleName);
+    }
+
+    // Si se intenta seleccionar super_admin pero hay otros roles seleccionados
+    if (roleName === 'super_admin' && selectedRoles.value.length > 0) {
+        return true;
+    }
+
+    // Si se intenta seleccionar contabilidad pero hay marketing o ejecutivo_comercial seleccionado
+    if (roleName === 'contabilidad' && (
+        selectedRoles.value.includes('marketing') ||
+        selectedRoles.value.includes('ejecutivo_comercial')
+    )) {
+        return true;
+    }
+
+    // Si se intenta seleccionar marketing pero hay contabilidad seleccionado
+    if (roleName === 'marketing' && selectedRoles.value.includes('contabilidad')) {
+        return true;
+    }
+
+    // Si se intenta seleccionar ejecutivo_comercial pero hay contabilidad seleccionado
+    if (roleName === 'ejecutivo_comercial' && selectedRoles.value.includes('contabilidad')) {
+        return true;
+    }
+
+    return false;
 };
 </script>
 

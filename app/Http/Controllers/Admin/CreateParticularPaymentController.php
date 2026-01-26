@@ -96,7 +96,7 @@ class CreateParticularPaymentController extends Controller
             'buyer_full_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
-            'buyer_email' => 'required|email|max:255',
+            'buyer_email' => 'nullable|email|max:255',
         ]);
 
         if ($validator->fails()) {

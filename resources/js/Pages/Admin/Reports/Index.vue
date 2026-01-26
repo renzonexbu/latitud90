@@ -1032,7 +1032,7 @@ import { Chart, registerables } from "chart.js";
 const page = usePage();
 const canViewPayerContact = computed(() => {
     const permissions = page.props.auth?.user?.permissions || [];
-    return permissions.includes('ver_contacto_pagador');
+    return permissions.includes('ver_contacto_pagador') || permissions.includes('ver_reportes_executives');
 });
 
 Chart.register(...registerables);
