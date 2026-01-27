@@ -62,7 +62,7 @@ class StoreCourseRequest extends CourseRequest
             'program_id' => ['required', 'exists:programs,id'],
             'code' => ['required', 'string', 'max:50', 'unique:program_courses,code'],
             'destination' => ['required', 'string', 'max:255'],
-            'departure_date' => ['required', 'date'],
+            'departure_date' => ['required', 'date', 'after_or_equal:today'],
             'trip_price' => ['required', 'numeric', 'min:0'],
             'final_payment_date' => ['required', 'date'],
 
@@ -122,7 +122,8 @@ class StoreCourseRequest extends CourseRequest
             // Fechas
             'departure_date.required' => 'La fecha de salida es obligatoria',
             'departure_date.date' => 'La fecha de salida debe ser una fecha válida',
-                        'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
+            'departure_date.after_or_equal' => 'La fecha de inicio no puede ser anterior a hoy',
+            'final_payment_date.required' => 'La fecha límite de pago es obligatoria',
             'final_payment_date.date' => 'La fecha límite de pago debe ser una fecha válida',
 
             // Precio

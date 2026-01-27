@@ -189,9 +189,13 @@
                                                                 type="date"
                                                                 v-model="form.departure_date"
                                                                 class="admin-input-text"
-                                                                :class="{ 'border-red-500': errors.departure_date }"
+                                                                :class="{ 'border-red-500': errors.departure_date || departureDateError }"
+                                                                :min="todayDate"
                                                             />
-                                                            <span v-if="errors.departure_date" class="text-red-500 text-sm mt-1">
+                                                            <span v-if="departureDateError" class="text-red-500 text-sm mt-1">
+                                                                {{ departureDateError }}
+                                                            </span>
+                                                            <span v-else-if="errors.departure_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.departure_date }}
                                                             </span>
                                                         </div>
@@ -206,8 +210,8 @@
                                                                 class="admin-input-text"
                                                                 :class="{ 'border-red-500': errors.final_payment_date }"
                                                             >
-                                                                <option value="30">30 días antes</option>
-                                                                <option value="60">60 días antes</option>
+                                                                <option value="31">30 días antes</option>
+                                                                <option value="61">60 días antes</option>
                                                                 <option value="custom">Otra fecha</option>
                                                             </select>
                                                             <input
@@ -225,6 +229,9 @@
                                                             </span>
                                                             <span v-if="form.payment_days_before !== 'custom' && calculatedFinalPaymentDate && form.departure_date" class="text-gray-600 text-xs mt-1 block">
                                                                 Fecha calculada: {{ formatDateForDisplay(calculatedFinalPaymentDate) }}
+                                                            </span>
+                                                            <span v-if="finalPaymentDateWarning" class="text-red-500 text-sm mt-1 block">
+                                                                ⚠️ {{ finalPaymentDateWarning }}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -957,7 +964,7 @@ const form = ref({
     destination: '',
     departure_date: '',
     trip_price: '',
-    payment_days_before: '60', // Default: 60 días antes
+    payment_days_before: '61', // Default: 61 días antes
     final_payment_date: '',
     custom_final_payment_date: '', // Para fecha personalizada
 
@@ -1084,6 +1091,45 @@ const calculatedFinalPaymentDate = computed(() => {
 
     // Retornar en formato YYYY-MM-DD
     return finalPaymentDate.toISOString().split('T')[0];
+});
+
+// Fecha de hoy en formato YYYY-MM-DD para el atributo min del input
+const todayDate = computed(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+});
+
+// Advertencia si la fecha final de pago es anterior a hoy (solo visual, no bloquea)
+const finalPaymentDateWarning = computed(() => {
+    const dateToCheck = form.value.payment_days_before === 'custom'
+        ? form.value.custom_final_payment_date
+        : calculatedFinalPaymentDate.value;
+
+    if (!dateToCheck) return '';
+
+    const selectedDate = new Date(dateToCheck + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        return 'La fecha seleccionada es anterior a hoy';
+    }
+    return '';
+});
+
+// Validación en tiempo real de la fecha de inicio (departure_date)
+const departureDateError = computed(() => {
+    if (!form.value.departure_date) {
+        return null;
+    }
+    const selectedDate = new Date(form.value.departure_date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        return 'La fecha de inicio no puede ser anterior a hoy';
+    }
+    return null;
 });
 
 // Validación de fecha personalizada

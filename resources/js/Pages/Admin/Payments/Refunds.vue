@@ -99,57 +99,159 @@
                             <!-- SECCIÓN 2: NEGOCIO AFILIADO -->
                             <div class="border-b border-gray-200 pb-6">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6">Negocio Afiliado</h3>
-                                
-                                <!-- Selección de Programa y Participante -->
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Programa *
-                                        </label>
-                                        <select
-                                            v-model="form.program_id"
-                                            @change="loadParticipants"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.program_id }"
-                                        >
-                                            <option value="">Seleccionar programa</option>
-                                            <option
-                                                v-for="program in programs"
-                                                :key="program.id"
-                                                :value="program.id"
-                                            >
-                                                {{ program.code }} - {{ program.name }}
-                                            </option>
-                                        </select>
-                                        <span v-if="errors.program_id" class="text-red-500 text-sm mt-1">{{ errors.program_id }}</span>
-                                    </div>
 
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Participante *
-                                        </label>
-                                        <select
-                                            v-model="form.participant_id"
-                                            @change="loadParticipantPaymentStatus"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
-                                            :class="{ 'border-red-500': errors.participant_id }"
-                                            :disabled="!form.program_id"
-                                        >
-                                            <option value="">Seleccionar participante</option>
-                                            <option
-                                                v-for="participant in availableParticipants"
-                                                :key="participant.id"
-                                                :value="participant.id"
+                                <!-- Buscador de Participante Inscrito -->
+                                <div class="mb-6" data-search-container>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Buscar Participante Inscrito *
+                                    </label>
+                                    <p class="text-sm text-gray-500 mb-3">
+                                        Busque por RUT, nombre, apellido o código de programa
+                                    </p>
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            v-model="searchQuery"
+                                            @input="debounceSearch"
+                                            @focus="showDropdown = true"
+                                            @keydown.escape="showDropdown = false"
+                                            @keydown.down.prevent="navigateDropdown(1)"
+                                            @keydown.up.prevent="navigateDropdown(-1)"
+                                            @keydown.enter.prevent="selectHighlighted"
+                                            placeholder="Ej: 12.345.678-9, Juan Pérez, V0008..."
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{
+                                                'border-red-500': errors.program_id || errors.participant_id,
+                                                'border-green-500': selectedEnrollment
+                                            }"
+                                        />
+                                        <div v-if="isSearching" class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[#e74c3c]"></div>
+                                        </div>
+                                        <div v-else-if="selectedEnrollment" class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                            <button
+                                                type="button"
+                                                @click="clearSelection"
+                                                class="text-gray-400 hover:text-gray-600"
                                             >
-                                                {{ formatParticipantName(participant) }} - {{ formatParticipantDocument(participant) }}
-                                            </option>
-                                        </select>
-                                        <span v-if="errors.participant_id" class="text-red-500 text-sm mt-1">{{ errors.participant_id }}</span>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        <!-- Dropdown de resultados -->
+                                        <div
+                                            v-if="showDropdown && searchResults.length > 0"
+                                            class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-y-auto"
+                                        >
+                                            <div
+                                                v-for="(result, index) in searchResults"
+                                                :key="`${result.participant_id}-${result.program_course_id}`"
+                                                @click="selectEnrollment(result)"
+                                                @mouseenter="highlightedIndex = index"
+                                                class="px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                                                :class="{
+                                                    'bg-[#e74c3c] text-white': highlightedIndex === index,
+                                                    'hover:bg-gray-50': highlightedIndex !== index
+                                                }"
+                                            >
+                                                <div class="flex justify-between items-start">
+                                                    <div>
+                                                        <div class="font-semibold" :class="{ 'text-white': highlightedIndex === index, 'text-gray-900': highlightedIndex !== index }">
+                                                            {{ result.full_name }}
+                                                        </div>
+                                                        <div class="text-sm" :class="{ 'text-gray-200': highlightedIndex === index, 'text-gray-600': highlightedIndex !== index }">
+                                                            {{ result.document_number }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <div class="flex items-center justify-end gap-2">
+                                                            <div class="text-sm font-medium" :class="{ 'text-gray-200': highlightedIndex === index, 'text-[#e74c3c]': highlightedIndex !== index }">
+                                                                {{ result.program_code }}
+                                                            </div>
+                                                            <span
+                                                                :class="[
+                                                                    'inline-flex px-1.5 py-0.5 text-[9px] font-semibold rounded-full',
+                                                                    result.program_active
+                                                                        ? 'bg-green-100 text-green-800'
+                                                                        : 'bg-red-100 text-red-800'
+                                                                ]"
+                                                            >
+                                                                {{ result.program_active ? 'Activo' : 'Inactivo' }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="text-xs" :class="{ 'text-gray-300': highlightedIndex === index, 'text-gray-500': highlightedIndex !== index }">
+                                                            {{ result.program_name }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Mensaje de no resultados -->
+                                        <div
+                                            v-if="showDropdown && searchQuery.length >= 2 && searchResults.length === 0 && !isSearching"
+                                            class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500"
+                                        >
+                                            No se encontraron participantes inscritos
+                                        </div>
+                                    </div>
+                                    <span v-if="errors.program_id" class="text-red-500 text-sm mt-1 block">{{ errors.program_id }}</span>
+                                    <span v-if="errors.participant_id" class="text-red-500 text-sm mt-1 block">{{ errors.participant_id }}</span>
+                                </div>
+
+                                <!-- Participante Seleccionado -->
+                                <div
+                                    v-if="selectedEnrollment"
+                                    class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200"
+                                >
+                                    <h4 class="text-md font-semibold text-green-800 mb-3 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Participante Seleccionado
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <span class="text-sm text-gray-600">Nombre:</span>
+                                            <p class="font-semibold text-gray-800">{{ selectedEnrollment.full_name }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-sm text-gray-600">RUT/Documento:</span>
+                                            <p class="font-semibold text-gray-800">{{ selectedEnrollment.document_number }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-sm text-gray-600">Programa:</span>
+                                            <p class="font-semibold text-[#e74c3c] flex items-center gap-2">
+                                                {{ selectedEnrollment.program_code }} - {{ selectedEnrollment.program_name }}
+                                                <span
+                                                    :class="[
+                                                        'inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full',
+                                                        selectedEnrollment.program_active
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-red-100 text-red-800'
+                                                    ]"
+                                                >
+                                                    {{ selectedEnrollment.program_active ? 'Activo' : 'Inactivo' }}
+                                                </span>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <!-- Información del Estado de Pagos del Participante -->
-                                <div v-if="participantPaymentStatus" class="mt-6 p-4 bg-gray-50 rounded-lg">
+                                <div
+                                    v-if="isLoadingParticipantStatus"
+                                    class="p-4 bg-blue-50 rounded-lg border border-blue-200"
+                                >
+                                    <div class="flex items-center justify-center">
+                                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                        <span class="ml-2 text-blue-600">Cargando estado de pagos...</span>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="participantPaymentStatus" class="p-4 bg-gray-50 rounded-lg">
                                     <h4 class="text-md font-semibold text-gray-800 mb-3">Estado de Pagos del Participante</h4>
                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div>
@@ -266,10 +368,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import SearchableSelect from '@/Components/Ecommerce/SearchableSelect.vue';
 
 const props = defineProps({
     programs: {
@@ -312,7 +413,17 @@ const form = useForm({
 
 const availableParticipants = ref([]);
 const participantPaymentStatus = ref(null);
+const isLoadingParticipantStatus = ref(false);
 const errorAlert = ref(null);
+
+// Variables para el buscador de participantes inscritos
+const searchQuery = ref('');
+const searchResults = ref([]);
+const isSearching = ref(false);
+const showDropdown = ref(false);
+const highlightedIndex = ref(0);
+const selectedEnrollment = ref(null);
+let searchTimeout = null;
 
 const rutValidation = reactive({
     isValid: null,
@@ -600,19 +711,42 @@ const loadParticipants = () => {
     form.participant_id = '';
 };
 
+// Helper function para obtener el token CSRF
+const getCsrfToken = () => {
+    const token = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute("content");
+
+    if (!token) {
+        console.error("Token CSRF no encontrado en el documento");
+    }
+
+    return token;
+};
+
 const loadParticipantPaymentStatus = async () => {
     if (!form.program_id || !form.participant_id) {
         participantPaymentStatus.value = null;
         return;
     }
 
+    if (isLoadingParticipantStatus.value) return;
+
     try {
+        isLoadingParticipantStatus.value = true;
+        const csrfToken = getCsrfToken();
+
+        if (!csrfToken) {
+            participantPaymentStatus.value = null;
+            return;
+        }
+
         const response = await fetch('/admin/payments/participant-status', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': usePage().props._csrf || '',
-                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
             },
             body: JSON.stringify({
                 program_id: form.program_id,
@@ -633,6 +767,8 @@ const loadParticipantPaymentStatus = async () => {
     } catch (error) {
         console.error('Error en la solicitud de estado de pago del participante:', error);
         participantPaymentStatus.value = null;
+    } finally {
+        isLoadingParticipantStatus.value = false;
     }
 };
 
@@ -703,14 +839,14 @@ const formatParticipantName = (participant) => {
 // Formatear documento del participante (RUT formateado si es RUT)
 const formatParticipantDocument = (participant) => {
     if (!participant.document_number) return '';
-    
+
     // Verificar si es RUT (formato chileno)
     if (/^[0-9]{7,8}[0-9kK]$/.test(participant.document_number.replace(/[.-]/g, ''))) {
         // Formatear RUT con puntos y guión
         const rut = participant.document_number.replace(/[.-]/g, '');
         const body = rut.slice(0, -1);
         const dv = rut.slice(-1).toUpperCase();
-        
+
         let formattedBody = '';
         for (let i = body.length - 1, j = 0; i >= 0; i--, j++) {
             if (j > 0 && j % 3 === 0) {
@@ -718,12 +854,121 @@ const formatParticipantDocument = (participant) => {
             }
             formattedBody = body[i] + formattedBody;
         }
-        
+
         return `${formattedBody}-${dv}`;
     }
-    
+
     // Si no es RUT, devolver tal como está
     return participant.document_number;
+};
+
+// ========================================
+// Funciones del buscador de participantes
+// ========================================
+
+const debounceSearch = () => {
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    // Si ya hay una selección y el usuario está editando, limpiarla
+    if (selectedEnrollment.value) {
+        clearSelection();
+    }
+
+    searchTimeout = setTimeout(() => {
+        performSearch();
+    }, 300);
+};
+
+const performSearch = async () => {
+    const query = searchQuery.value.trim();
+
+    if (query.length < 2) {
+        searchResults.value = [];
+        showDropdown.value = false;
+        return;
+    }
+
+    try {
+        isSearching.value = true;
+        showDropdown.value = true;
+        highlightedIndex.value = 0;
+
+        const response = await fetch(`/admin/payments/presential/search-participants?search=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            console.error('Error en la búsqueda:', response.status);
+            searchResults.value = [];
+            return;
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            searchResults.value = result.data;
+        } else {
+            searchResults.value = [];
+        }
+    } catch (error) {
+        console.error('Error buscando participantes:', error);
+        searchResults.value = [];
+    } finally {
+        isSearching.value = false;
+    }
+};
+
+const navigateDropdown = (direction) => {
+    if (searchResults.value.length === 0) return;
+
+    highlightedIndex.value += direction;
+
+    if (highlightedIndex.value < 0) {
+        highlightedIndex.value = searchResults.value.length - 1;
+    } else if (highlightedIndex.value >= searchResults.value.length) {
+        highlightedIndex.value = 0;
+    }
+};
+
+const selectHighlighted = () => {
+    if (searchResults.value.length > 0 && highlightedIndex.value >= 0) {
+        selectEnrollment(searchResults.value[highlightedIndex.value]);
+    }
+};
+
+const selectEnrollment = (enrollment) => {
+    selectedEnrollment.value = enrollment;
+    form.program_id = enrollment.program_course_id;
+    form.participant_id = enrollment.participant_id;
+    searchQuery.value = enrollment.label;
+    showDropdown.value = false;
+    searchResults.value = [];
+
+    // Cargar estado de pagos del participante
+    loadParticipantPaymentStatus();
+};
+
+const clearSelection = () => {
+    selectedEnrollment.value = null;
+    form.program_id = '';
+    form.participant_id = '';
+    searchQuery.value = '';
+    searchResults.value = [];
+    participantPaymentStatus.value = null;
+};
+
+// Cerrar dropdown al hacer clic fuera
+const handleClickOutside = (event) => {
+    const searchContainer = event.target.closest('[data-search-container]');
+    if (!searchContainer) {
+        showDropdown.value = false;
+    }
 };
 
 const submit = () => {
@@ -762,7 +1007,18 @@ const submit = () => {
 
 // Lifecycle
 onMounted(() => {
-    // No hay configuración inicial necesaria
+    // Agregar listener para cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    // Limpiar listener
+    document.removeEventListener('click', handleClickOutside);
+
+    // Limpiar timeout de búsqueda
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
 });
 </script>
 

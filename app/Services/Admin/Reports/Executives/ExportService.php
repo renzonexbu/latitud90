@@ -226,12 +226,6 @@ class ExportService
             $dateFrom = $filters['dateFrom'] ?? null;
             $dateTo = $filters['dateTo'] ?? null;
 
-            if (!$dateFrom || !$dateTo) {
-                return response()->json([
-                    'error' => 'Debe seleccionar rango de fechas (inicio y fin) para exportar.'
-                ], 400);
-            }
-
             // Si no hay programa => crear un ZIP con un Excel por cada programa
             if (!$programId && !$programCode) {
                 $programCourses = \App\Models\ProgramCourse::with(['course.institution', 'program', 'salesExecutive'])
@@ -355,7 +349,7 @@ class ExportService
         // Encabezado info
         $program = $programCourse->program;
         $collegeName = optional($programCourse->course->institution)->name ?: 'N/A';
-        $programLine = trim(($program->destination ? $program->destination : 'Programa') . (isset($program->year) ? ', ' . $program->year : ''));
+        $programLine = trim(($programCourse->destination ? $programCourse->destination : 'Programa') . (isset($program->year) ? ', ' . $program->year : ''));
         $departureDateStr = '';
         if ($programCourse->departure_date) {
             $departureDateStr = Carbon::parse($programCourse->departure_date, 'America/Santiago')

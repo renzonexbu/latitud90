@@ -20,10 +20,9 @@ class ExecutivesPartialAccountService
         // Soportar tanto programId como programCode para compatibilidad
         $programId = $filters['programId'] ?? null;
         $programCode = $filters['programCode'] ?? null;
-        $dateFrom = $filters['dateFrom'] ?? Carbon::now('America/Santiago')->subMonth()->format('Y-m-d');
-        $dateTo = $filters['dateTo'] ?? Carbon::now('America/Santiago')->format('Y-m-d');
-        $from = Carbon::parse($dateFrom, 'America/Santiago')->startOfDay();
-        $to = Carbon::parse($dateTo, 'America/Santiago')->endOfDay();
+        // Fechas opcionales - si no se proporcionan, se muestra todo el histórico
+        $dateFrom = $filters['dateFrom'] ?? null;
+        $dateTo = $filters['dateTo'] ?? null;
 
         $items = collect([]);
 

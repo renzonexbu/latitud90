@@ -123,16 +123,66 @@
                                         <div class="field-label">
                                             Fecha final de pago
                                         </div>
+                                        <!-- Opciones predefinidas -->
+                                        <div class="payment-date-options">
+                                            <label
+                                                class="payment-date-option"
+                                                :class="{ 'active': paymentDateOption === '31' }"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    v-model="paymentDateOption"
+                                                    value="31"
+                                                    @change="handlePaymentDateOptionChange"
+                                                />
+                                                <span>30 días</span>
+                                            </label>
+                                            <label
+                                                class="payment-date-option"
+                                                :class="{ 'active': paymentDateOption === '61' }"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    v-model="paymentDateOption"
+                                                    value="61"
+                                                    @change="handlePaymentDateOptionChange"
+                                                />
+                                                <span>60 días</span>
+                                            </label>
+                                            <label
+                                                class="payment-date-option"
+                                                :class="{ 'active': paymentDateOption === 'custom' }"
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    v-model="paymentDateOption"
+                                                    value="custom"
+                                                    @change="handlePaymentDateOptionChange"
+                                                />
+                                                <span>Otros</span>
+                                            </label>
+                                        </div>
+                                        <!-- Input de fecha (siempre visible, pero deshabilitado si no es "custom") -->
                                         <input
                                             type="date"
                                             v-model="formData.final_payment_date"
                                             class="admin-input-text"
                                             :class="{
-                                                'border-red-500': errors.final_payment_date
+                                                'border-red-500': errors.final_payment_date,
+                                                'border-yellow-500': finalPaymentDateWarning && !errors.final_payment_date,
+                                                'disabled-date-input': paymentDateOption !== 'custom'
                                             }"
+                                            :disabled="paymentDateOption !== 'custom'"
+                                            @input="checkFinalPaymentDateWarning"
                                         />
                                         <span v-if="errors.final_payment_date" class="text-red-500 text-sm mt-1">
                                             {{ errors.final_payment_date }}
+                                        </span>
+                                        <span v-if="finalPaymentDateWarning && !errors.final_payment_date" class="text-yellow-600 text-sm mt-1">
+                                            ⚠️ {{ finalPaymentDateWarning }}
+                                        </span>
+                                        <span v-if="formData.final_payment_date && !finalPaymentDateWarning" class="text-green-600 text-sm mt-1">
+                                            Fecha seleccionada: {{ formatDisplayDate(formData.final_payment_date) }}
                                         </span>
                                     </div>
                                 </div>
@@ -655,6 +705,82 @@ const paymentOpen = ref(false);
 // Estado para archivo de estudiantes
 const selectedStudentsFile = ref(null);
 
+// Estado para la opción de fecha de pago (31, 61, custom)
+const paymentDateOption = ref('custom');
+
+// Estado para advertencia de fecha pasada (no bloquea, solo advierte)
+const finalPaymentDateWarning = ref('');
+
+// Función para calcular fecha sumando días desde hoy
+const calculateDateFromDays = (days) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+};
+
+// Función para formatear fecha para mostrar al usuario
+const formatDisplayDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString('es-CL', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+};
+
+// Handler cuando cambia la opción de fecha de pago
+const handlePaymentDateOptionChange = () => {
+    if (paymentDateOption.value === '31') {
+        formData.value.final_payment_date = calculateDateFromDays(31);
+    } else if (paymentDateOption.value === '61') {
+        formData.value.final_payment_date = calculateDateFromDays(61);
+    }
+    // Si es 'custom', el usuario debe seleccionar manualmente
+
+    // Verificar si hay advertencia para la fecha seleccionada
+    checkFinalPaymentDateWarning();
+
+    emit('update:modelValue', formData.value);
+};
+
+// Verificar si la fecha final de pago es anterior a hoy (solo advertencia, no bloquea)
+const checkFinalPaymentDateWarning = () => {
+    if (!formData.value.final_payment_date) {
+        finalPaymentDateWarning.value = '';
+        return;
+    }
+
+    const selectedDate = new Date(formData.value.final_payment_date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        finalPaymentDateWarning.value = 'La fecha seleccionada es anterior a hoy';
+    } else {
+        finalPaymentDateWarning.value = '';
+    }
+};
+
+// Determinar qué opción está seleccionada basándose en la fecha actual
+const detectPaymentDateOption = () => {
+    if (!formData.value.final_payment_date) {
+        paymentDateOption.value = 'custom';
+        return;
+    }
+
+    const date31 = calculateDateFromDays(31);
+    const date61 = calculateDateFromDays(61);
+
+    if (formData.value.final_payment_date === date31) {
+        paymentDateOption.value = '31';
+    } else if (formData.value.final_payment_date === date61) {
+        paymentDateOption.value = '61';
+    } else {
+        paymentDateOption.value = 'custom';
+    }
+};
+
 // Propiedad computada para el precio formateado
 const formattedPrice = ref('');
 // Catálogos locales (idealmente venir desde backend)
@@ -936,6 +1062,14 @@ onMounted(() => {
     // Inicializar payment_options si no existe
     if (!formData.value.payment_options) {
         formData.value.payment_options = [];
+    }
+
+    // Detectar qué opción de fecha de pago corresponde
+    detectPaymentDateOption();
+
+    // Verificar advertencia de fecha si ya existe
+    if (formData.value.final_payment_date) {
+        checkFinalPaymentDateWarning();
     }
     
     // Asegurar que el select inicie sin selección (placeholder)
@@ -2008,5 +2142,88 @@ const handleEducationLevelChange = (level) => {
 
 .text-red-500.text-xs {
     font-size: 12px;
+}
+
+/* Estilos para opciones de fecha de pago */
+.payment-date-options {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.payment-date-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 20px;
+    border: 2px solid #E5E5E5;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.payment-date-option:hover {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    background-color: rgba(0, 126, 147, 0.05);
+}
+
+.payment-date-option.active {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    background-color: rgba(0, 126, 147, 0.1);
+}
+
+.payment-date-option input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #E5E5E5;
+    appearance: none;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    background: #ffffff;
+}
+
+.payment-date-option input[type="radio"]:checked {
+    border-color: var(--colores-op2-turquesa, #007e93);
+    background-color: var(--colores-op2-turquesa, #007e93);
+}
+
+.payment-date-option input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffffff;
+}
+
+.payment-date-option span {
+    color: #434343;
+    font-family: 'Nexa', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.payment-date-option.active span {
+    color: var(--colores-op2-turquesa, #007e93);
+    font-weight: 700;
+}
+
+/* Input de fecha deshabilitado */
+.disabled-date-input {
+    background-color: #f5f5f5 !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Texto verde para fecha seleccionada */
+.text-green-600 {
+    color: #16a34a;
 }
 </style>

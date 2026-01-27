@@ -148,7 +148,7 @@ class ExecutivesConsolidatedService
         return [
             'consolidated' => $paginator,
             'filters' => [
-                'dateFrom' => $filters['dateFrom'] ?? Carbon::now('America/Santiago')->subMonth()->format('Y-m-d'),
+                'dateFrom' => $filters['dateFrom'] ?? '',  // Vacío para mostrar todo el histórico
                 'dateTo' => $filters['dateTo'] ?? Carbon::now('America/Santiago')->format('Y-m-d'),
                 'programId' => $filters['programId'] ?? "",
                 'salesExecutiveId' => $filters['salesExecutiveId'] ?? null,

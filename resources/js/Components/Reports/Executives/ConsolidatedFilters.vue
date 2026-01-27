@@ -195,11 +195,9 @@ export default {
         }
     },
     mounted() {
-        // Establecer fecha por defecto (último mes) si no hay fechas
-        if (!this.filters.dateFrom && !this.filters.dateTo) {
+        // Establecer fecha "hasta" por defecto (hoy), "desde" vacío para mostrar todo el histórico
+        if (!this.filters.dateTo) {
             const today = new Date();
-            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-            this.filters.dateFrom = lastMonth.toISOString().split('T')[0];
             this.filters.dateTo = today.toISOString().split('T')[0];
             this.performSearch();
         }
@@ -287,11 +285,10 @@ export default {
 
         clearFilters() {
             const today = new Date();
-            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
 
             this.filters = {
                 programId: "",
-                dateFrom: lastMonth.toISOString().split('T')[0],
+                dateFrom: "",  // Vacío para mostrar todo el histórico
                 dateTo: today.toISOString().split('T')[0],
             };
             this.selectedProgram = null;

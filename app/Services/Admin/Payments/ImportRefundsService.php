@@ -46,18 +46,22 @@ class ImportRefundsService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
-            // Buscar dinámicamente la fila que contiene los headers
-            $headerRowIndex = $this->findHeaderRow($rows);
+            // Buscar dinámicamente la fila y columna que contienen los headers
+            $headerPosition = $this->findHeaderPosition($rows);
+            $headerRowIndex = $headerPosition['row'];
+            $headerColOffset = $headerPosition['col'];
+
             if ($headerRowIndex === -1) {
                 throw new \Exception("No se encontraron los headers requeridos en el archivo Excel");
             }
 
-            // Extraer headers y datos
-            $headers = $rows[$headerRowIndex];
+            // Extraer headers con el offset de columna correcto
+            $headers = $this->extractHeaders($rows[$headerRowIndex], $headerColOffset);
             $dataRows = array_slice($rows, $headerRowIndex + 1);
 
             Log::info('=== PREVIEW DE DEVOLUCIONES ===');
-            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1));
+            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1) . ', columna: ' . ($headerColOffset + 1));
+            Log::info('Headers extraídos: ' . json_encode($headers, JSON_UNESCAPED_UNICODE));
             Log::info('Número de filas de datos: ' . count($dataRows));
 
             // Validar headers
@@ -80,17 +84,20 @@ class ImportRefundsService
                     break;
                 }
 
+                // Extraer datos con el offset de columna correcto
+                $rowDataArray = $this->extractRowData($row, $headerColOffset);
+
                 // Saltar filas vacías
-                if (empty(array_filter($row))) {
+                if (empty(array_filter($rowDataArray))) {
                     continue;
                 }
 
                 // Asegurar que la fila tenga el mismo número de columnas que los headers
-                while (count($row) < count($headers)) {
-                    $row[] = '';
+                while (count($rowDataArray) < count($headers)) {
+                    $rowDataArray[] = '';
                 }
 
-                $rowData = array_combine($headers, $row);
+                $rowData = array_combine($headers, $rowDataArray);
                 $results['processed']++;
 
                 try {
@@ -172,19 +179,22 @@ class ImportRefundsService
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
-            // Buscar dinámicamente la fila que contiene los headers
-            $headerRowIndex = $this->findHeaderRow($rows);
+            // Buscar dinámicamente la fila y columna que contienen los headers
+            $headerPosition = $this->findHeaderPosition($rows);
+            $headerRowIndex = $headerPosition['row'];
+            $headerColOffset = $headerPosition['col'];
+
             if ($headerRowIndex === -1) {
                 throw new \Exception("No se encontraron los headers requeridos en el archivo Excel");
             }
 
-            // Extraer headers y datos
-            $headers = $rows[$headerRowIndex];
+            // Extraer headers con el offset de columna correcto
+            $headers = $this->extractHeaders($rows[$headerRowIndex], $headerColOffset);
             $dataRows = array_slice($rows, $headerRowIndex + 1);
 
             // Log de información de headers encontrados
             Log::info('=== IMPORTACIÓN DE DEVOLUCIONES ===');
-            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1));
+            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1) . ', columna: ' . ($headerColOffset + 1));
             Log::info('Headers detectados: ' . json_encode($headers, JSON_UNESCAPED_UNICODE));
             Log::info('Número de filas de datos: ' . count($dataRows));
 
@@ -201,29 +211,32 @@ class ImportRefundsService
             ];
 
             foreach ($dataRows as $rowIndex => $row) {
+                // Extraer datos con el offset de columna correcto
+                $rowDataArray = $this->extractRowData($row, $headerColOffset);
+
                 // Saltar filas vacías
-                if (empty(array_filter($row))) {
+                if (empty(array_filter($rowDataArray))) {
                     continue;
                 }
 
                 // Asegurar que la fila tenga el mismo número de columnas que los headers
-                while (count($row) < count($headers)) {
-                    $row[] = '';
+                while (count($rowDataArray) < count($headers)) {
+                    $rowDataArray[] = '';
                 }
 
-                $rowData = array_combine($headers, $row);
+                $rowData = array_combine($headers, $rowDataArray);
                 $results['processed']++;
 
                 // Log de datos de la fila antes de procesar
                 Log::info('--- Fila ' . ($headerRowIndex + 2 + $rowIndex) . ' ---');
-                Log::info('Datos raw: ' . json_encode($row, JSON_UNESCAPED_UNICODE));
+                Log::info('Datos raw: ' . json_encode($rowDataArray, JSON_UNESCAPED_UNICODE));
                 Log::info('Datos mapeados: ' . json_encode($rowData, JSON_UNESCAPED_UNICODE));
 
                 try {
                     Log::info("Iniciando procesamiento de fila " . ($headerRowIndex + 2 + $rowIndex));
                     // Validar y procesar la fila
                     $result = $this->processRefundRow($rowData, $headerRowIndex + 2 + $rowIndex);
-                    
+
                     if ($result['success']) {
                         $results['successful']++;
                         if ($result['warning']) {
@@ -294,9 +307,10 @@ class ImportRefundsService
     }
 
     /**
-     * Buscar dinámicamente la fila que contiene los headers
+     * Buscar dinámicamente la fila y columna que contienen los headers
+     * Retorna un array con 'row' (índice de fila) y 'col' (índice de columna inicial)
      */
-    private function findHeaderRow(array $rows): int
+    private function findHeaderPosition(array $rows): array
     {
         $expectedHeaders = [
             'Cod. SII',
@@ -314,34 +328,58 @@ class ImportRefundsService
         Log::info('Buscando headers en ' . count($rows) . ' filas...');
 
         foreach ($rows as $rowIndex => $row) {
-            // Limpiar y normalizar la fila
-            $normalizedRow = array_map('trim', array_filter($row, function($cell) {
-                return !empty($cell);
-            }));
+            // Buscar en qué columna empieza el primer header
+            foreach ($row as $colIndex => $cell) {
+                $cellValue = trim($cell ?? '');
 
-            Log::info("Fila {$rowIndex}: " . json_encode($normalizedRow, JSON_UNESCAPED_UNICODE));
+                // Si encontramos "Cod. SII", verificamos si esta fila tiene los headers
+                if ($cellValue === 'Cod. SII') {
+                    // Extraer headers desde esta columna
+                    $headersFromCol = array_slice($row, $colIndex);
+                    $normalizedHeaders = array_map('trim', $headersFromCol);
 
-            // Verificar si esta fila contiene todos los headers esperados
-            $foundHeaders = 0;
-            $foundHeaderNames = [];
-            foreach ($expectedHeaders as $expectedHeader) {
-                if (in_array($expectedHeader, $normalizedRow)) {
-                    $foundHeaders++;
-                    $foundHeaderNames[] = $expectedHeader;
+                    // Verificar cuántos headers esperados encontramos
+                    $foundHeaders = 0;
+                    $foundHeaderNames = [];
+                    foreach ($expectedHeaders as $expectedHeader) {
+                        if (in_array($expectedHeader, $normalizedHeaders)) {
+                            $foundHeaders++;
+                            $foundHeaderNames[] = $expectedHeader;
+                        }
+                    }
+
+                    Log::info("Fila {$rowIndex}, Columna {$colIndex}: Encontrados {$foundHeaders}/10 headers: " . implode(', ', $foundHeaderNames));
+
+                    // Si encontramos al menos 8 de los 10 headers, consideramos que es la posición correcta
+                    if ($foundHeaders >= 8) {
+                        Log::info("Headers encontrados en fila: " . ($rowIndex + 1) . ", columna: " . ($colIndex + 1));
+                        return ['row' => $rowIndex, 'col' => $colIndex];
+                    }
                 }
-            }
-
-            Log::info("Fila {$rowIndex}: Encontrados {$foundHeaders}/10 headers: " . implode(', ', $foundHeaderNames));
-
-            // Si encontramos al menos 8 de los 10 headers, consideramos que es la fila de headers
-            if ($foundHeaders >= 8) {
-                Log::info("Headers encontrados en fila: " . ($rowIndex + 1));
-                return $rowIndex;
             }
         }
 
         Log::error('No se encontró la fila de headers');
-        return -1; // No se encontró la fila de headers
+        return ['row' => -1, 'col' => 0];
+    }
+
+    /**
+     * Extraer headers ajustando el offset de columna
+     * Solo toma las 10 columnas esperadas para evitar columnas vacías extras
+     */
+    private function extractHeaders(array $headerRow, int $colOffset): array
+    {
+        $headers = array_slice($headerRow, $colOffset, 10); // Solo 10 headers esperados
+        return array_map('trim', $headers);
+    }
+
+    /**
+     * Extraer datos de una fila ajustando el offset de columna
+     * Solo toma las 10 columnas correspondientes a los headers
+     */
+    private function extractRowData(array $row, int $colOffset): array
+    {
+        return array_slice($row, $colOffset, 10); // Solo 10 columnas de datos
     }
 
     /**
@@ -632,7 +670,8 @@ class ImportRefundsService
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
-        ->where('status', 'completed')
+        ->whereIn('status', ['approved', 'completed'])
+        ->where('amount', '>', 0) // Solo pagos positivos, excluir reembolsos previos
         ->sum('amount');
     }
 

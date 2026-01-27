@@ -200,7 +200,8 @@ class CreateRefundService
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
-        ->where('status', 'completed')
+        ->whereIn('status', ['approved', 'completed'])
+        ->where('amount', '>', 0) // Solo pagos positivos, excluir reembolsos
         ->sum('amount');
     }
 

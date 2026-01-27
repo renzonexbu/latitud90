@@ -65,10 +65,6 @@ const localFilters = reactive({
 });
 
 const exportData = () => {
-    if (!localFilters.dateFrom || !localFilters.dateTo) {
-        alert('Debe seleccionar rango de fechas (inicio y fin) antes de exportar.');
-        return;
-    }
     const params = new URLSearchParams(localFilters);
     window.open(`/admin/reports/executives/export/partial-account?${params.toString()}`, '_blank');
 };

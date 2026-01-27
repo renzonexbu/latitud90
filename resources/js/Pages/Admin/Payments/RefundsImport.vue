@@ -201,35 +201,6 @@
                             </div>
                         </div>
 
-                        <!-- Información del formato -->
-                        <div class="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
-                            <div class="flex items-start">
-                                <div class="flex-shrink-0">
-                                    <svg class="w-6 h-6 text-blue-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <div class="ml-4">
-                                    <h3 class="text-lg font-semibold text-blue-800 mb-2">Formato requerido del archivo Excel</h3>
-                                    <div class="text-sm text-blue-700 space-y-1">
-                                        <p><strong>Columnas requeridas:</strong></p>
-                                        <ul class="list-disc list-inside ml-4 space-y-1">
-                                            <li><strong>Cod. SII:</strong> Código SII de la nota de crédito</li>
-                                            <li><strong>N. Documento:</strong> Número de documento de la nota de crédito</li>
-                                            <li><strong>Fecha:</strong> Fecha en formato YYYY-MM-DD</li>
-                                            <li><strong>RUT:</strong> RUT del cliente (con o sin puntos y guión)</li>
-                                            <li><strong>Nombre del Cliente:</strong> Nombre completo del cliente</li>
-                                            <li><strong>Neto Afecto:</strong> Monto neto afecto a IVA (negativo)</li>
-                                            <li><strong>Neto Exento:</strong> Monto neto exento de IVA (negativo)</li>
-                                            <li><strong>Iva:</strong> Monto del IVA (negativo)</li>
-                                            <li><strong>Total:</strong> Monto total de la devolución (negativo)</li>
-                                            <li><strong>Negocio Afiliado:</strong> Código de inscripción (enrollment_code)</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Formulario de importación -->
                         <form @submit.prevent="submitPreview" class="space-y-6">
                             <!-- Selección de archivo -->
