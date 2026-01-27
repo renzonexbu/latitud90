@@ -248,7 +248,7 @@
                             class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
                             @click="showingPaymentsMenu = false"
                         >
-                            Registrar Pago Presencial
+                            Registrar Pago Offline
                         </NavLink>
                     </div>
                 </div>

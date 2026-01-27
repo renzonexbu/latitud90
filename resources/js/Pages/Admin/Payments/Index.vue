@@ -136,7 +136,7 @@
                                 Distribución por Tipo de Pago
                             </h3>
                             <p class="text-sm text-gray-600 mb-4">
-                                Comparación de pagos totales, suscripciones, pagos presenciales y devoluciones.
+                                Comparación de pagos totales, suscripciones, pagos offline y devoluciones.
                             </p>
                             <div class="h-64">
                                 <canvas ref="paymentTypesChart"></canvas>
@@ -351,7 +351,7 @@ const createPaymentTypesChart = () => {
                     backgroundColor: [
                         'rgba(59, 130, 246, 0.8)',   // Azul para Pago Total
                         'rgba(34, 197, 94, 0.8)',    // Verde para Suscripciones
-                        'rgba(168, 85, 247, 0.8)',   // Púrpura para Pagos Presenciales
+                        'rgba(168, 85, 247, 0.8)',   // Púrpura para Pagos Offline
                         'rgba(239, 68, 68, 0.8)',    // Rojo para Devoluciones
                     ],
                     borderWidth: 2,

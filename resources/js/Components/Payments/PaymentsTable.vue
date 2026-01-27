@@ -325,9 +325,9 @@ export default {
                 return payment.payment_option.gateway_code || "N/A";
             }
 
-            // Si no tiene payment_option_id, es un pago presencial sin código específico
+            // Si no tiene payment_option_id, es un pago offline sin código específico
             if (!payment.payment_option_id) {
-                return "Presencial";
+                return "Offline";
             }
 
             // Fallback

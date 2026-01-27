@@ -68,7 +68,7 @@
                     <option value="all">Todos los Métodos</option>
                     <option value="transbank">Webpay (Tarjeta)</option>
                     <option value="khipu">Transferencia Khipu</option>
-                    <option value="presencial">Pago Presencial</option>
+                    <option value="presencial">Pago Offline</option>
                     <option value="virtualpos">VirtualPos (Suscripciones)</option>
                     <option value="refund">Devoluciones</option>
                 </select>

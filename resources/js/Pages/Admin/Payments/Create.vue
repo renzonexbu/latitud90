@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Registrar Pago Presencial" />
+        <Head title="Registrar Pago Offline" />
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -8,7 +8,7 @@
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold text-gray-900">
-                                Registrar Pago Presencial
+                                Registrar Pago Offline
                             </h2>
                             <Link
                                 :href="route('admin.payments.index')"
@@ -491,14 +491,14 @@
                                     </div>
                                 </div>
 
-                                <!-- Información del Pago Presencial -->
+                                <!-- Información del Pago Offline -->
                                 <div
                                     class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"
                                 >
                                     <h4
                                         class="text-md font-semibold text-blue-800 mb-3"
                                     >
-                                        Datos del Pago Presencial
+                                        Datos del Pago Offline
                                     </h4>
 
                                     <!-- Monto del Pago -->
@@ -526,12 +526,12 @@
                                         >
                                     </div>
 
-                                    <!-- Tipo de Pago Presencial -->
+                                    <!-- Tipo de Pago Offline -->
                                     <div class="mb-4">
                                         <label
                                             class="block text-sm font-medium text-gray-700 mb-2"
                                         >
-                                            Tipo de Pago Presencial *
+                                            Tipo de Pago Offline *
                                         </label>
                                         <select
                                             v-model="
@@ -661,7 +661,7 @@
                                     <textarea
                                         v-model="form.notes"
                                         rows="3"
-                                        placeholder="Notas adicionales sobre el pago presencial..."
+                                        placeholder="Notas adicionales sobre el pago offline..."
                                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
                                         :class="{
                                             'border-red-500': errors.notes,

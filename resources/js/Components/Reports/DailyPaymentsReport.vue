@@ -47,7 +47,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Todas las formas</option>
-            <option value="VP">Venta Presencial</option>
+            <option value="VP">Venta Offline</option>
             <option value="KP">Khipu</option>
             <option value="BX">Bsale</option>
             <option value="TD">Tarjeta de Débito</option>

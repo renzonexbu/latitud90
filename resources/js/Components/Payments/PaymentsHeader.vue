@@ -116,7 +116,7 @@
                     <div
                         class="text-white text-left font-nexa-bold text-base leading-[22px] font-bold relative flex items-end justify-start"
                     >
-                        Registrar Pago Presencial
+                        Registrar Pago Offline
                     </div>
                 </button>
             </div>

@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Importar Pagos Presenciales" />
+        <Head title="Importar Pagos Offline" />
 
         <!-- Sistema de Alertas -->
         <AlertWrapper ref="alertWrapper" />
@@ -509,11 +509,11 @@
                             </svg>
                         </Link>
                         <h1 class="text-2xl font-nexa-bold text-verde-oscuro">
-                            Importar Pagos Presenciales Masivos
+                            Importar Pagos Offline Masivos
                         </h1>
                     </div>
                     <p class="text-gray-600 font-nexa-regular">
-                        Carga múltiples pagos presenciales desde un archivo Excel
+                        Carga múltiples pagos offline desde un archivo Excel
                     </p>
                 </div>
 

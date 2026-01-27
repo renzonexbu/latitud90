@@ -121,7 +121,7 @@
                             >
                                 <option value="all">Todos</option>
                                 <option value="gateway">Pasarela</option>
-                                <option value="manual">Manual/Presencial</option>
+                                <option value="manual">Manual/Offline</option>
                             </select>
                         </div>
                     </div>

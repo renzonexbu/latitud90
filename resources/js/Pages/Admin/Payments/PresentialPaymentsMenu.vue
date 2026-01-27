@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Gestión de Pagos Presenciales" />
+        <Head title="Gestión de Pagos Offline" />
 
         <div class="py-12">
             <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
@@ -9,7 +9,7 @@
                         <!-- Header -->
                         <div class="flex justify-between items-center mb-8">
                             <div>
-                                <h2 class="text-3xl font-bold text-gray-900">Gestión de Pagos Presenciales</h2>
+                                <h2 class="text-3xl font-bold text-gray-900">Gestión de Pagos Offline</h2>
                                 <p class="text-gray-600 mt-2">Seleccione el método para procesar los pagos</p>
                             </div>
                             <Link
@@ -38,7 +38,7 @@
                                     </h3>
 
                                     <p class="text-gray-600 mb-4">
-                                        Importe múltiples pagos presenciales desde un archivo Excel.
+                                        Importe múltiples pagos offline desde un archivo Excel.
                                         Ideal para procesar pagos masivos.
                                     </p>
 
@@ -67,7 +67,7 @@
                                     </h3>
 
                                     <p class="text-gray-600 mb-4">
-                                        Ingrese un pago presencial individual mediante formulario.
+                                        Ingrese un pago offline individual mediante formulario.
                                         Perfecto para pagos específicos.
                                     </p>
 

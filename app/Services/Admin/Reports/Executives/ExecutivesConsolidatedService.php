@@ -18,6 +18,7 @@ class ExecutivesConsolidatedService
         $perPage = 25;
 
         // Consulta base: filas por pago (ingresos y devoluciones)
+        // Incluir 'approved' (pagos offline/manuales) y 'completed' (pasarelas de pago)
         $query = Payment::with([
             'paymentOption',
             'order.participant',
@@ -26,7 +27,7 @@ class ExecutivesConsolidatedService
             'order.participantProgram',
             'order.participantProgram.discounts',
             'order.payments'
-        ])->where('status', 'completed');
+        ])->whereIn('status', ['approved', 'completed']);
 
         // Aplicar filtros
         if (!empty($filters['dateFrom'])) {
@@ -56,24 +57,6 @@ class ExecutivesConsolidatedService
         // Obtener pagos con paginación
         $payments = $query->orderBy('transaction_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
-        // Si no hay pagos con filtros, usar todos los pagos sin filtros de fecha
-        if ($payments->count() === 0) {
-            \Illuminate\Support\Facades\Log::warning('No hay pagos con filtros aplicados, usando todos los pagos sin filtros de fecha');
-            $payments = Payment::with([
-                'paymentOption',
-                'order.participant',
-                'order.programCourse.salesExecutive',
-                'order.orderDetails',
-                'order.participantProgram',
-                'order.participantProgram.discounts',
-                'order.payments'
-            ])->where('status', 'completed')->orderBy('transaction_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
-
-            \Illuminate\Support\Facades\Log::info('Pagos obtenidos sin filtros de fecha', [
-                'total_payments_no_filter' => $payments->total()
-            ]);
-        }
-
         // Log de resultados
         \Illuminate\Support\Facades\Log::info('Resultados de la consulta', [
             'total_payments' => $payments->total(),
@@ -95,8 +78,8 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Totales para liberado
-            $orderTotalPaid = ($order?->payments ?? collect())->where('status', 'completed')->sum('amount');
+            // Totales para liberado (incluir approved y completed)
+            $orderTotalPaid = ($order?->payments ?? collect())->whereIn('status', ['approved', 'completed'])->sum('amount');
             $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
@@ -190,6 +173,7 @@ class ExecutivesConsolidatedService
         }
 
         // Consulta base: filas por pago (ingresos y devoluciones) - SIN PAGINACIÓN
+        // Incluir 'approved' (pagos offline/manuales) y 'completed' (pasarelas de pago)
         $query = Payment::with([
             'paymentOption',
             'order.participant',
@@ -198,7 +182,7 @@ class ExecutivesConsolidatedService
             'order.participantProgram',
             'order.participantProgram.discounts',
             'order.payments'
-        ])->where('status', 'completed');
+        ])->whereIn('status', ['approved', 'completed']);
 
         // Aplicar filtros
         if (!empty($normalizedFilters['dateFrom'])) {
@@ -228,20 +212,6 @@ class ExecutivesConsolidatedService
         // Obtener TODOS los pagos sin paginación
         $payments = $query->orderBy('transaction_date', 'desc')->get();
 
-        // Si no hay pagos con filtros, replicar el fallback del listado: usar todos los pagos sin filtros de fecha
-        if ($payments->count() === 0) {
-            \Illuminate\Support\Facades\Log::warning('No hay pagos con filtros (export), usando todos los pagos sin filtros de fecha');
-            $payments = Payment::with([
-                'paymentOption',
-                'order.participant',
-                'order.programCourse.salesExecutive',
-                'order.orderDetails',
-                'order.participantProgram',
-                'order.participantProgram.discounts',
-                'order.payments'
-            ])->where('status', 'completed')->orderBy('transaction_date', 'desc')->get();
-        }
-
         // Log de resultados para exportación
         \Illuminate\Support\Facades\Log::info('Datos para exportación', [
             'total_payments' => $payments->count(),
@@ -256,8 +226,8 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Totales para liberado
-            $orderTotalPaid = ($order?->payments ?? collect())->where('status', 'completed')->sum('amount');
+            // Totales para liberado (incluir approved y completed)
+            $orderTotalPaid = ($order?->payments ?? collect())->whereIn('status', ['approved', 'completed'])->sum('amount');
             $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 

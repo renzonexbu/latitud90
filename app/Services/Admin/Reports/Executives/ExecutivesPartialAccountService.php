@@ -66,7 +66,7 @@ class ExecutivesPartialAccountService
                     DB::raw('COALESCE(pp.individual_price, 0) as price'),
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
-                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pg.name END) as payment_method'),
+                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pg.name END) as payment_gateway'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "scholarship" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "discount" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as simple_discounts'),
@@ -158,6 +158,23 @@ class ExecutivesPartialAccountService
                 // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
                 $porPagar = max($price - $abono - $scholarship - $released, 0);
 
+                // Obtener la forma de pago basada en el report_code de payment_options
+                $paymentMethod = 'N/A';
+                if (!empty($orderIds)) {
+                    $lastPayment = \App\Models\Payment::whereIn('order_id', $orderIds)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->where('amount', '>', 0)
+                        ->with('paymentOption')
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+
+                    if ($lastPayment && $lastPayment->paymentOption) {
+                        $paymentMethod = $lastPayment->paymentOption->report_code ?: $row->payment_gateway ?: 'N/A';
+                    } elseif ($row->payment_gateway) {
+                        $paymentMethod = $row->payment_gateway;
+                    }
+                }
+
                 $items->push([
                     'student' => $participantName,
                     'price' => $price,
@@ -165,7 +182,7 @@ class ExecutivesPartialAccountService
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
                     'overdue_installments' => $overdueInstallments,
-                    'payment_method' => $row->payment_method ?: 'N/A',
+                    'payment_method' => $paymentMethod,
                     'scholarship' => $scholarship + $aporteAmount, // Mostrar becas + aportes en columna APORTE/BECA
                     'released' => $released,
                     'balance' => $porPagar,

@@ -39,6 +39,10 @@
                                     <span class="font-semibold text-gray-900">{{ payment.is_installment ? payment.order?.order_number : (payment.buy_order || 'N/A') }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span class="text-gray-600 font-medium">Nro. Documento:</span>
+                                    <span class="font-semibold text-gray-900">{{ getDocumentNumber(payment) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Monto:</span>
                                     <span class="font-bold text-green-600 text-lg">${{ formatPrice(payment.amount) }}</span>
                                 </div>
@@ -507,5 +511,27 @@ const getNotes = (payment) => {
         return payment.gateway_response.notes;
     }
     return null;
+};
+
+/**
+ * Obtiene el número de documento/boleta con la siguiente prioridad:
+ * 1. payment_code (Nro. Boleta del Excel en importación masiva)
+ * 2. bsale_number (número de boleta generado por BSale)
+ * 3. order_id como fallback
+ */
+const getDocumentNumber = (payment) => {
+    // 1. Primero verificar payment_code (Nro. Boleta del Excel)
+    if (payment.payment_code) {
+        return payment.payment_code;
+    }
+    // 2. Luego verificar bsale_number (boleta de BSale)
+    if (payment.bsale_number) {
+        return payment.bsale_number;
+    }
+    // 3. Fallback al order_id
+    if (payment.order_id) {
+        return `ORD-${payment.order_id}`;
+    }
+    return 'N/A';
 };
 </script>

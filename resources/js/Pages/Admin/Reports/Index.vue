@@ -856,7 +856,7 @@
                             Distribución por Tipo de Pago
                         </h3>
                         <p class="text-sm text-gray-600 mb-4">
-                            Compara la cantidad de pagos por tipo: Totales (Full), Suscripciones, Presenciales y Devoluciones.
+                            Compara la cantidad de pagos por tipo: Totales (Full), Suscripciones, Offline y Devoluciones.
                         </p>
                         <div class="h-64">
                             <canvas ref="paymentTypesChart"></canvas>
