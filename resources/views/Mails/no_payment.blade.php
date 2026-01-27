@@ -178,10 +178,13 @@
                         <strong>Participante:</strong> {{ $participant_name ?? 'N/A' }}
                     </div>
                     <div class="detail-item">
-                        <strong>Fecha de incorporación al portal Pago:</strong> {{ $incorporation_date ?? 'N/A' }}
+                        <strong>Programa:</strong> {{ $program_name ?? 'Programa educativo' }}
                     </div>
                     <div class="detail-item">
-                        <strong>Monto Programa educativo presupuestado:</strong> ${{ $program_amount ?? 'N/A' }}
+                        <strong>Fecha de enrolamiento:</strong> {{ $incorporation_date ?? 'N/A' }}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Monto del programa:</strong> ${{ $program_amount ?? 'N/A' }}
                     </div>
                 </div>
 

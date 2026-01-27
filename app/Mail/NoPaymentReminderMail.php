@@ -19,7 +19,8 @@ class NoPaymentReminderMail extends Mailable
     public function __construct(
         public string $participantName,
         public string $incorporationDate,
-        public string $programAmount
+        public string $programAmount,
+        public string $programName = 'Programa educativo'
     ) {
         //
     }
@@ -30,7 +31,7 @@ class NoPaymentReminderMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Latitud 90, Aviso situación Portal Pago "Programa educativo"',
+            subject: 'Latitud 90 - Recordatorio de pago: ' . $this->programName,
         );
     }
 
@@ -45,6 +46,7 @@ class NoPaymentReminderMail extends Mailable
                 'participant_name' => $this->participantName,
                 'incorporation_date' => $this->incorporationDate,
                 'program_amount' => $this->programAmount,
+                'program_name' => $this->programName,
             ]
         );
     }
