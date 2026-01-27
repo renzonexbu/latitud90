@@ -170,6 +170,30 @@
                 />
             </div>
 
+            <!-- Selector de registros por página -->
+            <div class="px-8 py-2 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <label for="perPageSelect" class="text-sm text-gray-600">
+                        Mostrar:
+                    </label>
+                    <select
+                        id="perPageSelect"
+                        v-model="perPage"
+                        @change="handlePerPageChange"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                    <span class="text-sm text-gray-600">registros por página</span>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Mostrando {{ payments.data.length }} de {{ payments.total || payments.data.length }} pagos
+                </div>
+            </div>
+
             <!-- Tabla -->
             <div class="px-8 py-6">
                 <PaymentsTable
@@ -237,6 +261,9 @@ const props = defineProps({
 const selectedPayment = ref(null);
 const showModal = ref(false);
 
+// Registros por página (extraer del URL o usar default 50)
+const perPage = ref(new URLSearchParams(window.location.search).get('per_page') || '50');
+
 // Referencias a los canvas para los gráficos
 const paymentTypesChart = ref(null);
 const paymentMethodsChart = ref(null);
@@ -278,6 +305,16 @@ const handleFiltersChanged = (newFilters) => {
     router.get(route("admin.payments.index"), newFilters, {
         preserveState: true,
         preserveScroll: true,
+    });
+};
+
+const handlePerPageChange = () => {
+    const currentFilters = { ...props.filters };
+    currentFilters.per_page = perPage.value;
+
+    router.get(route("admin.payments.index"), currentFilters, {
+        preserveState: true,
+        preserveScroll: false, // Scroll to top when changing per_page
     });
 };
 

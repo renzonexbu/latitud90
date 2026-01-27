@@ -165,14 +165,31 @@ class GetParticipantsService
                 $enrollment->discounts = $priceData['discounts'];
                 $enrollment->base_price = $priceData['base_price'];
 
-                // Calcular monto pagado correctamente (incluyendo reembolsos como negativos)
-                $paidAmount = Payment::whereHas('order', function($q) use ($enrollment) {
+                // Calcular monto pagado correctamente (EXCLUYENDO APORTES - estos van en contribution)
+                // 1. Pagos normales (orders/payments)
+                $normalPayments = Payment::whereHas('order', function($q) use ($enrollment) {
                         $q->where('participant_id', $enrollment->participant_id)
                           ->where('program_id', $enrollment->program_course_id);
                     })
                     ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        // Excluir aportes del cálculo de paid_amount
+                        $query->whereDoesntHave('paymentOption')
+                              ->orWhereHas('paymentOption', function($q) {
+                                  $q->where('code', '!=', 'presential_aporte');
+                              });
+                    })
                     ->sum('amount');
 
+                // 2. Cuotas de suscripción pagadas (installments)
+                $subscriptionPayments = DB::table('installments')
+                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                    ->where('installment_plans.participant_id', $enrollment->participant_id)
+                    ->where('installment_plans.program_id', $enrollment->program_course_id)
+                    ->where('installments.status', 'paid')
+                    ->sum('installments.amount');
+
+                $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
                 $enrollment->paid_amount = round($paidAmount, 2);
 
                 // Calcular monto liberado (reembolsos) - usar amount con valor absoluto

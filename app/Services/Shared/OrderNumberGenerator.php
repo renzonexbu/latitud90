@@ -20,7 +20,7 @@ class OrderNumberGenerator
         $mm = $nowCl->format('m');
 
         do {
-            $suffix = $this->randomAlphaNum(2);
+            $suffix = $this->randomAlphaNum(6); // 36^6 = 2,176,782,336 combinaciones (más de 2 mil millones)
             $code = sprintf('LT%s%s%s', $yy, $mm, $suffix);
         } while (Order::where('order_number', $code)->exists());
 

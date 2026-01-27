@@ -417,11 +417,15 @@ export default {
         },
 
         getInstallmentNumber(payment) {
+            // Para pagos normales, buscar primero en payments.installments_number
+            if (payment.installments_number) {
+                return payment.installments_number;
+            }
             // Para cuotas de suscripción
             if (payment.is_installment && payment.installment_number) {
                 return payment.installment_number;
             }
-            // Para pagos normales, buscar en order_detail
+            // Para pagos normales (fallback), buscar en order_detail
             if (payment.order_detail?.installment_number) {
                 return payment.order_detail.installment_number;
             }

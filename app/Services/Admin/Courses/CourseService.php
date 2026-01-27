@@ -375,6 +375,10 @@ class CourseService
                 }
             }
 
+            // Detectar si el código del programa cambió
+            $codeChanged = isset($data['code']) && $data['code'] != $programCourse->code;
+            $oldCode = $programCourse->code;
+
             // Calcular días mínimos antes de la salida basándose en las fechas
             $this->calculateMinDaysBeforeDeparture($data);
 
@@ -404,6 +408,11 @@ class CourseService
             // Actualizar nombre del plan
             $programCourse->name = $this->generateProgramCourseName($institution, $course, $program, $data);
             $programCourse->save();
+
+            // Si el código cambió, actualizar los enrollment codes de los participantes
+            if ($codeChanged) {
+                $this->updateEnrollmentCodes($programCourse, $oldCode, $data['code']);
+            }
 
             // Si el precio cambió, actualizar los precios de los participantes
             if ($priceChanged) {
@@ -2096,6 +2105,47 @@ class CourseService
                     ]);
                 }
             }
+        }
+    }
+
+    /**
+     * Actualizar enrollment codes cuando cambia el código del programa
+     */
+    private function updateEnrollmentCodes(ProgramCourse $programCourse, string $oldCode, string $newCode): void
+    {
+        try {
+            Log::info('Actualizando enrollment codes por cambio de código de programa', [
+                'program_course_id' => $programCourse->id,
+                'old_code' => $oldCode,
+                'new_code' => $newCode,
+            ]);
+
+            // Actualizar todos los enrollment codes de participantes de este programa
+            // Formato: RUT-CODIGO_PROGRAMA (ej: 123456789-V0030)
+            $updated = DB::table('participant_program')
+                ->where('program_id', $programCourse->id)
+                ->where('enrollment_code', 'LIKE', '%-' . $oldCode)
+                ->update([
+                    'enrollment_code' => DB::raw("CONCAT(SUBSTRING_INDEX(enrollment_code, '-', 1), '-', '" . $newCode . "')")
+                ]);
+
+            Log::info('Enrollment codes actualizados exitosamente', [
+                'program_course_id' => $programCourse->id,
+                'updated_count' => $updated,
+                'old_code' => $oldCode,
+                'new_code' => $newCode,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error actualizando enrollment codes', [
+                'program_course_id' => $programCourse->id,
+                'old_code' => $oldCode,
+                'new_code' => $newCode,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            throw new \Exception('Error al actualizar los códigos de inscripción de los participantes: ' . $e->getMessage());
         }
     }
 }

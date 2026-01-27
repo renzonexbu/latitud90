@@ -108,12 +108,18 @@ class CourseDataService
             return 0.0;
         }
 
-        // Sumar pagos normales completados
+        // Sumar pagos normales completados (EXCLUYENDO APORTES)
         // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
+        // Los aportes (presential_aporte) son contribuciones adicionales que NO reducen la deuda
         $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
+            ->leftJoin('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
             ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
+            ->where(function($query) {
+                $query->whereNull('payment_options.code')
+                      ->orWhere('payment_options.code', '!=', 'presential_aporte');
+            })
             ->sum('payments.amount');
 
         // Sumar cuotas de suscripciones pagadas (installments)
@@ -158,10 +164,17 @@ class CourseDataService
 
             // Calculate paid amount (pagos normales + cuotas de suscripciones)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
+            // EXCLUYE APORTES: Los aportes (presential_aporte) son contribuciones adicionales que NO reducen la deuda
             $normalPayments = (float) \App\Models\Payment::whereHas('order', function($q) use ($programCourse) {
                 $q->where('program_id', $programCourse->id);
             })
             ->whereIn('status', ['approved', 'completed'])
+            ->where(function($query) {
+                $query->whereDoesntHave('paymentOption')
+                      ->orWhereHas('paymentOption', function($q) {
+                          $q->where('code', '!=', 'presential_aporte');
+                      });
+            })
             ->sum('amount');
 
             // Sumar cuotas de suscripciones pagadas

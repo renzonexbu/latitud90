@@ -64,9 +64,9 @@ class ExecutivesPartialAccountService
                     'p.second_last_name',
                     'pp.individual_price',
                     DB::raw('COALESCE(pp.individual_price, 0) as price'),
-                    DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pay.amount ELSE 0 END), 0) as abono'),
+                    DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
-                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status = "completed" THEN pg.name END) as payment_method'),
+                    DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pg.name END) as payment_method'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "scholarship" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "discount" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as simple_discounts'),
@@ -98,17 +98,17 @@ class ExecutivesPartialAccountService
                     ->pluck('id')->all();
 
                 // Calcular aportes (pagos con report_code 'AP')
+                // IMPORTANTE: Los aportes son contribuciones adicionales que NO reducen la deuda
+                // Se muestran en la columna APORTE/BECA pero NO se restan del "Por Pagar"
                 $aporteAmount = 0;
                 if (!empty($orderIds)) {
                     $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                        ->where('status', 'completed')
+                        ->whereIn('status', ['approved', 'completed'])
                         ->whereHas('paymentOption', function($q) {
                             $q->where('report_code', 'AP');
                         })
                         ->sum('amount');
                 }
-                // Sumar aportes a scholarship
-                $scholarship += $aporteAmount;
 
                 $paidInstallments = 0;
                 $overdueInstallments = 0;
@@ -143,7 +143,7 @@ class ExecutivesPartialAccountService
                         // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
                         // Excluir pagos de tipo Aporte (AP) ya que se cuentan en scholarship
                         $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                            ->where('status', 'completed')
+                            ->whereIn('status', ['approved', 'completed'])
                             ->where(function($q) {
                                 $q->whereNull('payment_option_id')
                                   ->orWhereHas('paymentOption', function($sq) {
@@ -155,6 +155,7 @@ class ExecutivesPartialAccountService
                 }
 
                 // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
+                // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
                 $porPagar = max($price - $abono - $scholarship - $released, 0);
 
                 $items->push([
@@ -165,7 +166,7 @@ class ExecutivesPartialAccountService
                     'total_installments' => $totalInstallments,
                     'overdue_installments' => $overdueInstallments,
                     'payment_method' => $row->payment_method ?: 'N/A',
-                    'scholarship' => $scholarship,
+                    'scholarship' => $scholarship + $aporteAmount, // Mostrar becas + aportes en columna APORTE/BECA
                     'released' => $released,
                     'balance' => $porPagar,
                 ]);

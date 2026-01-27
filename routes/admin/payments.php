@@ -34,6 +34,8 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('import', [ImportManualPaymentsController::class, 'import'])->name('import');
         Route::post('import-preview', [ImportManualPaymentsController::class, 'preview'])->name('import-preview');
         Route::post('import-store', [ImportManualPaymentsController::class, 'importStore'])->name('import-store');
+        Route::get('import-progress', [ImportManualPaymentsController::class, 'importProgress'])->name('import-progress');
+        Route::post('import-export-section', [ImportManualPaymentsController::class, 'exportSection'])->name('import-export-section');
         Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
         Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
     });

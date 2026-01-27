@@ -37,7 +37,7 @@
                 >
                     <option value="all">Todos los Estados</option>
                     <option value="pending">Pendiente</option>
-                    <option value="completed">Completado</option>
+                    <option value="completed">Pagado</option>
                     <option value="failed">Fallido</option>
                     <option value="cancelled">Cancelado</option>
                     <option value="refunded">Reembolsado</option>

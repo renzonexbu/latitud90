@@ -37,23 +37,13 @@ class GetPaymentsService
         // Aplicar filtros
         $this->applyFilters($query, $request);
 
-        $payments = $query->latest()->paginate(15);
+        // Obtener el número de registros por página (default: 50)
+        $perPage = $request->input('per_page', 50);
+        // Limitar entre 15 y 200
+        $perPage = min(max((int)$perPage, 15), 200);
 
-        // Obtener las cuotas de suscripciones
-        $installments = $this->getInstallmentsAsPayments($request);
-
-        // Transformar payments a array y combinar con installments
-        $paymentsArray = $payments->items();
-        $combinedPayments = array_merge($paymentsArray, $installments->toArray());
-
-        // Reemplazar los items de la paginación con los combinados
-        $payments = new \Illuminate\Pagination\LengthAwarePaginator(
-            $combinedPayments,
-            count($combinedPayments),
-            15,
-            $payments->currentPage(),
-            ['path' => request()->url(), 'query' => request()->query()]
-        );
+        // SIMPLIFICADO: Solo pagos normales, sin combinar con installments
+        $payments = $query->latest()->paginate($perPage);
 
         // Obtener estadísticas
         $stats = $this->getStats();
@@ -116,7 +106,13 @@ class GetPaymentsService
 
         // Filtro de estado del pago
         if ($request->payment_status && $request->payment_status !== 'all') {
-            $query->where('status', $request->payment_status);
+            // Si el estado es 'completed', incluir tanto 'completed' como 'approved'
+            // (los pagos presenciales tienen status 'approved')
+            if ($request->payment_status === 'completed') {
+                $query->whereIn('status', ['completed', 'approved']);
+            } else {
+                $query->where('status', $request->payment_status);
+            }
         }
 
         // Filtro de programa (program_id ahora apunta a program_courses)
@@ -176,9 +172,10 @@ class GetPaymentsService
      * Obtener cuotas de suscripciones transformadas como pagos
      *
      * @param Request $request
+     * @param int $perPage
      * @return \Illuminate\Support\Collection
      */
-    private function getInstallmentsAsPayments(Request $request)
+    private function getInstallmentsAsPayments(Request $request, int $perPage = 50)
     {
         $query = \App\Models\Installment::with([
             'installmentPlan.participant.documentType',
@@ -187,7 +184,7 @@ class GetPaymentsService
         // Aplicar filtros similares a los de pagos
         $this->applyInstallmentFilters($query, $request);
 
-        $installments = $query->latest()->take(15)->get();
+        $installments = $query->latest()->take($perPage)->get();
 
         // Transformar installments al formato de pagos
         return $installments->map(function ($installment) {

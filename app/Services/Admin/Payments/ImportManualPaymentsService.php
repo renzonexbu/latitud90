@@ -53,8 +53,294 @@ class ImportManualPaymentsService
         $this->registerManualPaymentService = $registerManualPaymentService;
     }
 
+    /**
+     * Procesar filas directamente desde el frontend (sin chunks, sin Excel)
+     * SIMPLE: Una fila = una inserción
+     *
+     * @param array $rowsData Array de filas con datos ya mapeados del frontend
+     * @param array $columnIndices Índices de columnas (del preview)
+     * @return array
+     */
+    public function processRows(array $rowsData, array $columnIndices): array
+    {
+        set_time_limit(600); // 10 minutos
+        ini_set('memory_limit', '512M');
+
+        $stats = ['successful' => 0, 'duplicates' => 0, 'skipped' => 0, 'failed' => 0];
+        $details = [];
+
+        // Pre-cargar gateway y options UNA sola vez
+        $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
+        $paymentOptions = PaymentOption::whereIn('code', [
+            'presential_bank_transfer',
+            'presential_deposit',
+            'presential_webpay',
+            'presential_aporte',
+            'presential_pos_office',
+            'presential_khipu_link',
+            'presential_debit_credit',
+            'presential_international',
+        ])->get()->keyBy('code');
+
+        $totalRows = count($rowsData);
+        Log::info("🚀 PROCESANDO {$totalRows} FILAS DIRECTAMENTE", [
+            'total' => $totalRows,
+            'timestamp' => now()->format('Y-m-d H:i:s')
+        ]);
+
+        foreach ($rowsData as $index => $rowItem) {
+            $rowNumber = $rowItem['row_number'] ?? ($index + 1);
+            $rowData = $rowItem['data'] ?? [];
+
+            if (empty($rowData)) {
+                $stats['skipped']++;
+                continue;
+            }
+
+            try {
+                $result = $this->insertPayment($rowData, $rowNumber, $paymentGateway, $paymentOptions);
+
+                if ($result['status'] === 'success') {
+                    $stats['successful']++;
+                    $rawData = $rowData['raw_row_data'] ?? [];
+                    Log::info("💰 PAGO #{$stats['successful']} - Fila {$rowNumber}", [
+                        'participante' => $result['data']['participant_name'] ?? 'N/A',
+                        'monto' => $rowData['payment_amount'] ?? $rawData['monto'] ?? $rowData['monto'] ?? 'N/A',
+                    ]);
+                } elseif ($result['status'] === 'duplicate') {
+                    $stats['duplicates']++;
+                } elseif ($result['status'] === 'skipped') {
+                    $stats['skipped']++;
+                } else {
+                    $stats['failed']++;
+                    Log::warning("❌ FALLO Fila {$rowNumber}: " . ($result['message'] ?? 'Error desconocido'));
+                }
+
+                $details[] = [
+                    'row' => $rowNumber,
+                    'status' => $result['status'],
+                    'message' => $result['message'] ?? '',
+                    'data' => $result['data'] ?? null
+                ];
+
+            } catch (\Exception $e) {
+                $stats['failed']++;
+                Log::error("❌ EXCEPCIÓN Fila {$rowNumber}: " . $e->getMessage());
+
+                $details[] = [
+                    'row' => $rowNumber,
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                    'data' => null
+                ];
+            }
+        }
+
+        Log::info("✅ PROCESAMIENTO COMPLETADO", [
+            'successful' => $stats['successful'],
+            'duplicates' => $stats['duplicates'],
+            'skipped' => $stats['skipped'],
+            'failed' => $stats['failed'],
+            'timestamp' => now()->format('Y-m-d H:i:s')
+        ]);
+
+        return [
+            'stats' => $stats,
+            'details' => $details
+        ];
+    }
+
+    /**
+     * Insertar un pago individual - SIMPLE como StorePaymentService
+     * Order -> OrderDetail -> Payment -> refreshStatus()
+     */
+    private function insertPayment(array $rowData, int $rowNumber, ?PaymentGateway $paymentGateway, $paymentOptions): array
+    {
+        // Los datos pueden venir:
+        // 1. Directamente procesados del preview (enrollment_code, payment_amount, etc.)
+        // 2. O dentro de raw_row_data (rut, nro_negocio, monto, etc.)
+        $rawData = $rowData['raw_row_data'] ?? [];
+
+        // 1. Extraer enrollment_code (datos procesados del preview)
+        $enrollmentCode = $rowData['enrollment_code'] ?? null;
+
+        // Si no viene, construirlo desde raw_row_data
+        if (empty($enrollmentCode)) {
+            $rut = $rawData['rut'] ?? $rowData['rut'] ?? null;
+            $nroNegocio = $rawData['nro_negocio'] ?? $rowData['nro_negocio'] ?? null;
+
+            if (!empty($rut) && !empty($nroNegocio)) {
+                $cleanRut = str_replace(['.', '-', ' '], '', trim($rut));
+                $enrollmentCode = $cleanRut . '-' . trim($nroNegocio);
+            }
+        }
+
+        if (empty($enrollmentCode)) {
+            return [
+                'status' => 'error',
+                'message' => "Fila {$rowNumber}: Falta código de inscripción",
+                'data' => $rowData // Incluir datos para reintento
+            ];
+        }
+
+        // 2. Extraer monto (preferir payment_amount procesado, sino parsear desde raw)
+        $paymentAmount = $rowData['payment_amount'] ?? null;
+        if (empty($paymentAmount)) {
+            $montoRaw = $rawData['monto'] ?? $rowData['monto'] ?? null;
+            if (!empty($montoRaw)) {
+                $paymentAmount = $this->parseAmount($montoRaw);
+            }
+        }
+        $paymentAmount = (float) $paymentAmount;
+
+        if ($paymentAmount <= 0) {
+            return [
+                'status' => 'error',
+                'message' => "Fila {$rowNumber}: Monto inválido",
+                'data' => $rowData // Incluir datos para reintento
+            ];
+        }
+
+        // 3. Extraer fecha (preferir payment_date procesado, sino parsear desde raw)
+        $paymentDateStr = $rowData['payment_date'] ?? null;
+        if (!empty($paymentDateStr)) {
+            $paymentDate = Carbon::parse($paymentDateStr);
+        } else {
+            $fechaRaw = $rawData['fecha_pago'] ?? $rowData['fecha_pago'] ?? null;
+            if (!empty($fechaRaw)) {
+                $paymentDate = $this->parseDate($fechaRaw);
+            } else {
+                $paymentDate = Carbon::now();
+            }
+        }
+
+        // 4. Buscar participante
+        $participantProgram = ParticipantProgram::with(['participant', 'programCourse'])
+            ->where('enrollment_code', $enrollmentCode)
+            ->first();
+
+        if (!$participantProgram || !$participantProgram->participant || !$participantProgram->programCourse) {
+            return [
+                'status' => 'error',
+                'message' => "No se encontró participante con código: {$enrollmentCode}",
+                'data' => array_merge($rowData, [
+                    'enrollment_code' => $enrollmentCode,
+                    'payment_amount' => $paymentAmount,
+                    'payment_date' => $paymentDate->format('Y-m-d'),
+                ]) // Incluir datos procesados para reintento
+            ];
+        }
+
+        $participant = $participantProgram->participant;
+        $programCourse = $participantProgram->programCourse;
+
+        // 5. Verificar duplicado (usar authorization_code si viene)
+        $authorizationCode = $rawData['nro_aut'] ?? $rowData['nro_aut'] ?? $rowData['authorization_code'] ?? null;
+        $existingPayment = $this->checkIfPaymentExists(
+            $participant->id,
+            $programCourse->id,
+            $paymentAmount,
+            $paymentDate,
+            $authorizationCode
+        );
+
+        if ($existingPayment) {
+            return [
+                'status' => 'duplicate',
+                'message' => "Pago duplicado para {$participant->full_name}",
+                'data' => ['existing_payment_id' => $existingPayment->id]
+            ];
+        }
+
+        // 6. Obtener payment option
+        $tipoPago = $rawData['tipo_pago'] ?? $rowData['tipo_pago'] ?? $rowData['payment_type'] ?? 'TE';
+        $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($tipoPago);
+        $paymentOption = $paymentOptions->get($paymentOptionCode);
+
+        // 7. Crear Order
+        $order = Order::create([
+            'participant_id' => $participant->id,
+            'program_id' => $programCourse->id,
+            'participant_program_id' => $participantProgram->id,
+            'total_amount' => $paymentAmount,
+            'discount' => 0,
+            'final_amount' => $paymentAmount,
+            'total_installments' => 1,
+            'payment_type' => 'total',
+            'status' => 'pending',
+            'order_number' => app(OrderNumberGenerator::class)->generate(),
+            'notes' => 'Importación masiva de pagos'
+        ]);
+
+        // 8. Crear OrderDetail
+        $buyerName = $rowData['buyer_name'] ?? $rawData['contacto_pagador'] ?? $rowData['contacto_pagador'] ?? $participant->full_name;
+        $buyerEmail = $rowData['buyer_email'] ?? $participant->email;
+
+        $orderDetail = OrderDetail::create([
+            'order_id' => $order->id,
+            'payment_option_id' => $paymentOption?->id,
+            'payment_gateway_id' => $paymentGateway?->id,
+            'name' => $buyerName,
+            'email' => $buyerEmail,
+            'base_amount' => $paymentAmount,
+            'discount_amount' => 0,
+            'amount' => $paymentAmount,
+            'due_date' => $paymentDate,
+            'is_paid' => true,
+            'status' => 'paid',
+            'paid_at' => $paymentDate,
+            'gateway_response' => [
+                'created_manually' => true,
+                'payment_type' => 'presential',
+                'import_row' => $rowNumber
+            ]
+        ]);
+
+        // 9. Crear Payment
+        $referencia = $rawData['referencia'] ?? $rowData['referencia'] ?? $rowData['reference'] ?? null;
+
+        $payment = Payment::create([
+            'order_id' => $order->id,
+            'order_detail_id' => $orderDetail->id,
+            'payment_gateway_id' => $paymentGateway?->id,
+            'payment_option_id' => $paymentOption?->id,
+            'buy_order' => $order->order_number,
+            'amount' => $paymentAmount,
+            'status' => 'approved',
+            'transaction_date' => $paymentDate,
+            'authorization_code' => $authorizationCode,
+            'payment_code' => $referencia,
+            'gateway_response' => [
+                'created_manually' => true,
+                'payment_type' => 'presential',
+                'import_row' => $rowNumber
+            ],
+            'currency' => 'CLP',
+            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+        ]);
+
+        // 10. Actualizar estado de la orden
+        $order->refreshStatus();
+
+        // 11. Manejar APORTE si aplica
+        $isAporte = strtoupper(trim($tipoPago)) === 'AP' || ($rowData['is_aporte'] ?? false);
+        if ($isAporte) {
+            $this->handleAportePayment($participantProgram, $paymentAmount);
+        }
+
+        return [
+            'status' => 'success',
+            'message' => "Pago de $" . number_format($paymentAmount, 0, ',', '.') . " registrado para {$participant->full_name}",
+            'data' => [
+                'payment_id' => $payment->id,
+                'participant_name' => $participant->full_name,
+                'program_code' => $programCourse->code ?? $participantProgram->enrollment_code
+            ]
+        ];
+    }
+
     // Chunk size for processing large files
-    protected const CHUNK_SIZE = 500;
+    protected const CHUNK_SIZE = 100; // Reducido a 100 para commits más frecuentes
 
     // Maximum details to return (to avoid memory issues)
     protected const MAX_DETAILS = 1000;
@@ -68,9 +354,14 @@ class ImportManualPaymentsService
      */
     public function previewExcel($file): array
     {
+        // Aumentar límites de ejecución
+        ini_set('max_execution_time', 600); // 10 minutos
+        ini_set('memory_limit', '512M');
+
         $details = [];
         $stats = [
             'successful' => 0,
+            'duplicates' => 0,
             'skipped' => 0,
             'failed' => 0,
         ];
@@ -215,7 +506,9 @@ class ImportManualPaymentsService
                 'details' => $details,
                 'total_rows' => $totalDataRows,
                 'previewed_rows' => $rowCount,
-                'chunks_processed' => $chunkCount
+                'chunks_processed' => $chunkCount,
+                'column_indices' => $columnIndices, // Enviar columnIndices al frontend para reutilizar
+                'headers' => $headers, // Enviar headers también para referencia
             ];
         } catch (\Exception $e) {
             Log::error('Error al previsualizar archivo Excel: ' . $e->getMessage(), [
@@ -249,15 +542,23 @@ class ImportManualPaymentsService
                 // Validate and preview this row (NO database insert)
                 $result = $this->previewPaymentRow($rowData, $rowNumber);
 
+                // Include raw row data for import later
+                $detailData = $result['data'] ?? null;
+                if ($detailData && is_array($detailData)) {
+                    $detailData['raw_row_data'] = $rowData; // Add raw data
+                }
+
                 $details[] = [
                     'row' => $rowNumber,
                     'status' => $result['status'],
                     'message' => $result['message'],
-                    'data' => $result['data'] ?? null
+                    'data' => $detailData
                 ];
 
                 if ($result['status'] === 'success') {
                     $stats['successful']++;
+                } elseif ($result['status'] === 'duplicate') {
+                    $stats['duplicates']++;
                 } elseif ($result['status'] === 'skipped') {
                     $stats['skipped']++;
                 } else {
@@ -286,15 +587,27 @@ class ImportManualPaymentsService
     /**
      * Process the uploaded Excel file and import manual payments
      * Uses chunked processing for large files (10k-100k rows)
+     *
+     * @param $file The uploaded Excel file
+     * @param array|null $selectedRows Array of row numbers to import, or null to import all
      */
-    public function processExcel($file): array
+    public function processExcel($file, ?array $selectedRows = null): array
     {
+        // Aumentar límites de ejecución para imports grandes
+        set_time_limit(1200); // 20 minutos
+        ini_set('max_execution_time', 1200); // 20 minutos
+        ini_set('memory_limit', '512M');
+
         $details = [];
         $stats = [
             'successful' => 0,
+            'duplicates' => 0,
             'skipped' => 0,
             'failed' => 0,
         ];
+
+        // Convert selectedRows array to a Set for O(1) lookup
+        $selectedRowsSet = $selectedRows ? array_flip($selectedRows) : null;
 
         try {
             // Save the file temporarily
@@ -387,7 +700,7 @@ class ImportManualPaymentsService
 
                 // Process chunk when full
                 if (count($currentChunk) >= self::CHUNK_SIZE) {
-                    $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats);
+                    $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats, $selectedRowsSet);
                     $details = $chunkResult['details'];
                     $stats = $chunkResult['stats'];
 
@@ -401,16 +714,17 @@ class ImportManualPaymentsService
                     $remainingRows = $totalDataRows - $processedRows;
                     $estimatedRemainingTime = $remainingRows * $avgTimePerRow;
 
-                    Log::info("📊 Chunk {$chunkCount}/{$totalDataRows} procesado", [
+                    $totalSelected = $selectedRowsSet ? count($selectedRowsSet) : $totalDataRows;
+                    Log::info("✅ PROGRESO: {$stats['successful']} de {$totalSelected} pagos guardados [{$progressPercent}%]", [
+                        'chunk' => $chunkCount,
                         'rows_in_chunk' => count($currentChunk),
                         'total_processed' => $processedRows,
                         'progress_percent' => $progressPercent . '%',
-                        'elapsed_seconds' => round($elapsedTime, 1),
-                        'avg_seconds_per_row' => round($avgTimePerRow, 2),
-                        'estimated_remaining_seconds' => round($estimatedRemainingTime, 1),
-                        'successful' => $stats['successful'],
-                        'failed' => $stats['failed'],
-                        'skipped' => $stats['skipped']
+                        'pagos_guardados' => $stats['successful'],
+                        'pagos_fallidos' => $stats['failed'],
+                        'pagos_omitidos' => $stats['skipped'],
+                        'tiempo_transcurrido_seg' => round($elapsedTime, 1),
+                        'tiempo_estimado_restante_seg' => round($estimatedRemainingTime, 1)
                     ]);
 
                     // Clear chunk and free memory
@@ -421,7 +735,7 @@ class ImportManualPaymentsService
 
             // Process remaining rows
             if (!empty($currentChunk)) {
-                $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats);
+                $chunkResult = $this->processChunk($currentChunk, $columnIndices, $details, $stats, $selectedRowsSet);
                 $details = $chunkResult['details'];
                 $stats = $chunkResult['stats'];
 
@@ -445,13 +759,16 @@ class ImportManualPaymentsService
             $totalElapsedTime = microtime(true) - $importStartTime;
             $avgTimePerRow = $processedRows > 0 ? $totalElapsedTime / $processedRows : 0;
 
-            Log::info('✅ Importación de pagos completada exitosamente', [
-                'stats' => $stats,
-                'chunks_processed' => $chunkCount,
-                'total_rows_processed' => $processedRows,
-                'total_elapsed_seconds' => round($totalElapsedTime, 1),
-                'avg_seconds_per_row' => round($avgTimePerRow, 2),
-                'rows_per_minute' => round($processedRows / ($totalElapsedTime / 60), 1),
+            Log::info('🎉 IMPORTACIÓN COMPLETADA', [
+                '✅ PAGOS_GUARDADOS' => $stats['successful'],
+                '❌ PAGOS_FALLIDOS' => $stats['failed'],
+                '⏭️ PAGOS_OMITIDOS' => $stats['skipped'],
+                '📊 DUPLICADOS_DETECTADOS' => $stats['duplicates'] ?? 0,
+                'chunks_procesados' => $chunkCount,
+                'filas_procesadas' => $processedRows,
+                'tiempo_total_segundos' => round($totalElapsedTime, 1),
+                'tiempo_total_minutos' => round($totalElapsedTime / 60, 1),
+                'velocidad_pagos_por_minuto' => round($processedRows / ($totalElapsedTime / 60), 1),
                 'timestamp' => now()->format('Y-m-d H:i:s')
             ]);
 
@@ -495,43 +812,49 @@ class ImportManualPaymentsService
      * Process a chunk of rows with its own transaction
      * OPTIMIZADO: Pre-carga payment gateways/options y cachea montos pagados
      */
-    private function processChunk(array $chunk, array $columnIndices, array $details, array $stats): array
+    public function processChunk(array $chunk, array $columnIndices, array $details, array $stats, ?array $selectedRowsSet = null): array
     {
         $startTime = microtime(true);
 
-        DB::beginTransaction();
+        // Pre-cargar payment gateway y options UNA VEZ
+        $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
+        $paymentOptions = PaymentOption::whereIn('code', [
+            'presential_pos_office',
+            'presential_khipu_link',
+            'presential_subscription',
+            'presential_bank_transfer',
+            'presential_debit_credit',
+            'presential_international',
+            'presential_deposit',
+            'presential_webpay',
+            'presential_aporte'
+        ])->get()->keyBy('code');
 
-        try {
-            // OPTIMIZACIÓN 1: Pre-cargar payment gateway y options UNA VEZ por chunk
-            $paymentGateway = PaymentGateway::where('code', 'presencial')->first();
-            $paymentOptions = PaymentOption::whereIn('code', [
-                'presential_pos_office',
-                'presential_khipu_link',
-                'presential_subscription',
-                'presential_bank_transfer',
-                'presential_debit_credit',
-                'presential_international',
-                'presential_deposit',
-                'presential_webpay',
-                'presential_aporte'
-            ])->get()->keyBy('code');
+        $paidAmountCache = [];
+        $rowsProcessed = 0;
 
-            // OPTIMIZACIÓN 2: Caché de montos pagados (se actualiza después de cada pago)
-            $paidAmountCache = [];
-
-            $rowsProcessed = 0;
-
-            foreach ($chunk as $item) {
+        foreach ($chunk as $item) {
                 $rowNumber = $item['row_index'];
                 $row = $item['data'];
 
-                // Build row data array
-                $rowData = [];
-                foreach ($columnIndices as $key => $index) {
-                    $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
+                // Skip row if it's not in the selected rows set
+                if ($selectedRowsSet !== null && !isset($selectedRowsSet[$rowNumber])) {
+                    continue;
                 }
 
-                // Process this payment row with optimizations
+                // Build row data array
+                // If data is already mapped (associative array), use it directly
+                // Otherwise, map using columnIndices
+                if ($this->isAssociativeArray($row)) {
+                    $rowData = $row; // Already mapped
+                } else {
+                    $rowData = [];
+                    foreach ($columnIndices as $key => $index) {
+                        $rowData[$key] = isset($row[$index]) ? trim($row[$index]) : null;
+                    }
+                }
+
+                // Process this payment row
                 $result = $this->processPaymentRowOptimized(
                     $rowData,
                     $rowNumber,
@@ -552,42 +875,40 @@ class ImportManualPaymentsService
 
                 if ($result['status'] === 'success') {
                     $stats['successful']++;
+                    // Log cada pago exitoso
+                    Log::info("💰 PAGO #{$stats['successful']} GUARDADO - Fila {$rowNumber}", [
+                        'participante' => $result['data']['participant_name'] ?? 'N/A',
+                        'rut' => $rowData['rut'] ?? 'N/A',
+                        'monto' => $rowData['monto'] ?? 'N/A',
+                        'programa' => $result['data']['program_code'] ?? 'N/A',
+                    ]);
+                } elseif ($result['status'] === 'duplicate') {
+                    $stats['duplicates']++;
                 } elseif ($result['status'] === 'skipped') {
                     $stats['skipped']++;
                 } else {
                     $stats['failed']++;
+                    // Log cada pago fallido
+                    Log::warning("❌ PAGO FALLIDO - Fila {$rowNumber}", [
+                        'rut' => $rowData['rut'] ?? 'N/A',
+                        'error' => $result['message'] ?? 'Error desconocido',
+                    ]);
                 }
 
                 $rowsProcessed++;
             }
 
-            DB::commit();
+        $elapsedTime = round(microtime(true) - $startTime, 2);
+        $avgTimePerRow = $rowsProcessed > 0 ? round($elapsedTime / $rowsProcessed, 2) : 0;
 
-            $elapsedTime = round(microtime(true) - $startTime, 2);
-            $avgTimePerRow = $rowsProcessed > 0 ? round($elapsedTime / $rowsProcessed, 2) : 0;
-
-            Log::info("✅ Chunk procesado", [
-                'rows_processed' => $rowsProcessed,
-                'elapsed_seconds' => $elapsedTime,
-                'avg_seconds_per_row' => $avgTimePerRow,
-                'successful' => $stats['successful'],
-                'failed' => $stats['failed'],
-                'skipped' => $stats['skipped']
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Error en chunk, rollback ejecutado: ' . $e->getMessage());
-
-            // Mark all remaining rows in chunk as failed
-            $stats['failed'] += count($chunk);
-            $details[] = [
-                'row' => 'chunk',
-                'status' => 'error',
-                'message' => 'Error en bloque de filas: ' . $e->getMessage(),
-                'data' => null
-            ];
-        }
+        Log::info("✅ Chunk procesado", [
+            'rows_processed' => $rowsProcessed,
+            'elapsed_seconds' => $elapsedTime,
+            'avg_seconds_per_row' => $avgTimePerRow,
+            'successful' => $stats['successful'],
+            'failed' => $stats['failed'],
+            'skipped' => $stats['skipped']
+        ]);
 
         return [
             'details' => $details,
@@ -679,6 +1000,38 @@ class ImportManualPaymentsService
                 ];
             }
 
+            // 3.5. CHECK IF PAYMENT ALREADY EXISTS (to avoid duplicates)
+            $paymentAmount = $this->parseAmount($rowData['monto']);
+            $paymentDate = $this->parseDate($rowData['fecha_pago']);
+            $authorizationCode = $rowData['nro_aut'] ?? null;
+
+            $existingPayment = $this->checkIfPaymentExists(
+                $participant->id,
+                $programCourse->id,
+                $paymentAmount,
+                $paymentDate,
+                $authorizationCode
+            );
+
+            if ($existingPayment) {
+                return [
+                    'status' => 'duplicate',
+                    'message' => "Pago ya existe para {$participant->full_name} (${paymentAmount} el {$paymentDate->format('d/m/Y')})",
+                    'data' => [
+                        'row_data' => $rowData,
+                        'enrollment_code' => $enrollmentCode,
+                        'participant_name' => $participant->full_name,
+                        'participant_rut' => $participant->rut,
+                        'program_name' => $programCourse->name,
+                        'program_code' => $programCourse->code,
+                        'payment_amount' => $paymentAmount,
+                        'payment_date' => $paymentDate->format('Y-m-d'),
+                        'existing_payment_id' => $existingPayment->id,
+                        'reason' => 'duplicate'
+                    ]
+                ];
+            }
+
             // 4. Calculate participant price
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
             $totalAmount = (float) $priceData['final_price'];
@@ -711,6 +1064,7 @@ class ImportManualPaymentsService
                     'participant_name' => $participant->full_name,
                     'participant_rut' => $participant->rut,
                     'program_name' => $programCourse->name,
+                    'program_code' => $programCourse->code,
                     'payment_amount' => $paymentAmount,
                     'payment_date' => $paymentDate->format('Y-m-d'),
                     'payment_type' => $paymentType,
@@ -903,6 +1257,8 @@ class ImportManualPaymentsService
                 'transaction_date' => $paymentDate,
                 'authorization_code' => $rowData['nro_aut'] ?? null,
                 'payment_code' => $rowData['referencia'] ?? null,
+                'installments_number' => $rowData['cuotas'] ?? null,
+                'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
                 'gateway_response' => [
                     'notes' => $rowData['notas'] ?? null,
                     'created_manually' => true,
@@ -986,6 +1342,10 @@ class ImportManualPaymentsService
      * @param \Illuminate\Support\Collection $paymentOptions Opciones de pago pre-cargadas (keyBy code)
      * @param array $paidAmountCache Caché de montos pagados (referencia)
      */
+    /**
+     * Procesar una fila de pago - SIMPLIFICADO igual que StorePaymentService
+     * Solo crea: Order -> OrderDetail -> Payment (sin calcular precios ni reestructurar cuotas)
+     */
     private function processPaymentRowOptimized(
         array $rowData,
         int $rowNumber,
@@ -994,30 +1354,32 @@ class ImportManualPaymentsService
         array &$paidAmountCache
     ): array {
         try {
-            // Validate row data
-            $validation = $this->validateRowData($rowData, $rowNumber);
-            if (!$validation['valid']) {
+            // Timeout corto para evitar bloqueos infinitos
+            DB::statement("SET SESSION innodb_lock_wait_timeout = 5");
+
+            // 1. Validar datos mínimos
+            if (empty($rowData['rut']) || empty($rowData['nro_negocio']) || empty($rowData['monto'])) {
                 return [
                     'status' => 'error',
-                    'message' => $validation['error'],
+                    'message' => "Fila {$rowNumber}: Faltan datos obligatorios (RUT, Nro Negocio o Monto)",
                     'data' => ['row_data' => $rowData]
                 ];
             }
 
-            // 1. Build enrollment code from RUT and Nro. Negocio
+            // 2. Construir enrollment code
             $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
             $nroNegocio = trim($rowData['nro_negocio']);
             $enrollmentCode = $cleanRut . '-' . $nroNegocio;
 
-            // 2. Find participant by enrollment code
-            $participantProgram = ParticipantProgram::with(['participant', 'programCourse.program'])
+            // 3. Buscar participante
+            $participantProgram = ParticipantProgram::with(['participant', 'programCourse'])
                 ->where('enrollment_code', $enrollmentCode)
                 ->first();
 
-            if (!$participantProgram) {
+            if (!$participantProgram || !$participantProgram->participant || !$participantProgram->programCourse) {
                 return [
                     'status' => 'error',
-                    'message' => "No se encontró participante con código de inscripción: {$enrollmentCode}",
+                    'message' => "No se encontró participante con código: {$enrollmentCode}",
                     'data' => ['row_data' => $rowData]
                 ];
             }
@@ -1025,103 +1387,56 @@ class ImportManualPaymentsService
             $participant = $participantProgram->participant;
             $programCourse = $participantProgram->programCourse;
 
-            if (!$participant || !$programCourse) {
-                return [
-                    'status' => 'error',
-                    'message' => "Datos incompletos para código de inscripción: {$enrollmentCode}",
-                    'data' => ['row_data' => $rowData]
-                ];
-            }
-
-            // 3. Validate no active subscription
-            $subscriptionValidation = $this->validateNoActiveSubscription($participant->id, $programCourse->id);
-            if (!$subscriptionValidation['valid']) {
-                return [
-                    'status' => 'skipped',
-                    'message' => $subscriptionValidation['message'],
-                    'data' => [
-                        'row_data' => $rowData,
-                        'participant' => $participant->full_name,
-                        'program' => $programCourse->name
-                    ]
-                ];
-            }
-
-            // 3.5. CHECK IF PAYMENT ALREADY EXISTS (to avoid duplicates)
+            // 4. Parsear datos del pago
             $paymentAmount = $this->parseAmount($rowData['monto']);
             $paymentDate = $this->parseDate($rowData['fecha_pago']);
+            $authorizationCode = $rowData['nro_aut'] ?? null;
 
+            // 5. Verificar duplicado
             $existingPayment = $this->checkIfPaymentExists(
                 $participant->id,
                 $programCourse->id,
                 $paymentAmount,
-                $paymentDate
+                $paymentDate,
+                $authorizationCode
             );
 
             if ($existingPayment) {
                 return [
-                    'status' => 'skipped',
-                    'message' => "Pago ya existe para {$participant->full_name} (${paymentAmount} el {$paymentDate->format('d/m/Y')})",
-                    'data' => [
-                        'row_data' => $rowData,
-                        'participant' => $participant->full_name,
-                        'program' => $programCourse->name,
-                        'existing_payment_id' => $existingPayment->id,
-                        'reason' => 'duplicate'
-                    ]
+                    'status' => 'duplicate',
+                    'message' => "Pago duplicado para {$participant->full_name}",
+                    'data' => ['existing_payment_id' => $existingPayment->id]
                 ];
             }
 
-            // 4. Calculate participant price
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-            $totalAmount = (float) $priceData['final_price'];
-            $discounts = (float) $priceData['discounts'];
-
-            // 5. OPTIMIZADO: Calculate paid amount usando caché
-            $paidAmount = $this->calculatePaidAmountCached($participant->id, $programCourse->id, $paidAmountCache);
-            $previousBalance = max($totalAmount - $paidAmount, 0);
-            $paymentType = $this->mapPaymentType($rowData['tipo_pago']);
-
-            // 7. Validate payment amount against balance
-            if ($paymentAmount > $previousBalance && $previousBalance > 0) {
-                if (($paymentAmount - $previousBalance) > 100) {
-                    Log::warning("Monto de pago excede saldo pendiente", [
-                        'payment_amount' => $paymentAmount,
-                        'previous_balance' => $previousBalance,
-                        'difference' => $paymentAmount - $previousBalance,
-                        'participant' => $participant->full_name
-                    ]);
-                }
-            }
-
-            // 8. OPTIMIZADO: Usar payment gateway y option pre-cargados
-            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago']);
+            // 6. Obtener payment option
+            $paymentOptionCode = $this->mapPresentialPaymentTypeToOption($rowData['tipo_pago'] ?? 'TE');
             $paymentOption = $paymentOptions->get($paymentOptionCode);
 
-            // 9. Find or create the order
-            $order = $this->findOrCreateOrder($participant, $programCourse, $participantProgram, $totalAmount, $discounts);
+            // 7. Crear Order (igual que StorePaymentService - siempre nueva)
+            $order = Order::create([
+                'participant_id' => $participant->id,
+                'program_id' => $programCourse->id,
+                'participant_program_id' => $participantProgram->id,
+                'total_amount' => $paymentAmount,
+                'discount' => 0,
+                'final_amount' => $paymentAmount,
+                'total_installments' => 1,
+                'payment_type' => 'total',
+                'status' => 'pending',
+                'order_number' => app(\App\Services\Shared\OrderNumberGenerator::class)->generate(),
+                'notes' => 'Orden creada desde importación masiva de pagos'
+            ]);
 
-            // 10. Create order detail with buyer data
-            $buyerName = $rowData['contacto_pagador'] ?? ($participant->first_name . ' ' . $participant->first_last_name);
-            $buyerEmail = $this->validateEmail($rowData['email_contacto_pagador'] ?? null)
-                ? $rowData['email_contacto_pagador']
-                : $participant->email;
+            // 8. Crear OrderDetail
+            $buyerName = $rowData['contacto_pagador'] ?? $participant->full_name;
 
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
                 'payment_option_id' => $paymentOption?->id,
                 'payment_gateway_id' => $paymentGateway?->id,
                 'name' => $buyerName,
-                'email' => $buyerEmail,
-                'country' => null,
-                'region' => null,
-                'city' => null,
-                'code_phone' => null,
-                'phone' => null,
-                'document_type' => null,
-                'document_number' => null,
-                'installment_number' => null,
-                'installments_number' => $rowData['cuotas'] ?? null,
+                'email' => $participant->email,
                 'base_amount' => $paymentAmount,
                 'discount_amount' => 0,
                 'amount' => $paymentAmount,
@@ -1130,97 +1445,55 @@ class ImportManualPaymentsService
                 'status' => 'paid',
                 'paid_at' => $paymentDate,
                 'gateway_response' => [
-                    'notes' => $rowData['notas'] ?? null,
                     'created_manually' => true,
                     'payment_type' => 'presential',
                     'import_row' => $rowNumber
                 ]
             ]);
 
-            // 11. Create payment
-            $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
-            $paymentNumber = $existingPaymentsCount + 1;
-
+            // 9. Crear Payment
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
                 'payment_gateway_id' => $paymentGateway?->id,
                 'payment_option_id' => $paymentOption?->id,
-                'buy_order' => $order->order_number . '-P' . $paymentNumber,
+                'buy_order' => $order->order_number,
                 'amount' => $paymentAmount,
                 'status' => 'approved',
                 'transaction_date' => $paymentDate,
-                'authorization_code' => $rowData['nro_aut'] ?? null,
+                'authorization_code' => $authorizationCode,
                 'payment_code' => $rowData['referencia'] ?? null,
                 'gateway_response' => [
-                    'notes' => $rowData['notas'] ?? null,
                     'created_manually' => true,
                     'payment_type' => 'presential',
-                    'import_row' => $rowNumber,
-                    'buyer_data' => [
-                        'full_name' => $buyerName,
-                        'email' => $buyerEmail,
-                    ]
+                    'import_row' => $rowNumber
                 ],
                 'currency' => 'CLP',
                 'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
             ]);
 
-            // 12. Handle APORTE (AP) - Update contribution field
-            $isAporte = strtoupper(trim($rowData['tipo_pago'])) === 'AP';
-            if ($isAporte) {
+            // 10. Actualizar estado de la orden
+            $order->refreshStatus();
+
+            // 11. Manejar APORTE si aplica
+            if (strtoupper(trim($rowData['tipo_pago'] ?? '')) === 'AP') {
                 $this->handleAportePayment($participantProgram, $paymentAmount);
             }
 
-            // 13. OPTIMIZADO: Handle installment restructure SIN duplicar calculateParticipantPrice
-            $this->handleInstallmentRestructureOptimized(
-                $participant,
-                $programCourse,
-                $paymentAmount,
-                $totalAmount,
-                $paidAmount,
-                $paidAmountCache
-            );
-
-            // 14. OPCIONAL: Skip subscription adjustment para acelerar (se puede ejecutar después)
-            // $this->handleSubscriptionAdjustment($participant->id, $programCourse->id, $paymentAmount);
-
-            // 15. Update order status
-            $order->refreshStatus();
-
-            // 16. OPTIMIZADO: Actualizar caché con el nuevo pago
-            $cacheKey = "{$participant->id}_{$programCourse->id}";
-            $paidAmountCache[$cacheKey] = $paidAmount + $paymentAmount;
-
-            $newPaidAmount = $paidAmount + $paymentAmount;
-            $newBalance = max($totalAmount - $newPaidAmount, 0);
-            $paymentTypeLabel = $isAporte ? 'APORTE' : 'Pago';
-
             return [
                 'status' => 'success',
-                'message' => "{$paymentTypeLabel} de $" . number_format($paymentAmount, 0, ',', '.') .
-                    " registrado para {$participant->full_name}. " .
-                    "Saldo anterior: $" . number_format($previousBalance, 0, ',', '.') .
-                    " → Nuevo saldo: $" . number_format($newBalance, 0, ',', '.'),
+                'message' => "Pago registrado para {$participant->full_name}",
                 'data' => [
                     'payment_id' => $payment->id,
-                    'participant' => $participant->full_name,
-                    'amount' => $paymentAmount,
-                    'is_aporte' => $isAporte,
-                    'previous_balance' => $previousBalance,
-                    'new_balance' => $newBalance
+                    'participant_name' => $participant->full_name,
+                    'program_code' => $nroNegocio
                 ]
             ];
 
         } catch (\Exception $e) {
-            Log::error("Error procesando fila {$rowNumber}: " . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'row_data' => $rowData
-            ]);
-
             return [
                 'status' => 'error',
-                'message' => "Error en fila {$rowNumber}: " . $e->getMessage(),
+                'message' => "Error fila {$rowNumber}: " . $e->getMessage(),
                 'data' => ['row_data' => $rowData]
             ];
         }
@@ -1575,7 +1848,7 @@ class ImportManualPaymentsService
     /**
      * Get column indices for each field
      */
-    private function getColumnIndices(array $headers): array
+    public function getColumnIndices(array $headers): array
     {
         $indices = [];
 
@@ -1761,6 +2034,17 @@ class ImportManualPaymentsService
     }
 
     /**
+     * Check if array is associative (has string keys)
+     */
+    private function isAssociativeArray(array $arr): bool
+    {
+        if (empty($arr)) {
+            return false;
+        }
+        return array_keys($arr) !== range(0, count($arr) - 1);
+    }
+
+    /**
      * Validate email format
      */
     private function validateEmail(?string $email): bool
@@ -1769,5 +2053,47 @@ class ImportManualPaymentsService
             return false;
         }
         return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    /**
+     * Check if a payment already exists in database
+     * Criteria: RUT alumno (participant) + Programa + Nro. Aut. (authorization_code)
+     *
+     * @param int $participantId
+     * @param int $programCourseId
+     * @param float $amount
+     * @param \Carbon\Carbon $transactionDate
+     * @param string|null $authorizationCode Nro. Aut. from Excel
+     * @return \App\Models\Payment|null
+     */
+    private function checkIfPaymentExists(
+        int $participantId,
+        int $programCourseId,
+        float $amount,
+        \Carbon\Carbon $transactionDate,
+        ?string $authorizationCode = null
+    ): ?\App\Models\Payment {
+        // Build query base: participant + program + status
+        $query = \App\Models\Payment::whereHas('order', function($query) use ($participantId, $programCourseId) {
+                $query->where('participant_id', $participantId)
+                      ->where('program_id', $programCourseId);
+            })
+            ->whereIn('status', ['approved', 'completed']);
+
+        // If we have authorization_code (Nro. Aut.), use it for exact match
+        if (!empty($authorizationCode)) {
+            $query->where('authorization_code', trim($authorizationCode));
+        } else {
+            // Fallback: if no authorization_code, use amount + date ranges (old behavior)
+            $amountMin = $amount * 0.95;
+            $amountMax = $amount * 1.05;
+            $dateStart = $transactionDate->copy()->subDay();
+            $dateEnd = $transactionDate->copy()->addDay();
+
+            $query->whereBetween('amount', [$amountMin, $amountMax])
+                  ->whereBetween('transaction_date', [$dateStart, $dateEnd]);
+        }
+
+        return $query->first();
     }
 }
