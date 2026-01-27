@@ -267,4 +267,115 @@ class CreateParticularPaymentController extends Controller
             'data' => RegisterManualPaymentService::getPaymentSourceOptions()
         ]);
     }
+
+    /**
+     * Buscar participantes inscritos en programas activos
+     * Permite buscar por RUT, nombre, apellido o código de programa
+     */
+    public function searchEnrolledParticipants(Request $request)
+    {
+        $search = $request->input('search', '');
+
+        if (strlen($search) < 2) {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
+
+        try {
+            // Limpiar el término de búsqueda (eliminar puntos y guiones para RUT)
+            $searchClean = preg_replace('/[.\-]/', '', $search);
+            $searchLower = strtolower($search);
+
+            // Buscar participantes que estén inscritos en cursos con programas
+            // Incluye todos los programas (activos e inactivos) para poder registrar pagos pendientes
+            $results = \Illuminate\Support\Facades\DB::table('participants as p')
+                ->join('participant_course as pc', 'p.id', '=', 'pc.participant_id')
+                ->join('courses as c', 'c.id', '=', 'pc.course_id')
+                ->join('program_courses as pgc', 'pgc.course_id', '=', 'c.id')
+                ->leftJoin('participant_program as pp', function ($join) {
+                    $join->on('pp.participant_id', '=', 'p.id')
+                        ->on('pp.program_id', '=', 'pgc.id');
+                })
+                ->where(function ($query) use ($search, $searchClean, $searchLower) {
+                    // Buscar por documento (con o sin formato)
+                    $query->where('p.document_number', 'LIKE', "%{$search}%")
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("REPLACE(REPLACE(p.document_number, '.', ''), '-', '')"), 'LIKE', "%{$searchClean}%")
+                        // Buscar por nombre
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.first_name)'), 'LIKE', "%{$searchLower}%")
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.second_name)'), 'LIKE', "%{$searchLower}%")
+                        // Buscar por apellido
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.first_last_name)'), 'LIKE', "%{$searchLower}%")
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.second_last_name)'), 'LIKE', "%{$searchLower}%")
+                        // Buscar por código de programa
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(pgc.code)'), 'LIKE', "%{$searchLower}%");
+                })
+                ->select([
+                    'p.id as participant_id',
+                    'p.first_name',
+                    'p.second_name',
+                    'p.first_last_name',
+                    'p.second_last_name',
+                    'p.document_number',
+                    'pgc.id as program_course_id',
+                    'pgc.code as program_code',
+                    'pgc.name as program_name',
+                    'pgc.active as program_active',
+                    'pp.enrollment_code',
+                    'pp.is_active as enrollment_active',
+                ])
+                ->orderBy('p.first_last_name')
+                ->orderBy('p.first_name')
+                ->limit(20)
+                ->get();
+
+            // Formatear resultados
+            $formattedResults = $results->map(function ($item) {
+                // Formatear nombre completo
+                $fullName = trim(
+                    ucfirst(strtolower($item->first_name ?? '')) . ' ' .
+                    ucfirst(strtolower($item->first_last_name ?? ''))
+                );
+
+                // Formatear RUT si es RUT chileno
+                $document = $item->document_number;
+                $cleanDoc = preg_replace('/[.\-]/', '', $document ?? '');
+                if (preg_match('/^\d{7,8}[\dkK]$/i', $cleanDoc)) {
+                    $body = substr($cleanDoc, 0, -1);
+                    $dv = strtoupper(substr($cleanDoc, -1));
+                    $document = number_format((int)$body, 0, '', '.') . '-' . $dv;
+                }
+
+                return [
+                    'participant_id' => $item->participant_id,
+                    'program_course_id' => $item->program_course_id,
+                    'full_name' => $fullName,
+                    'document_number' => $document,
+                    'program_code' => $item->program_code,
+                    'program_name' => $item->program_name,
+                    'enrollment_code' => $item->enrollment_code,
+                    'enrollment_active' => $item->enrollment_active ?? true,
+                    'program_active' => (bool) $item->program_active,
+                    // Label para mostrar en el dropdown
+                    'label' => "{$document} - {$fullName} ({$item->program_code})",
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedResults
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error buscando participantes inscritos', [
+                'search' => $search,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar participantes: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

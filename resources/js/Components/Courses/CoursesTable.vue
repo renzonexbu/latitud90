@@ -16,6 +16,9 @@
                             Destino
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Estado
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Participantes
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
@@ -57,6 +60,17 @@
                             <div class="text-xs font-medium text-[#1c4f4a]">
                                 {{ capitalizeWords(getProgramDestination(course)) }}
                             </div>
+                        </td>
+                        <!-- Estado (Activo/Inactivo) -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="[
+                                    'inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full',
+                                    isProgramActive(course) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                ]"
+                            >
+                                {{ isProgramActive(course) ? 'Activo' : 'Inactivo' }}
+                            </span>
                         </td>
                         <!-- Participantes -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
@@ -132,6 +146,11 @@ export default {
             // Obtener el código del ProgramCourse
             const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
             return programCourse?.code || 'N/A';
+        },
+        isProgramActive(course) {
+            // Verificar si el programa está activo
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.active === true || programCourse?.active === 1;
         },
         getStatusChipClass(course) {
             const percentage = course.payment_percentage;

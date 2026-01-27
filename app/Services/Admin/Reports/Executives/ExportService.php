@@ -475,55 +475,64 @@ class ExportService
                 ->get();
             $orderIds = $orders->pluck('id')->all();
 
-            // Sumatoria de pagos (abono) ACUMULADOS - SOLO pagos completed (sin filtro de fecha)
-            $abono = 0.0;
-            if (!empty($orderIds)) {
-                $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                    ->where('amount', '>', 0)
-                    ->where('status', 'completed')
-                    ->sum('amount');
-            }
-
-            // Cuotas: totales y pagadas desde plan; vencidas por due_date < hoy y no pagadas
-            // SOLO considerar si existen pagos completed
-            $totalInstallments = 0;
+            // Usar la misma lógica que ExecutivesPartialAccountService para calcular abono
             $paidInstallments = 0;
             $overdueInstallments = 0;
-            
+            $totalInstallments = 0;
+            $abono = 0.0;
+
             if (!empty($orderIds)) {
-                $hasCompleted = \App\Models\Payment::whereIn('order_id', $orderIds)
-                    ->where('status', 'completed')
-                    ->exists();
-                
-                foreach ($orders as $order) {
-                    $plan = $order->installmentPlan;
-                    if ($plan) {
-                        $totalInstallments += (int) ($plan->total_installments ?? 0);
-                        if ($hasCompleted) {
-                            foreach ($plan->installments as $inst) {
-                                if ($inst->status === 'paid') {
-                                    $paidInstallments++;
-                                } elseif ($inst->status !== 'paid' && $inst->due_date && $inst->due_date->lt(now('America/Santiago'))) {
-                                    $overdueInstallments++;
-                                }
-                            }
-                        }
-                    } elseif ($order->total_installments) {
-                        $totalInstallments += (int) $order->total_installments;
-                    }
+                // Obtener el plan de cuotas
+                $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+
+                if ($installmentPlan) {
+                    $totalInstallments = $installmentPlan->installments()->count();
+
+                    // Contar cuotas pagadas
+                    $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
+
+                    // Contar cuotas vencidas (no pagadas y con fecha pasada)
+                    $overdueInstallments = $installmentPlan->installments()
+                        ->where(function($query) {
+                            $query->where('status', 'overdue')
+                                  ->orWhere(function($q) {
+                                      $q->where('status', 'pending')
+                                        ->where('due_date', '<', now());
+                                  });
+                        })->count();
+
+                    // Calcular abono: suma de los montos de las cuotas pagadas
+                    $abono = (float) $installmentPlan->installments()
+                        ->where('status', 'paid')
+                        ->sum('amount');
+                } else {
+                    // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
+                    // Excluir pagos de tipo Aporte (AP) ya que se cuentan en scholarship
+                    $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->where(function($q) {
+                            $q->whereNull('payment_option_id')
+                              ->orWhereHas('paymentOption', function($sq) {
+                                  $sq->where('report_code', '!=', 'AP');
+                              });
+                        })
+                        ->sum('amount');
                 }
             }
 
-            // Forma de pago: último pago COMPLETED y su payment_gateway.name
+            // Forma de pago: obtener del último pago con status approved/completed
             $paymentMethod = 'N/A';
             if (!empty($orderIds)) {
-                $lastPayment = \App\Models\Payment::with('paymentGateway')
-                    ->whereIn('order_id', $orderIds)
-                    ->where('status', 'completed')
+                $lastPayment = \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
                     ->where('amount', '>', 0)
-                    ->orderByRaw('COALESCE(transaction_date, created_at) DESC')
+                    ->with('paymentOption')
+                    ->orderBy('created_at', 'desc')
                     ->first();
-                if ($lastPayment && $lastPayment->paymentGateway) {
+
+                if ($lastPayment && $lastPayment->paymentOption) {
+                    $paymentMethod = $lastPayment->paymentOption->report_code ?: 'N/A';
+                } elseif ($lastPayment && $lastPayment->paymentGateway) {
                     $paymentMethod = $lastPayment->paymentGateway->name ?? 'N/A';
                 }
             }

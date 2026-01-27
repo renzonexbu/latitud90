@@ -157,6 +157,7 @@ export default {
                 level: "",
                 course_number: "",
                 year: "",
+                active: "",
             },
         };
     },
@@ -197,11 +198,20 @@ export default {
             
             // Filtro por año
             if (this.localFilters.year) {
-                filtered = filtered.filter(course => 
+                filtered = filtered.filter(course =>
                     course.year?.toString() === this.localFilters.year
                 );
             }
-            
+
+            // Filtro por estado activo/inactivo del programa
+            if (this.localFilters.active) {
+                filtered = filtered.filter(course => {
+                    const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+                    const isActive = programCourse?.active === true || programCourse?.active === 1;
+                    return this.localFilters.active === 'active' ? isActive : !isActive;
+                });
+            }
+
             // Paginación
             const itemsPerPage = 10;
             const startIndex = (this.currentPage - 1) * itemsPerPage;

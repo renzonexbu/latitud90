@@ -62,25 +62,32 @@ class UpdatePaymentOptionsService
 
     /**
      * Actualizar opciones de pago para un program_course específico
+     *
+     * IMPORTANTE:
+     * - Pago total (full_*): usa departure_date como referencia
+     * - Suscripción (subscription_*): usa final_payment_date como referencia
      */
     private function updateProgramCoursePaymentOptions(ProgramCourse $programCourse, Carbon $today): void
     {
+        // Calcular días/meses disponibles para cada tipo de pago
+        $departureDate = Carbon::parse($programCourse->departure_date);
         $finalPaymentDate = Carbon::parse($programCourse->final_payment_date);
-        
-        // Calcular meses disponibles hasta la fecha final de pago
-        $availableMonths = $this->calculateAvailableMonths($today, $finalPaymentDate);
-        
-        // Obtener TODAS las opciones de pago disponibles en el sistema
-        $allOptions = PaymentOption::where('active', true)->get();
 
-        // Filtrar opciones válidas según los meses disponibles
-        $validOptions = $this->filterValidPaymentOptions($allOptions, $availableMonths);
+        // Para pago total: días hasta fecha de salida
+        $availableMonthsForFullPayment = $this->calculateAvailableMonths($today, $departureDate);
 
-        // Actualizar opciones de pago si es necesario
-        $this->syncProgramCoursePaymentOptions($programCourse, $validOptions);
+        // Para suscripción: días hasta fecha final de pago
+        $availableMonthsForSubscription = $this->calculateAvailableMonths($today, $finalPaymentDate);
 
-        // Actualizar número máximo de cuotas si es necesario
-        $this->updateMaxInstallments($programCourse, $availableMonths);
+        // Actualizar opciones de pago existentes (NO crear nuevas)
+        $this->syncProgramCoursePaymentOptions(
+            $programCourse,
+            $availableMonthsForFullPayment,
+            $availableMonthsForSubscription
+        );
+
+        // Actualizar número máximo de cuotas para suscripción
+        $this->updateMaxInstallments($programCourse, $availableMonthsForSubscription);
     }
     
     /**
@@ -97,70 +104,116 @@ class UpdatePaymentOptionsService
     }
     
     /**
-     * Filtrar opciones de pago válidas según los meses disponibles
+     * Verificar si una opción de pago es válida según los meses disponibles
+     *
+     * @param object $option Opción de pago con code e installments
+     * @param int $availableMonths Meses disponibles hasta la fecha de referencia
+     * @return bool
      */
-    private function filterValidPaymentOptions($options, int $availableMonths): array
+    private function isPaymentOptionValid(object $option, int $availableMonths): bool
     {
-        $validOptions = [];
-        
-        foreach ($options as $option) {
-            // Si no tiene cuotas (null) o es 0, siempre está disponible
-            if ($option->installments === null || $option->installments === 0) {
-                $validOptions[] = $option->code;
-                continue;
-            }
-            
-            // Si tiene cuotas, verificar que no exceda los meses disponibles
-            if ($option->installments <= $availableMonths) {
-                $validOptions[] = $option->code;
-            }
+        // Si no tiene cuotas (null) o es 0, siempre está disponible
+        if ($option->installments === null || $option->installments === 0) {
+            return true;
         }
-        
-        return $validOptions;
+
+        // Si tiene cuotas, verificar que no exceda los meses disponibles
+        return $option->installments <= $availableMonths;
     }
-    
+
     /**
      * Sincronizar opciones de pago del program_course
+     *
+     * IMPORTANTE: Solo actualiza el estado 'enabled' de opciones que YA fueron
+     * seleccionadas por el administrador. NO agrega nuevas opciones que nunca
+     * fueron configuradas para este programa.
+     *
+     * @param ProgramCourse $programCourse
+     * @param int $availableMonthsForFullPayment Meses hasta departure_date
+     * @param int $availableMonthsForSubscription Meses hasta final_payment_date
      */
-    private function syncProgramCoursePaymentOptions(ProgramCourse $programCourse, array $validOptions): void
-    {
-        // Obtener todas las opciones de pago disponibles en el sistema
-        $allPaymentOptions = PaymentOption::where('active', true)->get();
-
-        // Obtener opciones actualmente configuradas para este program_course
+    private function syncProgramCoursePaymentOptions(
+        ProgramCourse $programCourse,
+        int $availableMonthsForFullPayment,
+        int $availableMonthsForSubscription
+    ): void {
+        // Obtener SOLO las opciones actualmente configuradas para este program_course
+        // (las que el admin seleccionó originalmente)
         $currentOptions = DB::table('program_course_payment_option')
-            ->where('program_course_id', $programCourse->id)
-            ->pluck('payment_option_id')
-            ->toArray();
+            ->join('payment_options', 'payment_options.id', '=', 'program_course_payment_option.payment_option_id')
+            ->where('program_course_payment_option.program_course_id', $programCourse->id)
+            ->select(
+                'program_course_payment_option.payment_option_id',
+                'program_course_payment_option.enabled',
+                'payment_options.code',
+                'payment_options.installments'
+            )
+            ->get();
 
-        // Crear o actualizar todas las opciones de pago disponibles
-        foreach ($allPaymentOptions as $paymentOption) {
-            $isValid = in_array($paymentOption->code, $validOptions);
-            $exists = in_array($paymentOption->id, $currentOptions);
+        // Si no hay opciones configuradas, no hay nada que actualizar
+        if ($currentOptions->isEmpty()) {
+            Log::info('No hay opciones de pago configuradas para actualizar', [
+                'program_course_id' => $programCourse->id
+            ]);
+            return;
+        }
 
-            if ($exists) {
-                // Actualizar estado de opción existente
+        $updatedCount = 0;
+        $disabledCount = 0;
+        $enabledCount = 0;
+
+        // Solo actualizar el estado de las opciones YA existentes
+        foreach ($currentOptions as $option) {
+            // Determinar qué fecha usar según el tipo de opción
+            if (str_starts_with($option->code, 'full_')) {
+                // Pago total: usa departure_date
+                $availableMonths = $availableMonthsForFullPayment;
+            } elseif (str_starts_with($option->code, 'subscription_')) {
+                // Suscripción: usa final_payment_date
+                $availableMonths = $availableMonthsForSubscription;
+            } else {
+                // Otros tipos (presential_, etc.): no se actualizan automáticamente
+                continue;
+            }
+
+            $isValid = $this->isPaymentOptionValid($option, $availableMonths);
+            $wasEnabled = (bool) $option->enabled;
+
+            // Solo actualizar si el estado cambió
+            if ($wasEnabled !== $isValid) {
                 DB::table('program_course_payment_option')
                     ->where('program_course_id', $programCourse->id)
-                    ->where('payment_option_id', $paymentOption->id)
+                    ->where('payment_option_id', $option->payment_option_id)
                     ->update(['enabled' => $isValid, 'updated_at' => now()]);
-            } else {
-                // Crear nueva opción para el program_course
-                DB::table('program_course_payment_option')->insert([
+
+                $updatedCount++;
+                if ($isValid) {
+                    $enabledCount++;
+                } else {
+                    $disabledCount++;
+                }
+
+                Log::info('Opción de pago actualizada', [
                     'program_course_id' => $programCourse->id,
-                    'payment_option_id' => $paymentOption->id,
-                    'enabled' => $isValid,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'option_code' => $option->code,
+                    'installments' => $option->installments,
+                    'available_months' => $availableMonths,
+                    'new_status' => $isValid ? 'enabled' : 'disabled'
                 ]);
             }
         }
 
-        Log::info('Opciones de pago sincronizadas para program_course', [
-            'program_course_id' => $programCourse->id,
-            'total_options' => $allPaymentOptions->count(),
-            'valid_options' => count($validOptions)
-        ]);
+        if ($updatedCount > 0) {
+            Log::info('Resumen de actualización de opciones de pago', [
+                'program_course_id' => $programCourse->id,
+                'total_configured' => $currentOptions->count(),
+                'options_updated' => $updatedCount,
+                'options_enabled' => $enabledCount,
+                'options_disabled' => $disabledCount,
+                'months_to_departure' => $availableMonthsForFullPayment,
+                'months_to_final_payment' => $availableMonthsForSubscription
+            ]);
+        }
     }
 
     /**

@@ -261,88 +261,143 @@
                                     Información del Pago
                                 </h3>
 
-                                <!-- Selección de Programa y Participante -->
-                                <div
-                                    class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"
-                                >
-                                    <div>
-                                        <label
-                                            class="block text-sm font-medium text-gray-700 mb-2"
-                                        >
-                                            Programa *
-                                        </label>
-                                        <select
-                                            v-model="form.program_id"
-                                            @change="loadParticipants"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                <!-- Buscador de Participante Inscrito -->
+                                <div class="mb-6" data-search-container>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Buscar Participante Inscrito *
+                                    </label>
+                                    <p class="text-sm text-gray-500 mb-3">
+                                        Busque por RUT, nombre, apellido o código de programa
+                                    </p>
+                                    <div class="relative">
+                                        <input
+                                            type="text"
+                                            v-model="searchQuery"
+                                            @input="debounceSearch"
+                                            @focus="showDropdown = true"
+                                            @keydown.escape="showDropdown = false"
+                                            @keydown.down.prevent="navigateDropdown(1)"
+                                            @keydown.up.prevent="navigateDropdown(-1)"
+                                            @keydown.enter.prevent="selectHighlighted"
+                                            placeholder="Ej: 12.345.678-9, Juan Pérez, V0008..."
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
                                             :class="{
-                                                'border-red-500':
-                                                    errors.program_id,
+                                                'border-red-500': errors.program_id || errors.participant_id,
+                                                'border-green-500': selectedEnrollment
                                             }"
-                                        >
-                                            <option value="">
-                                                Seleccionar programa
-                                            </option>
-                                            <option
-                                                v-for="program in programs"
-                                                :key="program.id"
-                                                :value="program.id"
+                                        />
+                                        <div v-if="isSearching" class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[#007e93]"></div>
+                                        </div>
+                                        <div v-else-if="selectedEnrollment" class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                            <button
+                                                type="button"
+                                                @click="clearSelection"
+                                                class="text-gray-400 hover:text-gray-600"
                                             >
-                                                {{ program.code }} -
-                                                {{ program.name }}
-                                            </option>
-                                        </select>
-                                        <span
-                                            v-if="errors.program_id"
-                                            class="text-red-500 text-sm mt-1"
-                                            >{{ errors.program_id }}</span
-                                        >
-                                    </div>
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
 
-                                    <div>
-                                        <label
-                                            class="block text-sm font-medium text-gray-700 mb-2"
+                                        <!-- Dropdown de resultados -->
+                                        <div
+                                            v-if="showDropdown && searchResults.length > 0"
+                                            class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-80 overflow-y-auto"
                                         >
-                                            Participante *
-                                        </label>
-                                        <select
-                                            v-model="form.participant_id"
-                                            @change="
-                                                loadParticipantPaymentStatus
-                                            "
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{
-                                                'border-red-500':
-                                                    errors.participant_id,
-                                            }"
-                                            :disabled="!form.program_id"
-                                        >
-                                            <option value="">
-                                                Seleccionar participante
-                                            </option>
-                                            <option
-                                                v-for="participant in availableParticipants"
-                                                :key="participant.id"
-                                                :value="participant.id"
+                                            <div
+                                                v-for="(result, index) in searchResults"
+                                                :key="`${result.participant_id}-${result.program_course_id}`"
+                                                @click="selectEnrollment(result)"
+                                                @mouseenter="highlightedIndex = index"
+                                                class="px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                                                :class="{
+                                                    'bg-[#007e93] text-white': highlightedIndex === index,
+                                                    'hover:bg-gray-50': highlightedIndex !== index
+                                                }"
                                             >
-                                                {{
-                                                    formatParticipantName(
-                                                        participant
-                                                    )
-                                                }}
-                                                -
-                                                {{
-                                                    formatParticipantDocument(
-                                                        participant
-                                                    )
-                                                }}
-                                            </option>
-                                        </select>
-                                        <span
-                                            v-if="errors.participant_id"
-                                            class="text-red-500 text-sm mt-1"
-                                            >{{ errors.participant_id }}</span
+                                                <div class="flex justify-between items-start">
+                                                    <div>
+                                                        <div class="font-semibold" :class="{ 'text-white': highlightedIndex === index, 'text-gray-900': highlightedIndex !== index }">
+                                                            {{ result.full_name }}
+                                                        </div>
+                                                        <div class="text-sm" :class="{ 'text-gray-200': highlightedIndex === index, 'text-gray-600': highlightedIndex !== index }">
+                                                            {{ result.document_number }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-right">
+                                                        <div class="flex items-center justify-end gap-2">
+                                                            <div class="text-sm font-medium" :class="{ 'text-gray-200': highlightedIndex === index, 'text-[#007e93]': highlightedIndex !== index }">
+                                                                {{ result.program_code }}
+                                                            </div>
+                                                            <span
+                                                                :class="[
+                                                                    'inline-flex px-1.5 py-0.5 text-[9px] font-semibold rounded-full',
+                                                                    result.program_active
+                                                                        ? 'bg-green-100 text-green-800'
+                                                                        : 'bg-red-100 text-red-800'
+                                                                ]"
+                                                            >
+                                                                {{ result.program_active ? 'Activo' : 'Inactivo' }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="text-xs" :class="{ 'text-gray-300': highlightedIndex === index, 'text-gray-500': highlightedIndex !== index }">
+                                                            {{ result.program_name }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Mensaje de no resultados -->
+                                        <div
+                                            v-if="showDropdown && searchQuery.length >= 2 && searchResults.length === 0 && !isSearching"
+                                            class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4 text-center text-gray-500"
                                         >
+                                            No se encontraron participantes inscritos
+                                        </div>
+                                    </div>
+                                    <span v-if="errors.program_id" class="text-red-500 text-sm mt-1 block">{{ errors.program_id }}</span>
+                                    <span v-if="errors.participant_id" class="text-red-500 text-sm mt-1 block">{{ errors.participant_id }}</span>
+                                </div>
+
+                                <!-- Participante Seleccionado -->
+                                <div
+                                    v-if="selectedEnrollment"
+                                    class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200"
+                                >
+                                    <h4 class="text-md font-semibold text-green-800 mb-3 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Participante Seleccionado
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <span class="text-sm text-gray-600">Nombre:</span>
+                                            <p class="font-semibold text-gray-800">{{ selectedEnrollment.full_name }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-sm text-gray-600">RUT/Documento:</span>
+                                            <p class="font-semibold text-gray-800">{{ selectedEnrollment.document_number }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-sm text-gray-600">Programa:</span>
+                                            <p class="font-semibold text-[#007e93] flex items-center gap-2">
+                                                {{ selectedEnrollment.program_code }} - {{ selectedEnrollment.program_name }}
+                                                <span
+                                                    :class="[
+                                                        'inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full',
+                                                        selectedEnrollment.program_active
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-red-100 text-red-800'
+                                                    ]"
+                                                >
+                                                    {{ selectedEnrollment.program_active ? 'Activo' : 'Inactivo' }}
+                                                </span>
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -708,7 +763,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 
@@ -758,6 +813,15 @@ const participantPaymentStatus = ref(null);
 const isLoadingParticipantStatus = ref(false);
 const isLoadingFrequentClient = ref(false);
 const errorAlert = ref(null);
+
+// Variables para el buscador de participantes inscritos
+const searchQuery = ref('');
+const searchResults = ref([]);
+const isSearching = ref(false);
+const showDropdown = ref(false);
+const highlightedIndex = ref(0);
+const selectedEnrollment = ref(null);
+let searchTimeout = null;
 
 const rutValidation = reactive({
     isValid: null,
@@ -1195,6 +1259,115 @@ const formatParticipantDocument = (participant) => {
     return participant.document_number;
 };
 
+// ========================================
+// Funciones del buscador de participantes
+// ========================================
+
+const debounceSearch = () => {
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    // Si ya hay una selección y el usuario está editando, limpiarla
+    if (selectedEnrollment.value) {
+        clearSelection();
+    }
+
+    searchTimeout = setTimeout(() => {
+        performSearch();
+    }, 300);
+};
+
+const performSearch = async () => {
+    const query = searchQuery.value.trim();
+
+    if (query.length < 2) {
+        searchResults.value = [];
+        showDropdown.value = false;
+        return;
+    }
+
+    try {
+        isSearching.value = true;
+        showDropdown.value = true;
+        highlightedIndex.value = 0;
+
+        const response = await fetch(`/admin/payments/presential/search-participants?search=${encodeURIComponent(query)}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            console.error('Error en la búsqueda:', response.status);
+            searchResults.value = [];
+            return;
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            searchResults.value = result.data;
+        } else {
+            searchResults.value = [];
+        }
+    } catch (error) {
+        console.error('Error buscando participantes:', error);
+        searchResults.value = [];
+    } finally {
+        isSearching.value = false;
+    }
+};
+
+const navigateDropdown = (direction) => {
+    if (searchResults.value.length === 0) return;
+
+    highlightedIndex.value += direction;
+
+    if (highlightedIndex.value < 0) {
+        highlightedIndex.value = searchResults.value.length - 1;
+    } else if (highlightedIndex.value >= searchResults.value.length) {
+        highlightedIndex.value = 0;
+    }
+};
+
+const selectHighlighted = () => {
+    if (searchResults.value.length > 0 && highlightedIndex.value >= 0) {
+        selectEnrollment(searchResults.value[highlightedIndex.value]);
+    }
+};
+
+const selectEnrollment = (enrollment) => {
+    selectedEnrollment.value = enrollment;
+    form.program_id = enrollment.program_course_id;
+    form.participant_id = enrollment.participant_id;
+    searchQuery.value = enrollment.label;
+    showDropdown.value = false;
+    searchResults.value = [];
+
+    // Cargar estado de pagos del participante
+    loadParticipantPaymentStatus();
+};
+
+const clearSelection = () => {
+    selectedEnrollment.value = null;
+    form.program_id = '';
+    form.participant_id = '';
+    searchQuery.value = '';
+    searchResults.value = [];
+    participantPaymentStatus.value = null;
+};
+
+// Cerrar dropdown al hacer clic fuera
+const handleClickOutside = (event) => {
+    const searchContainer = event.target.closest('[data-search-container]');
+    if (!searchContainer) {
+        showDropdown.value = false;
+    }
+};
+
 const submit = () => {
     // Combinar los datos del pagador con los datos del pago
     const combinedData = {
@@ -1236,6 +1409,19 @@ const submit = () => {
 onMounted(() => {
     // Establecer RUT como tipo de documento por defecto
     buyerForm.documentType = getDocumentTypeId("RUT");
+
+    // Agregar listener para cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    // Limpiar listener
+    document.removeEventListener('click', handleClickOutside);
+
+    // Limpiar timeout de búsqueda
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
 });
 </script>
 

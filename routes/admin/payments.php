@@ -38,6 +38,7 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::post('import-export-section', [ImportManualPaymentsController::class, 'exportSection'])->name('import-export-section');
         Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
         Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
+        Route::get('search-participants', [CreateParticularPaymentController::class, 'searchEnrolledParticipants'])->name('search-participants');
     });
 
     // Rutas para reembolsos

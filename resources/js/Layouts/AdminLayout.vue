@@ -146,6 +146,15 @@
                         >
                             Agregar nuevo programa - curso
                         </NavLink>
+                        <NavLink
+                            v-if="isSuperAdmin || isContabilidad"
+                            :href="route('admin.courses.payment-options-programs')"
+                            :active="route().current('admin.courses.payment-options-programs')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingCoursesMenu = false"
+                        >
+                            Medios de Pago por Programa
+                        </NavLink>
                     </div>
                 </div>
                 <NavLink

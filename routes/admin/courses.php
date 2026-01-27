@@ -1,11 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\Courses\CourseController;
+use App\Http\Controllers\Admin\Courses\PaymentOptionsProgramController;
 use App\Http\Controllers\Admin\InstitutionsController;
 use Illuminate\Support\Facades\Route;
 
 // Courses Management
 Route::prefix('courses')->name('courses.')->group(function () {
+    // Payment Options by Program - debe ir antes de las rutas con parámetros
+    Route::get('/payment-options-programs', [PaymentOptionsProgramController::class, 'index'])
+        ->name('payment-options-programs');
+    Route::get('/payment-options-programs/export', [PaymentOptionsProgramController::class, 'export'])
+        ->name('payment-options-programs.export');
     // Participant management routes (must be before wildcard routes)
     Route::get('/participants', [CourseController::class, 'getParticipants'])->name('participants.get');
     Route::delete('/participants/remove', [CourseController::class, 'removeParticipant'])->name('participants.remove');

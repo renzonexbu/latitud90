@@ -57,6 +57,19 @@
                 </select>
             </div>
 
+            <!-- Estado (Activo/Inactivo) Dropdown -->
+            <div class="relative w-[140px]">
+                <select
+                    v-model="filters.active"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                    @change="performSearch"
+                >
+                    <option value="">Estado</option>
+                    <option value="active">Activos</option>
+                    <option value="inactive">Inactivos</option>
+                </select>
+            </div>
+
             <!-- Clear Filters Button -->
             <button
                 @click="clearFilters"
@@ -92,6 +105,7 @@ export default {
                 search: this.initialFilters.search || "",
                 institution: this.initialFilters.institution || "",
                 year: this.initialFilters.year || "",
+                active: this.initialFilters.active || "",
             }
         };
     },
@@ -122,6 +136,7 @@ export default {
                 search: "",
                 institution: "",
                 year: "",
+                active: "",
             };
             this.performSearch();
         },
