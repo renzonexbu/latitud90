@@ -57,6 +57,8 @@ return [
     ],
 
     'bsale' => [
+        // Kill switch: poner en false para desactivar generación de boletas
+        'enabled' => env('BSALE_ENABLED', true),
         'token' => env('BSALE_TOKEN'),
         'base_url' => env('BSALE_BASE_URL', 'https://api.bsale.io/v1'),
         // IDs configurables por ambiente/cuenta

@@ -214,6 +214,16 @@ class BsaleService
     public function generateInvoice(OrderDetail $orderDetail, Payment $payment): ?array
     {
         try {
+            // Kill switch: verificar si BSale está habilitado globalmente
+            // Configurar BSALE_ENABLED=false en .env para desactivar generación de boletas
+            if (!config('services.bsale.enabled', true)) {
+                Log::info('BsaleService: Generación de boletas DESACTIVADA por configuración (BSALE_ENABLED=false)', [
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $orderDetail->id,
+                ]);
+                return null;
+            }
+
             $program = $orderDetail->order->programCourse;
 
             // Usar el document_type del Payment para decidir si generar boleta

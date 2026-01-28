@@ -467,13 +467,15 @@ class SubscriptionController extends Controller
             // Crear las cuotas individuales usando el charge_program de VirtualPos
             $chargeProgram = $response['suscription']['charge_program'] ?? $response['charge_program'] ?? [];
 
-            // Estados que indican pago exitoso (incluye 'procesando' para cobros inmediatos)
-            $approvedStatuses = ['pagado', 'procesando', 'aprobado', 'approved', 'paid', 'success'];
+            // Estados que indican pago CONFIRMADO exitoso
+            // IMPORTANTE: NO incluir 'procesando' porque es un estado intermedio que puede fallar
+            $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
 
             // Si VirtualPos devuelve charge_program, usar esos datos
             if (!empty($chargeProgram)) {
                 foreach ($chargeProgram as $index => $charge) {
                     // Convertir el status de VirtualPos a nuestro formato
+                    // Solo marcar como 'paid' si el status está CONFIRMADO
                     $status = 'pending';
                     $isPaid = false;
                     if (isset($charge['status'])) {
@@ -481,6 +483,13 @@ class SubscriptionController extends Controller
                         if (in_array($chargeStatus, $approvedStatuses)) {
                             $status = 'paid';
                             $isPaid = true;
+                        }
+                        // Log si está procesando para debugging
+                        if ($chargeStatus === 'procesando') {
+                            Log::info('Charge en estado procesando, esperando confirmación', [
+                                'charge_id' => $charge['id'] ?? null,
+                                'amount' => $charge['amount'] ?? 0,
+                            ]);
                         }
                     }
 
@@ -637,8 +646,9 @@ class SubscriptionController extends Controller
                             'total_charges' => count($chargeProgram)
                         ]);
 
-                        // Estados que indican pago exitoso (incluye 'procesando' para cobros inmediatos)
-                        $approvedStatuses = ['pagado', 'procesando', 'aprobado', 'approved', 'paid', 'success'];
+                        // Estados que indican pago CONFIRMADO exitoso
+                        // IMPORTANTE: NO incluir 'procesando' porque es un estado intermedio que puede fallar
+                        $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
 
                         foreach ($chargeProgram as $index => $charge) {
                             // Buscar si ya existe una cuota con este virtualpos_charge_id
@@ -647,6 +657,7 @@ class SubscriptionController extends Controller
                                 ->first();
 
                             // Convertir el status de VirtualPos a nuestro formato
+                            // Solo marcar como 'paid' si el status está CONFIRMADO
                             $status = 'pending';
                             $isPaid = false;
                             if (isset($charge['status'])) {
@@ -654,6 +665,13 @@ class SubscriptionController extends Controller
                                 if (in_array($chargeStatus, $approvedStatuses)) {
                                     $status = 'paid';
                                     $isPaid = true;
+                                }
+                                // Log si está procesando para debugging
+                                if ($chargeStatus === 'procesando') {
+                                    Log::info('Sincronización: Charge en estado procesando, esperando confirmación', [
+                                        'charge_id' => $charge['id'] ?? null,
+                                        'amount' => $charge['amount'] ?? 0,
+                                    ]);
                                 }
                             }
 

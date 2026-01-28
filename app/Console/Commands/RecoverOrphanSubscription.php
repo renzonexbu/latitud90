@@ -170,8 +170,9 @@ class RecoverOrphanSubscription extends Command
 
             $this->info("InstallmentPlan creado con ID: {$installmentPlan->id}");
 
-            // Estados aprobados
-            $approvedStatuses = ['pagado', 'procesando', 'aprobado', 'approved', 'paid', 'success'];
+            // Estados CONFIRMADOS como aprobados
+            // IMPORTANTE: NO incluir 'procesando' porque es un estado intermedio que puede fallar
+            $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
 
             // Crear cuotas
             foreach ($chargeProgram as $index => $charge) {

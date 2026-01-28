@@ -332,32 +332,41 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $newPayments = [];
 
-        // Estados válidos que indican un pago exitoso/procesado
-        // Incluye 'procesando' porque VirtualPOS lo usa para cobros inmediatos exitosos
+        // Estados válidos que indican un pago CONFIRMADO exitoso
+        // IMPORTANTE: NO incluir 'procesando' porque es un estado intermedio que puede fallar
+        // Solo procesar charges con status definitivamente aprobados
         $approvedStatuses = array_map('strtolower', VirtualPosService::APPROVED_STATUSES);
-        $approvedStatuses[] = 'procesando'; // Estado de cobro inmediato exitoso
+        // Estados adicionales que VirtualPOS usa para pagos confirmados
+        $approvedStatuses[] = 'pagado';
+        $approvedStatuses[] = 'cobrado';
 
-        // Buscar charges que están pagados en VirtualPOS
+        // Buscar charges que están CONFIRMADOS como pagados en VirtualPOS
         foreach ($currentCharges as $currentCharge) {
             $chargeId = $currentCharge['id'] ?? null;
             $currentStatus = strtolower($currentCharge['status'] ?? '');
 
+            // Ignorar charges sin ID o que no estén en estado aprobado confirmado
+            // NOTA: 'procesando' NO se incluye porque es un estado intermedio que puede fallar
             if (!$chargeId || !in_array($currentStatus, $approvedStatuses)) {
+                // Log para debugging de charges ignorados
+                if ($chargeId && $currentStatus === 'procesando') {
+                    Log::info('SyncSubscriptionPayments: Charge en estado procesando ignorado (esperando confirmación)', [
+                        'charge_id' => $chargeId,
+                        'status' => $currentStatus,
+                        'amount' => $currentCharge['amount'] ?? 0,
+                    ]);
+                }
                 continue;
             }
 
-            // LÓGICA CORREGIDA: Si el charge está pagado/procesando en VirtualPOS pero NO existe
+            // Si el charge está CONFIRMADO como pagado en VirtualPOS pero NO existe
             // en nuestra BD, entonces es un pago nuevo que debemos procesar.
-            // No importa si ya estaba pagado en el charge_program guardado anteriormente,
-            // lo importante es si tenemos el Payment registrado en la BD.
-            // NOTA: 'procesando' se incluye porque VirtualPOS lo usa para cobros inmediatos exitosos.
             if (!$this->isChargeAlreadyProcessed($chargeId)) {
                 Log::info('SyncSubscriptionPayments: Pago nuevo detectado', [
                     'charge_id' => $chargeId,
                     'amount' => $currentCharge['amount'] ?? 0,
                     'charge_date' => $currentCharge['charge_date'] ?? null,
                     'status' => $currentStatus,
-                    'is_immediate_charge' => $currentStatus === 'procesando'
                 ]);
                 $newPayments[] = $currentCharge;
             }
