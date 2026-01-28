@@ -224,6 +224,38 @@ class BsaleService
                 return null;
             }
 
+            // IMPORTANTE: Verificar si el Payment ya tiene una boleta generada para evitar duplicados
+            if (!empty($payment->bsale_document_id) || !empty($payment->bsale_number)) {
+                Log::info('BsaleService: Payment ya tiene boleta generada, omitiendo generación duplicada', [
+                    'payment_id' => $payment->id,
+                    'bsale_document_id' => $payment->bsale_document_id,
+                    'bsale_number' => $payment->bsale_number,
+                ]);
+                return null;
+            }
+
+            // Verificar flags según tipo de pago (suscripción vs total)
+            $order = $orderDetail->order;
+            $isSubscription = $this->isSubscriptionPayment($payment, $order);
+
+            if ($isSubscription) {
+                if (!config('services.bsale.subscription_enabled', true)) {
+                    Log::info('BsaleService: Generación DESACTIVADA para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
+                        'payment_id' => $payment->id,
+                        'order_payment_type' => $order->payment_type ?? 'N/A',
+                    ]);
+                    return null;
+                }
+            } else {
+                if (!config('services.bsale.total_enabled', true)) {
+                    Log::info('BsaleService: Generación DESACTIVADA para pagos totales (BSALE_TOTAL_ENABLED=false)', [
+                        'payment_id' => $payment->id,
+                        'order_payment_type' => $order->payment_type ?? 'N/A',
+                    ]);
+                    return null;
+                }
+            }
+
             $program = $orderDetail->order->programCourse;
 
             // Usar el document_type del Payment para decidir si generar boleta
@@ -649,5 +681,68 @@ class BsaleService
         // Siempre retornar 1 (RUT) para BSale
         // Cuando sea pasaporte, ya se maneja el número 55.555.555-5 en el documentNumber
         return 1;
+    }
+
+    /**
+     * Determinar si un pago es de suscripción (PAT/cuota) o pago total (contado)
+     *
+     * @param Payment $payment
+     * @param mixed $order Order o InstallmentPlan
+     * @return bool true si es pago de suscripción, false si es pago total
+     */
+    private function isSubscriptionPayment(Payment $payment, $order): bool
+    {
+        // 1. Verificar payment_type de la orden
+        $paymentType = $order->payment_type ?? null;
+        if (in_array($paymentType, ['monthly', 'subscription', 'pat'])) {
+            Log::debug('BsaleService::isSubscriptionPayment - Detectado por payment_type', [
+                'payment_id' => $payment->id,
+                'payment_type' => $paymentType,
+            ]);
+            return true;
+        }
+
+        // 2. Verificar si tiene external_payment_id (típico de charges de suscripción VirtualPOS)
+        if (!empty($payment->external_payment_id)) {
+            Log::debug('BsaleService::isSubscriptionPayment - Detectado por external_payment_id', [
+                'payment_id' => $payment->id,
+                'external_payment_id' => $payment->external_payment_id,
+            ]);
+            return true;
+        }
+
+        // 3. Verificar si el order_number indica suscripción
+        $orderNumber = $order->order_number ?? '';
+        if (str_starts_with($orderNumber, 'SUB-')) {
+            Log::debug('BsaleService::isSubscriptionPayment - Detectado por order_number SUB-', [
+                'payment_id' => $payment->id,
+                'order_number' => $orderNumber,
+            ]);
+            return true;
+        }
+
+        // 4. Verificar si existe una ProgramSubscription activa para este participante/programa
+        if ($order->participant_id && $order->program_id) {
+            $hasSubscription = \App\Models\ProgramSubscription::where('participant_id', $order->participant_id)
+                ->where('program_id', $order->program_id)
+                ->whereIn('status', ['ACTIVA', 'PAUSADA'])
+                ->exists();
+
+            if ($hasSubscription) {
+                Log::debug('BsaleService::isSubscriptionPayment - Detectado por ProgramSubscription existente', [
+                    'payment_id' => $payment->id,
+                    'participant_id' => $order->participant_id,
+                    'program_id' => $order->program_id,
+                ]);
+                return true;
+            }
+        }
+
+        // 5. Fallback: no es pago de suscripción
+        Log::debug('BsaleService::isSubscriptionPayment - Es pago total (no suscripción)', [
+            'payment_id' => $payment->id,
+            'payment_type' => $paymentType,
+        ]);
+        return false;
     }
 }

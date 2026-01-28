@@ -345,6 +345,29 @@ class SendPendingPaymentEmails extends Command
                 return;
             }
 
+            // Determinar si es pago de suscripción o pago total
+            $order = $orderDetail->order;
+            $isSubscriptionPayment = $this->isSubscriptionPayment($payment, $order);
+
+            // Aplicar flags según el tipo de pago
+            if ($isSubscriptionPayment) {
+                if (!config('services.bsale.subscription_enabled', true)) {
+                    Log::info('BSale: Generación DESACTIVADA para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
+                        'payment_id' => $payment->id,
+                        'order_payment_type' => $order->payment_type ?? 'N/A',
+                    ]);
+                    return;
+                }
+            } else {
+                if (!config('services.bsale.total_enabled', true)) {
+                    Log::info('BSale: Generación DESACTIVADA para pagos totales (BSALE_TOTAL_ENABLED=false)', [
+                        'payment_id' => $payment->id,
+                        'order_payment_type' => $order->payment_type ?? 'N/A',
+                    ]);
+                    return;
+                }
+            }
+
             $bsaleResult = $this->bsaleService->generateInvoice($orderDetail, $payment);
 
             if ($bsaleResult) {
@@ -646,5 +669,48 @@ class SendPendingPaymentEmails extends Command
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Determinar si un pago es de suscripción (PAT) o de pago total/contado
+     *
+     * Es suscripción si:
+     * - Order tiene payment_type = 'monthly' o 'subscription'
+     * - O tiene external_payment_id (charge de VirtualPOS suscripción)
+     * - O el order_number empieza con 'SUB-'
+     */
+    protected function isSubscriptionPayment(Payment $payment, $order): bool
+    {
+        // Verificar payment_type de la orden
+        $paymentType = $order->payment_type ?? null;
+        if (in_array($paymentType, ['monthly', 'subscription', 'pat'])) {
+            return true;
+        }
+
+        // Verificar si tiene external_payment_id (típico de charges de suscripción)
+        if (!empty($payment->external_payment_id)) {
+            return true;
+        }
+
+        // Verificar si el order_number indica suscripción
+        $orderNumber = $order->order_number ?? '';
+        if (str_starts_with($orderNumber, 'SUB-')) {
+            return true;
+        }
+
+        // Verificar si existe una ProgramSubscription para este participante/programa
+        if ($order->participant_id && $order->program_id) {
+            $hasSubscription = \App\Models\ProgramSubscription::where('participant_id', $order->participant_id)
+                ->where('program_id', $order->program_id)
+                ->whereIn('status', ['ACTIVA', 'PAUSADA'])
+                ->exists();
+
+            if ($hasSubscription) {
+                return true;
+            }
+        }
+
+        // Por defecto, es pago total
+        return false;
     }
 }

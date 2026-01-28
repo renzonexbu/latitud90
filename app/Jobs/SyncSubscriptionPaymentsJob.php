@@ -846,6 +846,25 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     ): void
     {
         try {
+            // Kill switch específico para suscripciones
+            if (!config('services.bsale.subscription_enabled', true)) {
+                Log::info('SyncSubscriptionPayments: BSale DESACTIVADO para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
+                    'payment_id' => $payment->id,
+                    'subscription_id' => $subscription->id,
+                ]);
+                return;
+            }
+
+            // Verificar si el Payment ya tiene boleta generada (evitar duplicados)
+            if (!empty($payment->bsale_document_id) || !empty($payment->bsale_number)) {
+                Log::info('SyncSubscriptionPayments: Payment ya tiene boleta, omitiendo duplicado', [
+                    'payment_id' => $payment->id,
+                    'bsale_document_id' => $payment->bsale_document_id,
+                    'bsale_number' => $payment->bsale_number,
+                ]);
+                return;
+            }
+
             // Verificar si el programa es en el mismo año
             $programCourse = $subscription->programCourse;
             if (!$programCourse || !$programCourse->departure_date) {

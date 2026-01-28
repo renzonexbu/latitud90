@@ -18,8 +18,10 @@ use App\Helpers\RutHelper;
 use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use App\Services\Subscription\SubscriptionRecalculationService;
+use App\Services\Client\Integration\BsaleService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class CreateParticularPaymentService
@@ -104,6 +106,9 @@ class CreateParticularPaymentService
 
             DB::commit();
 
+            // Generar boleta BSale (fuera de la transacción para que el pago quede registrado aunque BSale falle)
+            $bsaleResult = $this->generateBsaleInvoiceForPayment($orderDetail, $payment);
+
             // Log the payment creation
             $isAporte = $presentialPaymentType === 'AP';
             $paymentTypeLabel = $isAporte ? 'Aporte' : 'Pago particular';
@@ -112,7 +117,8 @@ class CreateParticularPaymentService
                 'payments',
                 'Payment',
                 $payment->id,
-                "{$paymentTypeLabel} creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
+                "{$paymentTypeLabel} creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}" .
+                    ($bsaleResult ? " - Boleta BSale: {$bsaleResult['number']}" : ''),
                 $payment->toArray(),
                 [
                     'order_id' => $order->id,
@@ -124,6 +130,8 @@ class CreateParticularPaymentService
                     'remaining_balance' => $previousBalance - $data['amount'],
                     'payment_code' => $data['payment_code'] ?? null,
                     'is_aporte' => $isAporte,
+                    'bsale_generated' => $bsaleResult !== null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
                 ]
             );
 
@@ -136,6 +144,8 @@ class CreateParticularPaymentService
                 'amount' => $data['amount'],
                 'payment_code' => $data['payment_code'] ?? null,
                 'is_aporte' => $isAporte,
+                'bsale_generated' => $bsaleResult !== null,
+                'bsale_number' => $bsaleResult['number'] ?? null,
             ]);
 
             return [
@@ -145,7 +155,9 @@ class CreateParticularPaymentService
                 'order_detail' => $orderDetail,
                 'total_amount' => $totalAmount,
                 'paid_amount' => $paidAmount + $data['amount'],
-                'remaining_balance' => $previousBalance - $data['amount']
+                'remaining_balance' => $previousBalance - $data['amount'],
+                'bsale_generated' => $bsaleResult !== null,
+                'bsale_number' => $bsaleResult['number'] ?? null,
             ];
 
         } catch (\Exception $e) {
@@ -752,5 +764,119 @@ class CreateParticularPaymentService
             'payment_amount' => $paymentAmount,
             'new_contribution' => $newContribution,
         ]);
+    }
+
+    /**
+     * Generar boleta BSale para el pago presencial
+     * Solo genera si el document_type es B2 (mismo año del programa)
+     */
+    private function generateBsaleInvoiceForPayment(OrderDetail $orderDetail, Payment $payment): ?array
+    {
+        try {
+            $bsaleService = app(BsaleService::class);
+            $bsaleResult = $bsaleService->generateInvoice($orderDetail, $payment);
+
+            if ($bsaleResult) {
+                // Guardar información de la boleta en el pago
+                $payment->update([
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                    'bsale_token' => $bsaleResult['token'] ?? null,
+                ]);
+
+                // Descargar y guardar el PDF de la boleta en el servidor
+                $this->downloadAndStoreBsalePdf($payment, $bsaleResult);
+
+                Log::info('Pago presencial: Boleta BSale generada exitosamente', [
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $orderDetail->id,
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                ]);
+            } else {
+                Log::info('Pago presencial: No se generó boleta BSale (document_type no es B2 o BSale deshabilitado)', [
+                    'payment_id' => $payment->id,
+                    'document_type' => $payment->document_type,
+                ]);
+            }
+
+            return $bsaleResult;
+
+        } catch (\Exception $e) {
+            // No lanzar excepción - el pago ya fue registrado
+            // Solo logear el error para revisión
+            Log::error('Pago presencial: Error generando boleta BSale', [
+                'payment_id' => $payment->id,
+                'order_detail_id' => $orderDetail->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Descargar y almacenar el PDF de la boleta BSale en el servidor
+     */
+    private function downloadAndStoreBsalePdf(Payment $payment, array $bsaleResult): ?string
+    {
+        try {
+            $bsaleToken = $bsaleResult['token'] ?? $payment->bsale_token;
+            $bsaleDocumentId = $bsaleResult['id'] ?? $payment->bsale_document_id;
+
+            if (!$bsaleToken) {
+                Log::warning('Pago presencial: No se puede descargar PDF - falta token BSale', [
+                    'payment_id' => $payment->id,
+                ]);
+                return null;
+            }
+
+            // Construir URL del PDF de BSale
+            $bsaleUrl = "https://app2.bsale.cl/view/90370/{$bsaleToken}.pdf?sfd=99";
+
+            // Crear directorio para almacenar boletas
+            $year = $payment->created_at->format('Y');
+            $month = $payment->created_at->format('m');
+            $storageDir = storage_path("app/bsale_documents/{$year}/{$month}");
+
+            if (!file_exists($storageDir)) {
+                mkdir($storageDir, 0755, true);
+            }
+
+            // Nombre del archivo
+            $filename = "bsale_{$bsaleDocumentId}_payment_{$payment->id}.pdf";
+            $filePath = "{$storageDir}/{$filename}";
+
+            // Descargar el PDF
+            $response = Http::timeout(30)->get($bsaleUrl);
+
+            if ($response->successful()) {
+                file_put_contents($filePath, $response->body());
+
+                Log::info('Pago presencial: PDF de boleta BSale descargado y almacenado', [
+                    'payment_id' => $payment->id,
+                    'bsale_document_id' => $bsaleDocumentId,
+                    'bsale_number' => $payment->bsale_number,
+                    'file_path' => $filePath,
+                ]);
+
+                return $filePath;
+            } else {
+                Log::warning('Pago presencial: No se pudo descargar PDF de BSale', [
+                    'payment_id' => $payment->id,
+                    'bsale_url' => $bsaleUrl,
+                    'status' => $response->status(),
+                ]);
+                return null;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Pago presencial: Error descargando PDF de BSale', [
+                'payment_id' => $payment->id,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
     }
 }

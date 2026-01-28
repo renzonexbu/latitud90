@@ -741,7 +741,8 @@
                                     Cancelar
                                 </Link>
                                 <button
-                                    type="submit"
+                                    type="button"
+                                    @click="showConfirmationModal"
                                     :disabled="
                                         form.processing || !isBuyerFormValid
                                     "
@@ -755,6 +756,127 @@
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Confirmación -->
+        <div
+            v-if="isConfirmModalOpen"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            aria-labelledby="modal-title"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <!-- Overlay -->
+                <div
+                    class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                    @click="closeConfirmationModal"
+                ></div>
+
+                <!-- Centrar modal -->
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <!-- Modal panel -->
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Confirmar Registro de Pago
+                                </h3>
+                                <div class="mt-4">
+                                    <p class="text-sm text-gray-500 mb-4">
+                                        Por favor, revise los datos del pago antes de confirmar:
+                                    </p>
+
+                                    <!-- Resumen del pago -->
+                                    <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Participante:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ selectedEnrollment?.full_name }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Programa:</span>
+                                            <span class="text-sm font-semibold text-[#007e93]">{{ selectedEnrollment?.program_code }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Monto:</span>
+                                            <span class="text-sm font-bold text-green-600">${{ formatPrice(parseFloat(form.amount) || 0) }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Tipo de Pago:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ getPaymentTypeLabel(form.presential_payment_type) }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Código de Pago:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ form.payment_code }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Fecha:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ formatTransactionDate(form.transaction_date) }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Pagador:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ buyerForm.fullName }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">RUT/Doc:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ buyerForm.documentNumber }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Aviso de generación de boleta BSale -->
+                                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                        <div class="flex items-start">
+                                            <svg class="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                            </svg>
+                                            <div class="ml-3">
+                                                <h4 class="text-sm font-medium text-yellow-800">
+                                                    Generación de Boleta Electrónica
+                                                </h4>
+                                                <p class="text-sm text-yellow-700 mt-1">
+                                                    Al confirmar, se generará automáticamente una <strong>boleta electrónica en BSale</strong> para este pago (si aplica según el año del programa). El número de boleta se guardará en el sistema.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button
+                            type="button"
+                            @click="confirmAndSubmit"
+                            :disabled="isSubmitting"
+                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#007e93] text-base font-medium text-white hover:bg-[#006b7a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007e93] sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span v-if="isSubmitting" class="flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Procesando...
+                            </span>
+                            <span v-else>Confirmar y Registrar</span>
+                        </button>
+                        <button
+                            type="button"
+                            @click="closeConfirmationModal"
+                            :disabled="isSubmitting"
+                            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                        >
+                            Cancelar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -813,6 +935,10 @@ const participantPaymentStatus = ref(null);
 const isLoadingParticipantStatus = ref(false);
 const isLoadingFrequentClient = ref(false);
 const errorAlert = ref(null);
+
+// Variables para el modal de confirmación
+const isConfirmModalOpen = ref(false);
+const isSubmitting = ref(false);
 
 // Variables para el buscador de participantes inscritos
 const searchQuery = ref('');
@@ -1368,6 +1494,42 @@ const handleClickOutside = (event) => {
     }
 };
 
+// ========================================
+// Funciones del modal de confirmación
+// ========================================
+
+const showConfirmationModal = () => {
+    isConfirmModalOpen.value = true;
+};
+
+const closeConfirmationModal = () => {
+    if (!isSubmitting.value) {
+        isConfirmModalOpen.value = false;
+    }
+};
+
+const getPaymentTypeLabel = (code) => {
+    const option = props.paymentTypeOptions.find(opt => opt.report_code === code);
+    return option ? option.label : code;
+};
+
+const formatTransactionDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+const confirmAndSubmit = () => {
+    isSubmitting.value = true;
+    submit();
+};
+
 const submit = () => {
     // Combinar los datos del pagador con los datos del pago
     const combinedData = {
@@ -1384,6 +1546,9 @@ const submit = () => {
     submitForm.post(route("admin.payments.presential.store"), {
         preserveScroll: false,
         onFinish: () => {
+            isSubmitting.value = false;
+            isConfirmModalOpen.value = false;
+
             // Si hay errores, hacer scroll hacia el componente de error
             if (Object.keys(submitForm.errors).length > 0) {
                 nextTick(() => {

@@ -57,8 +57,12 @@ return [
     ],
 
     'bsale' => [
-        // Kill switch: poner en false para desactivar generación de boletas
+        // Kill switch global: poner en false para desactivar TODA generación de boletas
         'enabled' => env('BSALE_ENABLED', true),
+        // Kill switch específico para suscripciones (PAT): desactivar boletas en cuotas de suscripción
+        'subscription_enabled' => env('BSALE_SUBSCRIPTION_ENABLED', false),
+        // Kill switch específico para pagos totales: desactivar boletas en pagos de contado/total
+        'total_enabled' => env('BSALE_TOTAL_ENABLED', true),
         'token' => env('BSALE_TOKEN'),
         'base_url' => env('BSALE_BASE_URL', 'https://api.bsale.io/v1'),
         // IDs configurables por ambiente/cuenta
