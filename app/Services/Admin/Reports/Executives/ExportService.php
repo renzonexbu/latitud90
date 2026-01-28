@@ -553,11 +553,27 @@ class ExportService
                 }
             }
 
+            // Calcular aportes (pagos con report_code 'AP')
+            // IMPORTANTE: Los aportes son contribuciones adicionales que se muestran en la columna APORTE/BECA
+            $aporteAmount = 0.0;
+            if (!empty($orderIds)) {
+                $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->whereHas('paymentOption', function($q) {
+                        $q->where('report_code', 'AP');
+                    })
+                    ->sum('amount');
+            }
+
+            // Sumar aportes a scholarship para mostrar en columna Aporte/Beca
+            $scholarship += $aporteAmount;
+
             // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
             $price = $basePrice - $simpleDiscounts;
 
             // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
-            $porPagar = max($price - $abono - $scholarship - $released, 0);
+            // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
+            $porPagar = max($price - $abono - ($scholarship - $aporteAmount) - $released, 0);
 
             // Escribir fila
             $sheet->setCellValue('A' . $row, $participantName);
