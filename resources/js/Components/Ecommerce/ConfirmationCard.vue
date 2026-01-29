@@ -494,6 +494,13 @@ export default {
 
                 // NUEVO: Si es suscripción (monthly), validar autenticación de guardian
                 if (parsedPaymentData.paymentType === 'monthly') {
+                    // Verificar si las suscripciones están deshabilitadas globalmente
+                    if (this.program.subscriptions_globally_disabled) {
+                        this.isProcessing = false;
+                        this.errorMessage = this.program.subscriptions_disabled_message || 'El metodo de pago por suscripcion no esta disponible temporalmente. Por favor, selecciona otra forma de pago.';
+                        return;
+                    }
+
                     // Validar que el usuario esté logeado como guardian
                     const isGuardianLoggedIn = this.$page.props.auth?.guardian !== null;
 

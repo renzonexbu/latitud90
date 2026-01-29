@@ -1642,13 +1642,18 @@ class ImportManualPaymentsService
             return;
         }
 
-        // Redistribute remaining balance among pending installments
+        // Redistribute remaining balance: solo .6+ hacia arriba, última cuota absorbe residuo
         $installmentCount = $pendingInstallments->count();
-        $baseAmount = floor($remainingBalance / $installmentCount);
-        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
+        $remainingBalance = (int) round($remainingBalance);
+        $baseAmount = (int) floor(($remainingBalance / $installmentCount) + 0.4);
+
+        // Última cuota absorbe el residuo
+        $allocated = $baseAmount * ($installmentCount - 1);
+        $lastAmount = $remainingBalance - $allocated;
 
         foreach ($pendingInstallments as $index => $installment) {
-            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
+            // Última cuota absorbe el residuo
+            $newAmount = ($index === $installmentCount - 1) ? $lastAmount : $baseAmount;
 
             $installment->update([
                 'amount' => $newAmount,
@@ -1728,15 +1733,20 @@ class ImportManualPaymentsService
             return;
         }
 
-        // Redistribute remaining balance among pending installments
+        // Redistribute remaining balance: solo .6+ hacia arriba, última cuota absorbe residuo
         $installmentCount = $pendingInstallments->count();
-        $baseAmount = floor($remainingBalance / $installmentCount);
-        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
+        $remainingBalance = (int) round($remainingBalance);
+        $baseAmount = (int) floor(($remainingBalance / $installmentCount) + 0.4);
+
+        // Última cuota absorbe el residuo
+        $allocated = $baseAmount * ($installmentCount - 1);
+        $lastAmount = $remainingBalance - $allocated;
 
         // OPTIMIZADO: Preparar datos para batch update
         $installmentUpdates = [];
         foreach ($pendingInstallments as $index => $installment) {
-            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
+            // Última cuota absorbe el residuo
+            $newAmount = ($index === $installmentCount - 1) ? $lastAmount : $baseAmount;
             $installmentUpdates[$installment->id] = $newAmount;
         }
 

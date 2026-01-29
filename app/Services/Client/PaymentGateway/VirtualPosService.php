@@ -18,7 +18,8 @@ class VirtualPosService
     const REJECTED_STATUSES = ['rechazado', 'cancelado', 'cancelled', 'rejected', 'failed'];
     
     // Constantes para estados de pago pendientes
-    const PENDING_STATUSES = ['pending', 'processing', 'pendiente'];
+    // IMPORTANTE: 'procesando' es el estado intermedio de VirtualPOS - NO es pago confirmado
+    const PENDING_STATUSES = ['pending', 'processing', 'pendiente', 'procesando'];
     
     private $client;
     private $baseUrl;

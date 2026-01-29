@@ -260,7 +260,10 @@ class ProgramDetailService
             // Información de pago (del plan específico, con campos renombrados)
             'enable_total_payment' => $programCourse->enable_total_payment,
             'full_payment_options' => $fullPaymentOptionCodes,
-            'enable_lat90_payment' => $programCourse->enable_subscription_payment, // Renombrado
+            // Suscripciones: verificar flag global además del flag del programa
+            'enable_lat90_payment' => $programCourse->enable_subscription_payment && config('services.subscriptions.enabled', true),
+            'subscriptions_globally_disabled' => !config('services.subscriptions.enabled', true),
+            'subscriptions_disabled_message' => config('services.subscriptions.disabled_message', 'El método de pago por suscripción no está disponible temporalmente.'),
             'lat90_payment_options' => $subscriptionPaymentOptionCodes,
             'lat90_max_installments' => $programCourse->subscription_max_months, // Renombrado
             'discount_type' => $programCourse->discount_type,

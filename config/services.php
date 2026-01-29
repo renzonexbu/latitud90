@@ -72,6 +72,14 @@ return [
         'invert_same_year_logic' => env('BSALE_INVERT_SAME_YEAR_LOGIC', false),
     ],
 
+    'subscriptions' => [
+        // Kill switch global para suscripciones (PAT - Pago Automático con Tarjeta)
+        // Cuando está en false, se deshabilitan todas las suscripciones en el sitio
+        'enabled' => env('SUBSCRIPTIONS_ENABLED', true),
+        // Mensaje a mostrar cuando las suscripciones están deshabilitadas
+        'disabled_message' => env('SUBSCRIPTIONS_DISABLED_MESSAGE', 'El método de pago por suscripción no está disponible temporalmente. Por favor, selecciona otra forma de pago.'),
+    ],
+
     'virtualpos' => [
         // Configuración para Subscriptions API v3 (módulo independiente)
         // El ambiente se controla con VIRTUALPOS_SUBSCRIPTION_ENV en .env (sandbox/production)

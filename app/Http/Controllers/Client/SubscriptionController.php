@@ -15,6 +15,7 @@ use App\Models\Participant;
 use App\Models\ProgramSubscription;
 use App\Models\InstallmentPlan;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\EmergencyContact;
 use App\Models\VirtualPosPlan;
 use App\Services\Subscription\VirtualPosSubscriptionService;
@@ -30,6 +31,14 @@ class SubscriptionController extends Controller
     public function initiate(Request $request): JsonResponse
     {
         try {
+            // Verificar si las suscripciones están habilitadas globalmente
+            if (!config('services.subscriptions.enabled', true)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => config('services.subscriptions.disabled_message', 'El método de pago por suscripción no está disponible temporalmente.')
+                ], 503);
+            }
+
             $guardian = auth('guardian')->user();
 
             if (!$guardian) {
@@ -199,6 +208,13 @@ class SubscriptionController extends Controller
     public function createFromConfirmation(Request $request)
     {
         try {
+            // Verificar si las suscripciones están habilitadas globalmente
+            if (!config('services.subscriptions.enabled', true)) {
+                return back()->withErrors([
+                    'subscription' => config('services.subscriptions.disabled_message', 'El método de pago por suscripción no está disponible temporalmente.')
+                ]);
+            }
+
             // Validar datos de entrada
             $request->validate([
                 'program_course_id' => 'required|exists:program_courses,id',
@@ -302,10 +318,47 @@ class SubscriptionController extends Controller
                 'program_course_id' => $programCourse->id
             ]);
 
-            // Calcular el monto total y el monto de la primera cuota
+            // Calcular el monto total del programa
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-            $totalAmount = $priceData['final_price'];
-            $firstInstallmentAmount = ceil($totalAmount / $installments);
+            $totalProgramPrice = $priceData['final_price'];
+
+            // Calcular pagos ya realizados (approved o completed)
+            $paidAmount = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $programCourse->id);
+                })
+                ->whereIn('status', ['approved', 'completed'])
+                ->sum('amount');
+
+            // Calcular el saldo pendiente (lo que realmente debe pagar en la suscripción)
+            $totalAmount = max(round($totalProgramPrice - $paidAmount, 2), 0);
+
+            // Log destacado para facilitar el seguimiento del monto de suscripción
+            Log::info('========================================');
+            Log::info('=== CREANDO SUSCRIPCIÓN PAT ===');
+            Log::info('========================================');
+            Log::info('Suscripción PAT - Cálculo de monto', [
+                'participant_id' => $participant->id,
+                'participant_rut' => $participant->document_number,
+                'participant_name' => $participant->first_name . ' ' . $participant->first_last_name,
+                'program_course_id' => $programCourse->id,
+                'program_name' => $programCourse->name ?? 'N/A',
+                'total_program_price' => $totalProgramPrice,
+                'paid_amount' => $paidAmount,
+                'remaining_balance' => $totalAmount,
+                'installments' => $installments,
+                'first_installment_amount' => (int) floor(($totalAmount / $installments) + 0.4),
+                'monthly_amount' => (int) floor(($totalAmount / $installments) + 0.4),
+            ]);
+            Log::info('========================================');
+
+            // Validar que hay saldo pendiente
+            if ($totalAmount <= 0) {
+                throw new Exception('El participante no tiene saldo pendiente. Ya ha pagado el total del programa.');
+            }
+
+            // Redondeo: 1-5 abajo, 6-9 arriba (sin decimales para pesos chilenos)
+            $firstInstallmentAmount = (int) floor(($totalAmount / $installments) + 0.4);
 
             // Construir datos del COMPRADOR para VirtualPos (no del participante)
             // NOTA: Si el documento no es RUT chileno, el frontend ya envió "11111111-1" como document_number
@@ -330,7 +383,12 @@ class SubscriptionController extends Controller
             // Generar programa de cobros (charges_program) para PROGRAMA_DE_PAGOS
             $now = now();
             $chargesProgram = [];
-            $monthlyAmount = $totalAmount / $installments;
+
+            // Calcular montos: redondeo solo .6+ hacia arriba, última cuota absorbe el residuo
+            $totalAmountInt = (int) round($totalAmount);
+            $baseAmount = (int) floor(($totalAmountInt / $installments) + 0.4);
+            $allocated = $baseAmount * ($installments - 1); // Primeras n-1 cuotas
+            $lastAmount = $totalAmountInt - $allocated; // Última cuota absorbe el residuo
 
             for ($i = 0; $i < $installments; $i++) {
                 if ($i === 0) {
@@ -345,10 +403,13 @@ class SubscriptionController extends Controller
                     $chargeDate = $chargesProgram[0]['charge_date_obj']->copy()->addMonths($i);
                 }
 
+                // Última cuota absorbe el residuo
+                $amount = ($i === $installments - 1) ? $lastAmount : $baseAmount;
+
                 $chargesProgram[] = [
                     'charge_date_obj' => $chargeDate,
                     'charge_date' => $chargeDate->format('Y-m-d'),
-                    'amount' => $monthlyAmount,
+                    'amount' => $amount,
                     'description' => 'Cargo ' . ($i + 1) . ' de ' . $installments,
                     'internal_code' => $programCourse->code . '-CUOTA-' . ($i + 1)
                 ];

@@ -3,24 +3,47 @@
  */
 
 /**
+ * Redondeo: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+ * - Decimales de .0 a .59... → hacia abajo (floor)
+ * - Decimales de .6 a .99... → hacia arriba (ceil)
+ *
+ * Equivalente a: floor(num + 0.4)
+ *
+ * Ejemplos:
+ * - 149555.55 → 149555 (porque .55 < .6)
+ * - 149555.65 → 149556 (porque .65 >= .6)
+ * - 149555.50 → 149555 (porque .50 < .6)
+ * - 33333.33 → 33333 (porque .33 < .6)
+ */
+function roundInstallment(num) {
+    return Math.floor(num + 0.4);
+}
+
+/**
  * Divide un monto en N cuotas cuidando redondeo para que la suma sea exacta.
+ * Sin decimales (pesos chilenos). Redondeo: solo .6+ hacia arriba.
+ * La última cuota absorbe el residuo.
  * Replica exactamente la lógica de splitAmountInInstallments del backend
  */
 export function splitAmountInInstallments(total, installments) {
-    // Replicar exactamente la lógica del backend
-    const base = Math.floor((total / installments) * 100) / 100; // 2 decimales hacia abajo
-    const amounts = new Array(installments).fill(base);
-    const allocated = base * installments;
-    let remainder = Math.round((total - allocated) * 100) / 100;
-
-    // Distribuir centavos restantes sumando 0.01 a las primeras cuotas
-    let i = 0;
-    while (remainder > 0 && i < installments) {
-        amounts[i] = Math.round((amounts[i] + 0.01) * 100) / 100;
-        remainder = Math.round((remainder - 0.01) * 100) / 100;
-        i++;
+    if (installments <= 0) {
+        return [];
     }
-    
+
+    // Asegurar que trabajamos con enteros
+    total = Math.round(total);
+
+    // Monto base redondeado: solo .6+ hacia arriba
+    const base = roundInstallment(total / installments);
+
+    // Última cuota absorbe el residuo
+    const allocated = base * (installments - 1);
+    const lastAmount = total - allocated;
+
+    // Primeras n-1 cuotas iguales, última absorbe residuo
+    const amounts = new Array(installments - 1).fill(base);
+    amounts.push(lastAmount);
+
     return amounts;
 }
 
@@ -29,7 +52,14 @@ export function splitAmountInInstallments(total, installments) {
  */
 export function getFirstInstallmentAmount(total, installments) {
     const amounts = splitAmountInInstallments(total, installments);
-    return amounts[0];
+    return amounts[0] || 0;
+}
+
+/**
+ * Calcula el monto mensual con redondeo correcto: solo .6+ hacia arriba
+ */
+export function calculateMonthlyAmount(total, installments) {
+    return roundInstallment(Math.round(total) / installments);
 }
 
 /**

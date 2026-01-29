@@ -234,6 +234,18 @@ class BsaleService
                 return null;
             }
 
+            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO (completed o approved)
+            // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
+            $confirmedStatuses = ['completed', 'approved'];
+            if (!in_array($payment->status, $confirmedStatuses)) {
+                Log::warning('BsaleService: NO se genera boleta - pago NO está confirmado', [
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                    'required_statuses' => $confirmedStatuses,
+                ]);
+                return null;
+            }
+
             // Verificar flags según tipo de pago (suscripción vs total)
             $order = $orderDetail->order;
             $isSubscription = $this->isSubscriptionPayment($payment, $order);

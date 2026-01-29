@@ -326,6 +326,10 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     /**
      * Detectar nuevos pagos comparando charges actuales vs guardados
      *
+     * IMPORTANTE: Solo procesa charges que están CONFIRMADOS como pagados.
+     * Las cuotas pendientes, en procesamiento o rechazadas NO se procesan aquí.
+     * Esto evita generar boletas para cuotas que aún no han sido cobradas.
+     *
      * @return array Charges que están pagados pero no tienen Payment en BD
      */
     protected function detectNewPayments(array $currentCharges, array $savedCharges): array
@@ -340,20 +344,35 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $approvedStatuses[] = 'pagado';
         $approvedStatuses[] = 'cobrado';
 
+        // Contar charges por estado para logging
+        $statusCounts = [];
+        foreach ($currentCharges as $charge) {
+            $status = strtolower($charge['status'] ?? 'unknown');
+            $statusCounts[$status] = ($statusCounts[$status] ?? 0) + 1;
+        }
+
+        Log::info('SyncSubscriptionPayments: Resumen de charges por estado', [
+            'total_charges' => count($currentCharges),
+            'status_counts' => $statusCounts,
+            'approved_statuses' => $approvedStatuses,
+        ]);
+
         // Buscar charges que están CONFIRMADOS como pagados en VirtualPOS
         foreach ($currentCharges as $currentCharge) {
             $chargeId = $currentCharge['id'] ?? null;
             $currentStatus = strtolower($currentCharge['status'] ?? '');
 
             // Ignorar charges sin ID o que no estén en estado aprobado confirmado
-            // NOTA: 'procesando' NO se incluye porque es un estado intermedio que puede fallar
+            // NOTA: 'procesando', 'pendiente', etc. NO se procesan - solo charges PAGADOS
             if (!$chargeId || !in_array($currentStatus, $approvedStatuses)) {
-                // Log para debugging de charges ignorados
-                if ($chargeId && $currentStatus === 'procesando') {
-                    Log::info('SyncSubscriptionPayments: Charge en estado procesando ignorado (esperando confirmación)', [
+                // Log para debugging de charges ignorados (cuotas no pagadas)
+                if ($chargeId && !empty($currentStatus)) {
+                    Log::debug('SyncSubscriptionPayments: Charge IGNORADO (cuota no pagada)', [
                         'charge_id' => $chargeId,
                         'status' => $currentStatus,
                         'amount' => $currentCharge['amount'] ?? 0,
+                        'description' => $currentCharge['description'] ?? null,
+                        'reason' => "Estado '{$currentStatus}' no está en lista de aprobados",
                     ]);
                 }
                 continue;
@@ -846,6 +865,18 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     ): void
     {
         try {
+            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
+            // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
+            $confirmedStatuses = ['completed', 'approved'];
+            if (!in_array($payment->status, $confirmedStatuses)) {
+                Log::warning('SyncSubscriptionPayments: NO se genera boleta - pago NO está confirmado', [
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                    'required_statuses' => $confirmedStatuses,
+                ]);
+                return;
+            }
+
             // Kill switch específico para suscripciones
             if (!config('services.bsale.subscription_enabled', true)) {
                 Log::info('SyncSubscriptionPayments: BSale DESACTIVADO para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [

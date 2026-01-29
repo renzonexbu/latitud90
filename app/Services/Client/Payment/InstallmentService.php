@@ -304,32 +304,34 @@ class InstallmentService
     }
 
     /**
-     * Dividir monto en cuotas
+     * Dividir monto en cuotas (sin decimales, pesos chilenos)
+     * Redondeo: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+     * La última cuota absorbe el residuo
      */
     private function splitAmountInInstallments(float $total, int $installments): array
     {
-        $base = floor(($total / $installments) * 100) / 100;
-        $amounts = array_fill(0, $installments, $base);
-        $allocated = $base * $installments;
-        $remainder = round($total - $allocated, 2);
+        // Asegurar que trabajamos con enteros
+        $total = (int) round($total);
 
-        $i = 0;
-        while ($remainder > 0 && $i < $installments) {
-            $amounts[$i] = round($amounts[$i] + 0.01, 2);
-            $remainder = round($remainder - 0.01, 2);
-            $i++;
-        }
+        // Monto base redondeado: solo .6+ hacia arriba
+        $base = (int) floor(($total / $installments) + 0.4);
+
+        // Última cuota absorbe el residuo
+        $allocated = $base * ($installments - 1);
+        $lastAmount = $total - $allocated;
+
+        // Primeras n-1 cuotas iguales, última absorbe residuo
+        $amounts = array_fill(0, $installments - 1, $base);
+        $amounts[] = $lastAmount;
 
         // Log detallado para debugging
         $this->logInfo('InstallmentService: splitAmountInInstallments', [
             'total_amount' => $total,
             'installments' => $installments,
             'base_amount' => $base,
-            'allocated' => $allocated,
-            'remainder' => $remainder,
+            'last_amount' => $lastAmount,
             'final_amounts' => $amounts,
             'sum_of_amounts' => array_sum($amounts),
-            'difference' => $total - array_sum($amounts)
         ]);
 
         return $amounts;

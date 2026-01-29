@@ -395,7 +395,7 @@ class SubscriptionRecalculationService
                 'virtualpos_subscription_id' => $virtualPosResponse['id'] ?? null,
                 'virtualpos_plan_id' => $planId,
                 'status' => 'SUSCRIBIENDO',
-                'amount' => $amount / $installments, // Monto por cuota
+                'amount' => (int) floor(($amount / $installments) + 0.4), // Monto por cuota: solo .6+ hacia arriba
                 'automatic_renewal' => 'F',
                 'subscription_date' => now(),
                 'charge_program' => $virtualPosResponse['charge_program'] ?? [],
@@ -405,7 +405,7 @@ class SubscriptionRecalculationService
             Log::info('SubscriptionRecalculation: Nueva suscripción creada', [
                 'subscription_id' => $newSubscription->id,
                 'virtualpos_id' => $newSubscription->virtualpos_subscription_id,
-                'amount_per_installment' => $amount / $installments,
+                'amount_per_installment' => (int) floor(($amount / $installments) + 0.4),
                 'installments' => $installments
             ]);
 
@@ -501,8 +501,8 @@ class SubscriptionRecalculationService
                 time()
             );
 
-            // Calcular monto mensual
-            $monthlyAmount = $totalAmount / $installments;
+            // Calcular monto mensual: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+            $monthlyAmount = (int) floor(($totalAmount / $installments) + 0.4);
 
             // Preparar datos del plan
             $planData = [

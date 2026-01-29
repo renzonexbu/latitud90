@@ -632,14 +632,18 @@ class CreateParticularPaymentService
     {
         $installmentCount = $pendingInstallments->count();
         
-        // Calcular monto base por cuota
-        $baseAmount = floor($remainingBalance / $installmentCount);
-        $remainder = $remainingBalance - ($baseAmount * $installmentCount);
-        
+        // Calcular monto base por cuota: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+        $remainingBalance = (int) round($remainingBalance);
+        $baseAmount = (int) floor(($remainingBalance / $installmentCount) + 0.4);
+
+        // Última cuota absorbe el residuo
+        $allocated = $baseAmount * ($installmentCount - 1);
+        $lastAmount = $remainingBalance - $allocated;
+
         foreach ($pendingInstallments as $index => $installment) {
-            // Distribuir centavos restantes en las primeras cuotas
-            $newAmount = $baseAmount + ($index < $remainder ? 1 : 0);
-            
+            // Última cuota absorbe el residuo
+            $newAmount = ($index === $installmentCount - 1) ? $lastAmount : $baseAmount;
+
             $installment->update([
                 'amount' => $newAmount,
                 'adjusted_at' => now(),

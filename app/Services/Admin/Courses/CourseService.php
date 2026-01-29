@@ -289,7 +289,8 @@ class CourseService
                 $programCourse->save();
 
                 // Guardar el plan en la tabla virtualpos_plans
-                $monthlyAmount = $planData['trip_price'] / $planData['max_installments'];
+                // Redondeo: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+                $monthlyAmount = (int) floor(($planData['trip_price'] / $planData['max_installments']) + 0.4);
 
                 VirtualPosPlan::create([
                     'virtualpos_plan_id' => $result['plan_id'],

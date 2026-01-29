@@ -220,6 +220,17 @@ class ReconfirmPaymentService
                 return true;
             }
 
+            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
+            $confirmedStatuses = ['completed', 'approved'];
+            if (!in_array($payment->status, $confirmedStatuses)) {
+                $this->logWarning('ReconfirmPaymentService: NO se genera boleta - pago NO está confirmado', [
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                    'required_statuses' => $confirmedStatuses,
+                ]);
+                return false;
+            }
+
             // Verificar si el document_type permite generar boleta (solo B2)
             if ($payment->document_type !== 'B2') {
                 $this->logInfo('ReconfirmPaymentService: No genera boleta - document_type no es B2', [

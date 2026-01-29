@@ -1016,6 +1016,17 @@ class PaymentConfirmationService
     private function generateBsaleInvoice(OrderDetail $orderDetail, Payment $payment): void
     {
         try {
+            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
+            $confirmedStatuses = ['completed', 'approved'];
+            if (!in_array($payment->status, $confirmedStatuses)) {
+                $this->logWarning('PaymentConfirmationService: NO se genera boleta - pago NO está confirmado', [
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                    'required_statuses' => $confirmedStatuses,
+                ]);
+                return;
+            }
+
             $bsaleResult = $this->bsaleService->generateInvoice($orderDetail, $payment);
 
             if ($bsaleResult) {

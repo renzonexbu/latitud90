@@ -142,17 +142,20 @@ class InstallmentRepaymentService
             return [];
         }
 
-        // Calcular monto base por cuota
-        $baseAmount = floor($totalAmount / $installmentsCount);
-        $remainder = $totalAmount - ($baseAmount * $installmentsCount);
+        // Calcular monto base por cuota: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+        $totalAmount = (int) round($totalAmount);
+        $baseAmount = (int) floor(($totalAmount / $installmentsCount) + 0.4);
 
+        // Última cuota absorbe el residuo
+        $allocated = $baseAmount * ($installmentsCount - 1);
+        $lastAmount = $totalAmount - $allocated;
+
+        // Primeras n-1 cuotas iguales, última absorbe residuo
         $amounts = [];
-        
-        for ($i = 0; $i < $installmentsCount; $i++) {
-            // Distribuir el resto en las primeras cuotas
-            $amount = $baseAmount + ($i < $remainder ? 1 : 0);
-            $amounts[] = $amount;
+        for ($i = 0; $i < $installmentsCount - 1; $i++) {
+            $amounts[] = $baseAmount;
         }
+        $amounts[] = $lastAmount;
 
         return $amounts;
     }

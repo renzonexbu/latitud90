@@ -195,21 +195,25 @@ class CreateOrderService
 
     /**
      * Divide un monto en N cuotas cuidando redondeo para que la suma sea exacta.
+     * Sin decimales (pesos chilenos). Redondeo: solo .6+ hacia arriba.
+     * La última cuota absorbe el residuo.
      */
     private function splitAmountInInstallments(float $total, int $installments): array
     {
-        $base = floor(($total / $installments) * 100) / 100; // 2 decimales hacia abajo
-        $amounts = array_fill(0, $installments, $base);
-        $allocated = $base * $installments;
-        $remainder = round($total - $allocated, 2);
+        // Asegurar que trabajamos con enteros
+        $total = (int) round($total);
 
-        // Distribuir centavos restantes sumando 0.01 a las primeras cuotas
-        $i = 0;
-        while ($remainder > 0 && $i < $installments) {
-            $amounts[$i] = round($amounts[$i] + 0.01, 2);
-            $remainder = round($remainder - 0.01, 2);
-            $i++;
-        }
+        // Monto base redondeado: solo .6+ hacia arriba
+        $base = (int) floor(($total / $installments) + 0.4);
+
+        // Última cuota absorbe el residuo
+        $allocated = $base * ($installments - 1);
+        $lastAmount = $total - $allocated;
+
+        // Primeras n-1 cuotas iguales, última absorbe residuo
+        $amounts = array_fill(0, $installments - 1, $base);
+        $amounts[] = $lastAmount;
+
         return $amounts;
     }
 

@@ -21,23 +21,22 @@ class InstallmentCalculator implements InstallmentCalculatorInterface
             return [];
         }
 
-        // Monto base por cuota
-        $baseAmount = floor($totalAmount / $installmentCount);
+        // Asegurar que trabajamos con enteros
+        $totalAmount = (int) round($totalAmount);
 
-        // Calcular el residuo
-        $remainder = $totalAmount - ($baseAmount * $installmentCount);
+        // Monto base por cuota: solo .6+ hacia arriba (1-5 abajo, 6-9 arriba)
+        $baseAmount = (int) floor(($totalAmount / $installmentCount) + 0.4);
 
-        // Array de montos
+        // Calcular monto de última cuota (absorbe el residuo)
+        $allocated = $baseAmount * ($installmentCount - 1);
+        $lastAmount = $totalAmount - $allocated;
+
+        // Array de montos: primeras n-1 cuotas iguales, última absorbe residuo
         $amounts = [];
-
-        for ($i = 0; $i < $installmentCount; $i++) {
-            // Las primeras cuotas llevan el residuo distribuido
-            if ($i < $remainder) {
-                $amounts[] = $baseAmount + 1;
-            } else {
-                $amounts[] = $baseAmount;
-            }
+        for ($i = 0; $i < $installmentCount - 1; $i++) {
+            $amounts[] = $baseAmount;
         }
+        $amounts[] = $lastAmount;
 
         return $amounts;
     }

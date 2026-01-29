@@ -336,6 +336,18 @@ class SendPendingPaymentEmails extends Command
     protected function generateBsaleInvoice(Payment $payment, OrderDetail $orderDetail): void
     {
         try {
+            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
+            // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
+            $confirmedStatuses = ['completed', 'approved'];
+            if (!in_array($payment->status, $confirmedStatuses)) {
+                Log::warning('SendPendingPaymentEmails: NO se genera boleta - pago NO está confirmado', [
+                    'payment_id' => $payment->id,
+                    'payment_status' => $payment->status,
+                    'required_statuses' => $confirmedStatuses,
+                ]);
+                return;
+            }
+
             // Verificar si ya se generó la boleta
             if ($payment->bsale_document_id) {
                 Log::info('Boleta BSale ya existe, omitiendo generación', [
