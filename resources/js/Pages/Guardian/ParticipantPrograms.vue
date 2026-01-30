@@ -175,7 +175,13 @@ const getInitials = (name) => {
 
 const formatDate = (date) => {
   if (!date) return 'N/A'
-  const d = new Date(date)
+  // Si es solo fecha (YYYY-MM-DD), agregar T12:00:00 para evitar
+  // que el cambio de timezone afecte el día mostrado
+  let dateStr = date
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    dateStr = date + 'T12:00:00'
+  }
+  const d = new Date(dateStr)
   return d.toLocaleDateString('es-CL', {
     day: 'numeric',
     month: 'short',

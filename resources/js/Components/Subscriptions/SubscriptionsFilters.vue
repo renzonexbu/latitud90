@@ -44,18 +44,15 @@
                 </select>
             </div>
 
-            <!-- Programa Dropdown -->
-            <div class="relative w-[200px]">
-                <select
-                    v-model="filters.program_id"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
-                    @change="performSearch"
-                >
-                    <option value="">Todos los Programas</option>
-                    <option v-for="program in programs" :key="program.id" :value="program.id">
-                        {{ capitalizeWords(program.name) }}
-                    </option>
-                </select>
+            <!-- Código de Programa Input -->
+            <div class="relative w-[180px]">
+                <input
+                    v-model="filters.program_code"
+                    type="text"
+                    placeholder="Código programa"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+                    @input="performSearch"
+                />
             </div>
 
             <!-- Rango de Fechas -->
@@ -101,10 +98,6 @@ export default {
         initialFilters: {
             type: Object,
             default: () => ({})
-        },
-        programs: {
-            type: Array,
-            default: () => []
         }
     },
     data() {
@@ -112,7 +105,7 @@ export default {
             filters: {
                 participant_name: this.initialFilters.participant_name || "",
                 subscription_status: this.initialFilters.subscription_status || "all",
-                program_id: this.initialFilters.program_id || "",
+                program_code: this.initialFilters.program_code || "",
                 date_from: this.initialFilters.date_from || "",
                 date_to: this.initialFilters.date_to || "",
             }
@@ -125,7 +118,7 @@ export default {
                 this.filters = {
                     participant_name: newFilters.participant_name || "",
                     subscription_status: newFilters.subscription_status || "all",
-                    program_id: newFilters.program_id || "",
+                    program_code: newFilters.program_code || "",
                     date_from: newFilters.date_from || "",
                     date_to: newFilters.date_to || "",
                 };
@@ -143,18 +136,11 @@ export default {
             this.filters = {
                 participant_name: "",
                 subscription_status: "all",
-                program_id: "",
+                program_code: "",
                 date_from: "",
                 date_to: "",
             };
             this.performSearch();
-        },
-
-        capitalizeWords(string) {
-            if (!string) return '';
-            return string.split(' ').map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            ).join(' ');
         }
     }
 };

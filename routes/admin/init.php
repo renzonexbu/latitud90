@@ -82,6 +82,18 @@ Route::middleware(['auth', 'verified', 'restrict.executive'])->prefix('admin')->
         Route::get('/export', [\App\Http\Controllers\Admin\AdminLogsController::class, 'export'])->name('export');
     });
 
+    // Monitor BSale - Gestión de cola de boletas
+    Route::prefix('bsale-monitor')->name('bsale-monitor.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'index'])->name('index');
+        Route::get('/list', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'list'])->name('list');
+        Route::get('/stats', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'stats'])->name('stats');
+        Route::get('/{bsaleRequest}', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'show'])->name('show');
+        Route::post('/{bsaleRequest}/retry', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'retry'])->name('retry');
+        Route::post('/{bsaleRequest}/force-reprocess', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'forceReprocess'])->name('force-reprocess');
+        Route::post('/{bsaleRequest}/cancel', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'cancel'])->name('cancel');
+        Route::post('/process-queue', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'processQueue'])->name('process-queue');
+    });
+
     // Gestión de perfil
     include __DIR__ . '/profile.php';
 });

@@ -6,9 +6,12 @@ use App\Models\EmergencyContact;
 use App\Models\GuardianUser;
 use App\Models\Participant;
 use App\Models\ParticipantProgram;
+use App\Models\Payment;
 use App\Models\ProgramCourse;
 use App\Models\ProgramSubscription;
 use App\Models\InstallmentPlan;
+use App\Helpers\ParticipantPriceHelper;
+use Illuminate\Support\Facades\DB;
 
 class GuardianParticipantService
 {
@@ -143,49 +146,48 @@ class GuardianParticipantService
 
                 $program = $programCourse->program; // La plantilla del programa
 
-                // Obtener el pivot del participante con este curso
+                // Obtener el pivot del participante con este curso (para status y enrollment_code)
                 $pivot = $course->participants()->where('participant_id', $participant->id)->first()?->pivot;
 
-                // Calcular precio con descuentos
-                $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
-                $adjustments = $pivot?->price_adjustments ?? 0;
-
-                // Obtener descuentos desde participant_program_discounts
-                $discountAmount = 0;
-                $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
-                    ->where('program_id', $programCourse->id)
-                    ->with('discounts')
-                    ->first();
-
-                if ($participantProgram && $participantProgram->discounts) {
-                    foreach ($participantProgram->discounts as $discount) {
-                        if ($discount->discount_type === 'released') {
-                            // Liberado usa el porcentaje almacenado (puede ser cualquier %)
-                            $discountPercent = $discount->percent ?? 100;
-                            $discountAmount += ($basePrice * $discountPercent / 100);
-                        } elseif ($discount->percent) {
-                            $discountAmount += ($basePrice * $discount->percent / 100);
-                        } elseif ($discount->amount) {
-                            $discountAmount += $discount->amount;
-                        }
-                    }
-                }
-
-                $finalPrice = max(0, $basePrice + $adjustments - $discountAmount);
+                // Usar ParticipantPriceHelper para calcular el precio (consistencia con otras vistas)
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                $basePrice = (int) round($priceData['base_price']);
+                $discountAmount = (int) round($priceData['discounts']);
+                $finalPrice = (int) round($priceData['final_price']);
 
                 // Obtener primera imagen del programa si existe
                 $images = $program->images;
                 $firstImage = !empty($images) ? $images[0]['url'] : null;
 
-                // Buscar suscripción activa para este participante y programa
+                // Buscar suscripción ACTIVA primero (priorizar sobre SUSCRIBIENDO, FALLIDA, etc.)
                 $subscription = ProgramSubscription::where('participant_id', $participant->id)
                     ->where('program_id', $programCourse->id)
+                    ->whereIn('status', ['ACTIVA', 'activa', 'active', 'ACTIVE'])
                     ->first();
 
-                // Obtener información de pagos para determinar tipo de pago
-                $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-                    ->where('program_id', $programCourse->id)
-                    ->first();
+                // Si no hay activa, buscar cualquier otra para mostrar historial
+                if (!$subscription) {
+                    $subscription = ProgramSubscription::where('participant_id', $participant->id)
+                        ->where('program_id', $programCourse->id)
+                        ->orderByRaw("CASE
+                            WHEN status IN ('ACTIVA', 'activa', 'active', 'ACTIVE') THEN 1
+                            WHEN status IN ('FINALIZADA', 'finalizada') THEN 2
+                            WHEN status IN ('CANCELADA', 'cancelada', 'cancelled', 'canceled') THEN 3
+                            ELSE 4 END")
+                        ->first();
+                }
+
+                // Obtener información de pagos - buscar por program_subscription_id primero
+                $installmentPlan = null;
+                if ($subscription) {
+                    $installmentPlan = InstallmentPlan::where('program_subscription_id', $subscription->id)->first();
+                }
+                // Fallback para datos antiguos
+                if (!$installmentPlan) {
+                    $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+                        ->where('program_id', $programCourse->id)
+                        ->first();
+                }
 
                 // Determinar tipo de pago y estado
                 $paymentType = 'none'; // none, subscription, full_payment
@@ -200,12 +202,12 @@ class GuardianParticipantService
                     // Contar cuotas pagadas
                     if ($installmentPlan) {
                         $totalInstallments = $installmentPlan->installments()->count();
-                        $paidInstallments = $installmentPlan->installments()->where('is_paid', true)->count();
+                        $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
                     }
                 } elseif ($installmentPlan) {
                     // Verificar si tiene un plan de cuotas (puede ser pago completo con cuotas)
                     $totalInstallments = $installmentPlan->installments()->count();
-                    $paidInstallments = $installmentPlan->installments()->where('is_paid', true)->count();
+                    $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
 
                     if ($totalInstallments === 1 && $paidInstallments === 1) {
                         $paymentType = 'full_payment';
@@ -260,64 +262,62 @@ class GuardianParticipantService
 
         $program = $programCourse->program;
 
-        // Obtener el precio desde el pivote
-        $pivot = $programCourse->course->participants()
-            ->where('participant_id', $participant->id)
-            ->first()?->pivot;
+        // Usar ParticipantPriceHelper para calcular el precio (consistencia con otras vistas)
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+        $basePrice = (int) round($priceData['base_price']);
+        $adjustments = (int) round($priceData['adjustments']);
+        $discountAmount = (int) round($priceData['discounts']);
+        $finalPrice = (int) round($priceData['final_price']);
 
-        $basePrice = $pivot?->individual_price ?? $programCourse->trip_price ?? 0;
-        $adjustments = $pivot?->price_adjustments ?? 0;
-
-        // Obtener descuentos desde participant_program_discounts
-        $discountAmount = 0;
-        $participantProgram = ParticipantProgram::where('participant_id', $participant->id)
-            ->where('program_id', $programCourse->id)
-            ->with('discounts')
-            ->first();
-
-        if ($participantProgram && $participantProgram->discounts) {
-            foreach ($participantProgram->discounts as $discount) {
-                if ($discount->discount_type === 'released') {
-                    // Liberado usa el porcentaje almacenado (puede ser cualquier %)
-                    $discountPercent = $discount->percent ?? 100;
-                    $discountAmount += ($basePrice * $discountPercent / 100);
-                } elseif ($discount->percent) {
-                    $discountAmount += ($basePrice * $discount->percent / 100);
-                } elseif ($discount->amount) {
-                    $discountAmount += $discount->amount;
-                }
-            }
-        }
-
-        $finalPrice = max(0, $basePrice + $adjustments - $discountAmount);
-
-        // Obtener la suscripción si existe (incluyendo canceladas para mostrar el historial)
+        // Buscar suscripción ACTIVA primero (priorizar sobre SUSCRIBIENDO, FALLIDA, etc.)
         $subscription = ProgramSubscription::where('participant_id', $participant->id)
             ->where('program_id', $programCourse->id)
+            ->whereIn('status', ['ACTIVA', 'activa', 'active', 'ACTIVE'])
             ->first();
 
-        // Obtener el plan de cuotas
-        $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
-            ->where('program_id', $programCourse->id)
-            ->with(['installments' => function($query) {
-                $query->orderBy('installment_number');
-            }])
-            ->first();
+        // Si no hay activa, buscar cualquier otra para mostrar historial
+        if (!$subscription) {
+            $subscription = ProgramSubscription::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->orderByRaw("CASE
+                    WHEN status IN ('ACTIVA', 'activa', 'active', 'ACTIVE') THEN 1
+                    WHEN status IN ('FINALIZADA', 'finalizada') THEN 2
+                    WHEN status IN ('CANCELADA', 'cancelada', 'cancelled', 'canceled') THEN 3
+                    ELSE 4 END")
+                ->first();
+        }
+
+        // Obtener el plan de cuotas - buscar por program_subscription_id primero
+        $installmentPlan = null;
+        if ($subscription) {
+            $installmentPlan = InstallmentPlan::where('program_subscription_id', $subscription->id)
+                ->with(['installments' => function($query) {
+                    $query->orderBy('installment_number');
+                }])
+                ->first();
+        }
+        // Fallback para datos antiguos
+        if (!$installmentPlan) {
+            $installmentPlan = InstallmentPlan::where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->with(['installments' => function($query) {
+                    $query->orderBy('installment_number');
+                }])
+                ->first();
+        }
 
         $installments = [];
         $totalInstallments = 0;
         $paidInstallments = 0;
-        $paidAmount = 0;
 
         if ($installmentPlan) {
             $totalInstallments = $installmentPlan->installments->count();
 
-            $installments = $installmentPlan->installments->map(function($installment) use (&$paidInstallments, &$paidAmount) {
-                $isPaid = $installment->status === 'paid' && $installment->is_paid;
+            $installments = $installmentPlan->installments->map(function($installment) use (&$paidInstallments) {
+                $isPaid = $installment->status === 'paid';
 
                 if ($isPaid) {
                     $paidInstallments++;
-                    $paidAmount += (float) $installment->amount;
                 }
 
                 return [
@@ -332,6 +332,25 @@ class GuardianParticipantService
                 ];
             })->toArray();
         }
+
+        // Calcular monto pagado (mismo cálculo que GetParticipantsService y SubscriptionController)
+        // 1. Pagos normales desde payments
+        $normalPayments = Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $programCourse->id);
+            })
+            ->whereIn('status', ['completed', 'approved'])
+            ->sum('amount');
+
+        // 2. Cuotas de suscripción pagadas (installments)
+        $subscriptionPayments = DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.participant_id', $participant->id)
+            ->where('installment_plans.program_id', $programCourse->id)
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
+
+        $paidAmount = (int) round((float) $normalPayments + (float) $subscriptionPayments);
 
         // Obtener primera imagen del programa si existe
         $images = $program->images;
@@ -381,8 +400,8 @@ class GuardianParticipantService
             'installments' => $installments,
             'total_installments' => $totalInstallments,
             'paid_installments' => $paidInstallments,
-            'paid_amount' => round($paidAmount, 2),
-            'pending_amount' => round($finalPrice - $paidAmount, 2),
+            'paid_amount' => $paidAmount,
+            'pending_amount' => max(0, $finalPrice - $paidAmount),
             'payment_percentage' => $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0,
         ];
     }

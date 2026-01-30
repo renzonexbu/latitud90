@@ -23,6 +23,7 @@
                             :initial-filters="localFilters"
                             :programs="programs"
                             :sales-executives="[]"
+                            :show-date-filters="false"
                             @filters-changed="onFiltersChanged"
                         />
 
@@ -59,8 +60,6 @@ const props = defineProps({
 });
 
 const localFilters = reactive({
-    dateFrom: props.filters.dateFrom || '',
-    dateTo: props.filters.dateTo || '',
     programId: props.filters.programId || '',
 });
 

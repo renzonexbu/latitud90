@@ -29,10 +29,8 @@ class GetPaymentsService
             'paymentOption'
         ]);
 
-        // Excluir pagos de suscripciones (las suscripciones tienen su propia vista)
-        $query->whereHas('order', function ($q) {
-            $q->where('order_number', 'NOT LIKE', 'SUB-%');
-        });
+        // Ya no excluimos los pagos de suscripciones - ahora se muestran todos los pagos
+        // y se identifica el tipo mediante la columna payment_source o deducido de payment_option
 
         // Aplicar filtros
         $this->applyFilters($query, $request);
@@ -44,6 +42,12 @@ class GetPaymentsService
 
         // SIMPLIFICADO: Solo pagos normales, sin combinar con installments
         $payments = $query->latest()->paginate($perPage);
+
+        // Agregar payment_source calculado a cada pago
+        $payments->getCollection()->transform(function ($payment) {
+            $payment->payment_source_calculated = $this->determinePaymentSource($payment);
+            return $payment;
+        });
 
         // Obtener estadísticas
         $stats = $this->getStats();
@@ -127,6 +131,60 @@ class GetPaymentsService
             $query->whereHas('paymentGateway', function ($q) use ($request) {
                 $q->where('code', $request->payment_method);
             });
+        }
+
+        // Filtro de origen del pago (payment_source)
+        if ($request->payment_source && $request->payment_source !== 'all') {
+            switch ($request->payment_source) {
+                case 'devolucion':
+                    // Devoluciones: monto negativo, document_type BC, o refund
+                    $query->where(function ($q) {
+                        $q->where('amount', '<', 0)
+                          ->orWhere('document_type', 'BC')
+                          ->orWhereHas('paymentOption', function ($sq) {
+                              $sq->where('gateway_code', 'refund');
+                          });
+                    });
+                    break;
+                case 'subscription':
+                    // Suscripciones: orden SUB- o payment_option de suscripción
+                    $query->where(function ($q) {
+                        $q->whereHas('order', function ($sq) {
+                            $sq->where('order_number', 'LIKE', 'SUB-%');
+                        })->orWhereHas('paymentOption', function ($sq) {
+                            $sq->where('mode', 'subscription')
+                               ->orWhere('code', 'subscription_virtualpos');
+                        });
+                    });
+                    break;
+                case 'offline':
+                    // Offline/Presencial
+                    $query->where(function ($q) {
+                        $q->whereHas('paymentOption', function ($sq) {
+                            $sq->where('mode', 'presential');
+                        })->orWhereHas('paymentGateway', function ($sq) {
+                            $sq->where('code', 'presencial');
+                        });
+                    });
+                    break;
+                case 'online':
+                    // Online (pago total): excluir los otros tipos
+                    $query->where('amount', '>', 0)
+                          ->where('document_type', '!=', 'BC')
+                          ->whereDoesntHave('paymentOption', function ($sq) {
+                              $sq->where('gateway_code', 'refund')
+                                 ->orWhere('mode', 'subscription')
+                                 ->orWhere('code', 'subscription_virtualpos')
+                                 ->orWhere('mode', 'presential');
+                          })
+                          ->whereDoesntHave('order', function ($sq) {
+                              $sq->where('order_number', 'LIKE', 'SUB-%');
+                          })
+                          ->whereDoesntHave('paymentGateway', function ($sq) {
+                              $sq->where('code', 'presencial');
+                          });
+                    break;
+            }
         }
 
         // Filtro de fecha desde
@@ -482,5 +540,44 @@ class GetPaymentsService
         });
 
         return $methods;
+    }
+
+    /**
+     * Determinar el origen/tipo del pago basándose en las relaciones
+     *
+     * @param Payment $payment
+     * @return string 'online' | 'subscription' | 'offline' | 'devolucion'
+     */
+    private function determinePaymentSource(Payment $payment): string
+    {
+        // 1. Verificar si es devolución (monto negativo o nota de crédito o refund)
+        if ($payment->amount < 0 ||
+            $payment->document_type === 'BC' ||
+            ($payment->paymentOption && $payment->paymentOption->gateway_code === 'refund')) {
+            return 'devolucion';
+        }
+
+        // 2. Verificar si es suscripción (orden SUB- o payment_option de suscripción)
+        if ($payment->order && str_starts_with($payment->order->order_number ?? '', 'SUB-')) {
+            return 'subscription';
+        }
+
+        if ($payment->paymentOption &&
+            ($payment->paymentOption->mode === 'subscription' ||
+             $payment->paymentOption->code === 'subscription_virtualpos')) {
+            return 'subscription';
+        }
+
+        // 3. Verificar si es offline (presencial/manual)
+        if ($payment->paymentOption && $payment->paymentOption->mode === 'presential') {
+            return 'offline';
+        }
+
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'presencial') {
+            return 'offline';
+        }
+
+        // 4. Por defecto es online (pago total)
+        return 'online';
     }
 }

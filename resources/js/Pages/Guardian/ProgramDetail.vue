@@ -351,9 +351,20 @@ const formatPrice = (price) => {
     .trim()
 }
 
+// Helper para normalizar fechas sin hora (YYYY-MM-DD) evitando problemas de timezone
+const normalizeDate = (dateString) => {
+  if (!dateString) return null
+  // Si es solo fecha (YYYY-MM-DD), agregar T12:00:00 para evitar
+  // que el cambio de timezone afecte el día mostrado
+  if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString + 'T12:00:00'
+  }
+  return dateString
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
-  const date = new Date(dateString)
+  const date = new Date(normalizeDate(dateString))
   if (isNaN(date.getTime())) return 'N/A'
   return date.toLocaleDateString('es-CL', {
     day: '2-digit',
@@ -365,14 +376,14 @@ const formatDate = (dateString) => {
 const isUpcoming = (dueDate) => {
   if (!dueDate) return false
   const today = new Date()
-  const due = new Date(dueDate)
+  const due = new Date(normalizeDate(dueDate))
   return due > today
 }
 
 const isPastDue = (dueDate) => {
   if (!dueDate) return false
   const today = new Date()
-  const due = new Date(dueDate)
+  const due = new Date(normalizeDate(dueDate))
   return due < today
 }
 

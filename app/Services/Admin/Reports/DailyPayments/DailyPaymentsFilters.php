@@ -9,12 +9,28 @@ class DailyPaymentsFilters
 {
     public function applyFilters(Builder $query, array $filters): Builder
     {
-        // FILTRO PRINCIPAL: Solo pagos completados/aprobados
-        $query->where(function($q) {
-            $q->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
-              ->where('od.is_paid', true)
-              ->where('od.status', 'paid');
-        });
+        // FILTRO PRINCIPAL: Pagos completados/aprobados o rechazados
+        // Si se especifica filtro de status, usar ese filtro
+        if (!empty($filters['paymentStatus'])) {
+            $status = $filters['paymentStatus'];
+            if (is_array($status)) {
+                $query->whereIn('pay.status', $status);
+            } else {
+                $query->where('pay.status', $status);
+            }
+            // Si incluye rejected, no filtrar por is_paid/status de order_detail
+            if ((is_array($status) && in_array('rejected', $status)) || $status === 'rejected') {
+                // Mostrar todos los registros sin filtro de is_paid
+            } else {
+                // Solo pagos exitosos
+                $query->where('od.is_paid', true)
+                      ->where('od.status', 'paid');
+            }
+        } else {
+            // Por defecto: mostrar completados, aprobados Y rechazados
+            $query->whereIn('pay.status', ['approved', 'completed', 'paid', 'success', 'rejected']);
+            // No filtrar por is_paid para incluir rechazados
+        }
 
         // Filtro por número de programa (program_course específico)
         if (!empty($filters['programId'])) {

@@ -1213,11 +1213,11 @@ console.log('========================');
 // Payment options data (from PaymentDetails.vue)
 const fullPaymentChoicesBase = [
     { code: 'full_transfer_khipu', label: 'Transferencia (Khipu)', installments: null },
-    { code: 'full_debit_credit_0', label: 'Débito y crédito sin cuotas (Webpay)', installments: 0 },
-    { code: 'full_debit_credit_3', label: 'Débito y crédito hasta 3 cuotas sin interés (Webpay)', installments: 3 },
-    { code: 'full_debit_credit_6', label: 'Débito y crédito hasta 6 cuotas sin interés (Webpay)', installments: 6 },
-    { code: 'full_debit_credit_9', label: 'Débito y crédito hasta 9 cuotas sin interés (Webpay)', installments: 9 },
-    { code: 'full_debit_credit_12', label: 'Débito y crédito hasta 12 cuotas sin interés (Webpay)', installments: 12 },
+    { code: 'full_debit_credit_0', label: 'Débito o Crédito (cuotas con interés según banco emisor)', installments: 0 },
+    { code: 'full_debit_credit_3', label: 'Crédito hasta 3 cuotas sin interés', installments: 3 },
+    { code: 'full_debit_credit_6', label: 'Crédito hasta 6 cuotas sin interés', installments: 6 },
+    { code: 'full_debit_credit_9', label: 'Crédito hasta 9 cuotas sin interés', installments: 9 },
+    { code: 'full_debit_credit_12', label: 'Crédito hasta 12 cuotas sin interés', installments: 12 },
     { code: 'full_international', label: 'Pago Internacional (Webpay)', installments: null },
 ];
 
@@ -1285,7 +1285,9 @@ const maxInstallmentChoices = computed(() => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
         // Cada cuota = 30 días aproximadamente
-        maxByDate = Math.max(0, Math.floor(diffDays / 30));
+        // +1 porque la primera cuota se paga el día de suscripción (día 0)
+        // Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
+        maxByDate = Math.max(0, Math.floor(diffDays / 30) + 1);
     }
 
     const hardMax = 12;

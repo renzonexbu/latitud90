@@ -240,16 +240,16 @@
                     </div>
                 </div>
 
-                <!-- Plan Information Card (Solo para planes personalizados) -->
+                <!-- Resumen de Pagos del Participante -->
                 <div
-                    v-if="subscription.plan?.is_personalized"
-                    class="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6"
+                    v-if="subscription.plan"
+                    class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6"
                 >
                     <h3
                         class="text-lg font-semibold text-gray-900 mb-4 flex items-center"
                     >
                         <svg
-                            class="w-5 h-5 mr-2 text-purple-600"
+                            class="w-5 h-5 mr-2 text-blue-600"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -258,37 +258,49 @@
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                                 stroke-width="2"
-                                d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                             ></path>
                         </svg>
-                        Plan Personalizado
-                        <span class="ml-2 px-2 py-1 text-xs font-medium bg-purple-500 text-white rounded-full">
+                        Resumen de Pagos
+                        <span
+                            v-if="subscription.plan.is_personalized"
+                            class="ml-2 px-2 py-1 text-xs font-medium bg-purple-500 text-white rounded-full"
+                        >
                             {{ getDiscountTypeLabel(subscription.plan.discount_type) }}
                         </span>
                     </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <div>
-                            <p class="text-sm text-gray-600">Precio Original</p>
-                            <p class="text-base font-medium text-gray-900 line-through">
-                                ${{ formatAmount(subscription.plan.original_price) }}
+                            <p class="text-sm text-gray-600">Precio Base</p>
+                            <p class="text-base font-medium text-gray-900">
+                                ${{ formatAmount(subscription.plan.base_price) }}
                             </p>
                         </div>
-                        <div>
+                        <div v-if="subscription.plan.discounts > 0">
                             <p class="text-sm text-gray-600">Descuento</p>
                             <p class="text-base font-medium text-red-600">
-                                -${{ formatAmount(subscription.plan.discount_amount) }}
+                                -${{ formatAmount(subscription.plan.discounts) }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-600">Precio Final</p>
-                            <p class="text-base font-medium text-green-600">
-                                ${{ formatAmount(subscription.plan.trip_price) }}
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-600">Cuota Mensual</p>
+                            <p class="text-sm text-gray-600">Total a Pagar</p>
                             <p class="text-base font-medium text-gray-900">
-                                ${{ formatAmount(subscription.plan.monthly_amount) }}
+                                ${{ formatAmount(subscription.plan.final_price) }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Monto Pagado</p>
+                            <p class="text-base font-medium text-green-600">
+                                ${{ formatAmount(subscription.plan.paid_amount) }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Saldo Pendiente</p>
+                            <p :class="[
+                                'text-base font-medium',
+                                subscription.plan.pending_amount > 0 ? 'text-orange-600' : 'text-green-600'
+                            ]">
+                                ${{ formatAmount(subscription.plan.pending_amount) }}
                             </p>
                         </div>
                     </div>

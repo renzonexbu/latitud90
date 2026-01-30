@@ -7,8 +7,8 @@
                 Filtros de búsqueda
             </div>
 
-            <!-- Rango de fechas -->
-            <div class="flex gap-4 items-center">
+            <!-- Rango de fechas (condicional) -->
+            <div v-if="showDateFilters" class="flex gap-4 items-center">
                 <div class="relative">
                     <input
                         v-model="filters.dateFrom"
@@ -37,7 +37,7 @@
                     <input
                         v-model="programSearchQuery"
                         type="text"
-                        placeholder="Buscar programa por código..."
+                        placeholder="Buscar por código de programa..."
                         class="w-full h-[46px] bg-white rounded-[50px] border px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
                         :class="{
                             'border-green-500': selectedProgram,
@@ -156,6 +156,10 @@ export default {
         salesExecutives: {
             type: Array,
             default: () => []
+        },
+        showDateFilters: {
+            type: Boolean,
+            default: true
         }
     },
     data() {
@@ -288,7 +292,7 @@ export default {
 
             this.filters = {
                 programId: "",
-                dateFrom: "",  // Vacío para mostrar todo el histórico
+                dateFrom: "",
                 dateTo: today.toISOString().split('T')[0],
             };
             this.selectedProgram = null;

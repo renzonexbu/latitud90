@@ -400,6 +400,9 @@ class CreateParticularPaymentService
      */
     private function createPayment(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
     {
+        $documentType = PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        $paymentCode = $data['payment_code'];
+
         return Payment::create([
             'order_id' => $order->id,
             'order_detail_id' => $orderDetail->id,
@@ -410,7 +413,9 @@ class CreateParticularPaymentService
             'status' => 'completed',
             'transaction_date' => Carbon::parse($data['transaction_date']),
             'authorization_code' => $data['authorization_code'] ?? null,
-            'payment_code' => $data['payment_code'],
+            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+            'payment_code' => $documentType !== 'B2' ? $paymentCode : null,
+            'bsale_number' => $documentType === 'B2' ? $paymentCode : null,
             'gateway_response' => [
                 'notes' => $data['notes'] ?? null,
                 'created_manually' => true,
@@ -427,7 +432,7 @@ class CreateParticularPaymentService
                 ]
             ],
             'currency' => 'CLP',
-            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($order->program_id),
+            'document_type' => $documentType,
         ]);
     }
 

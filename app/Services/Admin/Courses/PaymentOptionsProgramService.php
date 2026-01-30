@@ -15,6 +15,50 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 class PaymentOptionsProgramService
 {
     /**
+     * Mapeo de labels para mostrar nombres amigables
+     * Esto permite renombrar opciones sin modificar la base de datos
+     */
+    protected array $labelOverrides = [
+        'subscription_virtualpos' => 'Pago automático con tarjeta (PAT)',
+        'full_debit_credit_0' => 'Débito o Crédito (cuotas con interés según banco emisor)',
+        'full_debit_credit_3' => 'Crédito hasta 3 cuotas sin interés',
+        'full_debit_credit_6' => 'Crédito hasta 6 cuotas sin interés',
+        'full_debit_credit_9' => 'Crédito hasta 9 cuotas sin interés',
+        'full_debit_credit_12' => 'Crédito hasta 12 cuotas sin interés',
+    ];
+
+    /**
+     * Códigos de opciones de pago que deben ocultarse en la vista
+     */
+    protected array $hiddenCodes = [
+        'full_webpay_link', // Ocultar "Pago webpay con link de pago"
+    ];
+
+    /**
+     * Transforma el label de una opción de pago si existe un override
+     */
+    protected function transformLabel(string $code, string $originalLabel): string
+    {
+        return $this->labelOverrides[$code] ?? $originalLabel;
+    }
+
+    /**
+     * Verifica si una opción de pago debe ocultarse
+     */
+    protected function shouldHide(string $code): bool
+    {
+        return in_array($code, $this->hiddenCodes);
+    }
+
+    /**
+     * Limpia el label removiendo sufijos como (Webpay), (Khipu), (VirtualPos)
+     */
+    protected function cleanLabel(string $label): string
+    {
+        return trim(preg_replace('/\s*\((Webpay|Khipu|VirtualPos)\)\s*$/i', '', $label));
+    }
+
+    /**
      * Obtener programas filtrados por medio de pago
      */
     public function getProgramsByPaymentOption(array $filters): array
@@ -29,8 +73,13 @@ class PaymentOptionsProgramService
               ->orWhere('code', 'like', 'subscription_%');
         })->orderBy('label')->get();
 
-        // Query base de programas con sus opciones de pago
-        $query = ProgramCourse::with(['program', 'course.institution', 'paymentOptions'])
+        // Query base de programas con sus opciones de pago y participantes
+        $query = ProgramCourse::with([
+                'program',
+                'course.institution',
+                'paymentOptions',
+                'participantPrograms.orders.payments'
+            ])
             ->orderBy('code');
 
         // Filtrar por estado activo/inactivo
@@ -61,29 +110,56 @@ class PaymentOptionsProgramService
         // Formatear datos para el frontend
         $formattedPrograms = $programs->map(function ($program) {
             // Solo incluir opciones de pasarela online (full_ y subscription_)
+            // Excluir las opciones ocultas y transformar labels
             $enabledPaymentOptions = $program->paymentOptions
                 ->filter(fn($opt) => $opt->pivot->enabled && (
                     str_starts_with($opt->code, 'full_') ||
                     str_starts_with($opt->code, 'subscription_')
-                ))
+                ) && !$this->shouldHide($opt->code))
                 ->map(fn($opt) => [
                     'id' => $opt->id,
                     'code' => $opt->code,
-                    'label' => $opt->label,
+                    'label' => $this->transformLabel($opt->code, $opt->label),
                     'mode' => $opt->mode,
                 ])
                 ->values();
+
+            // Calcular participantes, monto total y monto pagado
+            $participantsCount = $program->participantPrograms->count();
+            $tripPrice = (float) ($program->trip_price ?? 0);
+
+            // Calcular total (suma de precios individuales o precio del programa * participantes)
+            $totalAmount = $program->participantPrograms->sum(function ($pp) use ($tripPrice) {
+                return (float) ($pp->individual_price ?: $tripPrice);
+            });
+
+            // Calcular monto pagado (suma de pagos aprobados/completados)
+            $paidAmount = $program->participantPrograms->sum(function ($pp) {
+                return $pp->orders->sum(function ($order) {
+                    return $order->payments
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->sum('amount');
+                });
+            });
+
+            // Calcular porcentaje de pago
+            $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100) : 0;
 
             return [
                 'id' => $program->id,
                 'code' => $program->code,
                 'name' => $program->name,
                 'destination' => $program->program?->destination ?? $program->destination,
-                'institution' => $program->course?->institution?->name ?? 'N/A',
+                'trip_price' => $tripPrice,
                 'departure_date' => $program->departure_date?->format('Y-m-d'),
+                'final_payment_date' => $program->final_payment_date?->format('Y-m-d'),
                 'active' => $program->active,
                 'payment_options' => $enabledPaymentOptions,
                 'payment_options_count' => $enabledPaymentOptions->count(),
+                'participants_count' => $participantsCount,
+                'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount,
+                'payment_percentage' => $paymentPercentage,
             ];
         });
 
@@ -96,12 +172,15 @@ class PaymentOptionsProgramService
 
         return [
             'programs' => $formattedPrograms->values(),
-            'paymentOptions' => $paymentOptions->map(fn($opt) => [
-                'id' => $opt->id,
-                'code' => $opt->code,
-                'label' => $opt->label,
-                'mode' => $opt->mode,
-            ]),
+            'paymentOptions' => $paymentOptions
+                ->filter(fn($opt) => !$this->shouldHide($opt->code))
+                ->map(fn($opt) => [
+                    'id' => $opt->id,
+                    'code' => $opt->code,
+                    'label' => $this->transformLabel($opt->code, $opt->label),
+                    'mode' => $opt->mode,
+                ])
+                ->values(),
             'summary' => $summary,
         ];
     }
@@ -121,7 +200,7 @@ class PaymentOptionsProgramService
 
         // Título
         $sheet->setCellValue('A1', 'Programas por Medio de Pago');
-        $sheet->mergeCells('A1:H1');
+        $sheet->mergeCells('A1:J1');
         $sheet->getStyle('A1')->applyFromArray([
             'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => '1C4F4A']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]
@@ -129,7 +208,7 @@ class PaymentOptionsProgramService
 
         // Fecha de exportación
         $sheet->setCellValue('A2', 'Fecha de exportación: ' . Carbon::now('America/Santiago')->format('d/m/Y H:i'));
-        $sheet->mergeCells('A2:H2');
+        $sheet->mergeCells('A2:J2');
         $sheet->getStyle('A2')->applyFromArray([
             'font' => ['italic' => true, 'size' => 10, 'color' => ['rgb' => '666666']]
         ]);
@@ -138,10 +217,10 @@ class PaymentOptionsProgramService
         $sheet->setCellValue('A3', 'Total programas: ' . $data['summary']['total_programs'] .
             ' | Activos: ' . $data['summary']['active_programs'] .
             ' | Inactivos: ' . $data['summary']['inactive_programs']);
-        $sheet->mergeCells('A3:H3');
+        $sheet->mergeCells('A3:J3');
 
         // Headers
-        $headers = ['Código', 'Nombre', 'Destino', 'Institución', 'Fecha Salida', 'Estado', 'Medios de Pago Activos', 'Cantidad'];
+        $headers = ['Código', 'Nombre del Programa', 'Fecha Inicio', 'Fecha Pago', 'Estado', 'Participantes', '% Pago', 'Recaudado', 'Total', 'Medios de Pago Activos'];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . '5', $header);
@@ -149,7 +228,7 @@ class PaymentOptionsProgramService
         }
 
         // Estilo de headers
-        $sheet->getStyle('A5:H5')->applyFromArray([
+        $sheet->getStyle('A5:J5')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -159,20 +238,32 @@ class PaymentOptionsProgramService
         // Datos
         $row = 6;
         foreach ($programs as $program) {
-            $paymentLabels = collect($program['payment_options'])->pluck('label')->join(', ');
+            $paymentLabels = collect($program['payment_options'])
+                ->pluck('label')
+                ->map(fn($label) => $this->cleanLabel($label))
+                ->join(', ');
 
             $sheet->setCellValue('A' . $row, $program['code'] ?? 'N/A');
             $sheet->setCellValue('B' . $row, $program['name'] ?? 'N/A');
-            $sheet->setCellValue('C' . $row, $program['destination'] ?? 'N/A');
-            $sheet->setCellValue('D' . $row, $program['institution'] ?? 'N/A');
-            $sheet->setCellValue('E' . $row, $program['departure_date'] ? Carbon::parse($program['departure_date'])->format('d/m/Y') : 'N/A');
-            $sheet->setCellValue('F' . $row, $program['active'] ? 'Activo' : 'Inactivo');
-            $sheet->setCellValue('G' . $row, $paymentLabels ?: 'Ninguno');
-            $sheet->setCellValue('H' . $row, $program['payment_options_count']);
+            $sheet->setCellValue('C' . $row, $program['departure_date'] ? Carbon::parse($program['departure_date'])->format('d/m/Y') : 'N/A');
+            $sheet->setCellValue('D' . $row, $program['final_payment_date'] ? Carbon::parse($program['final_payment_date'])->format('d/m/Y') : 'N/A');
+            $sheet->setCellValue('E' . $row, $program['active'] ? 'Activo' : 'Inactivo');
+            $sheet->setCellValue('F' . $row, $program['participants_count'] ?? 0);
+            $sheet->setCellValue('G' . $row, ($program['payment_percentage'] ?? 0) . '%');
+            $sheet->setCellValue('H' . $row, $program['paid_amount'] ?? 0);
+            $sheet->setCellValue('I' . $row, $program['total_amount'] ?? 0);
+            $sheet->setCellValue('J' . $row, $paymentLabels ?: 'Ninguno');
+
+            // Formato de moneda para columnas Recaudado y Total
+            $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('$#,##0');
+            $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('$#,##0');
+
+            // Centrar columnas
+            $sheet->getStyle('C' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             // Color de fila según estado
             if (!$program['active']) {
-                $sheet->getStyle('A' . $row . ':H' . $row)->applyFromArray([
+                $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F5F5F5']]
                 ]);
             }
@@ -181,14 +272,16 @@ class PaymentOptionsProgramService
         }
 
         // Ajustar anchos de columna
-        $sheet->getColumnDimension('A')->setWidth(15);
+        $sheet->getColumnDimension('A')->setWidth(12);
         $sheet->getColumnDimension('B')->setWidth(30);
-        $sheet->getColumnDimension('C')->setWidth(20);
-        $sheet->getColumnDimension('D')->setWidth(25);
-        $sheet->getColumnDimension('E')->setWidth(15);
-        $sheet->getColumnDimension('F')->setWidth(12);
-        $sheet->getColumnDimension('G')->setWidth(50);
-        $sheet->getColumnDimension('H')->setWidth(12);
+        $sheet->getColumnDimension('C')->setWidth(14);
+        $sheet->getColumnDimension('D')->setWidth(14);
+        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('F')->setWidth(14);
+        $sheet->getColumnDimension('G')->setWidth(10);
+        $sheet->getColumnDimension('H')->setWidth(15);
+        $sheet->getColumnDimension('I')->setWidth(15);
+        $sheet->getColumnDimension('J')->setWidth(50);
 
         // Segunda hoja: Resumen por medio de pago
         $sheet2 = $spreadsheet->createSheet();

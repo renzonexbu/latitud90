@@ -4,12 +4,15 @@
             <thead class="text-xs text-white uppercase bg-[#1c4f4a]">
                 <tr>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap">Código</th>
-                    <th scope="col" class="px-4 py-3 whitespace-nowrap">Programa</th>
-                    <th scope="col" class="px-4 py-3 whitespace-nowrap">Institución</th>
-                    <th scope="col" class="px-4 py-3 whitespace-nowrap">Fecha Salida</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap">Nombre del Programa</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Fecha Inicio</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Fecha Pago</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Estado</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Participantes</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">% de Pago</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-right">Recaudado / Total</th>
                     <th scope="col" class="px-4 py-3">Pago Total</th>
-                    <th scope="col" class="px-4 py-3">Suscripción</th>
+                    <th scope="col" class="px-4 py-3">Suscripciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -23,14 +26,13 @@
                         {{ program.code || 'N/A' }}
                     </td>
                     <td class="px-4 py-3">
-                        <div class="font-medium">{{ program.name || 'N/A' }}</div>
-                        <div class="text-xs text-gray-500">{{ program.destination || '' }}</div>
+                        <div class="text-xs">{{ program.name || 'N/A' }}</div>
                     </td>
-                    <td class="px-4 py-3 text-gray-600">
-                        {{ program.institution || 'N/A' }}
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-gray-600">
+                    <td class="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
                         {{ formatDate(program.departure_date) }}
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
+                        {{ formatDate(program.final_payment_date) }}
                     </td>
                     <td class="px-4 py-3 text-center">
                         <span
@@ -42,6 +44,21 @@
                         >
                             {{ program.active ? 'Activo' : 'Inactivo' }}
                         </span>
+                    </td>
+                    <td class="px-4 py-3 text-center text-gray-900">
+                        {{ program.participants_count || 0 }}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span
+                            class="px-2 py-1 text-xs font-bold rounded-full"
+                            :class="getPercentageClass(program.payment_percentage)"
+                        >
+                            {{ program.payment_percentage || 0 }}%
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-right whitespace-nowrap">
+                        <span class="font-medium text-gray-900">${{ formatPrice(program.paid_amount) }}</span>
+                        <span class="text-gray-500"> / ${{ formatPrice(program.total_amount) }}</span>
                     </td>
                     <!-- Columna Pago Total -->
                     <td class="px-4 py-3">
@@ -73,7 +90,7 @@
                     </td>
                 </tr>
                 <tr v-if="programs.length === 0">
-                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                    <td colspan="10" class="px-4 py-8 text-center text-gray-500">
                         No se encontraron programas con los filtros seleccionados
                     </td>
                 </tr>
@@ -101,6 +118,11 @@ export default {
                 year: 'numeric'
             });
         },
+        formatPrice(price) {
+            if (!price) return '0';
+            const n = Math.round(Number(price) || 0);
+            return n.toLocaleString('es-CL');
+        },
         cleanLabel(label) {
             if (!label) return '';
             return label
@@ -114,6 +136,12 @@ export default {
         },
         getSubscriptionOptions(options) {
             return options.filter(opt => opt.code?.startsWith('subscription_'));
+        },
+        getPercentageClass(percentage) {
+            if (percentage >= 90) return 'bg-green-500 text-white';
+            if (percentage >= 50) return 'bg-yellow-500 text-white';
+            if (percentage > 0) return 'bg-red-500 text-white';
+            return 'bg-gray-300 text-gray-700';
         }
     }
 };

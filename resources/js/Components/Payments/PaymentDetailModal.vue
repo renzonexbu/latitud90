@@ -62,7 +62,7 @@
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Fecha de Transacción:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? formatDate(payment.paid_at || payment.due_date) : formatDate(payment.transaction_date) }}</span>
+                                    <span class="font-semibold text-gray-900">{{ getTransactionDate(payment) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Fecha de Creación:</span>
@@ -90,25 +90,9 @@
                                     <span class="text-gray-600 font-medium">Nombre:</span>
                                     <span class="font-semibold text-gray-900">{{ getParticipantName(payment) }}</span>
                                 </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">Email:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order?.participant?.email || 'N/A' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">RUT / PASAPORTE:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDocument(payment.order?.participant?.document_number, payment.order?.participant?.documentType) }}</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">Teléfono:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order?.participant?.phone || 'N/A' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">Fecha de Nacimiento:</span>
-                                    <span class="font-semibold text-gray-900">{{ formatDate(payment.order?.participant?.birth_date) }}</span>
-                                </div>
                                 <div class="flex justify-between items-center py-2">
-                                    <span class="text-gray-600 font-medium">Género:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.order?.participant?.gender || 'N/A' }}</span>
+                                    <span class="text-gray-600 font-medium">RUT / PASAPORTE:</span>
+                                    <span class="font-semibold text-gray-900">{{ formatDocument(payment.order?.participant?.document_number, payment.order?.participant?.document_type) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -123,20 +107,16 @@
                             </h3>
                             <div class="space-y-4">
                                 <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span class="text-gray-600 font-medium">Código:</span>
+                                    <span class="font-semibold text-gray-900">{{ getProgramCode(payment) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
                                     <span class="text-gray-600 font-medium">Programa:</span>
-                                    <span class="font-semibold text-gray-900 text-right max-w-xs">{{ payment.is_installment ? payment.order?.program_course?.name : payment.order?.program?.name || 'N/A' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">Destino:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? 'Suscripción' : (payment.order?.program?.destination || 'N/A') }}</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
-                                    <span class="text-gray-600 font-medium">Institución:</span>
-                                    <span class="font-semibold text-gray-900">{{ getInstitutionName(payment) }}</span>
+                                    <span class="font-semibold text-gray-900 text-right max-w-xs">{{ getProgramName(payment) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center py-2">
-                                    <span class="text-gray-600 font-medium">Fecha de Salida:</span>
-                                    <span class="font-semibold text-gray-900">{{ payment.is_installment ? 'N/A' : formatDate(payment.order?.program?.departure_date) }}</span>
+                                    <span class="text-gray-600 font-medium">Institución:</span>
+                                    <span class="font-semibold text-gray-900">{{ getInstitutionName(payment) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -180,6 +160,55 @@
                                 <div class="flex justify-between items-center py-2">
                                     <span class="text-gray-600 font-medium">Ciudad:</span>
                                     <span class="font-semibold text-gray-900">{{ getBuyerCity(payment) }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información de Boleta BSale -->
+                        <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Boleta BSale
+                            </h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span class="text-gray-600 font-medium">Estado:</span>
+                                    <span
+                                        :class="getBsaleStatusClass(payment)"
+                                        class="px-3 py-1 text-sm font-semibold rounded-full"
+                                    >
+                                        {{ getBsaleStatusLabel(payment) }}
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span class="text-gray-600 font-medium">N° Boleta:</span>
+                                    <span class="font-semibold" :class="payment.bsale_number ? 'text-green-600' : 'text-gray-400'">
+                                        {{ payment.bsale_number || 'Sin generar' }}
+                                    </span>
+                                </div>
+                                <div v-if="payment.bsale_token" class="flex justify-between items-center py-2 border-b border-gray-100">
+                                    <span class="text-gray-600 font-medium">Ver Boleta:</span>
+                                    <a
+                                        :href="'https://app2.bsale.cl/view/' + payment.bsale_token"
+                                        target="_blank"
+                                        class="text-blue-600 hover:text-blue-800 font-semibold flex items-center"
+                                    >
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                        </svg>
+                                        Abrir en BSale
+                                    </a>
+                                </div>
+                                <div v-if="payment.bsale_error" class="py-2">
+                                    <span class="text-gray-600 font-medium block mb-2">Error:</span>
+                                    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <p class="text-red-700 text-sm">{{ payment.bsale_error }}</p>
+                                        <p v-if="payment.bsale_error_code" class="text-red-500 text-xs mt-1">
+                                            Código: {{ payment.bsale_error_code }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -408,12 +437,40 @@ const getTotalInstallments = (payment) => {
     return 'N/A';
 };
 
-const getInstitutionName = (payment) => {
-    // Si es un installment, usar program_course
-    if (payment.is_installment && payment.order?.program_course) {
-        return payment.order.program_course.course?.institution?.name || 'N/A';
+const getProgramCode = (payment) => {
+    // Primero intentar con program_course (nueva arquitectura)
+    if (payment.order?.program_course?.code) {
+        return payment.order.program_course.code;
     }
-    return payment.order?.program?.course?.institution?.name || 'N/A';
+    // Fallback a program (arquitectura antigua)
+    if (payment.order?.program?.code) {
+        return payment.order.program.code;
+    }
+    return 'N/A';
+};
+
+const getProgramName = (payment) => {
+    // Primero intentar con program_course (nueva arquitectura)
+    if (payment.order?.program_course?.name) {
+        return payment.order.program_course.name;
+    }
+    // Fallback a program (arquitectura antigua)
+    if (payment.order?.program?.name) {
+        return payment.order.program.name;
+    }
+    return 'N/A';
+};
+
+const getInstitutionName = (payment) => {
+    // Primero intentar con program_course (nueva arquitectura)
+    if (payment.order?.program_course?.course?.institution?.name) {
+        return payment.order.program_course.course.institution.name;
+    }
+    // Fallback a program (arquitectura antigua)
+    if (payment.order?.program?.course?.institution?.name) {
+        return payment.order.program.course.institution.name;
+    }
+    return 'N/A';
 };
 
 const getStatusClass = (status) => {
@@ -453,13 +510,39 @@ const formatPrice = (amount) => {
 
 const formatDate = (date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('es-CL', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    try {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) return 'N/A';
+        return parsedDate.toLocaleDateString('es-CL', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return 'N/A';
+    }
+};
+
+const getTransactionDate = (payment) => {
+    // Intentar con transaction_date primero
+    if (payment.transaction_date) {
+        return formatDate(payment.transaction_date);
+    }
+    // Luego con accounting_date
+    if (payment.accounting_date) {
+        return formatDate(payment.accounting_date);
+    }
+    // Para suscripciones, usar paid_at o due_date
+    if (payment.paid_at) {
+        return formatDate(payment.paid_at);
+    }
+    // Fallback a created_at
+    if (payment.created_at) {
+        return formatDate(payment.created_at);
+    }
+    return 'N/A';
 };
 
 /**
@@ -533,5 +616,75 @@ const getDocumentNumber = (payment) => {
         return `ORD-${payment.order_id}`;
     }
     return 'N/A';
+};
+
+/**
+ * Obtiene la etiqueta de estado de la boleta BSale
+ */
+const getBsaleStatusLabel = (payment) => {
+    // Si ya tiene boleta generada
+    if (payment.bsale_number || payment.bsale_document_id) {
+        return 'Generada';
+    }
+
+    // Si tiene error permanente
+    if (payment.bsale_error_code) {
+        return 'Error';
+    }
+
+    // Si el pago no está completado
+    const completedStatuses = ['completed', 'approved'];
+    if (!completedStatuses.includes(payment.status)) {
+        return 'No Aplica';
+    }
+
+    // Verificar si es de año posterior
+    const programDepartureDate = payment.order?.program_course?.departure_date
+        || payment.order?.programCourse?.departure_date;
+
+    if (programDepartureDate) {
+        const departureYear = new Date(programDepartureDate).getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (departureYear > currentYear) {
+            return 'Año Posterior';
+        }
+    }
+
+    return 'Pendiente';
+};
+
+/**
+ * Obtiene la clase CSS para el estado de la boleta BSale
+ */
+const getBsaleStatusClass = (payment) => {
+    // Si ya tiene boleta generada
+    if (payment.bsale_number || payment.bsale_document_id) {
+        return 'bg-green-100 text-green-800';
+    }
+
+    // Si tiene error permanente
+    if (payment.bsale_error_code) {
+        return 'bg-red-100 text-red-800';
+    }
+
+    // Si el pago no está completado
+    const completedStatuses = ['completed', 'approved'];
+    if (!completedStatuses.includes(payment.status)) {
+        return 'bg-gray-100 text-gray-500';
+    }
+
+    // Verificar si es de año posterior
+    const programDepartureDate = payment.order?.program_course?.departure_date
+        || payment.order?.programCourse?.departure_date;
+
+    if (programDepartureDate) {
+        const departureYear = new Date(programDepartureDate).getFullYear();
+        const currentYear = new Date().getFullYear();
+        if (departureYear > currentYear) {
+            return 'bg-gray-100 text-gray-500';
+        }
+    }
+
+    return 'bg-yellow-100 text-yellow-800';
 };
 </script>

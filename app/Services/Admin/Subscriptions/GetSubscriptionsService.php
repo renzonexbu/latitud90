@@ -3,7 +3,6 @@
 namespace App\Services\Admin\Subscriptions;
 
 use App\Models\ProgramSubscription;
-use App\Models\ProgramCourse;
 use App\Models\VirtualPosPlan;
 use App\Traits\AdminLogging;
 use Illuminate\Http\Request;
@@ -37,9 +36,15 @@ class GetSubscriptionsService
                 ->first();
 
             $totalInstallments = $installmentPlan ? $installmentPlan->total_installments : 0;
-            $paidInstallments = $installmentPlan ? $installmentPlan->installments->where('is_paid', true)->count() : 0;
+            $paidInstallments = $installmentPlan ? $installmentPlan->installments->where('status', 'paid')->count() : 0;
             $totalAmount = $installmentPlan ? $installmentPlan->installments->sum('amount') : 0;
-            $paidAmount = $installmentPlan ? $installmentPlan->installments->where('is_paid', true)->sum('amount') : 0;
+            $paidAmount = $installmentPlan ? $installmentPlan->installments->where('status', 'paid')->sum('amount') : 0;
+
+            // Obtener la última cuota pagada
+            $lastPaidInstallment = $installmentPlan
+                ? $installmentPlan->installments->where('status', 'paid')->sortByDesc('paid_at')->first()
+                : null;
+            $lastPaidAmount = $lastPaidInstallment ? $lastPaidInstallment->amount : null;
 
             // Obtener información del plan de VirtualPos
             $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
@@ -59,6 +64,15 @@ class GetSubscriptionsService
                 ];
             }
 
+            // Obtener datos del pagador (buyer) desde buyer_data de la suscripción
+            $buyerData = $subscription->buyer_data;
+            $buyerName = 'N/A';
+            if ($buyerData && is_array($buyerData)) {
+                $buyerFirstName = $buyerData['first_name'] ?? '';
+                $buyerLastName = $buyerData['first_last_name'] ?? '';
+                $buyerName = trim("{$buyerFirstName} {$buyerLastName}") ?: 'N/A';
+            }
+
             return [
                 'id' => $subscription->id,
                 'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
@@ -71,9 +85,13 @@ class GetSubscriptionsService
                     'document' => $subscription->participant->document_number,
                     'document_type' => $subscription->participant->documentType?->name ?? 'N/A',
                 ],
+                'buyer' => [
+                    'name' => $buyerName,
+                ],
                 'program' => [
                     'id' => $subscription->programCourse->id,
                     'name' => $subscription->programCourse->name,
+                    'code' => $subscription->programCourse->code ?? 'N/A',
                     'destination' => $subscription->programCourse->program->destination ?? '',
                 ],
                 'institution' => [
@@ -86,25 +104,12 @@ class GetSubscriptionsService
                 'paid_amount' => $paidAmount,
                 'pending_amount' => $totalAmount - $paidAmount,
                 'payment_percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 2) : 0,
+                'last_paid_amount' => $lastPaidAmount,
             ];
         });
 
         // Obtener estadísticas
         $stats = $this->getStats();
-
-        // Obtener program_courses para los filtros
-        $programs = ProgramCourse::where('active', true)
-            ->with('program:id,destination')
-            ->orderBy('name')
-            ->get(['id', 'name', 'code', 'program_id'])
-            ->map(function ($programCourse) {
-                return [
-                    'id' => $programCourse->id,
-                    'name' => $programCourse->name,
-                    'code' => $programCourse->code,
-                    'destination' => $programCourse->program->destination ?? ''
-                ];
-            });
 
         // Log the subscriptions list view
         $this->logView(
@@ -116,7 +121,7 @@ class GetSubscriptionsService
                 'total_subscriptions' => $subscriptions->total(),
                 'current_page' => $subscriptions->currentPage(),
                 'per_page' => $subscriptions->perPage(),
-                'filters_applied' => $request->only(['participant_name', 'subscription_status', 'program_id', 'date_from', 'date_to']),
+                'filters_applied' => $request->only(['participant_name', 'subscription_status', 'program_code', 'date_from', 'date_to']),
                 'stats' => $stats,
             ]
         );
@@ -124,8 +129,7 @@ class GetSubscriptionsService
         return [
             'subscriptions' => $subscriptions,
             'stats' => $stats,
-            'filters' => $request->only(['participant_name', 'subscription_status', 'program_id', 'date_from', 'date_to']),
-            'programs' => $programs
+            'filters' => $request->only(['participant_name', 'subscription_status', 'program_code', 'date_from', 'date_to']),
         ];
     }
 
@@ -149,9 +153,11 @@ class GetSubscriptionsService
             $query->where('status', $request->subscription_status);
         }
 
-        // Filtro de programa
-        if ($request->program_id) {
-            $query->where('program_id', $request->program_id);
+        // Filtro de programa por código
+        if ($request->program_code) {
+            $query->whereHas('programCourse', function ($q) use ($request) {
+                $q->where('code', 'like', '%' . $request->program_code . '%');
+            });
         }
 
         // Filtro de fecha desde

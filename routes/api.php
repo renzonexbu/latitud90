@@ -35,6 +35,9 @@ Route::post('/subscription/webhook', [\App\Http\Controllers\Client\SubscriptionC
 // Verificar estado de suscripción
 Route::post('/subscription/check-status', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkSubscriptionStatus'])->name('api.subscription.check-status');
 
+// Verificar estado del primer cargo (para polling desde vista de verificación)
+Route::get('/subscription/check-first-charge/{subscriptionId}', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkFirstChargeStatus'])->name('api.subscription.check-first-charge');
+
 // Analytics Routes
 Route::post('/analytics/program-list-view', [AnalyticsController::class, 'recordProgramListView']);
 Route::post('/analytics/program-selection', [AnalyticsController::class, 'recordProgramSelection']);

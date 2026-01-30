@@ -10,6 +10,17 @@ use Carbon\Carbon;
 class ExecutivesConsolidatedService
 {
     /**
+     * Normaliza un documento removiendo puntos, guiones y espacios
+     */
+    private function normalizeDocument(?string $document): string
+    {
+        if (!$document) {
+            return '';
+        }
+        return preg_replace('/[.\-\s]/', '', $document);
+    }
+
+    /**
      * Retorna datos para Consolidado de Área Ingresos (apoderados)
      */
     public function getConsolidated(array $filters): array
@@ -44,6 +55,14 @@ class ExecutivesConsolidatedService
         if (!empty($filters['salesExecutiveId'])) {
             $query->whereHas('order.programCourse', function ($q) use ($filters) {
                 $q->where('sales_executive_id', $filters['salesExecutiveId']);
+            });
+        }
+        // Filtro por documento/RUT del participante
+        if (!empty($filters['documentSearch'])) {
+            $documentSearch = $this->normalizeDocument($filters['documentSearch']);
+            $query->whereHas('order.participant', function ($q) use ($documentSearch) {
+                // Buscar normalizando el documento en BD (sin puntos ni guiones)
+                $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
 
@@ -152,6 +171,7 @@ class ExecutivesConsolidatedService
                 'dateTo' => $filters['dateTo'] ?? Carbon::now('America/Santiago')->format('Y-m-d'),
                 'programId' => $filters['programId'] ?? "",
                 'salesExecutiveId' => $filters['salesExecutiveId'] ?? null,
+                'documentSearch' => $filters['documentSearch'] ?? "",
             ],
             'summary' => $summary,
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->with('program:id,destination')->orderBy('code')->get(),
@@ -166,7 +186,7 @@ class ExecutivesConsolidatedService
     {
         // Normalizar filtros: evitar que el string 'null' o vacío aplique filtros
         $normalizedFilters = $filters;
-        foreach (['programId', 'salesExecutiveId'] as $key) {
+        foreach (['programId', 'salesExecutiveId', 'documentSearch'] as $key) {
             if (isset($normalizedFilters[$key]) && ($normalizedFilters[$key] === 'null' || $normalizedFilters[$key] === '')) {
                 $normalizedFilters[$key] = null;
             }
@@ -199,6 +219,13 @@ class ExecutivesConsolidatedService
         if (!empty($normalizedFilters['salesExecutiveId'])) {
             $query->whereHas('order.programCourse', function ($q) use ($normalizedFilters) {
                 $q->where('sales_executive_id', $normalizedFilters['salesExecutiveId']);
+            });
+        }
+        // Filtro por documento/RUT del participante
+        if (!empty($normalizedFilters['documentSearch'])) {
+            $documentSearch = $this->normalizeDocument($normalizedFilters['documentSearch']);
+            $query->whereHas('order.participant', function ($q) use ($documentSearch) {
+                $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
 

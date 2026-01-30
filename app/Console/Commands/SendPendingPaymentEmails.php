@@ -8,6 +8,7 @@ use App\Helpers\PaymentDocumentTypeHelper;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Services\Client\Integration\BsaleService;
+use App\Services\Bsale\BsaleQueueService;
 use App\Services\PDF\ContractService;
 use App\Services\PDF\PaymentReceiptService;
 use Carbon\Carbon;
@@ -42,6 +43,7 @@ class SendPendingPaymentEmails extends Command
     protected SuccessPaymentEmailService $emailService;
     protected VirtualPosService $virtualPosService;
     protected BsaleService $bsaleService;
+    protected BsaleQueueService $bsaleQueueService;
     protected ContractService $contractService;
     protected PaymentReceiptService $receiptService;
 
@@ -49,6 +51,7 @@ class SendPendingPaymentEmails extends Command
         SuccessPaymentEmailService $emailService,
         VirtualPosService $virtualPosService,
         BsaleService $bsaleService,
+        BsaleQueueService $bsaleQueueService,
         ContractService $contractService,
         PaymentReceiptService $receiptService
     ) {
@@ -56,6 +59,7 @@ class SendPendingPaymentEmails extends Command
         $this->emailService = $emailService;
         $this->virtualPosService = $virtualPosService;
         $this->bsaleService = $bsaleService;
+        $this->bsaleQueueService = $bsaleQueueService;
         $this->contractService = $contractService;
         $this->receiptService = $receiptService;
     }
@@ -331,76 +335,46 @@ class SendPendingPaymentEmails extends Command
     }
 
     /**
-     * Generar boleta en BSale
+     * Encolar solicitud de boleta BSale (NO genera directamente)
+     * La generación real se hace por separado via comando bsale:process
      */
     protected function generateBsaleInvoice(Payment $payment, OrderDetail $orderDetail): void
     {
         try {
-            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
-            // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
-            $confirmedStatuses = ['completed', 'approved'];
-            if (!in_array($payment->status, $confirmedStatuses)) {
-                Log::warning('SendPendingPaymentEmails: NO se genera boleta - pago NO está confirmado', [
+            // Usar el servicio de cola para encolar la solicitud
+            // El servicio ya hace todas las validaciones:
+            // - BSale habilitado
+            // - Payment confirmado
+            // - No existe boleta previa
+            // - No existe solicitud activa
+            // - Tipo de documento correcto
+            $bsaleRequest = $this->bsaleQueueService->queueBoleta(
+                $payment,
+                'payment_email_command',
+                [
+                    'order_detail_id' => $orderDetail->id,
+                    'triggered_by' => 'SendPendingPaymentEmails',
+                ]
+            );
+
+            if ($bsaleRequest) {
+                Log::info('SendPendingPaymentEmails: Solicitud BSale encolada', [
                     'payment_id' => $payment->id,
-                    'payment_status' => $payment->status,
-                    'required_statuses' => $confirmedStatuses,
+                    'bsale_request_id' => $bsaleRequest->id,
+                    'bsale_request_status' => $bsaleRequest->status,
                 ]);
-                return;
-            }
-
-            // Verificar si ya se generó la boleta
-            if ($payment->bsale_document_id) {
-                Log::info('Boleta BSale ya existe, omitiendo generación', [
-                    'payment_id' => $payment->id,
-                    'bsale_document_id' => $payment->bsale_document_id,
-                ]);
-                return;
-            }
-
-            // Determinar si es pago de suscripción o pago total
-            $order = $orderDetail->order;
-            $isSubscriptionPayment = $this->isSubscriptionPayment($payment, $order);
-
-            // Aplicar flags según el tipo de pago
-            if ($isSubscriptionPayment) {
-                if (!config('services.bsale.subscription_enabled', true)) {
-                    Log::info('BSale: Generación DESACTIVADA para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
-                        'payment_id' => $payment->id,
-                        'order_payment_type' => $order->payment_type ?? 'N/A',
-                    ]);
-                    return;
-                }
             } else {
-                if (!config('services.bsale.total_enabled', true)) {
-                    Log::info('BSale: Generación DESACTIVADA para pagos totales (BSALE_TOTAL_ENABLED=false)', [
-                        'payment_id' => $payment->id,
-                        'order_payment_type' => $order->payment_type ?? 'N/A',
-                    ]);
-                    return;
-                }
-            }
-
-            $bsaleResult = $this->bsaleService->generateInvoice($orderDetail, $payment);
-
-            if ($bsaleResult) {
-                $payment->update([
-                    'bsale_document_id' => $bsaleResult['id'] ?? null,
-                    'bsale_number' => $bsaleResult['number'] ?? null,
-                    'bsale_token' => $bsaleResult['token'] ?? null,
-                ]);
-
-                Log::info('Boleta BSale generada exitosamente', [
+                Log::info('SendPendingPaymentEmails: No se encoló BSale (ya existe o no aplica)', [
                     'payment_id' => $payment->id,
-                    'bsale_document_id' => $bsaleResult['id'] ?? null,
-                    'bsale_number' => $bsaleResult['number'] ?? null,
                 ]);
             }
+
         } catch (Exception $e) {
-            Log::error('Error generando Boleta BSale', [
+            Log::error('SendPendingPaymentEmails: Error al encolar solicitud BSale', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ]);
-            // No lanzar excepción para no interrumpir el flujo
+            // No lanzar excepción para no interrumpir el flujo de emails
         }
     }
 

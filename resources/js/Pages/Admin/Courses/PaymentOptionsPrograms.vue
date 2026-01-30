@@ -62,7 +62,8 @@
 </template>
 
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed, reactive } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import PaymentOptionsProgramFilters from '@/Components/Courses/PaymentOptionsProgramFilters.vue';
 import PaymentOptionsProgramTable from '@/Components/Courses/PaymentOptionsProgramTable.vue';
@@ -74,19 +75,58 @@ const props = defineProps({
     summary: { type: Object, default: () => ({}) },
 });
 
+const page = usePage();
+
+// Mantener filtros actuales reactivos
+const currentFilters = reactive({
+    paymentOptionId: props.filters.paymentOptionId || '',
+    active: props.filters.active || '',
+    search: props.filters.search || '',
+});
+
+// Detectar si estamos en la sección de ejecutivos
+const isExecutivesSection = computed(() => {
+    return page.url.includes('/reports/executives/');
+});
+
+// Rutas dinámicas según la sección
+const baseRoute = computed(() => {
+    return isExecutivesSection.value
+        ? '/admin/reports/executives/payment-options-programs'
+        : '/admin/courses/payment-options-programs';
+});
+
+const backRoute = computed(() => {
+    return isExecutivesSection.value
+        ? '/admin/reports/executives'
+        : '/admin/courses';
+});
+
 const applyFilters = (filters) => {
-    router.get('/admin/courses/payment-options-programs', filters, {
+    // Actualizar filtros actuales
+    Object.assign(currentFilters, filters);
+    router.get(baseRoute.value, filters, {
         preserveState: true,
         preserveScroll: true
     });
 };
 
 const exportData = () => {
-    const params = new URLSearchParams(props.filters);
-    window.open(`/admin/courses/payment-options-programs/export?${params.toString()}`, '_blank');
+    // Construir parámetros solo con filtros que tengan valor
+    const params = new URLSearchParams();
+    if (currentFilters.paymentOptionId) {
+        params.set('paymentOptionId', currentFilters.paymentOptionId);
+    }
+    if (currentFilters.active) {
+        params.set('active', currentFilters.active);
+    }
+    if (currentFilters.search) {
+        params.set('search', currentFilters.search);
+    }
+    window.open(`${baseRoute.value}/export?${params.toString()}`, '_blank');
 };
 
 const goBack = () => {
-    router.get('/admin/courses', {}, { preserveState: false });
+    router.get(backRoute.value, {}, { preserveState: false });
 };
 </script>

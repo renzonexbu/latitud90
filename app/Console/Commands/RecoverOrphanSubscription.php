@@ -145,6 +145,7 @@ class RecoverOrphanSubscription extends Command
             $order = Order::create([
                 'participant_id' => $participantId,
                 'program_id' => $programCourseId,
+                'subscription_id' => $subscription->id,
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
                 'total_amount' => $totalAmount,
                 'final_amount' => $totalAmount,

@@ -632,6 +632,7 @@ class PaymentConfirmationService
                     'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
                     'amount' => $orderDetail->amount,
                     'status' => 'completed',
+                    'payment_source' => 'online', // Pago total online
                     'transaction_date' => $transactionDate,
                     'authorization_code' => $authorizationCode,
                     'card_type' => $cardType,
@@ -829,6 +830,7 @@ class PaymentConfirmationService
                 'external_payment_id' => $result['transaction_id'] ?? $result['payment_id'] ?? null,
                 'amount' => $orderDetail->amount,
                 'status' => 'failed',
+                'payment_source' => 'online', // Pago total online (fallido)
                 'transaction_date' => $transactionDate,
                 'gateway_response' => $result,
                 'document_type' => PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),

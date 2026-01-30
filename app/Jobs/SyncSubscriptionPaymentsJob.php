@@ -22,6 +22,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Exception;
 
@@ -30,6 +31,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $subscriptionId;
+    protected $sendEmails;
     protected $virtualPosService;
     protected $emailService;
     protected $bsaleService;
@@ -39,10 +41,12 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      * Constructor del Job
      *
      * @param int|null $subscriptionId ID de suscripción específica, null para procesar todas
+     * @param bool $sendEmails Si se deben enviar correos de pago exitoso (default: true)
      */
-    public function __construct(?int $subscriptionId = null)
+    public function __construct(?int $subscriptionId = null, bool $sendEmails = true)
     {
         $this->subscriptionId = $subscriptionId;
+        $this->sendEmails = $sendEmails;
     }
 
     /**
@@ -158,6 +162,13 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'charges' => $currentCharges
         ]);
 
+        // IMPORTANTE: Verificar si la primera cuota está rechazada
+        // Si es así, cancelar la suscripción automáticamente
+        if ($this->checkAndCancelIfFirstChargeRejected($subscription, $currentCharges)) {
+            // Si se canceló la suscripción, no continuar procesando
+            return 0;
+        }
+
         // Detectar nuevos pagos
         $newPayments = $this->detectNewPayments($currentCharges, $savedCharges);
 
@@ -209,6 +220,112 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         ]);
 
         return count($newPayments);
+    }
+
+    /**
+     * Verificar si la primera cuota está rechazada y cancelar la suscripción
+     *
+     * IMPORTANTE: Solo cancela si:
+     * 1. La primera cuota (cargo 1) está rechazada
+     * 2. Ninguna cuota ha sido pagada aún
+     *
+     * @return bool True si se canceló la suscripción, false si no
+     */
+    protected function checkAndCancelIfFirstChargeRejected(ProgramSubscription $subscription, array $currentCharges): bool
+    {
+        if (empty($currentCharges)) {
+            return false;
+        }
+
+        // Buscar la primera cuota (cargo 1 de N)
+        $firstCharge = null;
+        foreach ($currentCharges as $charge) {
+            $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+            if ($installmentNumber === 1) {
+                $firstCharge = $charge;
+                break;
+            }
+        }
+
+        // Si no encontramos el cargo 1 por descripción, usar el primero del array
+        if (!$firstCharge) {
+            $firstCharge = $currentCharges[0];
+        }
+
+        $firstChargeStatus = strtolower($firstCharge['status'] ?? '');
+
+        // Estados que indican rechazo
+        $rejectedStatuses = ['rechazado', 'rejected', 'failed', 'cancelado', 'cancelled', 'error'];
+
+        // Si la primera cuota NO está rechazada, no hacer nada
+        if (!in_array($firstChargeStatus, $rejectedStatuses)) {
+            return false;
+        }
+
+        // Verificar que ninguna cuota haya sido pagada
+        $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
+        $hasAnyPaidCharge = false;
+
+        foreach ($currentCharges as $charge) {
+            $status = strtolower($charge['status'] ?? '');
+            if (in_array($status, $approvedStatuses)) {
+                $hasAnyPaidCharge = true;
+                break;
+            }
+        }
+
+        // Si hay alguna cuota pagada, no cancelar (la suscripción ya funcionó)
+        if ($hasAnyPaidCharge) {
+            return false;
+        }
+
+        // La primera cuota está rechazada y no hay pagos - cancelar suscripción
+        Log::warning('SyncSubscriptionPayments: Primera cuota rechazada, cancelando suscripción', [
+            'subscription_id' => $subscription->id,
+            'first_charge_id' => $firstCharge['id'] ?? null,
+            'first_charge_status' => $firstChargeStatus
+        ]);
+
+        try {
+            // 1. Cancelar suscripción en VirtualPos
+            $this->virtualPosService->cancelSubscription($subscription->virtualpos_subscription_id);
+
+            // 2. Marcar suscripción como SUSCRIPCION_FALLIDA (no CANCELADA, porque nunca funcionó)
+            $subscription->update([
+                'status' => 'SUSCRIPCION_FALLIDA',
+            ]);
+
+            // 3. Cancelar orden y cuotas (NO el plan)
+            $order = $subscription->order;
+            if ($order && $order->status !== 'cancelled') {
+                $order->update(['status' => 'cancelled']);
+
+                $installmentPlan = $order->installmentPlan;
+                if ($installmentPlan) {
+                    // Solo cancelar las cuotas, NO el plan
+                    $installmentPlan->installments()->update(['status' => 'cancelled']);
+
+                    Log::info('SyncSubscriptionPayments: Cuotas canceladas por primera cuota rechazada', [
+                        'subscription_id' => $subscription->id,
+                        'order_id' => $order->id,
+                        'installment_plan_id' => $installmentPlan->id
+                    ]);
+                }
+            }
+
+            Log::info('SyncSubscriptionPayments: Suscripción cancelada por primera cuota rechazada', [
+                'subscription_id' => $subscription->id
+            ]);
+
+            return true;
+
+        } catch (Exception $e) {
+            Log::error('SyncSubscriptionPayments: Error al cancelar suscripción por primera cuota rechazada', [
+                'subscription_id' => $subscription->id,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -404,69 +521,110 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
     /**
      * Procesar un charge pagado
+     *
+     * PROTECCIÓN CONTRA DUPLICADOS:
+     * 1. Lock por charge_id para evitar procesamiento paralelo
+     * 2. Verificación de Payment existente dentro de transacción
+     * 3. Verificación de bsale_document_id antes de generar boleta
      */
     protected function processCharge(ProgramSubscription $subscription, array $charge): void
     {
-        Log::info('SyncSubscriptionPayments: Procesando charge pagado', [
-            'subscription_id' => $subscription->id,
-            'charge_id' => $charge['id'],
-            'amount' => $charge['amount'] ?? 0,
-            'charge_date' => $charge['charge_date'] ?? null
-        ]);
+        $chargeId = $charge['id'] ?? null;
 
-        // Obtener detalle del cargo desde VirtualPOS para obtener el auth_code
-        try {
-            $chargeDetail = $this->virtualPosService->getCharge($charge['id']);
-            // Fusionar los datos del detalle con el charge original
-            if (isset($chargeDetail['charge'])) {
-                $charge = array_merge($charge, $chargeDetail['charge']);
-                Log::info('SyncSubscriptionPayments: Detalle del cargo obtenido', [
-                    'charge_id' => $charge['id'],
-                    'auth_code' => $charge['payment']['order']['auth_code'] ?? 'N/A'
-                ]);
-            }
-        } catch (Exception $e) {
-            Log::warning('SyncSubscriptionPayments: No se pudo obtener detalle del cargo, continuando sin auth_code', [
-                'charge_id' => $charge['id'],
-                'error' => $e->getMessage()
+        if (!$chargeId) {
+            Log::warning('SyncSubscriptionPayments: Charge sin ID, omitiendo', [
+                'subscription_id' => $subscription->id,
             ]);
+            return;
         }
 
-        DB::beginTransaction();
+        // LOCK: Prevenir procesamiento paralelo del mismo charge
+        $lockKey = 'sync_charge_' . $chargeId;
+        $lock = Cache::lock($lockKey, 120); // 2 minutos de lock
+
+        if (!$lock->get()) {
+            Log::info('SyncSubscriptionPayments: Charge ya siendo procesado por otro proceso, omitiendo', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId,
+            ]);
+            return;
+        }
 
         try {
-            // 1. Obtener o crear Order
-            $order = $this->getOrCreateOrder($subscription);
+            // VALIDACIÓN ADICIONAL: Verificar nuevamente si ya fue procesado (pudo procesarse mientras esperábamos el lock)
+            if ($this->isChargeAlreadyProcessed($chargeId)) {
+                Log::info('SyncSubscriptionPayments: Charge ya procesado (verificación post-lock), omitiendo', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                ]);
+                return;
+            }
 
-            // 2. Determinar número de cuota desde la descripción
-            $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
-
-            // 3. Crear OrderDetail para este pago
-            $orderDetail = $this->createOrderDetail($order, $charge, $installmentNumber, $subscription);
-
-            // 4. Crear Payment
-            $payment = $this->createPayment($orderDetail, $charge, $subscription);
-
-            // 5. Marcar Installment como pagada
-            $this->markInstallmentAsPaid($subscription, $installmentNumber, $order, $orderDetail, $payment);
-
-            // 6. Generar factura BSale si aplica
-            $this->generateBsaleInvoiceIfNeeded($subscription, $payment, $orderDetail);
-
-            // 7. Enviar email con PDFs
-            $this->sendSuccessEmail($subscription, $orderDetail, $payment, $installmentNumber);
-
-            DB::commit();
-
-            Log::info('SyncSubscriptionPayments: Charge procesado exitosamente', [
+            Log::info('SyncSubscriptionPayments: Procesando charge pagado', [
                 'subscription_id' => $subscription->id,
-                'charge_id' => $charge['id'],
-                'payment_id' => $payment->id
+                'charge_id' => $chargeId,
+                'amount' => $charge['amount'] ?? 0,
+                'charge_date' => $charge['charge_date'] ?? null
             ]);
 
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
+            // Obtener detalle del cargo desde VirtualPOS para obtener el auth_code
+            try {
+                $chargeDetail = $this->virtualPosService->getCharge($chargeId);
+                // Fusionar los datos del detalle con el charge original
+                if (isset($chargeDetail['charge'])) {
+                    $charge = array_merge($charge, $chargeDetail['charge']);
+                    Log::info('SyncSubscriptionPayments: Detalle del cargo obtenido', [
+                        'charge_id' => $chargeId,
+                        'auth_code' => $charge['payment']['order']['auth_code'] ?? 'N/A'
+                    ]);
+                }
+            } catch (Exception $e) {
+                Log::warning('SyncSubscriptionPayments: No se pudo obtener detalle del cargo, continuando sin auth_code', [
+                    'charge_id' => $chargeId,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // 1. Obtener o crear Order
+                $order = $this->getOrCreateOrder($subscription);
+
+                // 2. Determinar número de cuota desde la descripción
+                $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+
+                // 3. Crear OrderDetail para este pago
+                $orderDetail = $this->createOrderDetail($order, $charge, $installmentNumber, $subscription);
+
+                // 4. Crear Payment
+                $payment = $this->createPayment($orderDetail, $charge, $subscription);
+
+                // 5. Marcar Installment como pagada
+                $this->markInstallmentAsPaid($subscription, $installmentNumber, $order, $orderDetail, $payment);
+
+                // 6. Generar factura BSale si aplica
+                $this->generateBsaleInvoiceIfNeeded($subscription, $payment, $orderDetail);
+
+                // 7. Enviar email con PDFs
+                $this->sendSuccessEmail($subscription, $orderDetail, $payment, $installmentNumber);
+
+                DB::commit();
+
+                Log::info('SyncSubscriptionPayments: Charge procesado exitosamente', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'payment_id' => $payment->id
+                ]);
+
+            } catch (Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } finally {
+            // Siempre liberar el lock
+            $lock->release();
         }
     }
 
@@ -475,11 +633,15 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      */
     protected function getOrCreateOrder(ProgramSubscription $subscription): Order
     {
-        // Buscar orden existente para esta suscripción
-        $order = Order::where('participant_id', $subscription->participant_id)
-            ->where('program_id', $subscription->program_id)
-            ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
-            ->first();
+        // CORREGIDO: Primero buscar la orden directamente relacionada con esta suscripción
+        $order = $subscription->order;
+
+        // Fallback: buscar por subscription_id en orders (por si la relación no está cargada)
+        if (!$order) {
+            $order = Order::where('subscription_id', $subscription->id)
+                ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
+                ->first();
+        }
 
         if (!$order) {
             // Obtener el participant_program_id si existe
@@ -496,6 +658,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             $order = Order::create([
                 'participant_id' => $subscription->participant_id,
                 'program_id' => $subscription->program_id,
+                'subscription_id' => $subscription->id, // Vincular con la suscripción
                 'course_id' => $courseId,
                 'participant_program_id' => $participantProgram ? $participantProgram->id : null,
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
@@ -760,6 +923,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'session_id' => null, // No aplica para suscripciones recurrentes
             'token' => $paymentData['token'] ?? $charge['id'], // Usar charge ID como token
             'status' => 'completed',
+            'payment_source' => 'subscription', // Identificar como pago de suscripción
             'amount' => $charge['amount'] ?? 0,
             'currency' => 'CLP',
             'installments_number' => $orderData['installment_number'] ?? ($paymentData['installments_number'] ?? 1),
@@ -788,6 +952,163 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $payment = Payment::create($paymentRecord);
 
         return $payment;
+    }
+
+    /**
+     * Crear Payment rechazado desde el charge
+     * Este método registra los pagos rechazados en la tabla payments para que aparezcan en reportes
+     */
+    protected function createRejectedPayment(OrderDetail $orderDetail, array $charge, ProgramSubscription $subscription, ?string $failureReason = null): Payment
+    {
+        // Obtener gateway de VirtualPos
+        $gateway = PaymentGateway::where('code', 'virtualpos')->first();
+
+        // Obtener payment_option_id para suscripción
+        $paymentOption = \App\Models\PaymentOption::where('code', 'subscription_virtualpos')->first();
+
+        $paymentData = $charge['payment'] ?? [];
+        $orderData = $paymentData['order'] ?? [];
+
+        // Obtener datos de pago desde el charge y la suscripción
+        $paymentMethod = $subscription->payment_method ?? [];
+        $cardBrand = $paymentData['card_type'] ?? ($paymentMethod['brand'] ?? null);
+        $cardLast4 = $orderData['card_number'] ?? ($paymentData['card_number'] ?? ($paymentMethod['last4'] ?? null));
+
+        // Determinar razón del rechazo
+        $errorMessage = $failureReason ?? $paymentData['error_message'] ?? $charge['error_message'] ?? 'Cargo rechazado por VirtualPos';
+
+        $paymentRecord = [
+            'order_id' => $orderDetail->order_id,
+            'order_detail_id' => $orderDetail->id,
+            'payment_gateway_id' => $gateway ? $gateway->id : null,
+            'payment_option_id' => $paymentOption ? $paymentOption->id : null,
+            'external_payment_id' => $charge['id'],
+            'buy_order' => $subscription->virtualpos_subscription_id ?? null,
+            'session_id' => null,
+            'token' => $charge['id'],
+            'status' => 'rejected', // Estado rechazado
+            'payment_source' => 'subscription', // Identificar como pago de suscripción
+            'amount' => $charge['amount'] ?? 0,
+            'currency' => 'CLP',
+            'installments_number' => $orderData['installment_number'] ?? ($paymentData['installments_number'] ?? 1),
+            'installment_amount' => $orderData['installment_amount'] ?? ($paymentData['installment_amount'] ?? ($charge['amount'] ?? 0)),
+            'transaction_date' => $this->parseTransactionDate($charge),
+            'accounting_date' => $this->parseTransactionDate($charge),
+            'authorization_code' => null, // No hay código de autorización para rechazados
+            'response_code' => $paymentData['response_code'] ?? '-1', // -1 o código de error
+            'vci' => $paymentData['vci'] ?? null,
+            'card_type' => $cardBrand,
+            'card_number' => $cardLast4,
+            'commerce_code' => config('services.virtualpos.commerce_code') ?? null,
+            'gateway_response' => $charge,
+            'raw_notification' => $charge,
+            'error_message' => $errorMessage,
+            'email_sent' => false,
+            'balance' => $charge['amount'] ?? 0, // Balance pendiente = monto total
+            'document_type' => \App\Helpers\PaymentDocumentTypeHelper::determineDocumentType($orderDetail->order->program_id),
+        ];
+
+        Log::info('=== CREATING REJECTED PAYMENT FOR SUBSCRIPTION CHARGE ===', [
+            'payment_data' => $paymentRecord,
+            'charge_id' => $charge['id'],
+            'subscription_id' => $subscription->id,
+            'failure_reason' => $errorMessage,
+        ]);
+
+        $payment = Payment::create($paymentRecord);
+
+        return $payment;
+    }
+
+    /**
+     * Crear OrderDetail para un cargo rechazado
+     */
+    protected function createRejectedOrderDetail(Order $order, array $charge, int $installmentNumber, ProgramSubscription $subscription): OrderDetail
+    {
+        $amount = $charge['amount'] ?? 0;
+
+        // Obtener gateway y payment_option
+        $gateway = PaymentGateway::where('code', 'virtualpos')->first();
+        $paymentOption = \App\Models\PaymentOption::where('code', 'subscription_virtualpos')->first();
+
+        // Obtener datos del comprador desde la suscripción (igual que createOrderDetail)
+        $buyerData = [];
+        $savedBuyerData = $subscription->buyer_data ?? [];
+
+        if (!empty($savedBuyerData) && isset($savedBuyerData['email'])) {
+            $buyerFullName = trim(
+                ($savedBuyerData['name'] ?? '') . ' ' .
+                ($savedBuyerData['last_name'] ?? '') . ' ' .
+                ($savedBuyerData['second_last_name'] ?? '')
+            );
+            $buyerFullName = preg_replace('/\s+/', ' ', $buyerFullName);
+
+            $buyerData = [
+                'name' => $buyerFullName,
+                'email' => $savedBuyerData['email'],
+                'country' => $this->resolveCountryId($savedBuyerData['country_id'] ?? $savedBuyerData['country'] ?? null),
+                'region' => $this->resolveRegionId($savedBuyerData['region_id'] ?? $savedBuyerData['region'] ?? null),
+                'city' => $this->resolveCityId($savedBuyerData['city_id'] ?? $savedBuyerData['city'] ?? null),
+                'code_phone' => $savedBuyerData['code_phone'] ?? null,
+                'phone' => $savedBuyerData['phone'] ?? null,
+                'document_type' => $this->resolveDocumentTypeId($savedBuyerData['document_type'] ?? null),
+                'document_number' => $savedBuyerData['original_document_number'] ?? $savedBuyerData['document_number'],
+                'billing_address' => null,
+                'billing_country' => $savedBuyerData['country'] ?? 'Chile',
+                'billing_city' => $savedBuyerData['city'] ?? null,
+                'billing_postal_code' => null,
+                'terms_accepted' => true,
+                'marketing_accepted' => false,
+                'terms_accepted_confirmation' => true,
+                'terms_accepted_at' => now(),
+            ];
+        } else {
+            // Fallback: datos del participante
+            $participant = $order->participant;
+            if ($participant) {
+                $buyerData = [
+                    'name' => $participant->full_name,
+                    'email' => $participant->email,
+                    'country' => $participant->country ?? null,
+                    'region' => null,
+                    'city' => null,
+                    'code_phone' => $participant->code_phone ?? null,
+                    'phone' => $participant->phone ?? null,
+                    'document_type' => \App\Models\Document::where('name', 'RUT')->value('id'),
+                    'document_number' => $participant->document_number,
+                    'billing_address' => null,
+                    'billing_country' => $participant->country ?? 'Chile',
+                    'billing_city' => null,
+                    'billing_postal_code' => null,
+                    'terms_accepted' => true,
+                    'marketing_accepted' => false,
+                    'terms_accepted_confirmation' => true,
+                    'terms_accepted_at' => now(),
+                ];
+            }
+        }
+
+        $orderDetail = OrderDetail::create(array_merge([
+            'order_id' => $order->id,
+            'payment_option_id' => $paymentOption ? $paymentOption->id : null,
+            'payment_gateway_id' => $gateway ? $gateway->id : null,
+            'base_amount' => $amount,
+            'discount_amount' => 0,
+            'amount' => $amount,
+            'installment_number' => $installmentNumber,
+            'status' => 'rejected', // Estado rechazado
+            'is_paid' => false,
+            'paid_at' => null,
+            'due_date' => $charge['charge_date'] ? \Carbon\Carbon::parse($charge['charge_date']) : now(),
+        ], $buyerData));
+
+        Log::info('=== CREATING REJECTED ORDER DETAIL FOR SUBSCRIPTION CHARGE ===', [
+            'order_detail_data' => $orderDetail->toArray(),
+            'charge_id' => $charge['id'],
+            'subscription_id' => $subscription->id,
+        ]);
+
+        return $orderDetail;
     }
 
     /**
@@ -831,16 +1152,29 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         Payment $payment
     ): void
     {
-        // Buscar installments asociadas a este participant y programa
-        $installments = Installment::where('installment_number', $installmentNumber)
-            ->whereHas('installmentPlan', function ($query) use ($subscription) {
-                $query->where('participant_id', $subscription->participant_id)
-                    ->where('program_id', $subscription->program_id);
-            })
-            ->whereIn('status', ['pending', 'overdue']) // Incluir 'overdue' para casos donde check-overdue ya corrió
-            ->get();
+        // CORREGIDO: Usar la relación directa con la suscripción para evitar actualizar
+        // cuotas de otras suscripciones del mismo participante/programa
+        $installmentPlan = $subscription->installmentPlan;
 
-        foreach ($installments as $installment) {
+        if (!$installmentPlan) {
+            // Fallback: buscar por order_id si no hay relación directa (datos antiguos)
+            $installmentPlan = InstallmentPlan::where('order_id', $order->id)->first();
+        }
+
+        if (!$installmentPlan) {
+            Log::warning('SyncSubscriptionPayments: No se encontró InstallmentPlan para la suscripción', [
+                'subscription_id' => $subscription->id,
+                'order_id' => $order->id
+            ]);
+            return;
+        }
+
+        $installment = $installmentPlan->installments()
+            ->where('installment_number', $installmentNumber)
+            ->whereIn('status', ['pending', 'overdue'])
+            ->first();
+
+        if ($installment) {
             $installment->markAsPaid(
                 $order->id,
                 $orderDetail->id,
@@ -850,7 +1184,14 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             Log::info('SyncSubscriptionPayments: Installment marcada como pagada', [
                 'installment_id' => $installment->id,
                 'installment_number' => $installmentNumber,
-                'payment_id' => $payment->id
+                'payment_id' => $payment->id,
+                'subscription_id' => $subscription->id
+            ]);
+        } else {
+            Log::warning('SyncSubscriptionPayments: No se encontró installment pendiente', [
+                'subscription_id' => $subscription->id,
+                'installment_number' => $installmentNumber,
+                'installment_plan_id' => $installmentPlan->id
             ]);
         }
     }
@@ -953,10 +1294,24 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         int $installmentNumber
     ): void
     {
+        // Si sendEmails está desactivado, marcar como email_sent para evitar envíos posteriores
+        if (!$this->sendEmails) {
+            $payment->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+            ]);
+
+            Log::info('SyncSubscriptionPayments: Envío de email DESACTIVADO - marcado como enviado', [
+                'payment_id' => $payment->id,
+                'installment_number' => $installmentNumber,
+            ]);
+            return;
+        }
+
         try {
             // NO enviar email inmediatamente - dejar email_sent = false
             // El comando payments:send-pending-emails enviará el email después del delay configurado
-            $delayMinutes = config('lat90.payment.email_delay_minutes', 10);
+            $delayMinutes = (int) config('lat90.payment.email_delay_minutes', 10);
 
             Log::info('SyncSubscriptionPayments: Email registrado para envío diferido', [
                 'payment_id' => $payment->id,
@@ -1012,6 +1367,44 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'amount' => $amount,
             'charge_date' => $charge['charge_date'] ?? null
         ]);
+
+        // NUEVO: Registrar el pago rechazado en la tabla payments para reportes
+        // Solo crear si no existe ya un Payment con este charge_id
+        if (!$this->isChargeAlreadyProcessed($chargeId)) {
+            try {
+                DB::beginTransaction();
+
+                // 1. Obtener o crear Order
+                $order = $this->getOrCreateOrder($subscription);
+
+                // 2. Determinar número de cuota desde la descripción
+                $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+
+                // 3. Crear OrderDetail para este cargo rechazado
+                $orderDetail = $this->createRejectedOrderDetail($order, $charge, $installmentNumber, $subscription);
+
+                // 4. Crear Payment con estado 'rejected'
+                $payment = $this->createRejectedPayment($orderDetail, $charge, $subscription);
+
+                DB::commit();
+
+                Log::info('SyncSubscriptionPayments: Payment rechazado registrado exitosamente', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $orderDetail->id
+                ]);
+
+            } catch (Exception $e) {
+                DB::rollBack();
+                Log::error('SyncSubscriptionPayments: Error al registrar payment rechazado', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'error' => $e->getMessage()
+                ]);
+                // Continuar con el proceso aunque falle el registro
+            }
+        }
 
         // Obtener configuración de reintentos
         $retryEnabled = config('lat90.subscriptions.retry.enabled', true);

@@ -29,6 +29,7 @@ class Payment extends Model
         'installments_number',
         'installment_amount',
         'status',
+        'payment_source', // online, subscription, presencial
         'gateway_response',
         'raw_notification',
         'commerce_code',
@@ -42,6 +43,8 @@ class Payment extends Model
         'bsale_document_id',
         'bsale_number',
         'bsale_token',
+        'bsale_error',
+        'bsale_error_code',
         'document_type',
         'email_attempts',
         'email_last_error',

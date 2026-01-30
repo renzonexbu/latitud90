@@ -234,6 +234,18 @@ class BsaleService
                 return null;
             }
 
+            // IMPORTANTE: Verificar si el Payment ya tiene un error PERMANENTE de BSale
+            // Errores permanentes: client_blocked, cliente bloqueado, etc.
+            $permanentErrors = ['client_blocked', 'cli_005'];
+            if (!empty($payment->bsale_error_code) && in_array($payment->bsale_error_code, $permanentErrors)) {
+                Log::info('BsaleService: Payment tiene error permanente de BSale, no reintentando', [
+                    'payment_id' => $payment->id,
+                    'bsale_error' => $payment->bsale_error,
+                    'bsale_error_code' => $payment->bsale_error_code,
+                ]);
+                return null;
+            }
+
             // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO (completed o approved)
             // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
             $confirmedStatuses = ['completed', 'approved'];
@@ -311,10 +323,36 @@ class BsaleService
             return $documentData;
 
         } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+
             Log::error('BsaleService: Error generando boleta', [
                 'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
+                'error' => $errorMessage,
             ]);
+
+            // Detectar errores PERMANENTES de BSale y guardarlos para no reintentar
+            $permanentErrorPatterns = [
+                'client blocked' => 'cli_005',
+                'cliente bloqueado' => 'cli_005',
+                'cli_005' => 'cli_005',
+            ];
+
+            foreach ($permanentErrorPatterns as $pattern => $errorCode) {
+                if (stripos($errorMessage, $pattern) !== false) {
+                    $payment->update([
+                        'bsale_error' => 'Cliente bloqueado en BSale',
+                        'bsale_error_code' => $errorCode,
+                    ]);
+
+                    Log::warning('BsaleService: Error PERMANENTE detectado - cliente bloqueado', [
+                        'payment_id' => $payment->id,
+                        'error_code' => $errorCode,
+                        'error_message' => $errorMessage,
+                    ]);
+                    break;
+                }
+            }
+
             // No lanzar excepción para no interrumpir el flujo de pago
             return null;
         }
@@ -344,17 +382,10 @@ class BsaleService
             // Comuna
             $comuna = isset($data['city']) && !empty($data['city']['name']) ? $data['city']['name'] : '';
 
-            // Handle passport document type - use fixed RUT 55.555.555-5
             // Usar document_number del OrderDetail, o del participante como fallback
             $documentNumber = $data['document_number'];
             if (empty($documentNumber) && $participant) {
                 $documentNumber = $participant->document_number;
-                // Formatear RUT si no tiene formato
-                if ($documentNumber && strlen($documentNumber) >= 8 && !str_contains($documentNumber, '-')) {
-                    $dv = substr($documentNumber, -1);
-                    $numero = substr($documentNumber, 0, -1);
-                    $documentNumber = number_format((int)$numero, 0, '', '.') . '-' . $dv;
-                }
             }
 
             // Si aún no hay document_number, no podemos crear cliente en Bsale
@@ -365,9 +396,8 @@ class BsaleService
                 return null;
             }
 
+            // Determinar el tipo de documento (RUT, PASAPORTE, DNI, etc.)
             $documentTypeName = '';
-
-            // Check document type from loaded relationship
             if (isset($data['document_type']) && !empty($data['document_type']['name'])) {
                 $documentTypeName = $data['document_type']['name'];
             } else {
@@ -376,9 +406,35 @@ class BsaleService
                 $documentTypeName = $documentType ? $documentType->name : '';
             }
 
+            $documentTypeUpper = strtoupper($documentTypeName);
 
-            if (strtoupper($documentTypeName) === 'PASAPORTE') {
+            // Manejar según tipo de documento
+            if ($documentTypeUpper === 'PASAPORTE') {
+                // Pasaporte: usar RUT genérico para Bsale
                 $documentNumber = '55.555.555-5';
+                Log::info('BsaleService: Pasaporte detectado, usando RUT genérico', [
+                    'order_detail_id' => $orderDetail->id,
+                    'original_document' => $data['document_number'],
+                ]);
+            } elseif ($documentTypeUpper === 'DNI' || $documentTypeUpper === 'DOCUMENTO DE IDENTIDAD') {
+                // DNI extranjero: usar RUT genérico para Bsale
+                $documentNumber = '55.555.555-5';
+                Log::info('BsaleService: DNI detectado, usando RUT genérico', [
+                    'order_detail_id' => $orderDetail->id,
+                    'original_document' => $data['document_number'],
+                ]);
+            } else {
+                // RUT chileno: formatear con puntos y guión para Bsale/SII
+                $originalDocumentNumber = $documentNumber;
+                if ($documentNumber && strlen($documentNumber) >= 8) {
+                    $documentNumber = \App\Helpers\RutHelper::format($documentNumber);
+
+                    Log::info('BsaleService: RUT formateado para Bsale', [
+                        'order_detail_id' => $orderDetail->id,
+                        'original_rut' => $originalDocumentNumber,
+                        'formatted_rut' => $documentNumber,
+                    ]);
+                }
             }
 
             // Obtener nombre - usar OrderDetail o participante como fallback

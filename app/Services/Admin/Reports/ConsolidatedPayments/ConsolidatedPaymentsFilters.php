@@ -9,8 +9,20 @@ class ConsolidatedPaymentsFilters
 {
     public function applyFilters(Builder $query, array $filters): Builder
     {
-        // Mostrar solo pagos/devoluciones efectivos (completados)
-        $query->where('pay.status', 'completed');
+        // Filtro por estado de pago
+        // Por defecto muestra completados y rechazados (todos los pagos procesados)
+        // El usuario puede filtrar solo por completados o solo por rechazados desde la UI
+        if (!empty($filters['paymentStatus'])) {
+            $status = $filters['paymentStatus'];
+            if (is_array($status)) {
+                $query->whereIn('pay.status', $status);
+            } else {
+                $query->where('pay.status', $status);
+            }
+        } else {
+            // Por defecto: mostrar completados y rechazados
+            $query->whereIn('pay.status', ['completed', 'approved', 'rejected']);
+        }
 
         // Filtro por modalidad de pago (payment_method)
         if (!empty($filters['paymentMethodId'])) {

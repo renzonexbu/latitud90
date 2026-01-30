@@ -18,6 +18,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\EmergencyContact;
 use App\Models\VirtualPosPlan;
+use App\Models\GuardianUserParticipant;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Helpers\ParticipantPriceHelper;
 use Exception;
@@ -497,10 +498,35 @@ class SubscriptionController extends Controller
                 'api_response' => $response,
             ]);
 
+            // Asegurar que existe la asociación guardian-participante
+            if (auth('guardian')->check()) {
+                $guardian = auth('guardian')->user();
+                $existingRelation = GuardianUserParticipant::where('guardian_user_id', $guardian->id)
+                    ->where('participant_id', $participant->id)
+                    ->first();
+
+                if (!$existingRelation) {
+                    GuardianUserParticipant::create([
+                        'guardian_user_id' => $guardian->id,
+                        'participant_id' => $participant->id,
+                        'can_pay' => true,
+                    ]);
+
+                    Log::info('Asociación guardian-participante creada automáticamente al crear suscripción', [
+                        'guardian_user_id' => $guardian->id,
+                        'guardian_email' => $guardian->email,
+                        'participant_id' => $participant->id,
+                        'participant_name' => $participant->full_name,
+                        'subscription_id' => $subscription->id,
+                    ]);
+                }
+            }
+
             // Crear orden asociada a la suscripción
             $order = Order::create([
                 'participant_id' => $participant->id,
                 'program_id' => $programCourse->id, // program_id ahora apunta a program_courses
+                'subscription_id' => $subscription->id, // Vincular directamente con la suscripción
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
                 'total_amount' => $totalAmount,
                 'final_amount' => $totalAmount,
@@ -515,6 +541,7 @@ class SubscriptionController extends Controller
             // Crear plan de cuotas en la base de datos local
             $installmentPlan = InstallmentPlan::create([
                 'order_id' => $order->id,
+                'program_subscription_id' => $subscription->id, // Vincular directamente con la suscripción
                 'program_id' => $programCourse->id, // program_id ahora apunta a program_courses
                 'participant_id' => $participant->id,
                 'total_amount' => $totalAmount,
@@ -586,6 +613,26 @@ class SubscriptionController extends Controller
                         'paid_at' => null,
                     ]);
                 }
+            }
+
+            // Si la suscripción es fallida, cancelar orden y cuotas (NO el plan)
+            // La suscripción se mantiene como SUSCRIPCION_FALLIDA para historial
+            if ($subscription->status === 'SUSCRIPCION_FALLIDA') {
+                Log::warning('Suscripción fallida detectada, cancelando orden y cuotas', [
+                    'subscription_id' => $subscription->id
+                ]);
+
+                // Cancelar orden
+                $order->update(['status' => 'cancelled']);
+
+                // Cancelar solo las cuotas (el plan NO se cancela)
+                $installmentPlan->installments()->update(['status' => 'cancelled']);
+
+                DB::commit();
+
+                // Redirigir a página de fallo
+                return redirect()->route('subscription.failure', ['subscriptionId' => $subscription->id])
+                    ->with('error', 'La suscripción no pudo ser procesada');
             }
 
             DB::commit();
@@ -774,79 +821,12 @@ class SubscriptionController extends Controller
                 }
             }
 
-            // Si la suscripción está ACTIVA, redirigir a éxito
+            // Si la suscripción está ACTIVA, redirigir a página de verificación del primer cargo
+            // La verificación real del estado del cargo se hace con polling en la vista verifying
             if ($virtualPosStatus === 'ACTIVA') {
-                Log::info('Suscripción ACTIVA, redirigiendo a success');
-
-                // IMPORTANTE: Ejecutar sincronización de pagos DE FORMA SÍNCRONA con reintentos
-                // para registrar el primer pago en Payment y OrderDetail ANTES de mostrar la página de éxito
-                $maxRetries = 5;
-                $retryDelay = 2; // segundos entre reintentos
-                $paymentProcessed = false;
-
-                for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-                    try {
-                        Log::info('Ejecutando SyncSubscriptionPaymentsJob (intento ' . $attempt . '/' . $maxRetries . ')', [
-                            'subscription_id' => $subscription->id
-                        ]);
-
-                        // Ejecutar el job de forma SÍNCRONA (dispatchSync)
-                        \App\Jobs\SyncSubscriptionPaymentsJob::dispatchSync($subscription->id);
-
-                        // Verificar si el primer pago fue registrado
-                        $firstPayment = \App\Models\Payment::whereHas('orderDetail', function($query) use ($order) {
-                            $query->where('order_id', $order->id)
-                                  ->where('installment_number', 1);
-                        })->first();
-
-                        if ($firstPayment) {
-                            Log::info('Primer pago registrado exitosamente', [
-                                'subscription_id' => $subscription->id,
-                                'payment_id' => $firstPayment->id,
-                                'attempt' => $attempt
-                            ]);
-                            $paymentProcessed = true;
-                            break;
-                        }
-
-                        // Si no se encontró el pago, esperar antes del siguiente intento
-                        if ($attempt < $maxRetries) {
-                            Log::info('Primer pago aún no detectado, reintentando en ' . $retryDelay . 's', [
-                                'subscription_id' => $subscription->id,
-                                'attempt' => $attempt
-                            ]);
-                            sleep($retryDelay);
-
-                            // Refrescar datos de VirtualPos antes del siguiente intento
-                            $virtualPosResponse = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
-                            $subscription->update([
-                                'charge_program' => $virtualPosResponse['suscription']['charge_program'] ?? null,
-                            ]);
-                        }
-
-                    } catch (\Exception $e) {
-                        Log::error('Error ejecutando SyncSubscriptionPaymentsJob (intento ' . $attempt . ')', [
-                            'subscription_id' => $subscription->id,
-                            'error' => $e->getMessage()
-                        ]);
-
-                        if ($attempt < $maxRetries) {
-                            sleep($retryDelay);
-                        }
-                    }
-                }
-
-                if (!$paymentProcessed) {
-                    Log::warning('No se pudo registrar el primer pago después de ' . $maxRetries . ' intentos', [
-                        'subscription_id' => $subscription->id,
-                        'note' => 'El job programado lo procesará posteriormente'
-                    ]);
-                }
-
-                // Verificar si la primera cuota está pagada y enviar email
-                if ($installmentPlan) {
-                    $this->sendSubscriptionSuccessEmail($subscription, $order, $installmentPlan);
-                }
+                Log::info('Suscripción ACTIVA, redirigiendo a página de verificación del primer cargo', [
+                    'subscription_id' => $subscription->id
+                ]);
 
                 // Generar token firmado para seguridad
                 $token = encrypt([
@@ -855,7 +835,10 @@ class SubscriptionController extends Controller
                     'timestamp' => now()->timestamp
                 ]);
 
-                return redirect()->route('subscription.success', ['subscriptionId' => $subscription->id])
+                // Redirigir a la página de verificación del primer cargo
+                // Esta página hace polling al endpoint checkFirstChargeStatus
+                // y redirige a success o failure según el resultado
+                return redirect()->route('subscription.verifying', ['subscriptionId' => $subscription->id])
                     ->with('subscription_token', $token);
             }
 
@@ -1275,6 +1258,217 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Página intermedia de verificación del primer cargo
+     * Muestra "Suscripción creada, verificando primer cargo..."
+     */
+    public function verifying(Request $request, int $subscriptionId)
+    {
+        try {
+            $subscription = ProgramSubscription::with(['participant', 'programCourse.program'])
+                ->find($subscriptionId);
+
+            if (!$subscription) {
+                return redirect()->route('ecommerce.programs')
+                    ->with('error', 'Suscripción no encontrada.');
+            }
+
+            Log::info('Mostrando página de verificación de primer cargo', [
+                'subscription_id' => $subscriptionId,
+                'status' => $subscription->status
+            ]);
+
+            return inertia('Subscription/VerifyingPayment', [
+                'subscription_id' => $subscriptionId,
+                'subscription' => [
+                    'id' => $subscription->id,
+                    'program_name' => $subscription->programCourse?->program?->name ?? 'Programa',
+                    'participant_name' => $subscription->participant?->full_name ?? 'Participante',
+                    'amount' => $subscription->monthly_amount ?? 0,
+                    'status' => $subscription->status,
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Error en página de verificación: ' . $e->getMessage());
+
+            return redirect()->route('ecommerce.programs')
+                ->with('error', 'Hubo un problema al cargar la página de verificación.');
+        }
+    }
+
+    /**
+     * Verificar estado del primer cargo de la suscripción (endpoint AJAX para polling)
+     * Retorna: 'pending', 'approved', 'rejected'
+     */
+    public function checkFirstChargeStatus(int $subscriptionId): JsonResponse
+    {
+        try {
+            // Esperar 4 segundos antes de verificar para dar tiempo a VirtualPos
+            // de procesar el cobro de la primera cuota
+            sleep(4);
+
+            $subscription = ProgramSubscription::find($subscriptionId);
+
+            if (!$subscription) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Suscripción no encontrada'
+                ], 404);
+            }
+
+            // Consultar estado actual en VirtualPos
+            $virtualPosService = new VirtualPosSubscriptionService();
+            $virtualPosResponse = $virtualPosService->getSubscription($subscription->virtualpos_subscription_id);
+
+            $chargeProgram = $virtualPosResponse['suscription']['charge_program'] ?? [];
+            $firstCharge = $chargeProgram[0] ?? null;
+
+            if (!$firstCharge) {
+                Log::info('checkFirstChargeStatus: No hay charges en la suscripción', [
+                    'subscription_id' => $subscriptionId
+                ]);
+
+                return response()->json([
+                    'status' => 'pending',
+                    'message' => 'Esperando información del primer cargo'
+                ]);
+            }
+
+            $chargeStatus = strtolower($firstCharge['status'] ?? 'pending');
+
+            Log::info('checkFirstChargeStatus: Estado del primer cargo', [
+                'subscription_id' => $subscriptionId,
+                'charge_id' => $firstCharge['id'] ?? null,
+                'charge_status' => $chargeStatus
+            ]);
+
+            // Estados que indican pago APROBADO
+            $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
+
+            // Estados que indican pago RECHAZADO
+            $rejectedStatuses = ['rechazado', 'rejected', 'failed', 'cancelado', 'cancelled', 'error'];
+
+            if (in_array($chargeStatus, $approvedStatuses)) {
+                // Primer cargo aprobado - ejecutar sincronización de pagos
+                try {
+                    \App\Jobs\SyncSubscriptionPaymentsJob::dispatchSync($subscription->id);
+
+                    Log::info('checkFirstChargeStatus: Sincronización de pagos ejecutada', [
+                        'subscription_id' => $subscriptionId
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('checkFirstChargeStatus: Error al sincronizar pagos', [
+                        'subscription_id' => $subscriptionId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                // Enviar email de suscripción exitosa
+                try {
+                    // Usar relación directa subscription->order
+                    $order = $subscription->order;
+
+                    if ($order) {
+                        $installmentPlan = $order->installmentPlan;
+
+                        if ($installmentPlan) {
+                            $this->sendSubscriptionSuccessEmail($subscription, $order, $installmentPlan);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('checkFirstChargeStatus: Error al enviar email de suscripción', [
+                        'subscription_id' => $subscriptionId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                return response()->json([
+                    'status' => 'approved',
+                    'message' => 'Primer cargo aprobado exitosamente',
+                    'charge_id' => $firstCharge['id'] ?? null
+                ]);
+            }
+
+            if (in_array($chargeStatus, $rejectedStatuses)) {
+                // Primer cargo rechazado - cancelar la suscripción y registros relacionados
+                Log::warning('checkFirstChargeStatus: Primer cargo rechazado, cancelando suscripción', [
+                    'subscription_id' => $subscriptionId,
+                    'charge_status' => $chargeStatus
+                ]);
+
+                try {
+                    // Cancelar suscripción en VirtualPos
+                    $virtualPosService->cancelSubscription($subscription->virtualpos_subscription_id);
+
+                    // Marcar suscripción como FALLIDA (no CANCELADA, porque nunca se activó)
+                    $subscription->update([
+                        'status' => 'SUSCRIPCION_FALLIDA',
+                    ]);
+
+                    // Cancelar orden y cuotas (NO el plan)
+                    $order = $subscription->order;
+
+                    if ($order && $order->status !== 'cancelled') {
+                        // Cancelar la orden
+                        $order->update(['status' => 'cancelled']);
+
+                        // Cancelar solo las cuotas (el plan NO se cancela)
+                        $installmentPlan = $order->installmentPlan;
+                        if ($installmentPlan) {
+                            $installmentPlan->installments()->update(['status' => 'cancelled']);
+
+                            Log::info('checkFirstChargeStatus: Cuotas canceladas', [
+                                'subscription_id' => $subscriptionId,
+                                'order_id' => $order->id,
+                                'installment_plan_id' => $installmentPlan->id
+                            ]);
+                        }
+
+                        Log::info('checkFirstChargeStatus: Orden cancelada', [
+                            'subscription_id' => $subscriptionId,
+                            'order_id' => $order->id
+                        ]);
+                    }
+
+                    Log::info('checkFirstChargeStatus: Suscripción marcada como fallida', [
+                        'subscription_id' => $subscriptionId
+                    ]);
+
+                } catch (\Exception $e) {
+                    Log::error('checkFirstChargeStatus: Error al cancelar suscripción', [
+                        'subscription_id' => $subscriptionId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                return response()->json([
+                    'status' => 'rejected',
+                    'message' => 'El primer cargo fue rechazado. La suscripción ha sido cancelada.',
+                    'charge_id' => $firstCharge['id'] ?? null
+                ]);
+            }
+
+            // Estado pendiente o procesando - seguir esperando
+            return response()->json([
+                'status' => 'pending',
+                'message' => 'El cargo está siendo procesado',
+                'charge_status' => $chargeStatus
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('checkFirstChargeStatus: Error', [
+                'subscription_id' => $subscriptionId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al verificar el estado del cargo'
+            ], 500);
+        }
+    }
+
+    /**
      * Webhook para notificaciones de VirtualPOS
      * Se llama cuando hay un cargo automático de suscripción
      */
@@ -1324,14 +1518,15 @@ class SubscriptionController extends Controller
             $participantId = $request->input('participant_id');
             $programId = $request->input('program_id');
 
-            // Buscar SOLO suscripción activa para este participante y programa
-            // NOTA: Ya NO verificamos órdenes pagadas porque un participante puede tener:
-            // - Pagos manuales previos (incluso completos)
-            // - Un reembolso parcial que genera saldo pendiente
-            // - Y querer continuar pagando sin suscripción (flujo normal del ecommerce)
+            // Buscar SOLO suscripción ACTIVA para este participante y programa
+            // NOTA: Solo detectamos estado ACTIVA porque:
+            // - SUSCRIBIENDO: proceso incompleto, VirtualPos no permite cancelar, usuario puede reintentar
+            // - SUSCRIPCION_FALLIDA: primera cuota rechazada, usuario puede reintentar
+            // - CANCELADA: suscripción terminada, usuario puede crear otra
+            // En todos estos casos el usuario debe poder continuar con el flujo normal de ecommerce
             $subscription = ProgramSubscription::where('participant_id', $participantId)
                 ->where('program_id', $programId)
-                ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+                ->where('status', 'ACTIVA')
                 ->first();
 
             $hasActiveSubscription = $subscription !== null;

@@ -13,6 +13,7 @@ class InstallmentPlan extends Model
 
     protected $fillable = [
         'order_id',
+        'program_subscription_id',
         'program_id',
         'participant_id',
         'total_amount',
@@ -45,6 +46,11 @@ class InstallmentPlan extends Model
     public function participant(): BelongsTo
     {
         return $this->belongsTo(Participant::class);
+    }
+
+    public function programSubscription(): BelongsTo
+    {
+        return $this->belongsTo(ProgramSubscription::class);
     }
 
     public function installments(): HasMany

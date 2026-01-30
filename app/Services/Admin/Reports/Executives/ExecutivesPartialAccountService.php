@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\DB;
 class ExecutivesPartialAccountService
 {
     /**
+     * Normaliza un documento removiendo puntos, guiones y espacios
+     */
+    private function normalizeDocument(?string $document): string
+    {
+        if (!$document) {
+            return '';
+        }
+        return preg_replace('/[.\-\s]/', '', $document);
+    }
+
+    /**
      * Retorna datos para Estado de Cuenta Parcial (apoderados)
      */
     public function getPartialAccounts(array $filters): array
@@ -23,20 +34,24 @@ class ExecutivesPartialAccountService
         // Fechas opcionales - si no se proporcionan, se muestra todo el histórico
         $dateFrom = $filters['dateFrom'] ?? null;
         $dateTo = $filters['dateTo'] ?? null;
+        // Búsqueda por documento/RUT
+        $documentSearch = !empty($filters['documentSearch']) ? $this->normalizeDocument($filters['documentSearch']) : null;
 
         $items = collect([]);
 
         // Buscar program_course por ID o por código
         $programCourse = null;
+        $programCourseId = null;
         if ($programId) {
             $programCourse = \App\Models\ProgramCourse::find($programId);
+            $programCourseId = $programCourse?->id;
         } elseif ($programCode) {
             $programCourse = \App\Models\ProgramCourse::where('code', $programCode)->first();
+            $programCourseId = $programCourse?->id;
         }
 
-        if ($programCourse) {
-            $programCourseId = $programCourse->id;
-
+        // Si hay programa O hay búsqueda por documento, ejecutar la consulta
+        if ($programCourse || $documentSearch) {
             // Usar la misma lógica de consulta que ConsolidatedPayments
             $query = DB::table('participant_program as pp')
                 ->leftJoin('participants as p', 'pp.participant_id', '=', 'p.id')
@@ -52,16 +67,24 @@ class ExecutivesPartialAccountService
                 ->leftJoin('installment_plans as ip', 'o.id', '=', 'ip.order_id')
                 ->leftJoin('installments as inst', 'ip.id', '=', 'inst.installment_plan_id')
                 ->leftJoin('participant_program_discounts as ppd', 'pp.id', '=', 'ppd.participant_program_id')
-                ->where('pp.program_id', $programCourseId)
-                ->groupBy('pp.id', 'p.id', 'pr.id', 'p.first_name', 'p.second_name', 'p.first_last_name', 'p.second_last_name', 'pp.individual_price')
+                ->when($programCourseId, function ($q) use ($programCourseId) {
+                    $q->where('pp.program_id', $programCourseId);
+                })
+                ->when($documentSearch, function ($q) use ($documentSearch) {
+                    $q->whereRaw("REPLACE(REPLACE(p.document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
+                })
+                ->groupBy('pp.id', 'p.id', 'pr.id', 'p.first_name', 'p.second_name', 'p.first_last_name', 'p.second_last_name', 'pp.individual_price', 'pgc.code', 'pp.is_active', 'pp.program_id')
                 ->select([
                     'pp.id as participant_program_id',
                     'p.id as participant_id',
                     'p.first_name',
-                    'p.second_name', 
+                    'p.second_name',
                     'p.first_last_name',
                     'p.second_last_name',
                     'pp.individual_price',
+                    'pgc.code as program_code',
+                    'pp.program_id as program_course_id',
+                    'pp.is_active',
                     DB::raw('COALESCE(pp.individual_price, 0) as price'),
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
@@ -84,6 +107,11 @@ class ExecutivesPartialAccountService
                 // Convertir a Capital Case (primera letra de cada palabra en mayúscula)
                 $participantName = ucwords(strtolower($participantName));
 
+                // Si no hay programa seleccionado, agregar el código del programa al nombre
+                if (!$programCourse && $row->program_code) {
+                    $participantName = "[{$row->program_code}] {$participantName}";
+                }
+
                 $basePrice = (float) $row->price;
                 $scholarship = (float) $row->scholarship;
                 $released = (float) $row->released;
@@ -91,9 +119,12 @@ class ExecutivesPartialAccountService
                 // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
                 $price = $basePrice - $simpleDiscounts;
 
+                // Usar el program_course_id del registro si no hay programa específico seleccionado
+                $rowProgramCourseId = $programCourseId ?? $row->program_course_id;
+
                 // Calcular cuotas pagadas y vencidas solo para pagos completed
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
-                    ->where('program_id', $programCourseId)
+                    ->where('program_id', $rowProgramCourseId)
                     ->pluck('id')->all();
 
                 // Calcular aportes (pagos con report_code 'AP')
@@ -157,6 +188,21 @@ class ExecutivesPartialAccountService
                 // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
                 $porPagar = max($price - $abono - $scholarship - $released, 0);
 
+                // Ajuste para participantes DE BAJA:
+                // - Por Pagar siempre es $0
+                // - Precio = lo que abonaron (si no pagaron todo) o $0 (si pagaron todo)
+                $displayPrice = $price;
+                if (!$row->is_active) {
+                    $porPagar = 0;
+                    // Si pagaron todo el monto del programa, precio = 0
+                    // Si no pagaron todo, precio = lo que abonaron
+                    if ($abono >= $price) {
+                        $displayPrice = 0;
+                    } else {
+                        $displayPrice = $abono;
+                    }
+                }
+
                 // Obtener la forma de pago basada en el report_code de payment_options
                 $paymentMethod = 'N/A';
                 if (!empty($orderIds)) {
@@ -176,7 +222,8 @@ class ExecutivesPartialAccountService
 
                 $items->push([
                     'student' => $participantName,
-                    'price' => $price,
+                    'status' => $row->is_active ? 'Activo' : 'De Baja',
+                    'price' => $displayPrice,
                     'abono' => $abono,
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
@@ -204,6 +251,7 @@ class ExecutivesPartialAccountService
                 'dateTo' => $dateTo,
                 'programId' => $programId,
                 'programCode' => $programCode,
+                'documentSearch' => $filters['documentSearch'] ?? "",
             ],
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
         ];

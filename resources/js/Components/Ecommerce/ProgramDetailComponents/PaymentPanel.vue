@@ -472,7 +472,7 @@ export default {
             // Opciones base (visualización); se filtrarán por lo habilitado en el programa
             allPaymentOptions: [
                 { value: 'khipu',  label: 'Transferencia Khipu', description: null },
-                { value: 'debit_credit_0',  label: 'Débito y Crédito sin cuotas',    description: null },
+                { value: 'debit_credit_0',  label: 'Débito o Crédito (cuotas con interés según banco emisor)',    description: null },
                 { value: 'international',  label: 'Pago Internacional',    description: null },
             ],
         };
@@ -537,12 +537,12 @@ export default {
                                 else if (n === 9) order = 5;
                                 else if (n === 12) order = 6;
                                 else order = 7 + n; // Otros números después
-                                pushUnique(`debit_credit_${n}`, `Pagar con Débito y Crédito hasta ${n} cuotas sin interés`, null, null, order);
+                                pushUnique(`debit_credit_${n}`, `Pagar con Crédito hasta ${n} cuotas sin interés`, null, null, order);
                             } else {
-                                pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas', null, null, 2);
+                                pushUnique('debit_credit_0', 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)', null, null, 2);
                             }
                         } else {
-                            pushUnique('debit_credit_0', 'Pagar con Débito y Crédito sin cuotas', null, null, 2);
+                            pushUnique('debit_credit_0', 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)', null, null, 2);
                         }
                     }
                 });
@@ -575,13 +575,13 @@ export default {
                 case 1: // Todos los medios (Débito/Crédito/Transferencia/Internacional)
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)',    description: null },
                         { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
 
                 case 2: // Solo pago con Tarjeta (Débito/Crédito/Internacional)
                     return [
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)',    description: null },
                         { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
 
@@ -593,47 +593,58 @@ export default {
                 case 4: // Solo pago contado (Débito/Transferencia)
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)',    description: null },
                     ];
 
                 default:
                     return [
                         { value: 'khipu',  label: 'Pagar con Transferencia Khipu', description: null },
-                        { value: 'debit_credit_0',  label: 'Pagar con Débito y Crédito sin cuotas',    description: null },
+                        { value: 'debit_credit_0',  label: 'Pagar con Débito o Crédito (cuotas con interés según banco emisor)',    description: null },
                         { value: 'international',  label: 'Pagar con Pago Internacional',    description: null },
                     ];
             }
         },
 
         // Obtener cuotas disponibles según fecha final y/o máximo permitido del programa
+        // La fórmula incluye +1 porque la primera cuota se paga el día de suscripción (día 0),
+        // y luego cada 30 días se paga la siguiente cuota.
+        // Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
         getAvailableInstallments() {
             const options = [];
-            
-            // Obtener máximo configurado en el programa (nuevo campo)
+
+            // Obtener máximo configurado en el programa
             const programMax = this.program.lat90_max_installments || 12;
-            
-            // Calcular máximo por fecha final de pago
+
+            // Calcular máximo por fecha final de pago usando días exactos / 30
             let maxByDate = null;
             if (this.program.final_payment_date) {
                 const now = new Date();
-                const end = new Date(this.program.final_payment_date);
-                
-                // Calcular diferencia en meses de forma más precisa
-                const yearDiff = end.getFullYear() - now.getFullYear();
-                const monthDiff = end.getMonth() - now.getMonth();
-                let months = yearDiff * 12 + monthDiff;
-                
-                // Ajustar si el día del mes actual es mayor al día de la fecha final
-                if (now.getDate() > end.getDate()) {
-                    months -= 1;
+                now.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+
+                // Normalizar la fecha final para evitar problemas de timezone
+                let finalDateStr = this.program.final_payment_date;
+                if (typeof finalDateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(finalDateStr)) {
+                    finalDateStr = finalDateStr + 'T00:00:00';
                 }
-                
-                maxByDate = Math.max(0, months);
+                const end = new Date(finalDateStr);
+
+                // Calcular diferencia en días exactos
+                const diffTime = end.getTime() - now.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                // Si la fecha ya pasó, no hay cuotas disponibles
+                if (diffDays < 0) {
+                    maxByDate = 0;
+                } else {
+                    // Cada cuota = 30 días aproximadamente
+                    // +1 porque la primera cuota se paga el día 0 (hoy)
+                    maxByDate = Math.floor(diffDays / 30) + 1;
+                }
             }
-            
+
             // Usar el máximo del programa si no hay restricción de fecha, o el menor entre ambos
             const max = maxByDate !== null ? Math.min(programMax, maxByDate) : programMax;
-            
+
             // Generar opciones de 1 hasta el máximo
             for (let i = 1; i <= max; i++) {
                 options.push(i);

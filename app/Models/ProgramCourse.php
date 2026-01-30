@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProgramCourse extends Model
 {
@@ -98,6 +99,14 @@ class ProgramCourse extends Model
         return $this->belongsToMany(PaymentOption::class, 'program_course_payment_option')
             ->withPivot('enabled')
             ->withTimestamps();
+    }
+
+    /**
+     * Relación con participantes inscritos en este programa
+     */
+    public function participantPrograms(): HasMany
+    {
+        return $this->hasMany(ParticipantProgram::class, 'program_id');
     }
 
     /**

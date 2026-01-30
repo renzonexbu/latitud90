@@ -20,17 +20,20 @@
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[160px]">
                             Participante
                         </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
-                            Programa
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            Código
                         </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
-                            Institución
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[160px]">
+                            Pagador
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Plan
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Cuotas
+                        </th>
+                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Últ. Cuota
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Monto Total
@@ -82,17 +85,17 @@
                             </div>
                         </td>
 
-                        <!-- Programa -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs font-medium text-[#1c4f4a]">
-                                {{ subscription.program.name }}
+                        <!-- Código del Programa -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs font-medium text-[#1c4f4a]" :title="subscription.program.name">
+                                {{ subscription.program.code || 'N/A' }}
                             </div>
                         </td>
 
-                        <!-- Institución -->
+                        <!-- Pagador -->
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs text-gray-900">
-                                {{ subscription.institution.name }}
+                                {{ subscription.buyer?.name || 'N/A' }}
                             </div>
                         </td>
 
@@ -114,6 +117,16 @@
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">
                                 {{ subscription.paid_installments }}/{{ subscription.total_installments }}
+                            </div>
+                        </td>
+
+                        <!-- Última Cuota Pagada -->
+                        <td class="px-2 py-2 whitespace-nowrap text-right">
+                            <div class="text-xs text-gray-900">
+                                <span v-if="subscription.last_paid_amount">
+                                    ${{ formatPrice(subscription.last_paid_amount) }}
+                                </span>
+                                <span v-else class="text-gray-400">—</span>
                             </div>
                         </td>
 
@@ -260,7 +273,14 @@ export default {
             if (!date) return "N/A";
 
             try {
-                const dateObj = new Date(date);
+                // Si es solo fecha (YYYY-MM-DD), agregar T12:00:00 para evitar
+                // que el cambio de timezone afecte el día mostrado
+                let dateStr = date;
+                if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                    dateStr = date + 'T12:00:00';
+                }
+
+                const dateObj = new Date(dateStr);
                 if (isNaN(dateObj.getTime())) {
                     return "Invalid Date";
                 }

@@ -5,6 +5,7 @@
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[200px]">Alumno</th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Estado</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Precio</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Abono</th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Cuotas Pagadas</th>
@@ -21,6 +22,17 @@
                         :class="['hover:bg-gray-50 transition-colors', index % 2 === 0 ? 'bg-white' : 'bg-gray-50']">
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs text-[#1c4f4a] font-medium">{{ row.student || 'N/A' }}</div>
+                        </td>
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                class="px-2 py-1 text-[10px] font-medium rounded-full"
+                                :class="{
+                                    'bg-green-100 text-green-800': row.status === 'Activo',
+                                    'bg-red-100 text-red-800': row.status === 'De Baja'
+                                }"
+                            >
+                                {{ row.status || 'Activo' }}
+                            </span>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">${{ formatPrice(row.price) }}</div>

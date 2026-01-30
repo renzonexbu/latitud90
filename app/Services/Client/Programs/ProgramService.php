@@ -129,9 +129,25 @@ class ProgramService
 
                 // Buscar planes de cuotas del participante para este programa
                 // NOTA: InstallmentPlan también debe usar programCourse->id
+                // IMPORTANTE: Solo mostrar cuotas de suscripciones ACTIVAS o de órdenes sin suscripción
                 $installmentPlans = InstallmentPlan::where('participant_id', $participant->id)
                     ->where('program_id', $programCourse->id)
-                    ->with(['installments'])
+                    ->where('status', '!=', 'cancelled')
+                    ->whereHas('order', function($q) {
+                        // Solo incluir si:
+                        // 1. La orden no tiene suscripción (pago total/manual), O
+                        // 2. La orden tiene suscripción ACTIVA
+                        $q->where(function($subQ) {
+                            $subQ->whereNull('subscription_id')
+                                ->orWhereHas('subscription', function($subSubQ) {
+                                    $subSubQ->where('status', 'ACTIVA');
+                                });
+                        });
+                    })
+                    ->with(['installments' => function($q) {
+                        // Excluir cuotas canceladas
+                        $q->where('status', '!=', 'cancelled');
+                    }])
                     ->get();
 
                 foreach ($installmentPlans as $plan) {

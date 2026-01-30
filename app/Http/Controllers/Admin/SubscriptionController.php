@@ -77,13 +77,22 @@ class SubscriptionController extends Controller
             'programCourse.course.institution',
         ]);
 
-        // Cargar el plan de cuotas manualmente
-        $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
-            ->where('program_id', $subscription->program_id)
+        // Cargar el plan de cuotas usando program_subscription_id (relación directa)
+        $installmentPlan = \App\Models\InstallmentPlan::where('program_subscription_id', $subscription->id)
             ->with(['installments' => function ($query) {
                 $query->orderBy('installment_number');
             }])
             ->first();
+
+        // Fallback para suscripciones antiguas sin program_subscription_id
+        if (!$installmentPlan) {
+            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->with(['installments' => function ($query) {
+                    $query->orderBy('installment_number');
+                }])
+                ->first();
+        }
 
         $installments = [];
         $totalInstallments = 0;
@@ -91,7 +100,7 @@ class SubscriptionController extends Controller
 
         if ($installmentPlan) {
             $totalInstallments = $installmentPlan->total_installments;
-            $paidInstallments = $installmentPlan->installments->where('is_paid', true)->count();
+            $paidInstallments = $installmentPlan->installments->where('status', 'paid')->count();
 
             $installments = $installmentPlan->installments->map(function ($installment) {
                 return [
@@ -122,24 +131,66 @@ class SubscriptionController extends Controller
             })->toArray();
         }
 
-        // Obtener información del plan de VirtualPos
-        $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
-        $planInfo = null;
+        // Calcular precio real del participante usando ParticipantPriceHelper
+        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice(
+            $subscription->participant,
+            $subscription->programCourse
+        );
 
-        if ($virtualPosPlan) {
-            $planInfo = [
-                'id' => $virtualPosPlan->id,
-                'name' => $virtualPosPlan->name,
-                'is_personalized' => $virtualPosPlan->isPersonalized(),
-                'discount_type' => $virtualPosPlan->discount_type,
-                'discount_reason' => $virtualPosPlan->discount_reason,
-                'discount_amount' => $virtualPosPlan->discount_amount,
-                'original_price' => $virtualPosPlan->original_price,
-                'trip_price' => $virtualPosPlan->trip_price,
-                'monthly_amount' => $virtualPosPlan->monthly_amount,
-                'max_installments' => $virtualPosPlan->max_installments,
-            ];
+        // 1. Pagos normales desde payments
+        $normalPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
+                $q->where('participant_id', $subscription->participant_id)
+                  ->where('program_id', $subscription->program_id);
+            })
+            ->whereIn('status', ['completed', 'approved'])
+            ->sum('amount');
+
+        // 2. Cuotas de suscripción pagadas (installments)
+        $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.participant_id', $subscription->participant_id)
+            ->where('installment_plans.program_id', $subscription->program_id)
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
+
+        $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
+
+        // Obtener descuentos aplicados del participant_program
+        $participantProgram = \Illuminate\Support\Facades\DB::table('participant_program')
+            ->where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->first();
+
+        $discountDetails = [];
+        if ($participantProgram) {
+            $discounts = \Illuminate\Support\Facades\DB::table('participant_program_discounts')
+                ->where('participant_program_id', $participantProgram->id)
+                ->get();
+
+            foreach ($discounts as $discount) {
+                $discountDetails[] = [
+                    'reason' => $discount->description ?? 'Descuento',
+                    'percent' => $discount->percent,
+                    'amount' => $discount->amount,
+                ];
+            }
         }
+
+        // También revisar si hay info del VirtualPosPlan para el tipo de descuento (Beca, etc.)
+        $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
+
+        $planInfo = [
+            'base_price' => (int) round($priceData['base_price']),
+            'adjustments' => (int) round($priceData['adjustments']),
+            'discounts' => (int) round($priceData['discounts']),
+            'final_price' => (int) round($priceData['final_price']),
+            'paid_amount' => (int) round($paidAmount),
+            'pending_amount' => (int) max(0, round($priceData['final_price'] - $paidAmount)),
+            'discount_details' => $discountDetails,
+            'discount_type' => $virtualPosPlan?->discount_type,
+            'discount_reason' => $virtualPosPlan?->discount_reason ?? ($discountDetails[0]['reason'] ?? null),
+            'is_personalized' => $virtualPosPlan?->isPersonalized() ?? (count($discountDetails) > 0),
+        ];
 
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => [

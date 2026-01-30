@@ -125,7 +125,6 @@
                 <SubscriptionsFilters
                     :initial-filters="filters"
                     @filters-changed="handleFiltersChanged"
-                    :programs="programs"
                 />
             </div>
 
@@ -189,10 +188,6 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
-    programs: {
-        type: Array,
-        default: () => [],
-    },
 });
 
 const selectedSubscriptions = ref([]);
@@ -202,7 +197,8 @@ const showSubscriptionDetails = (subscription) => {
 };
 
 const handleFiltersChanged = (newFilters) => {
-    router.get(route("admin.subscriptions.index"), newFilters, {
+    // Siempre volver a página 1 cuando se aplican filtros para buscar en todas las suscripciones
+    router.get(route("admin.subscriptions.index"), { ...newFilters, page: 1 }, {
         preserveState: true,
         preserveScroll: true,
     });

@@ -27,7 +27,7 @@
                             Reportes destinados para ejecutivos comerciales con información de contacto pagador.
                         </p>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <!-- Consolidado Área Ingresos -->
                             <Link
                                 :href="route('admin.reports.executives.consolidated')"
@@ -85,6 +85,36 @@
                                 </div>
                                 <p class="text-sm text-cyan-600">
                                     Estado de cuenta parcial con datos de contacto pagador.
+                                </p>
+                            </Link>
+
+                            <!-- Programas por Medio de Pago -->
+                            <Link
+                                :href="route('admin.reports.executives.payment-options-programs')"
+                                class="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg border border-purple-200 transition-colors"
+                            >
+                                <div class="flex items-center mb-3">
+                                    <div class="p-2 bg-purple-100 rounded-lg mr-3">
+                                        <svg
+                                            class="w-6 h-6 text-purple-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                            ></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-lg font-semibold text-purple-800">
+                                        Programas por Medio de Pago
+                                    </h3>
+                                </div>
+                                <p class="text-sm text-purple-600">
+                                    Listado de programas con sus medios de pago habilitados y estado de recaudación.
                                 </p>
                             </Link>
                         </div>

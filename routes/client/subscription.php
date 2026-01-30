@@ -30,6 +30,10 @@ Route::prefix('subscription')->name('subscription.')->group(function () {
     Route::get('/failure/{subscriptionId}', [SubscriptionController::class, 'failure'])
         ->name('failure');
 
+    // Página de verificación del primer cargo (intermedia)
+    Route::get('/verifying/{subscriptionId}', [SubscriptionController::class, 'verifying'])
+        ->name('verifying');
+
     // ========================================
     // RUTAS PROTEGIDAS (requieren autenticación)
     // ========================================

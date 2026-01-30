@@ -399,34 +399,36 @@ class ExportService
         // Cabecera de tabla en A10
             $headers = [
             'A10' => 'Alumno',
-            'B10' => 'Precio',
-            'C10' => 'Abono',
-            'D10' => "Cuotas\nPagadas",
-            'E10' => "Cuotas\nVencidas",
-            'F10' => "Forma de\nPago",
-            'G10' => 'Aporte/Beca',
-            'H10' => 'Monto Liberado',
-            'I10' => 'Por pagar',
+            'B10' => 'Estado',
+            'C10' => 'Precio',
+            'D10' => 'Abono',
+            'E10' => "Cuotas\nPagadas",
+            'F10' => "Cuotas\nVencidas",
+            'G10' => "Forma de\nPago",
+            'H10' => 'Aporte/Beca',
+            'I10' => 'Monto Liberado',
+            'J10' => 'Por pagar',
         ];
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
         }
-        $this->styleHeader($sheet, 'A10:I10');
-        $sheet->setAutoFilter('A10:I10');
+        $this->styleHeader($sheet, 'A10:J10');
+        $sheet->setAutoFilter('A10:J10');
         
         // Configurar altura de fila para headers con salto de línea
         $sheet->getRowDimension(10)->setRowHeight(40);
         
         // Anchos fijos para que la tabla quepa en una página Carta
-        $sheet->getColumnDimension('A')->setWidth(35); // Alumno
-        $sheet->getColumnDimension('B')->setWidth(12); // Precio
-        $sheet->getColumnDimension('C')->setWidth(12); // Abono
-        $sheet->getColumnDimension('D')->setWidth(16); // Cuotas Pagadas
-        $sheet->getColumnDimension('E')->setWidth(16); // Cuotas Vencidas
-        $sheet->getColumnDimension('F')->setWidth(18); // Forma de Pago
-        $sheet->getColumnDimension('G')->setWidth(14); // Aporte/Beca
-        $sheet->getColumnDimension('H')->setWidth(16); // Monto Liberado
-        $sheet->getColumnDimension('I')->setWidth(14); // Por pagar
+        $sheet->getColumnDimension('A')->setWidth(32); // Alumno
+        $sheet->getColumnDimension('B')->setWidth(10); // Estado
+        $sheet->getColumnDimension('C')->setWidth(12); // Precio
+        $sheet->getColumnDimension('D')->setWidth(12); // Abono
+        $sheet->getColumnDimension('E')->setWidth(14); // Cuotas Pagadas
+        $sheet->getColumnDimension('F')->setWidth(14); // Cuotas Vencidas
+        $sheet->getColumnDimension('G')->setWidth(16); // Forma de Pago
+        $sheet->getColumnDimension('H')->setWidth(14); // Aporte/Beca
+        $sheet->getColumnDimension('I')->setWidth(14); // Monto Liberado
+        $sheet->getColumnDimension('J')->setWidth(12); // Por pagar
 
         // ========================
         // Datos dinámicos por participante (A11 en adelante)
@@ -447,14 +449,25 @@ class ExportService
         $dateToC = $dateTo ? Carbon::parse($dateTo, 'America/Santiago')->endOfDay() : Carbon::now('America/Santiago')->endOfDay();
 
         // Cargar participantes del programa con órdenes, plan de cuotas y descuentos
-        $participantPrograms = \App\Models\ParticipantProgram::with([
+        $participantProgramsQuery = \App\Models\ParticipantProgram::with([
                 'participant',
                 'orders.installmentPlan.installments',
                 'orders.payments',
                 'discounts'
             ])
-            ->where('program_id', $programCourse->id)
-            ->get();
+            ->where('program_id', $programCourse->id);
+
+        // Filtrar por documento si se especifica
+        $documentSearch = $filters['documentSearch'] ?? null;
+        if (!empty($documentSearch)) {
+            // Normalizar documento (remover puntos, guiones y espacios)
+            $normalizedDoc = preg_replace('/[.\-\s]/', '', $documentSearch);
+            $participantProgramsQuery->whereHas('participant', function($q) use ($normalizedDoc) {
+                $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$normalizedDoc}%"]);
+            });
+        }
+
+        $participantPrograms = $participantProgramsQuery->get();
 
         foreach ($participantPrograms as $pp) {
             $participantName = $pp->participant ? $pp->participant->full_name : 'N/A';
@@ -575,26 +588,46 @@ class ExportService
             // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
             $porPagar = max($price - $abono - ($scholarship - $aporteAmount) - $released, 0);
 
+            // Ajuste para participantes DE BAJA:
+            // - Por Pagar siempre es $0
+            // - Precio = lo que abonaron (si no pagaron todo) o $0 (si pagaron todo)
+            $displayPrice = $price;
+            if (!$pp->is_active) {
+                $porPagar = 0;
+                // Si pagaron todo el monto del programa, precio = 0
+                // Si no pagaron todo, precio = lo que abonaron
+                if ($abono >= $price) {
+                    $displayPrice = 0;
+                } else {
+                    $displayPrice = $abono;
+                }
+            }
+
+            // Estado del participante en el programa
+            $participantStatus = $pp->is_active ? 'Activo' : 'De Baja';
+
             // Escribir fila
             $sheet->setCellValue('A' . $row, $participantName);
-            $sheet->setCellValue('B' . $row, $price);
-            $sheet->setCellValue('C' . $row, $abono);
-            $sheet->setCellValue('D' . $row, $paidInstallments . '/' . ($totalInstallments ?: 0));
-            $sheet->setCellValue('E' . $row, $overdueInstallments);
-            $sheet->setCellValue('F' . $row, $paymentMethod);
-            $sheet->setCellValue('G' . $row, $scholarship);
-            $sheet->setCellValue('H' . $row, $released);
-            $sheet->setCellValue('I' . $row, $porPagar);
+            $sheet->setCellValue('B' . $row, $participantStatus);
+            $sheet->setCellValue('C' . $row, $displayPrice);
+            $sheet->setCellValue('D' . $row, $abono);
+            $sheet->setCellValue('E' . $row, $paidInstallments . '/' . ($totalInstallments ?: 0));
+            $sheet->setCellValue('F' . $row, $overdueInstallments);
+            $sheet->setCellValue('G' . $row, $paymentMethod);
+            $sheet->setCellValue('H' . $row, $scholarship);
+            $sheet->setCellValue('I' . $row, $released);
+            $sheet->setCellValue('J' . $row, $porPagar);
 
             // Aplicar formato de moneda a las columnas numéricas
-            foreach (['B','C','G','H','I'] as $col) {
+            foreach (['C','D','H','I','J'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
             }
-            
-            // Centrar contenido en columnas D, E, F (Cuotas Pagadas, Cuotas Vencidas, Forma de Pago)
-            $sheet->getStyle('D' . $row . ':F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            $totals['price'] += $price;
+            // Centrar contenido en columnas B, E, F, G (Estado, Cuotas Pagadas, Cuotas Vencidas, Forma de Pago)
+            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $totals['price'] += $displayPrice;
             $totals['abono'] += $abono;
             $totals['scholarship'] += $scholarship;
             $totals['released'] += $released;
@@ -605,15 +638,15 @@ class ExportService
 
         // Fila total general
         $sheet->setCellValue('A' . $row, 'Total General');
-        $sheet->setCellValue('B' . $row, $totals['price']);
-        $sheet->setCellValue('C' . $row, $totals['abono']);
-        $sheet->setCellValue('G' . $row, $totals['scholarship']);
-        $sheet->setCellValue('H' . $row, $totals['released']);
-        $sheet->setCellValue('I' . $row, '(' . number_format($totals['por_pagar'], 0, ',', '.') . ')');
-        foreach (['B','C','G','H'] as $col) {
+        $sheet->setCellValue('C' . $row, $totals['price']);
+        $sheet->setCellValue('D' . $row, $totals['abono']);
+        $sheet->setCellValue('H' . $row, $totals['scholarship']);
+        $sheet->setCellValue('I' . $row, $totals['released']);
+        $sheet->setCellValue('J' . $row, '(' . number_format($totals['por_pagar'], 0, ',', '.') . ')');
+        foreach (['C','D','H','I'] as $col) {
             $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
         }
-        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
+        $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]

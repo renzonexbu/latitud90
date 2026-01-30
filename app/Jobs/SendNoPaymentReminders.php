@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Mail\NoPaymentReminderMail;
+use App\Mail\DailyReminderSummaryMail;
 use App\Models\Participant;
 use App\Models\ParticipantProgram;
 use App\Models\InstallmentPlan;
@@ -60,7 +61,7 @@ class SendNoPaymentReminders implements ShouldQueue
         // que no tienen pagos ecommerce completados
         $participantPrograms = ParticipantProgram::with([
             'participant.emergencyContacts',
-            'participant.payments',
+            'orders.payments.paymentOption',
             'programCourse.program'
         ])
             ->whereHas('participant', function ($query) {
@@ -86,8 +87,8 @@ class SendNoPaymentReminders implements ShouldQueue
                     continue;
                 }
 
-                // Verificar si tiene pagos ecommerce completados para este programa
-                if ($this->hasEcommercePayments($participant, $enrollment->program_id)) {
+                // Verificar si tiene pagos ecommerce completados para esta inscripción
+                if ($this->hasEcommercePayments($enrollment)) {
                     continue;
                 }
 
@@ -113,6 +114,7 @@ class SendNoPaymentReminders implements ShouldQueue
                 // Obtener datos del programa
                 $programName = $enrollment->programCourse?->name ??
                                $enrollment->programCourse?->program?->name ?? 'N/A';
+                $programCode = $enrollment->programCourse?->code ?? 'N/A';
 
                 // Obtener monto del programa
                 $programAmount = $enrollment->individual_price ?? 0;
@@ -121,15 +123,18 @@ class SendNoPaymentReminders implements ShouldQueue
                 // Datos para el email
                 $participantName = $participant->full_name;
                 $enrollmentDateFormatted = $enrollmentDate->format('d/m/Y');
+                $enrollmentCode = $enrollment->enrollment_code ?? '-';
 
                 // Agregar al resumen
                 $summaryData[] = [
                     'id' => $participant->id,
+                    'enrollment_code' => $enrollmentCode,
                     'name' => $participantName,
                     'email' => $participant->email,
                     'guardian_email' => $emergencyContact->email,
                     'guardian_name' => $emergencyContact->name,
                     'program' => $programName,
+                    'program_code' => $programCode,
                     'amount' => $programAmount,
                     'amount_formatted' => $programAmountFormatted,
                     'enrollment_date' => $enrollmentDateFormatted,
@@ -183,21 +188,24 @@ class SendNoPaymentReminders implements ShouldQueue
     }
 
     /**
-     * Verificar si el participante tiene pagos ecommerce para un programa específico
+     * Verificar si la inscripción tiene pagos ecommerce completados
+     *
+     * NOTA: Usamos la relación directa ParticipantProgram->orders->payments
+     * para evitar el desajuste de IDs entre program_id de ParticipantProgram
+     * (que apunta a program_courses) y program_id de Order.
      */
-    protected function hasEcommercePayments(Participant $participant, int $programId): bool
+    protected function hasEcommercePayments(ParticipantProgram $enrollment): bool
     {
-        return $participant->payments()
-            ->where('status', 'completed')
-            ->whereHas('order', function ($query) use ($programId) {
-                $query->where('program_id', $programId);
-            })
-            ->whereHas('paymentOption', function ($query) {
-                // Solo pagos ecommerce (excluir manuales/presenciales)
-                $query->where(function ($q) {
-                    $q->where('code', 'like', 'full_%')
-                      ->orWhere('code', 'like', 'subscription_%');
-                });
+        return $enrollment->orders()
+            ->whereHas('payments', function ($paymentQuery) {
+                $paymentQuery->whereIn('status', ['completed', 'approved', 'paid'])
+                    ->whereHas('paymentOption', function ($optionQuery) {
+                        // Solo pagos ecommerce (excluir manuales/presenciales)
+                        $optionQuery->where(function ($q) {
+                            $q->where('code', 'like', 'full_%')
+                              ->orWhere('code', 'like', 'subscription_%');
+                        });
+                    });
             })
             ->exists();
     }
@@ -218,7 +226,7 @@ class SendNoPaymentReminders implements ShouldQueue
     }
 
     /**
-     * Enviar resumen diario a los administradores
+     * Enviar resumen diario a los administradores usando plantilla con branding
      */
     protected function sendAdminSummary(
         array $summaryData,
@@ -226,51 +234,21 @@ class SendNoPaymentReminders implements ShouldQueue
         int $remindersSkipped,
         int $notDueYet
     ): void {
-        $totalParticipants = count($summaryData);
-        $totalAmount = array_sum(array_column($summaryData, 'amount'));
         $today = Carbon::now('America/Santiago')->format('d/m/Y');
 
-        $content = "RESUMEN DIARIO - RECORDATORIOS DE PAGO (CADA 30 DÍAS DESDE ENROLAMIENTO)\n";
-        $content .= "Fecha: {$today}\n";
-        $content .= str_repeat("=", 70) . "\n\n";
-
-        $content .= "ESTADISTICAS:\n";
-        $content .= "- Recordatorios enviados hoy: {$remindersSent}\n";
-        $content .= "- Omitidos (sin email de apoderado): {$remindersSkipped}\n";
-        $content .= "- No correspondía hoy (fuera de ciclo 30 días): {$notDueYet}\n";
-        $content .= "- Monto total pendiente (enviados): $" . number_format($totalAmount, 0, ',', '.') . "\n";
-        $content .= str_repeat("-", 70) . "\n\n";
-
-        if ($totalParticipants > 0) {
-            $content .= "DETALLE DE RECORDATORIOS ENVIADOS:\n\n";
-
-            // Ordenar por días desde enrolamiento (mayor a menor)
-            usort($summaryData, fn($a, $b) => $b['days_since_enrollment'] <=> $a['days_since_enrollment']);
-
-            foreach ($summaryData as $index => $data) {
-                $num = $index + 1;
-                $content .= "{$num}. {$data['name']}\n";
-                $content .= "   Programa: {$data['program']}\n";
-                $content .= "   Monto: \${$data['amount_formatted']}\n";
-                $content .= "   Fecha enrolamiento: {$data['enrollment_date']}\n";
-                $content .= "   Días sin pago: {$data['days_since_enrollment']} días\n";
-                $content .= "   Recordatorio #: {$data['reminder_number']}\n";
-                $content .= "   Email apoderado: {$data['guardian_email']} ({$data['guardian_name']})\n";
-                $content .= "\n";
-            }
-        } else {
-            $content .= "No hubo recordatorios que enviar hoy.\n";
-            $content .= "(Los recordatorios se envían cada 30 días desde la fecha de enrolamiento)\n";
-        }
-
-        $content .= str_repeat("=", 70) . "\n";
-        $content .= "Este es un correo automático generado por el sistema.\n";
+        // Ordenar por días desde enrolamiento (mayor a menor)
+        usort($summaryData, fn($a, $b) => $b['days_since_enrollment'] <=> $a['days_since_enrollment']);
 
         try {
-            Mail::raw($content, function ($message) use ($today, $remindersSent) {
-                $message->to($this->adminEmails)
-                    ->subject("Recordatorios de Pago: {$remindersSent} enviados - {$today}");
-            });
+            Mail::to($this->adminEmails)->send(
+                new DailyReminderSummaryMail(
+                    summaryData: $summaryData,
+                    remindersSent: $remindersSent,
+                    remindersSkipped: $remindersSkipped,
+                    notDueYet: $notDueYet,
+                    date: $today
+                )
+            );
 
             Log::info('SendNoPaymentReminders: Resumen enviado a administradores');
 

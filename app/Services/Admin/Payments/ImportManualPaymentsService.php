@@ -298,6 +298,7 @@ class ImportManualPaymentsService
 
         // 9. Crear Payment
         $referencia = $rawData['referencia'] ?? $rowData['referencia'] ?? $rowData['reference'] ?? null;
+        $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
 
         $payment = Payment::create([
             'order_id' => $order->id,
@@ -309,14 +310,16 @@ class ImportManualPaymentsService
             'status' => 'approved',
             'transaction_date' => $paymentDate,
             'authorization_code' => $authorizationCode,
-            'payment_code' => $referencia,
+            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+            'payment_code' => $documentType !== 'B2' ? $referencia : null,
+            'bsale_number' => $documentType === 'B2' ? $referencia : null,
             'gateway_response' => [
                 'created_manually' => true,
                 'payment_type' => 'presential',
                 'import_row' => $rowNumber
             ],
             'currency' => 'CLP',
-            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+            'document_type' => $documentType,
         ]);
 
         // 10. Actualizar estado de la orden
@@ -1245,6 +1248,8 @@ class ImportManualPaymentsService
             // 11. Create payment
             $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
             $paymentNumber = $existingPaymentsCount + 1;
+            $referencia = $rowData['referencia'] ?? null;
+            $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
 
             $payment = Payment::create([
                 'order_id' => $order->id,
@@ -1256,7 +1261,9 @@ class ImportManualPaymentsService
                 'status' => 'approved',
                 'transaction_date' => $paymentDate,
                 'authorization_code' => $rowData['nro_aut'] ?? null,
-                'payment_code' => $rowData['referencia'] ?? null,
+                // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+                'payment_code' => $documentType !== 'B2' ? $referencia : null,
+                'bsale_number' => $documentType === 'B2' ? $referencia : null,
                 'installments_number' => $rowData['cuotas'] ?? null,
                 'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
                 'gateway_response' => [
@@ -1270,7 +1277,7 @@ class ImportManualPaymentsService
                     ]
                 ],
                 'currency' => 'CLP',
-                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+                'document_type' => $documentType,
             ]);
 
             // 12. Handle APORTE (AP) - Update contribution field
@@ -1452,6 +1459,9 @@ class ImportManualPaymentsService
             ]);
 
             // 9. Crear Payment
+            $referencia = $rowData['referencia'] ?? null;
+            $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
@@ -1462,14 +1472,16 @@ class ImportManualPaymentsService
                 'status' => 'approved',
                 'transaction_date' => $paymentDate,
                 'authorization_code' => $authorizationCode,
-                'payment_code' => $rowData['referencia'] ?? null,
+                // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+                'payment_code' => $documentType !== 'B2' ? $referencia : null,
+                'bsale_number' => $documentType === 'B2' ? $referencia : null,
                 'gateway_response' => [
                     'created_manually' => true,
                     'payment_type' => 'presential',
                     'import_row' => $rowNumber
                 ],
                 'currency' => 'CLP',
-                'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+                'document_type' => $documentType,
             ]);
 
             // 10. Actualizar estado de la orden

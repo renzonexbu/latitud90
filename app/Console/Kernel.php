@@ -51,7 +51,16 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('subscription_payments_sync'));
 
-        // 3. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
+        // 3. Procesar cola de solicitudes BSale cada 5 minutos
+        // Genera boletas electrónicas para los pagos encolados
+        // Separado del flujo de emails para evitar problemas si BSale falla
+        $schedule->command('bsale:process --limit=30')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo($this->getScheduleLogPath('bsale_process'));
+
+        // 4. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
         // Sincroniza emails de clientes para campañas de marketing
         $schedule->command('marketing:process-emails')
             ->twiceDaily(6, 18)
@@ -59,13 +68,14 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('marketing_emails'));
 
-        // 4. Enviar recordatorios a participantes sin pagos - cada día a las 9:00 AM
+        // 5. Enviar recordatorios a participantes sin pagos - cada día a las 9:00 AM
         // Notifica a contactos de emergencia sobre participantes sin pagos ecommerce
-        $schedule->command('reminders:send-no-payment')
-            ->dailyAt('09:00')
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->appendOutputTo($this->getScheduleLogPath('no_payment_reminders'));
+        // COMENTADO TEMPORALMENTE - 2026-01-29
+        // $schedule->command('reminders:send-no-payment')
+        //     ->dailyAt('09:00')
+        //     ->withoutOverlapping()
+        //     ->runInBackground()
+        //     ->appendOutputTo($this->getScheduleLogPath('no_payment_reminders'));
 
         // =====================================================================
         // COMANDOS TEMPORALMENTE COMENTADOS

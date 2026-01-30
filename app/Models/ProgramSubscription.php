@@ -80,26 +80,67 @@ class ProgramSubscription extends Model
     }
 
     /**
-     * Relación con el plan de cuotas
-     * Nota: Esta relación usa participant_id y program_id para encontrar el plan correcto
+     * Relación con las órdenes de esta suscripción
      */
-    public function installmentPlan()
+    public function orders()
     {
-        return $this->hasOne(InstallmentPlan::class, 'participant_id', 'participant_id')
-            ->where('program_id', $this->program_id);
+        return $this->hasMany(Order::class, 'subscription_id');
     }
 
     /**
-     * Método auxiliar para obtener el plan de cuotas con eager loading
+     * Relación con la orden principal de esta suscripción
+     */
+    public function order()
+    {
+        return $this->hasOne(Order::class, 'subscription_id');
+    }
+
+    /**
+     * Relación con el plan de cuotas a través de la orden (fallback para datos antiguos)
+     */
+    public function installmentPlanThroughOrder()
+    {
+        return $this->hasOneThrough(
+            InstallmentPlan::class,
+            Order::class,
+            'subscription_id', // FK en orders
+            'order_id',        // FK en installment_plans
+            'id',              // PK en program_subscriptions
+            'id'               // PK en orders
+        );
+    }
+
+    /**
+     * Método auxiliar para obtener el plan de cuotas
+     * Prioriza la relación directa por program_subscription_id
      */
     public function getInstallmentPlanAttribute()
     {
-        if (!$this->relationLoaded('installmentPlanRelation')) {
-            return InstallmentPlan::where('participant_id', $this->participant_id)
-                ->where('program_id', $this->program_id)
-                ->first();
+        // Primero intentar con la relación directa (nuevo método)
+        $plan = $this->installmentPlanDirect;
+        if ($plan) {
+            return $plan;
         }
-        return $this->getRelation('installmentPlanRelation');
+
+        // Fallback: buscar a través de la orden (datos antiguos)
+        $plan = $this->installmentPlanThroughOrder;
+        if ($plan) {
+            return $plan;
+        }
+
+        // Último fallback: buscar por participant_id + program_id (datos muy antiguos)
+        return InstallmentPlan::where('participant_id', $this->participant_id)
+            ->where('program_id', $this->program_id)
+            ->first();
+    }
+
+    /**
+     * Relación directa con el plan de cuotas (usando program_subscription_id)
+     * Usada internamente por el accessor
+     */
+    public function installmentPlanDirect()
+    {
+        return $this->hasOne(InstallmentPlan::class, 'program_subscription_id');
     }
 
     /**

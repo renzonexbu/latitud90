@@ -98,6 +98,7 @@ Route::get('/reports/procedure-documents/download/{procedureDocument}', function
 // Ejecutivos/Apoderados: Consolidado de Área Ingresos y Estado de Cuenta Parcial
 // Estos reportes son accesibles por ejecutivos comerciales y roles con permiso especial
 use App\Http\Controllers\Admin\ExecutivesReportsController;
+use App\Http\Controllers\Admin\Courses\PaymentOptionsProgramController;
 Route::prefix('/reports/executives')->name('reports.executives.')
     ->middleware('permission:ver_reportes_executives|ver_contacto_pagador')
     ->group(function () {
@@ -106,6 +107,10 @@ Route::prefix('/reports/executives')->name('reports.executives.')
 
         Route::get('/consolidated', [ExecutivesReportsController::class, 'consolidated'])->name('consolidated');
         Route::get('/partial-account', [ExecutivesReportsController::class, 'partialAccount'])->name('partial-account');
+
+        // Programas por Medio de Pago (accesible para ejecutivos)
+        Route::get('/payment-options-programs', [PaymentOptionsProgramController::class, 'index'])->name('payment-options-programs');
+        Route::get('/payment-options-programs/export', [PaymentOptionsProgramController::class, 'export'])->name('payment-options-programs.export');
 
         // Exportaciones
         Route::get('/export/consolidated', [ExecutivesReportsController::class, 'exportConsolidated'])->name('export.consolidated');

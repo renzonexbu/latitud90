@@ -91,16 +91,26 @@ class UpdatePaymentOptionsService
     }
     
     /**
-     * Calcular meses disponibles hasta la fecha final de pago
+     * Calcular cuotas disponibles hasta la fecha final de pago
      * Usa días exactos: cada cuota = 30 días aproximadamente
+     *
+     * La fórmula incluye +1 porque la primera cuota se paga el día de suscripción (día 0),
+     * y luego cada 30 días se paga la siguiente cuota.
+     * Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
      */
     private function calculateAvailableMonths(Carbon $today, Carbon $finalPaymentDate): int
     {
         // Calcular días exactos de diferencia
         $diffDays = $today->diffInDays($finalPaymentDate, false);
 
+        // Si la fecha ya pasó, no hay cuotas disponibles
+        if ($diffDays < 0) {
+            return 0;
+        }
+
         // Cada cuota = 30 días aproximadamente
-        return max(0, (int) floor($diffDays / 30));
+        // +1 porque la primera cuota se paga el día 0 (hoy)
+        return (int) floor($diffDays / 30) + 1;
     }
     
     /**

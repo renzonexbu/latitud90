@@ -624,7 +624,8 @@ class CourseService
         }
 
         // Cada cuota = 30 días aproximadamente
-        $availableMonths = max(0, (int) floor($diffDays / 30));
+        // Se agrega +1 porque la primera cuota se paga de inmediato al inscribirse
+        $availableMonths = max(0, (int) floor($diffDays / 30) + 1);
 
         // Validar que las cuotas solicitadas no excedan el máximo disponible
         if ($subscriptionMaxMonths > $availableMonths) {

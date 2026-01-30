@@ -14,6 +14,7 @@ class Order extends Model
     protected $fillable = [
         'participant_id',
         'program_id',
+        'subscription_id',
         'course_id',
         'participant_program_id',
         'total_amount',
@@ -76,6 +77,15 @@ class Order extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Relación con ProgramSubscription
+     * Una orden puede pertenecer a una suscripción específica
+     */
+    public function subscription()
+    {
+        return $this->belongsTo(ProgramSubscription::class, 'subscription_id');
     }
 
     /**

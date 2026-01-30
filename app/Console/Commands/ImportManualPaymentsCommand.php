@@ -263,6 +263,9 @@ class ImportManualPaymentsCommand extends Command
         ]);
 
         // 9. Crear Payment
+        $referencia = $rowData['referencia'] ?? null;
+        $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+
         $payment = Payment::create([
             'order_id' => $order->id,
             'order_detail_id' => $orderDetail->id,
@@ -273,10 +276,12 @@ class ImportManualPaymentsCommand extends Command
             'status' => 'approved',
             'transaction_date' => $paymentDate,
             'authorization_code' => $authorizationCode,
-            'payment_code' => $rowData['referencia'] ?? null,
+            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+            'payment_code' => $documentType !== 'B2' ? $referencia : null,
+            'bsale_number' => $documentType === 'B2' ? $referencia : null,
             'gateway_response' => ['created_manually' => true, 'import_row' => $rowNumber],
             'currency' => 'CLP',
-            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($programCourse->id),
+            'document_type' => $documentType,
         ]);
 
         // 10. Actualizar estado

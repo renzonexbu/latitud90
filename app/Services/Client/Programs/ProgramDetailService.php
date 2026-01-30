@@ -18,6 +18,8 @@ use App\Models\ProgramSubscription;
 use App\Helpers\ParticipantPriceHelper;
 use App\Traits\SystemLogging;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class ProgramDetailService
 {
@@ -181,12 +183,34 @@ class ProgramDetailService
             }
         }
 
+        // Calcular cuotas disponibles en tiempo real
+        // Para pago total: usar departure_date como referencia
+        // Para suscripción: usar final_payment_date como referencia
+        $availableInstallmentsForFull = $this->calculateAvailableInstallments($programCourse->departure_date);
+        $availableInstallmentsForSubscription = $this->calculateAvailableInstallments($programCourse->final_payment_date);
+
+        Log::info('ProgramDetail: Cuotas calculadas en tiempo real', [
+            'program_course_id' => $programCourse->id,
+            'program_code' => $programCourse->code,
+            'departure_date' => $programCourse->departure_date,
+            'final_payment_date' => $programCourse->final_payment_date,
+            'cuotas_pago_total' => $availableInstallmentsForFull,
+            'cuotas_suscripcion' => $availableInstallmentsForSubscription,
+        ]);
+
         // Cargar opciones de pago habilitadas (configuradas en el curso específico)
+        // Filtrar en tiempo real según cuotas disponibles
         $fullPaymentOptionCodes = DB::table('program_course_payment_option as pcpo')
             ->join('payment_options as po', 'po.id', '=', 'pcpo.payment_option_id')
             ->where('pcpo.program_course_id', $programCourse->id)
             ->where('pcpo.enabled', true)
             ->where('po.code', 'LIKE', 'full_%')
+            ->where(function ($query) use ($availableInstallmentsForFull) {
+                // Incluir opciones sin cuotas (null o 0) o con cuotas <= disponibles
+                $query->whereNull('po.installments')
+                      ->orWhere('po.installments', 0)
+                      ->orWhere('po.installments', '<=', $availableInstallmentsForFull);
+            })
             ->pluck('po.code')
             ->toArray();
 
@@ -265,7 +289,7 @@ class ProgramDetailService
             'subscriptions_globally_disabled' => !config('services.subscriptions.enabled', true),
             'subscriptions_disabled_message' => config('services.subscriptions.disabled_message', 'El método de pago por suscripción no está disponible temporalmente.'),
             'lat90_payment_options' => $subscriptionPaymentOptionCodes,
-            'lat90_max_installments' => $programCourse->subscription_max_months, // Renombrado
+            'lat90_max_installments' => $availableInstallmentsForSubscription, // Calculado en tiempo real
             'discount_type' => $programCourse->discount_type,
             'discount_value' => $programCourse->discount_value,
 
@@ -298,6 +322,30 @@ class ProgramDetailService
         ];
 
         return $programData;
+    }
+
+    /**
+     * Calcular cuotas disponibles hasta una fecha límite
+     * La fórmula incluye +1 porque la primera cuota se paga el día de suscripción (día 0),
+     * y luego cada 30 días se paga la siguiente cuota.
+     * Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
+     */
+    private function calculateAvailableInstallments(?string $endDate): int
+    {
+        if (!$endDate) {
+            return 12; // Sin fecha límite, permitir máximo 12 cuotas
+        }
+
+        $today = Carbon::today()->setTimezone('America/Santiago');
+        $finalDate = Carbon::parse($endDate)->setTimezone('America/Santiago');
+        $diffDays = $today->diffInDays($finalDate, false);
+
+        if ($diffDays < 0) {
+            return 0;
+        }
+
+        // +1 porque la primera cuota se paga el día 0 (hoy)
+        return min(12, (int) floor($diffDays / 30) + 1);
     }
 
     private function calculateDuration($departureDate)

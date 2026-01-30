@@ -126,9 +126,7 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
-            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
-            ->where('od.is_paid', true)
-            ->where('od.status', 'paid')
+            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success', 'rejected'])
             ->where(function($q) {
                 $q->whereDate('pay.transaction_date', now()->toDateString())
                   ->orWhereDate('pay.created_at', now()->toDateString())
@@ -136,7 +134,7 @@ class DailyPaymentsDataProvider
             })
             ->count();
 
-        // Calcular total de registros (solo pagos completados, sin filtros de fecha)
+        // Calcular total de registros (pagos completados y rechazados, sin filtros de fecha)
         $totalRecords = DB::table('payments as pay')
             ->leftJoin('orders_detail as od', 'pay.order_detail_id', '=', 'od.id')
             ->leftJoin('orders as o', 'pay.order_id', '=', 'o.id')
@@ -147,9 +145,7 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
-            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success'])
-            ->where('od.is_paid', true)
-            ->where('od.status', 'paid')
+            ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success', 'rejected'])
             ->count();
 
         return [

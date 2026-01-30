@@ -19,6 +19,9 @@
                             Tipo de Pago
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Origen
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             N° Cuota
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
@@ -32,6 +35,9 @@
                         </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
                             Nombre
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Boleta
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
@@ -78,6 +84,18 @@
                             </div>
                         </td>
 
+                        <!-- Origen -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                :class="[
+                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full',
+                                    getPaymentSourceClass(payment),
+                                ]"
+                            >
+                                {{ getPaymentSourceLabel(payment) }}
+                            </span>
+                        </td>
+
                         <!-- N° Cuota -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">
@@ -116,6 +134,54 @@
                             <div class="text-xs font-medium text-gray-900">
                                 {{ getParticipantFirstName(payment) }}
                             </div>
+                        </td>
+
+                        <!-- Boleta BSale -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <span
+                                v-if="payment.bsale_number"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-800"
+                                :title="'Boleta #' + payment.bsale_number"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                {{ payment.bsale_number }}
+                            </span>
+                            <span
+                                v-else-if="payment.bsale_error_code"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800"
+                                :title="payment.bsale_error || 'Error al generar boleta'"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                Error
+                            </span>
+                            <span
+                                v-else-if="getBsaleStatus(payment) === 'na'"
+                                class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-500"
+                                title="No aplica (programa de año posterior)"
+                            >
+                                N/A
+                            </span>
+                            <span
+                                v-else-if="getBsaleStatus(payment) === 'pending'"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-yellow-100 text-yellow-800"
+                                title="Pendiente de generar"
+                            >
+                                <svg class="w-3 h-3 mr-0.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                Pend.
+                            </span>
+                            <span
+                                v-else
+                                class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-400"
+                            >
+                                —
+                            </span>
                         </td>
 
                         <!-- Acciones -->
@@ -334,6 +400,35 @@ export default {
             return payment.payment_gateway?.name || "N/A";
         },
 
+        /**
+         * Obtiene la etiqueta para mostrar el origen del pago
+         * Usa el campo payment_source_calculated que viene del backend
+         */
+        getPaymentSourceLabel(payment) {
+            const source = payment.payment_source_calculated || 'online';
+            const labels = {
+                'online': 'Pago Total',
+                'subscription': 'Suscripción',
+                'offline': 'Offline',
+                'devolucion': 'Devolución'
+            };
+            return labels[source] || source;
+        },
+
+        /**
+         * Obtiene la clase CSS para el badge del origen del pago
+         */
+        getPaymentSourceClass(payment) {
+            const source = payment.payment_source_calculated || 'online';
+            const classes = {
+                'online': 'bg-blue-100 text-blue-800',
+                'subscription': 'bg-purple-100 text-purple-800',
+                'offline': 'bg-green-100 text-green-800',
+                'devolucion': 'bg-red-100 text-red-800'
+            };
+            return classes[source] || 'bg-gray-100 text-gray-800';
+        },
+
         getStatusClass(status) {
             const classes = {
                 pending: "bg-[#ffb232]", // Amarillo
@@ -367,11 +462,22 @@ export default {
             return new Intl.NumberFormat("es-CL").format(amount || 0);
         },
 
+        // Helper para normalizar fechas sin hora (YYYY-MM-DD) evitando problemas de timezone
+        normalizeDate(date) {
+            if (!date) return null;
+            // Si es solo fecha (YYYY-MM-DD), agregar T12:00:00 para evitar
+            // que el cambio de timezone afecte el día mostrado
+            if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                return date + 'T12:00:00';
+            }
+            return date;
+        },
+
         formatDate(date) {
             if (!date) return "N/A";
 
             try {
-                const dateObj = new Date(date);
+                const dateObj = new Date(this.normalizeDate(date));
                 if (isNaN(dateObj.getTime())) {
                     return "Invalid Date";
                 }
@@ -394,7 +500,7 @@ export default {
             }
 
             try {
-                const dateObj = new Date(date);
+                const dateObj = new Date(this.normalizeDate(date));
                 if (isNaN(dateObj.getTime())) {
                     return `ID: ${payment.id}`;
                 }
@@ -479,6 +585,44 @@ export default {
                 return this.toCapitalCase(`${firstName} ${secondName}`.trim()) || "N/A";
             }
             return "N/A";
+        },
+
+        /**
+         * Determina el estado de la boleta BSale para un pago
+         * @returns 'generated' | 'error' | 'pending' | 'na' | 'none'
+         */
+        getBsaleStatus(payment) {
+            // Si ya tiene boleta generada
+            if (payment.bsale_number || payment.bsale_document_id) {
+                return 'generated';
+            }
+
+            // Si tiene error permanente
+            if (payment.bsale_error_code) {
+                return 'error';
+            }
+
+            // Si el pago no está completado, no aplica boleta
+            const completedStatuses = ['completed', 'approved'];
+            if (!completedStatuses.includes(payment.status)) {
+                return 'none';
+            }
+
+            // Verificar si es de año posterior (no aplica boleta)
+            // El programa debe salir en el año actual para generar boleta
+            const programDepartureDate = payment.order?.program_course?.departure_date
+                || payment.order?.programCourse?.departure_date;
+
+            if (programDepartureDate) {
+                const departureYear = new Date(programDepartureDate).getFullYear();
+                const currentYear = new Date().getFullYear();
+                if (departureYear > currentYear) {
+                    return 'na';
+                }
+            }
+
+            // Si está completado y es del año actual, está pendiente de generar
+            return 'pending';
         },
     },
 };

@@ -591,16 +591,16 @@ class DailyPaymentsTransformer
      */
     private function getTransactionDocumentNumber($item): string
     {
-        // 1. Para pagos presenciales y devoluciones: usar payment_code
-        if ($item->payment_code) {
-            return $item->payment_code;
-        }
-        
-        // 2. Para facturas y boletas: usar bsale_number
+        // 1. Para boletas (B2): usar bsale_number
         if ($item->bsale_number) {
             return $item->bsale_number;
         }
-        
+
+        // 2. Para notas de crédito y otros documentos: usar payment_code
+        if ($item->payment_code) {
+            return $item->payment_code;
+        }
+
         // 3. Para reservas (AC): generar folio del contrato (código_programa-guión-documento_participante)
         if ($item->document_type === 'AC') {
             $programCode = $item->program_code ?? 'N/A';
@@ -608,16 +608,16 @@ class DailyPaymentsTransformer
             $participantDoc = $this->cleanDocumentNumber($item->document_number ?? '');
             return $programCode . '-' . $participantDoc;
         }
-        
+
         // 4. Para otros casos: usar buy_order o número de orden
         if ($item->buy_order) {
             return $item->buy_order;
         }
-        
+
         if ($item->order_number) {
             return $item->order_number;
         }
-        
+
         return 'N/A';
     }
 

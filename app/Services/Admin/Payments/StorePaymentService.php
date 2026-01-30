@@ -219,6 +219,9 @@ class StorePaymentService
      */
     private function createPayment(Request $request, Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption): Payment
     {
+        $documentType = PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        $paymentCode = $request->payment_code;
+
         return Payment::create([
             'order_id' => $order->id,
             'order_detail_id' => $orderDetail->id,
@@ -227,10 +230,13 @@ class StorePaymentService
             'buy_order' => $order->order_number,
             'amount' => $request->amount,
             'status' => $request->status,
+            'payment_source' => 'presencial', // Identificar como pago presencial
             'transaction_date' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(),
             'accounting_date' => now(),
             'authorization_code' => $request->authorization_code,
-            'payment_code' => $request->payment_code,
+            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+            'payment_code' => $documentType !== 'B2' ? $paymentCode : null,
+            'bsale_number' => $documentType === 'B2' ? $paymentCode : null,
             'gateway_response' => [
                 'notes' => $request->notes,
                 'created_manually' => true,
@@ -243,7 +249,7 @@ class StorePaymentService
                 ]
             ],
             'currency' => 'CLP',
-            'document_type' => PaymentDocumentTypeHelper::determineDocumentType($order->program_id),
+            'document_type' => $documentType,
         ]);
     }
 
