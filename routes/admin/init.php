@@ -87,11 +87,24 @@ Route::middleware(['auth', 'verified', 'restrict.executive'])->prefix('admin')->
         Route::get('/', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'index'])->name('index');
         Route::get('/list', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'list'])->name('list');
         Route::get('/stats', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'stats'])->name('stats');
+        Route::post('/process-queue', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'processQueue'])->name('process-queue');
+
+        // Historial de boletas y descarga de PDFs
+        Route::get('/invoices', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'invoiceHistory'])->name('invoices');
+        Route::get('/invoices/{payment}/pdf', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'downloadInvoicePdf'])->name('invoices.pdf');
+        Route::get('/invoices/{payment}/pdf-url', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'getInvoicePdfUrl'])->name('invoices.pdf-url');
+        Route::post('/invoices/download-zip', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'downloadInvoicesZip'])->name('invoices.download-zip');
+
+        // Sincronización de tokens de BSale
+        Route::post('/invoices/{payment}/sync-token', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'syncInvoiceToken'])->name('invoices.sync-token');
+        Route::post('/invoices/sync-missing-tokens', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'syncMissingTokens'])->name('invoices.sync-missing');
+        Route::get('/invoices/pending-sync-count', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'getPendingSyncCount'])->name('invoices.pending-sync-count');
+
+        // Solicitudes individuales (debe ir después de las rutas específicas)
         Route::get('/{bsaleRequest}', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'show'])->name('show');
         Route::post('/{bsaleRequest}/retry', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'retry'])->name('retry');
         Route::post('/{bsaleRequest}/force-reprocess', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'forceReprocess'])->name('force-reprocess');
         Route::post('/{bsaleRequest}/cancel', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'cancel'])->name('cancel');
-        Route::post('/process-queue', [\App\Http\Controllers\Admin\BsaleMonitorController::class, 'processQueue'])->name('process-queue');
     });
 
     // Gestión de perfil

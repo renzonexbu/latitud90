@@ -752,6 +752,93 @@ class BsaleService
     }
 
     /**
+     * Buscar documento en BSale por número de boleta
+     *
+     * @param string $number Número de boleta (ej: "23509")
+     * @return array|null Datos del documento incluyendo token, id, etc.
+     */
+    public function findDocumentByNumber(string $number): ?array
+    {
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->token,
+            ])->get($this->baseUrl . '/documents.json', [
+                'number' => $number,
+                'limit' => 10,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $items = $data['items'] ?? [];
+
+                if (!empty($items)) {
+                    // Retornar el primer documento encontrado
+                    $document = $items[0];
+                    return [
+                        'id' => $document['id'] ?? null,
+                        'number' => $document['number'] ?? null,
+                        'token' => $document['token'] ?? null,
+                        'urlPdf' => $document['urlPdf'] ?? null,
+                        'emissionDate' => $document['emissionDate'] ?? null,
+                        'totalAmount' => $document['totalAmount'] ?? null,
+                    ];
+                }
+            }
+
+            Log::info('BsaleService::findDocumentByNumber - No se encontró documento', [
+                'number' => $number,
+                'response_status' => $response->status(),
+            ]);
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('BsaleService::findDocumentByNumber - Error', [
+                'number' => $number,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Sincronizar token de BSale para un payment que tiene número pero no token
+     *
+     * @param Payment $payment
+     * @return bool True si se actualizó correctamente
+     */
+    public function syncPaymentToken(Payment $payment): bool
+    {
+        if (empty($payment->bsale_number)) {
+            return false;
+        }
+
+        // Ya tiene token, no necesita sincronizar
+        if (!empty($payment->bsale_token)) {
+            return true;
+        }
+
+        $document = $this->findDocumentByNumber($payment->bsale_number);
+
+        if ($document && !empty($document['token'])) {
+            $payment->update([
+                'bsale_token' => $document['token'],
+                'bsale_document_id' => $document['id'] ?? $payment->bsale_document_id,
+            ]);
+
+            Log::info('BsaleService::syncPaymentToken - Token sincronizado', [
+                'payment_id' => $payment->id,
+                'bsale_number' => $payment->bsale_number,
+                'bsale_token' => $document['token'],
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Determinar si un pago es de suscripción (PAT/cuota) o pago total (contado)
      *
      * @param Payment $payment
