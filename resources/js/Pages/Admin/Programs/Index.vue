@@ -28,7 +28,11 @@
 
                 <!-- Programs Grid -->
                 <div class="bg-white overflow-hidden shadow-sm rounded-lg p-6">
-                    <ProgramsGrid :programs="filteredPrograms" />
+                    <ProgramsGrid
+                        :programs="filteredPrograms"
+                        item-label="Plantillas"
+                        @page-changed="handlePageChange"
+                    />
                 </div>
             </div>
         </div>
@@ -87,6 +91,14 @@ export default {
                 active: true,
             },
         };
+    },
+    mounted() {
+        // Leer el parámetro page de la URL al montar
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get('page');
+        if (pageParam) {
+            this.currentPage = parseInt(pageParam, 10) || 1;
+        }
     },
     computed: {
         // Todos los programas sin filtrar (para los dropdowns)
@@ -203,6 +215,13 @@ export default {
             this.localFilters = newFilters;
             this.currentPage = 1; // Resetear a la primera página cuando se cambian los filtros
             // No hacemos router.get aquí para mantener todo interno
+        },
+        handlePageChange(page) {
+            this.currentPage = page;
+            // Actualizar URL sin recargar (para que funcione el historial)
+            const url = new URL(window.location);
+            url.searchParams.set('page', page);
+            window.history.pushState({}, '', url);
         },
         calculateDuration(departureDate) {
             if (!departureDate) return 0;

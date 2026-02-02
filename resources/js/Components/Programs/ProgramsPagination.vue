@@ -8,7 +8,7 @@
             <div
                 class="w-[143px] h-[14px] flex-shrink-0 text-verde-oscuro font-nexa text-[14.582px] font-normal leading-[18.749px]"
             >
-                Total {{ totalPrograms }} Programas
+                Total {{ totalPrograms }} {{ itemLabel }}
             </div>
             <!-- Page Numbers -->
 
@@ -51,6 +51,10 @@ export default {
         programsPerPage: {
             type: Number,
             default: 6,
+        },
+        itemLabel: {
+            type: String,
+            default: "Programas",
         },
     },
     computed: {

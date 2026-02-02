@@ -33,6 +33,7 @@
             :current-page="programs.current_page || 1"
             :total-programs="programs.total || 0"
             :programs-per-page="programs.per_page || 6"
+            :item-label="itemLabel"
             @page-changed="handlePageChange"
         />
     </div>
@@ -58,6 +59,11 @@ export default {
         preferParticipantMetrics: {
             type: Boolean,
             default: false,
+        },
+        // Etiqueta para el paginador (ej: "Programas", "Plantillas")
+        itemLabel: {
+            type: String,
+            default: "Programas",
         },
     },
     data() {
@@ -118,17 +124,11 @@ export default {
             return [];
         },
     },
+    emits: ['page-changed'],
     methods: {
         handlePageChange(page) {
-            // Usar la paginación del backend
-            router.get(
-                route("admin.programs.index"),
-                { page },
-                {
-                    preserveState: true,
-                    replace: true,
-                }
-            );
+            // Emitir evento al padre para que maneje el cambio de página
+            this.$emit('page-changed', page);
         },
         handleProgramClick(program) {
             // Ir al edit del programa

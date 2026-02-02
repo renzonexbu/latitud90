@@ -19,6 +19,7 @@ use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use App\Services\Subscription\SubscriptionRecalculationService;
 use App\Services\Client\Integration\BsaleService;
+use App\Services\Bsale\BsaleQueueService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -401,7 +402,6 @@ class CreateParticularPaymentService
     private function createPayment(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
     {
         $documentType = PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
-        $paymentCode = $data['payment_code'];
 
         return Payment::create([
             'order_id' => $order->id,
@@ -413,9 +413,10 @@ class CreateParticularPaymentService
             'status' => 'completed',
             'transaction_date' => Carbon::parse($data['transaction_date']),
             'authorization_code' => $data['authorization_code'] ?? null,
-            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
-            'payment_code' => $documentType !== 'B2' ? $paymentCode : null,
-            'bsale_number' => $documentType === 'B2' ? $paymentCode : null,
+            // payment_code SIEMPRE guarda el código manual ingresado por el usuario
+            // bsale_number se llena SOLO cuando BSale genera la boleta automáticamente
+            'payment_code' => $data['payment_code'],
+            'bsale_number' => null, // Se llenará al generar la boleta BSale
             'gateway_response' => [
                 'notes' => $data['notes'] ?? null,
                 'created_manually' => true,
@@ -777,21 +778,40 @@ class CreateParticularPaymentService
 
     /**
      * Generar boleta BSale para el pago presencial
-     * Solo genera si el document_type es B2 (mismo año del programa)
+     * Usa BsaleQueueService para:
+     * - Máximo 3 intentos antes de marcar como fallido
+     * - Tracking completo en tabla bsale_requests
+     * - Visibilidad en el Monitor de BSale
      */
     private function generateBsaleInvoiceForPayment(OrderDetail $orderDetail, Payment $payment): ?array
     {
         try {
-            $bsaleService = app(BsaleService::class);
-            $bsaleResult = $bsaleService->generateInvoice($orderDetail, $payment);
+            $bsaleQueueService = app(BsaleQueueService::class);
 
-            if ($bsaleResult) {
-                // Guardar información de la boleta en el pago
-                $payment->update([
-                    'bsale_document_id' => $bsaleResult['id'] ?? null,
-                    'bsale_number' => $bsaleResult['number'] ?? null,
-                    'bsale_token' => $bsaleResult['token'] ?? null,
+            // 1. Encolar la solicitud (esto valida si debe generar boleta)
+            $bsaleRequest = $bsaleQueueService->queueBoleta($payment, 'presential_payment');
+
+            if (!$bsaleRequest) {
+                Log::info('Pago presencial: No se encoló boleta BSale (no aplica o ya existe)', [
+                    'payment_id' => $payment->id,
+                    'document_type' => $payment->document_type,
                 ]);
+                return null;
+            }
+
+            // 2. Procesar inmediatamente para obtener el resultado
+            $success = $bsaleQueueService->processRequest($bsaleRequest);
+
+            // 3. Recargar el pago para obtener los datos de BSale actualizados
+            $payment->refresh();
+            $bsaleRequest->refresh();
+
+            if ($success && $bsaleRequest->status === 'completed') {
+                $bsaleResult = [
+                    'id' => $payment->bsale_document_id,
+                    'number' => $payment->bsale_number,
+                    'token' => $payment->bsale_token,
+                ];
 
                 // Descargar y guardar el PDF de la boleta en el servidor
                 $this->downloadAndStoreBsalePdf($payment, $bsaleResult);
@@ -799,17 +819,22 @@ class CreateParticularPaymentService
                 Log::info('Pago presencial: Boleta BSale generada exitosamente', [
                     'payment_id' => $payment->id,
                     'order_detail_id' => $orderDetail->id,
-                    'bsale_document_id' => $bsaleResult['id'] ?? null,
-                    'bsale_number' => $bsaleResult['number'] ?? null,
+                    'bsale_request_id' => $bsaleRequest->id,
+                    'bsale_document_id' => $payment->bsale_document_id,
+                    'bsale_number' => $payment->bsale_number,
                 ]);
-            } else {
-                Log::info('Pago presencial: No se generó boleta BSale (document_type no es B2 o BSale deshabilitado)', [
-                    'payment_id' => $payment->id,
-                    'document_type' => $payment->document_type,
-                ]);
-            }
 
-            return $bsaleResult;
+                return $bsaleResult;
+            } else {
+                Log::warning('Pago presencial: Boleta BSale no generada (encolada para reintento)', [
+                    'payment_id' => $payment->id,
+                    'bsale_request_id' => $bsaleRequest->id,
+                    'bsale_request_status' => $bsaleRequest->status,
+                    'attempts' => $bsaleRequest->attempts,
+                    'error_message' => $bsaleRequest->error_message,
+                ]);
+                return null;
+            }
 
         } catch (\Exception $e) {
             // No lanzar excepción - el pago ya fue registrado

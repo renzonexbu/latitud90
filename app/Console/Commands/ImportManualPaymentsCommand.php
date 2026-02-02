@@ -276,9 +276,10 @@ class ImportManualPaymentsCommand extends Command
             'status' => 'approved',
             'transaction_date' => $paymentDate,
             'authorization_code' => $authorizationCode,
-            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
-            'payment_code' => $documentType !== 'B2' ? $referencia : null,
-            'bsale_number' => $documentType === 'B2' ? $referencia : null,
+            // payment_code SIEMPRE guarda la referencia manual
+            // bsale_number se llena SOLO cuando BSale genera la boleta
+            'payment_code' => $referencia,
+            'bsale_number' => null,
             'gateway_response' => ['created_manually' => true, 'import_row' => $rowNumber],
             'currency' => 'CLP',
             'document_type' => $documentType,
