@@ -12,6 +12,7 @@ use App\Models\ChargeAttempt;
 use App\Services\Subscription\VirtualPosSubscriptionService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Services\Client\Integration\BsaleService;
+use App\Services\Bsale\BsaleQueueService;
 use App\Services\VirtualPos\CreateChargeService;
 use App\Services\Client\PaymentGateway\VirtualPosService;
 use App\Helpers\PaymentDocumentTypeHelper;
@@ -35,6 +36,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     protected $virtualPosService;
     protected $emailService;
     protected $bsaleService;
+    protected $bsaleQueueService;
     protected $createChargeService;
 
     /**
@@ -56,12 +58,14 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         VirtualPosSubscriptionService $virtualPosService,
         SuccessPaymentEmailService $emailService,
         BsaleService $bsaleService,
+        BsaleQueueService $bsaleQueueService,
         CreateChargeService $createChargeService
     ): void
     {
         $this->virtualPosService = $virtualPosService;
         $this->emailService = $emailService;
         $this->bsaleService = $bsaleService;
+        $this->bsaleQueueService = $bsaleQueueService;
         $this->createChargeService = $createChargeService;
 
         Log::info('SyncSubscriptionPayments: Iniciando sincronización de pagos de suscripciones');
@@ -1197,7 +1201,13 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     }
 
     /**
-     * Generar factura BSale si el viaje es en el mismo año
+     * Encolar generación de boleta BSale si el viaje es en el mismo año
+     *
+     * IMPORTANTE: Usa BsaleQueueService para:
+     * - Máximo 3 intentos antes de marcar como fallido
+     * - Tracking completo de intentos en tabla bsale_requests
+     * - Visibilidad en el Monitor de BSale
+     * - Evitar duplicados automáticamente
      */
     protected function generateBsaleInvoiceIfNeeded(
         ProgramSubscription $subscription,
@@ -1206,40 +1216,13 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     ): void
     {
         try {
-            // CRÍTICO: Solo generar boleta si el pago está CONFIRMADO
-            // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
-            $confirmedStatuses = ['completed', 'approved'];
-            if (!in_array($payment->status, $confirmedStatuses)) {
-                Log::warning('SyncSubscriptionPayments: NO se genera boleta - pago NO está confirmado', [
-                    'payment_id' => $payment->id,
-                    'payment_status' => $payment->status,
-                    'required_statuses' => $confirmedStatuses,
-                ]);
-                return;
-            }
-
-            // Kill switch específico para suscripciones
-            if (!config('services.bsale.subscription_enabled', true)) {
-                Log::info('SyncSubscriptionPayments: BSale DESACTIVADO para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
+            // Verificar si el programa es en el mismo año (regla de negocio específica)
+            $programCourse = $subscription->programCourse;
+            if (!$programCourse || !$programCourse->departure_date) {
+                Log::info('SyncSubscriptionPayments: No se puede determinar fecha de viaje, omitiendo boleta', [
                     'payment_id' => $payment->id,
                     'subscription_id' => $subscription->id,
                 ]);
-                return;
-            }
-
-            // Verificar si el Payment ya tiene boleta generada (evitar duplicados)
-            if (!empty($payment->bsale_document_id) || !empty($payment->bsale_number)) {
-                Log::info('SyncSubscriptionPayments: Payment ya tiene boleta, omitiendo duplicado', [
-                    'payment_id' => $payment->id,
-                    'bsale_document_id' => $payment->bsale_document_id,
-                    'bsale_number' => $payment->bsale_number,
-                ]);
-                return;
-            }
-
-            // Verificar si el programa es en el mismo año
-            $programCourse = $subscription->programCourse;
-            if (!$programCourse || !$programCourse->departure_date) {
                 return;
             }
 
@@ -1248,30 +1231,40 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
             if ($departureYear !== $currentYear) {
                 Log::info('SyncSubscriptionPayments: No generar BSale (viaje en año diferente)', [
+                    'payment_id' => $payment->id,
                     'departure_year' => $departureYear,
                     'current_year' => $currentYear
                 ]);
                 return;
             }
 
-            // Generar factura
-            $bsaleResponse = $this->bsaleService->generateInvoice($orderDetail, $payment);
+            // Usar BsaleQueueService para encolar la solicitud
+            // El servicio maneja automáticamente:
+            // - Verificación de estado de pago confirmado
+            // - Verificación de BSale habilitado
+            // - Verificación de boleta existente
+            // - Verificación de solicitud duplicada
+            // - Máximo 3 intentos
+            // - Tracking en tabla bsale_requests
+            $bsaleRequest = $this->bsaleQueueService->queueBoleta(
+                $payment,
+                'subscription_sync'
+            );
 
-            if ($bsaleResponse && isset($bsaleResponse['id'])) {
-                $payment->update([
-                    'bsale_document_id' => $bsaleResponse['id'],
-                    'bsale_number' => $bsaleResponse['number'] ?? null,
-                    'bsale_token' => $bsaleResponse['token'] ?? null,
-                ]);
-
-                Log::info('SyncSubscriptionPayments: Factura BSale generada', [
+            if ($bsaleRequest) {
+                Log::info('SyncSubscriptionPayments: Solicitud de boleta encolada', [
                     'payment_id' => $payment->id,
-                    'bsale_document_id' => $bsaleResponse['id']
+                    'bsale_request_id' => $bsaleRequest->id,
+                    'status' => $bsaleRequest->status,
+                ]);
+            } else {
+                Log::info('SyncSubscriptionPayments: Boleta no encolada (ya existe o no aplica)', [
+                    'payment_id' => $payment->id,
                 ]);
             }
 
         } catch (Exception $e) {
-            Log::error('SyncSubscriptionPayments: Error generando factura BSale', [
+            Log::error('SyncSubscriptionPayments: Error al encolar boleta BSale', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage()
             ]);
