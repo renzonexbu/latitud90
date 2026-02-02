@@ -10,6 +10,7 @@ class EnrollmentCodeHelper
 {
     /**
      * Genera un código de enrolamiento basado en el programa/programCourse y participante
+     * Formato: DOCUMENTO-CODIGO (ej: 233251437-V0017)
      *
      * @param Program|ProgramCourse $program
      * @param Participant $participant
@@ -23,21 +24,9 @@ class EnrollmentCodeHelper
             return null;
         }
 
-        if (strtolower($participant->document_type) === 'rut') {
-            // Para RUT: usar código del programa + RUT completo sin dígito verificador
-            $digits = preg_replace('/\D/', '', (string) $participant->document_number);
-            // Remover el último dígito (dígito verificador)
-            $rutDigits = substr($digits, 0, -1) ?: null;
-
-            if ($rutDigits) {
-                return $code . $rutDigits;
-            }
-        } else {
-            // Para pasaporte: usar código del programa + número completo del pasaporte
-            return $code . $participant->document_number;
-        }
-
-        return null;
+        // Formato consistente: documento_number-codigo_programa
+        // Esto coincide con el formato usado en CourseService para carga masiva
+        return $participant->document_number . '-' . $code;
     }
     
     /**

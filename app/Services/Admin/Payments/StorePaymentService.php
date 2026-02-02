@@ -10,6 +10,7 @@ use App\Models\PaymentOption;
 use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use App\Helpers\RutHelper;
+use App\Services\Client\Integration\BsaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -90,6 +91,11 @@ class StorePaymentService
             }
 
             DB::commit();
+
+            // Generar boleta en Bsale (después del commit para no bloquear si falla)
+            if (in_array($request->status, ['completed', 'approved'])) {
+                $this->generateBsaleInvoice($orderDetail, $payment);
+            }
 
             // Log the payment creation
             $this->logCreate(
@@ -234,9 +240,10 @@ class StorePaymentService
             'transaction_date' => $request->transaction_date ? \Carbon\Carbon::parse($request->transaction_date) : now(),
             'accounting_date' => now(),
             'authorization_code' => $request->authorization_code,
-            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
-            'payment_code' => $documentType !== 'B2' ? $paymentCode : null,
-            'bsale_number' => $documentType === 'B2' ? $paymentCode : null,
+            // payment_code es el código de comprobante ingresado manualmente
+            // bsale_number se llena automáticamente al generar boleta en Bsale
+            'payment_code' => $paymentCode,
+            'bsale_number' => null,
             'gateway_response' => [
                 'notes' => $request->notes,
                 'created_manually' => true,
@@ -543,5 +550,63 @@ class StorePaymentService
             'subscription_id' => $activeSubscription->id,
             'failed_charges_count' => $failedCharges
         ]);
+    }
+
+    /**
+     * Generar boleta en Bsale para el pago presencial
+     * Solo genera si el document_type es B2 (mismo año del programa)
+     *
+     * @param OrderDetail $orderDetail
+     * @param Payment $payment
+     * @return array|null
+     */
+    private function generateBsaleInvoice(OrderDetail $orderDetail, Payment $payment): ?array
+    {
+        try {
+            Log::info('🔄 Pago presencial: Iniciando generación de boleta Bsale', [
+                'payment_id' => $payment->id,
+                'order_detail_id' => $orderDetail->id,
+                'document_type' => $payment->document_type,
+                'amount' => $payment->amount,
+                'buyer_rut' => $orderDetail->document_number,
+            ]);
+
+            $bsaleService = app(BsaleService::class);
+            $bsaleResult = $bsaleService->generateInvoice($orderDetail, $payment);
+
+            if ($bsaleResult) {
+                // Guardar información de la boleta en el pago
+                $payment->update([
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                    'bsale_token' => $bsaleResult['token'] ?? null,
+                ]);
+
+                Log::info('✅ Pago presencial: Boleta Bsale generada exitosamente', [
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $orderDetail->id,
+                    'bsale_document_id' => $bsaleResult['id'] ?? null,
+                    'bsale_number' => $bsaleResult['number'] ?? null,
+                ]);
+            } else {
+                Log::info('Pago presencial: No se generó boleta Bsale (document_type no es B2 o Bsale deshabilitado)', [
+                    'payment_id' => $payment->id,
+                    'document_type' => $payment->document_type,
+                ]);
+            }
+
+            return $bsaleResult;
+
+        } catch (\Exception $e) {
+            // No lanzar excepción - el pago ya fue registrado
+            // Solo logear el error para revisión
+            Log::error('❌ Pago presencial: Error generando boleta Bsale', [
+                'payment_id' => $payment->id,
+                'order_detail_id' => $orderDetail->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }

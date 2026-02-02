@@ -229,12 +229,7 @@ class ProgramService
                     $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
                 }
 
-                // Crear resumen de cuotas si hay cuotas
-                if ($totalInstallments > 0) {
-                    $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
-                }
-
-                // Verificar si existe una suscripción cancelada para este participante y programa
+                // Verificar si existe una suscripción para este participante y programa
                 $subscription = ProgramSubscription::where('participant_id', $participant->id)
                     ->where('program_id', $programCourse->id)
                     ->first();
@@ -243,6 +238,14 @@ class ProgramService
                     strtolower($subscription->status),
                     ['cancelada', 'cancelled', 'canceled']
                 );
+
+                $hasActiveSubscription = $subscription && strtolower($subscription->status) === 'activa';
+
+                // Crear resumen de cuotas SOLO si hay suscripción ACTIVA
+                // Si no hay suscripción o está cancelada, se muestra el porcentaje de pago
+                if ($hasActiveSubscription && $totalInstallments > 0) {
+                    $installmentsSummary = "{$paidInstallments}/{$totalInstallments}";
+                }
 
                 $availablePrograms[] = [
                     'id' => $programCourse->id, // ID del program_course específico

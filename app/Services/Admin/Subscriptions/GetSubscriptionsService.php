@@ -29,11 +29,20 @@ class GetSubscriptionsService
 
         // Transformar datos para el frontend
         $subscriptions->getCollection()->transform(function ($subscription) {
-            // Cargar el plan de cuotas manualmente usando participant_id y program_id
-            $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
-                ->where('program_id', $subscription->program_id)
+            // Cargar el plan de cuotas usando la relación directa program_subscription_id
+            // Esto evita confusiones cuando un participante tiene múltiples suscripciones al mismo programa
+            $installmentPlan = \App\Models\InstallmentPlan::where('program_subscription_id', $subscription->id)
                 ->with('installments')
                 ->first();
+
+            // Fallback para datos antiguos que no tienen program_subscription_id
+            if (!$installmentPlan) {
+                $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
+                    ->where('program_id', $subscription->program_id)
+                    ->whereNull('program_subscription_id') // Solo planes huérfanos
+                    ->with('installments')
+                    ->first();
+            }
 
             $totalInstallments = $installmentPlan ? $installmentPlan->total_installments : 0;
             $paidInstallments = $installmentPlan ? $installmentPlan->installments->where('status', 'paid')->count() : 0;

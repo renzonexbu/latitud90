@@ -549,26 +549,13 @@
                                         >
                                             Programa asociado *
                                         </label>
-                                        <select
-                                            v-model="form.program_id"
-                                            :class="[
-                                                'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none appearance-none',
-                                                errors.program_id
-                                                    ? 'border-red-500'
-                                                    : 'border-[#5b5b5b]',
-                                            ]"
-                                        >
-                                            <option value="">
-                                                Seleccione un programa
-                                            </option>
-                                            <option
-                                                v-for="program in programs"
-                                                :key="program.id"
-                                                :value="program.id"
-                                            >
-                                                {{ program.name }} - {{ program.destination }} ({{ program.year }})
-                                            </option>
-                                        </select>
+                                        <SearchableSelect
+                                            :options="programsFormatted"
+                                            :value="form.program_id"
+                                            placeholder="Buscar por código, nombre o destino"
+                                            search-key="searchText"
+                                            @input="form.program_id = $event"
+                                        />
                                         <span
                                             v-if="errors.program_id"
                                             class="text-red-500 text-xs mt-1"
@@ -607,11 +594,13 @@
 <script>
 import { CrossIcon } from "@/Components/Icons";
 import { router } from "@inertiajs/vue3";
+import SearchableSelect from "@/Components/Ecommerce/SearchableSelect.vue";
 
 export default {
     name: "CreateParticipantModal",
     components: {
         CrossIcon,
+        SearchableSelect,
     },
     props: {
         show: {
@@ -687,6 +676,13 @@ export default {
             return (
                 selectedDocType && selectedDocType.name.toLowerCase() === "rut"
             );
+        },
+        programsFormatted() {
+            return this.programs.map(program => ({
+                id: program.id,
+                name: `${program.code || ''} - ${program.name}`.replace(/^\s*-\s*/, '').trim(),
+                searchText: `${program.code || ''} ${program.name}`.toLowerCase()
+            }));
         },
     },
     methods: {

@@ -56,6 +56,7 @@ class GetParticipantsService
             ->map(function ($programCourse) {
                 return [
                     'id' => $programCourse->id,
+                    'code' => $programCourse->code ?? '',
                     'name' => $programCourse->name,
                     'destination' => $programCourse->program->destination ?? '',
                     'year' => $programCourse->year,
