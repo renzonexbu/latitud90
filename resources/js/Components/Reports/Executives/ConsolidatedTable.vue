@@ -203,20 +203,24 @@ const formatPrice = (price) => {
 
 const formatRut = (rut) => {
     if (!rut) return "N/A";
-    
+
+    // Si ya está formateado (tiene puntos), devolverlo con K en mayúscula
     if (rut.includes('.')) {
-        return rut;
+        return rut.toUpperCase();
     }
-    
-    let rutLimpio = rut.toString().replace(/\./g, "").replace(/-/g, "");
-    
-    if (rutLimpio.length >= 7 && rutLimpio.length <= 9 && /^\d{7,8}[\dK]$/.test(rutLimpio)) {
+
+    // Limpiar el RUT: quitar puntos, guiones y espacios
+    let rutLimpio = rut.toString().replace(/[.\-\s]/g, "").toUpperCase();
+
+    // Validar formato: 7-8 dígitos seguidos de un dígito verificador (0-9 o K)
+    if (rutLimpio.length >= 8 && rutLimpio.length <= 9 && /^\d{7,8}[\dK]$/.test(rutLimpio)) {
         let dv = rutLimpio.slice(-1);
         let numero = rutLimpio.slice(0, -1);
         let numeroFormateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        return `${numeroFormateado}-${dv.toUpperCase()}`;
+        return `${numeroFormateado}-${dv}`;
     } else {
-        return rut;
+        // Si no es un RUT válido, devolverlo en mayúsculas
+        return rut.toUpperCase();
     }
 };
 

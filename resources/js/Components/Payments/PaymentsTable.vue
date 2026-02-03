@@ -166,6 +166,16 @@
                                 N/A
                             </span>
                             <span
+                                v-else-if="getBsaleStatus(payment) === 'failed'"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800"
+                                :title="'Fallido después de ' + (payment.latest_bsale_request?.attempts || 3) + ' intentos'"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                </svg>
+                                Fallido
+                            </span>
+                            <span
                                 v-else-if="getBsaleStatus(payment) === 'pending'"
                                 class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-yellow-100 text-yellow-800"
                                 title="Pendiente de generar"
@@ -589,7 +599,7 @@ export default {
 
         /**
          * Determina el estado de la boleta BSale para un pago
-         * @returns 'generated' | 'error' | 'pending' | 'na' | 'none'
+         * @returns 'generated' | 'error' | 'failed' | 'pending' | 'na' | 'none'
          */
         getBsaleStatus(payment) {
             // Si ya tiene boleta generada
@@ -597,7 +607,7 @@ export default {
                 return 'generated';
             }
 
-            // Si tiene error permanente
+            // Si tiene error permanente en el payment
             if (payment.bsale_error_code) {
                 return 'error';
             }
@@ -606,6 +616,30 @@ export default {
             const completedStatuses = ['completed', 'approved'];
             if (!completedStatuses.includes(payment.status)) {
                 return 'none';
+            }
+
+            // Si es Nota de Crédito (NC) o devolución, no aplica boleta
+            // NC se identifica por: document_type='BC', monto negativo, o payment_source_calculated='devolucion'
+            const isRefundOrNC = payment.document_type === 'BC'
+                || (payment.amount && Number(payment.amount) < 0)
+                || payment.payment_source_calculated === 'devolucion';
+
+            if (isRefundOrNC) {
+                return 'none';
+            }
+
+            // Verificar el estado del BsaleRequest si existe
+            const bsaleRequest = payment.latest_bsale_request;
+            if (bsaleRequest) {
+                // Si el request falló después de agotar los intentos
+                if (bsaleRequest.status === 'failed' ||
+                    (bsaleRequest.attempts >= bsaleRequest.max_attempts && bsaleRequest.status !== 'completed')) {
+                    return 'failed';
+                }
+                // Si está pendiente o procesando, mostrar como pendiente
+                if (['pending', 'processing'].includes(bsaleRequest.status)) {
+                    return 'pending';
+                }
             }
 
             // Verificar si es de año posterior (no aplica boleta)
@@ -621,7 +655,7 @@ export default {
                 }
             }
 
-            // Si está completado y es del año actual, está pendiente de generar
+            // Si está completado, año actual, pero no hay BsaleRequest = pendiente de crear
             return 'pending';
         },
     },

@@ -101,6 +101,24 @@ class Payment extends Model
     }
 
     /**
+     * Relación con las solicitudes de BSale
+     */
+    public function bsaleRequests()
+    {
+        return $this->hasMany(BsaleRequest::class, 'payment_id');
+    }
+
+    /**
+     * Obtener la solicitud de BSale más reciente para boleta (B2)
+     */
+    public function latestBsaleRequest()
+    {
+        return $this->hasOne(BsaleRequest::class, 'payment_id')
+            ->where('document_type', 'B2')
+            ->latest();
+    }
+
+    /**
      * Relación para acceder al participante a través de orderDetail -> order -> participant
      */
     public function passenger()

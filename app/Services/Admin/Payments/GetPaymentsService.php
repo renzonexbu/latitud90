@@ -26,7 +26,8 @@ class GetPaymentsService
             'orderDetail.region',
             'orderDetail.city',
             'paymentGateway',
-            'paymentOption'
+            'paymentOption',
+            'latestBsaleRequest'
         ]);
 
         // Ya no excluimos los pagos de suscripciones - ahora se muestran todos los pagos

@@ -31,6 +31,34 @@
 
         <!-- Filtros Row -->
         <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
+            <!-- Buscador por RUT/Documento -->
+            <div class="relative min-w-[200px]">
+                <input
+                    v-model="filters.documentSearch"
+                    type="text"
+                    placeholder="Buscar por RUT..."
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
+                    @input="onDocumentSearchInput"
+                    @keydown.enter.prevent="performSearch"
+                />
+                <!-- Icono de búsqueda o X para limpiar -->
+                <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <button
+                        v-if="filters.documentSearch"
+                        type="button"
+                        @click="clearDocumentSearch"
+                        class="text-gray-400 hover:text-gray-600"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+
             <!-- Buscador de Programas con Autocompletado -->
             <div class="relative flex-1 min-w-[300px]" data-program-search>
                 <div class="relative">
@@ -168,6 +196,7 @@ export default {
                 programId: this.initialFilters.programId || "",
                 dateFrom: this.initialFilters.dateFrom || "",
                 dateTo: this.initialFilters.dateTo || "",
+                documentSearch: this.initialFilters.documentSearch || "",
             },
             programSearchQuery: "",
             showProgramDropdown: false,
@@ -280,6 +309,20 @@ export default {
             this.performSearch();
         },
 
+        onDocumentSearchInput() {
+            // Limpiar el RUT de puntos y guiones para búsqueda
+            // y convertir a mayúsculas para normalizar
+            this.filters.documentSearch = this.filters.documentSearch
+                .replace(/[.\-\s]/g, '')
+                .toUpperCase();
+            this.performSearch();
+        },
+
+        clearDocumentSearch() {
+            this.filters.documentSearch = "";
+            this.performSearch();
+        },
+
         handleClickOutside(event) {
             const searchContainer = event.target.closest('[data-program-search]');
             if (!searchContainer) {
@@ -294,6 +337,7 @@ export default {
                 programId: "",
                 dateFrom: "",
                 dateTo: today.toISOString().split('T')[0],
+                documentSearch: "",
             };
             this.selectedProgram = null;
             this.programSearchQuery = "";
