@@ -470,7 +470,16 @@ class ExportService
         $participantPrograms = $participantProgramsQuery->get();
 
         foreach ($participantPrograms as $pp) {
-            $participantName = $pp->participant ? $pp->participant->full_name : 'N/A';
+            // Construir nombre en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
+            $participantName = 'N/A';
+            if ($pp->participant) {
+                $participantName = trim(implode(' ', array_filter([
+                    $pp->participant->first_last_name,
+                    $pp->participant->second_last_name,
+                    $pp->participant->first_name,
+                    $pp->participant->second_name
+                ]))) ?: 'N/A';
+            }
             // Capital Case
             $participantName = ucwords(strtolower($participantName));
             $price = (float) ($pp->individual_price ?: ($programCourse->trip_price ?? 0));

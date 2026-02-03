@@ -119,8 +119,20 @@ class ExecutivesConsolidatedService
 
             // Contacto pagador (nombre del pagador desde detalle de orden)
             $firstDetail = $order?->orderDetails?->first();
-            $payerContact = $firstDetail->full_name ?? ($participant?->full_name ?? null);
-            $payerEmail = $firstDetail->email ?? ($participant?->email ?? null);
+            $payerContact = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
+
+            // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
+            $participantFullName = 'N/A';
+            if ($participant) {
+                $participantFullName = trim(implode(' ', array_filter([
+                    $participant->first_last_name,
+                    $participant->second_last_name,
+                    $participant->first_name,
+                    $participant->second_name
+                ]))) ?: 'N/A';
+                $participantFullName = ucwords(strtolower($participantFullName));
+            }
 
             // Determinar Pago o Devolución
             $isRefund = ($payment->document_type === 'BC') || ($payment->paymentOption?->gateway_code === 'refund');
@@ -129,7 +141,7 @@ class ExecutivesConsolidatedService
                 'id' => $payment->id,
                 'program_number' => $program?->code ?? 'N/A',
                 'identification_number' => $participant?->document_number ?? 'N/A',
-                'full_name' => $participant?->full_name ?? 'N/A',
+                'full_name' => $participantFullName,
                 'status' => $participant?->is_active ? 'Activo' : 'Inactivo',
                 'payment_or_refund' => $payment->amount ?? 0,
                 'document_number' => $payment->bsale_number ?? $payment->payment_code ?? $order?->order_number ?? 'N/A',
@@ -275,8 +287,20 @@ class ExecutivesConsolidatedService
 
             // Contacto pagador (nombre del pagador desde detalle de orden)
             $firstDetail = $order?->orderDetails?->first();
-            $payerContact = $firstDetail->full_name ?? ($participant?->full_name ?? null);
-            $payerEmail = $firstDetail->email ?? ($participant?->email ?? null);
+            $payerContact = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
+
+            // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
+            $participantFullName = 'N/A';
+            if ($participant) {
+                $participantFullName = trim(implode(' ', array_filter([
+                    $participant->first_last_name,
+                    $participant->second_last_name,
+                    $participant->first_name,
+                    $participant->second_name
+                ]))) ?: 'N/A';
+                $participantFullName = ucwords(strtolower($participantFullName));
+            }
 
             // Determinar Pago o Devolución
             $isRefund = ($payment->document_type === 'BC') || ($payment->paymentOption?->gateway_code === 'refund');
@@ -285,7 +309,7 @@ class ExecutivesConsolidatedService
                 'id' => $payment->id,
                 'program_number' => $program?->code ?? 'N/A',
                 'identification_number' => $participant?->document_number ?? 'N/A',
-                'full_name' => $participant?->full_name ?? 'N/A',
+                'full_name' => $participantFullName,
                 'status' => $participant?->is_active ? 'Activo' : 'Inactivo',
                 'payment_or_refund' => $payment->amount ?? 0,
                 'document_number' => $payment->bsale_number ?? $payment->payment_code ?? $order?->order_number ?? 'N/A',

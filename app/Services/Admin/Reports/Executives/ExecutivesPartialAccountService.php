@@ -92,16 +92,37 @@ class ExecutivesPartialAccountService
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "scholarship" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
                     DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "discount" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as simple_discounts'),
-                ]);
+                ])
+                // Ordenar por apellidos y luego nombres
+                ->orderBy('p.first_last_name', 'asc')
+                ->orderBy('p.second_last_name', 'asc')
+                ->orderBy('p.first_name', 'asc')
+                ->orderBy('p.second_name', 'asc');
+
+            // Log SQL query para debug
+            \Illuminate\Support\Facades\Log::info('ExecutivesPartialAccount SQL', [
+                'sql' => $query->toSql(),
+                'bindings' => $query->getBindings(),
+            ]);
 
             $results = $query->get();
 
+            \Illuminate\Support\Facades\Log::info('ExecutivesPartialAccount Results', [
+                'count' => $results->count(),
+                'first_5_names' => $results->take(5)->map(fn($r) => [
+                    'first_name' => $r->first_name,
+                    'first_last_name' => $r->first_last_name,
+                    'second_last_name' => $r->second_last_name
+                ])->toArray()
+            ]);
+
             foreach ($results as $row) {
+                // Construir nombre en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
                 $participantName = trim(implode(' ', array_filter([
-                    $row->first_name,
-                    $row->second_name,
                     $row->first_last_name,
-                    $row->second_last_name
+                    $row->second_last_name,
+                    $row->first_name,
+                    $row->second_name
                 ]))) ?: 'N/A';
 
                 // Convertir a Capital Case (primera letra de cada palabra en mayúscula)

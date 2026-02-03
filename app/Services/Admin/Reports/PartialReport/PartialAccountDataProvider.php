@@ -26,6 +26,12 @@ class PartialAccountDataProvider
             });
         }
 
+        // Log SQL query to debug ordering
+        \Illuminate\Support\Facades\Log::info('PartialAccountDataProvider SQL Query', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+        ]);
+
         $result = $query
             ->groupBy([
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
@@ -60,7 +66,11 @@ class PartialAccountDataProvider
                 'i.name as institution_name',
                 DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
-            ->orderByDesc('pp.created_at')
+            // Ordenar por apellidos y luego nombres
+            ->orderBy('p.first_last_name', 'asc')
+            ->orderBy('p.second_last_name', 'asc')
+            ->orderBy('p.first_name', 'asc')
+            ->orderBy('p.second_name', 'asc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return $result;
@@ -105,7 +115,11 @@ class PartialAccountDataProvider
                 'i.name as institution_name',
                 DB::raw('COALESCE(SUM(pay.amount), 0) as paid_amount'),
             ])
-            ->orderByDesc('pp.created_at')
+            // Ordenar por apellidos y luego nombres
+            ->orderBy('p.first_last_name', 'asc')
+            ->orderBy('p.second_last_name', 'asc')
+            ->orderBy('p.first_name', 'asc')
+            ->orderBy('p.second_name', 'asc')
             ->get();
 
         return $result;
