@@ -23,16 +23,35 @@ class UpdateParticipantService
      *
      * @param array $data
      * @param Participant $participant
+     * @param bool $canEditDocument Si el usuario puede editar el documento (super admin)
      * @return Participant
      */
-    public function execute(array $data, Participant $participant): Participant
+    public function execute(array $data, Participant $participant, bool $canEditDocument = false): Participant
     {
         try {
             DB::beginTransaction();
 
-            // Validar que el RUT no se esté intentando modificar
-            if (isset($data['document_number']) && $data['document_number'] !== $participant->document_number) {
-                throw new Exception('El RUT no se puede modificar');
+            // Manejar cambio de RUT/documento
+            $oldDocumentNumber = $participant->document_number;
+            $newDocumentNumber = null;
+
+            if (isset($data['document_number'])) {
+                // Limpiar el documento (quitar puntos, guiones, espacios)
+                $cleanedDocument = \App\Helpers\RutHelper::clean($data['document_number']);
+
+                if ($cleanedDocument !== $oldDocumentNumber) {
+                    // Solo super admins pueden cambiar el documento
+                    if (!$canEditDocument) {
+                        throw new Exception('No tienes permisos para modificar el RUT/documento');
+                    }
+                    $newDocumentNumber = $cleanedDocument;
+
+                    Log::info('UpdateParticipantService: Cambio de documento autorizado', [
+                        'participant_id' => $participant->id,
+                        'old_document' => $oldDocumentNumber,
+                        'new_document' => $newDocumentNumber,
+                    ]);
+                }
             }
 
             // Normalizar nombres a Capital Case
@@ -58,11 +77,21 @@ class UpdateParticipantService
                 'dietary_restrictions' => $data['dietary_restrictions'] ?? $participant->dietary_restrictions,
             ];
 
+            // Si el documento cambió, agregarlo a los datos de actualización
+            if ($newDocumentNumber) {
+                $updateData['document_number'] = $newDocumentNumber;
+            }
+
             // Guardar valores anteriores para el log
             $oldValues = $participant->toArray();
 
             // Actualizar el participante
             $participant->update($updateData);
+
+            // Si el documento cambió, actualizar todos los enrollment_codes relacionados
+            if ($newDocumentNumber) {
+                $this->updateEnrollmentCodes($participant, $oldDocumentNumber, $newDocumentNumber);
+            }
 
             // Si se especificó un curso/programa, actualizar el pivot del curso con el precio individual
             if (!empty($data['pivot_course_id'])) {
@@ -515,5 +544,61 @@ class UpdateParticipantService
             ]);
             // No lanzar excepción para no interrumpir la actualización del participante
         }
+    }
+
+    /**
+     * Actualiza todos los enrollment_codes cuando cambia el documento del participante
+     * Formato: {document_number}-{program_code}
+     *
+     * @param Participant $participant
+     * @param string $oldDocumentNumber
+     * @param string $newDocumentNumber
+     * @return void
+     */
+    private function updateEnrollmentCodes(Participant $participant, string $oldDocumentNumber, string $newDocumentNumber): void
+    {
+        // Obtener todos los participant_program del participante
+        $participantPrograms = DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->get();
+
+        $updatedCount = 0;
+
+        foreach ($participantPrograms as $pp) {
+            $oldEnrollmentCode = $pp->enrollment_code;
+
+            if (empty($oldEnrollmentCode)) {
+                continue;
+            }
+
+            // Verificar que el enrollment_code empieza con el documento antiguo
+            if (str_starts_with($oldEnrollmentCode, $oldDocumentNumber . '-')) {
+                // Extraer el código del programa (parte después del guión)
+                $programCode = substr($oldEnrollmentCode, strlen($oldDocumentNumber) + 1);
+
+                // Generar el nuevo enrollment_code con el documento nuevo
+                $newEnrollmentCode = $newDocumentNumber . '-' . $programCode;
+
+                // Actualizar el enrollment_code
+                DB::table('participant_program')
+                    ->where('id', $pp->id)
+                    ->update(['enrollment_code' => $newEnrollmentCode]);
+
+                Log::info('UpdateParticipantService: enrollment_code actualizado', [
+                    'participant_program_id' => $pp->id,
+                    'old_enrollment_code' => $oldEnrollmentCode,
+                    'new_enrollment_code' => $newEnrollmentCode,
+                ]);
+
+                $updatedCount++;
+            }
+        }
+
+        Log::info('UpdateParticipantService: Cascade de enrollment_codes completado', [
+            'participant_id' => $participant->id,
+            'old_document' => $oldDocumentNumber,
+            'new_document' => $newDocumentNumber,
+            'enrollment_codes_updated' => $updatedCount,
+        ]);
     }
 }

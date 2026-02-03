@@ -124,10 +124,13 @@ class ParticipantsController extends Controller
     /**
      * Show the form for editing the specified participant.
      */
-    public function edit($id)
+    public function edit($id, Request $request)
     {
         try {
             $data = $this->getEditDataService->execute($id);
+
+            // Solo super admins pueden editar el documento (RUT)
+            $data['canEditDocument'] = $request->user()->hasRole('super_admin');
 
             return Inertia::render('Admin/Participants/Edit', $data);
         } catch (\Exception $e) {
@@ -150,7 +153,10 @@ class ParticipantsController extends Controller
         try {
             $oldValues = $participant->getOriginal();
 
-            $this->updateParticipantService->execute($request->validated(), $participant);
+            // Verificar si el usuario es super admin (puede editar documento)
+            $canEditDocument = $request->user()->hasRole('super_admin');
+
+            $this->updateParticipantService->execute($request->validated(), $participant, $canEditDocument);
 
             $this->logUpdate(
                 'Participantes',

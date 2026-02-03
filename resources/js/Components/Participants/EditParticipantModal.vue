@@ -156,21 +156,39 @@
                             </div>
                         </div>
 
-                        <!-- RUT/PASAPORTE (bloqueado y formateado) -->
+                        <!-- RUT/PASAPORTE -->
                         <div>
                             <label
                                 class="block text-[14px] font-nexa-bold text-gray-700 mb-2"
                             >
                                 RUT / PASAPORTE *
+                                <span v-if="canEditDocument" class="text-orange-500 text-xs ml-1">(Super Admin)</span>
                             </label>
+                            <!-- Campo editable para super admins -->
                             <input
+                                v-if="canEditDocument"
+                                v-model="form.document_number"
+                                type="text"
+                                placeholder="12345678-9"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-turquesa focus:border-transparent"
+                                :class="{ 'border-orange-500': documentHasChanged }"
+                            />
+                            <!-- Campo de solo lectura para usuarios normales -->
+                            <input
+                                v-else
                                 :value="formattedDocument"
                                 type="text"
                                 placeholder="000000000"
                                 disabled
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                             />
-                            <p class="text-gray-500 text-sm mt-1">
+                            <!-- Advertencia cuando el RUT ha cambiado -->
+                            <div v-if="canEditDocument && documentHasChanged" class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                                <p class="text-orange-700 text-sm font-semibold">
+                                    ⚠️ ADVERTENCIA: Cambiar el RUT actualizará también los códigos de inscripción (enrollment_code) del participante.
+                                </p>
+                            </div>
+                            <p v-else-if="!canEditDocument" class="text-gray-500 text-sm mt-1">
                                 El documento no se puede modificar
                             </p>
                         </div>
@@ -681,6 +699,9 @@
 import { ref, watch, computed } from "vue";
 import { router } from "@inertiajs/vue3";
 
+// Props shorthand for template
+const canEditDocument = computed(() => props.canEditDocument);
+
 const props = defineProps({
     show: {
         type: Boolean,
@@ -706,6 +727,11 @@ const props = defineProps({
         type: [String, Number],
         default: null,
     },
+    // Permite editar el RUT (solo para super admins)
+    canEditDocument: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(["close"]);
@@ -726,6 +752,23 @@ const form = ref({
     pivot_course_id: "",
     individual_price: "",
 });
+
+// Documento original para detectar cambios
+const originalDocumentNumber = ref("");
+
+// Detectar si el documento ha cambiado (solo relevante para super admins)
+const documentHasChanged = computed(() => {
+    if (!props.canEditDocument) return false;
+    const cleanOriginal = cleanDocumentNumber(originalDocumentNumber.value);
+    const cleanCurrent = cleanDocumentNumber(form.value.document_number);
+    return cleanOriginal !== cleanCurrent;
+});
+
+// Limpiar RUT: quitar puntos, guiones y espacios, dejar solo números y K
+const cleanDocumentNumber = (doc) => {
+    if (!doc) return "";
+    return doc.toString().replace(/[^0-9kK]/g, "").toUpperCase();
+};
 
 // Variables para reestructuración de cuotas
 const showRestructureForm = ref(false);
@@ -929,6 +972,9 @@ watch(
                 individual_price: newParticipant.individual_price ?? "",
             };
 
+            // Guardar el documento original para detectar cambios
+            originalDocumentNumber.value = newParticipant.document_number || "";
+
             // Cargar descuentos existentes si los hay
             loadExistingDiscounts();
         }
@@ -1097,6 +1143,24 @@ const updateParticipant = () => {
         }
     }
 
+    // Confirmación especial si el RUT ha cambiado (solo super admins)
+    if (documentHasChanged.value) {
+        const cleanedNew = cleanDocumentNumber(form.value.document_number);
+        const cleanedOld = cleanDocumentNumber(originalDocumentNumber.value);
+
+        const confirmMessage = `⚠️ ADVERTENCIA: Estás a punto de cambiar el RUT del participante.\n\n` +
+            `RUT actual: ${cleanedOld}\n` +
+            `RUT nuevo: ${cleanedNew}\n\n` +
+            `Esta acción actualizará:\n` +
+            `• El número de documento del participante\n` +
+            `• Todos los códigos de inscripción (enrollment_code)\n\n` +
+            `¿Estás seguro de continuar?`;
+
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+    }
+
     isSubmitting.value = true;
 
     const formData = new FormData();
@@ -1104,11 +1168,16 @@ const updateParticipant = () => {
     formData.append("second_last_name", form.value.second_last_name);
     formData.append("first_name", form.value.first_name);
     formData.append("second_name", form.value.second_name);
-    formData.append("document_number", form.value.document_number);
     formData.append("birth_date", form.value.birth_date);
     formData.append("email", form.value.email);
     formData.append("code_phone", form.value.code_phone);
     formData.append("phone", form.value.phone);
+
+    // Solo enviar document_number si es super admin y ha cambiado
+    // El documento se limpia (sin puntos ni guiones) antes de enviar
+    if (props.canEditDocument && documentHasChanged.value) {
+        formData.append("document_number", cleanDocumentNumber(form.value.document_number));
+    }
 
     if (form.value.pivot_course_id) {
         formData.append("pivot_course_id", form.value.pivot_course_id);
@@ -1136,7 +1205,7 @@ const updateParticipant = () => {
                         console.warn('No se pudieron recalcular las cuotas automáticamente:', error);
                     }
                 }
-                
+
                 // Cerrar el modal primero
                 emit("close");
                 // Luego recargar la página

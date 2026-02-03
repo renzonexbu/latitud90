@@ -420,6 +420,7 @@
             "
             :errors="errors"
             :pre-selected-course-id="preSelectedCourseId"
+            :can-edit-document="canEditDocument"
             @close="closeEditModal"
         />
 
@@ -582,6 +583,11 @@ const props = defineProps({
     errors: {
         type: Object,
         default: () => ({}),
+    },
+    // Solo super admins pueden editar el documento (RUT)
+    canEditDocument: {
+        type: Boolean,
+        default: false,
     },
 });
 
