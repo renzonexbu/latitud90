@@ -274,9 +274,56 @@
                                 </div>
                             </div>
 
-                            <!-- SECCIÓN 3: DATOS FISCALES DE LA NOTA DE CRÉDITO -->
+                            <!-- SECCIÓN 3: TIPO DE REEMBOLSO -->
+                            <div class="border-b border-gray-200 pb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Tipo de Reembolso</h3>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div
+                                        v-for="option in availableRefundOptions"
+                                        :key="option.code"
+                                        @click="form.refund_type = option.code"
+                                        class="relative flex items-start p-4 border rounded-lg cursor-pointer transition-all duration-200"
+                                        :class="{
+                                            'border-[#e74c3c] bg-red-50': form.refund_type === option.code,
+                                            'border-gray-200 hover:border-gray-300 hover:bg-gray-50': form.refund_type !== option.code
+                                        }"
+                                    >
+                                        <div class="flex items-center h-5">
+                                            <input
+                                                :id="option.code"
+                                                type="radio"
+                                                :value="option.code"
+                                                v-model="form.refund_type"
+                                                class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                            />
+                                        </div>
+                                        <div class="ml-3">
+                                            <label :for="option.code" class="font-medium text-gray-900 cursor-pointer">
+                                                {{ option.label }}
+                                            </label>
+                                            <p class="text-sm text-gray-500">
+                                                <span v-if="option.code === 'refund_credit_note'">
+                                                    Devolución oficial con nota de crédito. Reduce el monto pagado del participante.
+                                                </span>
+                                                <span v-else-if="option.code === 'refund_admin_reversal'">
+                                                    Corrección o ajuste administrativo. Aumenta la deuda pendiente del participante.
+                                                </span>
+                                            </p>
+                                            <span class="inline-flex mt-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                Código: {{ option.report_code }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span v-if="errors.refund_type" class="text-red-500 text-sm mt-2 block">{{ errors.refund_type }}</span>
+                            </div>
+
+                            <!-- SECCIÓN 4: DATOS FISCALES -->
                             <div>
-                                <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos Fiscales de la Nota de Crédito</h3>
+                                <h3 class="text-lg font-semibold text-gray-900 mb-6">
+                                    {{ form.refund_type === 'refund_admin_reversal' ? 'Datos del Reverso Administrativo' : 'Datos Fiscales de la Nota de Crédito' }}
+                                </h3>
 
                                 <!-- Campos fiscales -->
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -389,6 +436,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    refundOptions: {
+        type: Array,
+        default: () => []
+    },
     errors: {
         type: Object,
         default: () => ({})
@@ -405,6 +456,7 @@ const clientForm = reactive({
 const form = useForm({
     program_id: '',
     participant_id: '',
+    refund_type: 'refund_credit_note', // Default: Nota de Crédito (NC)
     sii_code: '',
     document_number: '',
     transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 10),
@@ -431,6 +483,18 @@ const rutValidation = reactive({
 });
 
 // Computed properties
+const availableRefundOptions = computed(() => {
+    // Si hay opciones desde el backend, usarlas; sino, usar valores por defecto
+    if (props.refundOptions && props.refundOptions.length > 0) {
+        return props.refundOptions;
+    }
+    // Fallback con opciones por defecto
+    return [
+        { code: 'refund_credit_note', label: 'Notas de crédito (devoluciones)', report_code: 'NC' },
+        { code: 'refund_admin_reversal', label: 'Reverso Administrativo (RA)', report_code: 'RA' }
+    ];
+});
+
 const filteredComunes = computed(() => {
     if (!buyerForm.region) {
         return [];
@@ -472,6 +536,7 @@ const isFormValid = computed(() => {
     const refundValidations = {
         program_id: form.program_id !== "",
         participant_id: form.participant_id !== "",
+        refund_type: form.refund_type !== "",
         sii_code: form.sii_code.trim() !== "",
         document_number: form.document_number.trim() !== "",
         transaction_date: form.transaction_date !== "",
@@ -977,6 +1042,7 @@ const submit = () => {
         ...form.data(),
         client_rut: clientForm.rut,
         client_name: clientForm.name,
+        refund_type: form.refund_type,
     };
 
     // Crear un nuevo formulario con los datos combinados

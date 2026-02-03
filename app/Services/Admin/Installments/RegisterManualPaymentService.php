@@ -251,6 +251,7 @@ class RegisterManualPaymentService
             ['value' => 'manual_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
             ['value' => 'manual_webpay', 'label' => 'Webpay (WP)', 'report_code' => 'WP'],
             ['value' => 'manual_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
+            ['value' => 'manual_credit_temp', 'label' => 'Crédito Temporal (CT)', 'report_code' => 'CT'],
         ];
     }
 
@@ -270,6 +271,7 @@ class RegisterManualPaymentService
             'manual_deposit' => 'presential_deposit',                // DP
             'manual_webpay' => 'presential_webpay',                  // WP
             'manual_aporte' => 'presential_aporte',                  // AP
+            'manual_credit_temp' => 'presential_credit_temp',        // CT
         ];
 
         $paymentOptionCode = $mapping[$paymentSource] ?? null;

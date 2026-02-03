@@ -618,6 +618,20 @@ export default {
                 return 'none';
             }
 
+            // Crédito Temporal (CT) NUNCA genera boleta
+            if (payment.document_type === 'CT' ||
+                payment.payment_option?.code === 'presential_credit_temp' ||
+                payment.paymentOption?.code === 'presential_credit_temp') {
+                return 'none';
+            }
+
+            // Reverso Administrativo (RA) NUNCA genera boleta
+            if (payment.document_type === 'RA' ||
+                payment.payment_option?.code === 'refund_admin_reversal' ||
+                payment.paymentOption?.code === 'refund_admin_reversal') {
+                return 'none';
+            }
+
             // Si es Nota de Crédito (NC) o devolución, no aplica boleta
             // NC se identifica por: document_type='BC', monto negativo, o payment_source_calculated='devolucion'
             const isRefundOrNC = payment.document_type === 'BC'
@@ -652,6 +666,19 @@ export default {
                 const currentYear = new Date().getFullYear();
                 if (departureYear > currentYear) {
                     return 'na';
+                }
+            }
+
+            // Verificar tiempo transcurrido desde la creación del pago
+            // Si ha pasado más de 1 hora sin generar boleta, mostrar "-" en lugar de "Pend."
+            if (payment.created_at) {
+                const createdAt = new Date(payment.created_at);
+                const now = new Date();
+                const hoursPassed = (now - createdAt) / (1000 * 60 * 60);
+
+                // Si ha pasado más de 1 hora (3600 segundos) sin boleta, no aplica
+                if (hoursPassed > 1) {
+                    return 'none';
                 }
             }
 

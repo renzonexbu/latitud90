@@ -90,6 +90,15 @@ class BsaleQueueService
             }
         }
 
+        // VALIDACIÓN 5.5: Créditos Temporales (CT) NUNCA generan boleta
+        if ($payment->paymentOption && $payment->paymentOption->code === 'presential_credit_temp') {
+            Log::info('BsaleQueueService: Crédito Temporal (CT) no genera boleta BSale', [
+                'payment_id' => $payment->id,
+                'payment_option' => $payment->paymentOption->code,
+            ]);
+            return null;
+        }
+
         // VALIDACIÓN 6: Verificar flags específicos (suscripción vs total)
         $order = $orderDetail?->order;
         if ($order) {

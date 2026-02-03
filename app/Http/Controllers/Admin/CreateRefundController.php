@@ -13,6 +13,7 @@ use App\Services\Admin\Payments\CreateRefundService;
 use App\Services\Admin\Payments\ImportRefundsService;
 use App\Models\Payment;
 use App\Models\Installment;
+use App\Models\PaymentOption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -153,11 +154,24 @@ class CreateRefundController extends Controller
         $regions = Region::with('comunes')->get();
         $documentTypes = Document::all();
 
+        // Obtener opciones de reembolso disponibles (NC y RA)
+        $refundOptions = PaymentOption::where('mode', 'refund')
+            ->where('active', true)
+            ->get()
+            ->map(function ($option) {
+                return [
+                    'code' => $option->code,
+                    'label' => $option->label,
+                    'report_code' => $option->report_code,
+                ];
+            });
+
         return Inertia::render('Admin/Payments/Refunds', [
             'programs' => $programCourses,
             'countries' => $countries,
             'regions' => $regions,
-            'documentTypes' => $documentTypes
+            'documentTypes' => $documentTypes,
+            'refundOptions' => $refundOptions
         ]);
     }
 
@@ -175,6 +189,7 @@ class CreateRefundController extends Controller
             'document_number' => 'required|string|max:255',
             'transaction_date' => 'required|date',
             'total_amount' => 'required|numeric|min:1',
+            'refund_type' => 'required|string|in:refund_credit_note,refund_admin_reversal',
 
             // Validar datos del cliente
             'client_rut' => 'required|string|max:255',
@@ -193,12 +208,13 @@ class CreateRefundController extends Controller
                 'amount' => $request->total_amount,
                 'transaction_date' => $request->transaction_date,
                 'payment_code' => $request->sii_code,
-                
+                'refund_type' => $request->refund_type,
+
                 // Datos fiscales
                 'sii_code' => $request->sii_code,
                 'document_number' => $request->document_number,
                 'total_amount' => $request->total_amount,
-                
+
                 // Datos del cliente
                 'client_rut' => $request->client_rut,
                 'client_name' => $request->client_name,

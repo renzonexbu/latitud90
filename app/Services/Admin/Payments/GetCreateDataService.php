@@ -31,6 +31,7 @@ class GetCreateDataService
             ['value' => 'presential_check', 'label' => 'Cheque (CH)', 'report_code' => 'CH'],
             ['value' => 'presential_deposit', 'label' => 'Depósito (DP)', 'report_code' => 'DP'],
             ['value' => 'presential_aporte', 'label' => 'Aporte (AP)', 'report_code' => 'AP'],
+            ['value' => 'presential_credit_temp', 'label' => 'Crédito Temporal (CT)', 'report_code' => 'CT'],
         ];
 
         return [

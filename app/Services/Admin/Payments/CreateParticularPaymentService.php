@@ -733,6 +733,7 @@ class CreateParticularPaymentService
             'DP' => 'presential_deposit',          // Depósito
             'WP' => 'presential_webpay',           // Webpay
             'AP' => 'presential_aporte',           // Aporte
+            'CT' => 'presential_credit_temp',      // Crédito Temporal
         ];
 
         return $mapping[$presentialType] ?? 'presential_pos_office'; // Default a POS Oficina

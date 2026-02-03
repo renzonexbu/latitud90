@@ -2015,6 +2015,7 @@ class ImportManualPaymentsService
             'WP' => 'manual_webpay',
             'BX' => 'manual_card_office',
             'AP' => 'manual_aporte',
+            'CT' => 'manual_credit_temp',
         ];
 
         return $mappings[$type] ?? 'manual_card';
@@ -2038,6 +2039,7 @@ class ImportManualPaymentsService
             'WP' => 'presential_webpay',
             'BX' => 'presential_pos_office',
             'AP' => 'presential_aporte',
+            'CT' => 'presential_credit_temp',
         ];
 
         return $mapping[$type] ?? 'presential_pos_office';

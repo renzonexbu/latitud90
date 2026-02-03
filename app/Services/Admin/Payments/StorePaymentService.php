@@ -93,7 +93,8 @@ class StorePaymentService
             DB::commit();
 
             // Generar boleta en Bsale (después del commit para no bloquear si falla)
-            if (in_array($request->status, ['completed', 'approved'])) {
+            // NOTA: Los Créditos Temporales (CT) NUNCA generan boleta
+            if (in_array($request->status, ['completed', 'approved']) && $request->presential_payment_type !== 'CT') {
                 $this->generateBsaleInvoice($orderDetail, $payment);
             }
 
@@ -274,6 +275,7 @@ class StorePaymentService
             'CH' => 'presential_check',            // Cheque
             'DP' => 'presential_deposit',          // Depósito
             'AP' => 'presential_aporte',           // Aporte
+            'CT' => 'presential_credit_temp',      // Crédito Temporal
         ];
 
         $result = $mapping[$presentialPaymentType] ?? 'presential_office_card'; // Default fallback
@@ -503,6 +505,7 @@ class StorePaymentService
             'CH' => 'manual_check',      // Cheque
             'DP' => 'manual_other',      // Depósito u otro
             'AP' => 'manual_aporte',     // Aporte
+            'CT' => 'manual_credit_temp', // Crédito Temporal
         ];
 
         return $mapping[$presentialPaymentType] ?? 'manual_cash';

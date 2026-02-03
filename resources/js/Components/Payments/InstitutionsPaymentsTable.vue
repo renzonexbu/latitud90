@@ -54,7 +54,7 @@
                         <input
                             v-model="search"
                             type="text"
-                            placeholder="Buscar institución"
+                            placeholder="Buscar por código de programa"
                             class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                         />
                         <button
@@ -233,12 +233,10 @@ export default {
         filteredRows() {
             const term = this.search.trim().toLowerCase();
             if (!term) return this.rows;
+            // Priorizar búsqueda por código de programa (contiene)
             return this.rows.filter((r) => {
-                const a = (r.institutionName || "").toLowerCase();
-                const b = (r.programCode || "").toLowerCase();
-                const c = (r.destination || "").toLowerCase();
-                const d = (r.executiveName || "").toLowerCase();
-                return a.includes(term) || b.includes(term) || c.includes(term) || d.includes(term);
+                const programCode = (r.programCode || "").toLowerCase();
+                return programCode.includes(term);
             });
         },
         paginatedRows() {

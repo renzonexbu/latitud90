@@ -48,6 +48,7 @@ class PaymentOptionSeeder extends Seeder
 			['code' => 'presential_deposit', 'label' => 'Depósito (DP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'DP', 'installments' => null, 'active' => true],
 			['code' => 'presential_webpay', 'label' => 'Webpay (WP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'WP', 'installments' => null, 'active' => true],
 			['code' => 'presential_aporte', 'label' => 'Aporte (AP)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'AP', 'installments' => null, 'active' => true],
+			['code' => 'presential_credit_temp', 'label' => 'Crédito Temporal (CT)', 'mode' => 'presential', 'gateway_code' => 'presencial', 'report_code' => 'CT', 'installments' => null, 'active' => true],
 
 			// Pago mensual (Lat90) - LEGACY - Transferencia Khipu
 			['code' => 'lat90_transfer_khipu', 'label' => 'Transferencia (Khipu)', 'mode' => 'lat90', 'gateway_code' => 'khipu', 'report_code' => 'KP', 'installments' => null, 'active' => true],
@@ -58,8 +59,9 @@ class PaymentOptionSeeder extends Seeder
 			// Suscripciones (VirtualPos) - Pagos recurrentes mensuales
 			['code' => 'subscription_virtualpos', 'label' => 'Suscripción mensual (VirtualPos)', 'mode' => 'subscription', 'gateway_code' => 'virtualpos', 'report_code' => 'PAT', 'installments' => null, 'active' => true],
 
-			// Devoluciones
+			// Devoluciones y Reversos
 			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'NC', 'installments' => null, 'active' => true],
+			['code' => 'refund_admin_reversal', 'label' => 'Reverso Administrativo (RA)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'RA', 'installments' => null, 'active' => true],
 		];
 
 		foreach ($options as $opt) {

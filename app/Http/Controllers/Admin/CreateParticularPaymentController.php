@@ -90,7 +90,7 @@ class CreateParticularPaymentController extends Controller
             'payment_code' => 'required|string|max:255',
             'authorization_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP',
+            'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP,CT',
 
             // Datos del comprador (simplificado)
             'buyer_full_name' => 'required|string|max:255',

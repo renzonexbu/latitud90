@@ -43,9 +43,10 @@ class CreateRefundService
             // VALIDACIÓN CRÍTICA: No permitir reembolsos si hay suscripción activa
             $this->validateNoActiveSubscription($participant->id, $programCourse->id);
 
-            // Para reembolsos, buscar por código en lugar de ID hardcodeado
+            // Para reembolsos, buscar por código (puede ser NC o RA)
             $paymentGateway = PaymentGateway::where('code', 'refund')->firstOrFail();
-            $paymentOption = PaymentOption::where('code', 'refund_credit_note')->firstOrFail();
+            $refundType = $data['refund_type'] ?? 'refund_credit_note';
+            $paymentOption = PaymentOption::where('code', $refundType)->firstOrFail();
 
             // Calcular montos del participante
             // Usar el precio del ProgramCourse directamente
@@ -91,11 +92,12 @@ class CreateRefundService
             DB::commit();
 
             // Log the refund creation
+            $refundTypeName = $paymentOption->label ?? $refundType;
             $this->logCreate(
                 'payments',
                 'Refund',
                 $refund->id,
-                "Reembolso creado: \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
+                "Reembolso creado ({$refundTypeName}): \${$data['amount']} - Participante: {$participant->first_name} {$participant->first_last_name}",
                 $refund->toArray(),
                 [
                     'order_id' => $order->id,
@@ -107,6 +109,7 @@ class CreateRefundService
                     'refund_amount' => $data['amount'],
                     'new_balance' => $totalAmount - $newPaidAmount,
                     'payment_code' => $data['payment_code'] ?? null,
+                    'refund_type' => $refundType,
                 ]
             );
 
@@ -117,6 +120,8 @@ class CreateRefundService
                 'program_course_id' => $programCourse->id,
                 'refund_amount' => $data['amount'],
                 'payment_code' => $data['payment_code'] ?? null,
+                'refund_type' => $refundType,
+                'payment_option_label' => $paymentOption->label,
                 'previous_paid_amount' => $paidAmount,
                 'new_paid_amount' => $newPaidAmount,
                 'new_balance' => $totalAmount - $newPaidAmount
@@ -382,6 +387,13 @@ class CreateRefundService
      */
     private function createRefund(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
     {
+        // Determinar el tipo de documento fiscal según el tipo de reembolso
+        // NC (Nota de Crédito) usa 'BC', RA (Reverso Administrativo) usa 'RA'
+        $documentType = $paymentOption->code === 'refund_admin_reversal' ? 'RA' : 'BC';
+        $refundReason = $paymentOption->code === 'refund_admin_reversal'
+            ? 'Reverso administrativo procesado manualmente'
+            : 'Nota de crédito procesada manualmente';
+
         return Payment::create([
             'order_id' => $order->id,
             'order_detail_id' => $orderDetail->id,
@@ -397,7 +409,8 @@ class CreateRefundService
             'gateway_response' => [
                 'created_manually' => true,
                 'payment_type' => 'refund',
-                'refund_reason' => 'Nota de crédito procesada manualmente',
+                'refund_type' => $paymentOption->code,
+                'refund_reason' => $refundReason,
                 'fiscal_data' => [
                     'sii_code' => $data['sii_code'] ?? null,
                     'document_number' => $data['document_number'] ?? null,
@@ -409,7 +422,7 @@ class CreateRefundService
                 ]
             ],
             'currency' => 'CLP',
-            'document_type' => 'BC',
+            'document_type' => $documentType,
         ]);
     }
 

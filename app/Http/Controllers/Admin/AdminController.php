@@ -52,79 +52,61 @@ class AdminController extends Controller
             ->take(3)
             ->get();
 
-        // Obtener todos los ProgramCourses activos con sus relaciones
-        $programCoursesQuery = ProgramCourse::with([
-            'course.institution',
-            'course.participants',
-            'program',
-            'salesExecutive'
-        ])->where('active', true);
+        // Obtener todos los cursos activos (donde program_courses.active = true)
+        $coursesQuery = \App\Models\Course::with([
+            'programCourses' => function($query) use ($request) {
+                $query->where('active', true);
+                // Filtro por ejecutivo comercial
+                if ($request->filled('salesExecutiveId')) {
+                    $query->where('sales_executive_id', $request->salesExecutiveId);
+                }
+            },
+            'programCourses.program',
+            'programCourses.salesExecutive',
+            'institution',
+            'participants'
+        ])->whereHas('programCourses', function($query) use ($request) {
+            $query->where('active', true);
+            // Filtro por ejecutivo comercial
+            if ($request->filled('salesExecutiveId')) {
+                $query->where('sales_executive_id', $request->salesExecutiveId);
+            }
+        });
 
-        // Filtro por ejecutivo comercial
-        if ($request->filled('salesExecutiveId')) {
-            $programCoursesQuery->where('sales_executive_id', $request->salesExecutiveId);
-        }
+        $courses = $coursesQuery->get();
 
-        $programCourses = $programCoursesQuery->get();
+        // Usar el mismo servicio que usa CourseController para calcular métricas
+        $courseDataService = new \App\Services\Admin\Courses\CourseDataService();
+        $coursesWithMetrics = $courseDataService->calculateCourseMetrics($courses);
 
         // Tabla de estado de pago por institución/programa
         $today = Carbon::today();
-        $institutionsPayments = $programCourses->map(function ($programCourse) {
-            $course = $programCourse->course;
-            $program = $programCourse->program;
-            $participants = $course?->participants ?? collect();
-
-            // Cantidad de alumnos activos
-            $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
-            $totalStudents = $activeParticipants->count();
-
-            // Calcular el total sumando el precio final de cada participante
-            $target = 0.0;
-            foreach ($activeParticipants as $participant) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-                $target += $priceData['final_price'] ?? 0;
+        $institutionsPayments = $coursesWithMetrics->map(function ($course) use ($today) {
+            $programCourse = $course->programCourses->first();
+            
+            if (!$programCourse) {
+                return null;
             }
-
-            // Recaudado: pagos normales + cuotas de suscripciones pagadas
-            // Excluir payment_source='subscription' para evitar doble conteo con installments
-            $normalPayments = (float) DB::table('payments')
-                ->join('orders', 'payments.order_id', '=', 'orders.id')
-                ->where('orders.program_id', $programCourse->id)
-                ->whereIn('payments.status', ['approved', 'completed'])
-                ->where(function($query) {
-                    $query->whereNull('payments.payment_source')
-                          ->orWhere('payments.payment_source', '!=', 'subscription');
-                })
-                ->sum('payments.amount');
-
-            $subscriptionPayments = (float) DB::table('installments')
-                ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-                ->where('installment_plans.program_id', $programCourse->id)
-                ->where('installments.status', 'paid')
-                ->sum('installments.amount');
-
-            $collected = $normalPayments + $subscriptionPayments;
-            $percent = $target > 0 ? (int) round(($collected / $target) * 100, 0) : 0;
 
             $executive = $programCourse->salesExecutive;
 
             return [
                 'id' => $programCourse->id,
-                'institutionName' => optional($course?->institution)->name ?? '—',
+                'institutionName' => optional($course->institution)->name ?? '—',
                 'programCode' => $programCourse->code ?? '—',
-                'destination' => $programCourse->destination ?? $program->destination ?? '—',
+                'destination' => $programCourse->destination ?? $programCourse->program->destination ?? '—',
                 'executiveName' => $executive ? $executive->name : '—',
                 'executiveId' => $executive ? $executive->id : null,
                 'departureDate' => $programCourse->departure_date,
                 'departureDateFormatted' => $programCourse->departure_date
                     ? Carbon::parse($programCourse->departure_date)->format('d/m/Y')
                     : '—',
-                'students' => $totalStudents,
-                'percent' => $percent,
-                'totalCollected' => round($collected, 2),
-                'targetAmount' => round((float) $target, 2),
+                'students' => $course->total_students ?? 0,
+                'percent' => $course->course_payment_percentage ?? 0,
+                'totalCollected' => round($course->course_paid_amount ?? 0, 2),
+                'targetAmount' => round($course->course_total_amount ?? 0, 2),
             ];
-        });
+        })->filter();
 
         // Ordenar: próximos a ejecutarse primero, ya ejecutados al final
         $institutionsPayments = $institutionsPayments->sortBy(function ($item) use ($today) {
