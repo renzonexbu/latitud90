@@ -334,12 +334,17 @@ class GuardianParticipantService
         }
 
         // Calcular monto pagado (mismo cálculo que GetParticipantsService y SubscriptionController)
-        // 1. Pagos normales desde payments
+        // 1. Pagos normales desde payments - EXCLUIR pagos de suscripción para evitar doble conteo
         $normalPayments = Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                 $q->where('participant_id', $participant->id)
                   ->where('program_id', $programCourse->id);
             })
             ->whereIn('status', ['completed', 'approved'])
+            ->where(function($query) {
+                // Excluir pagos de suscripción (se cuentan abajo en installments)
+                $query->whereNull('payment_source')
+                      ->orWhere('payment_source', '!=', 'subscription');
+            })
             ->sum('amount');
 
         // 2. Cuotas de suscripción pagadas (installments)

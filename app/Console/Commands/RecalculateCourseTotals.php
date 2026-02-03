@@ -182,11 +182,15 @@ class RecalculateCourseTotals extends Command
 
     private function calculatePaidAmount(ProgramCourse $programCourse): float
     {
-        // Pagos normales completados
+        // Pagos normales completados - EXCLUIR pagos de suscripción para evitar doble conteo
         $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
             ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
+            ->where(function($query) {
+                $query->whereNull('payments.payment_source')
+                      ->orWhere('payments.payment_source', '!=', 'subscription');
+            })
             ->sum('payments.amount');
 
         // Cuotas de suscripciones pagadas

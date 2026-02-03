@@ -167,12 +167,17 @@ class GetParticipantsService
                 $enrollment->base_price = $priceData['base_price'];
 
                 // Calcular monto pagado correctamente (EXCLUYENDO APORTES - estos van en contribution)
-                // 1. Pagos normales (orders/payments)
+                // 1. Pagos normales (orders/payments) - EXCLUIR pagos de suscripción para evitar doble conteo
                 $normalPayments = Payment::whereHas('order', function($q) use ($enrollment) {
                         $q->where('participant_id', $enrollment->participant_id)
                           ->where('program_id', $enrollment->program_course_id);
                     })
                     ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        // Excluir pagos de suscripción (se cuentan abajo en installments)
+                        $query->whereNull('payment_source')
+                              ->orWhere('payment_source', '!=', 'subscription');
+                    })
                     ->where(function($query) {
                         // Excluir aportes del cálculo de paid_amount
                         $query->whereDoesntHave('paymentOption')

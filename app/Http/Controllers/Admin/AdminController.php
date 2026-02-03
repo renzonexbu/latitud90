@@ -86,10 +86,15 @@ class AdminController extends Controller
             }
 
             // Recaudado: pagos normales + cuotas de suscripciones pagadas
+            // Excluir payment_source='subscription' para evitar doble conteo con installments
             $normalPayments = (float) DB::table('payments')
                 ->join('orders', 'payments.order_id', '=', 'orders.id')
                 ->where('orders.program_id', $programCourse->id)
                 ->whereIn('payments.status', ['approved', 'completed'])
+                ->where(function($query) {
+                    $query->whereNull('payments.payment_source')
+                          ->orWhere('payments.payment_source', '!=', 'subscription');
+                })
                 ->sum('payments.amount');
 
             $subscriptionPayments = (float) DB::table('installments')

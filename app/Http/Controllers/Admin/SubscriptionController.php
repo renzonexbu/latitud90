@@ -137,12 +137,17 @@ class SubscriptionController extends Controller
             $subscription->programCourse
         );
 
-        // 1. Pagos normales desde payments
+        // 1. Pagos normales desde payments - EXCLUIR pagos de suscripción para evitar doble conteo
         $normalPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
                 $q->where('participant_id', $subscription->participant_id)
                   ->where('program_id', $subscription->program_id);
             })
             ->whereIn('status', ['completed', 'approved'])
+            ->where(function($query) {
+                // Excluir pagos de suscripción (se cuentan abajo en installments)
+                $query->whereNull('payment_source')
+                      ->orWhere('payment_source', '!=', 'subscription');
+            })
             ->sum('amount');
 
         // 2. Cuotas de suscripción pagadas (installments)

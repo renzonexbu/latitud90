@@ -108,14 +108,20 @@ class CourseDataService
             return 0.0;
         }
 
-        // Sumar pagos normales completados (EXCLUYENDO APORTES)
+        // Sumar pagos normales completados (EXCLUYENDO APORTES y pagos de suscripción)
         // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
         // Los aportes (presential_aporte) son contribuciones adicionales que NO reducen la deuda
+        // Excluir payment_source='subscription' para evitar doble conteo con installments
         $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
             ->leftJoin('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
             ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
+            ->where(function($query) {
+                // Excluir pagos de suscripción (se cuentan en installments)
+                $query->whereNull('payments.payment_source')
+                      ->orWhere('payments.payment_source', '!=', 'subscription');
+            })
             ->where(function($query) {
                 $query->whereNull('payment_options.code')
                       ->orWhere('payment_options.code', '!=', 'presential_aporte');
@@ -164,11 +170,16 @@ class CourseDataService
 
             // Calculate paid amount (pagos normales + cuotas de suscripciones)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
-            // EXCLUYE APORTES: Los aportes (presential_aporte) son contribuciones adicionales que NO reducen la deuda
+            // EXCLUYE APORTES y pagos de suscripción (para evitar doble conteo con installments)
             $normalPayments = (float) \App\Models\Payment::whereHas('order', function($q) use ($programCourse) {
                 $q->where('program_id', $programCourse->id);
             })
             ->whereIn('status', ['approved', 'completed'])
+            ->where(function($query) {
+                // Excluir pagos de suscripción (se cuentan en installments)
+                $query->whereNull('payment_source')
+                      ->orWhere('payment_source', '!=', 'subscription');
+            })
             ->where(function($query) {
                 $query->whereDoesntHave('paymentOption')
                       ->orWhereHas('paymentOption', function($q) {
