@@ -31,12 +31,18 @@ class CourseController extends Controller
         $allCourses = $this->dataService->getAllCourses();
         $allCourses = $this->dataService->calculateCourseMetrics($allCourses);
 
+        // Obtener ejecutivos comerciales activos para el filtro
+        $salesExecutives = \App\Models\SalesExecutive::where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
         return Inertia::render('Admin/Courses/Index', [
             'courses' => $courses,
             'allCourses' => $allCourses,
             'filters' => $request->only(['search', 'status']),
             'programs' => Program::where('active', true)->get(),
             'institutions' => Institution::active()->orderBy('name')->get(),
+            'salesExecutives' => $salesExecutives,
         ]);
     }
 

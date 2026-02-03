@@ -17,11 +17,12 @@
 
                 <!-- Filters -->
                 <div
-                    class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6"
+                    class="bg-white shadow-sm rounded-[20px] mb-6 p-6 relative z-20"
                 >
                     <CoursesFilters
                         :initial-filters="localFilters"
                         :courses="allCourses"
+                        :sales-executives="salesExecutives"
                         @filters-changed="handleFiltersChanged"
                     />
                 </div>
@@ -142,6 +143,10 @@ export default {
             type: Array,
             default: () => [],
         },
+        salesExecutives: {
+            type: Array,
+            default: () => [],
+        },
         errors: {
             type: Object,
             default: () => ({}),
@@ -158,6 +163,7 @@ export default {
                 course_number: "",
                 year: "",
                 active: "",
+                salesExecutiveId: null,
             },
         };
     },
@@ -209,6 +215,15 @@ export default {
                     const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
                     const isActive = programCourse?.active === true || programCourse?.active === 1;
                     return this.localFilters.active === 'active' ? isActive : !isActive;
+                });
+            }
+
+            // Filtro por ejecutivo comercial
+            if (this.localFilters.salesExecutiveId) {
+                filtered = filtered.filter(course => {
+                    const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+                    const executiveId = programCourse?.sales_executive_id || programCourse?.salesExecutive?.id;
+                    return executiveId === this.localFilters.salesExecutiveId;
                 });
             }
 

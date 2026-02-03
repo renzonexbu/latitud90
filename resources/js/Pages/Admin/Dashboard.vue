@@ -8,7 +8,11 @@
         <div class="p-4">
             <HomeHeader />
             <div class="mt-6">
-                <InstitutionsPaymentsTable :rows="institutionsPayments" />
+                <InstitutionsPaymentsTable
+                    :rows="institutionsPayments"
+                    :sales-executives="salesExecutives"
+                    :filters="filters"
+                />
             </div>
             <div class="mt-6">
                 <DashboardProgramsGrid :programs="mostUsedTemplates" />
@@ -44,6 +48,14 @@ export default {
         institutionsPayments: {
             type: Array,
             default: () => [],
+        },
+        salesExecutives: {
+            type: Array,
+            default: () => [],
+        },
+        filters: {
+            type: Object,
+            default: () => ({}),
         },
     },
 };

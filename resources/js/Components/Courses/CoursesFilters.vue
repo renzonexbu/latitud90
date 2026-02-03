@@ -70,6 +70,47 @@
                 </select>
             </div>
 
+            <!-- Ejecutivo Comercial Autocomplete -->
+            <div class="relative w-[220px]" ref="executiveDropdown">
+                <input
+                    v-model="executiveSearch"
+                    type="text"
+                    placeholder="Ejecutivo comercial"
+                    @focus="showExecutiveDropdown = true"
+                    @input="showExecutiveDropdown = true"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
+                />
+                <button
+                    v-if="filters.salesExecutiveId"
+                    @click="clearExecutiveFilter"
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <span v-else class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </span>
+                <!-- Dropdown opciones -->
+                <div
+                    v-if="showExecutiveDropdown && filteredExecutives.length > 0"
+                    class="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                >
+                    <div
+                        v-for="exec in filteredExecutives"
+                        :key="exec.id"
+                        @click="selectExecutive(exec)"
+                        class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
+                    >
+                        {{ exec.name }} <span class="text-gray-400 text-xs">({{ exec.code }})</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Clear Filters Button -->
             <button
                 @click="clearFilters"
@@ -97,6 +138,10 @@ export default {
         courses: {
             type: Array,
             default: () => []
+        },
+        salesExecutives: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
@@ -106,7 +151,10 @@ export default {
                 institution: this.initialFilters.institution || "",
                 year: this.initialFilters.year || "",
                 active: this.initialFilters.active || "",
-            }
+                salesExecutiveId: this.initialFilters.salesExecutiveId || null,
+            },
+            executiveSearch: "",
+            showExecutiveDropdown: false,
         };
     },
     computed: {
@@ -124,9 +172,44 @@ export default {
                 .map(course => course.year)
                 .filter(year => year && year.toString().trim() !== '');
             return [...new Set(years)].sort();
+        },
+
+        // Filtrar ejecutivos por búsqueda
+        filteredExecutives() {
+            const term = this.executiveSearch.trim().toLowerCase();
+            if (!term) return this.salesExecutives;
+            return this.salesExecutives.filter((exec) => {
+                const name = (exec.name || "").toLowerCase();
+                const code = (exec.code || "").toLowerCase();
+                return name.includes(term) || code.includes(term);
+            });
         }
     },
+    mounted() {
+        // Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', this.handleClickOutside);
+    },
+    beforeUnmount() {
+        document.removeEventListener('click', this.handleClickOutside);
+    },
     methods: {
+        handleClickOutside(event) {
+            const dropdown = this.$refs.executiveDropdown;
+            if (dropdown && !dropdown.contains(event.target)) {
+                this.showExecutiveDropdown = false;
+            }
+        },
+        selectExecutive(exec) {
+            this.filters.salesExecutiveId = exec.id;
+            this.executiveSearch = exec.name;
+            this.showExecutiveDropdown = false;
+            this.performSearch();
+        },
+        clearExecutiveFilter() {
+            this.filters.salesExecutiveId = null;
+            this.executiveSearch = "";
+            this.performSearch();
+        },
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
         }, 300),
@@ -137,7 +220,9 @@ export default {
                 institution: "",
                 year: "",
                 active: "",
+                salesExecutiveId: null,
             };
+            this.executiveSearch = "";
             this.performSearch();
         },
 

@@ -13,7 +13,7 @@ class CourseDataService
 {
     public function getCourseList(array $filters = [])
     {
-        return Course::with(['programCourses.program', 'createdBy', 'institution', 'participants'])
+        return Course::with(['programCourses.program', 'programCourses.salesExecutive', 'createdBy', 'institution', 'participants'])
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->whereHas('institution', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%");
@@ -36,7 +36,7 @@ class CourseDataService
      */
     public function getAllCourses(): Collection
     {
-        return Course::with(['programCourses.program', 'createdBy', 'institution', 'participants'])
+        return Course::with(['programCourses.program', 'programCourses.salesExecutive', 'createdBy', 'institution', 'participants'])
             ->orderBy('created_at', 'desc')
             ->get();
     }

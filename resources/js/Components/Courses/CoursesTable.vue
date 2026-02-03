@@ -15,6 +15,12 @@
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">
                             Destino
                         </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[150px]">
+                            Ejecutivo Comercial
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            Fecha de Inicio
+                        </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Estado
                         </th>
@@ -59,6 +65,29 @@
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs font-medium text-[#1c4f4a]">
                                 {{ capitalizeWords(getProgramDestination(course)) }}
+                            </div>
+                        </td>
+                        <!-- Ejecutivo Comercial -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ capitalizeWords(getSalesExecutiveName(course)) }}
+                            </div>
+                        </td>
+                        <!-- Fecha de Inicio -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs text-gray-900">
+                                    {{ getDepartureDateFormatted(course) }}
+                                </span>
+                                <span
+                                    v-if="getDepartureDate(course)"
+                                    :class="[
+                                        'text-[9px] font-medium',
+                                        isPastDate(getDepartureDate(course)) ? 'text-gray-400' : 'text-green-600'
+                                    ]"
+                                >
+                                    {{ isPastDate(getDepartureDate(course)) ? 'Ejecutado' : 'Próximo' }}
+                                </span>
                             </div>
                         </td>
                         <!-- Estado (Activo/Inactivo) -->
@@ -192,9 +221,39 @@ export default {
         
         capitalizeWords(string) {
             if (!string) return '';
-            return string.split(' ').map(word => 
+            return string.split(' ').map(word =>
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
+        },
+        getSalesExecutiveName(course) {
+            // Obtener el nombre del ejecutivo comercial desde el ProgramCourse
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.sales_executive?.name || programCourse?.salesExecutive?.name || '—';
+        },
+        getDepartureDate(course) {
+            // Obtener la fecha de salida del ProgramCourse
+            const programCourse = course.program_courses?.[0] || course.programCourses?.[0];
+            return programCourse?.departure_date || null;
+        },
+        getDepartureDateFormatted(course) {
+            const date = this.getDepartureDate(course);
+            if (!date) return '—';
+            try {
+                return new Date(date).toLocaleDateString('es-CL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            } catch (e) {
+                return '—';
+            }
+        },
+        isPastDate(dateStr) {
+            if (!dateStr) return false;
+            const date = new Date(dateStr);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return date < today;
         }
     }
 };
