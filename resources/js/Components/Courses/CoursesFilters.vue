@@ -150,7 +150,7 @@ export default {
                 search: this.initialFilters.search || "",
                 institution: this.initialFilters.institution || "",
                 year: this.initialFilters.year || "",
-                active: this.initialFilters.active || "",
+                active: this.initialFilters.active || "active", // Por defecto mostrar solo activos
                 salesExecutiveId: this.initialFilters.salesExecutiveId || null,
             },
             executiveSearch: "",
@@ -219,7 +219,7 @@ export default {
                 search: "",
                 institution: "",
                 year: "",
-                active: "",
+                active: "active", // Mantener filtro de activos al limpiar
                 salesExecutiveId: null,
             };
             this.executiveSearch = "";

@@ -570,22 +570,14 @@ class BsaleService
     private function createDocument(OrderDetail $orderDetail, Payment $payment, int $customerId): array
     {
         $program = $orderDetail->order->programCourse;
-        $participant = $orderDetail->order->participant;
-        
-        // Build full participant name from individual fields in uppercase
-        $participantFullName = '';
-        if ($participant) {
-            $nameParts = array_filter([
-                $participant->first_name,
-                $participant->second_name,
-                $participant->first_last_name,
-                $participant->second_last_name
-            ]);
-            $participantFullName = ucwords(strtolower(implode(' ', $nameParts)));
-        }
-        
-        // Item description: "Programa de Estudio" + participant full name in uppercase
-        $itemDetail = "Programa de Estudio\n    " . ($participantFullName ?: 'PARTICIPANTE');
+
+        // Usar el nombre del PAGADOR (OrderDetail) en lugar del participante
+        // El pagador puede ser diferente al participante (ej: padre pagando por hijo)
+        $payerName = $orderDetail->name ?: 'PAGADOR';
+        $payerName = ucwords(strtolower($payerName));
+
+        // Item description: "Programa de Estudio" + nombre del pagador
+        $itemDetail = "Programa de Estudio\n    " . $payerName;
 
         // Determinar si es boleta exenta (IDs 29, 41) o afecta
         $isExempt = in_array($this->documentTypeId, [29, 41]);

@@ -6,8 +6,8 @@
                     <th scope="col" class="px-4 py-3 whitespace-nowrap">Código</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap">Nombre del Programa</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Fecha Inicio</th>
-                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Fecha Pago</th>
-                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Estado</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Valor Unitario</th>
+                    <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Ejecutivo</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">Participantes</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap text-center">% de Pago</th>
                     <th scope="col" class="px-4 py-3 whitespace-nowrap text-right">Recaudado / Total</th>
@@ -31,19 +31,11 @@
                     <td class="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
                         {{ formatDate(program.departure_date) }}
                     </td>
-                    <td class="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
-                        {{ formatDate(program.final_payment_date) }}
+                    <td class="px-4 py-3 text-center text-gray-900 whitespace-nowrap font-medium">
+                        ${{ formatPrice(program.trip_price) }}
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <span
-                            class="px-2 py-1 text-xs font-medium rounded-full"
-                            :class="{
-                                'bg-green-100 text-green-800': program.active,
-                                'bg-red-100 text-red-800': !program.active
-                            }"
-                        >
-                            {{ program.active ? 'Activo' : 'Inactivo' }}
-                        </span>
+                    <td class="px-4 py-3 text-center text-gray-600 text-xs">
+                        {{ program.sales_executive_name || 'Sin asignar' }}
                     </td>
                     <td class="px-4 py-3 text-center text-gray-900">
                         {{ program.participants_count || 0 }}

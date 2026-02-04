@@ -18,13 +18,14 @@ class PaymentOptionsProgramController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['paymentOptionId', 'active', 'search']);
+        $filters = $request->only(['paymentOptionId', 'salesExecutiveId', 'search']);
 
         $data = $this->service->getProgramsByPaymentOption($filters);
 
         return Inertia::render('Admin/Courses/PaymentOptionsPrograms', [
             'programs' => $data['programs'],
             'paymentOptions' => $data['paymentOptions'],
+            'salesExecutives' => $data['salesExecutives'],
             'filters' => $filters,
             'summary' => $data['summary'],
         ]);
@@ -35,7 +36,7 @@ class PaymentOptionsProgramController extends Controller
      */
     public function export(Request $request)
     {
-        $filters = $request->only(['paymentOptionId', 'active', 'search']);
+        $filters = $request->only(['paymentOptionId', 'salesExecutiveId', 'search']);
 
         return $this->service->exportToExcel($filters);
     }

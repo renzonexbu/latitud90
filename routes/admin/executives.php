@@ -15,5 +15,6 @@ Route::prefix('executives')->name('executives.')->group(function () {
     Route::post('/', [ExecutiveController::class, 'store'])->name('store');
     Route::get('/{executive}/edit', [ExecutiveController::class, 'edit'])->name('edit');
     Route::put('/{executive}', [ExecutiveController::class, 'update'])->name('update');
+    Route::patch('/{executive}/toggle-active', [ExecutiveController::class, 'toggleActive'])->name('toggle-active');
     Route::delete('/{executive}', [ExecutiveController::class, 'destroy'])->name('destroy');
 });

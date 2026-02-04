@@ -89,16 +89,74 @@
                 </div>
             </div>
 
-            <!-- Filtro por estado -->
-            <select
-                v-model="filters.active"
-                @change="performSearch"
-                class="h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none min-w-[150px]"
-            >
-                <option value="">Todos los estados</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-            </select>
+            <!-- Filtro por ejecutivo comercial -->
+            <div class="relative w-[280px]" data-executive-search>
+                <div class="relative">
+                    <input
+                        v-model="executiveSearchQuery"
+                        type="text"
+                        placeholder="Filtrar por ejecutivo..."
+                        class="w-full h-[46px] bg-white rounded-[50px] border px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
+                        :class="{
+                            'border-green-500': selectedExecutive,
+                            'border-[#f0f0f0]': !selectedExecutive
+                        }"
+                        @input="showExecutiveDropdown = true"
+                        @focus="showExecutiveDropdown = true"
+                        @keydown.escape="showExecutiveDropdown = false"
+                        @keydown.down.prevent="navigateExecutiveDropdown(1)"
+                        @keydown.up.prevent="navigateExecutiveDropdown(-1)"
+                        @keydown.enter.prevent="selectHighlightedExecutive"
+                    />
+                    <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <button
+                            v-if="selectedExecutive"
+                            type="button"
+                            @click="clearExecutiveSelection"
+                            class="text-gray-400 hover:text-gray-600"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                        <svg v-else class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Dropdown de ejecutivos -->
+                <div
+                    v-if="showExecutiveDropdown && filteredExecutives.length > 0"
+                    class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                >
+                    <!-- Opción "Todos los ejecutivos" -->
+                    <div
+                        @click="selectAllExecutives"
+                        @mouseenter="highlightedExecutiveIndex = -1"
+                        class="px-3 py-2 cursor-pointer border-b border-gray-100 transition-colors text-sm"
+                        :class="{
+                            'bg-[#007e93] text-white': highlightedExecutiveIndex === -1,
+                            'hover:bg-gray-50 text-gray-700': highlightedExecutiveIndex !== -1
+                        }"
+                    >
+                        Todos los ejecutivos
+                    </div>
+                    <div
+                        v-for="(executive, index) in filteredExecutives"
+                        :key="executive.id"
+                        @click="selectExecutive(executive)"
+                        @mouseenter="highlightedExecutiveIndex = index"
+                        class="px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors text-sm"
+                        :class="{
+                            'bg-[#007e93] text-white': highlightedExecutiveIndex === index,
+                            'hover:bg-gray-50': highlightedExecutiveIndex !== index
+                        }"
+                    >
+                        {{ executive.name }}
+                    </div>
+                </div>
+            </div>
 
             <!-- Botón limpiar filtros -->
             <button
@@ -127,19 +185,27 @@ export default {
         paymentOptions: {
             type: Array,
             default: () => []
+        },
+        salesExecutives: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
         return {
             filters: {
                 paymentOptionId: this.initialFilters.paymentOptionId || "",
-                active: this.initialFilters.active || "",
+                salesExecutiveId: this.initialFilters.salesExecutiveId || "",
                 search: this.initialFilters.search || "",
             },
             paymentOptionSearchQuery: "",
             showPaymentOptionDropdown: false,
             highlightedIndex: -1,
             selectedPaymentOption: null,
+            executiveSearchQuery: "",
+            showExecutiveDropdown: false,
+            highlightedExecutiveIndex: -1,
+            selectedExecutive: null,
         };
     },
     computed: {
@@ -159,6 +225,21 @@ export default {
                 const label = this.cleanLabel(option.label || '').toLowerCase();
                 return label.includes(query);
             });
+        },
+        filteredExecutives() {
+            const sortedExecutives = [...this.salesExecutives].sort((a, b) => {
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
+            if (!this.executiveSearchQuery) {
+                return sortedExecutives;
+            }
+
+            const query = this.executiveSearchQuery.toLowerCase();
+            return sortedExecutives.filter(executive => {
+                const name = (executive.name || '').toLowerCase();
+                return name.includes(query);
+            });
         }
     },
     mounted() {
@@ -167,6 +248,14 @@ export default {
             if (option) {
                 this.selectedPaymentOption = option;
                 this.paymentOptionSearchQuery = this.cleanLabel(option.label);
+            }
+        }
+
+        if (this.filters.salesExecutiveId) {
+            const executive = this.salesExecutives.find(e => e.id == this.filters.salesExecutiveId);
+            if (executive) {
+                this.selectedExecutive = executive;
+                this.executiveSearchQuery = executive.name;
             }
         }
 
@@ -233,20 +322,69 @@ export default {
         },
 
         handleClickOutside(event) {
-            const searchContainer = event.target.closest('[data-payment-option-search]');
-            if (!searchContainer) {
+            const paymentOptionContainer = event.target.closest('[data-payment-option-search]');
+            const executiveContainer = event.target.closest('[data-executive-search]');
+
+            if (!paymentOptionContainer) {
                 this.showPaymentOptionDropdown = false;
             }
+            if (!executiveContainer) {
+                this.showExecutiveDropdown = false;
+            }
+        },
+
+        navigateExecutiveDropdown(direction) {
+            const maxIndex = this.filteredExecutives.length - 1;
+            this.highlightedExecutiveIndex += direction;
+
+            if (this.highlightedExecutiveIndex < -1) {
+                this.highlightedExecutiveIndex = maxIndex;
+            } else if (this.highlightedExecutiveIndex > maxIndex) {
+                this.highlightedExecutiveIndex = -1;
+            }
+        },
+
+        selectHighlightedExecutive() {
+            if (this.highlightedExecutiveIndex === -1) {
+                this.selectAllExecutives();
+            } else if (this.filteredExecutives.length > 0 && this.highlightedExecutiveIndex >= 0) {
+                this.selectExecutive(this.filteredExecutives[this.highlightedExecutiveIndex]);
+            }
+        },
+
+        selectExecutive(executive) {
+            this.selectedExecutive = executive;
+            this.filters.salesExecutiveId = executive.id;
+            this.executiveSearchQuery = executive.name;
+            this.showExecutiveDropdown = false;
+            this.performSearch();
+        },
+
+        selectAllExecutives() {
+            this.selectedExecutive = null;
+            this.filters.salesExecutiveId = "";
+            this.executiveSearchQuery = "";
+            this.showExecutiveDropdown = false;
+            this.performSearch();
+        },
+
+        clearExecutiveSelection() {
+            this.selectedExecutive = null;
+            this.filters.salesExecutiveId = "";
+            this.executiveSearchQuery = "";
+            this.performSearch();
         },
 
         clearFilters() {
             this.filters = {
                 paymentOptionId: "",
-                active: "",
+                salesExecutiveId: "",
                 search: "",
             };
             this.selectedPaymentOption = null;
             this.paymentOptionSearchQuery = "";
+            this.selectedExecutive = null;
+            this.executiveSearchQuery = "";
             this.performSearch();
         }
     }

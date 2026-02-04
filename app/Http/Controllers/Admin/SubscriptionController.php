@@ -763,8 +763,9 @@ class SubscriptionController extends Controller
             ->get();
 
         // Obtener ejecutivos de ventas para filtros
-        $salesExecutives = SalesExecutive::select('id', 'first_name', 'last_name')
-            ->orderBy('first_name')
+        $salesExecutives = SalesExecutive::select('id', 'name')
+            ->where('active', true)
+            ->orderBy('name')
             ->get()
             ->map(function ($executive) {
                 return [

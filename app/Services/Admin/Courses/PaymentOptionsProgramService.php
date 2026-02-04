@@ -64,7 +64,7 @@ class PaymentOptionsProgramService
     public function getProgramsByPaymentOption(array $filters): array
     {
         $paymentOptionId = $filters['paymentOptionId'] ?? null;
-        $active = $filters['active'] ?? null;
+        $salesExecutiveId = $filters['salesExecutiveId'] ?? null;
         $search = $filters['search'] ?? null;
 
         // Obtener solo opciones de pago de pasarela online (full_ y subscription_)
@@ -73,20 +73,26 @@ class PaymentOptionsProgramService
               ->orWhere('code', 'like', 'subscription_%');
         })->orderBy('label')->get();
 
+        // Obtener ejecutivos comerciales para el filtro
+        $salesExecutives = \App\Models\SalesExecutive::select('id', 'name')
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
         // Query base de programas con sus opciones de pago y participantes
         $query = ProgramCourse::with([
                 'program',
                 'course.institution',
                 'paymentOptions',
-                'participantPrograms.orders.payments'
+                'participantPrograms.orders.payments',
+                'salesExecutive'
             ])
+            ->where('active', true) // Siempre mostrar solo programas activos
             ->orderBy('code');
 
-        // Filtrar por estado activo/inactivo
-        if ($active === 'active') {
-            $query->where('active', true);
-        } elseif ($active === 'inactive') {
-            $query->where('active', false);
+        // Filtrar por ejecutivo comercial
+        if ($salesExecutiveId) {
+            $query->where('sales_executive_id', $salesExecutiveId);
         }
 
         // Filtrar por búsqueda de código o nombre
@@ -152,7 +158,7 @@ class PaymentOptionsProgramService
                 'destination' => $program->program?->destination ?? $program->destination,
                 'trip_price' => $tripPrice,
                 'departure_date' => $program->departure_date?->format('Y-m-d'),
-                'final_payment_date' => $program->final_payment_date?->format('Y-m-d'),
+                'sales_executive_name' => $program->salesExecutive?->name ?? 'Sin asignar',
                 'active' => $program->active,
                 'payment_options' => $enabledPaymentOptions,
                 'payment_options_count' => $enabledPaymentOptions->count(),
@@ -166,8 +172,6 @@ class PaymentOptionsProgramService
         // Calcular resumen
         $summary = [
             'total_programs' => $formattedPrograms->count(),
-            'active_programs' => $formattedPrograms->where('active', true)->count(),
-            'inactive_programs' => $formattedPrograms->where('active', false)->count(),
         ];
 
         return [
@@ -181,6 +185,7 @@ class PaymentOptionsProgramService
                     'mode' => $opt->mode,
                 ])
                 ->values(),
+            'salesExecutives' => $salesExecutives,
             'summary' => $summary,
         ];
     }
@@ -214,13 +219,11 @@ class PaymentOptionsProgramService
         ]);
 
         // Resumen
-        $sheet->setCellValue('A3', 'Total programas: ' . $data['summary']['total_programs'] .
-            ' | Activos: ' . $data['summary']['active_programs'] .
-            ' | Inactivos: ' . $data['summary']['inactive_programs']);
+        $sheet->setCellValue('A3', 'Total programas activos: ' . $data['summary']['total_programs']);
         $sheet->mergeCells('A3:J3');
 
         // Headers
-        $headers = ['Código', 'Nombre del Programa', 'Fecha Inicio', 'Fecha Pago', 'Estado', 'Participantes', '% Pago', 'Recaudado', 'Total', 'Medios de Pago Activos'];
+        $headers = ['Código', 'Nombre del Programa', 'Fecha Inicio', 'Valor Unitario', 'Ejecutivo', 'Participantes', '% Pago', 'Recaudado', 'Total', 'Medios de Pago Activos'];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col . '5', $header);
@@ -246,27 +249,22 @@ class PaymentOptionsProgramService
             $sheet->setCellValue('A' . $row, $program['code'] ?? 'N/A');
             $sheet->setCellValue('B' . $row, $program['name'] ?? 'N/A');
             $sheet->setCellValue('C' . $row, $program['departure_date'] ? Carbon::parse($program['departure_date'])->format('d/m/Y') : 'N/A');
-            $sheet->setCellValue('D' . $row, $program['final_payment_date'] ? Carbon::parse($program['final_payment_date'])->format('d/m/Y') : 'N/A');
-            $sheet->setCellValue('E' . $row, $program['active'] ? 'Activo' : 'Inactivo');
+            $sheet->setCellValue('D' . $row, $program['trip_price'] ?? 0);
+            $sheet->setCellValue('E' . $row, $program['sales_executive_name'] ?? 'Sin asignar');
             $sheet->setCellValue('F' . $row, $program['participants_count'] ?? 0);
             $sheet->setCellValue('G' . $row, ($program['payment_percentage'] ?? 0) . '%');
             $sheet->setCellValue('H' . $row, $program['paid_amount'] ?? 0);
             $sheet->setCellValue('I' . $row, $program['total_amount'] ?? 0);
             $sheet->setCellValue('J' . $row, $paymentLabels ?: 'Ninguno');
 
-            // Formato de moneda para columnas Recaudado y Total
+            // Formato de moneda para columnas Valor Unitario, Recaudado y Total
+            $sheet->getStyle('D' . $row)->getNumberFormat()->setFormatCode('$#,##0');
             $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('$#,##0');
             $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('$#,##0');
 
             // Centrar columnas
-            $sheet->getStyle('C' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-            // Color de fila según estado
-            if (!$program['active']) {
-                $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
-                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F5F5F5']]
-                ]);
-            }
+            $sheet->getStyle('C' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('F' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $row++;
         }
@@ -276,7 +274,7 @@ class PaymentOptionsProgramService
         $sheet->getColumnDimension('B')->setWidth(30);
         $sheet->getColumnDimension('C')->setWidth(14);
         $sheet->getColumnDimension('D')->setWidth(14);
-        $sheet->getColumnDimension('E')->setWidth(12);
+        $sheet->getColumnDimension('E')->setWidth(20);
         $sheet->getColumnDimension('F')->setWidth(14);
         $sheet->getColumnDimension('G')->setWidth(10);
         $sheet->getColumnDimension('H')->setWidth(15);

@@ -31,13 +31,17 @@ class CourseDataService
 
     /**
      * Get all courses without pagination (for frontend filtering)
+     * Ordenados por fecha de inicio (departure_date) del programa más cercana
      *
      * @return \Illuminate\Support\Collection
      */
     public function getAllCourses(): Collection
     {
         return Course::with(['programCourses.program', 'programCourses.salesExecutive', 'createdBy', 'institution', 'participants'])
-            ->orderBy('created_at', 'desc')
+            ->leftJoin('program_courses', 'courses.id', '=', 'program_courses.course_id')
+            ->orderBy('program_courses.departure_date', 'asc')
+            ->orderBy('courses.created_at', 'desc')
+            ->select('courses.*')
             ->get();
     }
 

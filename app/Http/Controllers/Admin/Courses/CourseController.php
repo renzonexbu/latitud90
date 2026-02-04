@@ -146,7 +146,7 @@ class CourseController extends Controller
             'course' => $course,
             'programs' => Program::where('active', true)->get(),
             'institutions' => Institution::active()->orderBy('name')->get(),
-            'salesExecutives' => \App\Models\SalesExecutive::orderBy('name')->get(),
+            'salesExecutives' => \App\Models\SalesExecutive::where('active', true)->orderBy('name')->get(),
         ]);
     }
 

@@ -162,7 +162,7 @@ export default {
                 level: "",
                 course_number: "",
                 year: "",
-                active: "",
+                active: "active", // Por defecto mostrar solo programas activos
                 salesExecutiveId: null,
             },
         };

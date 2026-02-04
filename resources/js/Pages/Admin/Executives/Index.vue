@@ -84,6 +84,9 @@
                                     Email
                                 </th>
                                 <th class="px-6 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                    Estado
+                                </th>
+                                <th class="px-6 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     P-Cursos
                                 </th>
                                 <th class="px-6 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
@@ -93,11 +96,11 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-if="filteredExecutives.length === 0">
-                                <td colspan="5" class="px-6 py-12 text-center text-gray-500 font-nexa-regular">
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500 font-nexa-regular">
                                     {{ searchQuery ? 'No se encontraron ejecutivos' : 'No hay ejecutivos registrados' }}
                                 </td>
                             </tr>
-                            <tr v-for="executive in filteredExecutives" :key="executive.id" class="hover:bg-gray-50">
+                            <tr v-for="executive in filteredExecutives" :key="executive.id" class="hover:bg-gray-50" :class="{ 'opacity-60': !executive.active }">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-nexa-bold text-verde-oscuro">{{ executive.code || '-' }}</div>
                                 </td>
@@ -108,12 +111,32 @@
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ executive.email || '-' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span
+                                        class="px-2 inline-flex text-xs leading-5 font-nexa-bold rounded-full"
+                                        :class="executive.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                    >
+                                        {{ executive.active ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
                                     <span class="px-2 inline-flex text-xs leading-5 font-nexa-bold rounded-full bg-blue-100 text-blue-800">
                                         {{ executive.programs_count }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                     <div class="flex justify-center gap-2">
+                                        <button
+                                            @click="toggleActive(executive)"
+                                            :class="executive.active ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'"
+                                            :title="executive.active ? 'Desactivar' : 'Activar'"
+                                        >
+                                            <svg v-if="executive.active" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                            </svg>
+                                            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                            </svg>
+                                        </button>
                                         <Link
                                             :href="route('admin.executives.edit', executive.id)"
                                             class="text-turquesa hover:text-turquesa-dark"
@@ -166,6 +189,19 @@ const filteredExecutives = computed(() => {
         (executive.name && executive.name.toLowerCase().includes(query))
     );
 });
+
+const toggleActive = (executive) => {
+    const action = executive.active ? 'desactivar' : 'activar';
+    const message = executive.active
+        ? `¿Estás seguro de desactivar al ejecutivo "${executive.name}"? No aparecerá en los reportes.`
+        : `¿Estás seguro de activar al ejecutivo "${executive.name}"?`;
+
+    if (confirm(message)) {
+        router.patch(route('admin.executives.toggle-active', executive.id), {}, {
+            preserveScroll: true
+        });
+    }
+};
 
 const confirmDelete = (executive) => {
     if (executive.programs_count > 0) {

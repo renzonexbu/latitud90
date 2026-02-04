@@ -27,6 +27,7 @@ class ExecutiveController extends Controller
                         'name' => $executive->name,
                         'email' => $executive->email,
                         'phone' => $executive->phone,
+                        'active' => $executive->active,
                         'programs_count' => $executive->programs_count,
                         'created_at' => $executive->created_at ? $executive->created_at->format('d/m/Y') : '-',
                     ];
@@ -165,6 +166,31 @@ class ExecutiveController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Error al actualizar el ejecutivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Toggle executive active status
+     */
+    public function toggleActive(SalesExecutive $executive)
+    {
+        try {
+            $executive->update([
+                'active' => !$executive->active
+            ]);
+
+            Log::info('Estado de ejecutivo actualizado', [
+                'executive_id' => $executive->id,
+                'name' => $executive->name,
+                'active' => $executive->active,
+                'user_id' => auth()->id()
+            ]);
+
+            $status = $executive->active ? 'activado' : 'desactivado';
+            return back()->with('success', "Ejecutivo {$status} exitosamente.");
+        } catch (\Exception $e) {
+            Log::error('Error al cambiar estado del ejecutivo: ' . $e->getMessage());
+            return back()->with('error', 'Error al cambiar el estado del ejecutivo: ' . $e->getMessage());
         }
     }
 

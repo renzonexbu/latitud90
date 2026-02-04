@@ -23,6 +23,7 @@
                     <PaymentOptionsProgramFilters
                         :initial-filters="filters"
                         :payment-options="paymentOptions"
+                        :sales-executives="salesExecutives"
                         @filters-changed="applyFilters"
                     />
 
@@ -37,19 +38,9 @@
                             </svg>
                             Exportar Excel
                         </button>
-                        <div class="grid grid-cols-3 gap-2">
-                            <div class="bg-blue-50 p-2 rounded border border-blue-200">
-                                <p class="text-[10px] text-gray-500">Total Programas</p>
-                                <p class="text-sm font-bold text-blue-700">{{ summary.total_programs || 0 }}</p>
-                            </div>
-                            <div class="bg-green-50 p-2 rounded border border-green-200">
-                                <p class="text-[10px] text-gray-500">Activos</p>
-                                <p class="text-sm font-bold text-green-700">{{ summary.active_programs || 0 }}</p>
-                            </div>
-                            <div class="bg-red-50 p-2 rounded border border-red-200">
-                                <p class="text-[10px] text-gray-500">Inactivos</p>
-                                <p class="text-sm font-bold text-red-700">{{ summary.inactive_programs || 0 }}</p>
-                            </div>
+                        <div class="bg-blue-50 p-4 rounded border border-blue-200">
+                            <p class="text-xs text-gray-500">Total Programas Activos</p>
+                            <p class="text-xl font-bold text-blue-700">{{ summary.total_programs || 0 }}</p>
                         </div>
                     </div>
 
@@ -71,6 +62,7 @@ import PaymentOptionsProgramTable from '@/Components/Courses/PaymentOptionsProgr
 const props = defineProps({
     programs: { type: Array, default: () => [] },
     paymentOptions: { type: Array, default: () => [] },
+    salesExecutives: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     summary: { type: Object, default: () => ({}) },
 });
@@ -80,7 +72,7 @@ const page = usePage();
 // Mantener filtros actuales reactivos
 const currentFilters = reactive({
     paymentOptionId: props.filters.paymentOptionId || '',
-    active: props.filters.active || '',
+    salesExecutiveId: props.filters.salesExecutiveId || '',
     search: props.filters.search || '',
 });
 
@@ -117,8 +109,8 @@ const exportData = () => {
     if (currentFilters.paymentOptionId) {
         params.set('paymentOptionId', currentFilters.paymentOptionId);
     }
-    if (currentFilters.active) {
-        params.set('active', currentFilters.active);
+    if (currentFilters.salesExecutiveId) {
+        params.set('salesExecutiveId', currentFilters.salesExecutiveId);
     }
     if (currentFilters.search) {
         params.set('search', currentFilters.search);

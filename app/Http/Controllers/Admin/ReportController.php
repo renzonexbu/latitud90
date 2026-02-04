@@ -202,7 +202,7 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports/NoPayment', [
             'participantsWithoutPayments' => $paginatedData,
             'programs' => Program::select('id', 'name')->get(),
-            'salesExecutives' => SalesExecutive::select('id', 'name')->get(),
+            'salesExecutives' => SalesExecutive::select('id', 'name')->where('active', true)->orderBy('name')->get(),
             'filters' => $request->all()
         ]);
     }

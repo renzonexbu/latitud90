@@ -187,7 +187,7 @@ class ExecutivesConsolidatedService
             ],
             'summary' => $summary,
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->with('program:id,destination')->orderBy('code')->get(),
-            'salesExecutives' => \App\Models\SalesExecutive::select('id', 'name')->orderBy('name')->get(),
+            'salesExecutives' => \App\Models\SalesExecutive::select('id', 'name')->where('active', true)->orderBy('name')->get(),
         ];
     }
 
