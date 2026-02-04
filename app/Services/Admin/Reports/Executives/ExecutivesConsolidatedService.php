@@ -102,12 +102,22 @@ class ExecutivesConsolidatedService
             $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
-            // Descuentos/Becas (solo tipo 'scholarship', excluir 'discount' que son descuentos simples)
+            // Verificar si ESTE pago es un aporte (report_code = 'AP')
+            $isAporte = $payment->paymentOption && $payment->paymentOption->report_code === 'AP';
+
+            // Si este pago es un aporte, mostrar el monto del pago en scholarship
+            // Si no es aporte, calcular becas de descuentos del participante
             $scholarship = 0;
-            if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                $scholarship = $participantProgram->discounts()
-                    ->where('discount_type', 'scholarship')
-                    ->sum('amount');
+            if ($isAporte) {
+                // Este pago ES un aporte, mostrar el monto del pago
+                $scholarship = $payment->amount ?? 0;
+            } else {
+                // Este pago NO es aporte, calcular becas de descuentos
+                if ($participantProgram && method_exists($participantProgram, 'discounts')) {
+                    $scholarship = $participantProgram->discounts()
+                        ->where('discount_type', 'scholarship')
+                        ->sum('amount');
+                }
             }
 
             // Monto liberado (descuento tipo 'released')
@@ -270,12 +280,22 @@ class ExecutivesConsolidatedService
             $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
-            // Descuentos/Becas (solo tipo 'scholarship', excluir 'discount' que son descuentos simples)
+            // Verificar si ESTE pago es un aporte (report_code = 'AP')
+            $isAporte = $payment->paymentOption && $payment->paymentOption->report_code === 'AP';
+
+            // Si este pago es un aporte, mostrar el monto del pago en scholarship
+            // Si no es aporte, calcular becas de descuentos del participante
             $scholarship = 0;
-            if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                $scholarship = $participantProgram->discounts()
-                    ->where('discount_type', 'scholarship')
-                    ->sum('amount');
+            if ($isAporte) {
+                // Este pago ES un aporte, mostrar el monto del pago
+                $scholarship = $payment->amount ?? 0;
+            } else {
+                // Este pago NO es aporte, calcular becas de descuentos
+                if ($participantProgram && method_exists($participantProgram, 'discounts')) {
+                    $scholarship = $participantProgram->discounts()
+                        ->where('discount_type', 'scholarship')
+                        ->sum('amount');
+                }
             }
 
             // Monto liberado (descuento tipo 'released')

@@ -232,53 +232,119 @@ class SendPendingPaymentEmails extends Command
 
     /**
      * Verificar estado del pago con la pasarela (VirtualPOS)
+     * Hace hasta 3 intentos antes de fallar
      */
     protected function verifyPaymentWithGateway(Payment $payment): array
     {
-        try {
-            // Obtener el ID externo del pago para consultar a VirtualPOS
-            $externalPaymentId = $payment->external_payment_id ?? $payment->token;
+        // Obtener el ID externo del pago para consultar a VirtualPOS
+        $externalPaymentId = $payment->external_payment_id ?? $payment->token;
 
-            if (!$externalPaymentId) {
-                Log::warning('Payment sin external_payment_id para verificar', [
-                    'payment_id' => $payment->id,
-                ]);
-                // Si no hay ID externo, asumimos que el pago ya está confirmado
-                return ['confirmed' => true, 'status' => 'assumed_confirmed'];
-            }
-
-            Log::info('Verificando pago con VirtualPOS', [
+        if (!$externalPaymentId) {
+            Log::warning('Payment sin external_payment_id para verificar', [
                 'payment_id' => $payment->id,
-                'external_payment_id' => $externalPaymentId,
             ]);
-
-            $result = $this->virtualPosService->confirmTransaction($externalPaymentId);
-
-            $isConfirmed = $result['success'] &&
-                           in_array($result['status'] ?? '', VirtualPosService::APPROVED_STATUSES);
-
-            Log::info('Resultado verificación VirtualPOS', [
-                'payment_id' => $payment->id,
-                'success' => $result['success'] ?? false,
-                'status' => $result['status'] ?? 'unknown',
-                'is_confirmed' => $isConfirmed,
-            ]);
-
-            return [
-                'confirmed' => $isConfirmed,
-                'status' => $result['status'] ?? 'unknown',
-                'data' => $result,
-            ];
-
-        } catch (Exception $e) {
-            Log::error('Error verificando pago con VirtualPOS', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            // En caso de error de conexión, asumimos confirmado para no bloquear
-            return ['confirmed' => true, 'status' => 'error_assumed_confirmed'];
+            // Si no hay ID externo, asumimos que el pago ya está confirmado
+            return ['confirmed' => true, 'status' => 'assumed_confirmed'];
         }
+
+        // Configuración de reintentos
+        $maxAttempts = 3;
+        $retryDelaySeconds = 2;
+
+        Log::info('Iniciando verificación con VirtualPOS (hasta 3 intentos)', [
+            'payment_id' => $payment->id,
+            'external_payment_id' => $externalPaymentId,
+        ]);
+
+        // Intentar hasta 3 veces
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                Log::info("VirtualPOS - Intento {$attempt}/{$maxAttempts}", [
+                    'payment_id' => $payment->id,
+                    'external_payment_id' => $externalPaymentId,
+                ]);
+
+                $result = $this->virtualPosService->confirmTransaction($externalPaymentId);
+
+                $isConfirmed = $result['success'] &&
+                               in_array($result['status'] ?? '', VirtualPosService::APPROVED_STATUSES);
+
+                Log::info("VirtualPOS - Resultado intento {$attempt}", [
+                    'payment_id' => $payment->id,
+                    'success' => $result['success'] ?? false,
+                    'status' => $result['status'] ?? 'unknown',
+                    'is_confirmed' => $isConfirmed,
+                ]);
+
+                // Si la verificación fue exitosa, retornar inmediatamente
+                if ($isConfirmed) {
+                    Log::info("VirtualPOS - Verificación exitosa en intento {$attempt}", [
+                        'payment_id' => $payment->id,
+                        'status' => $result['status'],
+                    ]);
+
+                    return [
+                        'confirmed' => true,
+                        'status' => $result['status'] ?? 'unknown',
+                        'data' => $result,
+                        'attempts' => $attempt,
+                    ];
+                }
+
+                // Si no está confirmado pero la API respondió, retornar el resultado
+                if ($result['success'] === false && isset($result['status'])) {
+                    Log::warning("VirtualPOS - Pago no confirmado en intento {$attempt}", [
+                        'payment_id' => $payment->id,
+                        'status' => $result['status'],
+                    ]);
+
+                    return [
+                        'confirmed' => false,
+                        'status' => $result['status'],
+                        'data' => $result,
+                        'attempts' => $attempt,
+                    ];
+                }
+
+            } catch (Exception $e) {
+                Log::warning("VirtualPOS - Error en intento {$attempt}/{$maxAttempts}", [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                // Si es el último intento, retornar fallo
+                if ($attempt === $maxAttempts) {
+                    Log::error('VirtualPOS - Todos los intentos fallaron', [
+                        'payment_id' => $payment->id,
+                        'attempts' => $maxAttempts,
+                        'last_error' => $e->getMessage(),
+                    ]);
+
+                    // Retornar NO confirmado para que el cron lo reintente después
+                    return [
+                        'confirmed' => false,
+                        'status' => 'verification_error_after_retries',
+                        'error' => $e->getMessage(),
+                        'attempts' => $maxAttempts,
+                    ];
+                }
+
+                // Esperar antes del siguiente intento
+                sleep($retryDelaySeconds);
+            }
+        }
+
+        // Fallback: si llegamos aquí, todos los intentos fallaron sin confirmación
+        Log::error('VirtualPOS - Verificación falló después de todos los intentos', [
+            'payment_id' => $payment->id,
+            'attempts' => $maxAttempts,
+        ]);
+
+        return [
+            'confirmed' => false,
+            'status' => 'verification_failed_after_retries',
+            'attempts' => $maxAttempts,
+        ];
     }
 
     /**

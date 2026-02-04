@@ -160,14 +160,49 @@ class GetEditDataService
 
                 // Pagos aprobados/completados del participante para este programa
                 // NOTA: orders.program_id guarda el ID del ProgramCourse, no del Program template
+                // Calcular TODOS los pagos (incluidos aportes) para balance y porcentaje
                 $paidAmount = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
                     $q->where('participant_id', $participant->id)
                         ->where('program_id', $programCourse->id);
                 })
                     ->whereIn('status', ['approved', 'completed'])
                     ->sum('amount');
+
                 $paidAmount = round($paidAmount, 2);
-                $balance = max(round($priceData['final_price'] - $paidAmount, 2), 0);
+
+                // Calcular aportes por separado solo para mostrar en columna APORTE
+                $aportes = (float) \App\Models\Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                    $q->where('participant_id', $participant->id)
+                        ->where('program_id', $programCourse->id);
+                })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->whereHas('paymentOption', function($q) {
+                        $q->where('report_code', 'AP');
+                    })
+                    ->sum('amount');
+
+                $aportes = round($aportes, 2);
+
+                // Calcular becas (descuentos tipo scholarship)
+                $becas = 0;
+                if ($participantProgram && $participantProgram->discounts) {
+                    foreach ($participantProgram->discounts as $discount) {
+                        if ($discount->discount_type === 'scholarship') {
+                            if ($discount->amount) {
+                                $becas += $discount->amount;
+                            } elseif ($discount->percent) {
+                                $becas += ($basePrice * $discount->percent / 100);
+                            }
+                        }
+                    }
+                }
+                $becas = round($becas, 2);
+
+                // Balance = Precio final - Total pagado - Becas
+                // IMPORTANTE: paidAmount ya incluye todos los pagos (incluidos aportes)
+                $balance = max(round($priceData['final_price'] - $paidAmount - $becas, 2), 0);
+
+                // Porcentaje de pago basado en el total pagado (ya incluye aportes)
                 $paymentPercentage = ($priceData['final_price'] > 0)
                     ? round(($paidAmount / $priceData['final_price']) * 100, 0)
                     : 0;
@@ -256,7 +291,9 @@ class GetEditDataService
                     $array['participant_amount'] = $priceData['base_price']; // precio base por participante
                     $array['participant_adjustments'] = $priceData['adjustments']; // ajuste del pivote
                     $array['participant_total_due'] = $priceData['final_price']; // total a pagar (base + ajuste - descuentos)
-                    $array['paidAmount'] = $paidAmount;
+                    $array['paidAmount'] = $paidAmount; // Total pagado (incluye todos los pagos + aportes)
+                    $array['aportes'] = $aportes; // Aportes (pagos con report_code='AP') - solo para mostrar
+                    $array['becas'] = $becas; // Becas (descuentos tipo scholarship)
                     $array['participant_balance'] = $balance;
                     $array['paymentPercentage'] = $paymentPercentage;
                     $array['total_installments'] = $totalInstallments;

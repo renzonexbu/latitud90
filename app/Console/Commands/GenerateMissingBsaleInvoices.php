@@ -127,7 +127,7 @@ class GenerateMissingBsaleInvoices extends Command
                     $this->line("     bsale_document_id: " . ($bsaleResult['id'] ?? 'N/A'));
                     $this->line("     bsale_number: " . ($bsaleResult['number'] ?? 'N/A'));
 
-                    Log::info('GenerateMissingBsaleInvoices: Boleta generada', [
+                    Log::channel('bsale')->info('GenerateMissingBsaleInvoices: Boleta generada', [
                         'payment_id' => $paymentId,
                         'bsale_document_id' => $bsaleResult['id'] ?? null,
                         'bsale_number' => $bsaleResult['number'] ?? null,
@@ -140,7 +140,7 @@ class GenerateMissingBsaleInvoices extends Command
                 }
             } catch (\Exception $e) {
                 $this->error("  ❌ Error: " . $e->getMessage());
-                Log::error('GenerateMissingBsaleInvoices: Error generando boleta', [
+                Log::channel('bsale')->error('GenerateMissingBsaleInvoices: Error generando boleta', [
                     'payment_id' => $paymentId,
                     'error' => $e->getMessage(),
                 ]);

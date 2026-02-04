@@ -33,14 +33,14 @@ class BsaleQueueService
     ): ?BsaleRequest {
         $documentType = BsaleRequest::DOC_TYPE_BOLETA;
 
-        Log::info('BsaleQueueService: Intentando encolar boleta', [
+        Log::channel('bsale')->info('BsaleQueueService: Intentando encolar boleta', [
             'payment_id' => $payment->id,
             'source' => $source,
         ]);
 
         // VALIDACIÓN 1: Verificar si BSale está habilitado globalmente
         if (!config('services.bsale.enabled', true)) {
-            Log::info('BsaleQueueService: BSale deshabilitado globalmente', [
+            Log::channel('bsale')->info('BsaleQueueService: BSale deshabilitado globalmente', [
                 'payment_id' => $payment->id,
             ]);
             return null;
@@ -48,7 +48,7 @@ class BsaleQueueService
 
         // VALIDACIÓN 2: Verificar si el payment ya tiene boleta generada
         if (!empty($payment->bsale_document_id)) {
-            Log::info('BsaleQueueService: Payment ya tiene boleta BSale', [
+            Log::channel('bsale')->info('BsaleQueueService: Payment ya tiene boleta BSale', [
                 'payment_id' => $payment->id,
                 'bsale_document_id' => $payment->bsale_document_id,
                 'bsale_number' => $payment->bsale_number,
@@ -59,7 +59,7 @@ class BsaleQueueService
         // VALIDACIÓN 3: Verificar si ya existe solicitud activa (pending, processing, completed)
         if (BsaleRequest::existsForPayment($payment->id, $documentType)) {
             $existingRequest = BsaleRequest::getActiveForPayment($payment->id, $documentType);
-            Log::info('BsaleQueueService: Ya existe solicitud activa para este payment', [
+            Log::channel('bsale')->info('BsaleQueueService: Ya existe solicitud activa para este payment', [
                 'payment_id' => $payment->id,
                 'existing_request_id' => $existingRequest?->id,
                 'existing_status' => $existingRequest?->status,
@@ -70,7 +70,7 @@ class BsaleQueueService
         // VALIDACIÓN 4: Verificar que el payment esté confirmado
         $confirmedStatuses = ['completed', 'approved'];
         if (!in_array($payment->status, $confirmedStatuses)) {
-            Log::warning('BsaleQueueService: Payment no está confirmado', [
+            Log::channel('bsale')->warning('BsaleQueueService: Payment no está confirmado', [
                 'payment_id' => $payment->id,
                 'payment_status' => $payment->status,
             ]);
@@ -82,7 +82,7 @@ class BsaleQueueService
         if ($orderDetail) {
             $documentTypes = PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
             if (!in_array(PaymentDocumentTypeHelper::TYPE_BOLETA, $documentTypes)) {
-                Log::info('BsaleQueueService: Este payment no requiere boleta BSale', [
+                Log::channel('bsale')->info('BsaleQueueService: Este payment no requiere boleta BSale', [
                     'payment_id' => $payment->id,
                     'required_types' => $documentTypes,
                 ]);
@@ -92,7 +92,7 @@ class BsaleQueueService
 
         // VALIDACIÓN 5.5: Créditos Temporales (CT) NUNCA generan boleta
         if ($payment->paymentOption && $payment->paymentOption->code === 'presential_credit_temp') {
-            Log::info('BsaleQueueService: Crédito Temporal (CT) no genera boleta BSale', [
+            Log::channel('bsale')->info('BsaleQueueService: Crédito Temporal (CT) no genera boleta BSale', [
                 'payment_id' => $payment->id,
                 'payment_option' => $payment->paymentOption->code,
             ]);
@@ -105,14 +105,14 @@ class BsaleQueueService
             $isSubscription = $this->isSubscriptionPayment($payment, $order);
 
             if ($isSubscription && !config('services.bsale.subscription_enabled', true)) {
-                Log::info('BsaleQueueService: BSale deshabilitado para suscripciones', [
+                Log::channel('bsale')->info('BsaleQueueService: BSale deshabilitado para suscripciones', [
                     'payment_id' => $payment->id,
                 ]);
                 return null;
             }
 
             if (!$isSubscription && !config('services.bsale.total_enabled', true)) {
-                Log::info('BsaleQueueService: BSale deshabilitado para pagos totales', [
+                Log::channel('bsale')->info('BsaleQueueService: BSale deshabilitado para pagos totales', [
                     'payment_id' => $payment->id,
                 ]);
                 return null;
@@ -135,7 +135,7 @@ class BsaleQueueService
                 'scheduled_at' => now(),
             ]);
 
-            Log::info('BsaleQueueService: Solicitud de boleta encolada exitosamente', [
+            Log::channel('bsale')->info('BsaleQueueService: Solicitud de boleta encolada exitosamente', [
                 'payment_id' => $payment->id,
                 'bsale_request_id' => $request->id,
             ]);
@@ -143,7 +143,7 @@ class BsaleQueueService
             return $request;
 
         } catch (Exception $e) {
-            Log::error('BsaleQueueService: Error al encolar solicitud', [
+            Log::channel('bsale')->error('BsaleQueueService: Error al encolar solicitud', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ]);
@@ -156,7 +156,7 @@ class BsaleQueueService
      */
     public function processRequest(BsaleRequest $request): bool
     {
-        Log::info('BsaleQueueService: Procesando solicitud', [
+        Log::channel('bsale')->info('BsaleQueueService: Procesando solicitud', [
             'bsale_request_id' => $request->id,
             'payment_id' => $request->payment_id,
             'attempt' => $request->attempts + 1,
@@ -178,7 +178,7 @@ class BsaleQueueService
             $payment->refresh();
             if (!empty($payment->bsale_document_id)) {
                 $request->markAsSkipped('Payment ya tiene boleta BSale: ' . $payment->bsale_document_id);
-                Log::info('BsaleQueueService: Payment ya tiene boleta, omitiendo', [
+                Log::channel('bsale')->info('BsaleQueueService: Payment ya tiene boleta, omitiendo', [
                     'bsale_request_id' => $request->id,
                     'bsale_document_id' => $payment->bsale_document_id,
                 ]);
@@ -215,7 +215,7 @@ class BsaleQueueService
                     $bsaleResult['token'] ?? null
                 );
 
-                Log::info('BsaleQueueService: Boleta generada exitosamente', [
+                Log::channel('bsale')->info('BsaleQueueService: Boleta generada exitosamente', [
                     'bsale_request_id' => $request->id,
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $bsaleResult['id'] ?? null,
@@ -232,7 +232,7 @@ class BsaleQueueService
                     $bsaleResult
                 );
 
-                Log::warning('BsaleQueueService: BSale no retornó ID válido', [
+                Log::channel('bsale')->warning('BsaleQueueService: BSale no retornó ID válido', [
                     'bsale_request_id' => $request->id,
                     'payment_id' => $payment->id,
                     'response' => $bsaleResult,
@@ -248,7 +248,7 @@ class BsaleQueueService
 
             $request->markAsFailed($errorMessage, (string) $errorCode);
 
-            Log::error('BsaleQueueService: Error al procesar solicitud', [
+            Log::channel('bsale')->error('BsaleQueueService: Error al procesar solicitud', [
                 'bsale_request_id' => $request->id,
                 'payment_id' => $request->payment_id,
                 'error' => $errorMessage,
@@ -277,7 +277,7 @@ class BsaleQueueService
             ->limit($limit)
             ->get();
 
-        Log::info('BsaleQueueService: Iniciando procesamiento de cola', [
+        Log::channel('bsale')->info('BsaleQueueService: Iniciando procesamiento de cola', [
             'pending_count' => $requests->count(),
             'limit' => $limit,
         ]);
@@ -301,14 +301,14 @@ class BsaleQueueService
 
             } catch (Exception $e) {
                 $results['failed']++;
-                Log::error('BsaleQueueService: Error procesando solicitud', [
+                Log::channel('bsale')->error('BsaleQueueService: Error procesando solicitud', [
                     'bsale_request_id' => $request->id,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        Log::info('BsaleQueueService: Procesamiento de cola completado', $results);
+        Log::channel('bsale')->info('BsaleQueueService: Procesamiento de cola completado', $results);
 
         return $results;
     }
@@ -319,7 +319,7 @@ class BsaleQueueService
     public function retryRequest(BsaleRequest $request, ?int $userId = null): bool
     {
         if (!$request->canRetry()) {
-            Log::warning('BsaleQueueService: Solicitud no puede reintentarse', [
+            Log::channel('bsale')->warning('BsaleQueueService: Solicitud no puede reintentarse', [
                 'bsale_request_id' => $request->id,
                 'status' => $request->status,
                 'attempts' => $request->attempts,
@@ -341,7 +341,7 @@ class BsaleQueueService
             ]),
         ]);
 
-        Log::info('BsaleQueueService: Solicitud programada para reintento', [
+        Log::channel('bsale')->info('BsaleQueueService: Solicitud programada para reintento', [
             'bsale_request_id' => $request->id,
             'user_id' => $userId,
         ]);
@@ -373,7 +373,7 @@ class BsaleQueueService
             ]),
         ]);
 
-        Log::info('BsaleQueueService: Solicitud forzada para reprocesamiento', [
+        Log::channel('bsale')->info('BsaleQueueService: Solicitud forzada para reprocesamiento', [
             'bsale_request_id' => $request->id,
             'user_id' => $userId,
         ]);
@@ -402,15 +402,23 @@ class BsaleQueueService
      */
     protected function isSubscriptionPayment(Payment $payment, $order): bool
     {
+        // 1. Si payment_type es 'total', NUNCA es suscripción (salir inmediatamente)
         $paymentType = $order->payment_type ?? null;
+        if ($paymentType === 'total') {
+            return false;
+        }
+
+        // 2. Verificar payment_type (monthly, subscription, pat)
         if (in_array($paymentType, ['monthly', 'subscription', 'pat'])) {
             return true;
         }
 
+        // 3. Verificar external_payment_id (solo si NO es 'total')
         if (!empty($payment->external_payment_id)) {
             return true;
         }
 
+        // 4. Verificar order_number
         $orderNumber = $order->order_number ?? '';
         if (str_starts_with($orderNumber, 'SUB-')) {
             return true;

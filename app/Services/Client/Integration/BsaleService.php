@@ -65,7 +65,7 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('Bsale getDocumentTypeDetails error', [
+            Log::channel('bsale')->error('Bsale getDocumentTypeDetails error', [
                 'document_type_id' => $documentTypeId,
                 'error' => $e->getMessage()
             ]);
@@ -89,7 +89,7 @@ class BsaleService
                 return $response->json();
             }
 
-            Log::warning('Bsale getAvailableFolios response', [
+            Log::channel('bsale')->warning('Bsale getAvailableFolios response', [
                 'document_type_id' => $documentTypeId,
                 'status' => $response->status(),
                 'body' => $response->body()
@@ -98,7 +98,7 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('Bsale getAvailableFolios error', [
+            Log::channel('bsale')->error('Bsale getAvailableFolios error', [
                 'document_type_id' => $documentTypeId,
                 'error' => $e->getMessage()
             ]);
@@ -122,7 +122,7 @@ class BsaleService
                 return $response->json();
             }
 
-            Log::warning('Bsale getCafDetails response', [
+            Log::channel('bsale')->warning('Bsale getCafDetails response', [
                 'document_type_id' => $documentTypeId,
                 'status' => $response->status(),
                 'body' => $response->body()
@@ -131,7 +131,7 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('Bsale getCafDetails error', [
+            Log::channel('bsale')->error('Bsale getCafDetails error', [
                 'document_type_id' => $documentTypeId,
                 'error' => $e->getMessage()
             ]);
@@ -217,7 +217,7 @@ class BsaleService
             // Kill switch: verificar si BSale está habilitado globalmente
             // Configurar BSALE_ENABLED=false en .env para desactivar generación de boletas
             if (!config('services.bsale.enabled', true)) {
-                Log::info('BsaleService: Generación de boletas DESACTIVADA por configuración (BSALE_ENABLED=false)', [
+                Log::channel('bsale')->info('BsaleService: Generación de boletas DESACTIVADA por configuración (BSALE_ENABLED=false)', [
                     'payment_id' => $payment->id,
                     'order_detail_id' => $orderDetail->id,
                 ]);
@@ -226,7 +226,7 @@ class BsaleService
 
             // IMPORTANTE: Verificar si el Payment ya tiene una boleta generada para evitar duplicados
             if (!empty($payment->bsale_document_id) || !empty($payment->bsale_number)) {
-                Log::info('BsaleService: Payment ya tiene boleta generada, omitiendo generación duplicada', [
+                Log::channel('bsale')->info('BsaleService: Payment ya tiene boleta generada, omitiendo generación duplicada', [
                     'payment_id' => $payment->id,
                     'bsale_document_id' => $payment->bsale_document_id,
                     'bsale_number' => $payment->bsale_number,
@@ -238,7 +238,7 @@ class BsaleService
             // Errores permanentes: client_blocked, cliente bloqueado, etc.
             $permanentErrors = ['client_blocked', 'cli_005'];
             if (!empty($payment->bsale_error_code) && in_array($payment->bsale_error_code, $permanentErrors)) {
-                Log::info('BsaleService: Payment tiene error permanente de BSale, no reintentando', [
+                Log::channel('bsale')->info('BsaleService: Payment tiene error permanente de BSale, no reintentando', [
                     'payment_id' => $payment->id,
                     'bsale_error' => $payment->bsale_error,
                     'bsale_error_code' => $payment->bsale_error_code,
@@ -250,7 +250,7 @@ class BsaleService
             // Estados como 'pending', 'processing', 'procesando' NO deben generar boleta
             $confirmedStatuses = ['completed', 'approved'];
             if (!in_array($payment->status, $confirmedStatuses)) {
-                Log::warning('BsaleService: NO se genera boleta - pago NO está confirmado', [
+                Log::channel('bsale')->warning('BsaleService: NO se genera boleta - pago NO está confirmado', [
                     'payment_id' => $payment->id,
                     'payment_status' => $payment->status,
                     'required_statuses' => $confirmedStatuses,
@@ -264,7 +264,7 @@ class BsaleService
 
             if ($isSubscription) {
                 if (!config('services.bsale.subscription_enabled', true)) {
-                    Log::info('BsaleService: Generación DESACTIVADA para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
+                    Log::channel('bsale')->info('BsaleService: Generación DESACTIVADA para suscripciones (BSALE_SUBSCRIPTION_ENABLED=false)', [
                         'payment_id' => $payment->id,
                         'order_payment_type' => $order->payment_type ?? 'N/A',
                     ]);
@@ -272,7 +272,7 @@ class BsaleService
                 }
             } else {
                 if (!config('services.bsale.total_enabled', true)) {
-                    Log::info('BsaleService: Generación DESACTIVADA para pagos totales (BSALE_TOTAL_ENABLED=false)', [
+                    Log::channel('bsale')->info('BsaleService: Generación DESACTIVADA para pagos totales (BSALE_TOTAL_ENABLED=false)', [
                         'payment_id' => $payment->id,
                         'order_payment_type' => $order->payment_type ?? 'N/A',
                     ]);
@@ -288,7 +288,7 @@ class BsaleService
             $documentType = $payment->document_type;
             $shouldGenerateBoleta = $documentType === 'B2';
 
-            Log::info('BsaleService: Verificando generación de boleta', [
+            Log::channel('bsale')->info('BsaleService: Verificando generación de boleta', [
                 'order_detail_id' => $orderDetail->id,
                 'payment_id' => $payment->id,
                 'payment_document_type' => $documentType,
@@ -298,7 +298,7 @@ class BsaleService
             ]);
 
             if (!$shouldGenerateBoleta) {
-                Log::info('BsaleService: No se genera boleta - document_type es AC (anticipo/contrato)', [
+                Log::channel('bsale')->info('BsaleService: No se genera boleta - document_type es AC (anticipo/contrato)', [
                     'payment_id' => $payment->id,
                     'document_type' => $documentType,
                 ]);
@@ -314,7 +314,7 @@ class BsaleService
             // Crear documento (boleta) en Bsale
             $documentData = $this->createDocument($orderDetail, $payment, $customerId);
 
-            Log::info('BsaleService: Boleta generada exitosamente', [
+            Log::channel('bsale')->info('BsaleService: Boleta generada exitosamente', [
                 'payment_id' => $payment->id,
                 'bsale_number' => $documentData['number'] ?? null,
                 'bsale_token' => $documentData['token'] ?? null,
@@ -325,7 +325,7 @@ class BsaleService
         } catch (\Exception $e) {
             $errorMessage = $e->getMessage();
 
-            Log::error('BsaleService: Error generando boleta', [
+            Log::channel('bsale')->error('BsaleService: Error generando boleta', [
                 'payment_id' => $payment->id,
                 'error' => $errorMessage,
             ]);
@@ -344,7 +344,7 @@ class BsaleService
                         'bsale_error_code' => $errorCode,
                     ]);
 
-                    Log::warning('BsaleService: Error PERMANENTE detectado - cliente bloqueado', [
+                    Log::channel('bsale')->warning('BsaleService: Error PERMANENTE detectado - cliente bloqueado', [
                         'payment_id' => $payment->id,
                         'error_code' => $errorCode,
                         'error_message' => $errorMessage,
@@ -390,7 +390,7 @@ class BsaleService
 
             // Si aún no hay document_number, no podemos crear cliente en Bsale
             if (empty($documentNumber)) {
-                Log::warning('BsaleService: No se puede crear cliente - document_number vacío', [
+                Log::channel('bsale')->warning('BsaleService: No se puede crear cliente - document_number vacío', [
                     'order_detail_id' => $orderDetail->id,
                 ]);
                 return null;
@@ -412,14 +412,14 @@ class BsaleService
             if ($documentTypeUpper === 'PASAPORTE') {
                 // Pasaporte: usar RUT genérico para Bsale
                 $documentNumber = '55.555.555-5';
-                Log::info('BsaleService: Pasaporte detectado, usando RUT genérico', [
+                Log::channel('bsale')->info('BsaleService: Pasaporte detectado, usando RUT genérico', [
                     'order_detail_id' => $orderDetail->id,
                     'original_document' => $data['document_number'],
                 ]);
             } elseif ($documentTypeUpper === 'DNI' || $documentTypeUpper === 'DOCUMENTO DE IDENTIDAD') {
                 // DNI extranjero: usar RUT genérico para Bsale
                 $documentNumber = '55.555.555-5';
-                Log::info('BsaleService: DNI detectado, usando RUT genérico', [
+                Log::channel('bsale')->info('BsaleService: DNI detectado, usando RUT genérico', [
                     'order_detail_id' => $orderDetail->id,
                     'original_document' => $data['document_number'],
                 ]);
@@ -429,7 +429,7 @@ class BsaleService
                 if ($documentNumber && strlen($documentNumber) >= 8) {
                     $documentNumber = \App\Helpers\RutHelper::format($documentNumber);
 
-                    Log::info('BsaleService: RUT formateado para Bsale', [
+                    Log::channel('bsale')->info('BsaleService: RUT formateado para Bsale', [
                         'order_detail_id' => $orderDetail->id,
                         'original_rut' => $originalDocumentNumber,
                         'formatted_rut' => $documentNumber,
@@ -473,7 +473,7 @@ class BsaleService
             // Buscar cliente existente por RUT/código primero
             $existingCustomerByCode = $this->findCustomerByCode($documentNumber);
             if ($existingCustomerByCode) {
-                Log::info('BsaleService: Cliente encontrado por código', [
+                Log::channel('bsale')->info('BsaleService: Cliente encontrado por código', [
                     'customer_id' => $existingCustomerByCode['id'],
                     'code' => $documentNumber,
                 ]);
@@ -483,7 +483,7 @@ class BsaleService
             // Buscar cliente existente por email como fallback
             $existingCustomer = $this->findCustomerByEmail($orderDetail->email);
             if ($existingCustomer) {
-                Log::info('BsaleService: Cliente encontrado por email', [
+                Log::channel('bsale')->info('BsaleService: Cliente encontrado por email', [
                     'customer_id' => $existingCustomer['id'],
                     'email' => $orderDetail->email,
                 ]);
@@ -501,7 +501,7 @@ class BsaleService
                 $customer = $response->json();
                 return $customer['id'];
             } else {
-                Log::error('BSale New Customer Creation Failed:', [
+                Log::channel('bsale')->error('BSale New Customer Creation Failed:', [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
@@ -613,7 +613,7 @@ class BsaleService
 
 
         if (!$response->successful()) {
-            Log::error('BSale Document Creation Failed:', [
+            Log::channel('bsale')->error('BSale Document Creation Failed:', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'documentData' => $documentData
@@ -718,14 +718,14 @@ class BsaleService
                     );
                 }
             } else {
-                Log::error('BSale PDF Download Failed:', [
+                Log::channel('bsale')->error('BSale PDF Download Failed:', [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
             }
-            
+
         } catch (\Exception $e) {
-            Log::error('BSale PDF Download Exception:', [
+            Log::channel('bsale')->error('BSale PDF Download Exception:', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
@@ -777,7 +777,7 @@ class BsaleService
                 }
             }
 
-            Log::info('BsaleService::findDocumentByNumber - No se encontró documento', [
+            Log::channel('bsale')->info('BsaleService::findDocumentByNumber - No se encontró documento', [
                 'number' => $number,
                 'response_status' => $response->status(),
             ]);
@@ -785,7 +785,7 @@ class BsaleService
             return null;
 
         } catch (\Exception $e) {
-            Log::error('BsaleService::findDocumentByNumber - Error', [
+            Log::channel('bsale')->error('BsaleService::findDocumentByNumber - Error', [
                 'number' => $number,
                 'error' => $e->getMessage(),
             ]);
@@ -818,7 +818,7 @@ class BsaleService
                 'bsale_document_id' => $document['id'] ?? $payment->bsale_document_id,
             ]);
 
-            Log::info('BsaleService::syncPaymentToken - Token sincronizado', [
+            Log::channel('bsale')->info('BsaleService::syncPaymentToken - Token sincronizado', [
                 'payment_id' => $payment->id,
                 'bsale_number' => $payment->bsale_number,
                 'bsale_token' => $document['token'],
@@ -839,19 +839,29 @@ class BsaleService
      */
     private function isSubscriptionPayment(Payment $payment, $order): bool
     {
-        // 1. Verificar payment_type de la orden
+        // 1. Si payment_type es 'total', NUNCA es suscripción (salir inmediatamente)
         $paymentType = $order->payment_type ?? null;
+        if ($paymentType === 'total') {
+            Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Es pago total (payment_type=total)', [
+                'payment_id' => $payment->id,
+                'payment_type' => $paymentType,
+            ]);
+            return false;
+        }
+
+        // 2. Verificar payment_type de la orden (monthly, subscription, pat)
         if (in_array($paymentType, ['monthly', 'subscription', 'pat'])) {
-            Log::debug('BsaleService::isSubscriptionPayment - Detectado por payment_type', [
+            Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Detectado por payment_type', [
                 'payment_id' => $payment->id,
                 'payment_type' => $paymentType,
             ]);
             return true;
         }
 
-        // 2. Verificar si tiene external_payment_id (típico de charges de suscripción VirtualPOS)
+        // 3. Verificar si tiene external_payment_id (típico de charges de suscripción VirtualPOS)
+        // NOTA: Este check solo aplica si payment_type NO es 'total' (ya verificado arriba)
         if (!empty($payment->external_payment_id)) {
-            Log::debug('BsaleService::isSubscriptionPayment - Detectado por external_payment_id', [
+            Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Detectado por external_payment_id', [
                 'payment_id' => $payment->id,
                 'external_payment_id' => $payment->external_payment_id,
             ]);
@@ -861,7 +871,7 @@ class BsaleService
         // 3. Verificar si el order_number indica suscripción
         $orderNumber = $order->order_number ?? '';
         if (str_starts_with($orderNumber, 'SUB-')) {
-            Log::debug('BsaleService::isSubscriptionPayment - Detectado por order_number SUB-', [
+            Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Detectado por order_number SUB-', [
                 'payment_id' => $payment->id,
                 'order_number' => $orderNumber,
             ]);
@@ -876,7 +886,7 @@ class BsaleService
                 ->exists();
 
             if ($hasSubscription) {
-                Log::debug('BsaleService::isSubscriptionPayment - Detectado por ProgramSubscription existente', [
+                Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Detectado por ProgramSubscription existente', [
                     'payment_id' => $payment->id,
                     'participant_id' => $order->participant_id,
                     'program_id' => $order->program_id,
@@ -886,7 +896,7 @@ class BsaleService
         }
 
         // 5. Fallback: no es pago de suscripción
-        Log::debug('BsaleService::isSubscriptionPayment - Es pago total (no suscripción)', [
+        Log::channel('bsale')->debug('BsaleService::isSubscriptionPayment - Es pago total (no suscripción)', [
             'payment_id' => $payment->id,
             'payment_type' => $paymentType,
         ]);

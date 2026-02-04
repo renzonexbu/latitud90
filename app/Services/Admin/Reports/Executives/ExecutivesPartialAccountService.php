@@ -89,9 +89,6 @@ class ExecutivesPartialAccountService
                     DB::raw('COALESCE(SUM(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pay.amount ELSE 0 END), 0) as abono'),
                     DB::raw('COUNT(DISTINCT inst.id) as total_installments'),
                     DB::raw('MAX(CASE WHEN pay.amount > 0 AND pay.status IN ("approved", "completed") THEN pg.name END) as payment_gateway'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "scholarship" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as scholarship'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "released" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as released'),
-                    DB::raw('COALESCE(SUM(CASE WHEN ppd.discount_type = "discount" THEN COALESCE(ppd.amount, (COALESCE(pp.individual_price, 0) * ppd.percent / 100)) ELSE 0 END), 0) as simple_discounts'),
                 ])
                 // Ordenar por apellidos y luego nombres
                 ->orderBy('p.first_last_name', 'asc')
@@ -117,6 +114,22 @@ class ExecutivesPartialAccountService
             ]);
 
             foreach ($results as $row) {
+                // Calcular descuentos para este participant_program específico
+                // Se hace por separado para evitar duplicación por JOINs en la consulta principal
+                $basePrice = (float) $row->price;
+                $discounts = DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $row->participant_program_id)
+                    ->selectRaw('
+                        COALESCE(SUM(CASE WHEN discount_type = "scholarship" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as scholarship,
+                        COALESCE(SUM(CASE WHEN discount_type = "released" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as released,
+                        COALESCE(SUM(CASE WHEN discount_type = "discount" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as simple_discounts
+                    ', [$basePrice, $basePrice, $basePrice])
+                    ->first();
+
+                $scholarship = (float) ($discounts->scholarship ?? 0);
+                $released = (float) ($discounts->released ?? 0);
+                $simpleDiscounts = (float) ($discounts->simple_discounts ?? 0);
+
                 // Construir nombre en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
                 $participantName = trim(implode(' ', array_filter([
                     $row->first_last_name,
@@ -132,11 +145,6 @@ class ExecutivesPartialAccountService
                 if (!$programCourse && $row->program_code) {
                     $participantName = "[{$row->program_code}] {$participantName}";
                 }
-
-                $basePrice = (float) $row->price;
-                $scholarship = (float) $row->scholarship;
-                $released = (float) $row->released;
-                $simpleDiscounts = (float) ($row->simple_discounts ?? 0);
                 // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
                 $price = $basePrice - $simpleDiscounts;
 

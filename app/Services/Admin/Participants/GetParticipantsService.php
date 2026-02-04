@@ -166,7 +166,8 @@ class GetParticipantsService
                 $enrollment->discounts = $priceData['discounts'];
                 $enrollment->base_price = $priceData['base_price'];
 
-                // Calcular monto pagado correctamente (EXCLUYENDO APORTES - estos van en contribution)
+                // Calcular monto pagado total (INCLUYENDO TODOS LOS PAGOS)
+                // Este es el total real pagado que se usa para calcular balance y porcentaje
                 // 1. Pagos normales (orders/payments) - EXCLUIR pagos de suscripción para evitar doble conteo
                 $normalPayments = Payment::whereHas('order', function($q) use ($enrollment) {
                         $q->where('participant_id', $enrollment->participant_id)
@@ -178,13 +179,6 @@ class GetParticipantsService
                         $query->whereNull('payment_source')
                               ->orWhere('payment_source', '!=', 'subscription');
                     })
-                    ->where(function($query) {
-                        // Excluir aportes del cálculo de paid_amount
-                        $query->whereDoesntHave('paymentOption')
-                              ->orWhereHas('paymentOption', function($q) {
-                                  $q->where('code', '!=', 'presential_aporte');
-                              });
-                    })
                     ->sum('amount');
 
                 // 2. Cuotas de suscripción pagadas (installments)
@@ -195,8 +189,18 @@ class GetParticipantsService
                     ->where('installments.status', 'paid')
                     ->sum('installments.amount');
 
+                // Total pagado = pagos normales + cuotas de suscripción
                 $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
                 $enrollment->paid_amount = round($paidAmount, 2);
+
+                // Calcular el saldo/balance
+                // Balance = Precio total - Total pagado
+                $enrollment->balance = max(0, round($enrollment->total_due - $enrollment->paid_amount, 2));
+
+                // Calcular porcentaje de pago
+                $enrollment->payment_percentage = ($enrollment->total_due > 0)
+                    ? round(($enrollment->paid_amount / $enrollment->total_due) * 100, 2)
+                    : 0;
 
                 // Calcular monto liberado (reembolsos) - usar amount con valor absoluto
                 $refundedAmount = Payment::whereHas('order', function($q) use ($enrollment) {
@@ -209,14 +213,15 @@ class GetParticipantsService
                 // Los reembolsos pueden ser negativos, tomar valor absoluto
                 $enrollment->released_amount = round(abs($refundedAmount ?? 0), 2);
 
-                // Obtener aporte (contribución del participante) - suma de pagos tipo presential_aporte
+                // Obtener aporte (contribución del participante) - suma de pagos con report_code 'AP'
+                // Este campo es solo para mostrar en la columna APORTE, no afecta el balance
                 $contributionAmount = Payment::whereHas('order', function($q) use ($enrollment) {
                         $q->where('participant_id', $enrollment->participant_id)
                           ->where('program_id', $enrollment->program_course_id);
                     })
                     ->whereIn('status', ['approved', 'completed'])
                     ->whereHas('paymentOption', function($q) {
-                        $q->where('code', 'presential_aporte');
+                        $q->where('report_code', 'AP');
                     })
                     ->sum('amount');
 
@@ -228,6 +233,8 @@ class GetParticipantsService
                 $enrollment->base_price = $enrollment->individual_price ?? 0;
                 $enrollment->released_amount = 0;
                 $enrollment->contribution = 0;
+                $enrollment->balance = $enrollment->total_due;
+                $enrollment->payment_percentage = 0;
             }
 
             return $enrollment;

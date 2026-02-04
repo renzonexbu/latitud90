@@ -146,7 +146,7 @@ class PaymentConfirmationLog extends Model
                 'details' => $details,
             ]);
         } catch (\Exception $e) {
-            \Log::error('PaymentConfirmationLog: Error logging Bsale invoice generated', [
+            \Log::channel('bsale')->error('PaymentConfirmationLog: Error logging Bsale invoice generated', [
                 'payment_id' => $payment->id ?? null,
                 'error' => $e->getMessage(),
             ]);

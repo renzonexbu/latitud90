@@ -566,7 +566,7 @@ class StorePaymentService
     private function generateBsaleInvoice(OrderDetail $orderDetail, Payment $payment): ?array
     {
         try {
-            Log::info('🔄 Pago presencial: Iniciando generación de boleta Bsale', [
+            Log::channel('bsale')->info('🔄 Pago presencial: Iniciando generación de boleta Bsale', [
                 'payment_id' => $payment->id,
                 'order_detail_id' => $orderDetail->id,
                 'document_type' => $payment->document_type,
@@ -585,14 +585,14 @@ class StorePaymentService
                     'bsale_token' => $bsaleResult['token'] ?? null,
                 ]);
 
-                Log::info('✅ Pago presencial: Boleta Bsale generada exitosamente', [
+                Log::channel('bsale')->info('✅ Pago presencial: Boleta Bsale generada exitosamente', [
                     'payment_id' => $payment->id,
                     'order_detail_id' => $orderDetail->id,
                     'bsale_document_id' => $bsaleResult['id'] ?? null,
                     'bsale_number' => $bsaleResult['number'] ?? null,
                 ]);
             } else {
-                Log::info('Pago presencial: No se generó boleta Bsale (document_type no es B2 o Bsale deshabilitado)', [
+                Log::channel('bsale')->info('Pago presencial: No se generó boleta Bsale (document_type no es B2 o Bsale deshabilitado)', [
                     'payment_id' => $payment->id,
                     'document_type' => $payment->document_type,
                 ]);
@@ -603,7 +603,7 @@ class StorePaymentService
         } catch (\Exception $e) {
             // No lanzar excepción - el pago ya fue registrado
             // Solo logear el error para revisión
-            Log::error('❌ Pago presencial: Error generando boleta Bsale', [
+            Log::channel('bsale')->error('❌ Pago presencial: Error generando boleta Bsale', [
                 'payment_id' => $payment->id,
                 'order_detail_id' => $orderDetail->id,
                 'error' => $e->getMessage(),

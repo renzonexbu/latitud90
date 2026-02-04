@@ -181,7 +181,7 @@ class DocumentStorageService
                 ]
             );
         } catch (\Exception $e) {
-            Log::error('Error storing Bsale invoice: ' . $e->getMessage(), [
+            Log::channel('bsale')->error('Error storing Bsale invoice: ' . $e->getMessage(), [
                 'payment_id' => $payment->id,
                 'order_detail_id' => $orderDetail->id,
                 'bsale_number' => $bsaleNumber,

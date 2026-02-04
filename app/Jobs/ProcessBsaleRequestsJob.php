@@ -40,17 +40,17 @@ class ProcessBsaleRequestsJob implements ShouldQueue
      */
     public function handle(BsaleQueueService $queueService): void
     {
-        Log::info('ProcessBsaleRequestsJob: Iniciando procesamiento de cola BSale', [
+        Log::channel('bsale')->info('ProcessBsaleRequestsJob: Iniciando procesamiento de cola BSale', [
             'limit' => $this->limit,
         ]);
 
         try {
             $results = $queueService->processPendingRequests($this->limit);
 
-            Log::info('ProcessBsaleRequestsJob: Procesamiento completado', $results);
+            Log::channel('bsale')->info('ProcessBsaleRequestsJob: Procesamiento completado', $results);
 
         } catch (\Exception $e) {
-            Log::error('ProcessBsaleRequestsJob: Error en procesamiento', [
+            Log::channel('bsale')->error('ProcessBsaleRequestsJob: Error en procesamiento', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

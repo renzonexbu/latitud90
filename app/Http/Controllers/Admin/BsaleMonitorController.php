@@ -406,7 +406,7 @@ class BsaleMonitorController extends Controller
                 // Verificar que realmente sea un PDF
                 if (strpos($contentType, 'application/pdf') === false &&
                     !str_starts_with($response->body(), '%PDF')) {
-                    Log::warning('BSale no devolvió un PDF válido', [
+                    Log::channel('bsale')->warning('BSale no devolvió un PDF válido', [
                         'payment_id' => $payment->id,
                         'content_type' => $contentType,
                         'body_preview' => substr($response->body(), 0, 100),
@@ -423,14 +423,14 @@ class BsaleMonitorController extends Controller
                     ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
             }
 
-            Log::warning('Error HTTP descargando PDF de BSale', [
+            Log::channel('bsale')->warning('Error HTTP descargando PDF de BSale', [
                 'payment_id' => $payment->id,
                 'status' => $response->status(),
             ]);
             return back()->with('error', 'No se pudo descargar el PDF desde BSale (HTTP ' . $response->status() . ')');
 
         } catch (\Exception $e) {
-            Log::error('Error descargando PDF de BSale', [
+            Log::channel('bsale')->error('Error descargando PDF de BSale', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
             ]);
@@ -532,7 +532,7 @@ class BsaleMonitorController extends Controller
                 }
             } catch (\Exception $e) {
                 $errors[] = "Payment #{$payment->id}: {$e->getMessage()}";
-                Log::warning('Error descargando PDF para ZIP', [
+                Log::channel('bsale')->warning('Error descargando PDF para ZIP', [
                     'payment_id' => $payment->id,
                     'error' => $e->getMessage(),
                 ]);
@@ -550,7 +550,7 @@ class BsaleMonitorController extends Controller
             ], 500);
         }
 
-        Log::info('ZIP de boletas creado', [
+        Log::channel('bsale')->info('ZIP de boletas creado', [
             'total_requested' => $payments->count(),
             'downloaded' => $downloadedCount,
             'errors_count' => count($errors),
@@ -665,7 +665,7 @@ class BsaleMonitorController extends Controller
             usleep(200000); // 200ms
         }
 
-        Log::info('BsaleMonitorController::syncMissingTokens - Sincronización completada', [
+        Log::channel('bsale')->info('BsaleMonitorController::syncMissingTokens - Sincronización completada', [
             'total' => $payments->count(),
             'synced' => $synced,
             'failed' => $failed,
