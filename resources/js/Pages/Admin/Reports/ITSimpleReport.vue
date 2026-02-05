@@ -163,28 +163,28 @@
                     </div>
 
                     <!-- Paginación -->
-                    <div class="mt-6 flex flex-row items-center justify-end gap-6 relative">
-                        <!-- Total Items -->
+                    <div class="mt-6 flex flex-row items-center justify-end gap-4 relative">
                         <div class="text-[#9ca3af] font-normal text-sm">
                             Total {{ reportData.total }} Programas
                         </div>
-
-                        <!-- Page Numbers -->
-                        <div class="flex flex-row gap-2 items-center justify-center">
+                        <div class="flex flex-row gap-1.5 items-center justify-center">
                             <div
-                                v-for="page in validPages"
-                                :key="page"
-                                @click="goToPage(page)"
-                                :class="[
-                                    'flex w-8 h-8 items-center justify-center rounded-full cursor-pointer transition-colors',
-                                    reportData.current_page === page
-                                        ? 'bg-[#1c4f4a] text-white'
-                                        : 'bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]',
-                                ]"
+                                @click="reportData.current_page > 1 && goToPage(reportData.current_page - 1)"
+                                :class="['flex w-8 h-8 items-center justify-center rounded-full transition-colors', reportData.current_page > 1 ? 'cursor-pointer bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]' : 'cursor-not-allowed bg-[#f3f4f6] text-[#d1d5db]']"
                             >
-                                <span class="text-sm font-medium">
-                                    {{ page }}
-                                </span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+                            </div>
+                            <template v-for="item in visiblePages" :key="item.key">
+                                <div v-if="item.type === 'page'" @click="goToPage(item.value)" :class="['flex w-8 h-8 items-center justify-center rounded-full cursor-pointer transition-colors', reportData.current_page === item.value ? 'bg-[#1c4f4a] text-white' : 'bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]']">
+                                    <span class="text-sm font-medium">{{ item.value }}</span>
+                                </div>
+                                <div v-else class="flex w-8 h-8 items-center justify-center text-[#9ca3af] text-sm">...</div>
+                            </template>
+                            <div
+                                @click="reportData.current_page < reportData.last_page && goToPage(reportData.current_page + 1)"
+                                :class="['flex w-8 h-8 items-center justify-center rounded-full transition-colors', reportData.current_page < reportData.last_page ? 'cursor-pointer bg-white border border-[#e5e7eb] text-[#6b7280] hover:border-[#1c4f4a]' : 'cursor-not-allowed bg-[#f3f4f6] text-[#d1d5db]']"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
                             </div>
                         </div>
                     </div>
@@ -234,19 +234,29 @@ const formatCurrency = (amount) => {
 }
 
 // Computed properties for pagination
-const validPages = computed(() => {
-    if (!props.reportData || !props.reportData.last_page) {
-        return [1]
+const visiblePages = computed(() => {
+    if (!props.reportData || !props.reportData.last_page) return [{ type: 'page', value: 1, key: 'page-1' }]
+    const total = props.reportData.last_page
+    const current = props.reportData.current_page
+    const items = []
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) items.push({ type: 'page', value: i, key: `page-${i}` })
+        return items
     }
-
-    const pages = []
-    const totalPages = props.reportData.last_page
-
-    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
-        pages.push(i)
+    items.push({ type: 'page', value: 1, key: 'page-1' })
+    if (current <= 3) {
+        for (let i = 2; i <= 4; i++) items.push({ type: 'page', value: i, key: `page-${i}` })
+        items.push({ type: 'ellipsis', key: 'ellipsis-end' })
+    } else if (current >= total - 2) {
+        items.push({ type: 'ellipsis', key: 'ellipsis-start' })
+        for (let i = total - 3; i <= total - 1; i++) items.push({ type: 'page', value: i, key: `page-${i}` })
+    } else {
+        items.push({ type: 'ellipsis', key: 'ellipsis-start' })
+        for (let i = current - 1; i <= current + 1; i++) items.push({ type: 'page', value: i, key: `page-${i}` })
+        items.push({ type: 'ellipsis', key: 'ellipsis-end' })
     }
-
-    return pages
+    items.push({ type: 'page', value: total, key: `page-${total}` })
+    return items
 })
 
 const applyFilters = () => {
