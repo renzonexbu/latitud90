@@ -35,11 +35,29 @@ class PaymentOptionsProgramService
     ];
 
     /**
-     * Transforma el label de una opción de pago si existe un override
+     * Transforma el label de una opción de pago según el programa
+     * Para suscripciones, agrega el número de meses disponibles desde la base de datos
      */
-    protected function transformLabel(string $code, string $originalLabel): string
+    protected function transformLabel(string $code, string $originalLabel, ?ProgramCourse $program = null): string
     {
-        return $this->labelOverrides[$code] ?? $originalLabel;
+        $baseLabel = $this->labelOverrides[$code] ?? $originalLabel;
+
+        // Si es una suscripción y tenemos el programa, mostrar cuotas disponibles desde BD
+        if ($code === 'subscription_virtualpos' && $program) {
+            // Leer el valor almacenado en la base de datos
+            $availableMonths = $program->subscription_max_months ?? $program->lat90_max_installments ?? 0;
+
+            // Limitar a un máximo de 12 cuotas
+            $availableMonths = min($availableMonths, 12);
+
+            if ($availableMonths > 0) {
+                $baseLabel .= " - hasta {$availableMonths} cuotas";
+            } else {
+                $baseLabel .= " - no disponible";
+            }
+        }
+
+        return $baseLabel;
     }
 
     /**
@@ -125,7 +143,7 @@ class PaymentOptionsProgramService
                 ->map(fn($opt) => [
                     'id' => $opt->id,
                     'code' => $opt->code,
-                    'label' => $this->transformLabel($opt->code, $opt->label),
+                    'label' => $this->transformLabel($opt->code, $opt->label, $program),
                     'mode' => $opt->mode,
                 ])
                 ->values();
@@ -181,7 +199,7 @@ class PaymentOptionsProgramService
                 ->map(fn($opt) => [
                     'id' => $opt->id,
                     'code' => $opt->code,
-                    'label' => $this->transformLabel($opt->code, $opt->label),
+                    'label' => $this->transformLabel($opt->code, $opt->label, null),
                     'mode' => $opt->mode,
                 ])
                 ->values(),

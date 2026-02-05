@@ -449,18 +449,17 @@ class BsaleService
                 $customerEmail = 'pagos@latitud90.com';
             }
 
-            // For BSale document type 3, company field is required
-            // Use customer's full name as company to satisfy BSale requirement
-            $fullName = $this->extractFirstName($customerName) . ' ' . $this->extractLastName($customerName);
+            // Dividir el nombre completo en nombres y apellidos de forma inteligente
+            $nameParts = $this->splitFullName($customerName);
 
             $customerData = [
-                'firstName' => $this->extractFirstName($customerName),
-                'lastName' => $this->extractLastName($customerName),
+                'firstName' => $nameParts['firstName'],
+                'lastName' => $nameParts['lastName'],
                 'email' => $customerEmail,
                 'code' => $documentNumber, // BSale uses 'code' field for RUT
                 'documentNumber' => $documentNumber,
                 'documentTypeId' => $this->getDocumentTypeId($orderDetail->document_type),
-                'company' => trim($fullName), // Use customer's name as company (required by document type 3)
+                // NO incluir 'company' para que Bsale lo trate como persona natural
                 'address' => $address ?: null, // Ensure it's not empty string
                 'city' => $comuna ?: null, // Ensure it's not empty string
                 'activity' => null, // Explicitly null to avoid "Sin Giro"
@@ -571,13 +570,26 @@ class BsaleService
     {
         $program = $orderDetail->order->programCourse;
 
-        // Usar el nombre del PAGADOR (OrderDetail) en lugar del participante
-        // El pagador puede ser diferente al participante (ej: padre pagando por hijo)
-        $payerName = $orderDetail->name ?: 'PAGADOR';
-        $payerName = ucwords(strtolower($payerName));
+        // IMPORTANTE: La boleta va a nombre del PAGADOR (OrderDetail.name)
+        // pero la DESCRIPCIÓN debe indicar para QUIÉN es el programa (PARTICIPANTE)
 
-        // Item description: "Programa de Estudio" + nombre del pagador
-        $itemDetail = "Programa de Estudio\n    " . $payerName;
+        // Obtener el nombre del PARTICIPANTE para la descripción del item
+        $participant = $orderDetail->order->participant;
+        $participantName = 'PARTICIPANTE';
+
+        if ($participant) {
+            // Construir nombre completo del participante (NOMBRES + APELLIDOS)
+            $participantName = trim(implode(' ', array_filter([
+                $participant->first_name,
+                $participant->second_name,
+                $participant->first_last_name,
+                $participant->second_last_name
+            ]))) ?: 'PARTICIPANTE';
+            $participantName = ucwords(strtolower($participantName));
+        }
+
+        // Item description: "Programa de Estudio" + nombre del PARTICIPANTE (para quién es)
+        $itemDetail = "Programa de Estudio\n    " . $participantName;
 
         // Determinar si es boleta exenta (IDs 29, 41) o afecta
         $isExempt = in_array($this->documentTypeId, [29, 41]);
@@ -649,21 +661,44 @@ class BsaleService
     }
 
     /**
-     * Extraer primer nombre
+     * Dividir nombre completo en nombres y apellidos de forma inteligente
+     * Asume formato: "NOMBRE(S) APELLIDO(S)"
      */
-    private function extractFirstName(string $fullName): string
+    private function splitFullName(string $fullName): array
     {
-        $names = explode(' ', trim($fullName));
-        return $names[0] ?? '';
-    }
+        $parts = array_values(array_filter(explode(' ', trim($fullName))));
+        $totalParts = count($parts);
 
-    /**
-     * Extraer apellido
-     */
-    private function extractLastName(string $fullName): string
-    {
-        $names = explode(' ', trim($fullName));
-        return count($names) > 1 ? implode(' ', array_slice($names, 1)) : '';
+        if ($totalParts === 0) {
+            return ['firstName' => '', 'lastName' => ''];
+        }
+
+        if ($totalParts === 1) {
+            // Solo un nombre
+            return ['firstName' => $parts[0], 'lastName' => ''];
+        }
+
+        if ($totalParts === 2) {
+            // Nombre Apellido
+            return ['firstName' => $parts[0], 'lastName' => $parts[1]];
+        }
+
+        if ($totalParts === 3) {
+            // Nombre Apellido1 Apellido2
+            return [
+                'firstName' => $parts[0],
+                'lastName' => $parts[1] . ' ' . $parts[2]
+            ];
+        }
+
+        // 4 o más palabras: asumir primeras 2 son nombres, resto son apellidos
+        $firstName = $parts[0] . ' ' . $parts[1];
+        $lastName = implode(' ', array_slice($parts, 2));
+
+        return [
+            'firstName' => $firstName,
+            'lastName' => $lastName
+        ];
     }
 
     /**

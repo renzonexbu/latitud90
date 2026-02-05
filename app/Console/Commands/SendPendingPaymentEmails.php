@@ -117,7 +117,11 @@ class SendPendingPaymentEmails extends Command
                             break;
                         case 'verification_failed':
                             $verificationFailedCount++;
-                            $this->line("  🔄 Payment #{$payment->id} - Reprogramado (verificación pendiente)");
+                            // Incrementar intentos para evitar loop infinito
+                            $payment->update([
+                                'email_attempts' => ($payment->email_attempts ?? 0) + 1,
+                            ]);
+                            $this->line("  🔄 Payment #{$payment->id} - Reprogramado (verificación pendiente, intento " . $payment->email_attempts . ")");
                             break;
                         default:
                             $errorCount++;
@@ -236,6 +240,16 @@ class SendPendingPaymentEmails extends Command
      */
     protected function verifyPaymentWithGateway(Payment $payment): array
     {
+        // Pagos de suscripción ya fueron verificados por SyncSubscriptionPayments.
+        // Sus tokens (cid_xxx) no son compatibles con la API de single-payment.
+        if ($payment->payment_source === 'subscription') {
+            Log::info('Payment de suscripción: verificación omitida (ya confirmado por sync)', [
+                'payment_id' => $payment->id,
+                'payment_source' => $payment->payment_source,
+            ]);
+            return ['confirmed' => true, 'status' => 'subscription_confirmed'];
+        }
+
         // Obtener el ID externo del pago para consultar a VirtualPOS
         $externalPaymentId = $payment->external_payment_id ?? $payment->token;
 
@@ -518,7 +532,10 @@ class SendPendingPaymentEmails extends Command
             'paymentGateway',
             'paymentOption'
         ])
-        ->where('status', 'completed');
+        ->where('status', 'completed')
+        // Excluir pagos presenciales (gateway 4): su boleta se genera al registrarlos
+        // y no requieren envío de email al cliente
+        ->where('payment_gateway_id', '!=', 4);
 
         // Si se especifica un payment ID
         if ($paymentId = $this->option('payment')) {
