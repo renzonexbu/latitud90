@@ -45,24 +45,32 @@ class GuardianPermissionController extends Controller
 
             $guardian = auth('guardian')->user();
 
-            // VALIDACIÓN SIMPLIFICADA: Solo importa que haya un guardian logeado
-            // No importa si es o no el apoderado del participante
+            // Verificar que el guardian esté vinculado al participante
+            if (!$guardian->canPayFor($participant->id)) {
+                Log::warning('Guardian sin permiso para pagar por participante', [
+                    'guardian_id' => $guardian->id,
+                    'guardian_email' => $guardian->email,
+                    'participant_id' => $participant->id,
+                    'participant_document' => $participant->document_number,
+                ]);
 
-            // LOG INFORMATIVO: Registrar quién está haciendo el pago
-            Log::info('✅ Guardian logeado procesando pago de suscripción', [
+                return response()->json([
+                    'has_permission' => false,
+                    'reason' => 'guardian_not_linked',
+                    'guardian_email' => $guardian->email
+                ]);
+            }
+
+            Log::info('Guardian autorizado para pagar por participante', [
                 'guardian_id' => $guardian->id,
                 'guardian_email' => $guardian->email,
-                'guardian_nombre' => $guardian->name,
-                'guardian_documento' => $guardian->document,
-                'participante_id' => $participant->id,
-                'participante_documento' => $participant->document_number,
-                'participante_nombre' => $participant->full_name,
-                'timestamp' => now()->toDateTimeString()
+                'participant_id' => $participant->id,
+                'participant_document' => $participant->document_number,
             ]);
 
             return response()->json([
                 'has_permission' => true,
-                'reason' => 'guardian_logged_in',
+                'reason' => 'guardian_linked',
                 'guardian_email' => $guardian->email
             ]);
 
@@ -72,11 +80,10 @@ class GuardianPermissionController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // En caso de error, permitir continuar (fail-open)
             return response()->json([
-                'has_permission' => true,
+                'has_permission' => false,
                 'reason' => 'error_occurred'
-            ]);
+            ], 500);
         }
     }
 }

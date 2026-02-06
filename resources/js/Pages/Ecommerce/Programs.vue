@@ -186,40 +186,62 @@ export default {
             try {
                 // Verificar si el programa está completamente pagado
                 if ((program.paymentPercentage || 0) >= 100) {
-                    // No hacer nada - el programa ya está completamente pagado
                     return;
                 }
 
                 const participant = this.participant || {};
 
-                // PASO 1: Verificar si el participante tiene suscripción activa o pago completado
-                const hasSubscriptionOrPayment = await this.checkSubscriptionStatus(participant.id, program.id);
+                // PASO 1: Verificar suscripción activa y relación con guardian logueado
+                const subscriptionData = await this.checkSubscriptionStatus(participant.id, program.id);
 
-                if (hasSubscriptionOrPayment) {
-                    // Si tiene suscripción/pago, guardar info y redirigir al login
+                if (subscriptionData.has_subscription) {
+                    if (!subscriptionData.guardian_logged_in) {
+                        // Sin sesión de guardian → redirigir a login
+                        localStorage.setItem('pendingProgramAccess', JSON.stringify({
+                            program_id: program.id,
+                            participant_id: participant.id,
+                            has_subscription: true,
+                        }));
+                        window.location.href = `/guardian/login?redirect_reason=subscription_access&program_id=${program.id}&participant_id=${participant.id}`;
+                        return;
+                    }
+
+                    if (subscriptionData.guardian_is_owner) {
+                        // Guardian logueado ES el apoderado → ir directo al detalle en dashboard
+                        window.location.href = `/guardian/participant/${participant.id}/program/${program.id}`;
+                        return;
+                    }
+
+                    // Guardian logueado NO es el apoderado → cerrar sesión y redirigir a login
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    await fetch('/guardian/logout', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                        },
+                    });
+
                     localStorage.setItem('pendingProgramAccess', JSON.stringify({
                         program_id: program.id,
                         participant_id: participant.id,
                         has_subscription: true,
                     }));
 
-                    // Redirigir al login de guardian con parámetros en la URL
-                    const loginUrl = `/guardian/login?redirect_reason=subscription_access&program_id=${program.id}&participant_id=${participant.id}`;
-                    window.location.href = loginUrl;
+                    alert(`Tienes una sesión iniciada con ${subscriptionData.guardian_email}, que no está asociada a este participante. Por favor inicia sesión con la cuenta correcta.`);
+                    window.location.href = `/guardian/login?redirect_reason=subscription_access&program_id=${program.id}&participant_id=${participant.id}`;
                     return;
                 }
 
-                // PASO 2: Si NO tiene suscripción, continuar con flujo normal
-                // Guardar enrollment_code en localStorage para identificar pagos
+                // PASO 2: Sin suscripción → flujo normal de ecommerce
                 let enrollmentCode = program.enrollment_code;
 
                 if (!enrollmentCode && program.code && participant.document_number) {
                     if (this.document_type === 'RUT') {
-                        // Para RUT: usar código del programa + RUT completo sin dígito verificador
                         const rutDigits = String(participant.document_number).replace(/\D/g, '').slice(0, -1);
                         enrollmentCode = `${program.code}${rutDigits}`;
                     } else {
-                        // Para pasaporte: usar código del programa + número completo del pasaporte
                         enrollmentCode = `${program.code}${participant.document_number}`;
                     }
                 }
@@ -239,7 +261,6 @@ export default {
                 });
             } catch (error) {
                 console.error('Error al procesar programa:', error);
-                // Mostrar error genérico sin detalles técnicos
                 this.showGenericError();
             }
         },
@@ -260,15 +281,13 @@ export default {
                 });
 
                 if (!response.ok) {
-                    console.error('Error al verificar suscripción');
-                    return false;
+                    return { has_subscription: false, guardian_logged_in: false, guardian_is_owner: false, guardian_email: null };
                 }
 
-                const data = await response.json();
-                return data.requires_login || false;
+                return await response.json();
             } catch (error) {
                 console.error('Error al verificar suscripción:', error);
-                return false;
+                return { has_subscription: false, guardian_logged_in: false, guardian_is_owner: false, guardian_email: null };
             }
         },
         

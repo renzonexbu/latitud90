@@ -32,8 +32,14 @@ Route::match(['get', 'post'], '/subscription/return', [\App\Http\Controllers\Cli
 Route::post('/subscription/callback', [\App\Http\Controllers\Client\SubscriptionController::class, 'callback'])->name('api.subscription.callback');
 Route::post('/subscription/webhook', [\App\Http\Controllers\Client\SubscriptionController::class, 'webhook'])->name('api.subscription.webhook');
 
-// Verificar estado de suscripción
-Route::post('/subscription/check-status', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkSubscriptionStatus'])->name('api.subscription.check-status');
+// Verificar estado de suscripción (necesita sesión para detectar guardian logueado, sin CSRF)
+Route::post('/subscription/check-status', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkSubscriptionStatus'])
+    ->middleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+    ])
+    ->name('api.subscription.check-status');
 
 // Verificar estado del primer cargo (para polling desde vista de verificación)
 Route::get('/subscription/check-first-charge/{subscriptionId}', [\App\Http\Controllers\Client\SubscriptionController::class, 'checkFirstChargeStatus'])->name('api.subscription.check-first-charge');

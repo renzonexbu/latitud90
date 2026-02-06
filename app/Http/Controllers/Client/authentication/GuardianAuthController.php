@@ -387,11 +387,14 @@ class GuardianAuthController extends Controller
                 }
             }
 
-            // Si no tiene permiso o no tiene suscripción, redirigir al ecommerce
-            // Para continuar el flujo de compra normal
+            // Guardian no está vinculado a este participante → cerrar sesión y volver al home
+            Auth::guard('guardian')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
             return redirect()
-                ->route('ecommerce.programs')
-                ->with('info', 'Continúa con el proceso de inscripción.');
+                ->route('ecommerce.index')
+                ->with('error', 'La cuenta con la que iniciaste sesión no está asociada a este participante. Por favor inicia sesión con la cuenta correcta.');
         }
 
         return redirect()

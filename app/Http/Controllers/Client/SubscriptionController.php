@@ -269,14 +269,12 @@ class SubscriptionController extends Controller
                 throw new Exception('Participante no encontrado. Debe estar inscrito en el programa primero.');
             }
 
-            // VALIDACIÓN DE GUARDIAN DESHABILITADA - No se requiere validación de permisos en ecommerce
-            // Los pagos pueden ser realizados por cualquier usuario sin restricciones de guardian
-            /*
+            // Validar que el guardian logueado tenga permiso para pagar por este participante
             if (auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
 
                 if (!$guardian->canPayFor($participant->id)) {
-                    Log::warning('Guardian sin permiso intenta pagar por participante', [
+                    Log::warning('Guardian sin permiso intenta crear suscripción', [
                         'guardian_id' => $guardian->id,
                         'guardian_email' => $guardian->email,
                         'participant_id' => $participant->id,
@@ -284,16 +282,15 @@ class SubscriptionController extends Controller
                         'participant_name' => $participant->full_name
                     ]);
 
-                    throw new Exception('No tienes permiso para realizar pagos por este participante. Por favor contacta a soporte si crees que esto es un error.');
+                    throw new Exception('No tienes permiso para realizar pagos por este participante. Inicia sesión con la cuenta correcta.');
                 }
 
-                Log::info('Guardian autorizado confirmado', [
+                Log::info('Guardian autorizado para crear suscripción', [
                     'guardian_id' => $guardian->id,
                     'guardian_email' => $guardian->email,
                     'participant_id' => $participant->id
                 ]);
             }
-            */
 
             Log::info('Participante encontrado', [
                 'participant_id' => $participant->id,
@@ -498,28 +495,15 @@ class SubscriptionController extends Controller
                 'api_response' => $response,
             ]);
 
-            // Asegurar que existe la asociación guardian-participante
+            // Log de guardian asociado (el vínculo ya debe existir previamente, no se crea aquí)
             if (auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
-                $existingRelation = GuardianUserParticipant::where('guardian_user_id', $guardian->id)
-                    ->where('participant_id', $participant->id)
-                    ->first();
-
-                if (!$existingRelation) {
-                    GuardianUserParticipant::create([
-                        'guardian_user_id' => $guardian->id,
-                        'participant_id' => $participant->id,
-                        'can_pay' => true,
-                    ]);
-
-                    Log::info('Asociación guardian-participante creada automáticamente al crear suscripción', [
-                        'guardian_user_id' => $guardian->id,
-                        'guardian_email' => $guardian->email,
-                        'participant_id' => $participant->id,
-                        'participant_name' => $participant->full_name,
-                        'subscription_id' => $subscription->id,
-                    ]);
-                }
+                Log::info('Suscripción creada por guardian vinculado', [
+                    'guardian_user_id' => $guardian->id,
+                    'guardian_email' => $guardian->email,
+                    'participant_id' => $participant->id,
+                    'subscription_id' => $subscription->id,
+                ]);
             }
 
             // Crear orden asociada a la suscripción
@@ -1038,8 +1022,7 @@ class SubscriptionController extends Controller
             $subscription = ProgramSubscription::with(['participant', 'programCourse'])
                 ->find($subscriptionId);
 
-            // VALIDACIÓN DE GUARDIAN DESHABILITADA - No se requiere validación de permisos en ecommerce
-            /*
+            // Validar que el guardian logueado tenga permiso para ver esta suscripción
             if ($subscription && auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
 
@@ -1054,7 +1037,6 @@ class SubscriptionController extends Controller
                         ->with('error', 'No tienes permiso para ver esta página.');
                 }
             }
-            */
 
             // Buscar la orden asociada
             $order = null;
@@ -1531,11 +1513,24 @@ class SubscriptionController extends Controller
 
             $hasActiveSubscription = $subscription !== null;
 
+            // Verificar estado del guardian logueado respecto a este participante
+            $guardianLoggedIn = auth('guardian')->check();
+            $guardianIsOwner = false;
+            $guardianEmail = null;
+
+            if ($guardianLoggedIn) {
+                $guardian = auth('guardian')->user();
+                $guardianEmail = $guardian->email;
+                $guardianIsOwner = $guardian->canPayFor($participantId);
+            }
+
             return response()->json([
                 'success' => true,
                 'has_subscription' => $hasActiveSubscription,
-                // SOLO requiere login si tiene suscripción activa (no por pagos manuales)
-                'requires_login' => $hasActiveSubscription,
+                'requires_login' => $hasActiveSubscription && !$guardianLoggedIn,
+                'guardian_logged_in' => $guardianLoggedIn,
+                'guardian_is_owner' => $guardianIsOwner,
+                'guardian_email' => $guardianEmail,
                 'subscription' => $subscription ? [
                     'id' => $subscription->id,
                     'status' => $subscription->status,
