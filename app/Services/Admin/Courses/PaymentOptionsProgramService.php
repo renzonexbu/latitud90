@@ -36,19 +36,15 @@ class PaymentOptionsProgramService
 
     /**
      * Transforma el label de una opción de pago según el programa
-     * Para suscripciones, agrega el número de meses disponibles desde la base de datos
+     * Para suscripciones, calcula las cuotas disponibles en tiempo real usando final_payment_date
      */
     protected function transformLabel(string $code, string $originalLabel, ?ProgramCourse $program = null): string
     {
         $baseLabel = $this->labelOverrides[$code] ?? $originalLabel;
 
-        // Si es una suscripción y tenemos el programa, mostrar cuotas disponibles desde BD
+        // Si es una suscripción y tenemos el programa, calcular cuotas en tiempo real
         if ($code === 'subscription_virtualpos' && $program) {
-            // Leer el valor almacenado en la base de datos
-            $availableMonths = $program->subscription_max_months ?? $program->lat90_max_installments ?? 0;
-
-            // Limitar a un máximo de 12 cuotas
-            $availableMonths = min($availableMonths, 12);
+            $availableMonths = $this->calculateAvailableInstallments($program->final_payment_date);
 
             if ($availableMonths > 0) {
                 $baseLabel .= " - hasta {$availableMonths} cuotas";
@@ -58,6 +54,26 @@ class PaymentOptionsProgramService
         }
 
         return $baseLabel;
+    }
+
+    /**
+     * Calcular cuotas disponibles hasta una fecha límite (misma fórmula que el ecommerce)
+     */
+    protected function calculateAvailableInstallments(?string $endDate): int
+    {
+        if (!$endDate) {
+            return 12;
+        }
+
+        $today = Carbon::today()->setTimezone('America/Santiago');
+        $finalDate = Carbon::parse($endDate)->setTimezone('America/Santiago');
+        $diffDays = $today->diffInDays($finalDate, false);
+
+        if ($diffDays < 0) {
+            return 0;
+        }
+
+        return min(12, (int) floor($diffDays / 30) + 1);
     }
 
     /**
