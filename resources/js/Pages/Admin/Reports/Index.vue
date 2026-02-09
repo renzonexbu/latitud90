@@ -9,17 +9,6 @@
                     <h2 class="text-2xl font-bold text-gray-900">
                         Reportes
                     </h2>
-                    <!-- Solo visible para usuarios con permiso ver_contacto_pagador -->
-                    <Link
-                        v-if="canViewPayerContact"
-                        :href="route('admin.reports.executives.index')"
-                        class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition-colors"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                        Reportes Ejecutivo Comercial
-                    </Link>
                 </div>
 
                 <!-- Layout de 2 columnas -->
@@ -50,6 +39,17 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                         </svg>
                                         <span class="text-gray-700 group-hover:text-green-700">Cronograma de Recuperación</span>
+                                    </Link>
+
+                                    <!-- Programas por Medio de Pago -->
+                                    <Link
+                                        :href="route('admin.reports.executives.payment-options-programs')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-purple-50 transition-colors group"
+                                    >
+                                        <svg class="w-5 h-5 mr-3 text-purple-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                        </svg>
+                                        <span class="text-gray-700 group-hover:text-purple-700">Programas por Medio de Pago</span>
                                     </Link>
 
                                     <!-- Pagos Diarios -->
@@ -1023,17 +1023,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick, watch } from "vue";
-import { Head, router, Link, usePage } from "@inertiajs/vue3";
+import { ref, reactive, onMounted, nextTick, watch } from "vue";
+import { Head, router, Link } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Chart, registerables } from "chart.js";
-
-// Obtener permisos del usuario
-const page = usePage();
-const canViewPayerContact = computed(() => {
-    const permissions = page.props.auth?.user?.permissions || [];
-    return permissions.includes('ver_contacto_pagador') || permissions.includes('ver_reportes_executives');
-});
 
 Chart.register(...registerables);
 

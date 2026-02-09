@@ -69,11 +69,20 @@
 </template>
 
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import ExecutivesConsolidatedTable from '@/Components/Reports/Executives/ConsolidatedTable.vue';
 import ExecutivesConsolidatedFilters from '@/Components/Reports/Executives/ConsolidatedFilters.vue';
 import ExecutivesConsolidatedPagination from '@/Components/Reports/Executives/ConsolidatedPagination.vue';
+
+const page = usePage();
+const shouldGoToExecutivesIndex = computed(() => {
+    const roles = page.props.auth?.user?.roles || [];
+    const isEjecutivo = roles.includes('ejecutivo_comercial');
+    const isMarketing = roles.includes('marketing');
+    return (isEjecutivo || isMarketing) && !roles.includes('contabilidad') && !roles.includes('super_admin');
+});
 
 const props = defineProps({
     consolidated: { type: Object, required: true },
@@ -98,7 +107,8 @@ const exportData = () => {
 };
 
 const goBack = () => {
-    router.get('/admin/reports/executives', {}, { preserveState: false });
+    const backUrl = shouldGoToExecutivesIndex.value ? '/admin/reports/executives' : '/admin/reports';
+    router.get(backUrl, {}, { preserveState: false });
 };
 </script>
 

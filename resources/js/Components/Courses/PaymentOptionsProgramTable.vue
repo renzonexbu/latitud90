@@ -130,8 +130,9 @@ export default {
             return options.filter(opt => opt.code?.startsWith('subscription_'));
         },
         getPercentageClass(percentage) {
-            if (percentage >= 90) return 'bg-green-500 text-white';
-            if (percentage >= 50) return 'bg-yellow-500 text-white';
+            if (percentage >= 100) return 'bg-green-500 text-white';
+            if (percentage >= 67) return 'bg-blue-500 text-white';
+            if (percentage >= 34) return 'bg-yellow-500 text-white';
             if (percentage > 0) return 'bg-red-500 text-white';
             return 'bg-gray-300 text-gray-700';
         }

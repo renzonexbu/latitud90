@@ -325,7 +325,7 @@
                     </div>
                 </div>
                 <NavLink
-                    v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin"
+                    v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin || isMarketing"
                     :href="reportsRoute"
                     :active="route().current('admin.reports.*')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -595,8 +595,8 @@ export default {
                    this.$page.props.auth.user.roles.includes('super_admin');
         },
         reportsRoute() {
-            // Si es ejecutivo comercial (solo o con marketing), redirigir a reportes de ejecutivos
-            if (this.isEjecutivoComercial && !this.isContabilidad && !this.isSuperAdmin) {
+            // Si es ejecutivo comercial o marketing (y no contabilidad/super_admin), redirigir a reportes de ejecutivos
+            if ((this.isEjecutivoComercial || this.isMarketing) && !this.isContabilidad && !this.isSuperAdmin) {
                 return this.route('admin.reports.executives.index');
             }
             // Para otros roles (contabilidad, super admin), mostrar reportes generales

@@ -88,10 +88,18 @@ const baseRoute = computed(() => {
         : '/admin/courses/payment-options-programs';
 });
 
+const shouldGoToExecutivesIndex = computed(() => {
+    const roles = page.props.auth?.user?.roles || [];
+    const isEjecutivo = roles.includes('ejecutivo_comercial');
+    const isMarketing = roles.includes('marketing');
+    return (isEjecutivo || isMarketing) && !roles.includes('contabilidad') && !roles.includes('super_admin');
+});
+
 const backRoute = computed(() => {
-    return isExecutivesSection.value
-        ? '/admin/reports/executives'
-        : '/admin/courses';
+    if (isExecutivesSection.value) {
+        return shouldGoToExecutivesIndex.value ? '/admin/reports/executives' : '/admin/reports';
+    }
+    return '/admin/courses';
 });
 
 const applyFilters = (filters) => {

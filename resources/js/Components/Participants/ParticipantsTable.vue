@@ -74,7 +74,7 @@
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <span
                                 :class="[
-                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    'inline-flex px-2 py-0.5 text-xs font-bold rounded-full text-white',
                                     participant.is_active ? 'bg-[#4b8d7f]' : 'bg-[#d54b44]',
                                 ]"
                             >
@@ -107,7 +107,7 @@
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <span
                                 :class="[
-                                    'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                    'inline-flex px-2 py-0.5 text-xs font-bold rounded-full text-white',
                                     getPaymentStatusClass(
                                         getFirstCoursePivotStatus(participant),
                                         getFirstCoursePivotPercentage(participant)
@@ -257,17 +257,19 @@ export default {
         getPaymentStatusClass(status, percentage = 0) {
             switch (status) {
                 case "confirmed":
-                    return "bg-[#4b8d7f]"; // Verde completado
+                    return "bg-green-500"; // Verde completado
                 case "cancelled":
                     return "bg-[#1c4f4a]"; // Verde oscuro - Liberado
                 case "pending_payment":
                 default:
-                    if (percentage >= 80) {
-                        return "bg-[#ffb232]"; // Amarillo 80%
-                    } else if (percentage >= 10) {
-                        return "bg-[#d54b44]"; // Rojo 10%
+                    if (percentage >= 100) {
+                        return "bg-green-500"; // Verde para 100%
+                    } else if (percentage >= 67) {
+                        return "bg-blue-500"; // Azul para 67-99%
+                    } else if (percentage >= 34) {
+                        return "bg-yellow-500"; // Amarillo para 34-66%
                     } else {
-                        return "bg-[#ffb232]"; // Amarillo por defecto
+                        return "bg-red-500"; // Rojo para menos de 33%
                     }
             }
         },

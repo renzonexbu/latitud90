@@ -46,9 +46,17 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { reactive, computed } from 'vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+
+const page = usePage();
+const shouldGoToExecutivesIndex = computed(() => {
+    const roles = page.props.auth?.user?.roles || [];
+    const isEjecutivo = roles.includes('ejecutivo_comercial');
+    const isMarketing = roles.includes('marketing');
+    return (isEjecutivo || isMarketing) && !roles.includes('contabilidad') && !roles.includes('super_admin');
+});
 import ExecutivesPartialAccountTable from '@/Components/Reports/Executives/PartialAccountTable.vue';
 import ConsolidatedFilters from '@/Components/Reports/Executives/ConsolidatedFilters.vue';
 import ConsolidatedPagination from '@/Components/Reports/Executives/ConsolidatedPagination.vue';
@@ -78,7 +86,8 @@ const onPageChanged = (page) => {
 };
 
 const goBack = () => {
-    router.get('/admin/reports/executives');
+    const backUrl = shouldGoToExecutivesIndex.value ? '/admin/reports/executives' : '/admin/reports';
+    router.get(backUrl, {}, { preserveState: false });
 };
 </script>
 

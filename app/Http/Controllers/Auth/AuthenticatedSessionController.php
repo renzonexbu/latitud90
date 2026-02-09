@@ -34,6 +34,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = $request->user();
+
+        // Marketing: redirigir a contenido del sitio
+        if ($user->hasRole('marketing') && !$user->hasRole('super_admin') && !$user->hasRole('contabilidad')) {
+            return redirect()->intended('/admin/site-content');
+        }
+
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 

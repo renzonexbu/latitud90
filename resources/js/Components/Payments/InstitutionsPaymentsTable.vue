@@ -161,7 +161,7 @@
                             <td class="px-2 py-2 whitespace-nowrap text-center">
                                 <span
                                     :class="[
-                                        'inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full text-white',
+                                        'inline-flex px-2 py-0.5 text-xs font-bold rounded-full text-white',
                                         getBadgeClass(row.percent ?? 0)
                                     ]"
                                 >
@@ -323,17 +323,14 @@ export default {
             return date < today;
         },
         getBadgeClass(percent) {
-            // Colores según porcentaje - mismo estilo que CoursesTable
             if (percent >= 100) {
-                return 'bg-[#1a4b75]'; // Azul oscuro para 100%
-            } else if (percent >= 75) {
-                return 'bg-[#4b8d7f]'; // Verde para 75%+
-            } else if (percent >= 50) {
-                return 'bg-yellow-500'; // Amarillo para 50%+
-            } else if (percent >= 25) {
-                return 'bg-orange-500'; // Naranja para 25%+
+                return 'bg-green-500'; // Verde para 100%
+            } else if (percent >= 67) {
+                return 'bg-blue-500'; // Azul para 67-99%
+            } else if (percent >= 34) {
+                return 'bg-yellow-500'; // Amarillo para 34-66%
             } else {
-                return 'bg-[#d54a42]'; // Rojo para menos de 25%
+                return 'bg-red-500'; // Rojo para menos de 33%
             }
         },
         formatAmount(value) {
