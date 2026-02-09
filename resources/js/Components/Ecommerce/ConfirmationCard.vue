@@ -685,12 +685,16 @@ export default {
                     ? documentNumber
                     : '11111111-1';
 
+                // Usar campos separados nombres/apellidos si existen, sino fallback al split del name
+                const nombres = buyerData.nombres || buyerData.name?.split(' ')[0] || buyerData.first_name || 'Usuario';
+                const apellidos = buyerData.apellidos || buyerData.name?.split(' ').slice(1).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario';
+
                 const buyerDataForPayment = {
                     document_number: rutForVirtualPos,
                     document_type: buyerData.documentType,
                     original_document_number: documentNumber, // Guardar el documento real
-                    first_name: buyerData.name?.split(' ')[0] || buyerData.first_name || 'Usuario',
-                    first_last_name: buyerData.name?.split(' ').slice(1).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario',
+                    first_name: nombres,
+                    first_last_name: apellidos,
                     email: buyerData.email || '',
                     phone: buyerData.phone || '',
                     code_phone: buyerData.code_phone || '+56',

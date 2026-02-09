@@ -288,8 +288,12 @@ class ConfirmPaymentService
         
         if ($participant) {
             // Usar directamente el accessor full_name del modelo que ya está correctamente implementado
+            $nombres = trim(($participant->first_name ?? '') . ' ' . ($participant->second_name ?? ''));
+            $apellidos = trim(($participant->first_last_name ?? '') . ' ' . ($participant->second_last_name ?? ''));
             $formData = [
                 'name' => $participant->full_name,
+                'nombres' => $nombres,
+                'apellidos' => $apellidos,
                 'document_number' => $participant->document_number,
                 'email' => $participant->email,
                 'phone' => $participant->phone,

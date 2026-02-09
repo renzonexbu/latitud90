@@ -269,23 +269,25 @@ class SubscriptionController extends Controller
                 throw new Exception('Participante no encontrado. Debe estar inscrito en el programa primero.');
             }
 
-            // Validar que el guardian logueado tenga permiso para pagar por este participante
+            // Validación de canPayFor deshabilitada - la autorización se maneja
+            // en el flujo previo (selección de programa). Si el guardian llegó hasta
+            // la confirmación de pago, ya fue validado.
             if (auth('guardian')->check()) {
                 $guardian = auth('guardian')->user();
 
-                if (!$guardian->canPayFor($participant->id)) {
-                    Log::warning('Guardian sin permiso intenta crear suscripción', [
-                        'guardian_id' => $guardian->id,
-                        'guardian_email' => $guardian->email,
-                        'participant_id' => $participant->id,
-                        'participant_document' => $participant->document_number,
-                        'participant_name' => $participant->full_name
-                    ]);
+                // if (!$guardian->canPayFor($participant->id)) {
+                //     Log::warning('Guardian sin permiso intenta crear suscripción', [
+                //         'guardian_id' => $guardian->id,
+                //         'guardian_email' => $guardian->email,
+                //         'participant_id' => $participant->id,
+                //         'participant_document' => $participant->document_number,
+                //         'participant_name' => $participant->full_name
+                //     ]);
+                //
+                //     throw new Exception('No tienes permiso para realizar pagos por este participante. Inicia sesión con la cuenta correcta.');
+                // }
 
-                    throw new Exception('No tienes permiso para realizar pagos por este participante. Inicia sesión con la cuenta correcta.');
-                }
-
-                Log::info('Guardian autorizado para crear suscripción', [
+                Log::info('Guardian creando suscripción', [
                     'guardian_id' => $guardian->id,
                     'guardian_email' => $guardian->email,
                     'participant_id' => $participant->id

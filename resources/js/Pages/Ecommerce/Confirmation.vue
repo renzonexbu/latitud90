@@ -333,29 +333,32 @@ export default {
                 this.isProcessingPayment = true;
 
                 // Preparar datos del COMPRADOR (buyer) desde confirmationData
+                // Usar campos separados nombres/apellidos si existen, sino fallback al name
+                const formData = this.confirmationData.form_data;
+                const nombres = formData.nombres || formData.name?.split(' ')[0] || '';
+                const apellidos = formData.apellidos || formData.name?.split(' ').slice(1).join(' ') || '';
+
                 const buyerData = {
-                    document_number: this.confirmationData.form_data.document_number,
-                    document_type: this.confirmationData.form_data.document_type || 'RUT',
-                    original_document_number: this.confirmationData.form_data.document_number,
-                    first_name: this.confirmationData.form_data.name.split(' ')[0],
-                    second_name: this.confirmationData.form_data.name.split(' ')[1] || '',
-                    first_last_name: this.confirmationData.form_data.name.split(' ').slice(2).join(' ') || this.confirmationData.form_data.name.split(' ').slice(1).join(' ') || this.confirmationData.form_data.name,
-                    second_last_name: '',
-                    email: this.confirmationData.form_data.email,
-                    phone: this.confirmationData.form_data.phone,
-                    code_phone: this.confirmationData.form_data.code_phone || '+56',
-                    country: this.confirmationData.form_data.country || 'Chile',
-                    country_id: this.confirmationData.form_data.countryId || 44,
-                    region: this.confirmationData.form_data.region || '',
-                    region_id: this.confirmationData.form_data.regionId || null,
-                    city: this.confirmationData.form_data.city || '',
-                    city_id: this.confirmationData.form_data.cityId || null,
+                    document_number: formData.document_number,
+                    document_type: formData.document_type || 'RUT',
+                    original_document_number: formData.document_number,
+                    first_name: nombres,
+                    first_last_name: apellidos,
+                    email: formData.email,
+                    phone: formData.phone,
+                    code_phone: formData.code_phone || '+56',
+                    country: formData.country || 'Chile',
+                    country_id: formData.countryId || 44,
+                    region: formData.region || '',
+                    region_id: formData.regionId || null,
+                    city: formData.city || '',
+                    city_id: formData.cityId || null,
                 };
 
                 // Preparar datos del PARTICIPANTE (para buscar en BD)
                 const participantData = {
-                    document_number: this.confirmationData.participant_data?.document_number || this.confirmationData.form_data.document_number,
-                    name: this.confirmationData.participant_data?.name || this.confirmationData.form_data.name,
+                    document_number: this.confirmationData.participant_data?.document_number || formData.document_number,
+                    name: this.confirmationData.participant_data?.name || formData.name,
                 };
 
                 // Crear formulario para enviar datos

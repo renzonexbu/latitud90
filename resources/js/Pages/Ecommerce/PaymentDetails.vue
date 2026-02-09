@@ -123,18 +123,33 @@
                                 </div>
                             </div>
 
-                            <!-- Nombre completo -->
+                            <!-- Nombres -->
                             <div class="flex flex-col gap-[12px]">
                                 <label
                                     class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
                                 >
-                                    Nombre completo *
+                                    Nombres *
                                 </label>
                                 <input
                                     type="text"
-                                    placeholder="Nombre y apellido"
+                                    placeholder="Ej: Juan Carlos"
                                     class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                    v-model="formData.fullName"
+                                    v-model="formData.nombres"
+                                />
+                            </div>
+
+                            <!-- Apellidos -->
+                            <div class="flex flex-col gap-[12px]">
+                                <label
+                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
+                                >
+                                    Apellidos *
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: García González"
+                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    v-model="formData.apellidos"
                                 />
                             </div>
 
@@ -393,7 +408,8 @@ export default {
             selectedPaymentType: "total",
             selectedPaymentMethod: "debit",
             formData: {
-                fullName: "",
+                nombres: "",
+                apellidos: "",
                 documentType: "",
                 documentNumber: "",
                 email: "",
@@ -462,7 +478,8 @@ export default {
         },
         isFormValid() {
             const validations = {
-                fullName: this.formData.fullName.trim() !== "",
+                nombres: this.formData.nombres.trim() !== "",
+                apellidos: this.formData.apellidos.trim() !== "",
                 documentType: this.formData.documentType !== "",
                 documentNumber: this.formData.documentNumber.trim() !== "",
                 email: this.formData.email.trim() !== "",
@@ -495,7 +512,10 @@ export default {
         if (this.guardian) {
             console.log('✅ Guardian logeado detectado, autocompletando formulario:', this.guardian);
 
-            this.formData.fullName = this.guardian.name || '';
+            // Guardian solo tiene un campo 'name', separar en nombres/apellidos
+            const guardianNameParts = (this.guardian.name || '').trim().split(' ');
+            this.formData.nombres = guardianNameParts[0] || '';
+            this.formData.apellidos = guardianNameParts.slice(1).join(' ') || '';
             this.formData.documentType = this.guardian.document_id || this.getDocumentTypeId('RUT');
             this.formData.documentNumber = this.guardian.document || '';
             this.formData.email = this.guardian.email || '';
@@ -571,8 +591,17 @@ export default {
                     }
 
                     // Cargar los datos del formulario desde localStorage
+                    // Si tiene campos separados, usarlos; si no, split del name (backward compat)
+                    let nombres = buyerData.nombres || '';
+                    let apellidos = buyerData.apellidos || '';
+                    if (!nombres && buyerData.name) {
+                        const parts = buyerData.name.trim().split(' ');
+                        nombres = parts[0] || '';
+                        apellidos = parts.slice(1).join(' ') || '';
+                    }
                     this.formData = {
-                        fullName: buyerData.name || "",
+                        nombres: nombres,
+                        apellidos: apellidos,
                         documentType: documentTypeId || this.getDocumentTypeId('RUT'),
                         documentNumber: buyerData.documentNumber || "",
                         email: buyerData.email || "",
@@ -875,7 +904,10 @@ export default {
 
         autocompleteForm(clientData) {
             // Autocompletar todos los campos del formulario
-            this.formData.fullName = clientData.full_name;
+            // FrequentClient solo tiene 'full_name', separar en nombres/apellidos
+            const clientNameParts = (clientData.full_name || '').trim().split(' ');
+            this.formData.nombres = clientNameParts[0] || '';
+            this.formData.apellidos = clientNameParts.slice(1).join(' ') || '';
             this.formData.email = clientData.email;
             this.formData.phone = clientData.phone;
             this.formData.code_phone = clientData.phone_code;
@@ -1079,8 +1111,10 @@ export default {
 
             // Preparar datos del comprador
             const buyerData = {
-                // Datos personales
-                name: this.formData.fullName,
+                // Datos personales - campos separados
+                nombres: this.formData.nombres,
+                apellidos: this.formData.apellidos,
+                name: (this.formData.nombres + ' ' + this.formData.apellidos).trim(), // backward compat
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
@@ -1137,8 +1171,10 @@ export default {
 
             // Preparar datos del comprador
             const buyerData = {
-                // Datos personales
-                name: this.formData.fullName,
+                // Datos personales - campos separados
+                nombres: this.formData.nombres,
+                apellidos: this.formData.apellidos,
+                name: (this.formData.nombres + ' ' + this.formData.apellidos).trim(), // backward compat
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,

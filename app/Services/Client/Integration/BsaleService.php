@@ -437,10 +437,29 @@ class BsaleService
                 }
             }
 
-            // Obtener nombre - usar OrderDetail o participante como fallback
-            $customerName = $orderDetail->name;
-            if (empty($customerName) && $participant) {
-                $customerName = $participant->full_name;
+            // Obtener nombre - intentar datos estructurados del buyer_data de la suscripción primero
+            $nameParts = null;
+            $subscription = $orderDetail->order->subscription ?? null;
+            if ($subscription && !empty($subscription->buyer_data)) {
+                $buyerData = $subscription->buyer_data;
+                $firstName = trim($buyerData['first_name'] ?? '');
+                $lastName = trim($buyerData['first_last_name'] ?? '');
+                if (!empty($firstName) && !empty($lastName)) {
+                    $nameParts = ['firstName' => $firstName, 'lastName' => $lastName];
+                    Log::channel('bsale')->info('BsaleService: Usando nombres estructurados de buyer_data', [
+                        'firstName' => $firstName,
+                        'lastName' => $lastName,
+                    ]);
+                }
+            }
+
+            // Fallback: dividir el nombre completo de forma heurística
+            if (!$nameParts) {
+                $customerName = $orderDetail->name;
+                if (empty($customerName) && $participant) {
+                    $customerName = $participant->full_name;
+                }
+                $nameParts = $this->splitFullName($customerName);
             }
 
             // Obtener email - usar OrderDetail o email por defecto
@@ -448,9 +467,6 @@ class BsaleService
             if (empty($customerEmail)) {
                 $customerEmail = 'pagos@latitud90.com';
             }
-
-            // Dividir el nombre completo en nombres y apellidos de forma inteligente
-            $nameParts = $this->splitFullName($customerName);
 
             $customerData = [
                 'firstName' => $nameParts['firstName'],
