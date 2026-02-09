@@ -30,6 +30,9 @@
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                             Código
                         </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
+                            RUT
+                        </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[120px]">
                             Apellido
                         </th>
@@ -119,6 +122,13 @@
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs font-medium text-[#1c4f4a]">
                                 {{ getProgramCode(payment) }}
+                            </div>
+                        </td>
+
+                        <!-- RUT (participante) -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-xs text-gray-900">
+                                {{ getParticipantRut(payment) }}
                             </div>
                         </td>
 
@@ -559,6 +569,34 @@ export default {
                 return payment.order.programCourse.code;
             }
             return "N/A";
+        },
+
+        getParticipantRut(payment) {
+            const participant = payment.order?.participant;
+            if (!participant?.document_number) return "—";
+
+            const docType = participant.document_type;
+            // Si el tipo de documento es RUT (id=1 o name="RUT"), formatear
+            const isRut = docType === 1 || docType?.id === 1 || docType?.name === 'RUT';
+            if (isRut) {
+                return this.formatRut(participant.document_number);
+            }
+            return participant.document_number;
+        },
+
+        formatRut(value) {
+            // Limpiar: quitar puntos, guiones y espacios
+            let clean = String(value).replace(/[.\-\s]/g, '').toUpperCase();
+            if (clean.length < 2) return value;
+
+            // Separar cuerpo y dígito verificador (último carácter, puede ser K)
+            const dv = clean.slice(-1);
+            const body = clean.slice(0, -1);
+
+            // Formatear cuerpo con puntos cada 3 dígitos desde la derecha
+            const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+            return `${formatted}-${dv}`;
         },
 
         getParticipantLastName(payment) {

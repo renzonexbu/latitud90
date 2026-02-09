@@ -99,25 +99,13 @@ class GetPaymentsService
      */
     private function applyFilters($query, Request $request): void
     {
-        // Filtro de búsqueda por nombre del participante
+        // Filtro de búsqueda por RUT o Apellido del participante
         if ($request->participant_name) {
             $query->whereHas('order.participant', function ($q) use ($request) {
-                $q->where('first_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('first_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_name', 'like', '%' . $request->participant_name . '%');
+                $q->where('document_number', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('first_last_name', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%');
             });
-        }
-
-        // Filtro de estado del pago
-        if ($request->payment_status && $request->payment_status !== 'all') {
-            // Si el estado es 'completed', incluir tanto 'completed' como 'approved'
-            // (los pagos presenciales tienen status 'approved')
-            if ($request->payment_status === 'completed') {
-                $query->whereIn('status', ['completed', 'approved']);
-            } else {
-                $query->where('status', $request->payment_status);
-            }
         }
 
         // Filtro de programa (program_id ahora apunta a program_courses)
@@ -320,25 +308,13 @@ class GetPaymentsService
      */
     private function applyInstallmentFilters($query, Request $request): void
     {
-        // Filtro de búsqueda por nombre del participante
+        // Filtro de búsqueda por RUT o Apellido del participante
         if ($request->participant_name) {
             $query->whereHas('installmentPlan.participant', function ($q) use ($request) {
-                $q->where('first_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('first_name', 'like', '%' . $request->participant_name . '%')
-                  ->orWhere('second_name', 'like', '%' . $request->participant_name . '%');
+                $q->where('document_number', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('first_last_name', 'like', '%' . $request->participant_name . '%')
+                  ->orWhere('second_last_name', 'like', '%' . $request->participant_name . '%');
             });
-        }
-
-        // Filtro de estado del pago
-        if ($request->payment_status && $request->payment_status !== 'all') {
-            if ($request->payment_status === 'completed') {
-                $query->where('is_paid', true);
-            } elseif ($request->payment_status === 'pending') {
-                $query->where('status', 'pending');
-            } elseif ($request->payment_status === 'failed') {
-                $query->where('status', 'cancelled');
-            }
         }
 
         // Filtro de programa

@@ -9,16 +9,16 @@
 
         <!-- Filters Row -->
         <div class="flex flex-wrap gap-5 items-center justify-start w-full relative">
-            <!-- Search Input - Nombre del Participante -->
+            <!-- Search Input - RUT o Apellido del Participante -->
             <div class="relative w-[297.28px]">
                 <input
                     v-model="filters.participant_name"
                     type="text"
-                    placeholder="Buscar participante"
+                    placeholder="Buscar por RUT o Apellido"
                     class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-12 outline-none"
                     @input="performSearch"
                 />
-                <button 
+                <button
                     class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-turquesa rounded-[41.67px] w-[30px] h-[30px] flex items-center justify-center shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
                     @click="performSearch"
                 >
@@ -28,34 +28,42 @@
                 </button>
             </div>
 
-            <!-- Estado del Pago Dropdown -->
-            <div class="relative w-[180px]">
-                <select
-                    v-model="filters.payment_status"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
-                    @change="performSearch"
+            <!-- Código de Programa - Input predictivo -->
+            <div class="relative w-[220px]" ref="programFilter">
+                <input
+                    v-model="programSearch"
+                    type="text"
+                    placeholder="Código de Programa"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-8"
+                    @input="onProgramSearchInput"
+                    @focus="showProgramDropdown = true"
+                    @keydown.escape="showProgramDropdown = false"
+                />
+                <!-- Clear button -->
+                <button
+                    v-if="programSearch"
+                    @click="clearProgramFilter"
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                    <option value="all">Todos los Estados</option>
-                    <option value="pending">Pendiente</option>
-                    <option value="completed">Pagado</option>
-                    <option value="failed">Fallido</option>
-                    <option value="cancelled">Cancelado</option>
-                    <option value="refunded">Reembolsado</option>
-                </select>
-            </div>
-
-            <!-- Código de Programa Dropdown -->
-            <div class="relative w-[180px]">
-                <select
-                    v-model="filters.program_id"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
-                    @change="performSearch"
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                <!-- Dropdown -->
+                <div
+                    v-if="showProgramDropdown && filteredPrograms.length > 0"
+                    class="absolute z-50 w-[300px] mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                 >
-                    <option value="">Código de Programa</option>
-                    <option v-for="program in programs" :key="program.id" :value="program.id">
-                        {{ program.code || program.name }}
-                    </option>
-                </select>
+                    <div
+                        v-for="program in filteredPrograms"
+                        :key="program.id"
+                        @mousedown.prevent="selectProgram(program)"
+                        class="px-4 py-2 cursor-pointer hover:bg-[#007e93] hover:text-white text-[12px] border-b border-gray-50"
+                    >
+                        <span class="font-bold">{{ program.code }}</span>
+                        <span class="ml-1 text-[11px] opacity-75">{{ program.name }}</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Método de Pago Dropdown -->
@@ -153,14 +161,26 @@ export default {
         return {
             filters: {
                 participant_name: this.initialFilters.participant_name || "",
-                payment_status: this.initialFilters.payment_status || "all",
                 program_id: this.initialFilters.program_id || "",
                 payment_method: this.initialFilters.payment_method || "all",
                 payment_source: this.initialFilters.payment_source || "all",
                 date_from: this.initialFilters.date_from || "",
                 date_to: this.initialFilters.date_to || "",
-            }
+            },
+            programSearch: "",
+            showProgramDropdown: false,
         };
+    },
+
+    computed: {
+        filteredPrograms() {
+            if (!this.programSearch) return this.programs;
+            const search = this.programSearch.toLowerCase();
+            return this.programs.filter(p =>
+                (p.code && p.code.toLowerCase().includes(search)) ||
+                (p.name && p.name.toLowerCase().includes(search))
+            );
+        }
     },
 
     watch: {
@@ -168,39 +188,87 @@ export default {
             handler(newFilters) {
                 this.filters = {
                     participant_name: newFilters.participant_name || "",
-                    payment_status: newFilters.payment_status || "all",
                     program_id: newFilters.program_id || "",
                     payment_method: newFilters.payment_method || "all",
                     payment_source: newFilters.payment_source || "all",
                     date_from: newFilters.date_from || "",
                     date_to: newFilters.date_to || "",
                 };
+                // Restaurar texto del programa seleccionado
+                if (newFilters.program_id) {
+                    const program = this.programs.find(p => p.id == newFilters.program_id);
+                    if (program) this.programSearch = program.code || program.name;
+                }
             },
             deep: true,
             immediate: true
         }
     },
+
+    mounted() {
+        // Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', this.handleClickOutside);
+        // Restaurar texto del programa si viene con filtro inicial
+        if (this.filters.program_id) {
+            const program = this.programs.find(p => p.id == this.filters.program_id);
+            if (program) this.programSearch = program.code || program.name;
+        }
+    },
+
+    beforeUnmount() {
+        document.removeEventListener('click', this.handleClickOutside);
+    },
+
     methods: {
         performSearch: _.debounce(function () {
             this.$emit('filters-changed', this.filters);
         }, 300),
 
+        onProgramSearchInput() {
+            this.showProgramDropdown = true;
+            // Si se borró el texto, limpiar el filtro
+            if (!this.programSearch) {
+                this.filters.program_id = "";
+                this.performSearch();
+            }
+        },
+
+        selectProgram(program) {
+            this.programSearch = program.code || program.name;
+            this.filters.program_id = program.id;
+            this.showProgramDropdown = false;
+            this.performSearch();
+        },
+
+        clearProgramFilter() {
+            this.programSearch = "";
+            this.filters.program_id = "";
+            this.showProgramDropdown = false;
+            this.performSearch();
+        },
+
+        handleClickOutside(event) {
+            if (this.$refs.programFilter && !this.$refs.programFilter.contains(event.target)) {
+                this.showProgramDropdown = false;
+            }
+        },
+
         clearFilters() {
             this.filters = {
                 participant_name: "",
-                payment_status: "all",
                 program_id: "",
                 payment_method: "all",
                 payment_source: "all",
                 date_from: "",
                 date_to: "",
             };
+            this.programSearch = "";
             this.performSearch();
         },
-        
+
         capitalizeWords(string) {
             if (!string) return '';
-            return string.split(' ').map(word => 
+            return string.split(' ').map(word =>
                 word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
             ).join(' ');
         }
