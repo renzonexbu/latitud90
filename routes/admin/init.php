@@ -36,6 +36,9 @@ Route::middleware(['auth', 'verified', 'restrict.executive'])->prefix('admin')->
     // Gestión de suscripciones
     include __DIR__ . '/subscriptions.php';
 
+    // Gestión de guardian users (apoderados)
+    include __DIR__ . '/guardian-users.php';
+
     // Gestión de reportes
     include __DIR__ . '/reports.php';
 

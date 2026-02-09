@@ -67,13 +67,13 @@
 
         <!-- Bottom Section -->
         <div class="flex flex-col gap-[8px] md:gap-[10px] mt-3 md:mt-4">
-            <!-- Total Value (Total del participante o próxima cuota activa) -->
+            <!-- Total Value (Saldo a fraccionar o próxima cuota activa) -->
             <div class="flex justify-between items-center">
                 <div class="text-[#5B5B5B] font-nexa text-[10px] md:text-xs leading-[12px] md:leading-[13px] font-bold">
                     {{ program.active_installment ? `Cuota ${program.active_installment.number} de ${program.active_installment.total}` : 'Valor total' }}
                 </div>
                 <div class="text-[#C7C7C7] font-nexa text-sm md:text-base leading-[18px] md:leading-[22px] font-normal">
-                    ${{ formatCurrency(program.active_installment ? program.active_installment.amount : (program.participant_total_due ?? program.trip_price)) }}
+                    ${{ formatCurrency(program.active_installment ? program.active_installment.amount : totalToDisplay) }}
                 </div>
             </div>
 
@@ -402,6 +402,16 @@ export default {
             // Usar el método estandarizado de redondeo
             const result = getFirstInstallmentAmount(base, installments);
             return result;
+        },
+        // Monto total a mostrar en la UI (saldo deudor si hay abonos, o total si no hay)
+        totalToDisplay() {
+            const paidAmount = Number(this.program.paidAmount ?? 0);
+            if (paidAmount > 0) {
+                // Ya hay abonos previos: mostrar el saldo pendiente
+                return Number(this.program.participant_balance ?? 0);
+            }
+            // Sin abonos: mostrar el total del programa
+            return Number(this.program.participant_total_due ?? this.program.trip_price ?? 0);
         }
     },
     methods: {
@@ -511,14 +521,7 @@ export default {
                         return;
                     }
 
-                    // Validar que el guardian tenga permiso para pagar por este participante
-                    const hasPermission = await this.validateGuardianPermission();
-                    if (!hasPermission) {
-                        this.isProcessing = false;
-                        return;
-                    }
-
-                    // Guardian autenticado y con permisos: continuar con el pago
+                    // Guardian autenticado: continuar con el pago
                     this.handleSubscriptionPayment(parsedPaymentData);
                     return;
                 }

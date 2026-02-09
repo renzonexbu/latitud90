@@ -261,31 +261,69 @@
                         </NavLink>
                     </div>
                 </div>
-                <NavLink
-                    v-if="!isEjecutivoComercial && !isMarketing"
-                    :href="route('admin.subscriptions.index')"
-                    :active="route().current('admin.subscriptions.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
-                >
-                    <SubscriptionIcon
-                        class="w-6 h-6 transition-colors flex-shrink-0"
-                        :class="
-                            route().current('admin.subscriptions.*')
-                                ? 'text-turquesa'
-                                : 'text-gray-400 group-hover:text-turquesa'
-                        "
-                        stroke-color="currentColor"
-                    />
-                    <span
-                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
-                        :class="[
-                            route().current('admin.subscriptions.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
-                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                        ]"
+                <!-- Suscripciones con Submenú -->
+                <div v-if="!isEjecutivoComercial && !isMarketing" class="relative subscriptions-dropdown-container">
+                    <button
+                        @click="toggleSubscriptionsMenu"
+                        class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
+                        :class="route().current('admin.subscriptions.*') || route().current('admin.guardian-users.*') ? 'bg-gray-50' : ''"
                     >
-                        Suscripciones
-                    </span>
-                </NavLink>
+                        <SubscriptionIcon
+                            class="w-6 h-6 transition-colors flex-shrink-0"
+                            :class="
+                                route().current('admin.subscriptions.*') || route().current('admin.guardian-users.*')
+                                    ? 'text-turquesa'
+                                    : 'text-gray-400 group-hover:text-turquesa'
+                            "
+                            stroke-color="currentColor"
+                        />
+                        <span
+                            class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                            :class="[
+                                route().current('admin.subscriptions.*') || route().current('admin.guardian-users.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                                sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                            ]"
+                        >
+                            Suscripciones
+                        </span>
+                        <svg
+                            v-if="sidebarExpanded"
+                            class="w-4 h-4 ml-auto transition-transform duration-200"
+                            :class="[
+                                showingSubscriptionsMenu ? 'rotate-180' : '',
+                                route().current('admin.subscriptions.*') || route().current('admin.guardian-users.*') ? 'text-turquesa' : 'text-gray-400'
+                            ]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenú de Suscripciones -->
+                    <div
+                        v-show="showingSubscriptionsMenu && sidebarExpanded"
+                        class="flex flex-col pl-10 py-1 bg-gray-50 rounded-b-lg"
+                    >
+                        <NavLink
+                            :href="route('admin.subscriptions.index')"
+                            :active="route().current('admin.subscriptions.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingSubscriptionsMenu = false"
+                        >
+                            Ver Suscripciones
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.guardian-users.index')"
+                            :active="route().current('admin.guardian-users.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingSubscriptionsMenu = false"
+                        >
+                            Usuarios Registrados
+                        </NavLink>
+                    </div>
+                </div>
                 <NavLink
                     v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin"
                     :href="reportsRoute"
@@ -525,6 +563,7 @@ export default {
             showingUserDropdown: false,
             showingPaymentsMenu: false,
             showingCoursesMenu: false,
+            showingSubscriptionsMenu: false,
             sidebarExpanded: false,
             images,
             backgroundImage,
@@ -570,6 +609,7 @@ export default {
             if (!newVal) {
                 this.showingPaymentsMenu = false;
                 this.showingCoursesMenu = false;
+                this.showingSubscriptionsMenu = false;
             }
         }
     },
@@ -585,6 +625,11 @@ export default {
         // Si estamos en una página de cursos/ejecutivos/instituciones, abrir el submenú automáticamente
         if (this.route().current('admin.courses.*') || this.route().current('admin.executives.*') || this.route().current('admin.institutions.*')) {
             this.showingCoursesMenu = true;
+        }
+
+        // Si estamos en una página de suscripciones o guardian users, abrir el submenú automáticamente
+        if (this.route().current('admin.subscriptions.*') || this.route().current('admin.guardian-users.*')) {
+            this.showingSubscriptionsMenu = true;
         }
         
         // Detectar y mostrar flash messages como alertas
@@ -623,12 +668,20 @@ export default {
             if (coursesDropdown && !coursesDropdown.contains(event.target)) {
                 this.showingCoursesMenu = false;
             }
+            // También cerrar el menú de suscripciones si se hace clic fuera
+            const subscriptionsDropdown = this.$el.querySelector('.subscriptions-dropdown-container');
+            if (subscriptionsDropdown && !subscriptionsDropdown.contains(event.target)) {
+                this.showingSubscriptionsMenu = false;
+            }
         },
         togglePaymentsMenu() {
             this.showingPaymentsMenu = !this.showingPaymentsMenu;
         },
         toggleCoursesMenu() {
             this.showingCoursesMenu = !this.showingCoursesMenu;
+        },
+        toggleSubscriptionsMenu() {
+            this.showingSubscriptionsMenu = !this.showingSubscriptionsMenu;
         },
         clearFlashMessage(type) {
             this.$page.props.flash[type] = null;
