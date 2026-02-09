@@ -22,6 +22,10 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_gateways as pg', 'od.payment_gateway_id', '=', 'pg.id')
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
+            ->leftJoin('participant_program as pp', function ($join) {
+                $join->on('pp.participant_id', '=', 'o.participant_id')
+                     ->on('pp.program_id', '=', 'o.program_id');
+            })
             ->select([
                 'pay.id as payment_id',
                 'pay.amount as payment_amount',
@@ -50,6 +54,7 @@ class DailyPaymentsDataProvider
                 // Datos del participante
                 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'doc.name as participant_document_type',
+                'pp.enrollment_code',
                 // Datos del programa (template)
                 'pr.id as template_program_id',
                 'pr.destination',
@@ -85,9 +90,16 @@ class DailyPaymentsDataProvider
             ->orderByRaw('COALESCE(od.paid_at, pay.transaction_date) DESC');
     }
 
-    public function getDailyPayments(Builder $query, int $page = 1): LengthAwarePaginator
+    public function getDailyPayments(Builder $query, int $page = 1, int|string $perPage = 25): LengthAwarePaginator
     {
-        return $query->paginate(10, ['*'], 'page', $page);
+        if ($perPage === 'all') {
+            $total = (clone $query)->count();
+            $results = $query->get();
+
+            return new LengthAwarePaginator($results, $total, max($total, 1), 1);
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function getAllDailyPayments(Builder $query): Collection

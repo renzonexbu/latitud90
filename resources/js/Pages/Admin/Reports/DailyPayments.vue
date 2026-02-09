@@ -143,12 +143,27 @@
                     @view-details="handleViewDetails"
                 />
                 
-                <!-- Pagination -->
-                <div class="p-4">
+                <!-- Pagination & Per Page -->
+                <div class="p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600">Mostrar</label>
+                        <select
+                            v-model="paymentsPerPage"
+                            @change="handlePerPageChanged"
+                            class="px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-[#1c4f4a] focus:border-[#1c4f4a]"
+                        >
+                            <option :value="25">25</option>
+                            <option :value="50">50</option>
+                            <option :value="100">100</option>
+                            <option value="all">Todas</option>
+                        </select>
+                        <span class="text-sm text-gray-600">por página</span>
+                    </div>
                     <DailyPaymentsPagination
+                        v-if="paymentsPerPage !== 'all'"
                         :current-page="currentPage"
                         :total-payments="totalPayments"
-                        :payments-per-page="paymentsPerPage"
+                        :payments-per-page="Number(paymentsPerPage)"
                         @page-changed="handlePageChanged"
                     />
                 </div>
@@ -288,92 +303,82 @@
                         <h4 class="text-lg font-semibold text-gray-900 mb-4">
                             Seleccionar Campos para Exportar
                         </h4>
-                        
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Información del Participante -->
+                            <!-- Columnas de la Tabla (siempre incluidas por defecto) -->
                             <div class="bg-gray-50 p-4 rounded-lg">
-                                <h5 class="font-semibold text-gray-800 mb-3">Información del Participante</h5>
+                                <h5 class="font-semibold text-gray-800 mb-3">Columnas de la Tabla</h5>
                                 <div class="space-y-2">
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.participant.name" class="mr-2">
-                                        <span class="text-sm">Nombre del Alumno</span>
+                                        <input type="checkbox" v-model="exportFields.table.enrollmentCode" class="mr-2">
+                                        <span class="text-sm">Cód. Inscripción</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.participant.document" class="mr-2">
-                                        <span class="text-sm">N° Documento de Transacción</span>
+                                        <input type="checkbox" v-model="exportFields.table.participant" class="mr-2">
+                                        <span class="text-sm">Participante</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.participant.documentType" class="mr-2">
-                                        <span class="text-sm">Tipo de Dcto</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Información del Programa -->
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <h5 class="font-semibold text-gray-800 mb-3">Información del Programa</h5>
-                                <div class="space-y-2">
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.program.code" class="mr-2">
-                                        <span class="text-sm">Código (Programa)</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.program.name" class="mr-2">
-                                        <span class="text-sm">Programa (Nombre Programa)</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.program.startDate" class="mr-2">
-                                        <span class="text-sm">Fecha de Inicio de Programa</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.program.price" class="mr-2">
-                                        <span class="text-sm">$ Programa</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Información de Pagos -->
-                            <div class="bg-gray-50 p-4 rounded-lg">
-                                <h5 class="font-semibold text-gray-800 mb-3">Información de Pagos</h5>
-                                <div class="space-y-2">
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.paymentForm" class="mr-2">
+                                        <input type="checkbox" v-model="exportFields.table.paymentForm" class="mr-2">
                                         <span class="text-sm">Forma de Pago</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.scholarships" class="mr-2">
-                                        <span class="text-sm">Abonos + becas</span>
+                                        <input type="checkbox" v-model="exportFields.table.documentType" class="mr-2">
+                                        <span class="text-sm">Tipo Documento</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.releasedAmount" class="mr-2">
-                                        <span class="text-sm">Valor alumno liberado</span>
+                                        <input type="checkbox" v-model="exportFields.table.documentNumber" class="mr-2">
+                                        <span class="text-sm">N° Documento</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.paidInstallments" class="mr-2">
-                                        <span class="text-sm">N° Cuotas Pagadas</span>
+                                        <input type="checkbox" v-model="exportFields.table.totalPaid" class="mr-2">
+                                        <span class="text-sm">Monto Pagado</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.totalPaid" class="mr-2">
-                                        <span class="text-sm">Monto Total Pagado</span>
+                                        <input type="checkbox" v-model="exportFields.table.pendingAmount" class="mr-2">
+                                        <span class="text-sm">Saldo Pendiente</span>
                                     </label>
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.unpaidInstallments" class="mr-2">
-                                        <span class="text-sm">N° Cuotas No Pagadas</span>
-                                    </label>
-                                    <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.payment.pendingAmount" class="mr-2">
-                                        <span class="text-sm">Monto Total por Cobrar</span>
+                                        <input type="checkbox" v-model="exportFields.table.executive" class="mr-2">
+                                        <span class="text-sm">Ejecutivo Comercial</span>
                                     </label>
                                 </div>
                             </div>
 
-                            <!-- Información del Ejecutivo -->
+                            <!-- Columnas Adicionales -->
                             <div class="bg-gray-50 p-4 rounded-lg">
-                                <h5 class="font-semibold text-gray-800 mb-3">Información del Ejecutivo</h5>
+                                <h5 class="font-semibold text-gray-800 mb-3">Columnas Adicionales</h5>
                                 <div class="space-y-2">
                                     <label class="flex items-center">
-                                        <input type="checkbox" v-model="exportFields.executive.name" class="mr-2">
-                                        <span class="text-sm">Ejecutivo Comercial</span>
+                                        <input type="checkbox" v-model="exportFields.extra.programCode" class="mr-2">
+                                        <span class="text-sm">Código Programa</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.programName" class="mr-2">
+                                        <span class="text-sm">Nombre Programa</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.departureDate" class="mr-2">
+                                        <span class="text-sm">Fecha de Inicio</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.programPrice" class="mr-2">
+                                        <span class="text-sm">$ Programa</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.scholarships" class="mr-2">
+                                        <span class="text-sm">Abonos + Becas</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.releasedAmount" class="mr-2">
+                                        <span class="text-sm">Valor Alumno Liberado</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.paidInstallments" class="mr-2">
+                                        <span class="text-sm">N° Cuotas Pagadas</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" v-model="exportFields.extra.unpaidInstallments" class="mr-2">
+                                        <span class="text-sm">N° Cuotas No Pagadas</span>
                                     </label>
                                 </div>
                             </div>
@@ -383,22 +388,14 @@
                     <!-- Opciones de Exportación -->
                     <div class="bg-blue-50 p-4 rounded-lg">
                         <h5 class="font-semibold text-blue-800 mb-3">Opciones de Exportación</h5>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Formato de Archivo</label>
-                                <select v-model="exportOptions.format" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="xlsx">Excel (.xlsx)</option>
-                                    <option value="csv">CSV (.csv)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Incluir Registros</label>
-                                <select v-model="exportOptions.includeAll" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="current">Solo página actual</option>
-                                    <option value="all">Todos los registros</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Formato de Archivo</label>
+                            <select v-model="exportOptions.format" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
                         </div>
+                        <p class="text-xs text-blue-600 mt-2">Se exportarán todos los registros según los filtros aplicados.</p>
                     </div>
 
                     <!-- Botones -->
@@ -471,7 +468,7 @@ export default {
             selectedPayment: null,
             showExportModal: false,
             currentPage: 1,
-            paymentsPerPage: 10,
+            paymentsPerPage: this.filters.perPage || 25,
             localFilters: {
                 programId: this.filters.programId || "",
                 salesExecutiveId: this.filters.salesExecutiveId || "",
@@ -482,31 +479,27 @@ export default {
             },
             exportOptions: {
                 format: "xlsx",
-                includeAll: "current",
             },
             exportFields: {
-                participant: {
-                    name: true,
-                    document: true,
-                    documentType: true,
-                },
-                program: {
-                    code: true,
-                    name: true,
-                    startDate: true,
-                    price: true,
-                },
-                payment: {
+                table: {
+                    enrollmentCode: true,
+                    participant: true,
                     paymentForm: true,
-                    scholarships: true,
-                    releasedAmount: true,
-                    paidInstallments: true,
+                    documentType: true,
+                    documentNumber: true,
                     totalPaid: true,
-                    unpaidInstallments: true,
                     pendingAmount: true,
+                    executive: true,
                 },
-                executive: {
-                    name: true,
+                extra: {
+                    programCode: false,
+                    programName: false,
+                    departureDate: false,
+                    programPrice: false,
+                    scholarships: false,
+                    releasedAmount: false,
+                    paidInstallments: false,
+                    unpaidInstallments: false,
                 },
             },
         };
@@ -548,25 +541,30 @@ export default {
     methods: {
         handleFiltersChanged(newFilters) {
             this.localFilters = newFilters;
-            this.currentPage = 1; // Resetear a la primera página
+            this.currentPage = 1;
 
-            // Aplicar filtros al backend
-            router.get("/admin/reports/daily-payments", newFilters, {
+            router.get("/admin/reports/daily-payments", { ...newFilters, perPage: this.paymentsPerPage }, {
                 preserveState: true,
                 preserveScroll: true,
             });
         },
         handlePageChanged(page) {
             this.currentPage = page;
-            
-            // Si estamos usando paginación del backend
+
             if (this.dailyPayments && this.dailyPayments.data) {
-                const filters = { ...this.localFilters, page: page };
+                const filters = { ...this.localFilters, page: page, perPage: this.paymentsPerPage };
                 router.get("/admin/reports/daily-payments", filters, {
                     preserveState: true,
                     preserveScroll: true,
                 });
             }
+        },
+        handlePerPageChanged() {
+            this.currentPage = 1;
+            router.get("/admin/reports/daily-payments", { ...this.localFilters, perPage: this.paymentsPerPage, page: 1 }, {
+                preserveState: true,
+                preserveScroll: true,
+            });
         },
         handleViewDetails(payment) {
             this.selectedPayment = payment;
@@ -588,10 +586,9 @@ export default {
                 acc[key] = Object.keys(this.exportFields[key]).filter(field => this.exportFields[key][field]);
                 return acc;
             }, {});
-            
+
             params.append('fields', JSON.stringify(selectedFields));
             params.append('format', this.exportOptions.format);
-            params.append('include_all', this.exportOptions.includeAll);
 
             window.open(
                 `/admin/reports/export/daily-payments?${params.toString()}`,

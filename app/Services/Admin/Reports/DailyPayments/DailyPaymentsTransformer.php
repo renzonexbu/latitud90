@@ -52,6 +52,7 @@ class DailyPaymentsTransformer
             'id' => $item->payment_id,
             'order_id' => $item->order_id,
             'order_number' => $item->order_number ?? 'N/A',
+            'enrollment_code' => $item->enrollment_code ?? 'N/A',
             // Información para el reporte
             'sales_executive_name' => $this->capitalizeWords($this->cleanUtf8($item->sales_executive_name ?? 'Sin Asignar')),
             'program_code' => $item->program_code ?? 'N/A',
@@ -109,70 +110,50 @@ class DailyPaymentsTransformer
     {
         $transformed = $this->transformPaymentItem($item);
         $row = [];
-        
-        // Construir las columnas en el orden específico solicitado
+
+        // Columnas en el mismo orden que la tabla del frontend
         $orderedColumns = [
-            // 1. Ejecutivo Comercial
-            ['section' => 'executive', 'field' => 'name', 'header' => 'Ejecutivo Comercial', 'value' => $transformed['sales_executive_name']],
-            // 2. Código (Programa)
-            ['section' => 'program', 'field' => 'code', 'header' => 'Código (Programa)', 'value' => $transformed['program_code']],
-            // 3. Programa (Nombre Programa)
-            ['section' => 'program', 'field' => 'name', 'header' => 'Programa (Nombre Programa)', 'value' => $transformed['program_name']],
-            // 4. Nombre del Alumno
-            ['section' => 'participant', 'field' => 'name', 'header' => 'Nombre del Alumno', 'value' => $transformed['participant_name']],
-            // 5. Forma de Pago
-            ['section' => 'payment', 'field' => 'paymentForm', 'header' => 'Forma de Pago', 'value' => $transformed['payment_form_code']],
-            // 6. Tipo de Dcto
-            ['section' => 'participant', 'field' => 'documentType', 'header' => 'Tipo de Dcto', 'value' => $transformed['document_type_code']],
-            // 7. N° Documento
-            ['section' => 'participant', 'field' => 'document', 'header' => 'N° Documento', 'value' => $transformed['transaction_document_number']],
-            // 8. Fecha de Inicio de Programa
-            ['section' => 'program', 'field' => 'startDate', 'header' => 'Fecha de Inicio de Programa', 'value' => $this->formatDate($transformed['program_departure_date'])],
-            // 9. $ Programa
-            ['section' => 'program', 'field' => 'price', 'header' => '$ Programa', 'value' => round($transformed['program_price'])],
-            // 10. Abonos + becas
-            ['section' => 'payment', 'field' => 'scholarships', 'header' => 'Abonos + becas', 'value' => round($transformed['scholarships_amount'])],
-            // 11. Valor alumno liberado
-            ['section' => 'payment', 'field' => 'releasedAmount', 'header' => 'Valor alumno liberado', 'value' => round($transformed['released_amount'])],
-            // 12. N° Cuotas Pagadas
-            ['section' => 'payment', 'field' => 'paidInstallments', 'header' => 'N° Cuotas Pagadas', 'value' => $transformed['paid_installments_display']],
-            // 13. Monto Total Pagado
-            ['section' => 'payment', 'field' => 'totalPaid', 'header' => 'Monto Total Pagado', 'value' => round($transformed['total_paid_amount'])],
-            // 14. N° Cuotas No Pagadas
-            ['section' => 'payment', 'field' => 'unpaidInstallments', 'header' => 'N° Cuotas No Pagadas', 'value' => $transformed['overdue_installments_display']],
-            // 15. Monto Total por Cobrar
-            ['section' => 'payment', 'field' => 'pendingAmount', 'header' => 'Monto Total por Cobrar', 'value' => round($transformed['total_pending_amount'])],
+            ['section' => 'table', 'field' => 'enrollmentCode', 'header' => 'Cód. Inscripción', 'value' => $transformed['enrollment_code']],
+            ['section' => 'table', 'field' => 'participant', 'header' => 'Participante', 'value' => $transformed['participant_name']],
+            ['section' => 'table', 'field' => 'paymentForm', 'header' => 'Forma de Pago', 'value' => $transformed['payment_form_code']],
+            ['section' => 'table', 'field' => 'documentType', 'header' => 'Tipo Documento', 'value' => $transformed['document_type_code']],
+            ['section' => 'table', 'field' => 'documentNumber', 'header' => 'N° Documento', 'value' => $transformed['transaction_document_number']],
+            ['section' => 'table', 'field' => 'totalPaid', 'header' => 'Monto Pagado', 'value' => round($transformed['total_paid_amount'])],
+            ['section' => 'table', 'field' => 'pendingAmount', 'header' => 'Saldo Pendiente', 'value' => round($transformed['total_pending_amount'])],
+            ['section' => 'table', 'field' => 'executive', 'header' => 'Ejecutivo Comercial', 'value' => $transformed['sales_executive_name']],
+            // Columnas adicionales opcionales
+            ['section' => 'extra', 'field' => 'programCode', 'header' => 'Código Programa', 'value' => $transformed['program_code']],
+            ['section' => 'extra', 'field' => 'programName', 'header' => 'Nombre Programa', 'value' => $transformed['program_name']],
+            ['section' => 'extra', 'field' => 'departureDate', 'header' => 'Fecha de Inicio', 'value' => $this->formatDate($transformed['program_departure_date'])],
+            ['section' => 'extra', 'field' => 'programPrice', 'header' => '$ Programa', 'value' => round($transformed['program_price'])],
+            ['section' => 'extra', 'field' => 'scholarships', 'header' => 'Abonos + Becas', 'value' => round($transformed['scholarships_amount'])],
+            ['section' => 'extra', 'field' => 'releasedAmount', 'header' => 'Valor Alumno Liberado', 'value' => round($transformed['released_amount'])],
+            ['section' => 'extra', 'field' => 'paidInstallments', 'header' => 'N° Cuotas Pagadas', 'value' => $transformed['paid_installments_display']],
+            ['section' => 'extra', 'field' => 'unpaidInstallments', 'header' => 'N° Cuotas No Pagadas', 'value' => $transformed['overdue_installments_display']],
         ];
-        
+
         // Agregar solo las columnas seleccionadas en el orden correcto
         foreach ($orderedColumns as $column) {
-            if (isset($selectedFields[$column['section']]) && 
+            if (isset($selectedFields[$column['section']]) &&
                 in_array($column['field'], $selectedFields[$column['section']])) {
                 $row[$column['header']] = $column['value'];
             }
         }
-        
-        // Si no hay campos seleccionados, incluir las columnas del reporte solicitado
+
+        // Si no hay campos seleccionados, incluir las 8 columnas de la tabla
         if (empty($selectedFields)) {
             $row = [
-                'Ejecutivo Comercial' => $transformed['sales_executive_name'],
-                'Codigo (Programa)' => $transformed['program_code'],
-                'Programa (Nombre Programa)' => $transformed['program_name'],
-                'Nombre del Alumno' => $transformed['participant_name'],
+                'Cód. Inscripción' => $transformed['enrollment_code'],
+                'Participante' => $transformed['participant_name'],
                 'Forma de Pago' => $transformed['payment_form_code'],
-                'Tipo de Dcto' => $transformed['document_type_code'],
+                'Tipo Documento' => $transformed['document_type_code'],
                 'N° Documento' => $transformed['transaction_document_number'],
-                                'Fecha de Inicio de Programa' => $this->formatDate($transformed['program_departure_date']),
-                '$ Programa' => round($transformed['program_price']),
-                'Abonos + becas' => round($transformed['scholarships_amount']),
-                'Valor alumno liberado' => round($transformed['released_amount']),
-                'N° Cuotas Pagadas' => $transformed['paid_installments_display'],
-                'Monto Total Pagado' => round($transformed['total_paid_amount']),
-                'N° Cuotas No Pagadas' => $transformed['overdue_installments_display'],
-                'Monto Total por Cobrar' => round($transformed['total_pending_amount']),
+                'Monto Pagado' => round($transformed['total_paid_amount']),
+                'Saldo Pendiente' => round($transformed['total_pending_amount']),
+                'Ejecutivo Comercial' => $transformed['sales_executive_name'],
             ];
         }
-        
+
         return $row;
     }
     

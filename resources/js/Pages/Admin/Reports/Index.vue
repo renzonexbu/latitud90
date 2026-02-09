@@ -32,7 +32,7 @@
                                 <nav class="space-y-1">
                                     <!-- Estado de Cuenta Parcial -->
                                     <Link
-                                        :href="route('admin.reports.partial-account')"
+                                        :href="route('admin.reports.executives.partial-account')"
                                         class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-blue-50 transition-colors group"
                                     >
                                         <svg class="w-5 h-5 mr-3 text-blue-400 group-hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +43,7 @@
 
                                     <!-- Cronograma de Recuperación -->
                                     <Link
-                                        :href="route('admin.reports.payment-schedule')"
+                                        :href="route('admin.reports.executives.consolidated')"
                                         class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-green-50 transition-colors group"
                                     >
                                         <svg class="w-5 h-5 mr-3 text-green-400 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

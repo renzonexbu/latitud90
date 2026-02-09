@@ -5,65 +5,21 @@ namespace App\Services\Admin\Reports\PaidInstallments;
 use App\Models\Installment;
 use App\Models\ProgramCourse;
 use App\Models\ParticipantProgram;
-use App\Models\Document;
 use Illuminate\Support\Collection;
 
 class PaidInstallmentsDataProvider
 {
     /**
-     * Mapeo de tipos de documento
-     */
-    private function getDocumentTypesMap(): array
-    {
-        return Document::pluck('name', 'id')->toArray();
-    }
-
-    /**
-     * Traducir estado del plan a español
-     */
-    private function translatePlanStatus(?string $status): string
-    {
-        return match ($status) {
-            'active' => 'Activo',
-            'completed' => 'Completado',
-            'cancelled' => 'Cancelado',
-            'pending' => 'Pendiente',
-            'overdue' => 'Vencido',
-            default => $status ?? 'N/A',
-        };
-    }
-
-    /**
-     * Formatear RUT chileno
-     */
-    private function formatRut(?string $rut): string
-    {
-        if (!$rut) return '';
-
-        $cleanRut = preg_replace('/[^0-9kK]/', '', $rut);
-
-        if (strlen($cleanRut) < 2) return $cleanRut;
-
-        $body = substr($cleanRut, 0, -1);
-        $dv = strtoupper(substr($cleanRut, -1));
-
-        $formattedBody = number_format((int)$body, 0, '', '.');
-
-        return "{$formattedBody}-{$dv}";
-    }
-
-    /**
      * Obtener todos los registros de cuotas pagadas
      */
     public function getData(array $filters = []): Collection
     {
-        $documentTypes = $this->getDocumentTypesMap();
         $query = Installment::query()
             ->where('status', 'paid')
             ->whereNotNull('paid_at')
             ->with([
                 'installmentPlan.participant',
-                'installmentPlan'
+                'installmentPlan.installments',
             ]);
 
         // Filtro por programa
@@ -82,14 +38,22 @@ class PaidInstallmentsDataProvider
             $query->whereDate('paid_at', '<=', $filters['date_to']);
         }
 
-        // Búsqueda por nombre del participante
+        // Búsqueda por nombre del participante o código de inscripción
         if (!empty($filters['search'])) {
             $search = $filters['search'];
-            $query->whereHas('installmentPlan.participant', function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('first_last_name', 'like', "%{$search}%")
-                    ->orWhere('second_last_name', 'like', "%{$search}%")
-                    ->orWhere('document_number', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('installmentPlan.participant', function ($q2) use ($search) {
+                    $q2->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('first_last_name', 'like', "%{$search}%")
+                        ->orWhere('second_last_name', 'like', "%{$search}%");
+                })->orWhereHas('installmentPlan', function ($q2) use ($search) {
+                    $q2->whereExists(function ($sub) use ($search) {
+                        $sub->from('participant_program')
+                            ->whereColumn('participant_program.participant_id', 'installment_plans.participant_id')
+                            ->whereColumn('participant_program.program_id', 'installment_plans.program_id')
+                            ->where('participant_program.enrollment_code', 'like', "%{$search}%");
+                    });
+                });
             });
         }
 
@@ -116,48 +80,35 @@ class PaidInstallmentsDataProvider
         // Ordenar por fecha de pago descendente
         $query->orderBy('paid_at', 'desc');
 
-        // Cargar program_courses para obtener el código
-        $programCourses = ProgramCourse::pluck('code', 'id')->toArray();
+        // Pre-cargar enrollment codes
+        $enrollmentCodes = ParticipantProgram::pluck('enrollment_code', \DB::raw("CONCAT(participant_id, '-', program_id)"))
+            ->toArray();
 
-        return $query->get()->map(function ($installment) use ($programCourses, $documentTypes) {
+        return $query->get()->map(function ($installment) use ($enrollmentCodes) {
             $plan = $installment->installmentPlan;
             $participant = $plan?->participant;
-            $programCode = $programCourses[$plan?->program_id] ?? 'N/A';
 
-            // Obtener tipo de documento
-            $documentTypeId = $participant?->document_type;
-            $documentTypeName = $documentTypes[$documentTypeId] ?? 'N/A';
+            // Código de inscripción desde participant_program
+            $ppKey = ($plan?->participant_id ?? '') . '-' . ($plan?->program_id ?? '');
+            $enrollmentCode = $enrollmentCodes[$ppKey] ?? 'N/A';
 
-            // Si es RUT, formatearlo. Si es otro tipo de documento, usar RUT genérico
-            if (strtoupper($documentTypeName) === 'RUT') {
-                $documentNumber = $this->formatRut($participant?->document_number ?? '');
-            } else {
-                $documentNumber = '11.111.111-1';
-            }
+            // Total pagado = suma de todas las cuotas pagadas del plan
+            $totalPaid = $plan?->installments
+                ->where('status', 'paid')
+                ->sum('amount') ?? 0;
 
-            // Obtener is_active de participant_program
-            $participantProgramIsActive = true;
-            if ($plan?->participant_id && $plan?->program_id) {
-                $participantProgram = ParticipantProgram::where('participant_id', $plan->participant_id)
-                    ->where('program_id', $plan->program_id)
-                    ->first();
-                $participantProgramIsActive = $participantProgram?->is_active ?? true;
-            }
+            // Saldo = monto total del plan - total pagado
+            $saldo = ($plan?->total_amount ?? 0) - $totalPaid;
 
             return [
                 'id' => $installment->id,
-                'program_code' => $programCode,
+                'enrollment_code' => $enrollmentCode,
                 'participant_name' => $participant?->full_name ?? 'N/A',
-                'document_type' => $documentTypeName,
-                'participant_document' => $documentNumber,
-                'participant_is_active' => $participantProgramIsActive,
                 'amount' => $installment->amount,
                 'paid_at' => $installment->paid_at?->format('d/m/Y H:i:s'),
-                'paid_at_raw' => $installment->paid_at,
-                'installment_number' => $installment->installment_number,
-                'total_installments' => $plan?->total_installments ?? 0,
                 'installment_label' => "Cuota {$installment->installment_number} de " . ($plan?->total_installments ?? '?'),
-                'plan_status' => $this->translatePlanStatus($plan?->status),
+                'total_paid' => $totalPaid,
+                'saldo' => $saldo,
             ];
         });
     }

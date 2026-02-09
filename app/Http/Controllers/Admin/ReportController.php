@@ -421,8 +421,8 @@ class ReportController extends Controller
     public function dailyPayments(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
-            
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status', 'perPage']);
+
             $data = $this->dailyPaymentsService->getData($filters);
             
             return Inertia::render('Admin/Reports/DailyPayments', [
@@ -477,10 +477,11 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
-            $format = $request->get('format', 'excel');
-            $selectedFields = $request->get('selectedFields', []);
-            
-            // Obtener los datos para exportar
+            $format = $request->get('format', 'xlsx');
+            $fieldsJson = $request->get('fields', '{}');
+            $selectedFields = is_string($fieldsJson) ? json_decode($fieldsJson, true) ?? [] : (array) $fieldsJson;
+
+            // Obtener todos los datos para exportar (sin paginación)
             $data = $this->dailyPaymentsService->getAllDailyPayments($filters, $selectedFields);
             
             // Generar nombre de archivo
@@ -1605,15 +1606,12 @@ class ReportController extends Controller
 
             // Headers en el orden especificado
             $headers = [
-                'Nombre',
-                'Rut',
-                'Correo',
-                'Hora que aceptó términos y condiciones',
-                'Fecha de aceptación términos condiciones',
-                'IP desde donde se conectó',
-                'Navegador',
-                'Sistema Operativo',
-                'Programa'
+                'Nombre del Pagador',
+                'RUT',
+                'Documento',
+                'Nombre del Participante',
+                'Código del Programa',
+                'Fecha de Aceptación',
             ];
 
             // Estilo para headers
@@ -1643,15 +1641,12 @@ class ReportController extends Controller
             // Escribir datos
             $row = 2;
             foreach ($data as $record) {
-                $sheet->setCellValue("A{$row}", $record['name'] ?? '');
-                $sheet->setCellValue("B{$row}", $record['document_number'] ?? '');
-                $sheet->setCellValue("C{$row}", $record['email'] ?? '');
-                $sheet->setCellValue("D{$row}", $record['terms_accepted_time'] ?? '');
-                $sheet->setCellValue("E{$row}", $record['terms_accepted_date'] ?? '');
-                $sheet->setCellValue("F{$row}", $record['ip_address'] ?? '');
-                $sheet->setCellValue("G{$row}", $record['browser'] ?? '');
-                $sheet->setCellValue("H{$row}", $record['operating_system'] ?? '');
-                $sheet->setCellValue("I{$row}", ($record['program_code'] ?? '') . ' - ' . ($record['program_name'] ?? ''));
+                $sheet->setCellValue("A{$row}", $record['pagador_name'] ?? '');
+                $sheet->setCellValueExplicit("B{$row}", $record['document_number'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValue("C{$row}", $record['document_type'] ?? '');
+                $sheet->setCellValue("D{$row}", $record['participant_name'] ?? '');
+                $sheet->setCellValue("E{$row}", $record['program_code'] ?? '');
+                $sheet->setCellValue("F{$row}", $record['terms_accepted_at'] ?? '');
                 $row++;
             }
 
@@ -1825,14 +1820,13 @@ class ReportController extends Controller
 
             // Headers
             $headers = [
-                'Número de Negocio',
+                'Código de Inscripción',
                 'Participante',
-                'Tipo Documento',
-                'Documento',
                 'Monto Recaudado',
-                'Fecha de Pago',
+                'Fecha',
                 'Cuota',
-                'Estado Plan'
+                'Total Pagado',
+                'Saldo',
             ];
 
             // Estilo para headers
@@ -1862,19 +1856,21 @@ class ReportController extends Controller
             // Escribir datos
             $row = 2;
             foreach ($data as $record) {
-                $sheet->setCellValue("A{$row}", $record['program_code'] ?? '');
+                $sheet->setCellValueExplicit("A{$row}", $record['enrollment_code'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 $sheet->setCellValue("B{$row}", $record['participant_name'] ?? '');
-                $sheet->setCellValue("C{$row}", $record['document_type'] ?? '');
-                $sheet->setCellValue("D{$row}", $record['participant_document'] ?? '');
-                $sheet->setCellValue("E{$row}", $record['amount'] ?? 0);
-                $sheet->setCellValue("F{$row}", $record['paid_at'] ?? '');
-                $sheet->setCellValue("G{$row}", $record['installment_label'] ?? '');
-                $sheet->setCellValue("H{$row}", $record['plan_status'] ?? '');
+                $sheet->setCellValue("C{$row}", round($record['amount'] ?? 0));
+                $sheet->setCellValue("D{$row}", $record['paid_at'] ?? '');
+                $sheet->setCellValue("E{$row}", $record['installment_label'] ?? '');
+                $sheet->setCellValue("F{$row}", round($record['total_paid'] ?? 0));
+                $sheet->setCellValue("G{$row}", round($record['saldo'] ?? 0));
                 $row++;
             }
 
-            // Formato de moneda para columna E (Monto Recaudado)
-            $sheet->getStyle('E2:E' . ($row - 1))->getNumberFormat()->setFormatCode('#,##0');
+            // Formato de moneda para columnas C (Monto Recaudado), F (Total Pagado), G (Saldo)
+            $lastRow = max($row - 1, 2);
+            $sheet->getStyle("C2:C{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("F2:F{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("G2:G{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
 
             // Crear archivo temporal
             $filename = 'cuotas_pagadas_' . now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';

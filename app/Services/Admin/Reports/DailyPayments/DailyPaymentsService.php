@@ -16,11 +16,11 @@ class DailyPaymentsService
         private DailyPaymentsTransformer $transformer
     ) {}
 
-    public function getDailyPayments(array $filters, int $page = 1): LengthAwarePaginator
+    public function getDailyPayments(array $filters, int $page = 1, int|string $perPage = 25): LengthAwarePaginator
     {
         $query = $this->dataProvider->buildBaseQuery();
         $query = $this->filters->applyFilters($query, $filters);
-        $data = $this->dataProvider->getDailyPayments($query, $page);
+        $data = $this->dataProvider->getDailyPayments($query, $page, $perPage);
         $transformed = $this->transformer->transformForView($data);
         
         // Log the daily payments report view
@@ -100,11 +100,12 @@ class DailyPaymentsService
     public function getData(array $filters): array
     {
         $page = request()->get('page', 1);
-        
+        $perPage = isset($filters['perPage']) && $filters['perPage'] === 'all' ? 'all' : (int) ($filters['perPage'] ?? 25);
+
         Log::info('🔍 DailyPaymentsService - Obteniendo datos con filtros:', $filters);
-        Log::info('📄 DailyPaymentsService - Página solicitada:', ['page' => $page]);
-        
-        $dailyPayments = $this->getDailyPayments($filters, $page);
+        Log::info('📄 DailyPaymentsService - Página solicitada:', ['page' => $page, 'perPage' => $perPage]);
+
+        $dailyPayments = $this->getDailyPayments($filters, $page, $perPage);
         $summary = $this->getSummary($filters);
         $programs = $this->getPrograms();
         $salesExecutives = $this->getSalesExecutives();

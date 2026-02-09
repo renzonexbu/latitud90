@@ -36,6 +36,64 @@ class TermsAcceptanceDataProvider
     }
 
     /**
+     * Formatear nombre con apellido primero: "Apellidos, Nombres"
+     * Para nombres completos sin campos separados (ej: pagador)
+     * Heurística: en nombres chilenos de 4 partes, las últimas 2 son apellidos;
+     * en 3 partes, la última 2 son apellidos; en 2 partes, la última es apellido.
+     */
+    private function formatNameLastNameFirst(?string $name): string
+    {
+        if (!$name) return '';
+
+        $parts = preg_split('/\s+/', trim($name));
+        $parts = array_map(fn($p) => ucwords(strtolower($p)), $parts);
+
+        if (count($parts) <= 1) {
+            return implode(' ', $parts);
+        }
+
+        if (count($parts) === 2) {
+            return "{$parts[1]}, {$parts[0]}";
+        }
+
+        // 3+ partes: las últimas 2 son apellidos
+        $lastNames = array_slice($parts, -2);
+        $firstNames = array_slice($parts, 0, count($parts) - 2);
+
+        return implode(' ', $lastNames) . ', ' . implode(' ', $firstNames);
+    }
+
+    /**
+     * Formatear nombre del participante con apellido primero usando campos separados
+     */
+    private function formatParticipantLastNameFirst($participant): string
+    {
+        if (!$participant) return 'N/A';
+
+        $lastNames = [];
+        if ($participant->first_last_name) {
+            $lastNames[] = ucwords(strtolower(trim($participant->first_last_name)));
+        }
+        if ($participant->second_last_name) {
+            $lastNames[] = ucwords(strtolower(trim($participant->second_last_name)));
+        }
+
+        $firstNames = [];
+        if ($participant->first_name) {
+            $firstNames[] = ucwords(strtolower(trim($participant->first_name)));
+        }
+        if ($participant->second_name) {
+            $firstNames[] = ucwords(strtolower(trim($participant->second_name)));
+        }
+
+        if (empty($lastNames) && empty($firstNames)) return 'N/A';
+        if (empty($lastNames)) return implode(' ', $firstNames);
+        if (empty($firstNames)) return implode(' ', $lastNames);
+
+        return implode(' ', $lastNames) . ', ' . implode(' ', $firstNames);
+    }
+
+    /**
      * Obtener todos los registros de aceptación de términos
      */
     public function getData(array $filters = []): Collection
@@ -68,7 +126,12 @@ class TermsAcceptanceDataProvider
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('document_number', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('order.participant', function ($q2) use ($search) {
+                        $q2->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('first_last_name', 'like', "%{$search}%")
+                            ->orWhere('second_last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -80,40 +143,28 @@ class TermsAcceptanceDataProvider
             $documentTypeId = $orderDetail->document_type;
             $documentTypeName = $documentTypes[$documentTypeId] ?? $orderDetail->document_type;
 
-            // Si es RUT, formatearlo. Si es otro tipo de documento, usar RUT genérico
+            // Formatear RUT si corresponde
             if (strtoupper($documentTypeName) === 'RUT') {
                 $documentNumber = $this->formatRut($orderDetail->document_number ?? '');
             } else {
-                $documentNumber = '11.111.111-1';
+                $documentNumber = $orderDetail->document_number ?? '';
             }
+
+            $participant = $orderDetail->order?->participant;
 
             return [
                 'id' => $orderDetail->id,
                 'order_id' => $orderDetail->order_id,
-                'name' => $orderDetail->name,
+                'pagador_name' => $this->formatNameLastNameFirst($orderDetail->name),
                 'document_type' => $documentTypeName,
                 'document_number' => $documentNumber,
-                'email' => $orderDetail->email,
+                'participant_name' => $this->formatParticipantLastNameFirst($participant),
+                'program_code' => $orderDetail->order?->programCourse?->code ?? 'N/A',
+                'program_name' => $orderDetail->order?->programCourse?->name ?? 'N/A',
                 'terms_accepted_at' => $orderDetail->terms_accepted_at?->format('d/m/Y H:i:s'),
                 'terms_accepted_date' => $orderDetail->terms_accepted_at?->format('d/m/Y'),
                 'terms_accepted_time' => $orderDetail->terms_accepted_at?->format('H:i:s'),
-                'terms_accepted_at_raw' => $orderDetail->terms_accepted_at,
-                'ip_address' => $orderDetail->ip_address,
-                'browser' => $orderDetail->browser,
-                'operating_system' => $orderDetail->operating_system,
-                'device_type' => $orderDetail->device_type,
-                'user_agent' => $orderDetail->user_agent,
-                'geo_country' => $orderDetail->geo_country,
-                'geo_city' => $orderDetail->geo_city,
-                'terms_accepted' => $orderDetail->terms_accepted,
-                'terms_accepted_confirmation' => $orderDetail->terms_accepted_confirmation,
-                'program_name' => $orderDetail->order?->programCourse?->name ?? 'N/A',
-                'program_code' => $orderDetail->order?->programCourse?->code ?? 'N/A',
-                'participant_name' => $orderDetail->order?->participant?->full_name ?? 'N/A',
-                // Información de versión de T&C
-                'tc_version' => $orderDetail->termsCondition?->version ?? 'N/A',
-                'tc_effective_date' => $orderDetail->termsCondition?->effective_date?->format('d/m/Y') ?? 'N/A',
-                'tc_title' => $orderDetail->termsCondition?->title ?? 'N/A',
+                'email' => $orderDetail->email,
             ];
         });
     }

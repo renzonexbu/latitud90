@@ -134,9 +134,9 @@
                         <!-- Table Container -->
                         <div class="flex flex-col gap-0 overflow-x-auto">
                             <!-- Table Header -->
-                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1350px] h-[61.51px]">
+                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1100px] h-[61.51px]">
                                 <!-- Checkbox Seleccionar Todos -->
-                                <div class="flex items-center justify-center w-[50px]">
+                                <div class="flex items-center justify-center w-[40px]">
                                     <input
                                         type="checkbox"
                                         ref="selectAllCheckbox"
@@ -145,37 +145,31 @@
                                         class="w-4 h-4 text-[#1c4f4a] bg-white border-gray-300 rounded focus:ring-[#1c4f4a] focus:ring-2 cursor-pointer"
                                     >
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
-                                    Nombre
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px]">
+                                    Nombre del Pagador
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    RUT/Documento
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[180px]">
-                                    Email
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
-                                    Fecha Aceptación
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    IP
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    Navegador
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                    Sistema Operativo
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
-                                    Programa
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
+                                    RUT
                                 </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Documento
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px]">
+                                    Nombre del Participante
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                    Cód. Programa
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                                    Fecha de Aceptación
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[80px]">
                                     Acciones
                                 </div>
                             </div>
 
                             <!-- Table Body -->
-                            <div class="flex flex-col min-w-[1350px]">
+                            <div class="flex flex-col min-w-[1100px]">
                                 <div
                                     v-for="(record, index) in termsAcceptanceData.data"
                                     :key="record.id"
@@ -186,7 +180,7 @@
                                     ]"
                                 >
                                     <!-- Checkbox -->
-                                    <div class="flex items-center justify-center w-[50px]">
+                                    <div class="flex items-center justify-center w-[40px]">
                                         <input
                                             type="checkbox"
                                             :value="record.id"
@@ -195,49 +189,38 @@
                                         >
                                     </div>
 
-                                    <!-- Nombre -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
-                                        {{ toCapitalCase(record.name) }}
+                                    <!-- Nombre del Pagador -->
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px] truncate" :title="record.pagador_name">
+                                        {{ record.pagador_name }}
                                     </div>
 
-                                    <!-- Documento -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
-                                        {{ formatDocument(record.document_number, record.document_type) }}
+                                    <!-- RUT -->
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
+                                        {{ record.document_number || '-' }}
                                     </div>
 
-                                    <!-- Email -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[180px] truncate" :title="record.email">
-                                        {{ record.email }}
+                                    <!-- Documento (tipo) -->
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[100px]">
+                                        {{ record.document_type || '-' }}
                                     </div>
 
-                                    <!-- Fecha Aceptación -->
+                                    <!-- Nombre del Participante -->
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px] truncate" :title="record.participant_name">
+                                        {{ record.participant_name }}
+                                    </div>
+
+                                    <!-- Código Programa -->
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                        {{ record.program_code }}
+                                    </div>
+
+                                    <!-- Fecha de Aceptación -->
                                     <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
                                         {{ record.terms_accepted_at || '-' }}
                                     </div>
 
-                                    <!-- IP -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[120px]">
-                                        {{ record.ip_address || '-' }}
-                                    </div>
-
-                                    <!-- Navegador -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[120px]">
-                                        {{ record.browser || '-' }}
-                                    </div>
-
-                                    <!-- Sistema Operativo -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[120px]">
-                                        {{ record.operating_system || '-' }}
-                                    </div>
-
-                                    <!-- Programa -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
-                                        <div class="truncate" :title="`${record.program_code} - ${record.program_name}`">{{ record.program_code }} - {{ record.program_name }}</div>
-                                    </div>
-
                                     <!-- Acciones -->
-                                    <div class="flex items-center justify-center w-[100px] gap-2">
-                                        <!-- Botón descargar PDF -->
+                                    <div class="flex items-center justify-center w-[80px] gap-2">
                                         <button
                                             @click="downloadPdf(record.id)"
                                             :disabled="downloadingPdfId === record.id"
@@ -349,34 +332,6 @@ watch(isIndeterminate, (newValue) => {
         }
     })
 }, { immediate: true })
-
-// Methods
-const formatDocument = (documentNumber, documentType) => {
-    if (documentType?.toLowerCase() === 'rut') {
-        return formatRut(documentNumber)
-    }
-    return documentNumber
-}
-
-const formatRut = (rut) => {
-    if (!rut) return ''
-
-    const cleanRut = rut.toString().replace(/[^0-9kK]/g, '')
-
-    if (cleanRut.length < 2) return cleanRut
-
-    const body = cleanRut.slice(0, -1)
-    const dv = cleanRut.slice(-1).toUpperCase()
-
-    const formattedBody = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-
-    return `${formattedBody}-${dv}`
-}
-
-const toCapitalCase = (str) => {
-    if (!str) return ''
-    return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-}
 
 // Computed properties for pagination
 const visiblePages = computed(() => {

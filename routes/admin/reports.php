@@ -100,7 +100,7 @@ Route::get('/reports/procedure-documents/download/{procedureDocument}', function
 use App\Http\Controllers\Admin\ExecutivesReportsController;
 use App\Http\Controllers\Admin\Courses\PaymentOptionsProgramController;
 Route::prefix('/reports/executives')->name('reports.executives.')
-    ->middleware('permission:ver_reportes_executives|ver_contacto_pagador')
+    ->middleware('role_or_permission:super_admin|contabilidad|ver_reportes_executives|ver_contacto_pagador')
     ->group(function () {
         // Vista index de reportes de apoderados
         Route::get('/', [ExecutivesReportsController::class, 'index'])->name('index');

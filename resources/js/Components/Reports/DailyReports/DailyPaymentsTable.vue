@@ -5,59 +5,29 @@
                 <!-- Table Header -->
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
-                            Ejecutivo Comercial
-                        </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
-                            Código
+                            Cód. Inscripción
                         </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[220px]">
-                            Programa
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[160px]">
+                            Participante
                         </th>
-                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Forma de Pago
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
+                            Tipo Documento
+                        </th>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[110px]">
                             N° Documento
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            F. Pago
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            <div class="flex items-center justify-center">
-                                <span>Tipo Dcto</span>
-                                <button
-                                    @mouseenter="showTooltip = true"
-                                    @mouseleave="showTooltip = false"
-                                    class="ml-1 w-3 h-3 text-white/70 hover:text-white cursor-help relative"
-                                >
-                                    <svg fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"></path>
-                                    </svg>
-                                    <div
-                                        v-if="showTooltip"
-                                        class="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-50"
-                                        style="margin-left: -96px;"
-                                    >
-                                        <div class="space-y-1">
-                                            <div><strong>B2:</strong> Boleta</div>
-                                            <div><strong>BC:</strong> Nota de Crédito</div>
-                                            <div><strong>FF:</strong> Factura</div>
-                                            <div><strong>AC:</strong> Reserva</div>
-                                        </div>
-                                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-900" style="margin-left: -8px;"></div>
-                                    </div>
-                                </button>
-                            </div>
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Cuotas Pagadas
-                        </th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Cuotas Pend.
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Monto Pagado
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Saldo Pend.
+                            Saldo Pendiente
+                        </th>
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[140px]">
+                            Ejecutivo Comercial
                         </th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap w-[50px]">
 
@@ -76,34 +46,17 @@
                         ]"
                         @click="$emit('view-details', payment)"
                     >
-                        <!-- Ejecutivo Comercial -->
+                        <!-- Código de Inscripción -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs font-medium text-[#1c4f4a]">
+                                {{ payment.enrollment_code || 'N/A' }}
+                            </div>
+                        </td>
+
+                        <!-- Participante -->
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs font-medium text-gray-900">
-                                {{ payment.sales_executive_name || 'N/A' }}
-                            </div>
-                        </td>
-
-                        <!-- Código -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ payment.program_code || 'N/A' }}
-                            </div>
-                        </td>
-
-                        <!-- Programa -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-[#1c4f4a] font-medium">
-                                {{ payment.program_name || 'N/A' }}
-                            </div>
-                            <div class="text-[10px] text-gray-500">
-                                {{ payment.program_destination || '' }}
-                            </div>
-                        </td>
-
-                        <!-- N° Documento -->
-                        <td class="px-2 py-2 whitespace-nowrap">
-                            <div class="text-xs text-gray-900">
-                                {{ payment.transaction_document_number || 'N/A' }}
+                                {{ payment.participant_name || 'N/A' }}
                             </div>
                         </td>
 
@@ -114,28 +67,21 @@
                             </span>
                         </td>
 
-                        <!-- Tipo de Dcto -->
+                        <!-- Tipo de Documento (B2, BC, FF, AC) -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <span class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-800">
                                 {{ payment.document_type_code || 'N/A' }}
                             </span>
                         </td>
 
-                        <!-- N° Cuotas Pagadas -->
+                        <!-- N° de Documento (boleta/transacción) -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs font-bold text-green-600">
-                                {{ payment.paid_installments_display || '0' }}
+                            <div class="text-xs text-gray-900">
+                                {{ payment.transaction_document_number || 'N/A' }}
                             </div>
                         </td>
 
-                        <!-- N° Cuotas No Pagadas -->
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs font-bold text-red-600">
-                                {{ payment.overdue_installments_display || '0' }}
-                            </div>
-                        </td>
-
-                        <!-- Monto Total Pagado -->
+                        <!-- Monto Pagado -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-green-600">
                                 ${{ formatPrice(payment.total_paid_amount) }}
@@ -146,6 +92,13 @@
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold" :class="getBalanceClass(payment.total_pending_amount)">
                                 ${{ formatPrice(payment.total_pending_amount) }}
+                            </div>
+                        </td>
+
+                        <!-- Ejecutivo Comercial -->
+                        <td class="px-2 py-2 whitespace-nowrap">
+                            <div class="text-xs text-gray-900">
+                                {{ payment.sales_executive_name || 'N/A' }}
                             </div>
                         </td>
 
@@ -203,8 +156,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["view-details"]);
-
-const showTooltip = ref(false);
 
 const formatPrice = (price) => {
     if (!price) return "0";
