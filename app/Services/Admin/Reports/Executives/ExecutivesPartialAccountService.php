@@ -157,8 +157,7 @@ class ExecutivesPartialAccountService
                     ->pluck('id')->all();
 
                 // Calcular aportes (pagos con report_code 'AP')
-                // IMPORTANTE: Los aportes son contribuciones adicionales que NO reducen la deuda
-                // Se muestran en la columna APORTE/BECA pero NO se restan del "Por Pagar"
+                // Los aportes se muestran en la columna APORTE/BECA y SÍ reducen el Saldo
                 $aporteAmount = 0;
                 if (!empty($orderIds)) {
                     $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
@@ -213,9 +212,9 @@ class ExecutivesPartialAccountService
                     }
                 }
 
-                // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
-                // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
-                $porPagar = max($price - $abono - $scholarship - $released, 0);
+                // Saldo = Precio (ya con descuentos simples) - Abono - Becas - Aportes - Liberado
+                // SALDO = PRECIO - (Abono + Aporte + Monto Liberado)
+                $porPagar = max($price - $abono - $scholarship - $aporteAmount - $released, 0);
 
                 // Ajuste para participantes DE BAJA:
                 // - Por Pagar siempre es $0

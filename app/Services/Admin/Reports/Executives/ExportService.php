@@ -407,7 +407,7 @@ class ExportService
             'G10' => "Forma de\nPago",
             'H10' => 'Aporte/Beca',
             'I10' => 'Monto Liberado',
-            'J10' => 'Por pagar',
+            'J10' => 'Saldo',
         ];
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
@@ -428,7 +428,7 @@ class ExportService
         $sheet->getColumnDimension('G')->setWidth(16); // Forma de Pago
         $sheet->getColumnDimension('H')->setWidth(14); // Aporte/Beca
         $sheet->getColumnDimension('I')->setWidth(14); // Monto Liberado
-        $sheet->getColumnDimension('J')->setWidth(12); // Por pagar
+        $sheet->getColumnDimension('J')->setWidth(12); // Saldo
 
         // ========================
         // Datos dinámicos por participante (A11 en adelante)
@@ -467,7 +467,15 @@ class ExportService
             });
         }
 
-        $participantPrograms = $participantProgramsQuery->get();
+        // Ordenar participantes alfabéticamente por apellidos y nombres
+        $participantPrograms = $participantProgramsQuery
+            ->join('participants as part_sort', 'participant_program.participant_id', '=', 'part_sort.id')
+            ->orderBy('part_sort.first_last_name', 'asc')
+            ->orderBy('part_sort.second_last_name', 'asc')
+            ->orderBy('part_sort.first_name', 'asc')
+            ->orderBy('part_sort.second_name', 'asc')
+            ->select('participant_program.*')
+            ->get();
 
         foreach ($participantPrograms as $pp) {
             // Construir nombre en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
@@ -576,7 +584,7 @@ class ExportService
             }
 
             // Calcular aportes (pagos con report_code 'AP')
-            // IMPORTANTE: Los aportes son contribuciones adicionales que se muestran en la columna APORTE/BECA
+            // Los aportes se muestran en la columna APORTE/BECA y SÍ reducen el Saldo
             $aporteAmount = 0.0;
             if (!empty($orderIds)) {
                 $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
@@ -593,9 +601,10 @@ class ExportService
             // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
             $price = $basePrice - $simpleDiscounts;
 
-            // Por pagar = Precio (ya con descuentos simples) - Abono - Becas - Liberado
-            // IMPORTANTE: NO restar aportes porque son contribuciones adicionales, NO reducen la deuda
-            $porPagar = max($price - $abono - ($scholarship - $aporteAmount) - $released, 0);
+            // Saldo = Precio (ya con descuentos simples) - Abono - (Beca + Aporte) - Liberado
+            // SALDO = PRECIO - (Abono + Aporte + Monto Liberado)
+            // Nota: $scholarship ya incluye $aporteAmount (sumado en línea anterior)
+            $porPagar = max($price - $abono - $scholarship - $released, 0);
 
             // Ajuste para participantes DE BAJA:
             // - Por Pagar siempre es $0
