@@ -638,14 +638,14 @@ class BsaleService
                 [
                     'comment' => $itemDetail,
                     'quantity' => 1,
-                    'netUnitValue' => $payment->amount,
+                    'netUnitValue' => (int) round($payment->amount),
                     'taxId' => $isExempt ? 0 : 1, // 0 para exento, 1 para IVA
                 ]
             ],
             'payments' => [
                 [
                     'paymentTypeId' => 10, // WEBPAY
-                    'amount' => $payment->amount,
+                    'amount' => (int) round($payment->amount),
                 ]
             ]
         ];

@@ -448,7 +448,7 @@ class ReportController extends Controller
             return Inertia::render('Admin/Reports/ConsolidatedPayments', [
                 'consolidatedPayments' => $data['consolidatedPayments'],
                 'paymentMethods' => $data['paymentMethods'],
-                'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
+                'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name', 'destination')->where('active', true)->orderBy('code')->get(),
                 'filters' => $filters,
                 'summary' => $data['summary']
             ]);

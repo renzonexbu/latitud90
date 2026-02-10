@@ -2,13 +2,24 @@
   <div class="py-12">
     <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
       <!-- Header -->
-      <ReportsHeader
-        title="Consolidado de Pagos"
-        subtitle="Reporte contable de pagos y devoluciones"
-      />
+      <div class="flex items-center justify-between">
+        <ReportsHeader
+          title="Consolidado de Pagos"
+          subtitle="Reporte contable de pagos y devoluciones"
+        />
+        <button
+          @click="goBack"
+          class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 flex-shrink-0"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          <span>Volver Atrás</span>
+        </button>
+      </div>
 
       <!-- Filtros -->
-      <div class="bg-white rounded-[20px] overflow-hidden">
+      <div class="bg-white rounded-[20px]">
         <div class="p-6 text-gray-900">
           <ConsolidatedPaymentsFilters
             :initial-filters="filters"
@@ -157,8 +168,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import ReportsHeader from './ReportsHeader.vue'
 import ConsolidatedPaymentsFilters from './ConsolidatedPayments/ConsolidatedPaymentsFilters.vue'
 import ConsolidatedPaymentsTable from './ConsolidatedPayments/ConsolidatedPaymentsTable.vue'
@@ -190,6 +201,20 @@ const props = defineProps({
     default: () => ({})
   }
 })
+
+// Navigation
+const page = usePage()
+const shouldGoToExecutivesIndex = computed(() => {
+  const roles = page.props.auth?.user?.roles || []
+  const isEjecutivo = roles.includes('ejecutivo_comercial')
+  const isMarketing = roles.includes('marketing')
+  return (isEjecutivo || isMarketing) && !roles.includes('contabilidad') && !roles.includes('super_admin')
+})
+
+const goBack = () => {
+  const backUrl = shouldGoToExecutivesIndex.value ? '/admin/reports/executives' : '/admin/reports'
+  router.visit(backUrl)
+}
 
 // Reactive data
 const filters = reactive({
