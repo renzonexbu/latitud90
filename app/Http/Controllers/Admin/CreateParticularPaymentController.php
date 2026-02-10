@@ -92,8 +92,9 @@ class CreateParticularPaymentController extends Controller
             'notes' => 'nullable|string',
             'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP,CT',
 
-            // Datos del comprador (simplificado)
-            'buyer_full_name' => 'required|string|max:255',
+            // Datos del comprador
+            'buyer_first_name' => 'required|string|max:255',
+            'buyer_last_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'nullable|email|max:255',
@@ -116,7 +117,9 @@ class CreateParticularPaymentController extends Controller
                 'presential_payment_type' => $request->presential_payment_type,
 
                 // Datos del comprador
-                'buyer_full_name' => $request->buyer_full_name,
+                'buyer_first_name' => $request->buyer_first_name,
+                'buyer_last_name' => $request->buyer_last_name,
+                'buyer_full_name' => trim($request->buyer_first_name . ' ' . $request->buyer_last_name),
                 'buyer_document_type' => $request->buyer_document_type,
                 'buyer_document_number' => $request->buyer_document_number,
                 'buyer_email' => $request->buyer_email,

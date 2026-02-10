@@ -219,19 +219,34 @@
                                             </div>
                                         </div>
 
-                                        <!-- Nombre completo -->
-                                        <div class="flex flex-col gap-[12px]">
-                                            <label
-                                                class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
-                                            >
-                                                Nombre completo *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Nombre y apellido"
-                                                class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
-                                                v-model="buyerForm.fullName"
-                                            />
+                                        <!-- Nombres y Apellidos -->
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div class="flex flex-col gap-[12px]">
+                                                <label
+                                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
+                                                >
+                                                    Nombres *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nombres"
+                                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                                    v-model="buyerForm.firstName"
+                                                />
+                                            </div>
+                                            <div class="flex flex-col gap-[12px]">
+                                                <label
+                                                    class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal"
+                                                >
+                                                    Apellidos *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Apellidos"
+                                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                                    v-model="buyerForm.lastName"
+                                                />
+                                            </div>
                                         </div>
 
                                         <!-- Correo electrónico -->
@@ -825,7 +840,7 @@
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600">Pagador:</span>
-                                            <span class="text-sm font-semibold text-gray-900">{{ buyerForm.fullName }}</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ buyerForm.firstName }} {{ buyerForm.lastName }}</span>
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600">RUT/Doc:</span>
@@ -910,7 +925,8 @@ const props = defineProps({
 
 // Formulario de datos del pagador (simplificado)
 const buyerForm = reactive({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     documentType: "",
     documentNumber: "",
     email: "",
@@ -965,7 +981,8 @@ const isRutDocument = computed(() => {
 
 const isBuyerFormValid = computed(() => {
     const validations = {
-        fullName: buyerForm.fullName.trim() !== "",
+        firstName: buyerForm.firstName.trim() !== "",
+        lastName: buyerForm.lastName.trim() !== "",
         documentType: buyerForm.documentType !== "",
         documentNumber: buyerForm.documentNumber.trim() !== "",
         // Email es opcional para pagos presenciales
@@ -1109,7 +1126,8 @@ const searchFrequentClient = async () => {
 
 const autocompleteForm = (clientData) => {
     // Autocompletar los campos del formulario simplificado
-    buyerForm.fullName = clientData.full_name;
+    buyerForm.firstName = clientData.first_name || clientData.full_name || '';
+    buyerForm.lastName = clientData.last_name || '';
     buyerForm.email = clientData.email;
 };
 
@@ -1535,7 +1553,8 @@ const submit = () => {
     const combinedData = {
         ...form.data(),
         status: "completed", // Siempre completado para pagos presenciales
-        buyer_full_name: buyerForm.fullName,
+        buyer_first_name: buyerForm.firstName,
+        buyer_last_name: buyerForm.lastName,
         buyer_document_type: buyerForm.documentType,
         buyer_document_number: buyerForm.documentNumber,
         buyer_email: buyerForm.email,

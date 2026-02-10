@@ -106,8 +106,9 @@ class PaymentController extends Controller
             'notes' => 'nullable|string',
             'installment_id' => 'nullable|exists:installments,id', // Opcional: ID de cuota a marcar como pagada
 
-            // Datos del comprador (simplificado)
-            'buyer_full_name' => 'required|string|max:255',
+            // Datos del comprador
+            'buyer_first_name' => 'required|string|max:255',
+            'buyer_last_name' => 'required|string|max:255',
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'required|email|max:255',

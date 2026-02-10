@@ -370,7 +370,7 @@ class CreateParticularPaymentService
             'order_id' => $order->id,
             'payment_option_id' => $paymentOption->id,
             'payment_gateway_id' => $paymentGateway->id,
-            'name' => $data['buyer_full_name'] ?? 'Comprador',
+            'name' => $data['buyer_full_name'] ?? trim(($data['buyer_first_name'] ?? '') . ' ' . ($data['buyer_last_name'] ?? '')) ?: 'Comprador',
             'email' => $data['buyer_email'] ?? '',
             'country' => $data['buyer_country'] ?? null,
             'region' => $data['buyer_region'] ?? null,
@@ -422,6 +422,8 @@ class CreateParticularPaymentService
                 'created_manually' => true,
                 'payment_type' => 'presential',
                 'buyer_data' => [
+                    'first_name' => $data['buyer_first_name'] ?? null,
+                    'last_name' => $data['buyer_last_name'] ?? null,
                     'full_name' => $data['buyer_full_name'] ?? null,
                     'document_type' => $data['buyer_document_type'] ?? null,
                     'document_number' => RutHelper::clean($data['buyer_document_number'] ?? null),
