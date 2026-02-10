@@ -132,18 +132,38 @@
                                 </span>
                             </div>
 
-                            <!-- Nombre completo -->
+                            <!-- Nombres -->
                             <div class="field-wrapper">
-                                <label for="fullName" class="field-label">
-                                    Nombre completo
+                                <label for="nombres" class="field-label">
+                                    Nombres
                                     <span class="required">*</span>
                                 </label>
                                 <input
-                                    id="fullName"
-                                    v-model="form.name"
+                                    id="nombres"
+                                    v-model="form.nombres"
                                     type="text"
                                     required
-                                    placeholder="Nombre y apellido"
+                                    placeholder="Ej: Juan Carlos"
+                                    class="input-text"
+                                    :class="{
+                                        'border-red-500':
+                                            $page.props.errors.name,
+                                    }"
+                                />
+                            </div>
+
+                            <!-- Apellidos -->
+                            <div class="field-wrapper">
+                                <label for="apellidos" class="field-label">
+                                    Apellidos
+                                    <span class="required">*</span>
+                                </label>
+                                <input
+                                    id="apellidos"
+                                    v-model="form.apellidos"
+                                    type="text"
+                                    required
+                                    placeholder="Ej: García González"
                                     class="input-text"
                                     :class="{
                                         'border-red-500':
@@ -450,7 +470,9 @@ const props = defineProps({
 const form = useForm({
     document_type_id: "",
     document_number: "",
-    name: "",
+    nombres: "",
+    apellidos: "",
+    name: "", // Se compone de nombres + apellidos al enviar
     email: "",
     phone_code: "+56",
     phone: "",
@@ -587,6 +609,8 @@ const handleCityChange = (cityId) => {
 };
 
 const submit = () => {
+    // Componer name a partir de nombres y apellidos antes de enviar
+    form.name = (form.nombres + ' ' + form.apellidos).trim();
     form.post(route("guardian.register.post"), {
         preserveScroll: true,
     });
