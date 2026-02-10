@@ -13,13 +13,11 @@
         />
 
         <!-- Filtros -->
-        <div class="bg-white overflow-hidden shadow-sm rounded-[20px] mb-6 p-6">
+        <div class="bg-white shadow-sm rounded-[20px] mb-6 p-6">
             <DailyPaymentsFilters
                 :initial-filters="localFilters"
                 :programs="programs"
                 :sales-executives="salesExecutives"
-                :financing-types="financingTypes"
-                :payment-methods="paymentMethods"
                 @filters-changed="handleFiltersChanged"
             />
         </div>
@@ -445,14 +443,6 @@ export default {
             type: Array,
             default: () => [],
         },
-        financingTypes: {
-            type: Object,
-            default: () => ({}),
-        },
-        paymentMethods: {
-            type: Array,
-            default: () => [],
-        },
         filters: {
             type: Object,
             default: () => ({}),
@@ -472,8 +462,8 @@ export default {
             localFilters: {
                 programId: this.filters.programId || "",
                 salesExecutiveId: this.filters.salesExecutiveId || "",
-                financingType: this.filters.financingType || "",
-                paymentMethodId: this.filters.paymentMethodId || "",
+                paymentMethod: this.filters.paymentMethod || "",
+                participantQuery: this.filters.participantQuery || "",
                 dateFrom: this.filters.dateFrom || "",
                 dateTo: this.filters.dateTo || "",
             },

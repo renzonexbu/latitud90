@@ -175,9 +175,9 @@ class DailyPaymentsDataProvider
     public function getPrograms(): Collection
     {
         return DB::table('program_courses')
-            ->select(['id', 'code', 'name'])
+            ->select(['id', 'code', 'name', 'destination'])
             ->where('active', true)
-            ->orderBy('name')
+            ->orderBy('code')
             ->get();
     }
 

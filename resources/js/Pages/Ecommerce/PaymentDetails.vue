@@ -508,14 +508,11 @@ export default {
         // Establecer RUT como tipo de documento por defecto
         this.formData.documentType = this.getDocumentTypeId('RUT');
 
-        // ✅ AUTOCOMPLETAR con datos del guardian si está logeado
+        // ✅ AUTOCOMPLETAR con datos del guardian si está logeado (EXCEPTO nombre y apellido)
         if (this.guardian) {
             console.log('✅ Guardian logeado detectado, autocompletando formulario:', this.guardian);
 
-            // Guardian solo tiene un campo 'name', separar en nombres/apellidos
-            const guardianNameParts = (this.guardian.name || '').trim().split(' ');
-            this.formData.nombres = guardianNameParts[0] || '';
-            this.formData.apellidos = guardianNameParts.slice(1).join(' ') || '';
+            // NO autocompletar nombre y apellido - el usuario debe ingresarlos manualmente
             this.formData.documentType = this.guardian.document_id || this.getDocumentTypeId('RUT');
             this.formData.documentNumber = this.guardian.document || '';
             this.formData.email = this.guardian.email || '';
@@ -903,11 +900,8 @@ export default {
         },
 
         autocompleteForm(clientData) {
-            // Autocompletar todos los campos del formulario
-            // FrequentClient solo tiene 'full_name', separar en nombres/apellidos
-            const clientNameParts = (clientData.full_name || '').trim().split(' ');
-            this.formData.nombres = clientNameParts[0] || '';
-            this.formData.apellidos = clientNameParts.slice(1).join(' ') || '';
+            // Autocompletar campos del formulario EXCEPTO nombre y apellido
+            // El usuario debe ingresar nombre y apellido manualmente
             this.formData.email = clientData.email;
             this.formData.phone = clientData.phone;
             this.formData.code_phone = clientData.phone_code;

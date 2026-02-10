@@ -421,16 +421,14 @@ class ReportController extends Controller
     public function dailyPayments(Request $request)
     {
         try {
-            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status', 'perPage']);
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'paymentMethod', 'participantQuery', 'status', 'perPage']);
 
             $data = $this->dailyPaymentsService->getData($filters);
-            
+
             return Inertia::render('Admin/Reports/DailyPayments', [
                 'dailyPayments' => $data['dailyPayments'],
                 'programs' => $data['programs'],
                 'salesExecutives' => $data['salesExecutives'],
-                'financingTypes' => $data['financingTypes'],
-                'paymentMethods' => $data['paymentMethods'],
                 'summary' => $data['summary'],
                 'filters' => $filters
             ]);

@@ -324,31 +324,70 @@
                         </NavLink>
                     </div>
                 </div>
-                <NavLink
-                    v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin || isMarketing"
-                    :href="reportsRoute"
-                    :active="route().current('admin.reports.*')"
-                    class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
-                >
-                    <ReportIcon
-                        class="w-6 h-6 transition-colors flex-shrink-0"
-                        :class="
-                            route().current('admin.reports.*')
-                                ? 'text-turquesa'
-                                : 'text-gray-400 group-hover:text-turquesa'
-                        "
-                        fill-color="currentColor"
-                    />
-                    <span
-                        class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
-                        :class="[
-                            route().current('admin.reports.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
-                            sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                        ]"
+                <!-- Reportes con Submenú -->
+                <div v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin || isMarketing" class="relative reports-dropdown-container">
+                    <button
+                        @click="toggleReportsMenu"
+                        class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
+                        :class="route().current('admin.reports.*') ? 'bg-gray-50' : ''"
                     >
-                        Reportes
-                    </span>
-                </NavLink>
+                        <ReportIcon
+                            class="w-6 h-6 transition-colors flex-shrink-0"
+                            :class="
+                                route().current('admin.reports.*')
+                                    ? 'text-turquesa'
+                                    : 'text-gray-400 group-hover:text-turquesa'
+                            "
+                            fill-color="currentColor"
+                        />
+                        <span
+                            class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                            :class="[
+                                route().current('admin.reports.*') ? 'text-turquesa' : 'text-gray-600 group-hover:text-turquesa',
+                                sidebarExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+                            ]"
+                        >
+                            Reportes
+                        </span>
+                        <svg
+                            v-if="sidebarExpanded"
+                            class="w-4 h-4 ml-auto transition-transform duration-200"
+                            :class="[
+                                showingReportsMenu ? 'rotate-180' : '',
+                                route().current('admin.reports.*') ? 'text-turquesa' : 'text-gray-400'
+                            ]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Submenú de Reportes -->
+                    <div
+                        v-show="showingReportsMenu && sidebarExpanded"
+                        class="flex flex-col pl-10 py-1 bg-gray-50 rounded-b-lg"
+                    >
+                        <NavLink
+                            v-if="isContabilidad || isSuperAdmin"
+                            :href="route('admin.reports.index')"
+                            :active="route().current('admin.reports.index') || route().current('admin.reports.daily-payments') || route().current('admin.reports.consolidated-payments') || route().current('admin.reports.softland') || route().current('admin.reports.bsale-documents') || route().current('admin.reports.terms-acceptance') || route().current('admin.reports.paid-installments') || route().current('admin.reports.it-simple')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingReportsMenu = false"
+                        >
+                            Contables
+                        </NavLink>
+                        <NavLink
+                            :href="route('admin.reports.executives.index')"
+                            :active="route().current('admin.reports.executives.*')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingReportsMenu = false"
+                        >
+                            Comerciales
+                        </NavLink>
+                    </div>
+                </div>
 
                 <!-- Contenido del Sitio -->
                 <NavLink
@@ -564,6 +603,7 @@ export default {
             showingPaymentsMenu: false,
             showingCoursesMenu: false,
             showingSubscriptionsMenu: false,
+            showingReportsMenu: false,
             sidebarExpanded: false,
             images,
             backgroundImage,
@@ -594,14 +634,6 @@ export default {
                    this.$page.props.auth.user.roles &&
                    this.$page.props.auth.user.roles.includes('super_admin');
         },
-        reportsRoute() {
-            // Si es ejecutivo comercial o marketing (y no contabilidad/super_admin), redirigir a reportes de ejecutivos
-            if ((this.isEjecutivoComercial || this.isMarketing) && !this.isContabilidad && !this.isSuperAdmin) {
-                return this.route('admin.reports.executives.index');
-            }
-            // Para otros roles (contabilidad, super admin), mostrar reportes generales
-            return this.route('admin.reports.index');
-        }
     },
     watch: {
         sidebarExpanded(newVal) {
@@ -610,6 +642,7 @@ export default {
                 this.showingPaymentsMenu = false;
                 this.showingCoursesMenu = false;
                 this.showingSubscriptionsMenu = false;
+                this.showingReportsMenu = false;
             }
         }
     },
@@ -630,6 +663,11 @@ export default {
         // Si estamos en una página de suscripciones o guardian users, abrir el submenú automáticamente
         if (this.route().current('admin.subscriptions.*') || this.route().current('admin.guardian-users.*')) {
             this.showingSubscriptionsMenu = true;
+        }
+
+        // Si estamos en una página de reportes, abrir el submenú automáticamente
+        if (this.route().current('admin.reports.*')) {
+            this.showingReportsMenu = true;
         }
         
         // Detectar y mostrar flash messages como alertas
@@ -673,6 +711,11 @@ export default {
             if (subscriptionsDropdown && !subscriptionsDropdown.contains(event.target)) {
                 this.showingSubscriptionsMenu = false;
             }
+            // También cerrar el menú de reportes si se hace clic fuera
+            const reportsDropdown = this.$el.querySelector('.reports-dropdown-container');
+            if (reportsDropdown && !reportsDropdown.contains(event.target)) {
+                this.showingReportsMenu = false;
+            }
         },
         togglePaymentsMenu() {
             this.showingPaymentsMenu = !this.showingPaymentsMenu;
@@ -682,6 +725,9 @@ export default {
         },
         toggleSubscriptionsMenu() {
             this.showingSubscriptionsMenu = !this.showingSubscriptionsMenu;
+        },
+        toggleReportsMenu() {
+            this.showingReportsMenu = !this.showingReportsMenu;
         },
         clearFlashMessage(type) {
             this.$page.props.flash[type] = null;

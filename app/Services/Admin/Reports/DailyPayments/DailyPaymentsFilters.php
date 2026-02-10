@@ -42,14 +42,50 @@ class DailyPaymentsFilters
             $query->where('pgc.sales_executive_id', $filters['salesExecutiveId']);
         }
 
-        // Filtro por forma de financiamiento (payment_type)
-        if (!empty($filters['financingType'])) {
-            $query->where('o.payment_type', $filters['financingType']);
+        // Filtro por método de pago (gateway)
+        if (!empty($filters['paymentMethod'])) {
+            $method = $filters['paymentMethod'];
+            switch ($method) {
+                case 'transbank':
+                case 'khipu':
+                    $query->where('pg.code', $method);
+                    break;
+                case 'presencial':
+                    $query->where(function ($q) {
+                        $q->where('pg.code', 'presencial')
+                          ->orWhere('po.mode', 'presential');
+                    });
+                    break;
+                case 'virtualpos':
+                    $query->where(function ($q) {
+                        $q->where('po.mode', 'subscription')
+                          ->orWhere('po.code', 'subscription_virtualpos');
+                    });
+                    break;
+                case 'refund':
+                    $query->where(function ($q) {
+                        $q->where('pg.code', 'refund')
+                          ->orWhere('po.gateway_code', 'refund')
+                          ->orWhere('pay.amount', '<', 0)
+                          ->orWhere('pay.document_type', 'BC');
+                    });
+                    break;
+            }
         }
 
-        // Filtro por método de pago (payment_option)
-        if (!empty($filters['paymentMethodId'])) {
-            $query->where('po.id', $filters['paymentMethodId']);
+        // Filtro por participante (nombre o documento)
+        if (!empty($filters['participantQuery'])) {
+            $search = $filters['participantQuery'];
+            $searchClean = preg_replace('/[.\-\s]/', '', $search);
+            $searchLower = strtolower($search);
+
+            $query->where(function ($q) use ($search, $searchClean, $searchLower) {
+                $q->where('p.document_number', 'LIKE', "%{$search}%")
+                  ->orWhere(\Illuminate\Support\Facades\DB::raw("REPLACE(REPLACE(p.document_number, '.', ''), '-', '')"), 'LIKE', "%{$searchClean}%")
+                  ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.first_name)'), 'LIKE', "%{$searchLower}%")
+                  ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.first_last_name)'), 'LIKE', "%{$searchLower}%")
+                  ->orWhere(\Illuminate\Support\Facades\DB::raw('LOWER(p.second_last_name)'), 'LIKE', "%{$searchLower}%");
+            });
         }
 
         // Filtro por fecha desde (priorizando fecha de pago exitoso)
