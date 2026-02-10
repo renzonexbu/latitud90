@@ -496,13 +496,30 @@ class BsaleService
             }
 
             // Buscar cliente existente por email como fallback
+            // IMPORTANTE: Validar que el RUT coincida antes de reutilizar el cliente
             $existingCustomer = $this->findCustomerByEmail($orderDetail->email);
             if ($existingCustomer) {
-                Log::channel('bsale')->info('BsaleService: Cliente encontrado por email', [
-                    'customer_id' => $existingCustomer['id'],
-                    'email' => $orderDetail->email,
-                ]);
-                return $existingCustomer['id'];
+                $existingCode = $existingCustomer['code'] ?? null;
+                // Normalizar ambos RUTs (quitar puntos, guiones) para comparar
+                $normalizedExisting = preg_replace('/[.\-\s]/', '', $existingCode ?? '');
+                $normalizedExpected = preg_replace('/[.\-\s]/', '', $documentNumber ?? '');
+                if ($normalizedExisting && $normalizedExpected && strtoupper($normalizedExisting) === strtoupper($normalizedExpected)) {
+                    // RUT coincide, reutilizar cliente
+                    Log::channel('bsale')->info('BsaleService: Cliente encontrado por email con RUT coincidente', [
+                        'customer_id' => $existingCustomer['id'],
+                        'email' => $orderDetail->email,
+                        'code' => $existingCode,
+                    ]);
+                    return $existingCustomer['id'];
+                } else {
+                    // RUT NO coincide, no reutilizar - se creará uno nuevo
+                    Log::channel('bsale')->warning('BsaleService: Cliente encontrado por email pero RUT no coincide, creando nuevo cliente', [
+                        'existing_customer_id' => $existingCustomer['id'],
+                        'existing_code' => $existingCode,
+                        'expected_code' => $documentNumber,
+                        'email' => $orderDetail->email,
+                    ]);
+                }
             }
 
             // Crear nuevo cliente
