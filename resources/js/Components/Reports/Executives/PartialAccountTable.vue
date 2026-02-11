@@ -35,10 +35,10 @@
                             </span>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-gray-900">${{ formatPrice(row.price) }}</div>
+                            <div class="text-xs font-bold text-gray-900">{{ formatPrice(row.price) }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-blue-600">${{ formatPrice(row.abono) }}</div>
+                            <div class="text-xs font-bold text-blue-600">{{ formatPrice(row.abono) }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">{{ row.paid_installments }}/{{ row.total_installments }}</div>
@@ -50,10 +50,10 @@
                             <div class="text-xs text-gray-900">{{ row.payment_method || 'N/A' }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-blue-600">${{ formatPrice(row.scholarship) }}</div>
+                            <div class="text-xs font-bold text-blue-600">{{ formatPrice(row.scholarship) }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-green-600">${{ formatPrice(row.released) }}</div>
+                            <div class="text-xs font-bold text-green-600">{{ formatPrice(row.released) }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold" :class="getBalanceClass(row.balance)">{{ formatBalance(row.balance) }}</div>
@@ -84,8 +84,8 @@ const formatPrice = (price) => {
 
 const formatBalance = (balance) => {
     const n = Math.round(Number(balance) || 0);
-    if (n < 0) return `$(${Math.abs(n).toLocaleString('es-CL')})`;
-    return `$${n.toLocaleString('es-CL')}`;
+    if (n < 0) return `(${Math.abs(n).toLocaleString('es-CL')})`;
+    return n.toLocaleString('es-CL');
 };
 
 const getBalanceClass = (balance) => {

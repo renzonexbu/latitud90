@@ -391,7 +391,11 @@ class CreateParticularPaymentService
             'gateway_response' => [
                 'notes' => $data['notes'] ?? null,
                 'created_manually' => true,
-                'payment_type' => 'presential'
+                'payment_type' => 'presential',
+                'buyer_data' => [
+                    'first_name' => $data['buyer_first_name'] ?? '',
+                    'last_name' => $data['buyer_last_name'] ?? '',
+                ],
             ]
         ]);
     }

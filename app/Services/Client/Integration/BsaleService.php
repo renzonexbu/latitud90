@@ -446,10 +446,27 @@ class BsaleService
                 $lastName = trim($buyerData['first_last_name'] ?? '');
                 if (!empty($firstName) && !empty($lastName)) {
                     $nameParts = ['firstName' => $firstName, 'lastName' => $lastName];
-                    Log::channel('bsale')->info('BsaleService: Usando nombres estructurados de buyer_data', [
+                    Log::channel('bsale')->info('BsaleService: Usando nombres estructurados de buyer_data (suscripción)', [
                         'firstName' => $firstName,
                         'lastName' => $lastName,
                     ]);
+                }
+            }
+
+            // Intentar datos estructurados del gateway_response (pagos presenciales)
+            if (!$nameParts) {
+                $gatewayResponse = $orderDetail->gateway_response;
+                if (is_array($gatewayResponse) && !empty($gatewayResponse['buyer_data'])) {
+                    $buyerData = $gatewayResponse['buyer_data'];
+                    $firstName = trim($buyerData['first_name'] ?? '');
+                    $lastName = trim($buyerData['last_name'] ?? '');
+                    if (!empty($firstName) && !empty($lastName)) {
+                        $nameParts = ['firstName' => $firstName, 'lastName' => $lastName];
+                        Log::channel('bsale')->info('BsaleService: Usando nombres estructurados de gateway_response (presencial)', [
+                            'firstName' => $firstName,
+                            'lastName' => $lastName,
+                        ]);
+                    }
                 }
             }
 

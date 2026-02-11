@@ -195,12 +195,6 @@
                                                     @input="handleDocumentInput"
                                                     @blur="handleDocumentBlur"
                                                 />
-                                                <div
-                                                    v-if="isLoadingFrequentClient"
-                                                    class="absolute right-3 top-1/2 transform -translate-y-1/2"
-                                                >
-                                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                                                </div>
                                             </div>
                                             <div
                                                 v-if="
@@ -949,7 +943,6 @@ const form = useForm({
 const availableParticipants = ref([]);
 const participantPaymentStatus = ref(null);
 const isLoadingParticipantStatus = ref(false);
-const isLoadingFrequentClient = ref(false);
 const errorAlert = ref(null);
 
 // Variables para el modal de confirmación
@@ -1069,66 +1062,6 @@ const handleDocumentBlur = () => {
     if (isRutDocument.value) {
         validateDocument();
     }
-
-    // Buscar cliente frecuente si hay tipo de documento y número
-    if (buyerForm.documentType && buyerForm.documentNumber.trim()) {
-        searchFrequentClient();
-    }
-};
-
-const searchFrequentClient = async () => {
-    if (isLoadingFrequentClient.value) return;
-    
-    try {
-        isLoadingFrequentClient.value = true;
-        const csrfToken = getCsrfToken();
-
-        if (!csrfToken) {
-            return;
-        }
-
-        const response = await fetch("/frequent-clients/find-by-document", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": csrfToken,
-                "X-Requested-With": "XMLHttpRequest",
-            },
-            body: JSON.stringify({
-                document_id: buyerForm.documentType,
-                document: buyerForm.documentNumber.trim(),
-            }),
-        });
-
-        if (!response.ok) {
-            console.error(`Error en la petición: ${response.status} ${response.statusText}`);
-            return;
-        }
-
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            console.error("La respuesta no es JSON válido");
-            return;
-        }
-
-        const result = await response.json();
-
-        if (result.success && result.data) {
-            // Autocompletar el formulario con los datos del cliente frecuente
-            autocompleteForm(result.data);
-        }
-    } catch (error) {
-        console.error("Error buscando cliente frecuente:", error);
-    } finally {
-        isLoadingFrequentClient.value = false;
-    }
-};
-
-const autocompleteForm = (clientData) => {
-    // Autocompletar los campos del formulario simplificado
-    buyerForm.firstName = clientData.first_name || clientData.full_name || '';
-    buyerForm.lastName = clientData.last_name || '';
-    buyerForm.email = clientData.email;
 };
 
 const validateDocument = () => {

@@ -80,15 +80,10 @@ class ExecutivesConsolidatedService
             'filters' => $filters
         ]);
 
-        // Obtener pagos con paginación, ordenados por nombre del participante y fecha de pago
+        // Obtener pagos con paginación, ordenados por fecha de transacción (más reciente primero)
         $payments = $query
-            ->leftJoin('orders as o_sort', 'payments.order_id', '=', 'o_sort.id')
-            ->leftJoin('participants as p_sort', 'o_sort.participant_id', '=', 'p_sort.id')
-            ->orderBy('p_sort.first_last_name', 'asc')
-            ->orderBy('p_sort.second_last_name', 'asc')
-            ->orderBy('p_sort.first_name', 'asc')
-            ->orderBy('p_sort.second_name', 'asc')
-            ->orderBy('payments.transaction_date', 'asc')
+            ->orderBy('payments.transaction_date', 'desc')
+            ->orderBy('payments.id', 'desc')
             ->select('payments.*')
             ->paginate($perPage, ['*'], 'page', $page);
 
@@ -127,7 +122,8 @@ class ExecutivesConsolidatedService
 
             // Contacto pagador (nombre del pagador desde detalle de orden)
             $firstDetail = $order?->orderDetails?->first();
-            $payerContact = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerContact = $payerContactRaw ? ucwords(strtolower($payerContactRaw)) : null;
             $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
 
             // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
@@ -260,7 +256,7 @@ class ExecutivesConsolidatedService
             'filters' => $normalizedFilters
         ]);
 
-        // Obtener TODOS los pagos sin paginación, ordenados por nombre y fecha de pago
+        // Obtener TODOS los pagos sin paginación, ordenados por nombre del participante y fecha de pago
         $payments = $query
             ->leftJoin('orders as o_sort', 'payments.order_id', '=', 'o_sort.id')
             ->leftJoin('participants as p_sort', 'o_sort.participant_id', '=', 'p_sort.id')
@@ -300,7 +296,8 @@ class ExecutivesConsolidatedService
 
             // Contacto pagador (nombre del pagador desde detalle de orden)
             $firstDetail = $order?->orderDetails?->first();
-            $payerContact = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            $payerContact = $payerContactRaw ? ucwords(strtolower($payerContactRaw)) : null;
             $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
 
             // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"

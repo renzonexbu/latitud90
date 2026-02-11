@@ -390,9 +390,12 @@ class CreateRefundService
         // Determinar el tipo de documento fiscal según el tipo de reembolso
         // NC (Nota de Crédito) usa 'VC', RA (Reverso Administrativo) usa 'RA'
         $documentType = $paymentOption->code === 'refund_admin_reversal' ? 'RA' : 'VC';
-        $refundReason = $paymentOption->code === 'refund_admin_reversal'
-            ? 'Reverso administrativo procesado manualmente'
-            : 'Nota de crédito procesada manualmente';
+        $refundReasons = [
+            'refund_admin_reversal' => 'Reverso administrativo procesado manualmente',
+            'refund_aporte_credit_note' => 'Nota de crédito a aporte procesada manualmente',
+            'refund_credit_note' => 'Nota de crédito procesada manualmente',
+        ];
+        $refundReason = $refundReasons[$paymentOption->code] ?? 'Nota de crédito procesada manualmente';
 
         return Payment::create([
             'order_id' => $order->id,

@@ -43,11 +43,11 @@
                             </div>
                             <div class="bg-green-50 p-2 rounded border border-green-200">
                                 <p class="text-[10px] text-gray-500">Total Liberado</p>
-                                <p class="text-sm font-bold text-green-700">${{ (summary.totalLiberated || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                <p class="text-sm font-bold text-green-700">{{ (summary.totalLiberated || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
                             </div>
                             <div class="bg-purple-50 p-2 rounded border border-purple-200">
                                 <p class="text-[10px] text-gray-500">Monto Total</p>
-                                <p class="text-sm font-bold text-purple-700">${{ (summary.totalAmount || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
+                                <p class="text-sm font-bold text-purple-700">{{ (summary.totalAmount || 0).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }}</p>
                             </div>
                         </div>
                     </div>

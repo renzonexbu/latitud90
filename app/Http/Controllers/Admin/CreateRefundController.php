@@ -189,7 +189,7 @@ class CreateRefundController extends Controller
             'document_number' => 'required|string|max:255',
             'transaction_date' => 'required|date',
             'total_amount' => 'required|numeric|min:1',
-            'refund_type' => 'required|string|in:refund_credit_note,refund_admin_reversal',
+            'refund_type' => 'required|string|in:refund_credit_note,refund_aporte_credit_note,refund_admin_reversal',
 
             // Validar datos del cliente
             'client_rut' => 'required|string|max:255',

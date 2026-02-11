@@ -61,6 +61,7 @@ class PaymentOptionSeeder extends Seeder
 
 			// Devoluciones y Reversos
 			['code' => 'refund_credit_note', 'label' => 'Notas de crédito (devoluciones)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'NC', 'installments' => null, 'active' => true],
+			['code' => 'refund_aporte_credit_note', 'label' => 'Nota de crédito a Aporte', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'AP', 'installments' => null, 'active' => true],
 			['code' => 'refund_admin_reversal', 'label' => 'Reverso Administrativo (RA)', 'mode' => 'refund', 'gateway_code' => 'refund', 'report_code' => 'RA', 'installments' => null, 'active' => true],
 		];
 

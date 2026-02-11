@@ -253,18 +253,32 @@
 
                                 <div v-else-if="participantPaymentStatus" class="p-4 bg-gray-50 rounded-lg">
                                     <h4 class="text-md font-semibold text-gray-800 mb-3">Estado de Pagos del Participante</h4>
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div>
-                                            <span class="text-sm text-gray-600">Monto Total:</span>
-                                            <p class="font-semibold text-gray-800">${{ formatPrice(participantPaymentStatus.payment_info.total_amount) }}</p>
+                                            <span class="text-sm text-gray-600">Precio Programa:</span>
+                                            <p class="font-semibold text-gray-800">${{ formatPrice(participantPaymentStatus.payment_info.price) }}</p>
                                         </div>
                                         <div>
-                                            <span class="text-sm text-gray-600">Monto Pagado:</span>
-                                            <p class="font-semibold text-green-600">${{ formatPrice(participantPaymentStatus.payment_info.paid_amount) }}</p>
+                                            <span class="text-sm text-gray-600">Abono:</span>
+                                            <p class="font-semibold text-blue-600">${{ formatPrice(participantPaymentStatus.payment_info.abono) }}</p>
                                         </div>
                                         <div>
-                                            <span class="text-sm text-gray-600">Saldo Pendiente:</span>
-                                            <p class="font-semibold text-red-600">${{ formatPrice(participantPaymentStatus.payment_info.balance) }}</p>
+                                            <span class="text-sm text-gray-600">Aportes:</span>
+                                            <p class="font-semibold text-blue-600">${{ formatPrice(participantPaymentStatus.payment_info.aporte) }}</p>
+                                        </div>
+                                        <div v-if="participantPaymentStatus.payment_info.scholarship > 0">
+                                            <span class="text-sm text-gray-600">Beca:</span>
+                                            <p class="font-semibold text-purple-600">${{ formatPrice(participantPaymentStatus.payment_info.scholarship) }}</p>
+                                        </div>
+                                        <div v-if="participantPaymentStatus.payment_info.released > 0">
+                                            <span class="text-sm text-gray-600">Liberado:</span>
+                                            <p class="font-semibold text-green-600">${{ formatPrice(participantPaymentStatus.payment_info.released) }}</p>
+                                        </div>
+                                        <div>
+                                            <span class="text-sm text-gray-600">Saldo:</span>
+                                            <p class="font-semibold" :class="participantPaymentStatus.payment_info.saldo >= 0 ? 'text-green-600' : 'text-red-600'">
+                                                {{ formatBalance(participantPaymentStatus.payment_info.saldo) }}
+                                            </p>
                                         </div>
                                         <div>
                                             <span class="text-sm text-gray-600">Cuotas Pagadas:</span>
@@ -280,13 +294,13 @@
 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div
-                                        v-for="option in availableRefundOptions"
+                                        v-for="option in mainRefundOptions"
                                         :key="option.code"
-                                        @click="form.refund_type = option.code"
+                                        @click="selectRefundType(option.code)"
                                         class="relative flex items-start p-4 border rounded-lg cursor-pointer transition-all duration-200"
                                         :class="{
-                                            'border-[#e74c3c] bg-red-50': form.refund_type === option.code,
-                                            'border-gray-200 hover:border-gray-300 hover:bg-gray-50': form.refund_type !== option.code
+                                            'border-[#e74c3c] bg-red-50': selectedBaseRefundType === option.code,
+                                            'border-gray-200 hover:border-gray-300 hover:bg-gray-50': selectedBaseRefundType !== option.code
                                         }"
                                     >
                                         <div class="flex items-center h-5">
@@ -294,7 +308,8 @@
                                                 :id="option.code"
                                                 type="radio"
                                                 :value="option.code"
-                                                v-model="form.refund_type"
+                                                v-model="selectedBaseRefundType"
+                                                @change="selectRefundType(option.code)"
                                                 class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
                                             />
                                         </div>
@@ -316,13 +331,53 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Sub-selector: Aplicar NC a Abonos o Aportes -->
+                                <div v-if="selectedBaseRefundType === 'refund_credit_note'" class="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Aplicar nota de crédito a:</h4>
+                                    <div class="flex gap-4">
+                                        <label
+                                            class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                            :class="{
+                                                'border-[#e74c3c] bg-red-50 font-semibold': refundAppliesTo === 'abono',
+                                                'border-gray-300 hover:border-gray-400': refundAppliesTo !== 'abono'
+                                            }"
+                                        >
+                                            <input
+                                                type="radio"
+                                                value="abono"
+                                                v-model="refundAppliesTo"
+                                                @change="updateRefundType"
+                                                class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                            />
+                                            <span class="text-sm">Abonos</span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                            :class="{
+                                                'border-[#e74c3c] bg-red-50 font-semibold': refundAppliesTo === 'aporte',
+                                                'border-gray-300 hover:border-gray-400': refundAppliesTo !== 'aporte'
+                                            }"
+                                        >
+                                            <input
+                                                type="radio"
+                                                value="aporte"
+                                                v-model="refundAppliesTo"
+                                                @change="updateRefundType"
+                                                class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                            />
+                                            <span class="text-sm">Aportes</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <span v-if="errors.refund_type" class="text-red-500 text-sm mt-2 block">{{ errors.refund_type }}</span>
                             </div>
 
                             <!-- SECCIÓN 4: DATOS FISCALES -->
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6">
-                                    {{ form.refund_type === 'refund_admin_reversal' ? 'Datos del Reverso Administrativo' : 'Datos Fiscales de la Nota de Crédito' }}
+                                    {{ form.refund_type === 'refund_admin_reversal' ? 'Datos del Reverso Administrativo' : (form.refund_type === 'refund_aporte_credit_note' ? 'Datos Fiscales de la Nota de Crédito (Aporte)' : 'Datos Fiscales de la Nota de Crédito') }}
                                 </h3>
 
                                 <!-- Campos fiscales -->
@@ -477,6 +532,10 @@ const highlightedIndex = ref(0);
 const selectedEnrollment = ref(null);
 let searchTimeout = null;
 
+// Variables para tipo de reembolso y sub-selector
+const selectedBaseRefundType = ref('refund_credit_note');
+const refundAppliesTo = ref('abono');
+
 const rutValidation = reactive({
     isValid: null,
     message: "",
@@ -491,9 +550,35 @@ const availableRefundOptions = computed(() => {
     // Fallback con opciones por defecto
     return [
         { code: 'refund_credit_note', label: 'Notas de crédito (devoluciones)', report_code: 'NC' },
+        { code: 'refund_aporte_credit_note', label: 'Nota de crédito a Aporte', report_code: 'AP' },
         { code: 'refund_admin_reversal', label: 'Reverso Administrativo (RA)', report_code: 'RA' }
     ];
 });
+
+// Opciones principales visibles (sin la variante de aporte, que se maneja con sub-selector)
+const mainRefundOptions = computed(() => {
+    return availableRefundOptions.value.filter(opt => opt.code !== 'refund_aporte_credit_note');
+});
+
+const selectRefundType = (code) => {
+    selectedBaseRefundType.value = code;
+    if (code === 'refund_credit_note') {
+        // Para NC, usar el sub-selector para determinar el tipo real
+        updateRefundType();
+    } else {
+        // Para RA u otros, usar directamente
+        form.refund_type = code;
+        refundAppliesTo.value = 'abono'; // reset
+    }
+};
+
+const updateRefundType = () => {
+    if (refundAppliesTo.value === 'aporte') {
+        form.refund_type = 'refund_aporte_credit_note';
+    } else {
+        form.refund_type = 'refund_credit_note';
+    }
+};
 
 const filteredComunes = computed(() => {
     if (!buyerForm.region) {
@@ -838,7 +923,14 @@ const loadParticipantPaymentStatus = async () => {
 };
 
 const formatPrice = (amount) => {
-    return amount.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const n = Math.round(Number(amount) || 0);
+    return n.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+};
+
+const formatBalance = (balance) => {
+    const n = Math.round(Number(balance) || 0);
+    if (n < 0) return `$(${Math.abs(n).toLocaleString('es-CL')})`;
+    return `$${n.toLocaleString('es-CL')}`;
 };
 
 const getPaymentStatusClass = (status) => {

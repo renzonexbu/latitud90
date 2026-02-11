@@ -209,7 +209,11 @@ class StorePaymentService
             'gateway_response' => [
                 'notes' => $request->notes,
                 'created_manually' => true,
-                'payment_type' => 'presential'
+                'payment_type' => 'presential',
+                'buyer_data' => [
+                    'first_name' => $request->buyer_first_name ?? '',
+                    'last_name' => $request->buyer_last_name ?? '',
+                ],
             ]
         ]);
     }

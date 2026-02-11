@@ -85,7 +85,7 @@
                         <!-- Pago y/o Dev. -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold" :class="getPaymentAmountClass(item.payment_or_refund)">
-                                ${{ formatPrice(item.payment_or_refund) }}
+                                {{ formatPrice(item.payment_or_refund) }}
                             </div>
                         </td>
 
@@ -127,14 +127,14 @@
                         <!-- Liberado -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-green-600">
-                                ${{ formatPrice(item.liberated) }}
+                                {{ formatPrice(item.liberated) }}
                             </div>
                         </td>
 
                         <!-- Precio -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">
-                                ${{ formatPrice(item.price) }}
+                                {{ formatPrice(item.price) }}
                             </div>
                         </td>
                     </tr>

@@ -37,12 +37,15 @@ class GetParticipantPaymentStatusService
             }
 
             // Calcular montos usando el helper
+            $basePrice = 0;
             try {
                 $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
                 $totalAmount = $priceData['final_price'];
+                $basePrice = $priceData['base_price'];
             } catch (\Exception $e) {
                 // Fallback al precio del programa si el helper falla
                 $totalAmount = $programCourse->trip_price ?? 0;
+                $basePrice = $totalAmount;
                 Log::warning('Error calculando precio con helper, usando precio del programa', [
                     'error' => $e->getMessage(),
                     'participant_id' => $participantId,
@@ -50,10 +53,47 @@ class GetParticipantPaymentStatusService
                 ]);
             }
 
+            // ============================================================
+            // DESCUENTOS DESGLOSADOS: Beca, Liberado, Simples
+            // ============================================================
+            $scholarship = 0.0;
+            $released = 0.0;
+            $simpleDiscounts = 0.0;
+
+            $pp = \Illuminate\Support\Facades\DB::table('participant_program')
+                ->where('participant_id', $participantId)
+                ->where('program_id', $programCourseId)
+                ->first();
+
+            if ($pp) {
+                $ppDiscounts = \Illuminate\Support\Facades\DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $pp->id)
+                    ->get();
+
+                foreach ($ppDiscounts as $disc) {
+                    $discAmount = 0.0;
+                    if ($disc->percent && $disc->percent > 0) {
+                        $discAmount += ($basePrice * $disc->percent) / 100;
+                    }
+                    if ($disc->amount && $disc->amount > 0) {
+                        $discAmount += (float) $disc->amount;
+                    }
+                    if ($disc->discount_type === 'scholarship') {
+                        $scholarship += $discAmount;
+                    } elseif ($disc->discount_type === 'released') {
+                        $released += $discAmount;
+                    } else {
+                        $simpleDiscounts += $discAmount;
+                    }
+                }
+            }
+
+            // Precio mostrado = base - descuentos simples (sin incluir beca ni liberado)
+            $price = $basePrice - $simpleDiscounts;
+
             // Inicializar variables
             $totalInstallments = 0;
             $paidInstallments = 0;
-            $totalPaidAmount = 0;
             $orders = collect(); // Inicializar como colección vacía
 
             // Buscar planes de cuotas del participante para este programa (más confiable)
@@ -73,24 +113,60 @@ class GetParticipantPaymentStatusService
                 }
             }
 
-            // CALCULAR EL MONTO REAL PAGADO desde la tabla payments
-            // orders.program_id ahora apunta a program_courses
-            $totalPaidAmount = Payment::whereHas('order', function ($q) use ($participantId, $programCourseId) {
-                    $q->where('participant_id', $participantId)
-                      ->where('program_id', $programCourseId);
-                })
-                ->whereIn('status', ['completed', 'approved'])
-                ->sum('amount');
+            // ============================================================
+            // PAGOS DESGLOSADOS: Normales, Suscripciones, Aportes
+            // ============================================================
+            $orderIds = Order::where('participant_id', $participantId)
+                ->where('program_id', $programCourseId)
+                ->pluck('id')->all();
 
-            // Agregar también las cuotas pagadas de suscripciones
-            $subscriptionPayments = \App\Models\Installment::whereHas('installmentPlan', function ($q) use ($participantId, $programCourseId) {
+            // 1. Pagos normales (excluir suscripciones y aportes AP)
+            $normalPayments = 0.0;
+            $aporteAmount = 0.0;
+            if (!empty($orderIds)) {
+                $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        $query->whereNull('payment_source')
+                              ->orWhere('payment_source', '!=', 'subscription');
+                    })
+                    ->where(function($q) {
+                        $q->whereNull('payment_option_id')
+                          ->orWhereHas('paymentOption', function($sq) {
+                              $sq->where('report_code', '!=', 'AP');
+                          });
+                    })
+                    ->sum('amount');
+
+                // Aportes (pagos con report_code 'AP', excluyendo subscription source)
+                $aporteAmount = (float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        $query->whereNull('payment_source')
+                              ->orWhere('payment_source', '!=', 'subscription');
+                    })
+                    ->whereHas('paymentOption', function($q) {
+                        $q->where('report_code', 'AP');
+                    })
+                    ->sum('amount');
+            }
+
+            // 2. Cuotas de suscripción pagadas (installments)
+            $subscriptionPayments = (float) \App\Models\Installment::whereHas('installmentPlan', function ($q) use ($participantId, $programCourseId) {
                     $q->where('participant_id', $participantId)
                       ->where('program_id', $programCourseId);
                 })
                 ->where('status', 'paid')
                 ->sum('amount');
 
-            $totalPaidAmount += $subscriptionPayments;
+            // Abono = pagos normales + cuotas de suscripción (sin aportes)
+            $abono = $normalPayments + $subscriptionPayments;
+
+            // Total pagado real (incluyendo aportes)
+            $totalPaidAmount = round($abono + $aporteAmount, 2);
+
+            // Saldo: (Abono + Aporte + Beca + Liberado) - Precio
+            $saldo = round(($abono + $scholarship + $aporteAmount + $released) - $price, 2);
 
             // Si no hay planes de cuotas, buscar en orders como fallback
             if ($totalInstallments == 0) {
@@ -118,9 +194,8 @@ class GetParticipantPaymentStatusService
                 }
             }
 
-            $totalPaidAmount = round($totalPaidAmount, 2);
-            $balance = max(round($totalAmount - $totalPaidAmount, 2), 0);
-            $paymentPercentage = $totalAmount > 0 ? round(($totalPaidAmount / $totalAmount) * 100, 2) : 0;
+            $balance = max(round($price - $totalPaidAmount - $scholarship - $released, 2), 0);
+            $paymentPercentage = $price > 0 ? round(($totalPaidAmount / $price) * 100, 2) : 0;
 
             // Validar que los números sean lógicos
             if ($paidInstallments > $totalInstallments) {
@@ -152,9 +227,13 @@ class GetParticipantPaymentStatusService
                 [
                     'participant_id' => $participant->id,
                     'program_course_id' => $programCourse->id,
-                    'total_amount' => $totalAmount,
-                    'paid_amount' => $totalPaidAmount,
+                    'price' => $price,
+                    'abono' => $abono,
+                    'aporte' => $aporteAmount,
+                    'scholarship' => $scholarship,
+                    'released' => $released,
                     'balance' => $balance,
+                    'saldo' => $saldo,
                     'payment_percentage' => $paymentPercentage,
                     'payment_status' => $paymentStatus,
                     'is_enrolled' => $isEnrolled,
@@ -177,8 +256,15 @@ class GetParticipantPaymentStatusService
                     ],
                     'payment_info' => [
                         'total_amount' => $totalAmount,
+                        'price' => $price,
+                        'base_price' => $basePrice,
                         'paid_amount' => $totalPaidAmount,
+                        'abono' => $abono,
+                        'aporte' => $aporteAmount,
+                        'scholarship' => $scholarship,
+                        'released' => $released,
                         'balance' => $balance,
+                        'saldo' => $saldo,
                         'payment_percentage' => $paymentPercentage,
                         'payment_status' => $paymentStatus,
                         'is_enrolled' => $isEnrolled,
