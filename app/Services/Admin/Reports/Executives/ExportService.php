@@ -587,20 +587,20 @@ class ExportService
             $price = $basePrice - $simpleDiscounts;
 
             // ============================================================
-            // SALDO: Igual que vista Participantes: max(0, total_due - total_paid)
-            // Donde total_due ya incluye TODOS los descuentos
+            // SALDO: (Abono + Aporte/Beca + Liberado) - Precio
+            // Positivo = excedente, Negativo = saldo deudor
             // ============================================================
-            $porPagar = max(0, round($totalDue - $totalPaid, 2));
+            $saldo = round(($abono + $scholarship + $aporteAmount + $released) - $price, 2);
 
             // Columna Aporte/Beca incluye aportes de pagos
             $scholarship += $aporteAmount;
 
             // Ajuste para participantes DE BAJA:
-            // - Por Pagar siempre es $0
+            // - Saldo siempre es $0
             // - Precio = lo que abonaron (si no pagaron todo) o $0 (si pagaron todo)
             $displayPrice = $price;
             if (!$pp->is_active) {
-                $porPagar = 0;
+                $saldo = 0;
                 // Si pagaron todo el monto del programa, precio = 0
                 // Si no pagaron todo, precio = lo que abonaron
                 if ($abono >= $price) {
@@ -623,12 +623,14 @@ class ExportService
             $sheet->setCellValue('G' . $row, $paymentMethod);
             $sheet->setCellValue('H' . $row, $scholarship);
             $sheet->setCellValue('I' . $row, $released);
-            $sheet->setCellValue('J' . $row, $porPagar);
+            $sheet->setCellValue('J' . $row, $saldo);
 
             // Aplicar formato de moneda a las columnas numéricas
-            foreach (['C','D','H','I','J'] as $col) {
+            foreach (['C','D','H','I'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
             }
+            // Saldo: paréntesis para negativos
+            $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
 
             // Centrar contenido en columnas B, E, F, G (Estado, Cuotas Pagadas, Cuotas Vencidas, Forma de Pago)
             $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -638,7 +640,7 @@ class ExportService
             $totals['abono'] += $abono;
             $totals['scholarship'] += $scholarship;
             $totals['released'] += $released;
-            $totals['por_pagar'] += $porPagar;
+            $totals['por_pagar'] += $saldo;
 
             $row++;
         }
@@ -649,10 +651,11 @@ class ExportService
         $sheet->setCellValue('D' . $row, $totals['abono']);
         $sheet->setCellValue('H' . $row, $totals['scholarship']);
         $sheet->setCellValue('I' . $row, $totals['released']);
-        $sheet->setCellValue('J' . $row, '(' . number_format($totals['por_pagar'], 0, ',', '.') . ')');
+        $sheet->setCellValue('J' . $row, $totals['por_pagar']);
         foreach (['C','D','H','I'] as $col) {
             $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
         }
+        $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
         $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],

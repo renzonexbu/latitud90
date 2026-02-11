@@ -236,10 +236,10 @@ class ExecutivesPartialAccountService
                 $totalPaid = $abono + $aporteAmount;
 
                 // ============================================================
-                // SALDO: Igual que vista Participantes: max(0, total_due - total_paid)
-                // Donde total_due ya incluye TODOS los descuentos
+                // SALDO: (Abono + Aporte/Beca + Liberado) - Precio
+                // Positivo = excedente, Negativo = saldo deudor
                 // ============================================================
-                $porPagar = max(0, round($totalDue - $totalPaid, 2));
+                $saldo = round(($abono + $scholarship + $aporteAmount + $released) - $price, 2);
 
                 // Cuotas pagadas y vencidas
                 $paidInstallments = 0;
@@ -264,7 +264,7 @@ class ExecutivesPartialAccountService
                 // Ajuste para participantes DE BAJA
                 $displayPrice = $price;
                 if (!$row->is_active) {
-                    $porPagar = 0;
+                    $saldo = 0;
                     if ($abono >= $price) {
                         $displayPrice = 0;
                     } else {
@@ -300,7 +300,7 @@ class ExecutivesPartialAccountService
                     'payment_method' => $paymentMethod,
                     'scholarship' => $scholarship + $aporteAmount,
                     'released' => $released,
-                    'balance' => $porPagar,
+                    'balance' => $saldo,
                 ]);
             }
         }

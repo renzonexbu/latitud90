@@ -56,7 +56,7 @@
                             <div class="text-xs font-bold text-green-600">${{ formatPrice(row.released) }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold">${{ formatPrice(row.balance) }}</div>
+                            <div class="text-xs font-bold" :class="getBalanceClass(row.balance)">{{ formatBalance(row.balance) }}</div>
                         </td>
                     </tr>
                 </tbody>
@@ -80,6 +80,19 @@ const formatPrice = (price) => {
     if (!price) return '0';
     const n = Math.round(Number(price) || 0);
     return n.toLocaleString('es-CL');
+};
+
+const formatBalance = (balance) => {
+    const n = Math.round(Number(balance) || 0);
+    if (n < 0) return `$(${Math.abs(n).toLocaleString('es-CL')})`;
+    return `$${n.toLocaleString('es-CL')}`;
+};
+
+const getBalanceClass = (balance) => {
+    const n = Number(balance) || 0;
+    if (n > 0) return 'text-green-600';
+    if (n < 0) return 'text-red-600';
+    return 'text-gray-600';
 };
 </script>
 
