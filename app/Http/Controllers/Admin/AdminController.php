@@ -23,12 +23,6 @@ class AdminController extends Controller
      */
     public function dashboard(Request $request)
     {
-        // Marketing: redirigir a contenido del sitio (no tienen acceso al dashboard)
-        $user = $request->user();
-        if ($user->hasRole('marketing') && !$user->hasRole('super_admin') && !$user->hasRole('contabilidad')) {
-            return redirect('/admin/site-content');
-        }
-
         // Estadísticas generales
         $stats = [
             'total_passengers' => Participant::count(),

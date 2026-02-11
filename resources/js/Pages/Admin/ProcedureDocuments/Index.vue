@@ -7,12 +7,23 @@
                 <!-- Header -->
                 <div class="flex justify-between items-center mb-6">
                     <h1 class="text-3xl font-nexa-bold text-gray-900">Documentos Procedimientos</h1>
-                    <Link
-                        :href="route('admin.procedure-documents.create')"
-                        class="bg-[#007e93] text-white px-6 py-3 rounded-lg hover:bg-[#006580] transition-colors font-nexa-bold"
-                    >
-                        + Agregar Documento
-                    </Link>
+                    <div class="flex gap-3">
+                        <button
+                            @click="goBack"
+                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Volver
+                        </button>
+                        <Link
+                            :href="route('admin.procedure-documents.create')"
+                            class="bg-[#007e93] text-white px-6 py-3 rounded-lg hover:bg-[#006580] transition-colors font-nexa-bold"
+                        >
+                            + Agregar Documento
+                        </Link>
+                    </div>
                 </div>
 
                 <!-- Flash Messages -->
@@ -216,6 +227,10 @@ const formatDate = (date) => {
 const confirmDelete = (document) => {
     documentToDelete.value = document;
     showDeleteModal.value = true;
+};
+
+const goBack = () => {
+    window.history.back();
 };
 
 const deleteDocument = () => {

@@ -9,15 +9,26 @@
                     <h1 class="text-2xl font-bold text-gray-900">Términos y Condiciones</h1>
                     <p class="text-gray-600 mt-1">Gestiona los términos y condiciones del sitio</p>
                 </div>
-                <button
-                    @click="openCreateModal"
-                    class="px-4 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark transition-colors flex items-center gap-2"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Agregar Término
-                </button>
+                <div class="flex gap-3">
+                    <button
+                        @click="goBack"
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        Volver
+                    </button>
+                    <button
+                        @click="openCreateModal"
+                        class="px-4 py-2 bg-turquesa text-white rounded-lg hover:bg-turquesa-dark transition-colors flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Agregar Término
+                    </button>
+                </div>
             </div>
 
             <!-- Lista de términos -->
@@ -480,6 +491,10 @@ export default {
         showResult(success, title, message) {
             this.resultModal = { success, title, message };
             this.showResultModal = true;
+        },
+
+        goBack() {
+            window.history.back();
         }
     },
     watch: {

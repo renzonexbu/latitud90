@@ -11,10 +11,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\Newsletter;
 use App\Traits\AdminLogging;
+use App\Traits\ExcelReportHeader;
 
 class NewsletterExportService
 {
     use AdminLogging;
+    use ExcelReportHeader;
 
     public function export(array $filters = []): StreamedResponse
     {
@@ -69,6 +71,9 @@ class NewsletterExportService
     {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Suscriptores Newsletter');
+
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Suscriptores Newsletter');
 
         // Obtener datos con filtros
         $query = Newsletter::query();
@@ -134,12 +139,12 @@ class NewsletterExportService
         // Escribir headers
         foreach ($headers as $colIndex => $header) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
-            $sheet->setCellValue($colLetter . '1', $header);
-            $sheet->getStyle($colLetter . '1')->applyFromArray($headerStyle);
+            $sheet->setCellValue($colLetter . $startRow, $header);
+            $sheet->getStyle($colLetter . $startRow)->applyFromArray($headerStyle);
         }
 
         // Escribir datos
-        $row = 2;
+        $row = $startRow + 1;
         foreach ($data as $item) {
             $status = $item->is_active ? 'Activo' : 'Inactivo';
 
@@ -152,7 +157,7 @@ class NewsletterExportService
 
             // Aplicar bordes a las celdas de datos
             $sheet->getStyle('A' . $row . ':F' . $row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            
+
             $row++;
         }
 
@@ -162,7 +167,8 @@ class NewsletterExportService
         }
 
         // Aplicar estilo alternado a las filas
-        for ($i = 2; $i < $row; $i++) {
+        $dataStart = $startRow + 1;
+        for ($i = $dataStart; $i < $row; $i++) {
             if ($i % 2 == 0) {
                 $sheet->getStyle('A' . $i . ':F' . $i)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F9F9F9');
             }

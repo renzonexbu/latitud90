@@ -2,8 +2,7 @@
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import { Head, useForm, Link } from "@inertiajs/vue3";
 import { ref } from "vue";
-import { EyeIcon, EyeSlashIcon, ArrowLeftIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
-import RolesModal from "@/Components/Users/RolesModal.vue";
+import { EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/vue/24/outline";
 import AlertWrapper from "@/Components/Admin/AlertWrapper.vue";
 
 const props = defineProps({
@@ -17,22 +16,70 @@ const form = useForm({
     password: "",
     password_confirmation: "",
     is_active: props.user.is_active,
+    roles: props.user.roles ? props.user.roles.map(role => role.name) : [],
 });
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
-const showRolesModal = ref(false);
 
 const submit = () => {
     form.put(route("admin.users.update", props.user.id));
 };
 
-const openRolesModal = () => {
-    showRolesModal.value = true;
+const toggleRole = (roleName) => {
+    const index = form.roles.indexOf(roleName);
+    if (index > -1) {
+        form.roles.splice(index, 1);
+    } else {
+        form.roles.push(roleName);
+    }
 };
 
-const closeRolesModal = () => {
-    showRolesModal.value = false;
+const isRoleSelected = (roleName) => {
+    return form.roles.includes(roleName);
+};
+
+const getRoleDisplayName = (roleName) => {
+    const roleNames = {
+        'super_admin': 'Super Admin',
+        'contabilidad': 'Contabilidad',
+        'marketing': 'Marketing',
+        'ejecutivo_comercial': 'Ejecutivo Comercial'
+    };
+    return roleNames[roleName] || roleName;
+};
+
+const getRoleDescription = (roleName) => {
+    const roleDescriptions = {
+        'super_admin': 'Acceso total al sistema',
+        'contabilidad': 'Administrador de Contabilidad - Control total sobre contabilidad',
+        'marketing': 'Administrador de Marketing - Gestión de contenido y reportes comerciales',
+        'ejecutivo_comercial': 'Acceso limitado a reportes de ejecutivos comerciales'
+    };
+    return roleDescriptions[roleName] || '';
+};
+
+const isRoleDisabled = (roleName) => {
+    if (form.roles.length === 0) return false;
+    if (form.roles.includes(roleName)) return false;
+
+    if (form.roles.includes('super_admin')) return true;
+
+    if (form.roles.includes('contabilidad')) {
+        return ['marketing', 'ejecutivo_comercial', 'super_admin'].includes(roleName);
+    }
+
+    if (form.roles.includes('marketing')) {
+        return ['contabilidad', 'super_admin'].includes(roleName);
+    }
+
+    if (form.roles.includes('ejecutivo_comercial')) {
+        return ['contabilidad', 'super_admin'].includes(roleName);
+    }
+
+    if (roleName === 'super_admin' && form.roles.length > 0) return true;
+
+    return false;
 };
 </script>
 
@@ -59,14 +106,6 @@ const closeRolesModal = () => {
                     </div>
                 </div>
                 
-                <!-- Botón para gestionar roles -->
-                <button
-                    @click="openRolesModal"
-                    class="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <UserGroupIcon class="w-5 h-5" />
-                    <span>Gestionar Roles</span>
-                </button>
             </div>
 
             <!-- Form -->
@@ -177,6 +216,47 @@ const closeRolesModal = () => {
                             </label>
                         </div>
 
+                        <!-- Roles -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-4">
+                                Roles *
+                            </label>
+
+                            <div class="space-y-6">
+                                <div v-for="(group, groupKey) in roles" :key="groupKey" class="border border-gray-200 rounded-lg p-4">
+                                    <div class="mb-4">
+                                        <h4 class="text-lg font-semibold text-gray-900">{{ group.name }}</h4>
+                                        <p class="text-sm text-gray-600">{{ group.description }}</p>
+                                    </div>
+
+                                    <div class="space-y-3">
+                                        <div v-for="role in group.roles" :key="role.id" class="flex items-center">
+                                            <input
+                                                :id="`role-${role.id}`"
+                                                :checked="isRoleSelected(role.name)"
+                                                @change="toggleRole(role.name)"
+                                                :disabled="isRoleDisabled(role.name)"
+                                                type="checkbox"
+                                                class="h-4 w-4 text-turquesa focus:ring-turquesa border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                            />
+                                            <label
+                                                :for="`role-${role.id}`"
+                                                class="ml-3 flex flex-col"
+                                                :class="{ 'opacity-50 cursor-not-allowed': isRoleDisabled(role.name) }"
+                                            >
+                                                <span class="text-sm font-medium text-gray-900">{{ getRoleDisplayName(role.name) }}</span>
+                                                <span class="text-xs text-gray-500">{{ getRoleDescription(role.name) }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p v-if="form.errors.roles" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.roles }}
+                            </p>
+                        </div>
+
                         <!-- Actions -->
                         <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                             <Link
@@ -198,13 +278,5 @@ const closeRolesModal = () => {
                 </div>
             </div>
         </div>
-
-        <!-- Modal de Roles -->
-        <RolesModal
-            :show="showRolesModal"
-            :user="user"
-            :roles="roles"
-            @close="closeRolesModal"
-        />
     </AdminLayout>
 </template>

@@ -9,9 +9,11 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Traits\ExcelReportHeader;
 
 class ExcelExporter
 {
+    use ExcelReportHeader;
     public function export(Collection $summary, Collection $details, string $filename): StreamedResponse
     {
         // Limpiar buffers
@@ -70,8 +72,9 @@ class ExcelExporter
 
     private function buildSummarySheet($sheet, Collection $summary): void
     {
-        $rowIndex = 1;
-    
+        // Header con logo, título y fecha de exportación
+        $rowIndex = $this->addReportHeader($sheet, 'Cronograma de Pagos - Resumen');
+
         foreach ($summary as $group) {
             try {
                 // Agrupar meses correctamente ordenados
@@ -116,6 +119,9 @@ class ExcelExporter
 
     private function buildDetailSheet($sheet, Collection $details): void
     {
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Cronograma de Pagos - Detalle');
+
         // Ordenar por próxima fecha de vencimiento (null al final)
         $ordered = $details->sortBy(function ($row) {
             $key = $row->next_due_date ?? null;
@@ -142,17 +148,17 @@ class ExcelExporter
 
         // Headers
         foreach ($headers as $idx => $h) {
-            $sheet->setCellValue($this->col($idx + 1) . '1', $h);
+            $sheet->setCellValue($this->col($idx + 1) . $startRow, $h);
         }
         $lastCol = $this->col(count($headers));
-        $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray([
+        $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1c4f4a']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
 
         // Rows
-        $rowIndex = 2;
+        $rowIndex = $startRow + 1;
         foreach ($ordered as $row) {
             $values = [
                 $row->sales_executive_name ?? 'N/A',
@@ -183,7 +189,7 @@ class ExcelExporter
             $sheet->getColumnDimension($this->col($i))->setWidth($widths[$i - 1] ?? 18);
         }
 
-        $sheet->getStyle('A1:' . $lastCol . ($rowIndex - 1))->applyFromArray([
+        $sheet->getStyle("A{$startRow}:{$lastCol}" . ($rowIndex - 1))->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
         ]);
     }

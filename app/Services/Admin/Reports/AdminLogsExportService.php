@@ -11,11 +11,13 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\AdminLog;
 use App\Traits\AdminLogging;
+use App\Traits\ExcelReportHeader;
 use Carbon\Carbon;
 
 class AdminLogsExportService
 {
     use AdminLogging;
+    use ExcelReportHeader;
 
     public function export(array $filters = []): StreamedResponse
     {
@@ -70,6 +72,9 @@ class AdminLogsExportService
     {
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Logs Administrativos');
+
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Logs Administrativos');
 
         // Obtener datos con filtros
         $query = AdminLog::query();
@@ -157,12 +162,12 @@ class AdminLogsExportService
         // Escribir headers
         foreach ($headers as $colIndex => $header) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
-            $sheet->setCellValue($colLetter . '1', $header);
-            $sheet->getStyle($colLetter . '1')->applyFromArray($headerStyle);
+            $sheet->setCellValue($colLetter . $startRow, $header);
+            $sheet->getStyle($colLetter . $startRow)->applyFromArray($headerStyle);
         }
 
         // Escribir datos
-        $row = 2;
+        $row = $startRow + 1;
         foreach ($data as $item) {
             $sheet->setCellValue('A' . $row, $item->id);
             $sheet->setCellValue('B' . $row, $item->user_name ?? 'Sistema');

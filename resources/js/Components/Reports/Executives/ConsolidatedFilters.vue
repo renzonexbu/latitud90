@@ -153,6 +153,24 @@
                 </div>
             </div>
 
+            <!-- Filtro Estado Activo/Inactivo -->
+            <div class="relative min-w-[160px]">
+                <select
+                    v-model="filters.status"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none cursor-pointer"
+                    @change="performSearch"
+                >
+                    <option value="">Todos los estados</option>
+                    <option value="active">Activo</option>
+                    <option value="inactive">Inactivo</option>
+                </select>
+                <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+            </div>
+
             <!-- Clear Filters Button -->
             <button
                 @click="clearFilters"
@@ -197,6 +215,7 @@ export default {
                 dateFrom: this.initialFilters.dateFrom || "",
                 dateTo: this.initialFilters.dateTo || "",
                 documentSearch: this.initialFilters.documentSearch || "",
+                status: this.initialFilters.status || "",
             },
             programSearchQuery: "",
             showProgramDropdown: false,
@@ -338,6 +357,7 @@ export default {
                 dateFrom: "",
                 dateTo: today.toISOString().split('T')[0],
                 documentSearch: "",
+                status: "",
             };
             this.selectedProgram = null;
             this.programSearchQuery = "";

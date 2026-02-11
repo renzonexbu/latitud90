@@ -15,9 +15,14 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\RichText\Run;
 use Illuminate\Support\Facades\Auth;
+use App\Helpers\ParticipantPriceHelper;
+use App\Models\Payment;
+use Illuminate\Support\Facades\DB;
+use App\Traits\ExcelReportHeader;
 
 class ExportService
 {
+    use ExcelReportHeader;
     /**
      * Verificar si el usuario tiene permiso para ver información del contacto pagador
      */
@@ -49,67 +54,38 @@ class ExportService
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Verificar si tiene permiso para ver columnas de contacto pagador
-            $isAdmin = $this->canViewPayerContact();
-            $lastColumnForMerge = $isAdmin ? 'M' : 'L';
+            // Header con logo, título y fecha de exportación
+            $startRow = $this->addReportHeader($sheet, 'Consolidado de Pagos');
 
-            // Línea 1: Título
-            $sheet->setCellValue('A1', 'Consolidado de Pagos');
-            $sheet->mergeCells('A1:' . $lastColumnForMerge . '1');
-            $this->styleTitle($sheet, 'A1');
-
-            // Línea 2: Rango de fechas
+            // Período (si aplica)
             $dateFrom = $filters['dateFrom'] ?? '';
             $dateTo = $filters['dateTo'] ?? '';
-            $dateRange = '';
             if ($dateFrom && $dateTo) {
                 $dateRange = 'Período: ' . Carbon::parse($dateFrom)->format('d/m/Y') . ' - ' . Carbon::parse($dateTo)->format('d/m/Y');
+                $sheet->setCellValue('C3', $dateRange);
+                $sheet->getStyle('C3')->applyFromArray([
+                    'font' => ['size' => 11],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+                ]);
             }
-            $sheet->setCellValue('A2', $dateRange);
-            $sheet->mergeCells('A2:' . $lastColumnForMerge . '2');
-            $this->styleSubtitle($sheet, 'A2');
-            
-            // Línea 3: Vacía (espacio)
-            $sheet->setCellValue('A3', '');
-            
-            // Línea 4: Cabecera de la tabla (columnas de contacto pagador solo para super_admin)
-            if ($isAdmin) {
-                $headers = [
-                    'A4' => 'Nro. Programa',
-                    'B4' => 'N° de Identificación',
-                    'C4' => 'Nombres y Apellidos',
-                    'D4' => 'Estado',
-                    'E4' => 'Pago y/o Dev.',
-                    'F4' => 'Nro. Documento',
-                    'G4' => 'Tipo de Documento',
-                    'H4' => 'Forma Pago',
-                    'I4' => 'Fecha de Pago',
-                    'J4' => 'Contacto Pagador',
-                    'K4' => 'Aporte o Beca',
-                    'L4' => 'Liberado',
-                    'M4' => 'Precio'
-                ];
-                $headerRange = 'A4:M4';
-                $lastColumn = 'M';
-            } else {
-                // Sin columnas de contacto pagador
-                $headers = [
-                    'A4' => 'Nro. Programa',
-                    'B4' => 'N° de Identificación',
-                    'C4' => 'Nombres y Apellidos',
-                    'D4' => 'Estado',
-                    'E4' => 'Pago y/o Dev.',
-                    'F4' => 'Nro. Documento',
-                    'G4' => 'Tipo de Documento',
-                    'H4' => 'Forma Pago',
-                    'I4' => 'Fecha de Pago',
-                    'J4' => 'Aporte o Beca',
-                    'K4' => 'Liberado',
-                    'L4' => 'Precio'
-                ];
-                $headerRange = 'A4:L4';
-                $lastColumn = 'L';
-            }
+
+            // Cabecera de la tabla
+            $headers = [
+                "A{$startRow}" => 'Nro. Programa',
+                "B{$startRow}" => 'N° de Identificación',
+                "C{$startRow}" => 'Nombres y Apellidos',
+                "D{$startRow}" => 'Estado',
+                "E{$startRow}" => 'Pago y/o Dev.',
+                "F{$startRow}" => 'Nro. Documento',
+                "G{$startRow}" => 'Tipo de Documento',
+                "H{$startRow}" => 'Forma Pago',
+                "I{$startRow}" => 'Fecha de Pago',
+                "J{$startRow}" => 'Contacto Pagador',
+                "K{$startRow}" => 'Liberado',
+                "L{$startRow}" => 'Precio'
+            ];
+            $headerRange = "A{$startRow}:L{$startRow}";
+            $lastColumn = 'L';
 
             foreach ($headers as $cell => $header) {
                 $sheet->setCellValue($cell, $header);
@@ -133,8 +109,8 @@ class ExportService
                 'filters' => $filters
             ]);
 
-            // Datos dinámicos desde línea 5
-            $row = 5;
+            // Datos dinámicos
+            $row = $startRow + 1;
             foreach ($resolvedItems as $item) {
                 $sheet->setCellValue('A' . $row, $item['program_number'] ?? 'N/A');
                 $sheet->setCellValue('B' . $row, isset($item['identification_number']) ? $this->formatRut($item['identification_number']) : 'N/A');
@@ -145,31 +121,14 @@ class ExportService
                 $sheet->setCellValue('G' . $row, $item['document_type'] ?? 'N/A');
                 $sheet->setCellValue('H' . $row, $item['payment_form'] ?? 'N/A');
                 $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
+                $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
+                $sheet->setCellValue('K' . $row, $item['liberated'] ?? 0);
+                $sheet->setCellValue('L' . $row, $item['price'] ?? 0);
 
-                if ($isAdmin) {
-                    // Incluir columna de contacto pagador solo para super_admin
-                    $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
-                    $sheet->setCellValue('K' . $row, $item['scholarship_or_grant'] ?? 0);
-                    $sheet->setCellValue('L' . $row, $item['liberated'] ?? 0);
-                    $sheet->setCellValue('M' . $row, $item['price'] ?? 0);
-
-                    // Aplicar formato de moneda a las columnas numéricas
-                    $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('M' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                } else {
-                    // Sin columnas de contacto pagador
-                    $sheet->setCellValue('J' . $row, $item['scholarship_or_grant'] ?? 0);
-                    $sheet->setCellValue('K' . $row, $item['liberated'] ?? 0);
-                    $sheet->setCellValue('L' . $row, $item['price'] ?? 0);
-
-                    // Aplicar formato de moneda a las columnas numéricas
-                    $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                    $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                }
+                // Aplicar formato de moneda a las columnas numéricas
+                $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
 
                 $row++;
             }
@@ -467,6 +426,12 @@ class ExportService
             });
         }
 
+        // Filtrar por estado activo/inactivo
+        if (!empty($filters['status'])) {
+            $isActive = $filters['status'] === 'active';
+            $participantProgramsQuery->where('participant_program.is_active', $isActive);
+        }
+
         // Ordenar participantes alfabéticamente por apellidos y nombres
         $participantPrograms = $participantProgramsQuery
             ->join('participants as part_sort', 'participant_program.participant_id', '=', 'part_sort.id')
@@ -490,7 +455,19 @@ class ExportService
             }
             // Capital Case
             $participantName = ucwords(strtolower($participantName));
-            $price = (float) ($pp->individual_price ?: ($programCourse->trip_price ?? 0));
+            // ============================================================
+            // PRECIO: Usar ParticipantPriceHelper (misma lógica que vista Participantes)
+            // ============================================================
+            $participant = $pp->participant;
+            $totalDue = 0;
+            $basePrice = (float) ($pp->individual_price ?: ($programCourse->trip_price ?? 0));
+            if ($participant && $programCourse) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                $totalDue = $priceData['final_price'];
+                $basePrice = $priceData['base_price'];
+            } else {
+                $totalDue = $basePrice;
+            }
 
             // Obtener órdenes del participante para este programa
             $orders = \App\Models\Order::with(['installmentPlan.installments'])
@@ -499,11 +476,15 @@ class ExportService
                 ->get();
             $orderIds = $orders->pluck('id')->all();
 
-            // Usar la misma lógica que ExecutivesPartialAccountService para calcular abono
+            // ============================================================
+            // ABONO: Misma lógica que vista Participantes (GetParticipantsService)
+            // normalPayments (excl. subscription source, excl. aportes) + subscriptionPayments
+            // ============================================================
             $paidInstallments = 0;
             $overdueInstallments = 0;
             $totalInstallments = 0;
-            $abono = 0.0;
+            $normalPayments = 0.0;
+            $aporteAmount = 0.0;
 
             if (!empty($orderIds)) {
                 // Obtener el plan de cuotas
@@ -511,11 +492,7 @@ class ExportService
 
                 if ($installmentPlan) {
                     $totalInstallments = $installmentPlan->installments()->count();
-
-                    // Contar cuotas pagadas
                     $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-
-                    // Contar cuotas vencidas (no pagadas y con fecha pasada)
                     $overdueInstallments = $installmentPlan->installments()
                         ->where(function($query) {
                             $query->where('status', 'overdue')
@@ -524,25 +501,49 @@ class ExportService
                                         ->where('due_date', '<', now());
                                   });
                         })->count();
-
-                    // Calcular abono: suma de los montos de las cuotas pagadas
-                    $abono = (float) $installmentPlan->installments()
-                        ->where('status', 'paid')
-                        ->sum('amount');
-                } else {
-                    // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
-                    // Excluir pagos de tipo Aporte (AP) ya que se cuentan en scholarship
-                    $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->where(function($q) {
-                            $q->whereNull('payment_option_id')
-                              ->orWhereHas('paymentOption', function($sq) {
-                                  $sq->where('report_code', '!=', 'AP');
-                              });
-                        })
-                        ->sum('amount');
                 }
+
+                // 1. Pagos normales (excluir suscripción Y excluir aportes)
+                $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        $query->whereNull('payment_source')
+                              ->orWhere('payment_source', '!=', 'subscription');
+                    })
+                    ->where(function($q) {
+                        $q->whereNull('payment_option_id')
+                          ->orWhereHas('paymentOption', function($sq) {
+                              $sq->where('report_code', '!=', 'AP');
+                          });
+                    })
+                    ->sum('amount');
+
+                // Aportes (pagos con report_code 'AP', excluyendo subscription source)
+                $aporteAmount = (float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where(function($query) {
+                        $query->whereNull('payment_source')
+                              ->orWhere('payment_source', '!=', 'subscription');
+                    })
+                    ->whereHas('paymentOption', function($q) {
+                        $q->where('report_code', 'AP');
+                    })
+                    ->sum('amount');
             }
+
+            // 2. Cuotas de suscripción pagadas (installments)
+            $subscriptionPayments = (float) DB::table('installments')
+                ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                ->where('installment_plans.participant_id', $pp->participant_id)
+                ->where('installment_plans.program_id', $programCourse->id)
+                ->where('installments.status', 'paid')
+                ->sum('installments.amount');
+
+            // Abono = pagos normales (sin aportes) + cuotas de suscripción
+            $abono = $normalPayments + $subscriptionPayments;
+
+            // Total pagado real (incluyendo aportes) - para calcular saldo
+            $totalPaid = $abono + $aporteAmount;
 
             // Forma de pago: obtener del último pago con status approved/completed
             $paymentMethod = 'N/A';
@@ -561,50 +562,38 @@ class ExportService
                 }
             }
 
-            // Descuentos: scholarship (Aporte/Beca) vs released (Liberado) vs discount (descuento simple)
-            $basePrice = $price; // Guardar precio base original
+            // Calcular descuentos desglosados para las columnas de visualización
             $scholarship = 0.0;
             $released = 0.0;
             $simpleDiscounts = 0.0;
             foreach ($pp->discounts as $disc) {
                 $discAmount = 0.0;
-                if (!is_null($disc->amount)) {
-                    $discAmount = (float) $disc->amount;
-                } elseif (!is_null($disc->percent)) {
-                    $discAmount = round($basePrice * ((float) $disc->percent) / 100.0, 2);
+                if ($disc->percent && $disc->percent > 0) {
+                    $discAmount += ($basePrice * $disc->percent) / 100;
                 }
-                if ($disc->discount_type === 'released') {
-                    $released += $discAmount;
-                } elseif ($disc->discount_type === 'scholarship') {
+                if ($disc->amount && $disc->amount > 0) {
+                    $discAmount += (float) $disc->amount;
+                }
+                if ($disc->discount_type === 'scholarship') {
                     $scholarship += $discAmount;
+                } elseif ($disc->discount_type === 'released') {
+                    $released += $discAmount;
                 } else {
-                    // discount_type = 'discount' - descuentos simples que no aparecen en Aporte/Beca
                     $simpleDiscounts += $discAmount;
                 }
             }
 
-            // Calcular aportes (pagos con report_code 'AP')
-            // Los aportes se muestran en la columna APORTE/BECA y SÍ reducen el Saldo
-            $aporteAmount = 0.0;
-            if (!empty($orderIds)) {
-                $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                    ->whereIn('status', ['approved', 'completed'])
-                    ->whereHas('paymentOption', function($q) {
-                        $q->where('report_code', 'AP');
-                    })
-                    ->sum('amount');
-            }
-
-            // Sumar aportes a scholarship para mostrar en columna Aporte/Beca
-            $scholarship += $aporteAmount;
-
-            // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
+            // PRECIO mostrado = base - descuentos simples (sin incluir beca ni liberado)
             $price = $basePrice - $simpleDiscounts;
 
-            // Saldo = Precio (ya con descuentos simples) - Abono - (Beca + Aporte) - Liberado
-            // SALDO = PRECIO - (Abono + Aporte + Monto Liberado)
-            // Nota: $scholarship ya incluye $aporteAmount (sumado en línea anterior)
-            $porPagar = max($price - $abono - $scholarship - $released, 0);
+            // ============================================================
+            // SALDO: Igual que vista Participantes: max(0, total_due - total_paid)
+            // Donde total_due ya incluye TODOS los descuentos
+            // ============================================================
+            $porPagar = max(0, round($totalDue - $totalPaid, 2));
+
+            // Columna Aporte/Beca incluye aportes de pagos
+            $scholarship += $aporteAmount;
 
             // Ajuste para participantes DE BAJA:
             // - Por Pagar siempre es $0
@@ -682,47 +671,28 @@ class ExportService
         // Obtener datos usando el servicio SIN PAGINACIÓN
         $consolidatedService = app(ExecutivesConsolidatedService::class);
         $data = $consolidatedService->getConsolidatedForExport($filters);
-        $isAdmin = $this->canViewPayerContact();
 
         $filename = 'apoderados_consolidado_de_pagos_' . Carbon::now('America/Santiago')->format('Y-m-d_H-i-s') . '.csv';
 
-        // Headers condicionales según rol
-        if ($isAdmin) {
-            $headerRow = [
-                'Nro. Programa',
-                'N° de Identificación',
-                'Nombres y Apellidos',
-                'Estado',
-                'Pago y/o Dev.',
-                'Nro. Documento',
-                'Tipo de Documento',
-                'Forma Pago',
-                'Fecha de Pago',
-                'Contacto Pagador',
-                'Aporte o Beca',
-                'Liberado',
-                'Precio'
-            ];
-        } else {
-            $headerRow = [
-                'Nro. Programa',
-                'N° de Identificación',
-                'Nombres y Apellidos',
-                'Estado',
-                'Pago y/o Dev.',
-                'Nro. Documento',
-                'Tipo de Documento',
-                'Forma Pago',
-                'Fecha de Pago',
-                'Aporte o Beca',
-                'Liberado',
-                'Precio'
-            ];
-        }
+        $headerRow = [
+            'Nro. Programa',
+            'N° de Identificación',
+            'Nombres y Apellidos',
+            'Estado',
+            'Pago y/o Dev.',
+            'Nro. Documento',
+            'Tipo de Documento',
+            'Forma Pago',
+            'Fecha de Pago',
+            'Contacto Pagador',
+            'Liberado',
+            'Precio'
+        ];
 
+        $exportDate = 'Fecha de exportación: ' . Carbon::now('America/Santiago')->format('d/m/Y');
         $rows = [
             ['Consolidado de Pagos'],
-            ['Período: ' . ($filters['dateFrom'] ?? '') . ' - ' . ($filters['dateTo'] ?? '')],
+            ['Período: ' . ($filters['dateFrom'] ?? '') . ' - ' . ($filters['dateTo'] ?? ''), '', '', '', '', '', '', '', $exportDate],
             [''],
             $headerRow
         ];
@@ -730,38 +700,20 @@ class ExportService
         // Usar los items del método de exportación
         if (isset($data['items']) && is_array($data['items'])) {
             foreach ($data['items'] as $item) {
-                if ($isAdmin) {
-                    $rows[] = [
-                        $item['program_number'] ?? 'N/A',
-                        $item['identification_number'] ?? 'N/A',
-                        $item['full_name'] ?? 'N/A',
-                        $item['status'] ?? 'N/A',
-                        number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
-                        $item['document_number'] ?? 'N/A',
-                        $item['document_type'] ?? 'N/A',
-                        $item['payment_form'] ?? 'N/A',
-                        $item['payment_date'] ?? 'N/A',
-                        $item['payer_contact'] ?? 'N/A',
-                        number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
-                        number_format($item['liberated'] ?? 0, 0, ',', '.'),
-                        number_format($item['price'] ?? 0, 0, ',', '.')
-                    ];
-                } else {
-                    $rows[] = [
-                        $item['program_number'] ?? 'N/A',
-                        $item['identification_number'] ?? 'N/A',
-                        $item['full_name'] ?? 'N/A',
-                        $item['status'] ?? 'N/A',
-                        number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
-                        $item['document_number'] ?? 'N/A',
-                        $item['document_type'] ?? 'N/A',
-                        $item['payment_form'] ?? 'N/A',
-                        $item['payment_date'] ?? 'N/A',
-                        number_format($item['scholarship_or_grant'] ?? 0, 0, ',', '.'),
-                        number_format($item['liberated'] ?? 0, 0, ',', '.'),
-                        number_format($item['price'] ?? 0, 0, ',', '.')
-                    ];
-                }
+                $rows[] = [
+                    $item['program_number'] ?? 'N/A',
+                    $item['identification_number'] ?? 'N/A',
+                    $item['full_name'] ?? 'N/A',
+                    $item['status'] ?? 'N/A',
+                    number_format($item['payment_or_refund'] ?? 0, 0, ',', '.'),
+                    $item['document_number'] ?? 'N/A',
+                    $item['document_type'] ?? 'N/A',
+                    $item['payment_form'] ?? 'N/A',
+                    $item['payment_date'] ?? 'N/A',
+                    $item['payer_contact'] ?? 'N/A',
+                    number_format($item['liberated'] ?? 0, 0, ',', '.'),
+                    number_format($item['price'] ?? 0, 0, ',', '.')
+                ];
             }
         }
 

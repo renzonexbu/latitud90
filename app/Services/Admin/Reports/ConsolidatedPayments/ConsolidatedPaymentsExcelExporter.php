@@ -10,9 +10,11 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Traits\ExcelReportHeader;
 
 class ConsolidatedPaymentsExcelExporter
 {
+    use ExcelReportHeader;
     public function export(Collection $data, string $filename, array $selectedFields = []): StreamedResponse
     {
         try {
@@ -28,7 +30,10 @@ class ConsolidatedPaymentsExcelExporter
             
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            
+
+            // Header con logo, título y fecha de exportación
+            $startRow = $this->addReportHeader($sheet, 'Consolidado de Pagos');
+
             // Headers fijos en español según requerimientos
             $headers = [
                 'Código (Programa)',
@@ -45,17 +50,17 @@ class ConsolidatedPaymentsExcelExporter
                 'Liberado',
                 'Valor total prog.'
             ];
-            
+
             // Escribir headers
             $colIndex = 0;
             foreach ($headers as $header) {
                 $col = chr(65 + $colIndex);
-                $sheet->setCellValue($col . '1', $header);
+                $sheet->setCellValue($col . $startRow, $header);
                 $colIndex++;
             }
-            
+
             // Escribir datos
-            $rowIndex = 2;
+            $rowIndex = $startRow + 1;
             foreach ($data as $rowData) {
                 $colIndex = 0;
                 foreach ($headers as $header) {
@@ -84,7 +89,7 @@ class ConsolidatedPaymentsExcelExporter
             }
             
             // Aplicar estilos profesionales
-            $this->applyProfessionalStyles($sheet, $data->count() + 1);
+            $this->applyProfessionalStyles($sheet, $startRow, $startRow + $data->count());
             
             // Autoajustar el ancho de columnas según contenido
             $highestColumnLetter = $sheet->getHighestColumn();
@@ -118,7 +123,7 @@ class ConsolidatedPaymentsExcelExporter
         }
     }
     
-    private function applyProfessionalStyles($sheet, int $lastRow): void
+    private function applyProfessionalStyles($sheet, int $headerRow, int $lastRow): void
     {
         // Estilo para headers
         $headerStyle = [
@@ -141,9 +146,9 @@ class ConsolidatedPaymentsExcelExporter
                 ],
             ],
         ];
-        
-        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . '1')->applyFromArray($headerStyle);
-        
+
+        $sheet->getStyle("A{$headerRow}:" . $sheet->getHighestColumn() . $headerRow)->applyFromArray($headerStyle);
+
         // Estilo para datos
         $dataStyle = [
             'borders' => [
@@ -156,9 +161,10 @@ class ConsolidatedPaymentsExcelExporter
                 'vertical' => Alignment::VERTICAL_CENTER,
             ],
         ];
-        
-        if ($lastRow > 1) {
-            $sheet->getStyle('A2:' . $sheet->getHighestColumn() . $lastRow)->applyFromArray($dataStyle);
+
+        $dataStartRow = $headerRow + 1;
+        if ($lastRow >= $dataStartRow) {
+            $sheet->getStyle("A{$dataStartRow}:" . $sheet->getHighestColumn() . $lastRow)->applyFromArray($dataStyle);
         }
     }
 }

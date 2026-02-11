@@ -17,7 +17,7 @@
             <span :style="subtitleStyle"> Home </span>
         </div>
 
-        <div class="flex items-center" :style="{ gap: '11.289px' }">
+        <div v-if="showActionButtons" class="flex items-center" :style="{ gap: '11.289px' }">
             <button
                 type="button"
                 class="relative flex items-center justify-center p-[14px] rounded-[112.894px]"
@@ -214,11 +214,21 @@
 </template>
 
 <script>
-import { router } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 
 export default {
     name: "HomeHeader",
     computed: {
+        userRoles() {
+            const page = usePage();
+            return page.props.auth?.user?.roles || [];
+        },
+        showActionButtons() {
+            const restrictedRoles = ['marketing', 'ejecutivo_comercial'];
+            const hasRestrictedRole = this.userRoles.some(role => restrictedRoles.includes(role));
+            const hasSuperAdmin = this.userRoles.includes('super_admin');
+            return !hasRestrictedRole || hasSuperAdmin;
+        },
         subtitleStyle() {
             return {
                 color: "var(--Colores-Neutro-Gris-4, #5B5B5B)",

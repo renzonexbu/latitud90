@@ -34,7 +34,7 @@ class ExecutivesReportsController extends Controller
 
     public function consolidated(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'documentSearch', 'page']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'documentSearch', 'status', 'page']);
 
         $data = $this->consolidatedService->getConsolidated($filters);
 
@@ -43,7 +43,7 @@ class ExecutivesReportsController extends Controller
 
     public function partialAccount(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode', 'documentSearch', 'page']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode', 'documentSearch', 'status', 'page']);
 
         $data = $this->partialAccountService->getPartialAccounts($filters);
 
@@ -52,7 +52,7 @@ class ExecutivesReportsController extends Controller
 
     public function exportConsolidated(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'documentSearch', 'page']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'salesExecutiveId', 'documentSearch', 'status', 'page']);
         $format = $request->get('format', 'xlsx');
 
         return $this->exportService->exportConsolidated($filters, $format);
@@ -60,7 +60,7 @@ class ExecutivesReportsController extends Controller
 
     public function exportPartialAccount(Request $request)
     {
-        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode', 'documentSearch']);
+        $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'programCode', 'documentSearch', 'status']);
         $format = $request->get('format', 'xlsx');
 
         return $this->exportService->exportPartialAccount($filters, $format);

@@ -14,10 +14,12 @@ use App\Services\Admin\Reports\ConsolidatedPayments\ConsolidatedPaymentsService;
 use App\Services\Admin\Reports\RecoverySchedule\RecoveryScheduleService;
 use App\Services\Admin\Reports\PartialReport\PartialAccountService;
 use App\Traits\AdminLogging;
+use App\Traits\ExcelReportHeader;
 
 class ConsolidatedExportService
 {
     use AdminLogging;
+    use ExcelReportHeader;
     public function __construct(
         private DailyPaymentsService $dailyPaymentsService,
         private ConsolidatedPaymentsService $consolidatedPaymentsService,
@@ -86,6 +88,9 @@ class ConsolidatedExportService
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Pagos Diarios');
 
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Pagos Diarios');
+
         // Obtener datos
         $data = $this->dailyPaymentsService->getAllDailyPayments($filters, []);
 
@@ -102,15 +107,18 @@ class ConsolidatedExportService
         }
 
         $headers = array_keys($firstItem);
-        $this->writeHeaders($sheet, $headers);
-        $this->writeData($sheet, $data, 2);
-        $this->applySheetFormatting($sheet, $headers);
+        $this->writeHeaders($sheet, $headers, $startRow);
+        $this->writeData($sheet, $data, $startRow + 1);
+        $this->applySheetFormatting($sheet, $headers, $startRow);
     }
 
     private function createConsolidatedPaymentsSheet(Spreadsheet $spreadsheet, array $filters): void
     {
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Consolidado de Pagos');
+
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Consolidado de Pagos');
 
         // Obtener datos
         $data = $this->consolidatedPaymentsService->getAllConsolidatedPayments($filters, []);
@@ -128,15 +136,18 @@ class ConsolidatedExportService
         }
 
         $headers = array_keys($firstItem);
-        $this->writeHeaders($sheet, $headers);
-        $this->writeData($sheet, $data, 2);
-        $this->applySheetFormatting($sheet, $headers);
+        $this->writeHeaders($sheet, $headers, $startRow);
+        $this->writeData($sheet, $data, $startRow + 1);
+        $this->applySheetFormatting($sheet, $headers, $startRow);
     }
 
     private function createPaymentScheduleSheet(Spreadsheet $spreadsheet, array $filters): void
     {
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Cronograma de Pagos');
+
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Cronograma de Pagos');
 
         // Obtener datos
         $data = $this->recoveryScheduleService->getAllPaymentSchedules($filters, []);
@@ -154,15 +165,18 @@ class ConsolidatedExportService
         }
 
         $headers = array_keys($firstItem);
-        $this->writeHeaders($sheet, $headers);
-        $this->writeData($sheet, $data, 2);
-        $this->applySheetFormatting($sheet, $headers);
+        $this->writeHeaders($sheet, $headers, $startRow);
+        $this->writeData($sheet, $data, $startRow + 1);
+        $this->applySheetFormatting($sheet, $headers, $startRow);
     }
 
     private function createPartialAccountSheet(Spreadsheet $spreadsheet, array $filters): void
     {
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Estado de Cuenta');
+
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Estado de Cuenta Parcial');
 
         // Definir campos para exportación consolidada (todos los campos disponibles)
         $selectedFields = [
@@ -187,9 +201,9 @@ class ConsolidatedExportService
         }
 
         $headers = array_keys($firstItem);
-        $this->writeHeaders($sheet, $headers);
-        $this->writeData($sheet, $data, 2);
-        $this->applySheetFormatting($sheet, $headers);
+        $this->writeHeaders($sheet, $headers, $startRow);
+        $this->writeData($sheet, $data, $startRow + 1);
+        $this->applySheetFormatting($sheet, $headers, $startRow);
     }
 
     private function createSummarySheet(Spreadsheet $spreadsheet, array $filters): void
@@ -197,20 +211,15 @@ class ConsolidatedExportService
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('Resumen Ejecutivo');
 
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Resumen Ejecutivo de Reportes');
+
         // Obtener resumen
         $summaryService = new ReportsSummaryService();
         $summary = $summaryService->getSummary($filters);
 
         // Crear tabla de resumen
-        $row = 1;
-        
-        // Título
-        $sheet->setCellValue('A1', 'RESUMEN EJECUTIVO DE REPORTES');
-        $sheet->mergeCells('A1:D1');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-        $row = 3;
+        $row = $startRow;
 
         // Pagos Diarios
         $sheet->setCellValue("A{$row}", 'PAGOS DIARIOS');
@@ -288,7 +297,7 @@ class ConsolidatedExportService
         $sheet->getColumnDimension('B')->setAutoSize(true);
     }
 
-    private function writeHeaders($sheet, array $headers): void
+    private function writeHeaders($sheet, array $headers, int $row = 1): void
     {
         if (empty($headers)) {
             return;
@@ -297,7 +306,7 @@ class ConsolidatedExportService
         $colIndex = 0;
         foreach ($headers as $header) {
             $col = chr(65 + $colIndex);
-            $sheet->setCellValue($col . '1', $header);
+            $sheet->setCellValue($col . $row, $header);
             $colIndex++;
         }
     }
@@ -340,7 +349,7 @@ class ConsolidatedExportService
         }
     }
 
-    private function applySheetFormatting($sheet, array $headers): void
+    private function applySheetFormatting($sheet, array $headers, int $headerRow = 1): void
     {
         if (empty($headers)) {
             return;
@@ -369,7 +378,7 @@ class ConsolidatedExportService
         ];
 
         $lastCol = chr(65 + count($headers) - 1);
-        $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray($headerStyle);
+        $sheet->getStyle("A{$headerRow}:{$lastCol}{$headerRow}")->applyFromArray($headerStyle);
 
         // Auto-dimensionar columnas
         foreach (range('A', $lastCol) as $col) {
@@ -378,8 +387,8 @@ class ConsolidatedExportService
 
         // Bordes para toda la tabla
         $lastRow = $sheet->getHighestRow();
-        
-        if ($lastRow > 1) {
+
+        if ($lastRow > $headerRow) {
             $borderStyle = [
                 'borders' => [
                     'allBorders' => [
@@ -389,7 +398,7 @@ class ConsolidatedExportService
                 ],
             ];
 
-            $sheet->getStyle("A1:{$lastCol}{$lastRow}")->applyFromArray($borderStyle);
+            $sheet->getStyle("A{$headerRow}:{$lastCol}{$lastRow}")->applyFromArray($borderStyle);
         }
     }
 

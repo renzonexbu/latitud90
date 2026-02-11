@@ -32,11 +32,8 @@
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Fecha Pago
                         </th>
-                        <th v-if="isAdmin" class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
+                        <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[180px]">
                             Contacto Pagador
-                        </th>
-                        <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Aporte/Beca
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
                             Liberado
@@ -120,17 +117,10 @@
                             </div>
                         </td>
 
-                        <!-- Contacto Pagador (solo visible para super_admin) -->
-                        <td v-if="isAdmin" class="px-2 py-2 whitespace-nowrap">
+                        <!-- Contacto Pagador -->
+                        <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs text-gray-900">
                                 {{ item.payer_contact || 'N/A' }}
-                            </div>
-                        </td>
-
-                        <!-- Aporte o Beca -->
-                        <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-blue-600">
-                                ${{ formatPrice(item.scholarship_or_grant) }}
                             </div>
                         </td>
 

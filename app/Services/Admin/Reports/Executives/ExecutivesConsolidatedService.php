@@ -38,14 +38,14 @@ class ExecutivesConsolidatedService
             'order.participantProgram',
             'order.participantProgram.discounts',
             'order.payments'
-        ])->whereIn('status', ['approved', 'completed']);
+        ])->whereIn('payments.status', ['approved', 'completed']);
 
         // Aplicar filtros
         if (!empty($filters['dateFrom'])) {
-            $query->whereDate('transaction_date', '>=', $filters['dateFrom']);
+            $query->whereDate('payments.transaction_date', '>=', $filters['dateFrom']);
         }
         if (!empty($filters['dateTo'])) {
-            $query->whereDate('transaction_date', '<=', $filters['dateTo']);
+            $query->whereDate('payments.transaction_date', '<=', $filters['dateTo']);
         }
         if (!empty($filters['programId'])) {
             $query->whereHas('order', function ($q) use ($filters) {
@@ -65,6 +65,13 @@ class ExecutivesConsolidatedService
                 $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
+        // Filtro por estado activo/inactivo del participante
+        if (!empty($filters['status'])) {
+            $isActive = $filters['status'] === 'active';
+            $query->whereHas('order.participant', function ($q) use ($isActive) {
+                $q->where('is_active', $isActive);
+            });
+        }
 
         // Log de la consulta SQL
         \Illuminate\Support\Facades\Log::info('Consulta SQL generada', [
@@ -73,8 +80,17 @@ class ExecutivesConsolidatedService
             'filters' => $filters
         ]);
 
-        // Obtener pagos con paginación
-        $payments = $query->orderBy('transaction_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        // Obtener pagos con paginación, ordenados por nombre del participante y fecha de pago
+        $payments = $query
+            ->leftJoin('orders as o_sort', 'payments.order_id', '=', 'o_sort.id')
+            ->leftJoin('participants as p_sort', 'o_sort.participant_id', '=', 'p_sort.id')
+            ->orderBy('p_sort.first_last_name', 'asc')
+            ->orderBy('p_sort.second_last_name', 'asc')
+            ->orderBy('p_sort.first_name', 'asc')
+            ->orderBy('p_sort.second_name', 'asc')
+            ->orderBy('payments.transaction_date', 'asc')
+            ->select('payments.*')
+            ->paginate($perPage, ['*'], 'page', $page);
 
         // Log de resultados
         \Illuminate\Support\Facades\Log::info('Resultados de la consulta', [
@@ -102,24 +118,6 @@ class ExecutivesConsolidatedService
             $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
 
-            // Verificar si ESTE pago es un aporte (report_code = 'AP')
-            $isAporte = $payment->paymentOption && $payment->paymentOption->report_code === 'AP';
-
-            // Si este pago es un aporte, mostrar el monto del pago en scholarship
-            // Si no es aporte, calcular becas de descuentos del participante
-            $scholarship = 0;
-            if ($isAporte) {
-                // Este pago ES un aporte, mostrar el monto del pago
-                $scholarship = $payment->amount ?? 0;
-            } else {
-                // Este pago NO es aporte, calcular becas de descuentos
-                if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                    $scholarship = $participantProgram->discounts()
-                        ->where('discount_type', 'scholarship')
-                        ->sum('amount');
-                }
-            }
-
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
             if ($participantProgram && $participantProgram->discounts) {
@@ -144,9 +142,6 @@ class ExecutivesConsolidatedService
                 $participantFullName = ucwords(strtolower($participantFullName));
             }
 
-            // Determinar Pago o Devolución
-            $isRefund = ($payment->document_type === 'BC') || ($payment->paymentOption?->gateway_code === 'refund');
-
             return [
                 'id' => $payment->id,
                 'program_number' => $program?->code ?? 'N/A',
@@ -160,7 +155,6 @@ class ExecutivesConsolidatedService
                 'payment_date' => $payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A',
                 'payer_contact' => $payerContact ?? 'N/A',
                 'payer_email' => $payerEmail ?? 'N/A',
-                'scholarship_or_grant' => $scholarship,
                 'liberated' => $liberatedAmount,
                 'price' => $price,
                 'sales_executive_name' => $program?->salesExecutive?->name ?? 'N/A',
@@ -194,6 +188,7 @@ class ExecutivesConsolidatedService
                 'programId' => $filters['programId'] ?? "",
                 'salesExecutiveId' => $filters['salesExecutiveId'] ?? null,
                 'documentSearch' => $filters['documentSearch'] ?? "",
+                'status' => $filters['status'] ?? "",
             ],
             'summary' => $summary,
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->with('program:id,destination')->orderBy('code')->get(),
@@ -208,7 +203,7 @@ class ExecutivesConsolidatedService
     {
         // Normalizar filtros: evitar que el string 'null' o vacío aplique filtros
         $normalizedFilters = $filters;
-        foreach (['programId', 'salesExecutiveId', 'documentSearch'] as $key) {
+        foreach (['programId', 'salesExecutiveId', 'documentSearch', 'status'] as $key) {
             if (isset($normalizedFilters[$key]) && ($normalizedFilters[$key] === 'null' || $normalizedFilters[$key] === '')) {
                 $normalizedFilters[$key] = null;
             }
@@ -224,14 +219,14 @@ class ExecutivesConsolidatedService
             'order.participantProgram',
             'order.participantProgram.discounts',
             'order.payments'
-        ])->whereIn('status', ['approved', 'completed']);
+        ])->whereIn('payments.status', ['approved', 'completed']);
 
         // Aplicar filtros
         if (!empty($normalizedFilters['dateFrom'])) {
-            $query->whereDate('transaction_date', '>=', $normalizedFilters['dateFrom']);
+            $query->whereDate('payments.transaction_date', '>=', $normalizedFilters['dateFrom']);
         }
         if (!empty($normalizedFilters['dateTo'])) {
-            $query->whereDate('transaction_date', '<=', $normalizedFilters['dateTo']);
+            $query->whereDate('payments.transaction_date', '<=', $normalizedFilters['dateTo']);
         }
         if (!empty($normalizedFilters['programId'])) {
             $query->whereHas('order', function ($q) use ($normalizedFilters) {
@@ -250,6 +245,13 @@ class ExecutivesConsolidatedService
                 $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
+        // Filtro por estado activo/inactivo del participante
+        if (!empty($normalizedFilters['status'])) {
+            $isActive = $normalizedFilters['status'] === 'active';
+            $query->whereHas('order.participant', function ($q) use ($isActive) {
+                $q->where('is_active', $isActive);
+            });
+        }
 
         // Log de la consulta SQL para exportación
         \Illuminate\Support\Facades\Log::info('Consulta SQL para exportación', [
@@ -258,8 +260,17 @@ class ExecutivesConsolidatedService
             'filters' => $normalizedFilters
         ]);
 
-        // Obtener TODOS los pagos sin paginación
-        $payments = $query->orderBy('transaction_date', 'desc')->get();
+        // Obtener TODOS los pagos sin paginación, ordenados por nombre y fecha de pago
+        $payments = $query
+            ->leftJoin('orders as o_sort', 'payments.order_id', '=', 'o_sort.id')
+            ->leftJoin('participants as p_sort', 'o_sort.participant_id', '=', 'p_sort.id')
+            ->orderBy('p_sort.first_last_name', 'asc')
+            ->orderBy('p_sort.second_last_name', 'asc')
+            ->orderBy('p_sort.first_name', 'asc')
+            ->orderBy('p_sort.second_name', 'asc')
+            ->orderBy('payments.transaction_date', 'asc')
+            ->select('payments.*')
+            ->get();
 
         // Log de resultados para exportación
         \Illuminate\Support\Facades\Log::info('Datos para exportación', [
@@ -279,24 +290,6 @@ class ExecutivesConsolidatedService
             $orderTotalPaid = ($order?->payments ?? collect())->whereIn('status', ['approved', 'completed'])->sum('amount');
             $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
             $isLiberated = ($price - $orderTotalPaid) <= 0;
-
-            // Verificar si ESTE pago es un aporte (report_code = 'AP')
-            $isAporte = $payment->paymentOption && $payment->paymentOption->report_code === 'AP';
-
-            // Si este pago es un aporte, mostrar el monto del pago en scholarship
-            // Si no es aporte, calcular becas de descuentos del participante
-            $scholarship = 0;
-            if ($isAporte) {
-                // Este pago ES un aporte, mostrar el monto del pago
-                $scholarship = $payment->amount ?? 0;
-            } else {
-                // Este pago NO es aporte, calcular becas de descuentos
-                if ($participantProgram && method_exists($participantProgram, 'discounts')) {
-                    $scholarship = $participantProgram->discounts()
-                        ->where('discount_type', 'scholarship')
-                        ->sum('amount');
-                }
-            }
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
@@ -322,9 +315,6 @@ class ExecutivesConsolidatedService
                 $participantFullName = ucwords(strtolower($participantFullName));
             }
 
-            // Determinar Pago o Devolución
-            $isRefund = ($payment->document_type === 'BC') || ($payment->paymentOption?->gateway_code === 'refund');
-
             return [
                 'id' => $payment->id,
                 'program_number' => $program?->code ?? 'N/A',
@@ -338,7 +328,6 @@ class ExecutivesConsolidatedService
                 'payment_date' => $payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A',
                 'payer_contact' => $payerContact ?? 'N/A',
                 'payer_email' => $payerEmail ?? 'N/A',
-                'scholarship_or_grant' => $scholarship,
                 'liberated' => $liberatedAmount,
                 'price' => $price,
                 'sales_executive_name' => $program?->salesExecutive?->name ?? 'N/A',

@@ -69,6 +69,8 @@ const props = defineProps({
 
 const localFilters = reactive({
     programId: props.filters.programId || '',
+    documentSearch: props.filters.documentSearch || '',
+    status: props.filters.status || '',
 });
 
 const exportData = () => {

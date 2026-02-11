@@ -21,7 +21,6 @@
             <!-- Navigation Icons -->
             <nav class="flex flex-col flex-1">
                 <NavLink
-                    v-if="!isEjecutivoComercial && !isMarketing"
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"

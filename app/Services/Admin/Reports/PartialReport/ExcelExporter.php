@@ -8,9 +8,11 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use App\Traits\ExcelReportHeader;
 
 class ExcelExporter
 {
+    use ExcelReportHeader;
     /**
      * Exporta los datos a formato Excel
      */
@@ -22,21 +24,24 @@ class ExcelExporter
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Reporte Estado de Cuenta');
 
+            // Header con logo, título y fecha de exportación
+            $startRow = $this->addReportHeader($sheet, 'Estado de Cuenta Parcial');
+
             // Obtener headers de la primera fila
             $headers = [];
             if ($data->count() > 0) {
                 $headers = array_keys($data->first());
             }
 
-            // Escribir headers en la primera fila
+            // Escribir headers
             foreach ($headers as $index => $header) {
-                $col = chr(65 + $index); // A, B, C, D...
-                $sheet->setCellValue($col . '1', $header);
+                $col = chr(65 + $index);
+                $sheet->setCellValue($col . $startRow, $header);
             }
 
             // Escribir datos
             foreach ($data as $rowIndex => $rowData) {
-                $row = $rowIndex + 2; // Empezar en fila 2
+                $row = $rowIndex + $startRow + 1;
                 $colIndex = 0; // Contador numérico para las columnas
                 foreach ($rowData as $value) {
                     $col = chr(65 + $colIndex); // A, B, C, D...
@@ -64,7 +69,7 @@ class ExcelExporter
             }
 
             // Aplicar formato
-            $this->applyExcelFormatting($sheet, $headers);
+            $this->applyExcelFormatting($sheet, $headers, $startRow);
 
             // Crear el writer
             $writer = new Xlsx($spreadsheet);
@@ -137,13 +142,14 @@ class ExcelExporter
     /**
      * Aplica formato al archivo Excel
      */
-    private function applyExcelFormatting($sheet, array $headers): void
+    private function applyExcelFormatting($sheet, array $headers, int $headerRow = 1): void
     {
         $lastRow = $sheet->getHighestRow();
         $lastCol = $sheet->getHighestColumn();
+        $dataStartRow = $headerRow + 1;
 
-        // Formato para headers (fila 1)
-        $headerRange = 'A1:' . $lastCol . '1';
+        // Formato para headers
+        $headerRange = "A{$headerRow}:{$lastCol}{$headerRow}";
         $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -166,43 +172,39 @@ class ExcelExporter
         ]);
 
         // Formato para datos
-        $dataRange = 'A2:' . $lastCol . $lastRow;
-        $sheet->getStyle($dataRange)->applyFromArray([
-            'borders' => [
-                'allBorders' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => '000000'],
+        if ($lastRow >= $dataStartRow) {
+            $dataRange = "A{$dataStartRow}:{$lastCol}{$lastRow}";
+            $sheet->getStyle($dataRange)->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
                 ],
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_LEFT,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-        ]);
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_LEFT,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+        }
 
         // Formato específico para columnas numéricas
         $numericColumns = ['Precio Total', 'Descuentos', 'Monto Neto', 'Total Pagado', 'Saldo Pendiente', 'Progreso de Pago (%)'];
-        $textColumns = ['Código de Inscripción', 'Documento']; // Columnas que deben ser texto
-        
+        $textColumns = ['Código de Inscripción', 'Documento'];
+
         foreach ($headers as $index => $header) {
-            $col = chr(65 + $index); // Convertir índice a letra de columna
-            $range = $col . '2:' . $col . $lastRow;
-            
+            $col = chr(65 + $index);
+            $range = "{$col}{$dataStartRow}:{$col}{$lastRow}";
+
             if (in_array($header, $numericColumns)) {
                 if ($header === 'Progreso de Pago (%)') {
-                    // Formato de porcentaje
                     $sheet->getStyle($range)->getNumberFormat()->setFormatCode('0.00%');
                 } else {
-                    // Formato de moneda chilena
                     $sheet->getStyle($range)->getNumberFormat()->setFormatCode('#,##0');
                 }
-
-                // Alinear números a la derecha
                 $sheet->getStyle($range)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             } elseif (in_array($header, $textColumns)) {
-                // Forzar formato de texto para códigos y documentos
                 $sheet->getStyle($range)->getNumberFormat()->setFormatCode('@');
-                // Alinear texto a la izquierda
                 $sheet->getStyle($range)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
             }
         }
@@ -213,6 +215,6 @@ class ExcelExporter
         }
 
         // Altura de fila para headers
-        $sheet->getRowDimension('1')->setRowHeight(25);
+        $sheet->getRowDimension($headerRow)->setRowHeight(25);
     }
 }

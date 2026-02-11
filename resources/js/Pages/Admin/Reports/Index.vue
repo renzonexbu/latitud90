@@ -30,17 +30,6 @@
                                         <span class="text-gray-700 group-hover:text-yellow-700">Pagos Diarios</span>
                                     </Link>
 
-                                    <!-- Consolidado de Pagos -->
-                                    <Link
-                                        :href="route('admin.reports.consolidated-payments')"
-                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-purple-50 transition-colors group"
-                                    >
-                                        <svg class="w-5 h-5 mr-3 text-purple-400 group-hover:text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                        </svg>
-                                        <span class="text-gray-700 group-hover:text-purple-700">Consolidado de Pagos</span>
-                                    </Link>
-
                                     <!-- Softland -->
                                     <Link
                                         :href="route('admin.reports.softland')"
@@ -253,94 +242,6 @@
                                                 (
                                                     summary.dailyPayments
                                                         .averageAmount || 0
-                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                                            }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Consolidado de Pagos -->
-                            <div
-                                class="bg-purple-50 p-6 rounded-lg border border-purple-200"
-                            >
-                                <div class="flex items-center mb-4">
-                                    <div
-                                        class="p-2 bg-purple-100 rounded-lg mr-3"
-                                    >
-                                        <svg
-                                            class="w-6 h-6 text-purple-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                                            ></path>
-                                        </svg>
-                                    </div>
-                                    <h4
-                                        class="text-lg font-semibold text-purple-800"
-                                    >
-                                        Consolidado de Pagos
-                                    </h4>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p class="text-sm text-gray-600">
-                                            Programas
-                                        </p>
-                                        <p
-                                            class="text-xl font-bold text-purple-600"
-                                        >
-                                            {{
-                                                summary.consolidatedPayments
-                                                    .totalPrograms || 0
-                                            }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600">
-                                            Transacciones
-                                        </p>
-                                        <p
-                                            class="text-xl font-bold text-purple-600"
-                                        >
-                                            {{
-                                                summary.consolidatedPayments
-                                                    .totalTransactions || 0
-                                            }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600">
-                                            Monto Total
-                                        </p>
-                                        <p
-                                            class="text-lg font-semibold text-purple-600"
-                                        >
-                                            ${{
-                                                (
-                                                    summary.consolidatedPayments
-                                                        .totalAmount || 0
-                                                ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-                                            }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-600">
-                                            Promedio/Programa
-                                        </p>
-                                        <p
-                                            class="text-lg font-semibold text-purple-600"
-                                        >
-                                            ${{
-                                                (
-                                                    summary.consolidatedPayments
-                                                        .averagePerProgram || 0
                                                 ).toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                                             }}
                                         </p>
@@ -762,8 +663,8 @@
                                     <div>
                                         <p class="text-sm text-gray-600">% del Total</p>
                                         <p class="text-xl font-bold text-purple-600">
-                                            {{ summary.consolidatedPayments.totalAmount > 0 ? 
-                                                ((refundStats.total_refund_amount / summary.consolidatedPayments.totalAmount) * 100).toFixed(1) : 0 }}%
+                                            {{ summary.dailyPayments.totalAmount > 0 ?
+                                                ((refundStats.total_refund_amount / summary.dailyPayments.totalAmount) * 100).toFixed(1) : 0 }}%
                                         </p>
                                     </div>
                                 </div>
@@ -1002,7 +903,6 @@ const props = defineProps({
         type: Object,
         default: () => ({
             dailyPayments: {},
-            consolidatedPayments: {},
             paymentSchedule: {},
             partialAccount: {},
             general: {},

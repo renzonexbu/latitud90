@@ -80,7 +80,7 @@ const formatDate = (date) => {
 const formatRut = (rut) => {
     if (!rut) return 'N/A';
     if (rut.includes('.')) return rut;
-    let clean = rut.toString().replace(/\./g, '').replace(/-/g, '');
+    let clean = rut.toString().replace(/\./g, '').replace(/-/g, '').toUpperCase();
     if (clean.length >= 7 && clean.length <= 9 && /^\d{7,8}[\dK]$/.test(clean)) {
         const dv = clean.slice(-1);
         const num = clean.slice(0, -1);

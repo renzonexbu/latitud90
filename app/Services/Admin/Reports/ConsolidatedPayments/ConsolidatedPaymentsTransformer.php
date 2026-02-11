@@ -156,7 +156,7 @@ class ConsolidatedPaymentsTransformer
         }
 
         // Detectar automáticamente si es RUT por formato
-        $cleanNumber = str_replace(['.', '-'], '', $documentNumber);
+        $cleanNumber = strtoupper(str_replace(['.', '-'], '', $documentNumber));
         if (preg_match('/^\d{7,8}[\dK]$/', $cleanNumber)) {
             // Es un RUT, formatear como RUT
             $body = substr($cleanNumber, 0, -1);

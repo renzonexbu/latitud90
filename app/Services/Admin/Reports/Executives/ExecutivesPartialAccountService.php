@@ -2,6 +2,8 @@
 
 namespace App\Services\Admin\Reports\Executives;
 
+use App\Helpers\ParticipantPriceHelper;
+use App\Models\Payment;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
@@ -73,6 +75,10 @@ class ExecutivesPartialAccountService
                 ->when($documentSearch, function ($q) use ($documentSearch) {
                     $q->whereRaw("REPLACE(REPLACE(p.document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
                 })
+                ->when(!empty($filters['status']), function ($q) use ($filters) {
+                    $isActive = $filters['status'] === 'active';
+                    $q->where('pp.is_active', $isActive);
+                })
                 ->groupBy('pp.id', 'p.id', 'pr.id', 'p.first_name', 'p.second_name', 'p.first_last_name', 'p.second_last_name', 'pp.individual_price', 'pgc.code', 'pp.is_active', 'pp.program_id')
                 ->select([
                     'pp.id as participant_program_id',
@@ -114,22 +120,6 @@ class ExecutivesPartialAccountService
             ]);
 
             foreach ($results as $row) {
-                // Calcular descuentos para este participant_program específico
-                // Se hace por separado para evitar duplicación por JOINs en la consulta principal
-                $basePrice = (float) $row->price;
-                $discounts = DB::table('participant_program_discounts')
-                    ->where('participant_program_id', $row->participant_program_id)
-                    ->selectRaw('
-                        COALESCE(SUM(CASE WHEN discount_type = "scholarship" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as scholarship,
-                        COALESCE(SUM(CASE WHEN discount_type = "released" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as released,
-                        COALESCE(SUM(CASE WHEN discount_type = "discount" THEN COALESCE(amount, (? * percent / 100)) ELSE 0 END), 0) as simple_discounts
-                    ', [$basePrice, $basePrice, $basePrice])
-                    ->first();
-
-                $scholarship = (float) ($discounts->scholarship ?? 0);
-                $released = (float) ($discounts->released ?? 0);
-                $simpleDiscounts = (float) ($discounts->simple_discounts ?? 0);
-
                 // Construir nombre en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
                 $participantName = trim(implode(' ', array_filter([
                     $row->first_last_name,
@@ -137,53 +127,129 @@ class ExecutivesPartialAccountService
                     $row->first_name,
                     $row->second_name
                 ]))) ?: 'N/A';
-
-                // Convertir a Capital Case (primera letra de cada palabra en mayúscula)
                 $participantName = ucwords(strtolower($participantName));
 
                 // Si no hay programa seleccionado, agregar el código del programa al nombre
                 if (!$programCourse && $row->program_code) {
                     $participantName = "[{$row->program_code}] {$participantName}";
                 }
-                // El precio mostrado ya incluye los descuentos simples (es el nuevo precio base)
-                $price = $basePrice - $simpleDiscounts;
 
-                // Usar el program_course_id del registro si no hay programa específico seleccionado
                 $rowProgramCourseId = $programCourseId ?? $row->program_course_id;
 
-                // Calcular cuotas pagadas y vencidas solo para pagos completed
+                // ============================================================
+                // PRECIO: Usar ParticipantPriceHelper (misma lógica que vista Participantes)
+                // ============================================================
+                $participant = \App\Models\Participant::find($row->participant_id);
+                $rowProgramCourse = \App\Models\ProgramCourse::find($rowProgramCourseId);
+
+                $totalDue = 0;
+                $basePrice = (float) $row->price;
+                if ($participant && $rowProgramCourse) {
+                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $rowProgramCourse);
+                    $totalDue = $priceData['final_price'];
+                    $basePrice = $priceData['base_price'];
+                } else {
+                    $totalDue = $basePrice;
+                }
+
+                // Calcular descuentos desglosados para las columnas de visualización
+                $scholarship = 0.0;
+                $released = 0.0;
+                $simpleDiscounts = 0.0;
+                $ppDiscounts = DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $row->participant_program_id)
+                    ->get();
+
+                foreach ($ppDiscounts as $disc) {
+                    $discAmount = 0.0;
+                    if ($disc->percent && $disc->percent > 0) {
+                        $discAmount += ($basePrice * $disc->percent) / 100;
+                    }
+                    if ($disc->amount && $disc->amount > 0) {
+                        $discAmount += (float) $disc->amount;
+                    }
+                    if ($disc->discount_type === 'scholarship') {
+                        $scholarship += $discAmount;
+                    } elseif ($disc->discount_type === 'released') {
+                        $released += $discAmount;
+                    } else {
+                        $simpleDiscounts += $discAmount;
+                    }
+                }
+
+                // PRECIO mostrado = base - descuentos simples (sin incluir beca ni liberado)
+                $price = $basePrice - $simpleDiscounts;
+
+                // ============================================================
+                // ABONO: Misma lógica que vista Participantes (GetParticipantsService)
+                // normalPayments (excl. subscription source) + subscriptionPayments (cuotas pagadas)
+                // ============================================================
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $rowProgramCourseId)
                     ->pluck('id')->all();
 
-                // Calcular aportes (pagos con report_code 'AP')
-                // Los aportes se muestran en la columna APORTE/BECA y SÍ reducen el Saldo
-                $aporteAmount = 0;
+                // 1. Pagos normales (excluir pagos de suscripción para evitar doble conteo)
+                //    Y excluir aportes (AP) para la columna ABONO
+                $normalPayments = 0.0;
+                $aporteAmount = 0.0;
                 if (!empty($orderIds)) {
-                    $aporteAmount = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
+                    // Pagos normales sin aportes ni suscripciones
+                    $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
                         ->whereIn('status', ['approved', 'completed'])
+                        ->where(function($query) {
+                            $query->whereNull('payment_source')
+                                  ->orWhere('payment_source', '!=', 'subscription');
+                        })
+                        ->where(function($q) {
+                            $q->whereNull('payment_option_id')
+                              ->orWhereHas('paymentOption', function($sq) {
+                                  $sq->where('report_code', '!=', 'AP');
+                              });
+                        })
+                        ->sum('amount');
+
+                    // Aportes (pagos con report_code 'AP', excluyendo subscription source)
+                    $aporteAmount = (float) Payment::whereIn('order_id', $orderIds)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->where(function($query) {
+                            $query->whereNull('payment_source')
+                                  ->orWhere('payment_source', '!=', 'subscription');
+                        })
                         ->whereHas('paymentOption', function($q) {
                             $q->where('report_code', 'AP');
                         })
                         ->sum('amount');
                 }
 
+                // 2. Cuotas de suscripción pagadas (installments)
+                $subscriptionPayments = (float) DB::table('installments')
+                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                    ->where('installment_plans.participant_id', $row->participant_id)
+                    ->where('installment_plans.program_id', $rowProgramCourseId)
+                    ->where('installments.status', 'paid')
+                    ->sum('installments.amount');
+
+                // Abono = pagos normales (sin aportes) + cuotas de suscripción
+                $abono = $normalPayments + $subscriptionPayments;
+
+                // Total pagado real (incluyendo aportes) - para calcular saldo igual que Participantes
+                $totalPaid = $abono + $aporteAmount;
+
+                // ============================================================
+                // SALDO: Igual que vista Participantes: max(0, total_due - total_paid)
+                // Donde total_due ya incluye TODOS los descuentos
+                // ============================================================
+                $porPagar = max(0, round($totalDue - $totalPaid, 2));
+
+                // Cuotas pagadas y vencidas
                 $paidInstallments = 0;
                 $overdueInstallments = 0;
                 $totalInstallments = 0;
-                $abono = 0;
-
                 if (!empty($orderIds)) {
-                    // Obtener el plan de cuotas
                     $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
-
                     if ($installmentPlan) {
                         $totalInstallments = $installmentPlan->installments()->count();
-
-                        // Contar cuotas pagadas
                         $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-
-                        // Contar cuotas vencidas (no pagadas y con fecha pasada)
                         $overdueInstallments = $installmentPlan->installments()
                             ->where(function($query) {
                                 $query->where('status', 'overdue')
@@ -192,38 +258,13 @@ class ExecutivesPartialAccountService
                                             ->where('due_date', '<', now());
                                       });
                             })->count();
-
-                        // Calcular abono: suma de los montos de las cuotas pagadas
-                        $abono = (float) $installmentPlan->installments()
-                            ->where('status', 'paid')
-                            ->sum('amount');
-                    } else {
-                        // Si no hay plan de cuotas, usar el abono directo de pagos (pago único/contado)
-                        // Excluir pagos de tipo Aporte (AP) ya que se cuentan en scholarship
-                        $abono = (float) \App\Models\Payment::whereIn('order_id', $orderIds)
-                            ->whereIn('status', ['approved', 'completed'])
-                            ->where(function($q) {
-                                $q->whereNull('payment_option_id')
-                                  ->orWhereHas('paymentOption', function($sq) {
-                                      $sq->where('report_code', '!=', 'AP');
-                                  });
-                            })
-                            ->sum('amount');
                     }
                 }
 
-                // Saldo = Precio (ya con descuentos simples) - Abono - Becas - Aportes - Liberado
-                // SALDO = PRECIO - (Abono + Aporte + Monto Liberado)
-                $porPagar = max($price - $abono - $scholarship - $aporteAmount - $released, 0);
-
-                // Ajuste para participantes DE BAJA:
-                // - Por Pagar siempre es $0
-                // - Precio = lo que abonaron (si no pagaron todo) o $0 (si pagaron todo)
+                // Ajuste para participantes DE BAJA
                 $displayPrice = $price;
                 if (!$row->is_active) {
                     $porPagar = 0;
-                    // Si pagaron todo el monto del programa, precio = 0
-                    // Si no pagaron todo, precio = lo que abonaron
                     if ($abono >= $price) {
                         $displayPrice = 0;
                     } else {
@@ -231,10 +272,10 @@ class ExecutivesPartialAccountService
                     }
                 }
 
-                // Obtener la forma de pago basada en el report_code de payment_options
+                // Forma de pago
                 $paymentMethod = 'N/A';
                 if (!empty($orderIds)) {
-                    $lastPayment = \App\Models\Payment::whereIn('order_id', $orderIds)
+                    $lastPayment = Payment::whereIn('order_id', $orderIds)
                         ->whereIn('status', ['approved', 'completed'])
                         ->where('amount', '>', 0)
                         ->with('paymentOption')
@@ -257,7 +298,7 @@ class ExecutivesPartialAccountService
                     'total_installments' => $totalInstallments,
                     'overdue_installments' => $overdueInstallments,
                     'payment_method' => $paymentMethod,
-                    'scholarship' => $scholarship + $aporteAmount, // Mostrar becas + aportes en columna APORTE/BECA
+                    'scholarship' => $scholarship + $aporteAmount,
                     'released' => $released,
                     'balance' => $porPagar,
                 ]);
@@ -280,6 +321,7 @@ class ExecutivesPartialAccountService
                 'programId' => $programId,
                 'programCode' => $programCode,
                 'documentSearch' => $filters['documentSearch'] ?? "",
+                'status' => $filters['status'] ?? "",
             ],
             'programs' => \App\Models\ProgramCourse::select('id', 'code', 'name')->where('active', true)->orderBy('code')->get(),
         ];

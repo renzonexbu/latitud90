@@ -14,7 +14,7 @@
                     :filters="filters"
                 />
             </div>
-            <div class="mt-6">
+            <div v-if="showTemplates" class="mt-6">
                 <DashboardProgramsGrid :programs="mostUsedTemplates" />
             </div>
         </div>
@@ -23,7 +23,7 @@
 </template>
 
 <script>
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import HomeHeader from "@/Components/HomeHeader.vue";
 import DashboardProgramsGrid from "@/Components/DashboardProgramsGrid.vue";
@@ -39,6 +39,15 @@ export default {
         DashboardProgramsGrid,
         InstitutionsPaymentsTable,
         AlertWrapper,
+    },
+    computed: {
+        showTemplates() {
+            const roles = usePage().props.auth?.user?.roles || [];
+            const restrictedRoles = ['marketing', 'ejecutivo_comercial'];
+            const hasRestrictedRole = roles.some(role => restrictedRoles.includes(role));
+            const hasSuperAdmin = roles.includes('super_admin');
+            return !hasRestrictedRole || hasSuperAdmin;
+        },
     },
     props: {
         mostUsedTemplates: {

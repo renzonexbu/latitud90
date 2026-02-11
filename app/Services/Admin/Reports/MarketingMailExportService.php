@@ -12,10 +12,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\MarketingMail;
 use App\Traits\AdminLogging;
+use App\Traits\ExcelReportHeader;
 
 class MarketingMailExportService
 {
     use AdminLogging;
+    use ExcelReportHeader;
 
     public function export(array $filters = []): StreamedResponse
     {
@@ -89,6 +91,9 @@ class MarketingMailExportService
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Marketing Mails');
 
+        // Header con logo, título y fecha de exportación
+        $startRow = $this->addReportHeader($sheet, 'Emails de Marketing');
+
         // Obtener datos con filtros
         $query = MarketingMail::query();
 
@@ -152,12 +157,12 @@ class MarketingMailExportService
         // Escribir headers
         foreach ($headers as $colIndex => $header) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
-            $sheet->setCellValue($colLetter . '1', $header);
-            $sheet->getStyle($colLetter . '1')->applyFromArray($headerStyle);
+            $sheet->setCellValue($colLetter . $startRow, $header);
+            $sheet->getStyle($colLetter . $startRow)->applyFromArray($headerStyle);
         }
 
         // Escribir datos
-        $row = 2;
+        $row = $startRow + 1;
         foreach ($data as $item) {
             $sheet->setCellValue('A' . $row, $item->id);
             $sheet->setCellValue('B' . $row, $item->email);
@@ -167,7 +172,7 @@ class MarketingMailExportService
 
             // Aplicar bordes a las celdas de datos
             $sheet->getStyle('A' . $row . ':E' . $row)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            
+
             $row++;
         }
 
@@ -177,7 +182,8 @@ class MarketingMailExportService
         }
 
         // Aplicar estilo alternado a las filas
-        for ($i = 2; $i < $row; $i++) {
+        $dataStart = $startRow + 1;
+        for ($i = $dataStart; $i < $row; $i++) {
             if ($i % 2 == 0) {
                 $sheet->getStyle('A' . $i . ':E' . $i)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F9F9F9');
             }
