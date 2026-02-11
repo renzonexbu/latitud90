@@ -126,10 +126,10 @@ class GetPaymentsService
         if ($request->payment_source && $request->payment_source !== 'all') {
             switch ($request->payment_source) {
                 case 'devolucion':
-                    // Devoluciones: monto negativo, document_type BC, o refund
+                    // Devoluciones: monto negativo, document_type VC, o refund
                     $query->where(function ($q) {
                         $q->where('amount', '<', 0)
-                          ->orWhere('document_type', 'BC')
+                          ->orWhere('document_type', 'VC')
                           ->orWhereHas('paymentOption', function ($sq) {
                               $sq->where('gateway_code', 'refund');
                           });
@@ -159,7 +159,7 @@ class GetPaymentsService
                 case 'online':
                     // Online (pago total): excluir los otros tipos
                     $query->where('amount', '>', 0)
-                          ->where('document_type', '!=', 'BC')
+                          ->where('document_type', '!=', 'VC')
                           ->whereDoesntHave('paymentOption', function ($sq) {
                               $sq->where('gateway_code', 'refund')
                                  ->orWhere('mode', 'subscription')
@@ -529,7 +529,7 @@ class GetPaymentsService
     {
         // 1. Verificar si es devolución (monto negativo o nota de crédito o refund)
         if ($payment->amount < 0 ||
-            $payment->document_type === 'BC' ||
+            $payment->document_type === 'VC' ||
             ($payment->paymentOption && $payment->paymentOption->gateway_code === 'refund')) {
             return 'devolucion';
         }

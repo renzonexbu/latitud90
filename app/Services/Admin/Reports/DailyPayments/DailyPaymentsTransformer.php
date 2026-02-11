@@ -297,7 +297,7 @@ class DailyPaymentsTransformer
     {
         $labels = [
             'B2' => 'Boleta',
-            'BC' => 'Nota de Crédito',
+            'VC' => 'Nota de Crédito',
             'FF' => 'Factura',
             'AC' => 'Reserva',
         ];

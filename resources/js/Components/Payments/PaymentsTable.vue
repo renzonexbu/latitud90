@@ -671,8 +671,8 @@ export default {
             }
 
             // Si es Nota de Crédito (NC) o devolución, no aplica boleta
-            // NC se identifica por: document_type='BC', monto negativo, o payment_source_calculated='devolucion'
-            const isRefundOrNC = payment.document_type === 'BC'
+            // NC se identifica por: document_type='VC', monto negativo, o payment_source_calculated='devolucion'
+            const isRefundOrNC = payment.document_type === 'VC'
                 || (payment.amount && Number(payment.amount) < 0)
                 || payment.payment_source_calculated === 'devolucion';
 

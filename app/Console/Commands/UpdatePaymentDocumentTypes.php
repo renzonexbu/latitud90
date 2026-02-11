@@ -131,7 +131,7 @@ class UpdatePaymentDocumentTypes extends Command
             $type = $item->document_type;
             $label = match($type) {
                 'B2' => 'Boleta',
-                'BC' => 'Nota de Crédito',
+                'VC' => 'Nota de Crédito',
                 'FF' => 'Factura',
                 'AC' => 'Reserva',
                 default => $type

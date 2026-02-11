@@ -67,7 +67,7 @@ class DailyPaymentsFilters
                         $q->where('pg.code', 'refund')
                           ->orWhere('po.gateway_code', 'refund')
                           ->orWhere('pay.amount', '<', 0)
-                          ->orWhere('pay.document_type', 'BC');
+                          ->orWhere('pay.document_type', 'VC');
                     });
                     break;
             }

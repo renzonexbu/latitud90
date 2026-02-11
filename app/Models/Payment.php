@@ -253,21 +253,21 @@ class Payment extends Model
 
     /**
      * Determinar el tipo de documento automáticamente
-     * B2 = Boleta, BC = Nota de crédito, FF = Factura, AC = Reserva
+     * B2 = Boleta, VC = Nota de crédito, FF = Factura, AC = Reserva
      */
     public function determineDocumentType(): string
     {
         try {
-            // Si es una devolución (refund), siempre es BC (Nota de crédito)
+            // Si es una devolución (refund), siempre es VC (Nota de crédito)
             if ($this->paymentOption && $this->paymentOption->gateway_code === 'refund') {
-                return 'BC';
+                return 'VC';
             }
             
             // Si no hay paymentOption cargado, intentar cargarlo
             if (!$this->relationLoaded('paymentOption') && $this->payment_option_id) {
                 $this->load('paymentOption');
                 if ($this->paymentOption && $this->paymentOption->gateway_code === 'refund') {
-                    return 'BC';
+                    return 'VC';
                 }
             }
 
