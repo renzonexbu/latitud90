@@ -207,13 +207,13 @@
                         <!-- Acciones -->
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="flex gap-1 items-center justify-center">
-                                <!-- Reconfirm Button (solo para pagos pendientes con token) -->
+                                <!-- Reconfirm Button (pagos pendientes con token o external_payment_id) -->
                                 <button
-                                    v-if="payment.status === 'pending' && payment.token"
+                                    v-if="payment.status === 'pending' && (payment.token || payment.external_payment_id)"
                                     @click.stop="reconfirmPayment(payment)"
                                     :disabled="reconfirmingId === payment.id"
                                     class="w-[18px] h-[18px] hover:opacity-75 transition-opacity disabled:opacity-50"
-                                    :title="reconfirmingId === payment.id ? 'Reconfirmando...' : 'Reconfirmar con VirtualPOS'"
+                                    :title="reconfirmingId === payment.id ? 'Reconfirmando...' : 'Reconfirmar pago'"
                                 >
                                     <!-- Loading spinner -->
                                     <svg

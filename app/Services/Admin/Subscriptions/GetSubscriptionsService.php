@@ -88,23 +88,33 @@ class GetSubscriptionsService
                 'status' => $subscription->status,
                 'payment_method' => $subscription->payment_method,
                 'created_at' => $subscription->created_at->toDateString(),
-                'participant' => [
+                'participant' => $subscription->participant ? [
                     'id' => $subscription->participant->id,
                     'name' => $subscription->participant->full_name,
                     'document' => $subscription->participant->document_number,
                     'document_type' => $subscription->participant->documentType?->name ?? 'N/A',
+                ] : [
+                    'id' => null,
+                    'name' => 'N/A',
+                    'document' => 'N/A',
+                    'document_type' => 'N/A',
                 ],
                 'buyer' => [
                     'name' => $buyerName,
                 ],
-                'program' => [
+                'program' => $subscription->programCourse ? [
                     'id' => $subscription->programCourse->id,
                     'name' => $subscription->programCourse->name,
                     'code' => $subscription->programCourse->code ?? 'N/A',
                     'destination' => $subscription->programCourse->program->destination ?? '',
+                ] : [
+                    'id' => null,
+                    'name' => 'N/A',
+                    'code' => 'N/A',
+                    'destination' => '',
                 ],
                 'institution' => [
-                    'name' => $subscription->programCourse->course->institution->name ?? 'N/A',
+                    'name' => $subscription->programCourse?->course?->institution?->name ?? 'N/A',
                 ],
                 'plan' => $planInfo,
                 'total_installments' => $totalInstallments,

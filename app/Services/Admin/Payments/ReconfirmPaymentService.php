@@ -5,6 +5,7 @@ namespace App\Services\Admin\Payments;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Services\Client\PaymentGateway\VirtualPosService;
+use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Client\Integration\BsaleService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Helpers\PaymentDocumentTypeHelper;
@@ -15,59 +16,45 @@ class ReconfirmPaymentService
 {
     use SystemLogging;
 
+    private const KHIPU_GATEWAY_ID = 2;
+
     public function __construct(
         private VirtualPosService $virtualPosService,
+        private KhipuService $khipuService,
         private BsaleService $bsaleService,
         private SuccessPaymentEmailService $emailService
     ) {}
 
     /**
-     * Reconfirmar un pago consultando VirtualPOS
+     * Reconfirmar un pago consultando la pasarela correspondiente (VirtualPOS o Khipu)
      */
     public function execute(Payment $payment, bool $skipEmail = false, bool $skipBsale = false): array
     {
         try {
+            $isKhipu = $payment->payment_gateway_id === self::KHIPU_GATEWAY_ID;
+
             $this->logInfo('ReconfirmPaymentService: Iniciando reconfirmación', [
                 'payment_id' => $payment->id,
                 'current_status' => $payment->status,
+                'gateway' => $isKhipu ? 'khipu' : 'virtualpos',
                 'skip_email' => $skipEmail,
                 'skip_bsale' => $skipBsale,
             ]);
 
-            // Verificar que el pago tenga token
-            $token = $payment->token;
-            if (empty($token)) {
-                return [
-                    'success' => false,
-                    'message' => 'El pago no tiene token de VirtualPOS para consultar',
-                    'status' => 'error',
-                ];
+            // Consultar estado en la pasarela correspondiente
+            $gatewayResult = $isKhipu
+                ? $this->queryKhipu($payment)
+                : $this->queryVirtualPos($payment);
+
+            // Si hubo error en la consulta, retornar
+            if (isset($gatewayResult['error'])) {
+                return $gatewayResult;
             }
 
-            // Consultar estado en VirtualPOS
-            $result = $this->virtualPosService->confirmTransaction($token);
-
-            if (!isset($result['success'])) {
-                return [
-                    'success' => false,
-                    'message' => 'Error al consultar VirtualPOS',
-                    'status' => 'error',
-                ];
-            }
-
-            // Si no se encontró la transacción
-            if (isset($result['error']) && str_contains($result['error'], 'no encontrada')) {
-                return [
-                    'success' => false,
-                    'message' => 'Transacción no encontrada en VirtualPOS',
-                    'status' => 'not_found',
-                    'virtualpos_response' => $result,
-                ];
-            }
-
-            $virtualPosStatus = $result['status'] ?? 'unknown';
-            $isApproved = in_array($virtualPosStatus, VirtualPosService::APPROVED_STATUSES);
-            $isRejected = in_array($virtualPosStatus, VirtualPosService::REJECTED_STATUSES);
+            $gatewayStatus = $gatewayResult['status'];
+            $isApproved = $gatewayResult['is_approved'];
+            $isRejected = $gatewayResult['is_rejected'];
+            $result = $gatewayResult['raw_result'];
 
             // Determinar nuevo estado
             $newStatus = 'pending';
@@ -85,6 +72,11 @@ class ReconfirmPaymentService
                 'gateway_response' => $result['full_response'] ?? $result,
                 'authorization_code' => $result['authorization_code'] ?? $payment->authorization_code,
             ];
+
+            // Actualizar transaction_date si viene de la pasarela y el pago fue aprobado
+            if ($isApproved && !empty($result['transaction_date'])) {
+                $updateData['transaction_date'] = $result['transaction_date'];
+            }
 
             if ($statusChanged) {
                 $updateData['status'] = $newStatus;
@@ -141,7 +133,7 @@ class ReconfirmPaymentService
                 'payment_id' => $payment->id,
                 'old_status' => $currentStatus,
                 'new_status' => $newStatus,
-                'virtualpos_status' => $virtualPosStatus,
+                'gateway_status' => $gatewayStatus,
                 'status_changed' => $statusChanged,
                 'bsale_generated' => $bsaleGenerated,
                 'email_sent' => $emailSent,
@@ -152,7 +144,7 @@ class ReconfirmPaymentService
                 'message' => $this->buildSuccessMessage($currentStatus, $newStatus, $statusChanged, $bsaleGenerated, $emailSent),
                 'status' => $newStatus,
                 'status_changed' => $statusChanged,
-                'virtualpos_status' => $virtualPosStatus,
+                'gateway_status' => $gatewayStatus,
                 'bsale_generated' => $bsaleGenerated,
                 'email_sent' => $emailSent,
                 'payment' => $payment->fresh(['orderDetail', 'order']),
@@ -170,6 +162,96 @@ class ReconfirmPaymentService
                 'status' => 'error',
             ];
         }
+    }
+
+    /**
+     * Consultar estado del pago en Khipu (via VirtualPos API)
+     */
+    private function queryKhipu(Payment $payment): array
+    {
+        $paymentId = $payment->external_payment_id;
+        if (empty($paymentId)) {
+            return [
+                'error' => true,
+                'success' => false,
+                'message' => 'El pago Khipu no tiene external_payment_id para consultar',
+                'status' => 'error',
+            ];
+        }
+
+        $result = $this->khipuService->getPaymentStatus($paymentId);
+
+        if (isset($result['error']) && !isset($result['success'])) {
+            return [
+                'error' => true,
+                'success' => false,
+                'message' => 'Error al consultar Khipu: ' . ($result['error'] ?? 'desconocido'),
+                'status' => 'error',
+            ];
+        }
+
+        $status = $result['status'] ?? 'unknown';
+        $isApproved = $result['success'] ?? false;
+        $isRejected = in_array($status, ['rejected', 'cancelled', 'error']);
+
+        return [
+            'status' => $status,
+            'is_approved' => $isApproved,
+            'is_rejected' => $isRejected,
+            'raw_result' => [
+                'full_response' => $result['data'] ?? $result,
+                'authorization_code' => $result['auth_code'] ?? null,
+                'transaction_date' => $result['transaction_date'] ?? null,
+            ],
+        ];
+    }
+
+    /**
+     * Consultar estado del pago en VirtualPOS
+     */
+    private function queryVirtualPos(Payment $payment): array
+    {
+        $token = $payment->token;
+        if (empty($token)) {
+            return [
+                'error' => true,
+                'success' => false,
+                'message' => 'El pago no tiene token de VirtualPOS para consultar',
+                'status' => 'error',
+            ];
+        }
+
+        $result = $this->virtualPosService->confirmTransaction($token);
+
+        if (!isset($result['success'])) {
+            return [
+                'error' => true,
+                'success' => false,
+                'message' => 'Error al consultar VirtualPOS',
+                'status' => 'error',
+            ];
+        }
+
+        if (isset($result['error']) && str_contains($result['error'], 'no encontrada')) {
+            return [
+                'error' => true,
+                'success' => false,
+                'message' => 'Transacción no encontrada en VirtualPOS',
+                'status' => 'not_found',
+                'virtualpos_response' => $result,
+            ];
+        }
+
+        $status = $result['status'] ?? 'unknown';
+        $isApproved = in_array($status, VirtualPosService::APPROVED_STATUSES);
+        $isRejected = in_array($status, VirtualPosService::REJECTED_STATUSES);
+
+        return [
+            'status' => $status,
+            'is_approved' => $isApproved,
+            'is_rejected' => $isRejected,
+            'raw_result' => $result,
+        ];
     }
 
     /**

@@ -438,15 +438,19 @@ class KhipuService
             ]);
 
             // Extraer datos según estructura de respuesta v3
-            $status = $result['status'] ?? 'unknown';
             $paymentData = $result['payment'] ?? [];
             $orderData = $paymentData['order'] ?? [];
 
-            $approved = in_array($status, ['approved', 'paid', 'success', 'aprobado']);
+            // El status real del pago está en payment.order.status (ej: "pagado")
+            // $result['status'] es solo el indicador de la API (ej: "OK")
+            $orderStatus = $orderData['status'] ?? ($result['status'] ?? 'unknown');
+            $approved = in_array(strtolower($orderStatus), ['approved', 'paid', 'success', 'aprobado', 'pagado']);
 
             // Extraer fecha de transacción
             $transactionDate = null;
-            if (isset($orderData['payment_date'])) {
+            if (isset($orderData['authorized_at'])) {
+                $transactionDate = $this->parseTransactionDate($orderData['authorized_at']);
+            } elseif (isset($orderData['payment_date'])) {
                 $transactionDate = $this->parseTransactionDate($orderData['payment_date']);
             } elseif ($approved) {
                 $transactionDate = now('America/Santiago')->format('Y-m-d H:i:s');
@@ -454,7 +458,7 @@ class KhipuService
 
             return [
                 'success' => $approved,
-                'status' => $this->mapVirtualPosStatus($status),
+                'status' => $this->mapVirtualPosStatus($orderStatus),
                 'transaction_date' => $transactionDate,
                 'data' => $result,
                 'auth_code' => $paymentData['auth_code'] ?? $orderData['auth_code'] ?? null,
@@ -500,6 +504,7 @@ class KhipuService
             'paid' => 'done',
             'approved' => 'done',
             'completed' => 'done',
+            'ok' => 'done',
             'rechazado' => 'rejected',
             'rejected' => 'rejected',
             'anulado' => 'cancelled',

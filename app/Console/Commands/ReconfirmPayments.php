@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Payment;
 use App\Models\OrderDetail;
 use App\Services\Client\PaymentGateway\VirtualPosService;
+use App\Services\Client\PaymentGateway\KhipuService;
 use App\Services\Client\Integration\BsaleService;
 use App\Services\Mail\SuccessPaymentEmailService;
 use App\Helpers\PaymentDocumentTypeHelper;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 
 class ReconfirmPayments extends Command
 {
+    private const KHIPU_GATEWAY_ID = 2;
+
     /**
      * The name and signature of the console command.
      *
@@ -30,10 +33,11 @@ class ReconfirmPayments extends Command
      *
      * @var string
      */
-    protected $description = 'Reconfirmar pagos con VirtualPOS, actualizar el estado en la base de datos, generar boleta y enviar correo';
+    protected $description = 'Reconfirmar pagos con VirtualPOS o Khipu, actualizar el estado en la base de datos, generar boleta y enviar correo';
 
     public function __construct(
         private VirtualPosService $virtualPosService,
+        private KhipuService $khipuService,
         private BsaleService $bsaleService,
         private SuccessPaymentEmailService $emailService
     ) {
@@ -61,12 +65,19 @@ class ReconfirmPayments extends Command
             $this->warn('📄 Se omitirá la generación de boletas Bsale');
         }
 
-        $this->info('🔄 Iniciando reconfirmación de pagos con VirtualPOS...');
+        $this->info('🔄 Iniciando reconfirmación de pagos...');
 
-        // Construir query de pagos
+        // Construir query de pagos (VirtualPos con token O Khipu con external_payment_id)
         $query = Payment::query()
-            ->whereNotNull('token')
-            ->where('token', '!=', '');
+            ->where(function ($q) {
+                $q->where(function ($sub) {
+                    $sub->whereNotNull('token')->where('token', '!=', '');
+                })->orWhere(function ($sub) {
+                    $sub->where('payment_gateway_id', self::KHIPU_GATEWAY_ID)
+                        ->whereNotNull('external_payment_id')
+                        ->where('external_payment_id', '!=', '');
+                });
+            });
 
         if ($paymentId) {
             $query->where('id', $paymentId);
@@ -149,7 +160,7 @@ class ReconfirmPayments extends Command
                 ['Total procesados', $total],
                 ['Actualizados', $updated],
                 ['Sin cambios', $noChanges],
-                ['No encontrados en VirtualPOS', $notFound],
+                ['No encontrados en pasarela', $notFound],
                 ['Errores', $errors],
             ]
         );
@@ -166,29 +177,53 @@ class ReconfirmPayments extends Command
      */
     private function processPayment(Payment $payment, bool $dryRun, bool $skipEmail = false, bool $skipBsale = false): string
     {
-        $token = $payment->token;
+        $isKhipu = $payment->payment_gateway_id === self::KHIPU_GATEWAY_ID;
 
-        if (empty($token)) {
-            return 'error';
+        // Consultar pasarela correspondiente
+        if ($isKhipu) {
+            $paymentId = $payment->external_payment_id;
+            if (empty($paymentId)) {
+                return 'error';
+            }
+
+            $khipuResult = $this->khipuService->getPaymentStatus($paymentId);
+
+            if (isset($khipuResult['error']) && !isset($khipuResult['success'])) {
+                $this->newLine();
+                $this->warn("  ⚠️  Payment #{$payment->id}: Error consultando Khipu - {$khipuResult['error']}");
+                return 'error';
+            }
+
+            $gatewayStatus = $khipuResult['status'] ?? 'unknown';
+            $isApproved = $khipuResult['success'] ?? false;
+            $isRejected = in_array($gatewayStatus, ['rejected', 'cancelled', 'error']);
+            $result = [
+                'full_response' => $khipuResult['data'] ?? $khipuResult,
+                'authorization_code' => $khipuResult['auth_code'] ?? null,
+                'transaction_date' => $khipuResult['transaction_date'] ?? null,
+            ];
+        } else {
+            $token = $payment->token;
+            if (empty($token)) {
+                return 'error';
+            }
+
+            $result = $this->virtualPosService->confirmTransaction($token);
+
+            if (!isset($result['success'])) {
+                return 'error';
+            }
+
+            if (isset($result['error']) && str_contains($result['error'], 'no encontrada')) {
+                $this->newLine();
+                $this->warn("  ⚠️  Payment #{$payment->id}: No encontrado en VirtualPOS (token: {$token})");
+                return 'not_found';
+            }
+
+            $gatewayStatus = $result['status'] ?? 'unknown';
+            $isApproved = in_array($gatewayStatus, VirtualPosService::APPROVED_STATUSES);
+            $isRejected = in_array($gatewayStatus, VirtualPosService::REJECTED_STATUSES);
         }
-
-        // Consultar estado en VirtualPOS
-        $result = $this->virtualPosService->confirmTransaction($token);
-
-        if (!isset($result['success'])) {
-            return 'error';
-        }
-
-        // Si no se encontró la transacción
-        if (isset($result['error']) && str_contains($result['error'], 'no encontrada')) {
-            $this->newLine();
-            $this->warn("  ⚠️  Payment #{$payment->id}: No encontrado en VirtualPOS (token: {$token})");
-            return 'not_found';
-        }
-
-        $virtualPosStatus = $result['status'] ?? 'unknown';
-        $isApproved = in_array($virtualPosStatus, VirtualPosService::APPROVED_STATUSES);
-        $isRejected = in_array($virtualPosStatus, VirtualPosService::REJECTED_STATUSES);
 
         // Determinar nuevo estado
         $newStatus = 'pending';
@@ -214,7 +249,8 @@ class ReconfirmPayments extends Command
         $statusIcon = $isApproved ? '✅' : ($isRejected ? '❌' : '⏳');
 
         if ($statusChanged) {
-            $this->line("  {$statusIcon} Payment #{$payment->id}: {$currentStatus} → {$newStatus} (VirtualPOS: {$virtualPosStatus})");
+            $gatewayLabel = $isKhipu ? 'Khipu' : 'VirtualPOS';
+            $this->line("  {$statusIcon} Payment #{$payment->id}: {$currentStatus} → {$newStatus} ({$gatewayLabel}: {$gatewayStatus})");
         } else {
             $this->line("  {$statusIcon} Payment #{$payment->id}: Sin cambio de estado, ejecutando post-procesamiento");
         }
@@ -238,6 +274,11 @@ class ReconfirmPayments extends Command
             // Si el pago fue aprobado, también actualizar el status a 'completed' para consistencia
             if ($isApproved) {
                 $updateData['status'] = 'completed';
+
+                // Actualizar transaction_date si viene de la pasarela
+                if (!empty($result['transaction_date'])) {
+                    $updateData['transaction_date'] = $result['transaction_date'];
+                }
 
                 // Asegurar que document_type esté establecido
                 if (empty($payment->document_type)) {
@@ -281,7 +322,8 @@ class ReconfirmPayments extends Command
             'payment_id' => $payment->id,
             'old_status' => $currentStatus,
             'new_status' => $newStatus,
-            'virtualpos_status' => $virtualPosStatus,
+            'gateway' => $isKhipu ? 'khipu' : 'virtualpos',
+            'gateway_status' => $gatewayStatus,
             'post_processing_executed' => $isApproved,
         ]);
 
