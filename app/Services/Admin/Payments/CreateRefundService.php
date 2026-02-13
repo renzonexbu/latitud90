@@ -172,8 +172,9 @@ class CreateRefundService
     }
 
     /**
-     * Validar que NO exista una suscripción activa
-     * Los reembolsos NO se pueden hacer si hay suscripción activa (debe manejarse por VirtualPOS)
+     * Validar suscripciones activas antes de permitir reembolso.
+     * Bloquea si SOLO hay suscripción activa (debe manejarse por VirtualPOS).
+     * Permite si hay activa + canceladas (caso de suscripción duplicada que necesita NC).
      */
     private function validateNoActiveSubscription(int $participantId, int $programId): void
     {
@@ -183,6 +184,22 @@ class CreateRefundService
             ->first();
 
         if ($activeSubscription) {
+            // Verificar si también hay suscripciones canceladas (caso de duplicidad)
+            $hasCancelledSubscriptions = ProgramSubscription::where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->where('status', 'CANCELADA')
+                ->exists();
+
+            if ($hasCancelledSubscriptions) {
+                Log::info('Validación de suscripción: Permitido reembolso por suscripción duplicada cancelada', [
+                    'participant_id' => $participantId,
+                    'program_id' => $programId,
+                    'active_subscription_id' => $activeSubscription->id,
+                    'operation' => 'refund'
+                ]);
+                return;
+            }
+
             throw new \Exception(
                 "No se puede realizar un reembolso manual para este participante porque tiene una suscripción activa (ID: {$activeSubscription->id}, Estado: {$activeSubscription->status}). " .
                 "Los ajustes para participantes con suscripción deben realizarse a través del sistema de VirtualPOS."
