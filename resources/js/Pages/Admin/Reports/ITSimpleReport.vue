@@ -11,7 +11,6 @@
                     />
 
                     <div class="flex gap-3">
-                        <!-- Botón Volver -->
                         <button
                             @click="goBack"
                             class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
@@ -22,7 +21,6 @@
                             Volver
                         </button>
 
-                        <!-- Botón Exportar -->
                         <button
                             @click="exportToExcel"
                             :disabled="isExporting"
@@ -65,22 +63,51 @@
                     </div>
 
                     <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-                        <!-- Programas -->
-                        <div class="relative flex-1 min-w-[200px]">
-                            <select
-                                v-model="filters.program_id"
-                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                                @change="applyFilters"
+                        <!-- Programa (búsqueda predictiva) -->
+                        <div class="relative flex-1 min-w-[280px]" ref="programSearchContainer">
+                            <div class="relative">
+                                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <input
+                                    v-model="programSearchText"
+                                    type="text"
+                                    placeholder="Buscar por código o nombre de programa..."
+                                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] pl-10 pr-8 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none"
+                                    @input="onProgramSearch"
+                                    @focus="showProgramDropdown = true"
+                                    @keydown.enter.prevent="applyProgramSearch"
+                                />
+                                <button
+                                    v-if="programSearchText"
+                                    @click="clearProgramSearch"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <!-- Dropdown de sugerencias -->
+                            <div
+                                v-if="showProgramDropdown && filteredPrograms.length > 0 && programSearchText.length > 0"
+                                class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto"
                             >
-                                <option value="">Todos los programas</option>
-                                <option v-for="program in programs" :key="program.id" :value="program.id">
-                                    {{ program.code }} - {{ program.name }}
-                                </option>
-                            </select>
+                                <div
+                                    v-for="program in filteredPrograms"
+                                    :key="program.id"
+                                    @mousedown.prevent="selectProgram(program)"
+                                    class="px-4 py-2 text-xs cursor-pointer hover:bg-[#f0faf9] transition-colors border-b border-gray-100 last:border-b-0"
+                                >
+                                    <span class="font-bold text-[#1c4f4a]">{{ program.code }}</span>
+                                    <span class="text-gray-500 ml-1">{{ program.name }}</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Fecha Desde -->
+                        <!-- Fecha Desde (filtra programas por fecha de salida) -->
                         <div class="relative min-w-[180px]">
+                            <label class="absolute -top-2 left-4 bg-white px-1 text-[10px] text-gray-400">Salida desde</label>
                             <input
                                 v-model="filters.date_from"
                                 type="date"
@@ -91,6 +118,7 @@
 
                         <!-- Fecha Hasta -->
                         <div class="relative min-w-[180px]">
+                            <label class="absolute -top-2 left-4 bg-white px-1 text-[10px] text-gray-400">Salida hasta</label>
                             <input
                                 v-model="filters.date_to"
                                 type="date"
@@ -99,7 +127,24 @@
                             >
                         </div>
 
-                        <!-- Clear Filters Button -->
+                        <!-- Ordenar por -->
+                        <div class="relative min-w-[200px]">
+                            <select
+                                v-model="sortValue"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
+                                @change="applySort"
+                            >
+                                <option value="program_code|asc">N° Programa (A-Z)</option>
+                                <option value="program_code|desc">N° Programa (Z-A)</option>
+                                <option value="total_to_collect|desc">Total a Recaudar (Mayor)</option>
+                                <option value="total_to_collect|asc">Total a Recaudar (Menor)</option>
+                                <option value="payer_payments|desc">Abono Pagadores (Mayor)</option>
+                                <option value="balance|desc">Saldo (Mayor)</option>
+                                <option value="balance|asc">Saldo (Menor)</option>
+                            </select>
+                        </div>
+
+                        <!-- Limpiar filtros -->
                         <button
                             @click="clearFilters"
                             class="h-[46px] px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-[50px] border border-gray-300 text-left font-nexa-regular text-[12px] leading-[18px] font-normal transition-colors duration-200 flex items-center gap-2"
@@ -214,7 +259,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ReportsHeader from '@/Components/Reports/ReportsHeader.vue'
@@ -227,12 +272,82 @@ const props = defineProps({
 })
 
 const filters = reactive({
-    program_id: props.filters?.program_id || '',
+    program_search: props.filters?.program_search || '',
     date_from: props.filters?.date_from || '',
     date_to: props.filters?.date_to || '',
+    sort_by: props.filters?.sort_by || 'program_code',
+    sort_dir: props.filters?.sort_dir || 'asc',
 })
 
+const sortValue = ref((props.filters?.sort_by || 'program_code') + '|' + (props.filters?.sort_dir || 'asc'))
+
 const isExporting = ref(false)
+const programSearchText = ref(props.filters?.program_search || '')
+const showProgramDropdown = ref(false)
+const programSearchContainer = ref(null)
+
+// Filtrar programas por texto de búsqueda
+const filteredPrograms = computed(() => {
+    if (!programSearchText.value || programSearchText.value.length < 1) return []
+    const search = programSearchText.value.toLowerCase()
+    return (props.programs || []).filter(p =>
+        (p.code && p.code.toLowerCase().includes(search)) ||
+        (p.name && p.name.toLowerCase().includes(search))
+    ).slice(0, 10)
+})
+
+// Cerrar dropdown al hacer click fuera
+const handleClickOutside = (e) => {
+    if (programSearchContainer.value && !programSearchContainer.value.contains(e.target)) {
+        showProgramDropdown.value = false
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutside)
+})
+
+let searchTimeout = null
+const onProgramSearch = () => {
+    showProgramDropdown.value = true
+    // Debounce: aplicar búsqueda al dejar de escribir
+    clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => {
+        filters.program_search = programSearchText.value
+        applyFilters()
+    }, 500)
+}
+
+const selectProgram = (program) => {
+    programSearchText.value = program.code
+    filters.program_search = program.code
+    showProgramDropdown.value = false
+    applyFilters()
+}
+
+const clearProgramSearch = () => {
+    programSearchText.value = ''
+    filters.program_search = ''
+    applyFilters()
+}
+
+const applySort = () => {
+    const [sortBy, sortDir] = sortValue.value.split('|')
+    filters.sort_by = sortBy
+    filters.sort_dir = sortDir
+    applyFilters()
+}
+
+const applyProgramSearch = () => {
+    clearTimeout(searchTimeout)
+    filters.program_search = programSearchText.value
+    showProgramDropdown.value = false
+    applyFilters()
+}
 
 const formatCurrency = (amount) => {
     if (!amount) return '$0'
@@ -279,9 +394,13 @@ const goToPage = (page) => {
 }
 
 const clearFilters = () => {
-    filters.program_id = ''
+    programSearchText.value = ''
+    filters.program_search = ''
     filters.date_from = ''
     filters.date_to = ''
+    filters.sort_by = 'program_code'
+    filters.sort_dir = 'asc'
+    sortValue.value = 'program_code|asc'
     applyFilters()
 }
 
@@ -294,7 +413,7 @@ const exportToExcel = () => {
 
     const params = new URLSearchParams()
 
-    if (filters.program_id) params.append('program_id', filters.program_id)
+    if (filters.program_search) params.append('program_search', filters.program_search)
     if (filters.date_from) params.append('date_from', filters.date_from)
     if (filters.date_to) params.append('date_to', filters.date_to)
 

@@ -12,10 +12,13 @@ class ITSimpleReportDataProvider
     /**
      * Obtener datos de recaudación global agrupados por programa.
      * Columnas: N° Programa, Total a Recaudar, Abono Pagadores, Aporte/Beca, Monto Liberado, Saldo
+     *
+     * Filtro de fechas: selecciona programas por departure_date (no filtra pagos).
+     * Sin filtros: solo programas del año en curso.
+     * Los montos siempre reflejan el total acumulado histórico.
      */
     public function getData(array $filters = []): Collection
     {
-        // Obtener program_courses con su curso y participantes
         $query = ProgramCourse::with(['course.participants']);
 
         // Filtro por programa específico
@@ -23,15 +26,32 @@ class ITSimpleReportDataProvider
             $query->where('id', $filters['program_id']);
         }
 
-        // Sin filtros → solo programas del año en curso (por departure_date)
-        if (empty($filters['program_id']) && empty($filters['date_from']) && empty($filters['date_to'])) {
+        // Filtro por búsqueda de texto (predictivo)
+        if (!empty($filters['program_search'])) {
+            $search = $filters['program_search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                  ->orWhere('name', 'like', "%{$search}%");
+            });
+        }
+
+        // Filtro de fechas: selecciona programas por departure_date
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            if (!empty($filters['date_from'])) {
+                $query->whereDate('departure_date', '>=', $filters['date_from']);
+            }
+            if (!empty($filters['date_to'])) {
+                $query->whereDate('departure_date', '<=', $filters['date_to']);
+            }
+        } elseif (empty($filters['program_id']) && empty($filters['program_search'])) {
+            // Sin filtros → solo programas del año en curso (por departure_date)
             $currentYear = now()->year;
             $query->whereYear('departure_date', $currentYear);
         }
 
         $programCourses = $query->orderBy('code', 'asc')->get();
 
-        return $programCourses->map(function ($programCourse) use ($filters) {
+        $result = $programCourses->map(function ($programCourse) {
             // Participantes activos (no cancelados)
             $participants = $programCourse->course?->participants ?? collect();
             $activeParticipants = $participants->filter(
@@ -46,10 +66,10 @@ class ITSimpleReportDataProvider
             }
 
             // 2. Abono Pagadores = pagos normales + cuotas suscripción (sin aportes)
-            $payerPayments = $this->calculatePayerPayments($programCourse, $filters);
+            $payerPayments = $this->calculatePayerPayments($programCourse);
 
             // 3. Aporte/Beca = pagos presential_aporte + descuentos tipo scholarship
-            $aporteBeca = $this->calculateAporteBeca($programCourse, $activeParticipants, $filters);
+            $aporteBeca = $this->calculateAporteBeca($programCourse, $activeParticipants);
 
             // 4. Monto Liberado = descuentos tipo 'released'
             $released = $this->calculateReleased($programCourse, $activeParticipants);
@@ -66,18 +86,27 @@ class ITSimpleReportDataProvider
                 'released' => round($released, 2),
                 'balance' => max($balance, 0),
             ];
-        })->filter(fn($item) => $item['total_to_collect'] > 0)
-          ->sortByDesc('total_to_collect')
-          ->values();
+        })->filter(fn($item) => $item['total_to_collect'] > 0);
+
+        // Ordenamiento
+        $sortBy = $filters['sort_by'] ?? 'program_code';
+        $sortDir = ($filters['sort_dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+
+        $sorted = $sortDir === 'desc'
+            ? $result->sortByDesc($sortBy)
+            : $result->sortBy($sortBy);
+
+        return $sorted->values();
     }
 
     /**
-     * Pagos normales (no aporte) + cuotas de suscripción pagadas
+     * Pagos normales (no aporte) + cuotas de suscripción pagadas.
+     * Siempre muestra el total acumulado histórico (sin filtro de fecha).
      */
-    private function calculatePayerPayments(ProgramCourse $programCourse, array $filters): float
+    private function calculatePayerPayments(ProgramCourse $programCourse): float
     {
         // Pagos normales (excluyendo aportes y suscripciones)
-        $normalQuery = DB::table('payments')
+        $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
             ->leftJoin('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
             ->where('orders.program_id', $programCourse->id)
@@ -89,57 +118,33 @@ class ITSimpleReportDataProvider
             ->where(function ($query) {
                 $query->whereNull('payment_options.code')
                       ->orWhere('payment_options.code', '!=', 'presential_aporte');
-            });
-
-        // Filtros de fecha sobre pagos
-        if (!empty($filters['date_from'])) {
-            $normalQuery->whereDate('payments.transaction_date', '>=', $filters['date_from']);
-        }
-        if (!empty($filters['date_to'])) {
-            $normalQuery->whereDate('payments.transaction_date', '<=', $filters['date_to']);
-        }
-
-        $normalPayments = (float) $normalQuery->sum('payments.amount');
+            })
+            ->sum('payments.amount');
 
         // Cuotas de suscripción pagadas
-        $subsQuery = DB::table('installments')
+        $subscriptionPayments = (float) DB::table('installments')
             ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
             ->where('installment_plans.program_id', $programCourse->id)
-            ->where('installments.status', 'paid');
-
-        if (!empty($filters['date_from'])) {
-            $subsQuery->whereDate('installments.paid_at', '>=', $filters['date_from']);
-        }
-        if (!empty($filters['date_to'])) {
-            $subsQuery->whereDate('installments.paid_at', '<=', $filters['date_to']);
-        }
-
-        $subscriptionPayments = (float) $subsQuery->sum('installments.amount');
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
 
         return $normalPayments + $subscriptionPayments;
     }
 
     /**
-     * Aportes/Becas = pagos con código presential_aporte + descuentos tipo scholarship
+     * Aportes/Becas = pagos con código presential_aporte + descuentos tipo scholarship.
+     * Siempre muestra el total acumulado histórico (sin filtro de fecha).
      */
-    private function calculateAporteBeca(ProgramCourse $programCourse, $activeParticipants, array $filters): float
+    private function calculateAporteBeca(ProgramCourse $programCourse, $activeParticipants): float
     {
         // Pagos tipo aporte
-        $aporteQuery = DB::table('payments')
+        $aportePayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
             ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
             ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
-            ->where('payment_options.code', 'presential_aporte');
-
-        if (!empty($filters['date_from'])) {
-            $aporteQuery->whereDate('payments.transaction_date', '>=', $filters['date_from']);
-        }
-        if (!empty($filters['date_to'])) {
-            $aporteQuery->whereDate('payments.transaction_date', '<=', $filters['date_to']);
-        }
-
-        $aportePayments = (float) $aporteQuery->sum('payments.amount');
+            ->where('payment_options.code', 'presential_aporte')
+            ->sum('payments.amount');
 
         // Descuentos tipo scholarship de participant_program_discounts
         $scholarshipTotal = $this->sumDiscountsByType($programCourse, $activeParticipants, 'scholarship');
@@ -183,7 +188,6 @@ class ITSimpleReportDataProvider
         $total = 0.0;
         foreach ($discounts as $disc) {
             if ($disc->percent && $disc->percent > 0) {
-                // Necesitamos el precio base del participante para calcular el porcentaje
                 $pp = DB::table('participant_program')
                     ->where('id', $disc->participant_program_id)
                     ->first();

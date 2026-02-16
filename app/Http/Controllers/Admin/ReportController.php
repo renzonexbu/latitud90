@@ -1938,7 +1938,7 @@ class ReportController extends Controller
     public function exportItSimpleReport(Request $request)
     {
         try {
-            $filters = $request->only(['program_id', 'date_from', 'date_to']);
+            $filters = $request->only(['program_id', 'program_search', 'date_from', 'date_to']);
 
             $dataProvider = new \App\Services\Admin\Reports\ITSimple\ITSimpleReportDataProvider();
             $data = $dataProvider->getData($filters);
