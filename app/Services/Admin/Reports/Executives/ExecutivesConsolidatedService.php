@@ -3,12 +3,53 @@
 namespace App\Services\Admin\Reports\Executives;
 
 use App\Models\Payment;
+use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ExecutivesConsolidatedService
 {
+    /**
+     * Calcula el saldo de un participante en un programa.
+     * Replica la lógica de GetParticipantsService: precio final - (pagos normales + cuotas suscripción).
+     */
+    private function calculateParticipantSaldo($participant, $programCourse): int
+    {
+        if (!$participant || !$programCourse) {
+            return 0;
+        }
+
+        // Precio total a pagar (usando ParticipantPriceHelper, igual que vista de participantes)
+        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+        $totalDue = $priceData['final_price'] ?? 0;
+
+        // Pagos normales (excluyendo los de suscripción, que se cuentan aparte en installments)
+        $normalPayments = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $programCourse->id);
+            })
+            ->whereIn('status', ['approved', 'completed'])
+            ->where(function ($query) {
+                $query->whereNull('payment_source')
+                      ->orWhere('payment_source', '!=', 'subscription');
+            })
+            ->sum('amount');
+
+        // Cuotas de suscripción pagadas (desde tabla installments)
+        $subscriptionPayments = (float) DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.participant_id', $participant->id)
+            ->where('installment_plans.program_id', $programCourse->id)
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
+
+        $totalPaid = $normalPayments + $subscriptionPayments;
+
+        return max(0, round($totalDue - $totalPaid, 0));
+    }
+
     /**
      * Normaliza un documento removiendo puntos, guiones y espacios
      */
@@ -108,18 +149,8 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Precio del participante en el programa
-            $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
-
-            // Saldo = Precio - Total pagado del participante en este programa (todas las órdenes)
-            $saldo = $price;
-            if ($participant && $program) {
-                $totalPaidForProgram = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
-                    $q->where('participant_id', $participant->id)
-                      ->where('program_id', $program->id);
-                })->whereIn('status', ['approved', 'completed'])->sum('amount');
-                $saldo = max(round($price - $totalPaidForProgram, 0), 0);
-            }
+            // Saldo usando misma lógica que vista de participantes
+            $saldo = $this->calculateParticipantSaldo($participant, $program);
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
@@ -290,18 +321,8 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Precio del participante en el programa
-            $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
-
-            // Saldo = Precio - Total pagado del participante en este programa (todas las órdenes)
-            $saldo = $price;
-            if ($participant && $program) {
-                $totalPaidForProgram = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
-                    $q->where('participant_id', $participant->id)
-                      ->where('program_id', $program->id);
-                })->whereIn('status', ['approved', 'completed'])->sum('amount');
-                $saldo = max(round($price - $totalPaidForProgram, 0), 0);
-            }
+            // Saldo usando misma lógica que vista de participantes
+            $saldo = $this->calculateParticipantSaldo($participant, $program);
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
