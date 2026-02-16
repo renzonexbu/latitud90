@@ -82,7 +82,7 @@ class ExportService
                 "I{$startRow}" => 'Fecha de Pago',
                 "J{$startRow}" => 'Contacto Pagador',
                 "K{$startRow}" => 'Liberado',
-                "L{$startRow}" => 'Precio'
+                "L{$startRow}" => 'Saldo'
             ];
             $headerRange = "A{$startRow}:L{$startRow}";
             $lastColumn = 'L';
@@ -123,7 +123,7 @@ class ExportService
                 $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
                 $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
                 $sheet->setCellValue('K' . $row, $item['liberated'] ?? 0);
-                $sheet->setCellValue('L' . $row, $item['price'] ?? 0);
+                $sheet->setCellValue('L' . $row, $item['saldo'] ?? 0);
 
                 // Aplicar formato de moneda a las columnas numéricas
                 $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
@@ -689,7 +689,7 @@ class ExportService
             'Fecha de Pago',
             'Contacto Pagador',
             'Liberado',
-            'Precio'
+            'Saldo'
         ];
 
         $exportDate = 'Fecha de exportación: ' . Carbon::now('America/Santiago')->format('d/m/Y');
@@ -715,7 +715,7 @@ class ExportService
                     $item['payment_date'] ?? 'N/A',
                     $item['payer_contact'] ?? 'N/A',
                     number_format($item['liberated'] ?? 0, 0, ',', '.'),
-                    number_format($item['price'] ?? 0, 0, ',', '.')
+                    number_format($item['saldo'] ?? 0, 0, ',', '.')
                 ];
             }
         }

@@ -108,10 +108,18 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Totales para liberado (incluir approved y completed)
-            $orderTotalPaid = ($order?->payments ?? collect())->whereIn('status', ['approved', 'completed'])->sum('amount');
+            // Precio del participante en el programa
             $price = $participantProgram?->individual_price ?? ($order?->final_amount ?? $order?->total_amount ?? 0);
-            $isLiberated = ($price - $orderTotalPaid) <= 0;
+
+            // Saldo = Precio - Total pagado del participante en este programa (todas las órdenes)
+            $saldo = $price;
+            if ($participant && $program) {
+                $totalPaidForProgram = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $program->id);
+                })->whereIn('status', ['approved', 'completed'])->sum('amount');
+                $saldo = max(round($price - $totalPaidForProgram, 0), 0);
+            }
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
@@ -152,7 +160,7 @@ class ExecutivesConsolidatedService
                 'payer_contact' => $payerContact ?? 'N/A',
                 'payer_email' => $payerEmail ?? 'N/A',
                 'liberated' => $liberatedAmount,
-                'price' => $price,
+                'saldo' => $saldo,
                 'sales_executive_name' => $program?->salesExecutive?->name ?? 'N/A',
                 'amount' => $payment->amount ?? 0,
                 'participant_id' => $participant?->id,
@@ -282,10 +290,18 @@ class ExecutivesConsolidatedService
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Totales para liberado (incluir approved y completed)
-            $orderTotalPaid = ($order?->payments ?? collect())->whereIn('status', ['approved', 'completed'])->sum('amount');
+            // Precio del participante en el programa
             $price = $participantProgram?->individual_price ?? ($order?->total_amount ?? 0);
-            $isLiberated = ($price - $orderTotalPaid) <= 0;
+
+            // Saldo = Precio - Total pagado del participante en este programa (todas las órdenes)
+            $saldo = $price;
+            if ($participant && $program) {
+                $totalPaidForProgram = (float) Payment::whereHas('order', function ($q) use ($participant, $program) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $program->id);
+                })->whereIn('status', ['approved', 'completed'])->sum('amount');
+                $saldo = max(round($price - $totalPaidForProgram, 0), 0);
+            }
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
@@ -326,7 +342,7 @@ class ExecutivesConsolidatedService
                 'payer_contact' => $payerContact ?? 'N/A',
                 'payer_email' => $payerEmail ?? 'N/A',
                 'liberated' => $liberatedAmount,
-                'price' => $price,
+                'saldo' => $saldo,
                 'sales_executive_name' => $program?->salesExecutive?->name ?? 'N/A',
                 'amount' => $payment->amount ?? 0,
                 'participant_id' => $participant?->id,

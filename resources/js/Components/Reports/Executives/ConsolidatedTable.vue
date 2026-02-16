@@ -39,7 +39,7 @@
                             Liberado
                         </th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">
-                            Precio
+                            Saldo
                         </th>
                     </tr>
                 </thead>
@@ -131,10 +131,10 @@
                             </div>
                         </td>
 
-                        <!-- Precio -->
+                        <!-- Saldo -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold text-gray-900">
-                                {{ formatPrice(item.price) }}
+                            <div class="text-xs font-bold" :class="(item.saldo || 0) > 0 ? 'text-red-600' : 'text-green-600'">
+                                {{ formatPrice(item.saldo) }}
                             </div>
                         </td>
                     </tr>
