@@ -47,6 +47,44 @@ class CreateOrderService
                 : 1;
             if ($totalInstallments < 1) { $totalInstallments = 1; }
 
+            // Si ya existe una orden TOTAL pendiente para este participante/programa, reutilizarla
+            if ($paymentData['paymentType'] === 'total') {
+                $existingPending = Order::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->where('payment_type', 'total')
+                    ->where('status', 'pending')
+                    ->whereHas('orderDetails', function ($q) {
+                        $q->where('is_paid', false)
+                          ->where('status', 'pending');
+                    })
+                    ->latest('id')
+                    ->first();
+
+                if ($existingPending) {
+                    \Log::info('Orden total pendiente existente encontrada, reutilizando', [
+                        'existing_order_id' => $existingPending->id,
+                        'participant_id' => $participant->id,
+                        'program_course_id' => $programCourse->id,
+                    ]);
+
+                    $existingDetail = $existingPending->orderDetails()
+                        ->where('is_paid', false)
+                        ->first();
+
+                    if ($existingDetail) {
+                        $this->updateExistingOrderDetail($existingDetail, $paymentData, $formData);
+                    }
+
+                    DB::commit();
+
+                    return [
+                        'success' => true,
+                        'order' => $existingPending,
+                        'order_detail' => $existingDetail,
+                    ];
+                }
+            }
+
             // Si ya existe una orden mensual pendiente con cuotas impagas, devolver esa orden (no crear otra)
             if ($paymentData['paymentType'] === 'monthly') {
                 $existing = Order::where('participant_id', $participant->id)

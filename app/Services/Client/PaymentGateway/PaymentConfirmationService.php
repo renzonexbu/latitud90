@@ -489,6 +489,47 @@ class PaymentConfirmationService
             'session_id' => $sessionId,
         ]);
 
+        // === VALIDACIÓN ANTI-DUPLICADO: Verificar saldo antes de procesar ===
+        $order = $orderDetail->order;
+        if ($order && $order->participant_id && $order->program_id) {
+            $programCourse = \App\Models\ProgramCourse::with(['course.participants'])->find($order->program_id);
+            $participant = \App\Models\Participant::find($order->participant_id);
+
+            if ($programCourse && $participant) {
+                $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                $totalPrice = $priceData['final_price'];
+
+                $alreadyPaid = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                    $q->where('participant_id', $participant->id)
+                      ->where('program_id', $programCourse->id);
+                })
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->sum('amount');
+
+                $remainingBalance = max($totalPrice - $alreadyPaid, 0);
+
+                if ($remainingBalance <= 0) {
+                    $this->logInfo('=== PAGO BLOQUEADO: Saldo ya cubierto por otro pago ===', [
+                        'order_detail_id' => $orderDetail->id,
+                        'participant_id' => $participant->id,
+                        'total_price' => $totalPrice,
+                        'already_paid' => $alreadyPaid,
+                        'remaining_balance' => $remainingBalance,
+                        'amount_this_payment' => $orderDetail->amount,
+                    ]);
+
+                    $orderDetail->update([
+                        'status' => 'overpaid',
+                        'gateway_response' => $result,
+                    ]);
+
+                    $order->update(['status' => 'overpaid']);
+
+                    return;
+                }
+            }
+        }
+
         // PASO 2: Buscar pago existente
         $this->logInfo('=== PASO 2/10: Buscando pago existente ===', [
             'order_detail_id' => $orderDetail->id,

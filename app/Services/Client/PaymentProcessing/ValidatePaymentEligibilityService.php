@@ -54,19 +54,12 @@ class ValidatePaymentEligibilityService
         $paidAmount = round($paidAmount, 2);
         $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
 
-        // ====================================
-        // DEBUG: Log de valores calculados
-        // ====================================
         \Log::info('=== ValidatePaymentEligibility DEBUG ===', [
             'participant_id' => $participant->id,
             'program_course_id' => $programId,
-            'program_course_trip_price' => $programCourse->trip_price,
-            'priceData' => $priceData,
             'participantTotalAmount' => $participantTotalAmount,
             'paidAmount' => $paidAmount,
             'participantBalance' => $participantBalance,
-            'participantBalance_is_zero' => $participantBalance <= 0,
-            'paymentData' => $paymentData
         ]);
 
         // Verificar si ya se pagó todo
