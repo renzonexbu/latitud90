@@ -193,25 +193,35 @@ class CreateGatewayTransactionService
     }
 
     /**
-     * Extraer primer nombre del nombre completo
+     * Extraer nombres (primer y segundo nombre) del nombre completo
+     * Heurística chilena: 4+ partes = 2 nombres + 2 apellidos, 3 partes = 1 nombre + 2 apellidos
      */
     private function extractFirstName(string $fullName): string
     {
-        $parts = explode(' ', trim($fullName));
-        return $parts[0] ?? 'Cliente';
+        $parts = array_values(array_filter(explode(' ', trim($fullName))));
+        $count = count($parts);
+
+        if ($count === 0) return 'Cliente';
+        if ($count <= 3) return ucwords(strtolower($parts[0]));
+
+        // 4+ partes: primeras 2 son nombres
+        return ucwords(strtolower($parts[0] . ' ' . $parts[1]));
     }
 
     /**
-     * Extraer apellido del nombre completo
+     * Extraer apellidos del nombre completo
+     * Heurística chilena: 4+ partes = 2 nombres + 2 apellidos, 3 partes = 1 nombre + 2 apellidos
      */
     private function extractLastName(string $fullName): string
     {
-        $parts = explode(' ', trim($fullName));
-        // Si hay más de una parte, tomar todo después del primer nombre
-        if (count($parts) > 1) {
-            array_shift($parts);
-            return implode(' ', $parts);
-        }
-        return 'Latitud90';
+        $parts = array_values(array_filter(explode(' ', trim($fullName))));
+        $count = count($parts);
+
+        if ($count <= 1) return 'Latitud90';
+        if ($count === 2) return ucwords(strtolower($parts[1]));
+        if ($count === 3) return ucwords(strtolower($parts[1] . ' ' . $parts[2]));
+
+        // 4+ partes: últimas partes desde la tercera son apellidos
+        return ucwords(strtolower(implode(' ', array_slice($parts, 2))));
     }
 }

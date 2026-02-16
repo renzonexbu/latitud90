@@ -685,16 +685,31 @@ export default {
                     ? documentNumber
                     : '11111111-1';
 
-                // Usar campos separados nombres/apellidos si existen, sino fallback al split del name
-                const nombres = buyerData.nombres || buyerData.name?.split(' ')[0] || buyerData.first_name || 'Usuario';
-                const apellidos = buyerData.apellidos || buyerData.name?.split(' ').slice(1).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario';
+                // Separar nombres y apellidos en campos individuales con formato nombre propio
+                const toProperCase = (str) => {
+                    if (!str) return '';
+                    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                };
+
+                const rawNombres = buyerData.nombres || buyerData.name?.split(' ').slice(0, 2).join(' ') || buyerData.first_name || 'Usuario';
+                const rawApellidos = buyerData.apellidos || buyerData.name?.split(' ').slice(2).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario';
+
+                const nombresParts = toProperCase(rawNombres).split(/\s+/);
+                const apellidosParts = toProperCase(rawApellidos).split(/\s+/);
+
+                const firstName = nombresParts[0] || 'Usuario';
+                const secondName = nombresParts.slice(1).join(' ') || '';
+                const firstLastName = apellidosParts[0] || 'Usuario';
+                const secondLastName = apellidosParts.slice(1).join(' ') || '';
 
                 const buyerDataForPayment = {
                     document_number: rutForVirtualPos,
                     document_type: buyerData.documentType,
                     original_document_number: documentNumber, // Guardar el documento real
-                    first_name: nombres,
-                    first_last_name: apellidos,
+                    first_name: firstName,
+                    second_name: secondName,
+                    first_last_name: firstLastName,
+                    second_last_name: secondLastName,
                     email: buyerData.email || '',
                     phone: buyerData.phone || '',
                     code_phone: buyerData.code_phone || '+56',

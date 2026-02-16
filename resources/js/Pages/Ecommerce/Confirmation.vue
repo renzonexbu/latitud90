@@ -333,17 +333,32 @@ export default {
                 this.isProcessingPayment = true;
 
                 // Preparar datos del COMPRADOR (buyer) desde confirmationData
-                // Usar campos separados nombres/apellidos si existen, sino fallback al name
+                // Separar nombres y apellidos en campos individuales con formato nombre propio
+                const toProperCase = (str) => {
+                    if (!str) return '';
+                    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                };
+
                 const formData = this.confirmationData.form_data;
-                const nombres = formData.nombres || formData.name?.split(' ')[0] || '';
-                const apellidos = formData.apellidos || formData.name?.split(' ').slice(1).join(' ') || '';
+                const rawNombres = formData.nombres || formData.name?.split(' ').slice(0, 2).join(' ') || '';
+                const rawApellidos = formData.apellidos || formData.name?.split(' ').slice(2).join(' ') || '';
+
+                const nombresParts = toProperCase(rawNombres).split(/\s+/);
+                const apellidosParts = toProperCase(rawApellidos).split(/\s+/);
+
+                const firstName = nombresParts[0] || '';
+                const secondName = nombresParts.slice(1).join(' ') || '';
+                const firstLastName = apellidosParts[0] || '';
+                const secondLastName = apellidosParts.slice(1).join(' ') || '';
 
                 const buyerData = {
                     document_number: formData.document_number,
                     document_type: formData.document_type || 'RUT',
                     original_document_number: formData.document_number,
-                    first_name: nombres,
-                    first_last_name: apellidos,
+                    first_name: firstName,
+                    second_name: secondName,
+                    first_last_name: firstLastName,
+                    second_last_name: secondLastName,
                     email: formData.email,
                     phone: formData.phone,
                     code_phone: formData.code_phone || '+56',

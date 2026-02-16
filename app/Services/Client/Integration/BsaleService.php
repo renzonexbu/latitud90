@@ -442,8 +442,8 @@ class BsaleService
             $subscription = $orderDetail->order->subscription ?? null;
             if ($subscription && !empty($subscription->buyer_data)) {
                 $buyerData = $subscription->buyer_data;
-                $firstName = trim($buyerData['first_name'] ?? '');
-                $lastName = trim($buyerData['first_last_name'] ?? '');
+                $firstName = trim(($buyerData['first_name'] ?? '') . ' ' . ($buyerData['second_name'] ?? ''));
+                $lastName = trim(($buyerData['first_last_name'] ?? '') . ' ' . ($buyerData['second_last_name'] ?? ''));
                 if (!empty($firstName) && !empty($lastName)) {
                     $nameParts = ['firstName' => $firstName, 'lastName' => $lastName];
                     Log::channel('bsale')->info('BsaleService: Usando nombres estructurados de buyer_data (suscripción)', [

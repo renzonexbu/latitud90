@@ -1103,12 +1103,21 @@ export default {
                 (c) => c.id == this.formData.city
             );
 
-            // Preparar datos del comprador
+            // Formato nombre propio (capitalizar cada palabra)
+            const toProperCase = (str) => {
+                if (!str) return '';
+                return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+            };
+
+            // Preparar datos del comprador con formato nombre propio
+            const nombres = toProperCase(this.formData.nombres);
+            const apellidos = toProperCase(this.formData.apellidos);
+
             const buyerData = {
-                // Datos personales - campos separados
-                nombres: this.formData.nombres,
-                apellidos: this.formData.apellidos,
-                name: (this.formData.nombres + ' ' + this.formData.apellidos).trim(), // backward compat
+                // Datos personales - campos separados con formato nombre propio
+                nombres: nombres,
+                apellidos: apellidos,
+                name: (nombres + ' ' + apellidos).trim(), // backward compat
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,
@@ -1163,12 +1172,21 @@ export default {
                 (c) => c.id == this.formData.city
             );
 
-            // Preparar datos del comprador
+            // Formato nombre propio (capitalizar cada palabra)
+            const toProperCase = (str) => {
+                if (!str) return '';
+                return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+            };
+
+            // Preparar datos del comprador con formato nombre propio
+            const nombres = toProperCase(this.formData.nombres);
+            const apellidos = toProperCase(this.formData.apellidos);
+
             const buyerData = {
-                // Datos personales - campos separados
-                nombres: this.formData.nombres,
-                apellidos: this.formData.apellidos,
-                name: (this.formData.nombres + ' ' + this.formData.apellidos).trim(), // backward compat
+                // Datos personales - campos separados con formato nombre propio
+                nombres: nombres,
+                apellidos: apellidos,
+                name: (nombres + ' ' + apellidos).trim(), // backward compat
                 documentType: selectedDocType ? selectedDocType.name : "",
                 documentNumber: this.formData.documentNumber,
                 email: this.formData.email,

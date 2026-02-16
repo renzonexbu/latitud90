@@ -225,7 +225,9 @@ class SubscriptionController extends Controller
                 'buyer.document_type' => 'nullable|string',
                 'buyer.original_document_number' => 'nullable|string',
                 'buyer.first_name' => 'required|string',
+                'buyer.second_name' => 'nullable|string',
                 'buyer.first_last_name' => 'required|string',
+                'buyer.second_last_name' => 'nullable|string',
                 'buyer.email' => 'required|email',
                 'buyer.phone' => 'required|string',
                 'buyer.code_phone' => 'required|string',
@@ -259,7 +261,7 @@ class SubscriptionController extends Controller
                 'buyer_document_for_virtualpos' => $buyerData['document_number'], // Este es el RUT que va a VirtualPos (11111111-1 si no es RUT chileno)
                 'buyer_original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
                 'buyer_document_clean' => $cleanBuyerDocument,
-                'buyer_name' => $buyerData['first_name'] . ' ' . $buyerData['first_last_name'],
+                'buyer_name' => trim(implode(' ', array_filter([$buyerData['first_name'], $buyerData['second_name'] ?? '', $buyerData['first_last_name'], $buyerData['second_last_name'] ?? '']))),
                 'buyer_email' => $buyerData['email']
             ]);
 
@@ -364,8 +366,8 @@ class SubscriptionController extends Controller
             // NOTA: Si el documento no es RUT chileno, el frontend ya envió "11111111-1" como document_number
             $clientData = [
                 'email' => $buyerData['email'],
-                'name' => $buyerData['first_name'],
-                'surname' => $buyerData['first_last_name'],
+                'name' => trim($buyerData['first_name'] . ' ' . ($buyerData['second_name'] ?? '')),
+                'surname' => trim($buyerData['first_last_name'] . ' ' . ($buyerData['second_last_name'] ?? '')),
                 'rut' => $buyerData['document_number'], // Ya viene como "11111111-1" si no es RUT chileno
                 'document_type' => $buyerData['document_type'] ?? 'RUT',
                 'original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
@@ -453,7 +455,7 @@ class SubscriptionController extends Controller
                 'buyer_document_type' => $buyerData['document_type'] ?? 'RUT',
                 'buyer_rut_for_virtualpos' => $buyerData['document_number'], // Este va a VirtualPos (11111111-1 si no es chileno)
                 'buyer_original_document' => $buyerData['original_document_number'] ?? $buyerData['document_number'],
-                'buyer_name' => $buyerData['first_name'] . ' ' . $buyerData['first_last_name'],
+                'buyer_name' => trim(implode(' ', array_filter([$buyerData['first_name'], $buyerData['second_name'] ?? '', $buyerData['first_last_name'], $buyerData['second_last_name'] ?? '']))),
                 'buyer_email' => $buyerData['email'],
                 'plan_id' => $planId,
                 'is_personalized_plan' => $virtualPosPlan ? $virtualPosPlan->isPersonalized() : false,
