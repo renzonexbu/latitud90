@@ -1889,7 +1889,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Reporte simple para TI: Numero de Negocio y Monto Recaudado
+     * Recaudación Global (antes Reporte TI)
      */
     public function itSimpleReport(Request $request)
     {
@@ -1915,11 +1915,13 @@ class ReportController extends Controller
 
         $paginatedData->appends($request->query());
 
-        // Calcular totales
+        // Calcular totales de resumen
+        $meta = $data->sum('total_to_collect');
+        $totalCollected = $data->sum('payer_payments') + $data->sum('aporte_beca');
         $totals = [
-            'total_collected' => $data->sum('total_collected'),
-            'total_installments' => $data->sum('installments_count'),
-            'total_programs' => $data->count(),
+            'total_collected' => round($totalCollected, 2),
+            'meta' => round($meta, 2),
+            'percentage' => $meta > 0 ? round(($totalCollected / $meta) * 100, 1) : 0,
         ];
 
         return Inertia::render('Admin/Reports/ITSimpleReport', [
@@ -1931,7 +1933,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Exportar reporte simple TI a Excel
+     * Exportar Recaudación Global a Excel
      */
     public function exportItSimpleReport(Request $request)
     {
@@ -1943,16 +1945,17 @@ class ReportController extends Controller
 
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
-            $sheet->setTitle('Reporte TI');
+            $sheet->setTitle('Recaudacion Global');
 
-            // Headers
             $headers = [
-                'Número de Negocio',
-                'Monto Recaudado',
-                'Cantidad Cuotas',
+                'N° de Programa',
+                'Total a Recaudar',
+                'Abono Pagadores',
+                'Aporte/Beca',
+                'Monto Liberado',
+                'Saldo',
             ];
 
-            // Estilo para headers
             $headerStyle = [
                 'font' => [
                     'bold' => true,
@@ -1968,7 +1971,6 @@ class ReportController extends Controller
                 ],
             ];
 
-            // Escribir headers
             foreach ($headers as $index => $header) {
                 $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
                 $sheet->setCellValue("{$col}1", $header);
@@ -1976,27 +1978,32 @@ class ReportController extends Controller
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
-            // Escribir datos
             $row = 2;
+            $numberFormat = '#,##0';
             foreach ($data as $record) {
                 $sheet->setCellValue("A{$row}", $record['program_code']);
-                $sheet->setCellValue("B{$row}", $record['total_collected']);
-                $sheet->setCellValue("C{$row}", $record['installments_count']);
+                $sheet->setCellValue("B{$row}", $record['total_to_collect']);
+                $sheet->setCellValue("C{$row}", $record['payer_payments']);
+                $sheet->setCellValue("D{$row}", $record['aporte_beca']);
+                $sheet->setCellValue("E{$row}", $record['released']);
+                $sheet->setCellValue("F{$row}", $record['balance']);
 
-                // Formatear monto como número
-                $sheet->getStyle("B{$row}")->getNumberFormat()
-                    ->setFormatCode('#,##0');
+                foreach (['B', 'C', 'D', 'E', 'F'] as $c) {
+                    $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($numberFormat);
+                }
 
                 $row++;
             }
 
-            // Agregar fila de totales
+            // Fila de totales
             $totalRow = $row;
             $sheet->setCellValue("A{$totalRow}", 'TOTAL');
-            $sheet->setCellValue("B{$totalRow}", $data->sum('total_collected'));
-            $sheet->setCellValue("C{$totalRow}", $data->sum('installments_count'));
+            $sheet->setCellValue("B{$totalRow}", $data->sum('total_to_collect'));
+            $sheet->setCellValue("C{$totalRow}", $data->sum('payer_payments'));
+            $sheet->setCellValue("D{$totalRow}", $data->sum('aporte_beca'));
+            $sheet->setCellValue("E{$totalRow}", $data->sum('released'));
+            $sheet->setCellValue("F{$totalRow}", $data->sum('balance'));
 
-            // Estilo para totales
             $totalStyle = [
                 'font' => ['bold' => true],
                 'fill' => [
@@ -2004,13 +2011,14 @@ class ReportController extends Controller
                     'startColor' => ['rgb' => 'E0E0E0'],
                 ],
             ];
-            $sheet->getStyle("A{$totalRow}:C{$totalRow}")->applyFromArray($totalStyle);
-            $sheet->getStyle("B{$totalRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("A{$totalRow}:F{$totalRow}")->applyFromArray($totalStyle);
+            foreach (['B', 'C', 'D', 'E', 'F'] as $c) {
+                $sheet->getStyle("{$c}{$totalRow}")->getNumberFormat()->setFormatCode($numberFormat);
+            }
 
-            // Preparar respuesta
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
 
-            $filename = 'Reporte_TI_' . date('Y-m-d_His') . '.xlsx';
+            $filename = 'Recaudacion_Global_' . date('Y-m-d_His') . '.xlsx';
 
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
             header('Content-Disposition: attachment;filename="' . $filename . '"');
@@ -2020,7 +2028,7 @@ class ReportController extends Controller
             exit;
 
         } catch (\Exception $e) {
-            Log::error('Error al exportar reporte TI: ' . $e->getMessage());
+            Log::error('Error al exportar Recaudación Global: ' . $e->getMessage());
             return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
         }
     }

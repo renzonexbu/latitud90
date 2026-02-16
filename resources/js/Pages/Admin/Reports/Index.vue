@@ -74,7 +74,7 @@
                                         <span class="text-gray-700 group-hover:text-teal-700">Cuotas Pagadas</span>
                                     </Link>
 
-                                    <!-- Reporte TI -->
+                                    <!-- Recaudación Global -->
                                     <Link
                                         :href="route('admin.reports.it-simple')"
                                         class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-50 transition-colors group"
@@ -82,7 +82,7 @@
                                         <svg class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                         </svg>
-                                        <span class="text-gray-700 group-hover:text-slate-700">Reporte TI</span>
+                                        <span class="text-gray-700 group-hover:text-slate-700">Recaudación Global</span>
                                     </Link>
                                 </nav>
                             </div>

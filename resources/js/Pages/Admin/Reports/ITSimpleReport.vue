@@ -1,13 +1,13 @@
 <template>
-    <AdminLayout title="Reporte TI - Recaudación">
-        <Head title="Reporte TI" />
+    <AdminLayout title="Recaudación Global">
+        <Head title="Recaudación Global" />
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header con botones de acción -->
                 <div class="flex items-center justify-between">
                     <ReportsHeader
-                        title="Reporte TI"
-                        subtitle="Número de Negocio y Monto Recaudado"
+                        title="Recaudación Global"
+                        subtitle="Resumen financiero por programa"
                     />
 
                     <div class="flex gap-3">
@@ -47,26 +47,23 @@
                         <p class="text-2xl font-bold text-[#1c4f4a]">{{ formatCurrency(totals.total_collected) }}</p>
                     </div>
                     <div class="bg-white rounded-lg shadow p-4 text-center">
-                        <p class="text-sm text-gray-500">Total Cuotas Pagadas</p>
-                        <p class="text-2xl font-bold text-[#1c4f4a]">{{ totals.total_installments }}</p>
+                        <p class="text-sm text-gray-500">Meta</p>
+                        <p class="text-2xl font-bold text-[#1c4f4a]">{{ formatCurrency(totals.meta) }}</p>
                     </div>
                     <div class="bg-white rounded-lg shadow p-4 text-center">
-                        <p class="text-sm text-gray-500">Programas con Pagos</p>
-                        <p class="text-2xl font-bold text-[#1c4f4a]">{{ totals.total_programs }}</p>
+                        <p class="text-sm text-gray-500">Porcentaje</p>
+                        <p class="text-2xl font-bold" :class="totals.percentage >= 100 ? 'text-green-600' : 'text-[#1c4f4a]'">{{ totals.percentage }}%</p>
                     </div>
                 </div>
 
                 <!-- Filtros -->
                 <div class="flex flex-col gap-[18px] items-start justify-start relative bg-white rounded-lg shadow p-6">
-                    <!-- Header Row con título -->
                     <div class="flex flex-row items-center justify-between w-full relative">
-                        <!-- Título -->
                         <div class="text-[20px] leading-7 font-normal text-[#1c4f4a] font-nexa-regular">
                             Filtros de búsqueda
                         </div>
                     </div>
 
-                    <!-- Filtros Row -->
                     <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
                         <!-- Programas -->
                         <div class="relative flex-1 min-w-[200px]">
@@ -115,21 +112,29 @@
                     </div>
                 </div>
 
-                <!-- Tabla Simple -->
+                <!-- Tabla -->
                 <div v-if="reportData && reportData.data && reportData.data.length > 0">
                     <div class="bg-white rounded-[20px] overflow-hidden">
-                        <!-- Table Container -->
                         <div class="flex flex-col gap-0">
                             <!-- Table Header -->
                             <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between h-[61.51px]">
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[200px]">
-                                    Nro. Negocio
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center w-[140px]">
+                                    N° de Programa
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center flex-1">
-                                    Monto Recaudado
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center flex-1">
+                                    Total a Recaudar
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[150px]">
-                                    Cuotas
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center flex-1">
+                                    Abono Pagadores
+                                </div>
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center flex-1">
+                                    Aporte/Beca
+                                </div>
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center flex-1">
+                                    Monto Liberado
+                                </div>
+                                <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center flex-1">
+                                    Saldo
                                 </div>
                             </div>
 
@@ -143,19 +148,23 @@
                                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                                     ]"
                                 >
-                                    <!-- Nro. Negocio -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[16px] leading-[18px] text-center w-[200px]">
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
                                         {{ record.program_code }}
                                     </div>
-
-                                    <!-- Monto Recaudado -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[18px] leading-[18px] text-center flex-1">
-                                        {{ formatCurrency(record.total_collected) }}
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center flex-1">
+                                        {{ formatCurrency(record.total_to_collect) }}
                                     </div>
-
-                                    <!-- Cuotas -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[18px] text-center w-[150px]">
-                                        {{ record.installments_count }}
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[18px] text-center flex-1">
+                                        {{ formatCurrency(record.payer_payments) }}
+                                    </div>
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[18px] text-center flex-1">
+                                        {{ formatCurrency(record.aporte_beca) }}
+                                    </div>
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[18px] text-center flex-1">
+                                        {{ formatCurrency(record.released) }}
+                                    </div>
+                                    <div class="font-nexa-bold text-[14px] leading-[18px] text-center flex-1" :class="record.balance > 0 ? 'text-red-600' : 'text-green-600'">
+                                        {{ formatCurrency(record.balance) }}
                                     </div>
                                 </div>
                             </div>
@@ -196,7 +205,7 @@
                         No se encontraron datos
                     </div>
                     <p class="text-gray-400 mt-2">
-                        No hay cuotas pagadas registradas
+                        No hay programas con recaudación registrada
                     </p>
                 </div>
             </div>
@@ -210,7 +219,6 @@ import { Head, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ReportsHeader from '@/Components/Reports/ReportsHeader.vue'
 
-// Props
 const props = defineProps({
     reportData: Object,
     programs: Array,
@@ -218,7 +226,6 @@ const props = defineProps({
     totals: Object
 })
 
-// Reactive data
 const filters = reactive({
     program_id: props.filters?.program_id || '',
     date_from: props.filters?.date_from || '',
@@ -227,13 +234,11 @@ const filters = reactive({
 
 const isExporting = ref(false)
 
-// Methods
 const formatCurrency = (amount) => {
     if (!amount) return '$0'
     return '$' + parseInt(amount).toLocaleString('es-CL')
 }
 
-// Computed properties for pagination
 const visiblePages = computed(() => {
     if (!props.reportData || !props.reportData.last_page) return [{ type: 'page', value: 1, key: 'page-1' }]
     const total = props.reportData.last_page
