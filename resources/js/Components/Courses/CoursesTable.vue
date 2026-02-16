@@ -188,12 +188,12 @@ export default {
                 return 'bg-gray-300'; // Gris para ---
             } else if (percentage >= 100) {
                 return 'bg-green-500'; // Verde para 100%
-            } else if (percentage >= 67) {
-                return 'bg-blue-500'; // Azul para 67-99%
-            } else if (percentage >= 34) {
-                return 'bg-yellow-500'; // Amarillo para 34-66%
+            } else if (percentage >= 75) {
+                return 'bg-blue-500'; // Azul para 75-99%
+            } else if (percentage >= 51) {
+                return 'bg-yellow-500'; // Amarillo para 51-74%
             } else {
-                return 'bg-red-500'; // Rojo para menos de 33%
+                return 'bg-red-500'; // Rojo para menos de 50%
             }
         },
         
