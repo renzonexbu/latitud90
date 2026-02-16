@@ -132,52 +132,57 @@ class SubscriptionController extends Controller
         }
 
         // Calcular precio real del participante usando ParticipantPriceHelper
-        $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice(
-            $subscription->participant,
-            $subscription->programCourse
-        );
-
-        // 1. Pagos normales desde payments - EXCLUIR pagos de suscripción para evitar doble conteo
-        $normalPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
-                $q->where('participant_id', $subscription->participant_id)
-                  ->where('program_id', $subscription->program_id);
-            })
-            ->whereIn('status', ['completed', 'approved'])
-            ->where(function($query) {
-                // Excluir pagos de suscripción (se cuentan abajo en installments)
-                $query->whereNull('payment_source')
-                      ->orWhere('payment_source', '!=', 'subscription');
-            })
-            ->sum('amount');
-
-        // 2. Cuotas de suscripción pagadas (installments)
-        $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
-            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-            ->where('installment_plans.participant_id', $subscription->participant_id)
-            ->where('installment_plans.program_id', $subscription->program_id)
-            ->where('installments.status', 'paid')
-            ->sum('installments.amount');
-
-        $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
-
-        // Obtener descuentos aplicados del participant_program
-        $participantProgram = \Illuminate\Support\Facades\DB::table('participant_program')
-            ->where('participant_id', $subscription->participant_id)
-            ->where('program_id', $subscription->program_id)
-            ->first();
-
+        $priceData = null;
+        $paidAmount = 0;
         $discountDetails = [];
-        if ($participantProgram) {
-            $discounts = \Illuminate\Support\Facades\DB::table('participant_program_discounts')
-                ->where('participant_program_id', $participantProgram->id)
-                ->get();
 
-            foreach ($discounts as $discount) {
-                $discountDetails[] = [
-                    'reason' => $discount->description ?? 'Descuento',
-                    'percent' => $discount->percent,
-                    'amount' => $discount->amount,
-                ];
+        if ($subscription->participant && $subscription->programCourse) {
+            $priceData = \App\Helpers\ParticipantPriceHelper::calculateParticipantPrice(
+                $subscription->participant,
+                $subscription->programCourse
+            );
+
+            // 1. Pagos normales desde payments - EXCLUIR pagos de suscripción para evitar doble conteo
+            $normalPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
+                    $q->where('participant_id', $subscription->participant_id)
+                      ->where('program_id', $subscription->program_id);
+                })
+                ->whereIn('status', ['completed', 'approved'])
+                ->where(function($query) {
+                    // Excluir pagos de suscripción (se cuentan abajo en installments)
+                    $query->whereNull('payment_source')
+                          ->orWhere('payment_source', '!=', 'subscription');
+                })
+                ->sum('amount');
+
+            // 2. Cuotas de suscripción pagadas (installments)
+            $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
+                ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                ->where('installment_plans.participant_id', $subscription->participant_id)
+                ->where('installment_plans.program_id', $subscription->program_id)
+                ->where('installments.status', 'paid')
+                ->sum('installments.amount');
+
+            $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
+
+            // Obtener descuentos aplicados del participant_program
+            $participantProgram = \Illuminate\Support\Facades\DB::table('participant_program')
+                ->where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->first();
+
+            if ($participantProgram) {
+                $discounts = \Illuminate\Support\Facades\DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $participantProgram->id)
+                    ->get();
+
+                foreach ($discounts as $discount) {
+                    $discountDetails[] = [
+                        'reason' => $discount->description ?? 'Descuento',
+                        'percent' => $discount->percent,
+                        'amount' => $discount->amount,
+                    ];
+                }
             }
         }
 
@@ -185,12 +190,12 @@ class SubscriptionController extends Controller
         $virtualPosPlan = VirtualPosPlan::where('virtualpos_plan_id', $subscription->virtualpos_plan_id)->first();
 
         $planInfo = [
-            'base_price' => (int) round($priceData['base_price']),
-            'adjustments' => (int) round($priceData['adjustments']),
-            'discounts' => (int) round($priceData['discounts']),
-            'final_price' => (int) round($priceData['final_price']),
+            'base_price' => (int) round($priceData['base_price'] ?? 0),
+            'adjustments' => (int) round($priceData['adjustments'] ?? 0),
+            'discounts' => (int) round($priceData['discounts'] ?? 0),
+            'final_price' => (int) round($priceData['final_price'] ?? 0),
             'paid_amount' => (int) round($paidAmount),
-            'pending_amount' => (int) max(0, round($priceData['final_price'] - $paidAmount)),
+            'pending_amount' => (int) max(0, round(($priceData['final_price'] ?? 0) - $paidAmount)),
             'discount_details' => $discountDetails,
             'discount_type' => $virtualPosPlan?->discount_type,
             'discount_reason' => $virtualPosPlan?->discount_reason ?? ($discountDetails[0]['reason'] ?? null),
@@ -204,21 +209,32 @@ class SubscriptionController extends Controller
                 'status' => $subscription->status,
                 'payment_method' => $subscription->payment_method,
                 'created_at' => $subscription->created_at->toDateString(),
-                'participant' => [
+                'participant' => $subscription->participant ? [
                     'id' => $subscription->participant->id,
                     'name' => $subscription->participant->full_name,
                     'document' => $subscription->participant->document_number,
                     'document_type' => $subscription->participant->documentType?->name ?? 'N/A',
                     'email' => $subscription->participant->email,
+                ] : [
+                    'id' => null,
+                    'name' => 'N/A (Suscripción de prueba)',
+                    'document' => 'N/A',
+                    'document_type' => 'N/A',
+                    'email' => 'N/A',
                 ],
-                'program' => [
+                'program' => $subscription->programCourse ? [
                     'id' => $subscription->programCourse->id,
                     'name' => $subscription->programCourse->name,
                     'destination' => $subscription->programCourse->program->destination ?? '',
                     'departure_date' => $subscription->programCourse->departure_date,
+                ] : [
+                    'id' => null,
+                    'name' => 'N/A (Suscripción de prueba)',
+                    'destination' => '',
+                    'departure_date' => null,
                 ],
                 'institution' => [
-                    'name' => $subscription->programCourse->course->institution->name ?? 'N/A',
+                    'name' => $subscription->programCourse?->course?->institution?->name ?? 'N/A',
                 ],
                 'plan' => $planInfo,
                 'installments' => $installments,

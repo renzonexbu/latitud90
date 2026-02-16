@@ -77,7 +77,7 @@ class GetPaymentsService
                 'total_payments' => $payments->total(),
                 'current_page' => $payments->currentPage(),
                 'per_page' => $payments->perPage(),
-                'filters_applied' => $request->only(['participant_name', 'payment_status', 'program_id', 'payment_method', 'date_from', 'date_to']),
+                'filters_applied' => $request->only(['participant_name', 'status', 'program_id', 'payment_method', 'date_from', 'date_to']),
                 'stats' => $stats,
             ]
         );
@@ -85,7 +85,7 @@ class GetPaymentsService
         return [
             'payments' => $payments,
             'stats' => $stats,
-            'filters' => $request->only(['participant_name', 'payment_status', 'program_id', 'payment_method', 'date_from', 'date_to']),
+            'filters' => $request->only(['participant_name', 'status', 'program_id', 'payment_method', 'date_from', 'date_to']),
             'programs' => $programs
         ];
     }
@@ -204,7 +204,7 @@ class GetPaymentsService
             });
         }
 
-        if ($request->status) {
+        if ($request->status && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 

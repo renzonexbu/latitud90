@@ -112,9 +112,8 @@ class CourseDataService
             return 0.0;
         }
 
-        // Sumar pagos normales completados (EXCLUYENDO APORTES y pagos de suscripción)
+        // Sumar pagos normales completados (excluyendo aportes y pagos de suscripción)
         // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
-        // Los aportes (presential_aporte) son contribuciones adicionales que NO reducen la deuda
         // Excluir payment_source='subscription' para evitar doble conteo con installments
         $normalPayments = (float) DB::table('payments')
             ->join('orders', 'payments.order_id', '=', 'orders.id')
@@ -122,7 +121,6 @@ class CourseDataService
             ->where('orders.program_id', $programCourse->id)
             ->whereIn('payments.status', ['approved', 'completed'])
             ->where(function($query) {
-                // Excluir pagos de suscripción (se cuentan en installments)
                 $query->whereNull('payments.payment_source')
                       ->orWhere('payments.payment_source', '!=', 'subscription');
             })
@@ -134,14 +132,23 @@ class CourseDataService
 
         // Sumar cuotas de suscripciones pagadas (installments)
         // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
-        // Usar status = 'paid' porque is_paid puede no estar sincronizado
         $subscriptionPayments = (float) DB::table('installments')
             ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
             ->where('installment_plans.program_id', $programCourse->id)
             ->where('installments.status', 'paid')
             ->sum('installments.amount');
 
-        return $normalPayments + $subscriptionPayments;
+        // Sumar aportes/becas (pagos con código presential_aporte)
+        // Real Recaudado = Abono Pagadores + Aportes
+        $aportePayments = (float) DB::table('payments')
+            ->join('orders', 'payments.order_id', '=', 'orders.id')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('orders.program_id', $programCourse->id)
+            ->whereIn('payments.status', ['approved', 'completed'])
+            ->where('payment_options.code', 'presential_aporte')
+            ->sum('payments.amount');
+
+        return $normalPayments + $subscriptionPayments + $aportePayments;
     }
 
     private function calculatePaymentPercentage(float $total, float $paid): int
@@ -172,15 +179,13 @@ class CourseDataService
                 $courseTotalAmount += $priceData['final_price'] ?? 0;
             }
 
-            // Calculate paid amount (pagos normales + cuotas de suscripciones)
+            // Calculate paid amount (pagos normales + cuotas de suscripciones + aportes)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id
-            // EXCLUYE APORTES y pagos de suscripción (para evitar doble conteo con installments)
             $normalPayments = (float) \App\Models\Payment::whereHas('order', function($q) use ($programCourse) {
                 $q->where('program_id', $programCourse->id);
             })
             ->whereIn('status', ['approved', 'completed'])
             ->where(function($query) {
-                // Excluir pagos de suscripción (se cuentan en installments)
                 $query->whereNull('payment_source')
                       ->orWhere('payment_source', '!=', 'subscription');
             })
@@ -193,15 +198,23 @@ class CourseDataService
             ->sum('amount');
 
             // Sumar cuotas de suscripciones pagadas
-            // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
-            // Usar status = 'paid' porque is_paid puede no estar sincronizado
             $subscriptionPayments = (float) DB::table('installments')
                 ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                 ->where('installment_plans.program_id', $programCourse->id)
                 ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 
-            $coursePaidAmount = round($normalPayments + $subscriptionPayments, 2);
+            // Sumar aportes/becas (pagos con código presential_aporte)
+            $aportePayments = (float) \App\Models\Payment::whereHas('order', function($q) use ($programCourse) {
+                $q->where('program_id', $programCourse->id);
+            })
+            ->whereIn('status', ['approved', 'completed'])
+            ->whereHas('paymentOption', function($q) {
+                $q->where('code', 'presential_aporte');
+            })
+            ->sum('amount');
+
+            $coursePaidAmount = round($normalPayments + $subscriptionPayments + $aportePayments, 2);
 
             // Calculate payment percentage
             $coursePaymentPercentage = $courseTotalAmount > 0

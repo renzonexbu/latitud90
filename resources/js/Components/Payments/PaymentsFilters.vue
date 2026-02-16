@@ -82,18 +82,17 @@
                 </select>
             </div>
 
-            <!-- Origen del Pago Dropdown -->
+            <!-- Estado del Pago Dropdown -->
             <div class="relative w-[160px]">
                 <select
-                    v-model="filters.payment_source"
+                    v-model="filters.status"
                     class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] border-[1px] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-12"
                     @change="performSearch"
                 >
-                    <option value="all">Todos los Orígenes</option>
-                    <option value="online">Pago Total</option>
-                    <option value="subscription">Suscripción</option>
-                    <option value="offline">Offline</option>
-                    <option value="devolucion">Devolución</option>
+                    <option value="all">Todos los Estados</option>
+                    <option value="completed">Pagado</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="failed">Fallido</option>
                 </select>
             </div>
 
@@ -163,7 +162,7 @@ export default {
                 participant_name: this.initialFilters.participant_name || "",
                 program_id: this.initialFilters.program_id || "",
                 payment_method: this.initialFilters.payment_method || "all",
-                payment_source: this.initialFilters.payment_source || "all",
+                status: this.initialFilters.status || "all",
                 date_from: this.initialFilters.date_from || "",
                 date_to: this.initialFilters.date_to || "",
             },
@@ -190,7 +189,7 @@ export default {
                     participant_name: newFilters.participant_name || "",
                     program_id: newFilters.program_id || "",
                     payment_method: newFilters.payment_method || "all",
-                    payment_source: newFilters.payment_source || "all",
+                    status: newFilters.status || "all",
                     date_from: newFilters.date_from || "",
                     date_to: newFilters.date_to || "",
                 };
@@ -258,7 +257,7 @@ export default {
                 participant_name: "",
                 program_id: "",
                 payment_method: "all",
-                payment_source: "all",
+                status: "all",
                 date_from: "",
                 date_to: "",
             };
