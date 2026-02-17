@@ -22,7 +22,13 @@ const form = useForm({
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 
+const toProperCase = (str) => {
+    if (!str) return '';
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 const submit = () => {
+    form.name = toProperCase(form.name);
     form.put(route("admin.users.update", props.user.id));
 };
 

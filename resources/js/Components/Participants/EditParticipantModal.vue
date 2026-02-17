@@ -1163,6 +1163,16 @@ const updateParticipant = () => {
 
     isSubmitting.value = true;
 
+    // Aplicar formato nombre propio
+    const toProperCase = (str) => {
+        if (!str) return '';
+        return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    };
+    form.value.first_name = toProperCase(form.value.first_name);
+    form.value.second_name = toProperCase(form.value.second_name);
+    form.value.first_last_name = toProperCase(form.value.first_last_name);
+    form.value.second_last_name = toProperCase(form.value.second_last_name);
+
     const formData = new FormData();
     formData.append("first_last_name", form.value.first_last_name);
     formData.append("second_last_name", form.value.second_last_name);

@@ -21,6 +21,16 @@
     name: user.name,
     email: user.email
   });
+
+  const toProperCase = (str) => {
+      if (!str) return '';
+      return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  };
+
+  const submitProfile = () => {
+      form.name = toProperCase(form.name);
+      form.patch(route('profile.update'));
+  };
 </script>
 
 <template>
@@ -34,7 +44,7 @@
     </header>
 
     <form
-      @submit.prevent="form.patch(route('profile.update'))"
+      @submit.prevent="submitProfile"
       class="mt-6 space-y-6">
       <div>
         <InputLabel

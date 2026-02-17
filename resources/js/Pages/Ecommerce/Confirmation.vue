@@ -339,9 +339,31 @@ export default {
                     return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
                 };
 
-                const formData = this.confirmationData.form_data;
-                const rawNombres = formData.nombres || formData.name?.split(' ').slice(0, 2).join(' ') || '';
-                const rawApellidos = formData.apellidos || formData.name?.split(' ').slice(2).join(' ') || '';
+                // Preferir datos del comprador desde localStorage sobre datos del participante del backend
+                const savedBuyerData = localStorage.getItem("buyerData");
+                let formData = this.confirmationData.form_data;
+                if (savedBuyerData) {
+                    try {
+                        const parsed = JSON.parse(savedBuyerData);
+                        if (parsed.nombres && parsed.apellidos) {
+                            formData = { ...formData, nombres: parsed.nombres, apellidos: parsed.apellidos, name: parsed.name || formData.name };
+                        }
+                    } catch (e) {}
+                }
+
+                // Usar nombres/apellidos separados; fallback con heurística chilena
+                let rawNombres = formData.nombres || '';
+                let rawApellidos = formData.apellidos || '';
+                if (!rawNombres && formData.name) {
+                    const parts = formData.name.trim().split(/\s+/);
+                    if (parts.length <= 3) {
+                        rawNombres = parts[0] || '';
+                        rawApellidos = parts.slice(1).join(' ') || '';
+                    } else {
+                        rawNombres = parts.slice(0, 2).join(' ');
+                        rawApellidos = parts.slice(2).join(' ');
+                    }
+                }
 
                 const nombresParts = toProperCase(rawNombres).split(/\s+/);
                 const apellidosParts = toProperCase(rawApellidos).split(/\s+/);

@@ -1128,7 +1128,14 @@ const handleClickOutside = (event) => {
     }
 };
 
+const toProperCase = (str) => {
+    if (!str) return '';
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 const submit = () => {
+    // Aplicar formato nombre propio
+    clientForm.name = toProperCase(clientForm.name);
     // Combinar los datos del cliente con los datos del reembolso
     const combinedData = {
         ...form.data(),

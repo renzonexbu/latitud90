@@ -35,7 +35,7 @@ class VirtualPosService
     /**
      * Crear transacción usando la API de VirtualPOS
      */
-    public function createTransaction($orderId, $amount, $returnUrl, $notificationUrl = null, $paymentType = null, $installments = null, $customerEmail = null, $customerDocument = null, $customerName = null, $customerPhone = null)
+    public function createTransaction($orderId, $amount, $returnUrl, $notificationUrl = null, $paymentType = null, $installments = null, $customerEmail = null, $customerDocument = null, $customerName = null, $customerPhone = null, $buyerNombres = null, $buyerApellidos = null)
     {
         try {
             // Determinar configuración según tipo de pago y cuotas
@@ -45,10 +45,15 @@ class VirtualPosService
             // Usar email del cliente si está disponible, sino usar email por defecto
             $email = $customerEmail ?: 'pagos@latitud90.cl';
 
-            // Separar nombre completo en first_name y last_name
-            $nameParts = $this->splitFullName($customerName ?: 'Cliente Latitud90');
-            $firstName = $nameParts['first_name'];
-            $lastName = $nameParts['last_name'];
+            // Usar nombres/apellidos separados si están disponibles, sino separar nombre completo
+            if ($buyerNombres && $buyerApellidos) {
+                $firstName = ucwords(strtolower(trim($buyerNombres)));
+                $lastName = ucwords(strtolower(trim($buyerApellidos)));
+            } else {
+                $nameParts = $this->splitFullName($customerName ?: 'Cliente Latitud90');
+                $firstName = $nameParts['first_name'];
+                $lastName = $nameParts['last_name'];
+            }
 
             // Formatear teléfono según requerimiento (569NNNNNNNN)
             $formattedPhone = $this->formatPhone($customerPhone ?: '56912345678');
@@ -531,19 +536,31 @@ class VirtualPosService
      */
     private function splitFullName($fullName)
     {
-        $nameParts = explode(' ', trim($fullName), 2);
+        $parts = array_values(array_filter(explode(' ', trim($fullName))));
+        $count = count($parts);
 
-        if (count($nameParts) >= 2) {
+        if ($count === 0) {
+            return ['first_name' => 'Cliente', 'last_name' => 'Latitud90'];
+        }
+        if ($count === 1) {
+            return ['first_name' => $parts[0], 'last_name' => 'Cliente'];
+        }
+        if ($count === 2) {
+            return ['first_name' => $parts[0], 'last_name' => $parts[1]];
+        }
+        if ($count === 3) {
+            // 3 partes: 1 nombre + 2 apellidos (convención chilena)
             return [
-                'first_name' => $nameParts[0],
-                'last_name' => $nameParts[1]
-            ];
-        } else {
-            return [
-                'first_name' => $fullName,
-                'last_name' => 'Cliente'
+                'first_name' => ucwords(strtolower($parts[0])),
+                'last_name' => ucwords(strtolower($parts[1] . ' ' . $parts[2]))
             ];
         }
+
+        // 4+ partes: 2 nombres + resto apellidos (convención chilena)
+        return [
+            'first_name' => ucwords(strtolower($parts[0] . ' ' . $parts[1])),
+            'last_name' => ucwords(strtolower(implode(' ', array_slice($parts, 2))))
+        ];
     }
 
     /**

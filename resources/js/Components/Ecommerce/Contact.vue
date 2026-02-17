@@ -123,10 +123,16 @@ const errorMessage = ref("");
 
 const emit = defineEmits(['contact-sent', 'contact-error']);
 
+const toProperCase = (str) => {
+    if (!str) return '';
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 const submitForm = async () => {
     loading.value = true;
     errorMessage.value = "";
     successMessage.value = "";
+    formData.value.name = toProperCase(formData.value.name);
 
     try {
         // Usar fetch directamente para evitar recarga de página

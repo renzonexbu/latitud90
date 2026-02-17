@@ -691,8 +691,21 @@ export default {
                     return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
                 };
 
-                const rawNombres = buyerData.nombres || buyerData.name?.split(' ').slice(0, 2).join(' ') || buyerData.first_name || 'Usuario';
-                const rawApellidos = buyerData.apellidos || buyerData.name?.split(' ').slice(2).join(' ') || buyerData.first_last_name || buyerData.last_name || 'Usuario';
+                // Usar nombres/apellidos separados; fallback con heurística chilena (3 partes = 1 nombre + 2 apellidos)
+                let rawNombres = buyerData.nombres || buyerData.first_name || '';
+                let rawApellidos = buyerData.apellidos || buyerData.first_last_name || buyerData.last_name || '';
+                if (!rawNombres && buyerData.name) {
+                    const parts = buyerData.name.trim().split(/\s+/);
+                    if (parts.length <= 3) {
+                        rawNombres = parts[0] || 'Usuario';
+                        rawApellidos = parts.slice(1).join(' ') || 'Usuario';
+                    } else {
+                        rawNombres = parts.slice(0, 2).join(' ');
+                        rawApellidos = parts.slice(2).join(' ');
+                    }
+                }
+                if (!rawNombres) rawNombres = 'Usuario';
+                if (!rawApellidos) rawApellidos = 'Usuario';
 
                 const nombresParts = toProperCase(rawNombres).split(/\s+/);
                 const apellidosParts = toProperCase(rawApellidos).split(/\s+/);

@@ -208,8 +208,8 @@
                                     <div class="text-[#5b5b5b] font-nexa-regular text-[14px] leading-[18px] text-center flex-1">
                                         {{ formatCurrency(record.released) }}
                                     </div>
-                                    <div class="font-nexa-bold text-[14px] leading-[18px] text-center flex-1" :class="record.balance > 0 ? 'text-red-600' : 'text-green-600'">
-                                        {{ formatCurrency(record.balance) }}
+                                    <div class="font-nexa-bold text-[14px] leading-[18px] text-center flex-1" :class="record.balance > 0 ? 'text-red-600' : record.balance < 0 ? 'text-blue-600' : 'text-green-600'">
+                                        {{ formatBalance(record.balance) }}
                                     </div>
                                 </div>
                             </div>
@@ -350,10 +350,16 @@ const applyProgramSearch = () => {
 }
 
 const formatCurrency = (amount) => {
-    if (!amount) return '$0'
+    if (!amount) return '0'
     const value = parseInt(amount)
-    if (value < 0) return '-$' + Math.abs(value).toLocaleString('es-CL')
-    return '$' + value.toLocaleString('es-CL')
+    return value.toLocaleString('es-CL')
+}
+
+const formatBalance = (amount) => {
+    if (!amount) return '0'
+    const value = parseInt(amount)
+    if (value < 0) return '(' + Math.abs(value).toLocaleString('es-CL') + ')'
+    return value.toLocaleString('es-CL')
 }
 
 const visiblePages = computed(() => {

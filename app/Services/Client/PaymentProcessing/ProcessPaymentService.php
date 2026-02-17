@@ -164,7 +164,7 @@ class ProcessPaymentService
             ]);
 
             // Crear transacción en el gateway de pago
-            $gatewayResult = $this->createGatewayTransactionService->execute($orderDetail, $paymentData);
+            $gatewayResult = $this->createGatewayTransactionService->execute($orderDetail, $paymentData, $formData);
 
             \Log::info('=== PROCESS PAYMENT: Gateway result ===', [
                 'success' => $gatewayResult['success'] ?? false,

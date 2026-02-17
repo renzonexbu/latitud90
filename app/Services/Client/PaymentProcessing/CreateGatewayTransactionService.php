@@ -23,13 +23,18 @@ class CreateGatewayTransactionService
      *
      * @param OrderDetail $orderDetail
      * @param array $paymentData
+     * @param array $formData Datos del formulario con nombres/apellidos separados
      * @return array
      */
-    public function execute(OrderDetail $orderDetail, array $paymentData): array
+    public function execute(OrderDetail $orderDetail, array $paymentData, array $formData = []): array
     {
         $amount = $orderDetail->amount;
         // Usar el número de orden completo de la relación Order
         $orderId = $orderDetail->order->order_number ?? ($orderDetail->order_id . '-' . $orderDetail->installment_number);
+
+        // Extraer nombres y apellidos separados del formData (provienen del frontend)
+        $buyerNombres = $formData['nombres'] ?? null;
+        $buyerApellidos = $formData['apellidos'] ?? null;
 
         // Log para verificar el estado del OrderDetail antes de crear la transacción
         $this->logInfo('Creating gateway transaction', [
@@ -123,7 +128,9 @@ class CreateGatewayTransactionService
                         $customerEmail,
                         $customerDocument,
                         $customerName,
-                        $customerPhone
+                        $customerPhone,
+                        $buyerNombres,
+                        $buyerApellidos
                     );
                 } else {
                     // Usar Transbank (pruebas)
@@ -151,12 +158,20 @@ class CreateGatewayTransactionService
                     'khipu_service_production_mode' => $this->khipuService->isProductionMode(),
                 ]);
 
-                // Datos del cliente para VirtualPos (producción)
+                // Datos del cliente para Khipu
+                // Usar nombres/apellidos separados si están disponibles
+                $khipuFirstName = $buyerNombres
+                    ? ucwords(strtolower(trim($buyerNombres)))
+                    : $this->extractFirstName($orderDetail->name ?? 'Cliente');
+                $khipuLastName = $buyerApellidos
+                    ? ucwords(strtolower(trim($buyerApellidos)))
+                    : $this->extractLastName($orderDetail->name ?? 'Latitud90');
+
                 $customerData = [
                     'email' => $orderDetail->email ?? 'cliente@latitud90.cl',
                     'rut' => $orderDetail->document_number ?? '',
-                    'first_name' => $this->extractFirstName($orderDetail->name ?? 'Cliente'),
-                    'last_name' => $this->extractLastName($orderDetail->name ?? 'Latitud90'),
+                    'first_name' => $khipuFirstName,
+                    'last_name' => $khipuLastName,
                     'description' => 'Pago programa Latitud 90 - Orden #' . $orderId,
                 ];
 

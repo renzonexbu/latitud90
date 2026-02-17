@@ -426,7 +426,14 @@
         accept_terms: false
       });
 
+      const toProperCase = (str) => {
+          if (!str) return '';
+          return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      };
+
       const submitReservation = () => {
+        form.full_name = toProperCase(form.full_name);
+        form.emergency_contact_name = toProperCase(form.emergency_contact_name);
         form.post(route("ecommerce.store-reservation", props.program.id));
       };
 

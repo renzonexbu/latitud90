@@ -81,9 +81,14 @@ export default {
             this.localErrors = {};
             this.isSubmitting = false;
         },
+        toProperCase(str) {
+            if (!str) return '';
+            return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        },
         async saveExecutive() {
             this.isSubmitting = true;
             this.localErrors = {};
+            this.form.name = this.toProperCase(this.form.name);
             try {
                 const { data } = await axios.post(route('admin.sales-executives.store'), this.form);
                 if (data && data.success && data.executive) {

@@ -726,10 +726,22 @@ export default {
             };
         },
 
+        toProperCase(str) {
+            if (!str) return '';
+            return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        },
+
         async saveParticipant() {
             this.isSubmitting = true;
 
             try {
+                // Aplicar formato nombre propio
+                this.form.first_name = this.toProperCase(this.form.first_name);
+                this.form.second_name = this.toProperCase(this.form.second_name);
+                this.form.first_last_name = this.toProperCase(this.form.first_last_name);
+                this.form.second_last_name = this.toProperCase(this.form.second_last_name);
+                this.form.emergency_contact_name = this.toProperCase(this.form.emergency_contact_name);
+
                 // Preparar datos del participante
                 const participantData = {
                     first_last_name: this.form.first_last_name,

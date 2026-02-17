@@ -49,17 +49,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Botón Limpiar filtros -->
-                    <button
-                        @click="clearAllFilters"
-                        type="button"
-                        class="h-[45.79px] px-4 bg-white rounded-[50px] border border-[#f0f0f0] text-[#434343] font-nexa-bold text-[12px] leading-[18px] font-bold hover:bg-gray-50 shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)] flex items-center gap-2 whitespace-nowrap"
-                    >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Limpiar filtros
-                    </button>
                     <!-- Buscador general -->
                     <div class="relative w-[310px]">
                         <input
@@ -89,6 +78,17 @@
                             </svg>
                         </button>
                     </div>
+                    <!-- Botón Limpiar filtros -->
+                    <button
+                        @click="clearAllFilters"
+                        type="button"
+                        class="h-[45.79px] px-4 bg-white rounded-[50px] border border-[#f0f0f0] text-[#434343] font-nexa-bold text-[12px] leading-[18px] font-bold hover:bg-gray-50 shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)] flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Limpiar filtros
+                    </button>
                 </div>
             </div>
         </div>

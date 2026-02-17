@@ -608,7 +608,15 @@ const handleCityChange = (cityId) => {
     form.comune_id = cityId;
 };
 
+const toProperCase = (str) => {
+    if (!str) return '';
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 const submit = () => {
+    // Aplicar formato nombre propio
+    form.nombres = toProperCase(form.nombres);
+    form.apellidos = toProperCase(form.apellidos);
     // Componer name a partir de nombres y apellidos antes de enviar
     form.name = (form.nombres + ' ' + form.apellidos).trim();
     form.post(route("guardian.register.post"), {

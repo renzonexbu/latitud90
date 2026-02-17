@@ -19,7 +19,7 @@ class ITSimpleReportDataProvider
      */
     public function getData(array $filters = []): Collection
     {
-        $query = ProgramCourse::with(['course.participants']);
+        $query = ProgramCourse::where('active', true)->with(['course.participants']);
 
         // Filtro por programa específico
         if (!empty($filters['program_id'])) {

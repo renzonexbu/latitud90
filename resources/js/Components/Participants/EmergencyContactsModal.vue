@@ -450,9 +450,15 @@ watch(() => props.show, (newValue) => {
   }
 }, { immediate: true });
 
+const toProperCase = (str) => {
+    if (!str) return '';
+    return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+};
+
 const saveNewContact = () => {
   isSubmitting.value = true;
-  
+  newContact.value.name = toProperCase(newContact.value.name);
+
   const formData = new FormData();
   formData.append('emergency_contacts', JSON.stringify([newContact.value]));
   formData.append('_method', 'PUT');
@@ -478,6 +484,7 @@ const updateContact = (contactId, index) => {
   successMessage.value = '';
 
   const contact = props.participant.emergency_contacts[index];
+  contact.name = toProperCase(contact.name);
   const formData = new FormData();
   formData.append('contact_id', contactId);
   formData.append('name', contact.name || '');

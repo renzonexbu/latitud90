@@ -482,8 +482,13 @@
           preserveScroll: true
         });
       },
+      toProperCase(str) {
+        if (!str) return '';
+        return str.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      },
       searchByPersonalData() {
         this.hasSearched = true;
+        this.personalForm.full_name = this.toProperCase(this.personalForm.full_name);
         this.personalForm.post(route("ecommerce.search-reservation"), {
           preserveState: true,
           preserveScroll: true

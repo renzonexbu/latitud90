@@ -1980,6 +1980,7 @@ class ReportController extends Controller
 
             $row = 2;
             $numberFormat = '#,##0';
+            $balanceFormat = '#,##0;(#,##0)';
             foreach ($data as $record) {
                 $sheet->setCellValue("A{$row}", $record['program_code']);
                 $sheet->setCellValue("B{$row}", $record['total_to_collect']);
@@ -1988,9 +1989,10 @@ class ReportController extends Controller
                 $sheet->setCellValue("E{$row}", $record['released']);
                 $sheet->setCellValue("F{$row}", $record['balance']);
 
-                foreach (['B', 'C', 'D', 'E', 'F'] as $c) {
+                foreach (['B', 'C', 'D', 'E'] as $c) {
                     $sheet->getStyle("{$c}{$row}")->getNumberFormat()->setFormatCode($numberFormat);
                 }
+                $sheet->getStyle("F{$row}")->getNumberFormat()->setFormatCode($balanceFormat);
 
                 $row++;
             }
@@ -2012,9 +2014,10 @@ class ReportController extends Controller
                 ],
             ];
             $sheet->getStyle("A{$totalRow}:F{$totalRow}")->applyFromArray($totalStyle);
-            foreach (['B', 'C', 'D', 'E', 'F'] as $c) {
+            foreach (['B', 'C', 'D', 'E'] as $c) {
                 $sheet->getStyle("{$c}{$totalRow}")->getNumberFormat()->setFormatCode($numberFormat);
             }
+            $sheet->getStyle("F{$totalRow}")->getNumberFormat()->setFormatCode($balanceFormat);
 
             $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
 
