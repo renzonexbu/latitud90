@@ -351,7 +351,9 @@ const applyProgramSearch = () => {
 
 const formatCurrency = (amount) => {
     if (!amount) return '$0'
-    return '$' + parseInt(amount).toLocaleString('es-CL')
+    const value = parseInt(amount)
+    if (value < 0) return '-$' + Math.abs(value).toLocaleString('es-CL')
+    return '$' + value.toLocaleString('es-CL')
 }
 
 const visiblePages = computed(() => {

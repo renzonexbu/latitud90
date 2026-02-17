@@ -68,14 +68,17 @@ class ITSimpleReportDataProvider
             // 2. Abono Pagadores = pagos normales + cuotas suscripción (sin aportes)
             $payerPayments = $this->calculatePayerPayments($programCourse);
 
-            // 3. Aporte/Beca = pagos presential_aporte + descuentos tipo scholarship
+            // 3. Aporte/Beca = pagos presential_aporte + descuentos tipo scholarship (columna informativa)
             $aporteBeca = $this->calculateAporteBeca($programCourse, $activeParticipants);
 
-            // 4. Monto Liberado = descuentos tipo 'released'
+            // 4. Monto Liberado = descuentos tipo 'released' (columna informativa)
             $released = $this->calculateReleased($programCourse, $activeParticipants);
 
-            // 5. Saldo = Total a Recaudar - Abono - Aporte/Beca - Liberado
-            $balance = round($totalToCollect - $payerPayments - $aporteBeca - $released, 2);
+            // 5. Saldo = Total a Recaudar - Abono Pagadores - Pagos aporte (solo pagos reales)
+            // Nota: Total a Recaudar (final_price) ya tiene descontados scholarship y released,
+            // por lo que NO se restan de nuevo. Solo se restan pagos efectivos.
+            $aportePaymentsOnly = $this->calculateAportePaymentsOnly($programCourse);
+            $balance = round($totalToCollect - $payerPayments - $aportePaymentsOnly, 2);
 
             return [
                 'program_id' => $programCourse->id,
@@ -84,7 +87,7 @@ class ITSimpleReportDataProvider
                 'payer_payments' => round($payerPayments, 2),
                 'aporte_beca' => round($aporteBeca, 2),
                 'released' => round($released, 2),
-                'balance' => max($balance, 0),
+                'balance' => $balance,
             ];
         })->filter(fn($item) => $item['total_to_collect'] > 0);
 
@@ -129,6 +132,21 @@ class ITSimpleReportDataProvider
             ->sum('installments.amount');
 
         return $normalPayments + $subscriptionPayments;
+    }
+
+    /**
+     * Solo pagos reales tipo aporte (presential_aporte). Sin descuentos.
+     * Se usa para el cálculo del saldo (evita doble descuento con final_price).
+     */
+    private function calculateAportePaymentsOnly(ProgramCourse $programCourse): float
+    {
+        return (float) DB::table('payments')
+            ->join('orders', 'payments.order_id', '=', 'orders.id')
+            ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+            ->where('orders.program_id', $programCourse->id)
+            ->whereIn('payments.status', ['approved', 'completed'])
+            ->where('payment_options.code', 'presential_aporte')
+            ->sum('payments.amount');
     }
 
     /**
