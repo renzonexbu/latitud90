@@ -49,6 +49,17 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Botón Limpiar filtros -->
+                    <button
+                        @click="clearAllFilters"
+                        type="button"
+                        class="h-[45.79px] px-4 bg-white rounded-[50px] border border-[#f0f0f0] text-[#434343] font-nexa-bold text-[12px] leading-[18px] font-bold hover:bg-gray-50 shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)] flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Limpiar filtros
+                    </button>
                     <!-- Buscador general -->
                     <div class="relative w-[310px]">
                         <input
@@ -307,6 +318,16 @@ export default {
             this.executiveSearch = "";
             this.applyExecutiveFilter(null);
         },
+        clearAllFilters() {
+            this.search = "";
+            this.selectedExecutiveId = null;
+            this.executiveSearch = "";
+            this.currentPage = 1;
+            router.get(route('admin.dashboard'), {}, {
+                preserveState: false,
+                preserveScroll: true,
+            });
+        },
         applyExecutiveFilter(executiveId) {
             router.get(route('admin.dashboard'), {
                 salesExecutiveId: executiveId,
@@ -325,12 +346,12 @@ export default {
         getBadgeClass(percent) {
             if (percent >= 100) {
                 return 'bg-green-500'; // Verde para 100%
-            } else if (percent >= 67) {
-                return 'bg-blue-500'; // Azul para 67-99%
-            } else if (percent >= 34) {
-                return 'bg-yellow-500'; // Amarillo para 34-66%
+            } else if (percent >= 75) {
+                return 'bg-blue-500'; // Azul para 75-99%
+            } else if (percent >= 51) {
+                return 'bg-yellow-500'; // Amarillo para 51-74%
             } else {
-                return 'bg-red-500'; // Rojo para menos de 33%
+                return 'bg-red-500'; // Rojo para menos de 50%
             }
         },
         formatAmount(value) {

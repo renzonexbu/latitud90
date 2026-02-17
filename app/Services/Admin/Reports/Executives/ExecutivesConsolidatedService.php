@@ -6,48 +6,61 @@ use App\Models\Payment;
 use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ExecutivesConsolidatedService
 {
     /**
-     * Calcula el saldo de un participante en un programa.
-     * Replica la lógica de GetParticipantsService: precio final - (pagos normales + cuotas suscripción).
+     * Calcula el saldo progresivo (running balance) para cada pago de un conjunto de participante+programa.
+     * Retorna un mapa: payment_id → saldo después de ese pago.
+     *
+     * El saldo parte del precio final (ParticipantPriceHelper) y se va descontando
+     * cronológicamente con cada pago/devolución.
      */
-    private function calculateParticipantSaldo($participant, $programCourse): int
+    private function calculateRunningBalances(Collection $payments): array
     {
-        if (!$participant || !$programCourse) {
-            return 0;
+        $balanceMap = [];
+
+        // Agrupar pagos por participante+programa
+        $groups = $payments->groupBy(function ($payment) {
+            $participantId = $payment->order?->participant_id ?? 0;
+            $programId = $payment->order?->program_id ?? 0;
+            return "{$participantId}-{$programId}";
+        });
+
+        foreach ($groups as $key => $groupPayments) {
+            [$participantId, $programId] = explode('-', $key);
+
+            if (!$participantId || !$programId) continue;
+
+            $participant = $groupPayments->first()->order?->participant;
+            $programCourse = $groupPayments->first()->order?->programCourse;
+
+            if (!$participant || !$programCourse) continue;
+
+            // Precio final del participante (después de descuentos)
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $price = $priceData['final_price'] ?? 0;
+
+            // Obtener TODOS los pagos de este participante+programa en orden cronológico
+            $allPayments = Payment::whereHas('order', function ($q) use ($participantId, $programId) {
+                    $q->where('participant_id', $participantId)
+                      ->where('program_id', $programId);
+                })
+                ->whereIn('status', ['approved', 'completed'])
+                ->orderBy('transaction_date', 'asc')
+                ->orderBy('id', 'asc')
+                ->get(['id', 'amount']);
+
+            // Calcular saldo progresivo
+            $runningBalance = $price;
+            foreach ($allPayments as $p) {
+                $runningBalance -= $p->amount;
+                $balanceMap[$p->id] = round($runningBalance, 0);
+            }
         }
 
-        // Precio total a pagar (usando ParticipantPriceHelper, igual que vista de participantes)
-        $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-        $totalDue = $priceData['final_price'] ?? 0;
-
-        // Pagos normales (excluyendo los de suscripción, que se cuentan aparte en installments)
-        $normalPayments = (float) Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
-                $q->where('participant_id', $participant->id)
-                  ->where('program_id', $programCourse->id);
-            })
-            ->whereIn('status', ['approved', 'completed'])
-            ->where(function ($query) {
-                $query->whereNull('payment_source')
-                      ->orWhere('payment_source', '!=', 'subscription');
-            })
-            ->sum('amount');
-
-        // Cuotas de suscripción pagadas (desde tabla installments)
-        $subscriptionPayments = (float) DB::table('installments')
-            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-            ->where('installment_plans.participant_id', $participant->id)
-            ->where('installment_plans.program_id', $programCourse->id)
-            ->where('installments.status', 'paid')
-            ->sum('installments.amount');
-
-        $totalPaid = $normalPayments + $subscriptionPayments;
-
-        return max(0, round($totalDue - $totalPaid, 0));
+        return $balanceMap;
     }
 
     /**
@@ -142,15 +155,19 @@ class ExecutivesConsolidatedService
             'first_payment' => $payments->items()[0] ?? 'no hay pagos'
         ]);
 
+        // Calcular saldos progresivos para los pagos de esta página
+        $pagePayments = collect($payments->items());
+        $balanceMap = $this->calculateRunningBalances($pagePayments);
+
         // Transformar datos para la tabla (fila por pago)
-        $items = collect($payments->items())->map(function ($payment) {
+        $items = $pagePayments->map(function ($payment) use ($balanceMap) {
             $order = $payment->order;
             $participant = $order?->participant;
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Saldo usando misma lógica que vista de participantes
-            $saldo = $this->calculateParticipantSaldo($participant, $program);
+            // Saldo progresivo: refleja el impacto de cada pago/devolución
+            $saldo = $balanceMap[$payment->id] ?? 0;
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
@@ -314,15 +331,18 @@ class ExecutivesConsolidatedService
             'first_payment' => $payments->first() ? 'existe' : 'no hay pagos'
         ]);
 
+        // Calcular saldos progresivos para todos los pagos
+        $balanceMap = $this->calculateRunningBalances($payments);
+
         // Transformar datos para exportación (fila por pago)
-        $items = $payments->map(function ($payment) {
+        $items = $payments->map(function ($payment) use ($balanceMap) {
             $order = $payment->order;
             $participant = $order?->participant;
             $program = $order?->programCourse;
             $participantProgram = $order?->participantProgram;
 
-            // Saldo usando misma lógica que vista de participantes
-            $saldo = $this->calculateParticipantSaldo($participant, $program);
+            // Saldo progresivo: refleja el impacto de cada pago/devolución
+            $saldo = $balanceMap[$payment->id] ?? 0;
 
             // Monto liberado (descuento tipo 'released')
             $liberatedAmount = 0;
