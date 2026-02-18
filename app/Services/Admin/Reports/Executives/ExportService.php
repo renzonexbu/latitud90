@@ -128,7 +128,8 @@ class ExportService
                 // Aplicar formato de moneda a las columnas numéricas
                 $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
                 $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                // Saldo: positivo (deuda) en rojo con paréntesis, negativo (excedente) en azul
+                $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('[Red]\(#,##0\);[Blue]#,##0;0');
 
                 $row++;
             }
@@ -715,7 +716,11 @@ class ExportService
                     $item['payment_date'] ?? 'N/A',
                     $item['payer_contact'] ?? 'N/A',
                     number_format($item['liberated'] ?? 0, 0, ',', '.'),
-                    number_format($item['saldo'] ?? 0, 0, ',', '.')
+                    ($item['saldo'] ?? 0) > 0
+                        ? '(' . number_format($item['saldo'], 0, ',', '.') . ')'
+                        : (($item['saldo'] ?? 0) < 0
+                            ? number_format(abs($item['saldo']), 0, ',', '.')
+                            : '0')
                 ];
             }
         }

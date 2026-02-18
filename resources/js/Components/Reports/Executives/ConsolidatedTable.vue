@@ -133,8 +133,8 @@
 
                         <!-- Saldo -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
-                            <div class="text-xs font-bold" :class="(item.saldo || 0) > 0 ? 'text-red-600' : 'text-green-600'">
-                                {{ formatPrice(item.saldo) }}
+                            <div class="text-xs font-bold" :class="getBalanceClass(item.saldo)">
+                                {{ formatBalance(item.saldo) }}
                             </div>
                         </td>
                     </tr>
@@ -189,6 +189,20 @@ const formatPrice = (price) => {
     if (!price) return "0";
     const numericPrice = Math.round(Number(price) || 0);
     return numericPrice.toLocaleString("es-CL");
+};
+
+const formatBalance = (balance) => {
+    const n = Math.round(Number(balance) || 0);
+    if (n > 0) return '(' + n.toLocaleString('es-CL') + ')';
+    if (n < 0) return Math.abs(n).toLocaleString('es-CL');
+    return '0';
+};
+
+const getBalanceClass = (balance) => {
+    const n = Number(balance) || 0;
+    if (n > 0) return 'text-red-600';
+    if (n < 0) return 'text-blue-600';
+    return 'text-gray-600';
 };
 
 const formatRut = (rut) => {

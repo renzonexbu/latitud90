@@ -1980,7 +1980,7 @@ class ReportController extends Controller
 
             $row = 2;
             $numberFormat = '#,##0';
-            $balanceFormat = '#,##0;(#,##0)';
+            $balanceFormat = '[Red]\(#,##0\);[Blue]#,##0;0';
             foreach ($data as $record) {
                 $sheet->setCellValue("A{$row}", $record['program_code']);
                 $sheet->setCellValue("B{$row}", $record['total_to_collect']);

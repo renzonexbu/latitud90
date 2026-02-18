@@ -358,8 +358,9 @@ const formatCurrency = (amount) => {
 const formatBalance = (amount) => {
     if (!amount) return '0'
     const value = parseInt(amount)
-    if (value < 0) return '(' + Math.abs(value).toLocaleString('es-CL') + ')'
-    return value.toLocaleString('es-CL')
+    if (value > 0) return '(' + value.toLocaleString('es-CL') + ')'
+    if (value < 0) return Math.abs(value).toLocaleString('es-CL')
+    return '0'
 }
 
 const visiblePages = computed(() => {
