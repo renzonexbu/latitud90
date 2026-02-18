@@ -116,7 +116,9 @@ class CreateOrderService
                 }
             }
 
-            // Crear la orden principal
+            // Crear la orden principal (montos siempre enteros, CLP sin centavos)
+            $participantTotalAmount = (int) round($participantTotalAmount);
+            $finalAmount = (int) round($finalAmount);
             $orderData = [
                 'participant_id' => $participant->id,
                 'program_id' => $programCourse->id, // program_id en orders apunta a program_courses
@@ -192,21 +194,21 @@ class CreateOrderService
         $discountValue = $program->discount_value; // porcentaje (0.10) o monto fijo
 
         if (!$discountType || !$discountValue) {
-            return [0.0, round($baseAmount, 2)];
+            return [0, (int) round($baseAmount)];
         }
 
         if ($discountType === 'monto_fijo') {
             $discount = min($baseAmount, (float) $discountValue);
-            return [round($discount, 2), round($baseAmount - $discount, 2)];
+            return [(int) round($discount), (int) round($baseAmount - $discount)];
         }
 
         // Asumimos valor porcentual en decimal (e.g., 0.10)
         $percent = (float) $discountValue;
         if ($percent <= 0) {
-            return [0.0, round($baseAmount, 2)];
+            return [0, (int) round($baseAmount)];
         }
-        $discount = round($baseAmount * $percent, 2);
-        return [$discount, round($baseAmount - $discount, 2)];
+        $discount = round($baseAmount * $percent);
+        return [(int) $discount, (int) round($baseAmount - $discount)];
     }
 
     /**
@@ -225,8 +227,8 @@ class CreateOrderService
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
-        $paidAmount = round($paidAmount, 2);
-        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+        $paidAmount = (int) round($paidAmount);
+        $participantBalance = max((int) round($participantTotalAmount - $paidAmount), 0);
 
         return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
@@ -307,7 +309,7 @@ class CreateOrderService
             return;
         }
 
-        $sumOverdue = round($overdueUnpaid->sum('amount'), 2);
+        $sumOverdue = (int) round($overdueUnpaid->sum('amount'));
 
         // Marcar vencidas como overdue pero NO poner amount=0. Se pagarán individualmente o se re-balancearán explícitamente.
         foreach ($overdueUnpaid as $detail) {
@@ -392,9 +394,9 @@ class CreateOrderService
 
             // Información de la cuota
             'installment_number' => $installmentNumber,
-            'base_amount' => $amount,
+            'base_amount' => (int) round($amount),
             'discount_amount' => 0,
-            'amount' => $amount,
+            'amount' => (int) round($amount),
             'due_date' => $dueDate ?? now(),
             'is_paid' => false,
             'status' => 'pending',

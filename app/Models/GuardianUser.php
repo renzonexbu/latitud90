@@ -32,6 +32,8 @@ class GuardianUser extends Authenticatable
         'comune_id',
         'status',
         'email_verified_at',
+        'email_verification_token',
+        'email_verification_expires_at',
         'language',
         'timezone',
         'last_login_at',
@@ -53,6 +55,7 @@ class GuardianUser extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_expires_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];

@@ -52,9 +52,9 @@ class InstallmentRepaymentService
                 throw new Exception("El máximo permitido es 24 cuotas");
             }
 
-            // Calcular el monto restante a distribuir
-            $paidAmount = $paidInstallments->sum('amount');
-            $remainingBalance = $plan->total_amount - $paidAmount;
+            // Calcular el monto restante a distribuir (entero, CLP sin centavos)
+            $paidAmount = (int) round($paidInstallments->sum('amount'));
+            $remainingBalance = (int) round($plan->total_amount - $paidAmount);
             
             if ($remainingBalance <= 0) {
                 throw new Exception("No hay monto pendiente para reestructurar");

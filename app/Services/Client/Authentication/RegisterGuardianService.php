@@ -62,15 +62,12 @@ class RegisterGuardianService
                 ]);
             }
 
-            // Generar token de verificación
+            // Generar token de verificación y guardarlo en BD
             $verificationToken = Str::random(64);
-
-            // Guardar el token en cache por 24 horas
-            cache()->put(
-                'email_verification_' . $guardianUser->id,
-                $verificationToken,
-                now()->addHours(24)
-            );
+            $guardianUser->update([
+                'email_verification_token' => $verificationToken,
+                'email_verification_expires_at' => now()->addHours(48),
+            ]);
 
             // Enviar email de verificación de manera inmediata (no bloquea el registro si falla)
             try {
@@ -128,17 +125,6 @@ class RegisterGuardianService
     public function verifyEmail(int $userId, string $token): array
     {
         try {
-            // Verificar token en cache
-            $cachedToken = cache()->get('email_verification_' . $userId);
-
-            if (!$cachedToken || $cachedToken !== $token) {
-                return [
-                    'success' => false,
-                    'message' => 'Token de verificación inválido o expirado.'
-                ];
-            }
-
-            // Obtener el usuario
             $guardianUser = GuardianUser::find($userId);
 
             if (!$guardianUser) {
@@ -148,13 +134,30 @@ class RegisterGuardianService
                 ];
             }
 
-            // Marcar email como verificado
-            $guardianUser->update([
-                'email_verified_at' => now()
-            ]);
+            // Verificar token en BD
+            if (!$guardianUser->email_verification_token || $guardianUser->email_verification_token !== $token) {
+                return [
+                    'success' => false,
+                    'message' => 'Token de verificación inválido.'
+                ];
+            }
 
-            // Eliminar el token del cache
-            cache()->forget('email_verification_' . $userId);
+            // Verificar expiración
+            if ($guardianUser->email_verification_expires_at && $guardianUser->email_verification_expires_at->isPast()) {
+                return [
+                    'success' => false,
+                    'message' => 'El enlace de verificación ha expirado. Solicita uno nuevo.',
+                    'expired' => true,
+                    'email' => $guardianUser->email
+                ];
+            }
+
+            // Marcar email como verificado y limpiar token
+            $guardianUser->update([
+                'email_verified_at' => now(),
+                'email_verification_token' => null,
+                'email_verification_expires_at' => null,
+            ]);
 
             return [
                 'success' => true,
@@ -192,16 +195,14 @@ class RegisterGuardianService
                 ];
             }
 
-            // Generar nuevo token
+            // Generar nuevo token y guardarlo en BD
             $verificationToken = Str::random(64);
+            $guardianUser->update([
+                'email_verification_token' => $verificationToken,
+                'email_verification_expires_at' => now()->addHours(48),
+            ]);
 
-            cache()->put(
-                'email_verification_' . $guardianUser->id,
-                $verificationToken,
-                now()->addHours(24)
-            );
-
-            // Reenviar email de manera inmediata
+            // Reenviar email
             try {
                 Mail::to($guardianUser->email)->sendNow(
                     new GuardianEmailVerification($guardianUser, $verificationToken)

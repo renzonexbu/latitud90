@@ -27,13 +27,14 @@ class PaymentOrderService
             $participant = $installment->installmentPlan->participant;
             $program = $installment->installmentPlan->program;
 
-            // Crear nueva orden para este pago específico
+            // Crear nueva orden para este pago específico (montos siempre enteros, CLP sin centavos)
+            $installmentAmount = (int) round($installment->amount);
             $order = Order::create([
                 'participant_id' => $participant->id,
                 'program_id' => $program->id,
-                'total_amount' => $installment->amount,
+                'total_amount' => $installmentAmount,
                 'discount' => 0,
-                'final_amount' => $installment->amount,
+                'final_amount' => $installmentAmount,
                 'total_installments' => 1, // Siempre 1 para pagos de cuotas
                 'payment_type' => 'monthly', // Pago de cuota mensual
                 'status' => 'pending',
@@ -203,9 +204,9 @@ class PaymentOrderService
 
             // Información del pago
             'installment_number' => $installment ? $installment->installment_number : 1,
-            'base_amount' => $order->final_amount,
+            'base_amount' => (int) round($order->final_amount),
             'discount_amount' => 0,
-            'amount' => $order->final_amount,
+            'amount' => (int) round($order->final_amount),
             'due_date' => $installment ? $installment->due_date : now(),
             'is_paid' => false,
             'status' => 'pending',

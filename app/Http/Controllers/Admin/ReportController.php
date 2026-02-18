@@ -70,9 +70,18 @@ class ReportController extends Controller
 
     public function index(Request $request)
     {
+        $user = auth()->user();
+
+        // Marketing-only no tiene acceso a reportes
+        if ($user && $user->hasRole('marketing')
+            && !$user->hasRole('super_admin')
+            && !$user->hasRole('contabilidad')
+            && !$user->hasRole('ejecutivo_comercial')) {
+            return redirect()->route('admin.site-content.index');
+        }
+
         // Si el usuario es ejecutivo comercial (y no es contabilidad ni super admin),
         // redirigir a reportes de ejecutivos
-        $user = auth()->user();
         if ($user && $user->hasRole('ejecutivo_comercial') &&
             !$user->hasRole('contabilidad') &&
             !$user->hasRole('super_admin')) {

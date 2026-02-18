@@ -479,7 +479,7 @@ export default {
         },
 
         formatPrice(amount) {
-            return new Intl.NumberFormat("es-CL").format(amount || 0);
+            return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(amount || 0);
         },
 
         // Helper para normalizar fechas sin hora (YYYY-MM-DD) evitando problemas de timezone

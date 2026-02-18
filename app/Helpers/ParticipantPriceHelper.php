@@ -28,8 +28,8 @@ class ParticipantPriceHelper
         // 3. Calcular descuentos aplicados
         $discounts = self::calculateDiscounts($participant, $programCourse, $basePrice);
 
-        // 4. Calcular precio final
-        $finalPrice = max(0, $basePrice + $adjustments - $discounts);
+        // 4. Calcular precio final (redondeado a entero, CLP no tiene centavos)
+        $finalPrice = (int) round(max(0, $basePrice + $adjustments - $discounts));
 
         // LOG para depuración
         \Illuminate\Support\Facades\Log::info('ParticipantPriceHelper::calculateParticipantPrice', [

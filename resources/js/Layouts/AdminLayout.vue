@@ -21,6 +21,7 @@
             <!-- Navigation Icons -->
             <nav class="flex flex-col flex-1">
                 <NavLink
+                    v-if="!isOnlyMarketing"
                     :href="route('admin.dashboard')"
                     :active="route().current('admin.dashboard')"
                     class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -324,7 +325,7 @@
                     </div>
                 </div>
                 <!-- Reportes con Submenú -->
-                <div v-if="isEjecutivoComercial || isContabilidad || isSuperAdmin || isMarketing" class="relative reports-dropdown-container">
+                <div v-if="(isEjecutivoComercial || isContabilidad || isSuperAdmin) && !isOnlyMarketing" class="relative reports-dropdown-container">
                     <button
                         @click="toggleReportsMenu"
                         class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
@@ -632,6 +633,12 @@ export default {
             return this.$page.props.auth.user &&
                    this.$page.props.auth.user.roles &&
                    this.$page.props.auth.user.roles.includes('super_admin');
+        },
+        isOnlyMarketing() {
+            return this.isMarketing &&
+                   !this.isSuperAdmin &&
+                   !this.isContabilidad &&
+                   !this.isEjecutivoComercial;
         },
     },
     watch: {

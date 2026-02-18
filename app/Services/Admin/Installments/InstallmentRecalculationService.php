@@ -25,9 +25,9 @@ class InstallmentRecalculationService
         try {
             $plan = InstallmentPlan::with(['participant', 'program'])->findOrFail($installmentPlanId);
             
-            // Calcular el nuevo precio final con descuentos
+            // Calcular el nuevo precio final con descuentos (entero, CLP sin centavos)
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($plan->participant, $plan->program);
-            $newTotalAmount = $priceData['final_price'];
+            $newTotalAmount = (int) round($priceData['final_price']);
             
             // Obtener cuotas pagadas
             $paidInstallments = $plan->installments()
@@ -44,8 +44,8 @@ class InstallmentRecalculationService
             // Calcular monto pagado
             $paidAmount = $paidInstallments->sum('amount');
             
-            // Calcular nuevo saldo pendiente
-            $newRemainingBalance = $newTotalAmount - $paidAmount;
+            // Calcular nuevo saldo pendiente (entero)
+            $newRemainingBalance = (int) round($newTotalAmount - $paidAmount);
             
             if ($newRemainingBalance <= 0) {
                 throw new Exception("No hay monto pendiente después del descuento");

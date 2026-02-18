@@ -23,6 +23,15 @@ class AdminController extends Controller
      */
     public function dashboard(Request $request)
     {
+        // Marketing-only users no tienen acceso al Dashboard
+        $user = $request->user();
+        if ($user && $user->hasRole('marketing')
+            && !$user->hasRole('super_admin')
+            && !$user->hasRole('contabilidad')
+            && !$user->hasRole('ejecutivo_comercial')) {
+            return redirect()->route('admin.site-content.index');
+        }
+
         // Estadísticas generales
         $stats = [
             'total_passengers' => Participant::count(),

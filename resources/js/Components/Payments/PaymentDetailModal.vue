@@ -505,7 +505,7 @@ const getStatusLabel = (status, payment = null) => {
 };
 
 const formatPrice = (amount) => {
-    return new Intl.NumberFormat('es-CL').format(amount || 0);
+    return new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(amount || 0);
 };
 
 const formatDate = (date) => {

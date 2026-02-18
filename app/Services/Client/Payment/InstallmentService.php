@@ -297,8 +297,8 @@ class InstallmentService
             })
             ->whereIn('status', ['approved', 'completed'])
             ->sum('amount');
-        $paidAmount = round($paidAmount, 2);
-        $participantBalance = max(round($participantTotalAmount - $paidAmount, 2), 0);
+        $paidAmount = (int) round($paidAmount);
+        $participantBalance = max((int) round($participantTotalAmount - $paidAmount), 0);
 
         return [$participantTotalAmount, $paidAmount, $participantBalance];
     }
