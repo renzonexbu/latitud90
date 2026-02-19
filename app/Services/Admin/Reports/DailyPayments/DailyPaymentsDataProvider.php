@@ -117,6 +117,18 @@ class DailyPaymentsDataProvider
         $summaryQuery->orders = null;
         $summaryQuery->columns = null;
 
+        // Excluir devoluciones/reembolsos de los totales
+        $summaryQuery->where('pay.amount', '>=', 0)
+            ->where(function ($q) {
+                $q->whereNull('pg.code')->orWhere('pg.code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('po.gateway_code')->orWhere('po.gateway_code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('pay.document_type')->orWhere('pay.document_type', '!=', 'VC');
+            });
+
         // Hacer el SELECT con agregaciones
         $summary = $summaryQuery->selectRaw('
             COUNT(DISTINCT pay.order_id) as total_orders,
@@ -139,6 +151,16 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
             ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success', 'rejected'])
+            ->where('pay.amount', '>=', 0)
+            ->where(function ($q) {
+                $q->whereNull('pg.code')->orWhere('pg.code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('po.gateway_code')->orWhere('po.gateway_code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('pay.document_type')->orWhere('pay.document_type', '!=', 'VC');
+            })
             ->where(function($q) {
                 $q->whereDate('pay.transaction_date', now()->toDateString())
                   ->orWhereDate('pay.created_at', now()->toDateString())
@@ -158,6 +180,16 @@ class DailyPaymentsDataProvider
             ->leftJoin('payment_options as po', 'pay.payment_option_id', '=', 'po.id')
             ->leftJoin('document as doc', 'p.document_type', '=', 'doc.id')
             ->whereIn('pay.status', ['approved', 'completed', 'paid', 'success', 'rejected'])
+            ->where('pay.amount', '>=', 0)
+            ->where(function ($q) {
+                $q->whereNull('pg.code')->orWhere('pg.code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('po.gateway_code')->orWhere('po.gateway_code', '!=', 'refund');
+            })
+            ->where(function ($q) {
+                $q->whereNull('pay.document_type')->orWhere('pay.document_type', '!=', 'VC');
+            })
             ->count();
 
         return [

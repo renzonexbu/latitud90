@@ -7,7 +7,7 @@
         <!-- Header -->
         <DailyPaymentsHeader
             title="Reporte de Pagos Diarios"
-            subtitle="Pagos realizados diariamente con información detallada"
+            subtitle="Pagos recibidos diariamente con información detallada"
             :show-export-button="true"
             @export-clicked="openExportModal"
         />
