@@ -4,8 +4,8 @@
         <aside
             @mouseenter="sidebarExpanded = true"
             @mouseleave="sidebarExpanded = false"
-            class="mt-3 mb-3 ml-6 rounded-[20px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)] fixed z-50 transition-all duration-300 ease-in-out"
-            :class="sidebarExpanded ? 'w-[250px]' : 'w-[102px]'"
+            class="mt-3 mb-3 ml-3 lg:ml-6 rounded-[20px] bg-white shadow-md flex flex-col h-[calc(100vh-24px)] fixed z-50 transition-all duration-300 ease-in-out"
+            :class="sidebarExpanded ? 'w-[250px]' : 'w-[80px] lg:w-[102px]'"
         >
             <!-- Logo Section -->
             <div class="flex items-center justify-center py-4">
@@ -19,7 +19,7 @@
             </div>
 
             <!-- Navigation Icons -->
-            <nav class="flex flex-col flex-1">
+            <nav class="flex flex-col flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
                 <NavLink
                     v-if="!isOnlyMarketing"
                     :href="route('admin.dashboard')"
@@ -527,7 +527,7 @@
         </aside>
 
         <!-- Page Content -->
-        <div class="flex-1 flex flex-col h-full ml-[108px] lg:ml-[126px] min-w-0">
+        <div class="flex-1 flex flex-col h-full ml-[92px] lg:ml-[126px] min-w-0">
             <main class="flex-1 overflow-y-auto overflow-x-auto">
                 <slot />
             </main>
@@ -777,3 +777,21 @@ export default {
     },
 };
 </script>
+
+<style scoped>
+/* Scrollbar delgado para el sidebar en pantallas pequeñas */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.4);
+    border-radius: 3px;
+}
+.scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+</style>
