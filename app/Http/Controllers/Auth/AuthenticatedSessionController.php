@@ -36,8 +36,11 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        // Marketing: redirigir a contenido del sitio
-        if ($user->hasRole('marketing') && !$user->hasRole('super_admin') && !$user->hasRole('contabilidad')) {
+        // Marketing-only: redirigir a contenido del sitio (si tiene otro rol, va al dashboard)
+        if ($user->hasRole('marketing')
+            && !$user->hasRole('super_admin')
+            && !$user->hasRole('contabilidad')
+            && !$user->hasRole('ejecutivo_comercial')) {
             return redirect()->intended('/admin/site-content');
         }
 
