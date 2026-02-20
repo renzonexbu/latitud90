@@ -106,7 +106,9 @@
                                                     <div><span class="font-semibold">RUT:</span> {{ detail.data?.participant_rut }}</div>
                                                     <div><span class="font-semibold">Programa:</span> {{ detail.data?.program_name }}</div>
                                                     <div><span class="font-semibold">Monto Devolución:</span> ${{ formatNumber(detail.data?.refund_amount) }}</div>
-                                                    <div><span class="font-semibold">Documento:</span> {{ detail.data?.document_number }}</div>
+                                                    <div><span class="font-semibold">Tipo:</span> {{ detail.data?.refund_type || 'N/A' }}</div>
+                                                    <div><span class="font-semibold">Aplicar a:</span> {{ detail.data?.aplicar_a || 'N/A' }}</div>
+                                                    <div><span class="font-semibold">Documento:</span> {{ detail.data?.document_number || '-' }}</div>
                                                     <div><span class="font-semibold">Monto Pagado:</span> ${{ formatNumber(detail.data?.paid_amount) }}</div>
                                                     <div><span class="font-semibold">Nuevo Saldo:</span> ${{ formatNumber(detail.data?.new_balance) }}</div>
                                                 </div>
@@ -183,7 +185,7 @@
                         <div class="flex justify-between items-center mb-8">
                             <div>
                                 <h2 class="text-3xl font-bold text-gray-900">Importar Devoluciones desde Excel</h2>
-                                <p class="text-gray-600 mt-2">Importe múltiples notas de crédito desde un archivo Excel</p>
+                                <p class="text-gray-600 mt-2">Importe múltiples devoluciones (NC y RA) desde un archivo Excel</p>
                             </div>
                             <div class="flex gap-3">
                                 <Link
@@ -198,6 +200,95 @@
                                 >
                                     Cancelar
                                 </Link>
+                            </div>
+                        </div>
+
+                        <!-- Instrucciones del formato -->
+                        <div class="mb-6 bg-gray-50 rounded-lg border border-gray-200 p-4">
+                            <h3 class="text-sm font-bold text-gray-800 mb-3">Formato del archivo Excel</h3>
+
+                            <div class="mb-3">
+                                <p class="text-xs font-semibold text-gray-700 mb-1">Columnas requeridas:</p>
+                                <div class="overflow-x-auto">
+                                    <table class="text-xs w-full border border-gray-300">
+                                        <thead>
+                                            <tr class="bg-gray-200">
+                                                <th class="px-2 py-1 text-left border-r border-gray-300">Columna</th>
+                                                <th class="px-2 py-1 text-left border-r border-gray-300">Descripción</th>
+                                                <th class="px-2 py-1 text-left">Ejemplo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">RUT</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">RUT del participante</td>
+                                                <td class="px-2 py-1">12.345.678-9</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300 bg-white">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Nro. Negocio</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Código del programa</td>
+                                                <td class="px-2 py-1">V0116</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Monto</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Monto de la devolución (positivo)</td>
+                                                <td class="px-2 py-1">150000</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300 bg-white">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Fecha</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Fecha de la transacción</td>
+                                                <td class="px-2 py-1">20/02/2026</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Tipo Reembolso</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">NC (Nota de Crédito) o RA (Reverso Administrativo)</td>
+                                                <td class="px-2 py-1">NC</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="text-xs font-semibold text-gray-700 mb-1">Columnas opcionales:</p>
+                                <div class="overflow-x-auto">
+                                    <table class="text-xs w-full border border-gray-300">
+                                        <thead>
+                                            <tr class="bg-gray-200">
+                                                <th class="px-2 py-1 text-left border-r border-gray-300">Columna</th>
+                                                <th class="px-2 py-1 text-left border-r border-gray-300">Descripción</th>
+                                                <th class="px-2 py-1 text-left">Default</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Aplicar A</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Abonos o Aportes (solo para NC)</td>
+                                                <td class="px-2 py-1">Abonos</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300 bg-white">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Cod. SII</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Código SII</td>
+                                                <td class="px-2 py-1">-</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">N. Documento</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Número de documento</td>
+                                                <td class="px-2 py-1">-</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300 bg-white">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Nombre del Cliente</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Nombre del pagador</td>
+                                                <td class="px-2 py-1">Nombre del participante</td>
+                                            </tr>
+                                            <tr class="border-t border-gray-300">
+                                                <td class="px-2 py-1 font-semibold border-r border-gray-300">Notas</td>
+                                                <td class="px-2 py-1 border-r border-gray-300">Observaciones</td>
+                                                <td class="px-2 py-1">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
 

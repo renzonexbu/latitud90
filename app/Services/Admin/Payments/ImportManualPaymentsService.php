@@ -299,7 +299,10 @@ class ImportManualPaymentsService
 
         // 9. Crear Payment
         $referencia = $rawData['referencia'] ?? $rowData['referencia'] ?? $rowData['reference'] ?? null;
-        $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+        // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
+        $documentType = ($paymentOption?->code === 'presential_credit_temp')
+            ? 'CT'
+            : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
 
         $payment = Payment::create([
             'order_id' => $order->id,
@@ -1252,7 +1255,10 @@ class ImportManualPaymentsService
             $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
             $paymentNumber = $existingPaymentsCount + 1;
             $referencia = $rowData['referencia'] ?? null;
-            $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+            // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
+            $documentType = ($paymentOption?->code === 'presential_credit_temp')
+                ? 'CT'
+                : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
 
             $payment = Payment::create([
                 'order_id' => $order->id,
@@ -1463,7 +1469,10 @@ class ImportManualPaymentsService
 
             // 9. Crear Payment
             $referencia = $rowData['referencia'] ?? null;
-            $documentType = PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+            // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
+            $documentType = ($paymentOption?->code === 'presential_credit_temp')
+                ? 'CT'
+                : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
 
             $payment = Payment::create([
                 'order_id' => $order->id,

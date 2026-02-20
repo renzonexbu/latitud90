@@ -15,8 +15,8 @@ use App\Traits\AdminLogging;
 use App\Helpers\RutHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Carbon\Carbon;
 
 class ImportRefundsService
@@ -25,6 +25,27 @@ class ImportRefundsService
 
     private CreateRefundService $createRefundService;
 
+    /**
+     * Mapeo de campos a variaciones de header aceptadas (case-insensitive)
+     */
+    private array $fieldMappings = [
+        // Requeridos
+        'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno', 'rut participante'],
+        'nro_negocio' => ['nro. negocio', 'nro negocio', 'numero negocio', 'numero de negocio'],
+        'monto' => ['monto', 'total', 'valor', 'precio'],
+        'fecha' => ['fecha', 'fecha de pago', 'fecha pago', 'fecha_pago'],
+        'tipo_reembolso' => ['tipo reembolso', 'tipo de reembolso', 'tipo'],
+
+        // Opcionales
+        'aplicar_a' => ['aplicar a', 'aplicar', 'aplicar a:'],
+        'cod_sii' => ['cod. sii', 'codigo sii', 'cod sii', 'código sii'],
+        'n_documento' => ['n. documento', 'nro documento', 'numero documento', 'nro. documento', 'n documento'],
+        'nombre_cliente' => ['nombre del cliente', 'nombre cliente', 'nombre', 'nombre del participante'],
+        'notas' => ['notas', 'observaciones', 'nota'],
+    ];
+
+    private array $requiredFields = ['rut', 'nro_negocio', 'monto', 'fecha', 'tipo_reembolso'];
+
     public function __construct(CreateRefundService $createRefundService)
     {
         $this->createRefundService = $createRefundService;
@@ -32,42 +53,33 @@ class ImportRefundsService
 
     /**
      * Preview archivo Excel de devoluciones WITHOUT inserting into database
-     * Shows what would be imported for user confirmation
      */
     public function previewExcel($file): array
     {
         try {
-            // Guardar el archivo temporalmente
             $filePath = $file->store('temp/refunds', 'public');
             $fullPath = storage_path('app/public/' . $filePath);
 
-            // Leer el archivo Excel
             $spreadsheet = IOFactory::load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
-            // Buscar dinámicamente la fila y columna que contienen los headers
-            $headerPosition = $this->findHeaderPosition($rows);
-            $headerRowIndex = $headerPosition['row'];
-            $headerColOffset = $headerPosition['col'];
+            // Buscar dinámicamente la fila de headers
+            $headerInfo = $this->findHeaderRow($rows);
 
-            if ($headerRowIndex === -1) {
-                throw new \Exception("No se encontraron los headers requeridos en el archivo Excel");
+            if ($headerInfo['row'] === -1) {
+                throw new \Exception("No se encontraron los headers requeridos en el archivo Excel. Se esperan al menos: RUT, Nro. Negocio, Monto, Fecha, Tipo Reembolso");
             }
 
-            // Extraer headers con el offset de columna correcto
-            $headers = $this->extractHeaders($rows[$headerRowIndex], $headerColOffset);
+            $columnIndices = $headerInfo['indices'];
+            $headerRowIndex = $headerInfo['row'];
             $dataRows = array_slice($rows, $headerRowIndex + 1);
 
-            Log::info('=== PREVIEW DE DEVOLUCIONES ===');
-            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1) . ', columna: ' . ($headerColOffset + 1));
-            Log::info('Headers extraídos: ' . json_encode($headers, JSON_UNESCAPED_UNICODE));
+            Log::info('=== PREVIEW DE DEVOLUCIONES (nuevo formato) ===');
+            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1));
+            Log::info('Columnas mapeadas: ' . json_encode($columnIndices));
             Log::info('Número de filas de datos: ' . count($dataRows));
 
-            // Validar headers
-            $this->validateHeaders($headers);
-
-            // Preview de cada fila (NO insertar en BD)
             $results = [
                 'processed' => 0,
                 'successful' => 0,
@@ -76,7 +88,7 @@ class ImportRefundsService
                 'details' => []
             ];
 
-            $previewLimit = 500; // Limit preview to first 500 rows
+            $previewLimit = 500;
             $rowCount = 0;
 
             foreach ($dataRows as $rowIndex => $row) {
@@ -84,24 +96,16 @@ class ImportRefundsService
                     break;
                 }
 
-                // Extraer datos con el offset de columna correcto
-                $rowDataArray = $this->extractRowData($row, $headerColOffset);
+                $rowData = $this->extractRowData($row, $columnIndices);
 
                 // Saltar filas vacías
-                if (empty(array_filter($rowDataArray))) {
+                if ($this->isEmptyRow($rowData)) {
                     continue;
                 }
 
-                // Asegurar que la fila tenga el mismo número de columnas que los headers
-                while (count($rowDataArray) < count($headers)) {
-                    $rowDataArray[] = '';
-                }
-
-                $rowData = array_combine($headers, $rowDataArray);
                 $results['processed']++;
 
                 try {
-                    // Preview de la fila (NO insertar en BD)
                     $result = $this->previewRefundRow($rowData, $headerRowIndex + 2 + $rowIndex);
 
                     if ($result['success']) {
@@ -129,7 +133,6 @@ class ImportRefundsService
                 $rowCount++;
             }
 
-            // Limpiar archivo temporal
             unlink($fullPath);
 
             Log::info('Preview de devoluciones completado', [
@@ -145,7 +148,6 @@ class ImportRefundsService
             ];
 
         } catch (\Exception $e) {
-            // Limpiar archivo temporal si existe
             if (isset($fullPath) && file_exists($fullPath)) {
                 unlink($fullPath);
             }
@@ -170,38 +172,28 @@ class ImportRefundsService
         try {
             DB::beginTransaction();
 
-            // Guardar el archivo temporalmente
             $filePath = $file->store('temp/refunds', 'public');
             $fullPath = storage_path('app/public/' . $filePath);
 
-            // Leer el archivo Excel
             $spreadsheet = IOFactory::load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
-            // Buscar dinámicamente la fila y columna que contienen los headers
-            $headerPosition = $this->findHeaderPosition($rows);
-            $headerRowIndex = $headerPosition['row'];
-            $headerColOffset = $headerPosition['col'];
+            $headerInfo = $this->findHeaderRow($rows);
 
-            if ($headerRowIndex === -1) {
-                throw new \Exception("No se encontraron los headers requeridos en el archivo Excel");
+            if ($headerInfo['row'] === -1) {
+                throw new \Exception("No se encontraron los headers requeridos en el archivo Excel. Se esperan al menos: RUT, Nro. Negocio, Monto, Fecha, Tipo Reembolso");
             }
 
-            // Extraer headers con el offset de columna correcto
-            $headers = $this->extractHeaders($rows[$headerRowIndex], $headerColOffset);
+            $columnIndices = $headerInfo['indices'];
+            $headerRowIndex = $headerInfo['row'];
             $dataRows = array_slice($rows, $headerRowIndex + 1);
 
-            // Log de información de headers encontrados
-            Log::info('=== IMPORTACIÓN DE DEVOLUCIONES ===');
-            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1) . ', columna: ' . ($headerColOffset + 1));
-            Log::info('Headers detectados: ' . json_encode($headers, JSON_UNESCAPED_UNICODE));
+            Log::info('=== IMPORTACIÓN DE DEVOLUCIONES (nuevo formato) ===');
+            Log::info('Headers encontrados en fila: ' . ($headerRowIndex + 1));
+            Log::info('Columnas mapeadas: ' . json_encode($columnIndices));
             Log::info('Número de filas de datos: ' . count($dataRows));
 
-            // Validar headers
-            $this->validateHeaders($headers);
-
-            // Procesar cada fila
             $results = [
                 'processed' => 0,
                 'successful' => 0,
@@ -211,31 +203,21 @@ class ImportRefundsService
             ];
 
             foreach ($dataRows as $rowIndex => $row) {
-                // Extraer datos con el offset de columna correcto
-                $rowDataArray = $this->extractRowData($row, $headerColOffset);
+                $rowData = $this->extractRowData($row, $columnIndices);
 
                 // Saltar filas vacías
-                if (empty(array_filter($rowDataArray))) {
+                if ($this->isEmptyRow($rowData)) {
                     continue;
                 }
 
-                // Asegurar que la fila tenga el mismo número de columnas que los headers
-                while (count($rowDataArray) < count($headers)) {
-                    $rowDataArray[] = '';
-                }
-
-                $rowData = array_combine($headers, $rowDataArray);
                 $results['processed']++;
+                $rowNumber = $headerRowIndex + 2 + $rowIndex;
 
-                // Log de datos de la fila antes de procesar
-                Log::info('--- Fila ' . ($headerRowIndex + 2 + $rowIndex) . ' ---');
-                Log::info('Datos raw: ' . json_encode($rowDataArray, JSON_UNESCAPED_UNICODE));
+                Log::info('--- Fila ' . $rowNumber . ' ---');
                 Log::info('Datos mapeados: ' . json_encode($rowData, JSON_UNESCAPED_UNICODE));
 
                 try {
-                    Log::info("Iniciando procesamiento de fila " . ($headerRowIndex + 2 + $rowIndex));
-                    // Validar y procesar la fila
-                    $result = $this->processRefundRow($rowData, $headerRowIndex + 2 + $rowIndex);
+                    $result = $this->processRefundRow($rowData, $rowNumber);
 
                     if ($result['success']) {
                         $results['successful']++;
@@ -249,10 +231,10 @@ class ImportRefundsService
                     $results['details'][] = $result;
 
                 } catch (\Exception $e) {
-                    Log::error('Error en fila ' . ($headerRowIndex + 2 + $rowIndex) . ': ' . $e->getMessage());
+                    Log::error('Error en fila ' . $rowNumber . ': ' . $e->getMessage());
                     $results['errors']++;
                     $results['details'][] = [
-                        'row' => $headerRowIndex + 2 + $rowIndex,
+                        'row' => $rowNumber,
                         'success' => false,
                         'error' => $e->getMessage(),
                         'warning' => false
@@ -260,16 +242,14 @@ class ImportRefundsService
                 }
             }
 
-            // Limpiar archivo temporal
             unlink($fullPath);
 
             DB::commit();
 
-            // Log de la importación
             $this->logCreate(
                 'payments',
                 'ImportRefunds',
-                0, // ID fijo para importaciones masivas
+                0,
                 "Importación de devoluciones completada: {$results['successful']} exitosos, {$results['errors']} errores",
                 $results,
                 [
@@ -288,8 +268,7 @@ class ImportRefundsService
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
-            // Limpiar archivo temporal si existe
+
             if (isset($fullPath) && file_exists($fullPath)) {
                 unlink($fullPath);
             }
@@ -307,112 +286,123 @@ class ImportRefundsService
     }
 
     /**
-     * Buscar dinámicamente la fila y columna que contienen los headers
-     * Retorna un array con 'row' (índice de fila) y 'col' (índice de columna inicial)
+     * Buscar dinámicamente la fila de headers usando field mappings flexibles.
+     * Retorna ['row' => index, 'indices' => [field => colIndex, ...]]
      */
-    private function findHeaderPosition(array $rows): array
+    private function findHeaderRow(array $rows): array
     {
-        $expectedHeaders = [
-            'Cod. SII',
-            'N. Documento',
-            'Fecha',
-            'RUT',
-            'Nombre del Cliente',
-            'Neto Afecto',
-            'Neto Exento',
-            'Iva',
-            'Total',
-            'Negocio Afiliado'
-        ];
-
-        Log::info('Buscando headers en ' . count($rows) . ' filas...');
-
         foreach ($rows as $rowIndex => $row) {
-            // Buscar en qué columna empieza el primer header
-            foreach ($row as $colIndex => $cell) {
-                $cellValue = trim($cell ?? '');
+            $normalizedRow = array_map(function ($cell) {
+                return strtolower(trim($cell ?? ''));
+            }, $row);
 
-                // Si encontramos "Cod. SII", verificamos si esta fila tiene los headers
-                if ($cellValue === 'Cod. SII') {
-                    // Extraer headers desde esta columna
-                    $headersFromCol = array_slice($row, $colIndex);
-                    $normalizedHeaders = array_map('trim', $headersFromCol);
+            $indices = $this->getColumnIndices($normalizedRow);
 
-                    // Verificar cuántos headers esperados encontramos
-                    $foundHeaders = 0;
-                    $foundHeaderNames = [];
-                    foreach ($expectedHeaders as $expectedHeader) {
-                        if (in_array($expectedHeader, $normalizedHeaders)) {
-                            $foundHeaders++;
-                            $foundHeaderNames[] = $expectedHeader;
-                        }
-                    }
+            // Verificar que al menos 4 de 5 campos requeridos estén presentes
+            $foundRequired = 0;
+            foreach ($this->requiredFields as $field) {
+                if (isset($indices[$field])) {
+                    $foundRequired++;
+                }
+            }
 
-                    Log::info("Fila {$rowIndex}, Columna {$colIndex}: Encontrados {$foundHeaders}/10 headers: " . implode(', ', $foundHeaderNames));
+            if ($foundRequired >= 4) {
+                Log::info("Headers encontrados en fila " . ($rowIndex + 1) . ": {$foundRequired}/5 requeridos");
+                return ['row' => $rowIndex, 'indices' => $indices];
+            }
+        }
 
-                    // Si encontramos al menos 8 de los 10 headers, consideramos que es la posición correcta
-                    if ($foundHeaders >= 8) {
-                        Log::info("Headers encontrados en fila: " . ($rowIndex + 1) . ", columna: " . ($colIndex + 1));
-                        return ['row' => $rowIndex, 'col' => $colIndex];
+        return ['row' => -1, 'indices' => []];
+    }
+
+    /**
+     * Obtener índices de columna mapeando headers a campos internos
+     */
+    private function getColumnIndices(array $normalizedHeaders): array
+    {
+        $indices = [];
+
+        foreach ($this->fieldMappings as $field => $possibleHeaders) {
+            foreach ($normalizedHeaders as $index => $normalizedHeader) {
+                if (empty($normalizedHeader)) continue;
+
+                foreach ($possibleHeaders as $possibleHeader) {
+                    if ($normalizedHeader === $possibleHeader ||
+                        stripos($normalizedHeader, $possibleHeader) !== false ||
+                        stripos($possibleHeader, $normalizedHeader) !== false) {
+                        $indices[$field] = $index;
+                        break 2;
                     }
                 }
             }
         }
 
-        Log::error('No se encontró la fila de headers');
-        return ['row' => -1, 'col' => 0];
+        return $indices;
     }
 
     /**
-     * Extraer headers ajustando el offset de columna
-     * Solo toma las 10 columnas esperadas para evitar columnas vacías extras
+     * Extraer datos de una fila usando los índices de columna mapeados
      */
-    private function extractHeaders(array $headerRow, int $colOffset): array
+    private function extractRowData(array $row, array $columnIndices): array
     {
-        $headers = array_slice($headerRow, $colOffset, 10); // Solo 10 headers esperados
-        return array_map('trim', $headers);
+        $data = [];
+        foreach ($columnIndices as $field => $colIndex) {
+            $data[$field] = trim($row[$colIndex] ?? '');
+        }
+        return $data;
     }
 
     /**
-     * Extraer datos de una fila ajustando el offset de columna
-     * Solo toma las 10 columnas correspondientes a los headers
+     * Verificar si una fila está vacía
      */
-    private function extractRowData(array $row, int $colOffset): array
+    private function isEmptyRow(array $rowData): bool
     {
-        return array_slice($row, $colOffset, 10); // Solo 10 columnas de datos
-    }
-
-    /**
-     * Validar headers del Excel
-     */
-    private function validateHeaders(array $headers): void
-    {
-        $expectedHeaders = [
-            'Cod. SII',
-            'N. Documento',
-            'Fecha',
-            'RUT',
-            'Nombre del Cliente',
-            'Neto Afecto',
-            'Neto Exento',
-            'Iva',
-            'Total',
-            'Negocio Afiliado'
-        ];
-
-        $normalizedHeaders = array_map('trim', $headers);
-        $normalizedExpected = array_map('trim', $expectedHeaders);
-
-        foreach ($normalizedExpected as $expected) {
-            if (!in_array($expected, $normalizedHeaders)) {
-                throw new \Exception("Header requerido no encontrado: {$expected}");
+        foreach ($this->requiredFields as $field) {
+            if (!empty($rowData[$field] ?? '')) {
+                return false;
             }
         }
+        return true;
+    }
+
+    /**
+     * Mapear Tipo Reembolso + Aplicar A → refund_type code
+     */
+    private function mapRefundType(string $tipoReembolso, string $aplicarA = ''): array
+    {
+        $tipo = strtoupper(trim($tipoReembolso));
+        $aplicar = strtolower(trim($aplicarA));
+
+        if ($tipo === 'RA') {
+            return [
+                'refund_type' => 'refund_admin_reversal',
+                'label' => 'Reverso Administrativo (RA)',
+            ];
+        }
+
+        if ($tipo === 'NC') {
+            if ($aplicar === 'aportes' || $aplicar === 'aporte') {
+                return [
+                    'refund_type' => 'refund_aporte_credit_note',
+                    'label' => 'Nota de Crédito (NC) - Aportes',
+                ];
+            }
+
+            // Default: Abonos
+            return [
+                'refund_type' => 'refund_credit_note',
+                'label' => 'Nota de Crédito (NC) - Abonos',
+            ];
+        }
+
+        return [
+            'refund_type' => null,
+            'label' => null,
+        ];
     }
 
     /**
      * Preview una fila de devolución WITHOUT database insert
-     * Returns what would be inserted for user confirmation
      */
     private function previewRefundRow(array $rowData, int $rowNumber): array
     {
@@ -433,8 +423,12 @@ class ImportRefundsService
                 return $result;
             }
 
-            // Buscar la relación participant_program por enrollment_code
-            $enrollmentCode = trim($rowData['Negocio Afiliado']);
+            // Construir enrollment_code: RUT-NroNegocio
+            $cleanRut = RutHelper::clean(trim($rowData['rut']));
+            $nroNegocio = trim($rowData['nro_negocio']);
+            $enrollmentCode = $cleanRut . '-' . $nroNegocio;
+
+            // Buscar participant_program
             $participantProgram = ParticipantProgram::where('enrollment_code', $enrollmentCode)->first();
 
             if (!$participantProgram) {
@@ -442,43 +436,48 @@ class ImportRefundsService
                 return $result;
             }
 
-            // Encontrar el ProgramCourse correspondiente
+            // Encontrar el ProgramCourse
             $order = Order::where('participant_id', $participantProgram->participant_id)
-                ->whereHas('programCourse', function($q) use ($participantProgram) {
+                ->whereHas('programCourse', function ($q) use ($participantProgram) {
                     $q->where('program_id', $participantProgram->program_id);
                 })
                 ->first();
 
             if (!$order) {
-                $result['error'] = "No se encontró una orden asociada a este código de inscripción";
+                $result['error'] = "No se encontró una orden asociada al código '{$enrollmentCode}'";
                 return $result;
             }
 
             $programCourseId = $order->program_id;
             $participant = Participant::find($participantProgram->participant_id);
             $programCourse = ProgramCourse::find($programCourseId);
-            $cleanRut = RutHelper::clean(trim($rowData['RUT']));
+
+            // Parsear monto y tipo reembolso
+            $refundAmount = $this->parseAmount($rowData['monto']);
+            $tipoReembolso = trim($rowData['tipo_reembolso']);
+            $aplicarA = trim($rowData['aplicar_a'] ?? '');
+            $refundTypeInfo = $this->mapRefundType($tipoReembolso, $aplicarA);
+
+            if (!$refundTypeInfo['refund_type']) {
+                $result['error'] = "Tipo de reembolso '{$tipoReembolso}' no válido. Use NC o RA";
+                return $result;
+            }
 
             // Calcular monto pagado para validación
             $paidAmount = $this->calculatePaidAmount($participant->id, $programCourseId);
-            $refundAmount = abs(floatval($rowData['Total']));
 
-            // Validar que el monto pagado sea suficiente
             if ($paidAmount < $refundAmount) {
                 $result['error'] = "Monto pagado insuficiente. Pagado: $" . number_format($paidAmount) . ", Devolución: $" . number_format($refundAmount);
                 return $result;
             }
 
-            // Advertencia si el monto pagado es justo
             if ($paidAmount == $refundAmount) {
                 $result['warning'] = true;
                 $result['warning_message'] = "El participante quedará con saldo 0 después de la devolución";
             }
 
-            // Calculate new balance
             $newBalance = $paidAmount - $refundAmount;
 
-            // Return preview data WITHOUT inserting
             $result['success'] = true;
             $result['data'] = [
                 'enrollment_code' => $enrollmentCode,
@@ -486,11 +485,13 @@ class ImportRefundsService
                 'participant_rut' => $participant->rut,
                 'program_name' => $programCourse->name,
                 'refund_amount' => $refundAmount,
-                'transaction_date' => $this->parseDate($rowData['Fecha']),
-                'sii_code' => trim($rowData['Cod. SII']),
-                'document_number' => trim($rowData['N. Documento']),
-                'client_rut' => $cleanRut,
-                'client_name' => trim($rowData['Nombre del Cliente']),
+                'transaction_date' => $this->parseDate($rowData['fecha']),
+                'refund_type' => $refundTypeInfo['label'],
+                'refund_type_code' => strtoupper($tipoReembolso),
+                'aplicar_a' => strtoupper($tipoReembolso) === 'NC' ? ($aplicarA ?: 'Abonos') : 'N/A',
+                'sii_code' => trim($rowData['cod_sii'] ?? ''),
+                'document_number' => trim($rowData['n_documento'] ?? ''),
+                'client_name' => trim($rowData['nombre_cliente'] ?? '') ?: ($participant->first_name . ' ' . $participant->first_last_name),
                 'paid_amount' => $paidAmount,
                 'new_balance' => $newBalance,
             ];
@@ -523,85 +524,89 @@ class ImportRefundsService
                 return $result;
             }
 
-            // Buscar la relación participant_program por enrollment_code (tabla antigua)
-            $enrollmentCode = trim($rowData['Negocio Afiliado']);
+            // Construir enrollment_code: RUT-NroNegocio
+            $cleanRut = RutHelper::clean(trim($rowData['rut']));
+            $nroNegocio = trim($rowData['nro_negocio']);
+            $enrollmentCode = $cleanRut . '-' . $nroNegocio;
+
             Log::info("Buscando enrollment_code: '{$enrollmentCode}'");
 
             $participantProgram = ParticipantProgram::where('enrollment_code', $enrollmentCode)->first();
 
             if (!$participantProgram) {
-                Log::error("Código de inscripción '{$enrollmentCode}' no encontrado en la base de datos");
+                Log::error("Código de inscripción '{$enrollmentCode}' no encontrado");
                 $result['error'] = "Código de inscripción '{$enrollmentCode}' no encontrado";
                 return $result;
             }
 
             Log::info("Enrollment code encontrado: participant_id={$participantProgram->participant_id}, program_template_id={$participantProgram->program_id}");
 
-            // Encontrar el ProgramCourse correspondiente
-            // Buscar en Orders para ver qué ProgramCourse tiene este participante para este programa
+            // Encontrar el ProgramCourse
             $order = Order::where('participant_id', $participantProgram->participant_id)
-                ->whereHas('programCourse', function($q) use ($participantProgram) {
+                ->whereHas('programCourse', function ($q) use ($participantProgram) {
                     $q->where('program_id', $participantProgram->program_id);
                 })
                 ->first();
 
             if (!$order) {
-                Log::error("No se encontró una orden para participant_id={$participantProgram->participant_id} con program_template_id={$participantProgram->program_id}");
-                $result['error'] = "No se encontró una orden asociada a este código de inscripción";
+                Log::error("No se encontró una orden para participant_id={$participantProgram->participant_id}");
+                $result['error'] = "No se encontró una orden asociada al código '{$enrollmentCode}'";
                 return $result;
             }
 
-            // Obtener el ProgramCourse de la orden (program_id en orders es el ID de ProgramCourse)
             $programCourseId = $order->program_id;
-            Log::info("ProgramCourse encontrado: program_course_id={$programCourseId}");
-
-            // Obtener participante para validaciones
             $participant = Participant::find($participantProgram->participant_id);
-            $cleanRut = RutHelper::clean(trim($rowData['RUT']));
 
-            Log::info("RUT del comprador (Excel): '{$cleanRut}'");
+            // Parsear monto y tipo reembolso
+            $refundAmount = $this->parseAmount($rowData['monto']);
+            $tipoReembolso = trim($rowData['tipo_reembolso']);
+            $aplicarA = trim($rowData['aplicar_a'] ?? '');
+            $refundTypeInfo = $this->mapRefundType($tipoReembolso, $aplicarA);
 
-            // Calcular monto pagado para validación (usando ProgramCourse ID)
+            if (!$refundTypeInfo['refund_type']) {
+                $result['error'] = "Tipo de reembolso '{$tipoReembolso}' no válido. Use NC o RA";
+                return $result;
+            }
+
+            Log::info("Tipo reembolso: {$refundTypeInfo['label']}, refund_type: {$refundTypeInfo['refund_type']}");
+
+            // Calcular monto pagado para validación
             $paidAmount = $this->calculatePaidAmount($participant->id, $programCourseId);
-            $refundAmount = abs(floatval($rowData['Total'])); // Convertir negativo a positivo
 
             Log::info("Validando montos - Pagado: {$paidAmount}, Devolución: {$refundAmount}");
 
-            // Validar que el monto pagado sea suficiente
             if ($paidAmount < $refundAmount) {
                 Log::error("Monto pagado insuficiente - Pagado: {$paidAmount}, Devolución: {$refundAmount}");
                 $result['error'] = "Monto pagado insuficiente. Pagado: $" . number_format($paidAmount) . ", Devolución: $" . number_format($refundAmount);
                 return $result;
             }
 
-            // Advertencia si el monto pagado es justo
             if ($paidAmount == $refundAmount) {
                 $result['warning'] = true;
                 $result['warning_message'] = "El participante quedará con saldo 0 después de la devolución";
             }
 
-            // Preparar datos para el servicio de devolución individual
-            // NOTA: program_id ahora es el ID de ProgramCourse, no de Program template
+            // Preparar datos para el servicio
+            $siiCode = trim($rowData['cod_sii'] ?? '');
+            $documentNumber = trim($rowData['n_documento'] ?? '');
+            $clientName = trim($rowData['nombre_cliente'] ?? '') ?: ($participant->first_name . ' ' . $participant->first_last_name);
+
             $refundData = [
                 'program_id' => $programCourseId,
                 'participant_id' => $participantProgram->participant_id,
-                'amount' => $refundAmount, // Siempre positivo para el servicio
-                'transaction_date' => $this->parseDate($rowData['Fecha']),
-                'payment_code' => trim($rowData['Cod. SII']),
-                
-                // Datos fiscales
-                'sii_code' => trim($rowData['Cod. SII']),
-                'document_number' => trim($rowData['N. Documento']),
-                'total_amount' => $refundAmount, // Siempre positivo
-                
-                // Datos del cliente
-                'client_rut' => $cleanRut, // Usar RUT del Excel (comprador)
-                'client_name' => trim($rowData['Nombre del Cliente']),
+                'amount' => $refundAmount,
+                'transaction_date' => $this->parseDate($rowData['fecha']),
+                'payment_code' => $siiCode ?: ('BULK-' . now()->format('YmdHis') . '-' . $rowNumber),
+                'sii_code' => $siiCode,
+                'document_number' => $documentNumber,
+                'total_amount' => $refundAmount,
+                'client_rut' => $cleanRut,
+                'client_name' => $clientName,
+                'refund_type' => $refundTypeInfo['refund_type'],
             ];
 
-            // Ejecutar el servicio de devolución individual (mismo que el formulario)
             Log::info("Ejecutando CreateRefundService con datos: " . json_encode($refundData, JSON_UNESCAPED_UNICODE));
-            
+
             $refundResult = $this->createRefundService->execute($refundData);
 
             if ($refundResult['success']) {
@@ -628,37 +633,58 @@ class ImportRefundsService
     private function validateRowData(array $data, int $rowNumber): array
     {
         Log::info("Validando datos de fila {$rowNumber}");
-        
+
         // Validar campos requeridos
-        $required = ['Cod. SII', 'N. Documento', 'Fecha', 'RUT', 'Nombre del Cliente', 'Total', 'Negocio Afiliado'];
-        
-        foreach ($required as $field) {
+        foreach ($this->requiredFields as $field) {
             if (empty(trim($data[$field] ?? ''))) {
-                Log::error("Campo requerido '{$field}' está vacío en fila {$rowNumber}");
-                return ['valid' => false, 'error' => "Campo requerido '{$field}' está vacío"];
+                $fieldLabel = $this->getFieldLabel($field);
+                Log::error("Campo requerido '{$fieldLabel}' está vacío en fila {$rowNumber}");
+                return ['valid' => false, 'error' => "Campo requerido '{$fieldLabel}' está vacío"];
             }
         }
 
         // Validar formato de fecha
-        $date = $this->parseDate($data['Fecha']);
+        $date = $this->parseDate($data['fecha']);
         if (!$date) {
-            Log::error("Formato de fecha inválido en fila {$rowNumber}: " . $data['Fecha']);
-            return ['valid' => false, 'error' => 'Formato de fecha inválido. Use YYYY-MM-DD'];
+            Log::error("Formato de fecha inválido en fila {$rowNumber}: " . $data['fecha']);
+            return ['valid' => false, 'error' => 'Formato de fecha inválido'];
         }
 
-        // Validar monto total (debe ser negativo)
-        $total = floatval($data['Total']);
-        if ($total >= 0) {
-            Log::error("Monto Total debe ser negativo en fila {$rowNumber}: {$total}");
-            return ['valid' => false, 'error' => 'El monto Total debe ser negativo (devolución)'];
+        // Validar monto (debe ser positivo)
+        $monto = $this->parseAmount($data['monto']);
+        if ($monto <= 0) {
+            Log::error("Monto debe ser mayor a 0 en fila {$rowNumber}: {$monto}");
+            return ['valid' => false, 'error' => 'El monto debe ser mayor a 0'];
         }
 
-        // RUT ya validado en frontend, solo limpiarlo
-        $cleanRut = RutHelper::clean($data['RUT']);
-        Log::info("RUT limpio en fila {$rowNumber}: " . $data['RUT'] . " -> " . $cleanRut);
+        // Validar tipo de reembolso
+        $tipo = strtoupper(trim($data['tipo_reembolso']));
+        if (!in_array($tipo, ['NC', 'RA'])) {
+            Log::error("Tipo de reembolso inválido en fila {$rowNumber}: {$tipo}");
+            return ['valid' => false, 'error' => "Tipo de reembolso '{$tipo}' no válido. Use NC o RA"];
+        }
+
+        // Validar RUT
+        $cleanRut = RutHelper::clean($data['rut']);
+        Log::info("RUT limpio en fila {$rowNumber}: " . $data['rut'] . " -> " . $cleanRut);
 
         Log::info("Validación de fila {$rowNumber} exitosa");
         return ['valid' => true];
+    }
+
+    /**
+     * Obtener etiqueta legible de un campo
+     */
+    private function getFieldLabel(string $field): string
+    {
+        $labels = [
+            'rut' => 'RUT',
+            'nro_negocio' => 'Nro. Negocio',
+            'monto' => 'Monto',
+            'fecha' => 'Fecha',
+            'tipo_reembolso' => 'Tipo Reembolso',
+        ];
+        return $labels[$field] ?? $field;
     }
 
     /**
@@ -666,26 +692,42 @@ class ImportRefundsService
      */
     private function calculatePaidAmount($participantId, $programId): float
     {
-        return \App\Models\Payment::whereHas('order', function ($query) use ($participantId, $programId) {
+        return Payment::whereHas('order', function ($query) use ($participantId, $programId) {
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
         ->whereIn('status', ['approved', 'completed'])
-        ->where('amount', '>', 0) // Solo pagos positivos, excluir reembolsos previos
+        ->where('amount', '>', 0)
         ->sum('amount');
     }
 
     /**
-     * Validar RUT chileno usando RutHelper
+     * Parsear monto desde varios formatos
      */
-    private function validateRut($rut): bool
+    private function parseAmount($value): float
     {
-        Log::info("Validando RUT: '{$rut}' (longitud: " . strlen($rut) . ")");
-        
-        $isValid = RutHelper::validate($rut);
-        Log::info("RUT válido: " . ($isValid ? 'SÍ' : 'NO'));
-        
-        return $isValid;
+        if (is_numeric($value)) {
+            return abs((float) $value);
+        }
+
+        // Remover símbolos de moneda y espacios
+        $cleaned = preg_replace('/[^0-9,.\-]/', '', $value);
+
+        // Formato chileno: 1.234.567 o 1.234.567,89
+        if (preg_match('/^\-?\d{1,3}(\.\d{3})*(,\d+)?$/', $cleaned)) {
+            $cleaned = str_replace('.', '', $cleaned);
+            $cleaned = str_replace(',', '.', $cleaned);
+        }
+        // Formato estándar: 1,234,567.89
+        elseif (preg_match('/^\-?\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
+            $cleaned = str_replace(',', '', $cleaned);
+        }
+        // Formato simple con coma como decimal
+        elseif (strpos($cleaned, ',') !== false && strpos($cleaned, '.') === false) {
+            $cleaned = str_replace(',', '.', $cleaned);
+        }
+
+        return abs((float) $cleaned);
     }
 
     /**
@@ -693,24 +735,17 @@ class ImportRefundsService
      */
     private function parseDate($dateValue): ?string
     {
-        Log::info('Parseando fecha: ' . json_encode($dateValue) . ' (tipo: ' . gettype($dateValue) . ')');
-        
         try {
             // Si es un número (fecha serial de Excel)
             if (is_numeric($dateValue)) {
-                $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue);
-                $result = $date->format('Y-m-d');
-                Log::info('Fecha parseada desde número: ' . $result);
-                return $result;
+                $date = ExcelDate::excelToDateTimeObject($dateValue);
+                return $date->format('Y-m-d');
             }
 
-            // Limpiar la fecha (quitar espacios y caracteres extra)
             $cleanDate = trim($dateValue);
-            Log::info('Fecha limpia: ' . json_encode($cleanDate));
 
-            // Si es una cadena, intentar diferentes formatos
             $formats = [
-                'd/m/Y',     // 08/01/2025 (formato del Excel)
+                'd/m/Y',     // 08/01/2025
                 'd-m-Y',     // 08-01-2025
                 'Y-m-d',     // 2025-01-08
                 'm/d/Y',     // 01/08/2025
@@ -718,19 +753,16 @@ class ImportRefundsService
                 'd/m/y',     // 08/01/25
                 'd-m-y',     // 08-01-25
             ];
-            
+
             foreach ($formats as $format) {
                 try {
                     $date = Carbon::createFromFormat($format, $cleanDate);
-                    $result = $date->format('Y-m-d');
-                    Log::info("Fecha parseada desde formato '{$format}': {$result}");
-                    return $result;
+                    return $date->format('Y-m-d');
                 } catch (\Exception $e) {
-                    Log::info("Formato '{$format}' falló para: {$cleanDate}");
                     continue;
                 }
             }
-            
+
             Log::error('No se pudo parsear la fecha: ' . $cleanDate);
             return null;
         } catch (\Exception $e) {
