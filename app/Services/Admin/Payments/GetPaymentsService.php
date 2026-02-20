@@ -42,7 +42,7 @@ class GetPaymentsService
         $perPage = min(max((int)$perPage, 15), 200);
 
         // SIMPLIFICADO: Solo pagos normales, sin combinar con installments
-        $payments = $query->latest()->paginate($perPage);
+        $payments = $query->latest()->paginate($perPage)->withQueryString();
 
         // Agregar payment_source calculado a cada pago
         $payments->getCollection()->transform(function ($payment) {

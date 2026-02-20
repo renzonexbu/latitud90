@@ -80,6 +80,7 @@ class ImportManualPaymentsService
             'presential_khipu_link',
             'presential_debit_credit',
             'presential_international',
+            'presential_credit_temp',
         ])->get()->keyBy('code');
 
         $totalRows = count($rowsData);
@@ -831,7 +832,8 @@ class ImportManualPaymentsService
             'presential_international',
             'presential_deposit',
             'presential_webpay',
-            'presential_aporte'
+            'presential_aporte',
+            'presential_credit_temp',
         ])->get()->keyBy('code');
 
         $paidAmountCache = [];
