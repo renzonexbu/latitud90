@@ -176,11 +176,26 @@ class ExecutivesConsolidatedService
                 $liberatedAmount = $releasedDiscount ? $releasedDiscount->amount : 0;
             }
 
-            // Contacto pagador (nombre del pagador desde detalle de orden)
-            $firstDetail = $order?->orderDetails?->first();
-            $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            // Contacto pagador: para reembolsos, buscar en la orden del pago original
+            $payerContactRaw = null;
+            $payerEmail = null;
+            if ($payment->amount < 0 && $participant && $program) {
+                $originalPaymentOrder = \App\Models\Order::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->whereHas('payments', fn($q) => $q->where('amount', '>', 0))
+                    ->with('orderDetails')
+                    ->latest()
+                    ->first();
+                $originalDetail = $originalPaymentOrder?->orderDetails?->first();
+                $payerContactRaw = $originalDetail?->name;
+                $payerEmail = $originalDetail?->email;
+            }
+            if (!$payerContactRaw) {
+                $firstDetail = $order?->orderDetails?->first();
+                $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+                $payerEmail = $payerEmail ?: ($firstDetail?->email ?? ($participant?->email ?? null));
+            }
             $payerContact = $payerContactRaw ? ucwords(strtolower($payerContactRaw)) : null;
-            $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
 
             // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
             $participantFullName = 'N/A';
@@ -351,11 +366,26 @@ class ExecutivesConsolidatedService
                 $liberatedAmount = $releasedDiscount ? $releasedDiscount->amount : 0;
             }
 
-            // Contacto pagador (nombre del pagador desde detalle de orden)
-            $firstDetail = $order?->orderDetails?->first();
-            $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+            // Contacto pagador: para reembolsos, buscar en la orden del pago original
+            $payerContactRaw = null;
+            $payerEmail = null;
+            if ($payment->amount < 0 && $participant && $program) {
+                $originalPaymentOrder = \App\Models\Order::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->whereHas('payments', fn($q) => $q->where('amount', '>', 0))
+                    ->with('orderDetails')
+                    ->latest()
+                    ->first();
+                $originalDetail = $originalPaymentOrder?->orderDetails?->first();
+                $payerContactRaw = $originalDetail?->name;
+                $payerEmail = $originalDetail?->email;
+            }
+            if (!$payerContactRaw) {
+                $firstDetail = $order?->orderDetails?->first();
+                $payerContactRaw = $firstDetail?->name ?? ($participant?->full_name ?? null);
+                $payerEmail = $payerEmail ?: ($firstDetail?->email ?? ($participant?->email ?? null));
+            }
             $payerContact = $payerContactRaw ? ucwords(strtolower($payerContactRaw)) : null;
-            $payerEmail = $firstDetail?->email ?? ($participant?->email ?? null);
 
             // Construir nombre del participante en formato: "Apellido1 Apellido2 Nombre1 Nombre2"
             $participantFullName = 'N/A';
