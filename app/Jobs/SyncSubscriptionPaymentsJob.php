@@ -637,43 +637,78 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      */
     protected function getOrCreateOrder(ProgramSubscription $subscription): Order
     {
-        // CORREGIDO: Primero buscar la orden directamente relacionada con esta suscripción
+        // 1. Buscar por relación directa (subscription_id en orders)
         $order = $subscription->order;
 
-        // Fallback: buscar por subscription_id en orders (por si la relación no está cargada)
+        // 2. Fallback: buscar por subscription_id explícito
         if (!$order) {
             $order = Order::where('subscription_id', $subscription->id)
                 ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
                 ->first();
         }
 
+        // 3. Fallback: buscar por order_number con patrón SUB-XXXXXXXX
+        //    (órdenes antiguas pueden tener subscription_id = NULL)
         if (!$order) {
-            // Obtener el participant_program_id si existe
+            $expectedOrderNumber = 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT);
+            $order = Order::where('order_number', $expectedOrderNumber)
+                ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
+                ->first();
+
+            // Si encontramos la orden, vincularla con la suscripción para futuras búsquedas
+            if ($order && !$order->subscription_id) {
+                $order->update(['subscription_id' => $subscription->id]);
+                Log::info('SyncSubscriptionPayments: Orden existente vinculada con suscripción', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'subscription_id' => $subscription->id,
+                ]);
+            }
+        }
+
+        // 4. Fallback: buscar por participant_id + program_id con payment_type monthly
+        if (!$order) {
+            $order = Order::where('participant_id', $subscription->participant_id)
+                ->where('program_id', $subscription->program_id)
+                ->where('payment_type', 'monthly')
+                ->whereIn('status', ['pending', 'paid', 'partial', 'processing'])
+                ->first();
+
+            if ($order && !$order->subscription_id) {
+                $order->update(['subscription_id' => $subscription->id]);
+                Log::info('SyncSubscriptionPayments: Orden encontrada por participant+program vinculada', [
+                    'order_id' => $order->id,
+                    'subscription_id' => $subscription->id,
+                ]);
+            }
+        }
+
+        if (!$order) {
+            // Calcular datos desde la suscripción
+            $chargeProgram = $subscription->charge_program ?? [];
+            $totalInstallments = count($chargeProgram) ?: 1;
+            $subscriptionAmount = $subscription->amount ?? 0;
+            $totalAmount = $subscriptionAmount * $totalInstallments;
+
             $participantProgram = DB::table('participant_program')
                 ->where('participant_id', $subscription->participant_id)
                 ->where('program_id', $subscription->program_id)
                 ->first();
 
-            // Obtener course_id desde el program_course
-            $programCourse = $subscription->programCourse;
-            $courseId = $programCourse ? $programCourse->course_id : null;
-
-            // Crear nueva orden con todos los campos requeridos
             $order = Order::create([
                 'participant_id' => $subscription->participant_id,
                 'program_id' => $subscription->program_id,
-                'subscription_id' => $subscription->id, // Vincular con la suscripción
-                'course_id' => $courseId,
+                'subscription_id' => $subscription->id,
                 'participant_program_id' => $participantProgram ? $participantProgram->id : null,
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
-                'session_id' => $subscription->virtualpos_subscription_id, // Usar subscription ID de VirtualPos
-                'total_amount' => 0, // Se actualizará con cada pago
+                'session_id' => $subscription->virtualpos_subscription_id,
+                'total_amount' => 0,
                 'discount' => 0,
-                'final_amount' => $subscription->total_amount, // Monto total de la suscripción
-                'total_installments' => $subscription->installments,
-                'payment_type' => 'monthly', // Usar 'monthly' igual que en SubscriptionController
+                'final_amount' => $totalAmount,
+                'total_installments' => $totalInstallments,
+                'payment_type' => 'monthly',
                 'status' => 'pending',
-                'notes' => 'Orden de suscripción VirtualPOS - ' . $subscription->installments . ' cuotas',
+                'notes' => 'Orden de suscripción VirtualPOS - ' . $totalInstallments . ' cuotas',
                 'created_at' => now(),
             ]);
 
@@ -681,7 +716,8 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'subscription_id' => $subscription->id,
-                'total_installments' => $subscription->installments
+                'total_installments' => $totalInstallments,
+                'final_amount' => $totalAmount,
             ]);
         }
 
