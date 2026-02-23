@@ -20,6 +20,8 @@ class PaidInstallmentsDataProvider
             ->with([
                 'installmentPlan.participant',
                 'installmentPlan.installments',
+                'payment',
+                'paymentOrderDetail',
             ]);
 
         // Filtro por programa
@@ -87,10 +89,18 @@ class PaidInstallmentsDataProvider
         return $query->get()->map(function ($installment) use ($enrollmentCodes) {
             $plan = $installment->installmentPlan;
             $participant = $plan?->participant;
+            $payment = $installment->payment;
+            $orderDetail = $installment->paymentOrderDetail;
 
             // Código de inscripción desde participant_program
             $ppKey = ($plan?->participant_id ?? '') . '-' . ($plan?->program_id ?? '');
             $enrollmentCode = $enrollmentCodes[$ppKey] ?? 'N/A';
+
+            // Suscriptor (pagador) desde OrderDetail, fallback a participante
+            $subscriberName = $orderDetail?->name ?? $participant?->full_name ?? 'N/A';
+
+            // Boleta BSale
+            $bsaleNumber = $payment?->bsale_number ?? null;
 
             // Total pagado = suma de todas las cuotas pagadas del plan
             $totalPaid = $plan?->installments
@@ -102,13 +112,16 @@ class PaidInstallmentsDataProvider
 
             return [
                 'id' => $installment->id,
-                'enrollment_code' => $enrollmentCode,
-                'participant_name' => $participant?->full_name ?? 'N/A',
-                'amount' => $installment->amount,
                 'paid_at' => $installment->paid_at?->format('d/m/Y H:i:s'),
+                'subscriber_name' => $subscriberName,
+                'enrollment_code' => $enrollmentCode,
+                'amount' => $installment->amount,
+                'bsale_number' => $bsaleNumber,
                 'installment_label' => "Cuota {$installment->installment_number} de " . ($plan?->total_installments ?? '?'),
                 'total_paid' => $totalPaid,
                 'saldo' => $saldo,
+                // Mantener para compatibilidad
+                'participant_name' => $participant?->full_name ?? 'N/A',
             ];
         });
     }

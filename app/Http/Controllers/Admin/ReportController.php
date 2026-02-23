@@ -1827,10 +1827,11 @@ class ReportController extends Controller
 
             // Headers
             $headers = [
-                'Código de Inscripción',
-                'Participante',
-                'Monto Recaudado',
                 'Fecha',
+                'Suscriptor',
+                'Cód. Participante',
+                'Monto de Cuota',
+                'Boleta',
                 'Cuota',
                 'Total Pagado',
                 'Saldo',
@@ -1863,21 +1864,22 @@ class ReportController extends Controller
             // Escribir datos
             $row = 2;
             foreach ($data as $record) {
-                $sheet->setCellValueExplicit("A{$row}", $record['enrollment_code'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                $sheet->setCellValue("B{$row}", $record['participant_name'] ?? '');
-                $sheet->setCellValue("C{$row}", round($record['amount'] ?? 0));
-                $sheet->setCellValue("D{$row}", $record['paid_at'] ?? '');
-                $sheet->setCellValue("E{$row}", $record['installment_label'] ?? '');
-                $sheet->setCellValue("F{$row}", round($record['total_paid'] ?? 0));
-                $sheet->setCellValue("G{$row}", round($record['saldo'] ?? 0));
+                $sheet->setCellValue("A{$row}", $record['paid_at'] ?? '');
+                $sheet->setCellValue("B{$row}", $record['subscriber_name'] ?? '');
+                $sheet->setCellValueExplicit("C{$row}", $record['enrollment_code'] ?? '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $sheet->setCellValue("D{$row}", round($record['amount'] ?? 0));
+                $sheet->setCellValue("E{$row}", $record['bsale_number'] ?? '-');
+                $sheet->setCellValue("F{$row}", $record['installment_label'] ?? '');
+                $sheet->setCellValue("G{$row}", round($record['total_paid'] ?? 0));
+                $sheet->setCellValue("H{$row}", round($record['saldo'] ?? 0));
                 $row++;
             }
 
-            // Formato de moneda para columnas C (Monto Recaudado), F (Total Pagado), G (Saldo)
+            // Formato de moneda para columnas D (Monto de Cuota), G (Total Pagado), H (Saldo)
             $lastRow = max($row - 1, 2);
-            $sheet->getStyle("C2:C{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
-            $sheet->getStyle("F2:F{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("D2:D{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle("G2:G{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("H2:H{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
 
             // Crear archivo temporal
             $filename = 'cuotas_pagadas_' . now('America/Santiago')->format('Y-m-d_H-i-s') . '.xlsx';

@@ -129,32 +129,35 @@
                         <!-- Table Container -->
                         <div class="flex flex-col gap-0 overflow-x-auto">
                             <!-- Table Header -->
-                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1000px] h-[61.51px]">
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
-                                    Cód. Inscripción
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px]">
-                                    Participante
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
-                                    Monto Recaudado
-                                </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] flex items-center justify-between min-w-[1100px] h-[61.51px]">
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                                     Fecha
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[110px]">
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-left flex-1 min-w-[180px]">
+                                    Suscriptor
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                                    Cód. Participante
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                    Monto de Cuota
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
+                                    Boleta
+                                </div>
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
                                     Cuota
                                 </div>
                                 <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
                                     Total Pagado
                                 </div>
-                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                <div class="text-white font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
                                     Saldo
                                 </div>
                             </div>
 
                             <!-- Table Body -->
-                            <div class="flex flex-col min-w-[1000px]">
+                            <div class="flex flex-col min-w-[1100px]">
                                 <div
                                     v-for="(record, index) in paidInstallmentsData.data"
                                     :key="record.id"
@@ -163,28 +166,33 @@
                                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                                     ]"
                                 >
-                                    <!-- Cód. Inscripción -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
-                                        {{ record.enrollment_code }}
-                                    </div>
-
-                                    <!-- Participante -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center flex-1 min-w-[180px] truncate" :title="record.participant_name">
-                                        {{ record.participant_name }}
-                                    </div>
-
-                                    <!-- Monto Recaudado -->
-                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[130px]">
-                                        {{ formatCurrency(record.amount) }}
-                                    </div>
-
                                     <!-- Fecha -->
-                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[140px]">
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[120px]">
                                         {{ record.paid_at || '-' }}
                                     </div>
 
+                                    <!-- Suscriptor -->
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-left flex-1 min-w-[180px] truncate" :title="record.subscriber_name">
+                                        {{ record.subscriber_name }}
+                                    </div>
+
+                                    <!-- Cód. Participante -->
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[140px]">
+                                        {{ record.enrollment_code }}
+                                    </div>
+
+                                    <!-- Monto de Cuota -->
+                                    <div class="text-[#1c4f4a] font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]">
+                                        {{ formatCurrency(record.amount) }}
+                                    </div>
+
+                                    <!-- Boleta -->
+                                    <div class="text-[#5b5b5b] font-nexa-regular text-[12px] leading-[18px] text-center w-[100px]">
+                                        {{ record.bsale_number || '-' }}
+                                    </div>
+
                                     <!-- Cuota -->
-                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[110px]">
+                                    <div class="text-[#5b5b5b] font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]">
                                         {{ record.installment_label }}
                                     </div>
 
@@ -195,7 +203,7 @@
 
                                     <!-- Saldo -->
                                     <div :class="[
-                                        'font-nexa-bold text-[14px] leading-[18px] text-center w-[120px]',
+                                        'font-nexa-bold text-[14px] leading-[18px] text-center w-[100px]',
                                         record.saldo > 0 ? 'text-red-600' : 'text-green-600'
                                     ]">
                                         {{ formatCurrency(record.saldo) }}
