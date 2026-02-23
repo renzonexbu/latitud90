@@ -43,7 +43,7 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                             <!-- Document Type Filter -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -61,21 +61,30 @@
                                 </select>
                             </div>
 
-                            <!-- Year Filter -->
+                            <!-- Fecha Desde -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Año
+                                    Fecha Desde
                                 </label>
-                                <select
-                                    v-model="filters.year"
+                                <input
+                                    v-model="filters.dateFrom"
+                                    type="date"
                                     @change="loadDocuments"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                >
-                                    <option value="">Todos los años</option>
-                                    <option v-for="year in availableYears" :key="year" :value="year">
-                                        {{ year }}
-                                    </option>
-                                </select>
+                                />
+                            </div>
+
+                            <!-- Fecha Hasta -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Fecha Hasta
+                                </label>
+                                <input
+                                    v-model="filters.dateTo"
+                                    type="date"
+                                    @change="loadDocuments"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                />
                             </div>
 
                             <!-- Search -->
@@ -95,7 +104,7 @@
                             <!-- Per Page -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Documentos por página
+                                    Por página
                                 </label>
                                 <select
                                     v-model="filters.perPage"
@@ -106,6 +115,16 @@
                                     <option value="50">50</option>
                                     <option value="100">100</option>
                                 </select>
+                            </div>
+
+                            <!-- Limpiar filtros -->
+                            <div class="flex items-end">
+                                <button
+                                    @click="clearFilters"
+                                    class="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-md text-sm transition-colors"
+                                >
+                                    Limpiar filtros
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -401,14 +420,14 @@ import axios from 'axios'
 
 // Reactive data
 const documents = ref([])
-const availableYears = ref([])
 const loading = ref(false)
 const downloadingZip = ref(false)
 const error = ref(null)
 
 const filters = ref({
     documentType: '',
-    year: '',
+    dateFrom: '',
+    dateTo: '',
     search: '',
     perPage: 50
 })
@@ -444,7 +463,8 @@ const loadDocuments = async (page = 1) => {
         const params = {
             page,
             document_type: filters.value.documentType,
-            year: filters.value.year,
+            date_from: filters.value.dateFrom,
+            date_to: filters.value.dateTo,
             search: filters.value.search,
             per_page: filters.value.perPage
         }
@@ -452,7 +472,6 @@ const loadDocuments = async (page = 1) => {
         const response = await axios.get(route('admin.reports.bsale-documents.list'), { params })
         
         documents.value = response.data.documents
-        availableYears.value = response.data.available_years
         pagination.value = {
             current_page: response.data.current_page,
             last_page: response.data.last_page,
@@ -546,6 +565,16 @@ const resendDocument = async () => {
     } finally {
         resending.value = false
     }
+}
+
+// Clear all filters
+const clearFilters = () => {
+    filters.value.documentType = ''
+    filters.value.dateFrom = ''
+    filters.value.dateTo = ''
+    filters.value.search = ''
+    filters.value.perPage = 50
+    loadDocuments()
 }
 
 // Initialize

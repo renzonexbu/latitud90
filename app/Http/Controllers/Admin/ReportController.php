@@ -862,7 +862,8 @@ class ReportController extends Controller
     public function bsaleDocumentsList(Request $request)
     {
         try {
-            $year = $request->get('year');
+            $dateFrom = $request->get('date_from');
+            $dateTo = $request->get('date_to');
             $search = $request->get('search');
             $documentType = $request->get('document_type');
             $perPage = (int) $request->get('per_page', 50);
@@ -871,9 +872,12 @@ class ReportController extends Controller
             $query = \App\Models\GeneratedDocument::with(['payment', 'orderDetail', 'participant', 'program'])
                 ->orderBy('created_at', 'desc');
 
-            // Filter by year
-            if ($year) {
-                $query->whereYear('created_at', $year);
+            // Filter by date range
+            if ($dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
             }
 
             // Filter by document type
@@ -888,8 +892,8 @@ class ReportController extends Controller
                       ->orWhere('email_sent_to', 'like', "%{$search}%")
                       ->orWhereHas('participant', function ($pq) use ($search) {
                           $pq->where('first_name', 'like', "%{$search}%")
-                             ->orWhere('last_name_1', 'like', "%{$search}%")
-                             ->orWhere('last_name_2', 'like', "%{$search}%");
+                             ->orWhere('first_last_name', 'like', "%{$search}%")
+                             ->orWhere('second_last_name', 'like', "%{$search}%");
                       })
                       ->orWhereHas('program', function ($pgq) use ($search) {
                           $pgq->where('name', 'like', "%{$search}%");
@@ -924,19 +928,12 @@ class ReportController extends Controller
                 ];
             });
 
-            // Get available years
-            $availableYears = \App\Models\GeneratedDocument::selectRaw('YEAR(created_at) as year')
-                ->distinct()
-                ->orderBy('year', 'desc')
-                ->pluck('year');
-
             return response()->json([
                 'documents' => $documents,
                 'total' => $paginated->total(),
                 'per_page' => $paginated->perPage(),
                 'current_page' => $paginated->currentPage(),
                 'last_page' => $paginated->lastPage(),
-                'available_years' => $availableYears
             ]);
 
         } catch (\Exception $e) {
