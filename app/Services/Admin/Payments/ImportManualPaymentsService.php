@@ -1955,24 +1955,32 @@ class ImportManualPaymentsService
     }
 
     /**
-     * Parse amount from various formats
+     * Parse amount from various formats.
+     * IMPORTANTE: Verificar formato chileno (puntos como miles) ANTES de is_numeric,
+     * porque "777.311" es is_numeric=true pero en CLP significa 777.311 (777 mil 311).
      */
     private function parseAmount($value): float
     {
+        // Convertir a string para analizar el formato
+        $stringValue = trim((string) $value);
+
+        // Remove currency symbols and spaces
+        $cleaned = preg_replace('/[^0-9,.\-]/', '', $stringValue);
+
+        // Handle Chilean format: 777.311 or 1.234.567 or 1.234.567,89 (dot as thousands separator)
+        // MUST be checked BEFORE is_numeric to avoid treating 777.311 as a decimal
+        if (preg_match('/^\-?\d{1,3}(\.\d{3})+(,\d+)?$/', $cleaned)) {
+            $cleaned = str_replace('.', '', $cleaned);
+            $cleaned = str_replace(',', '.', $cleaned);
+            return (float) $cleaned;
+        }
+
         if (is_numeric($value)) {
             return (float) $value;
         }
 
-        // Remove currency symbols and spaces
-        $cleaned = preg_replace('/[^0-9,.-]/', '', $value);
-
-        // Handle Chilean format: 1.234.567 or 1.234.567,89
-        if (preg_match('/^\d{1,3}(\.\d{3})*(,\d+)?$/', $cleaned)) {
-            $cleaned = str_replace('.', '', $cleaned);
-            $cleaned = str_replace(',', '.', $cleaned);
-        }
         // Handle standard format: 1,234,567.89
-        elseif (preg_match('/^\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
+        if (preg_match('/^\-?\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
             $cleaned = str_replace(',', '', $cleaned);
         }
         // Simple format with comma as decimal

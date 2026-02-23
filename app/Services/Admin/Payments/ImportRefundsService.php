@@ -342,13 +342,24 @@ class ImportRefundsService
     }
 
     /**
-     * Extraer datos de una fila usando los índices de columna mapeados
+     * Extraer datos de una fila usando los índices de columna mapeados.
+     * Detecta fórmulas Excel no resueltas (ej: =VLOOKUP referenciando archivos externos)
+     * y las trata como vacías para evitar almacenar texto de fórmulas.
      */
     private function extractRowData(array $row, array $columnIndices): array
     {
         $data = [];
         foreach ($columnIndices as $field => $colIndex) {
-            $data[$field] = trim($row[$colIndex] ?? '');
+            $value = trim($row[$colIndex] ?? '');
+
+            // Detectar fórmulas Excel no resueltas (=VLOOKUP, =IF, etc.)
+            // PhpSpreadsheet no puede resolver fórmulas que referencian archivos externos
+            if (str_starts_with($value, '=') || str_starts_with($value, '#REF') || str_starts_with($value, '#N/A') || str_starts_with($value, '#VALUE')) {
+                Log::warning("Celda con fórmula/error no resuelta en columna '{$field}': {$value}");
+                $value = '';
+            }
+
+            $data[$field] = $value;
         }
         return $data;
     }
@@ -714,24 +725,33 @@ class ImportRefundsService
     }
 
     /**
-     * Parsear monto desde varios formatos
+     * Parsear monto desde varios formatos.
+     * IMPORTANTE: Verificar formato chileno (puntos como miles) ANTES de is_numeric,
+     * porque "777.311" es is_numeric=true pero en CLP significa 777.311 (777 mil 311).
      */
     private function parseAmount($value): int
     {
+        // Convertir a string para analizar el formato
+        $stringValue = trim((string) $value);
+
+        // Remover símbolos de moneda y espacios
+        $cleaned = preg_replace('/[^0-9,.\-]/', '', $stringValue);
+
+        // Formato chileno: 777.311 o 1.234.567 o 1.234.567,89 (punto como separador de miles)
+        // DEBE evaluarse ANTES de is_numeric para no confundir 777.311 con un decimal
+        if (preg_match('/^\-?\d{1,3}(\.\d{3})+(,\d+)?$/', $cleaned)) {
+            $cleaned = str_replace('.', '', $cleaned);
+            $cleaned = str_replace(',', '.', $cleaned);
+            return InstallmentRoundingHelper::round(abs((float) $cleaned));
+        }
+
+        // Número simple sin formato de miles (ej: 777311, 500, 1234567)
         if (is_numeric($value)) {
             return InstallmentRoundingHelper::round(abs((float) $value));
         }
 
-        // Remover símbolos de moneda y espacios
-        $cleaned = preg_replace('/[^0-9,.\-]/', '', $value);
-
-        // Formato chileno: 1.234.567 o 1.234.567,89
-        if (preg_match('/^\-?\d{1,3}(\.\d{3})*(,\d+)?$/', $cleaned)) {
-            $cleaned = str_replace('.', '', $cleaned);
-            $cleaned = str_replace(',', '.', $cleaned);
-        }
         // Formato estándar: 1,234,567.89
-        elseif (preg_match('/^\-?\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
+        if (preg_match('/^\-?\d{1,3}(,\d{3})*(\.\d+)?$/', $cleaned)) {
             $cleaned = str_replace(',', '', $cleaned);
         }
         // Formato simple con coma como decimal
