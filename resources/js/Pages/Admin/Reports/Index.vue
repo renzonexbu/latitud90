@@ -19,7 +19,7 @@
                             <div class="p-6">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Menú de Reportes</h3>
                                 <nav class="space-y-1">
-                                    <!-- Pagos Diarios -->
+                                    <!-- Transacciones Diarias -->
                                     <Link
                                         :href="route('admin.reports.daily-payments')"
                                         class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-yellow-50 transition-colors group"
@@ -27,18 +27,7 @@
                                         <svg class="w-5 h-5 mr-3 text-yellow-400 group-hover:text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                                         </svg>
-                                        <span class="text-gray-700 group-hover:text-yellow-700">Pagos Diarios</span>
-                                    </Link>
-
-                                    <!-- Softland -->
-                                    <Link
-                                        :href="route('admin.reports.softland')"
-                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-indigo-50 transition-colors group"
-                                    >
-                                        <svg class="w-5 h-5 mr-3 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                        </svg>
-                                        <span class="text-gray-700 group-hover:text-indigo-700">Softland</span>
+                                        <span class="text-gray-700 group-hover:text-yellow-700">Transacciones Diarias</span>
                                     </Link>
 
                                     <!-- Documentos Generados -->
@@ -52,28 +41,6 @@
                                         <span class="text-gray-700 group-hover:text-red-700">Documentos Generados</span>
                                     </Link>
 
-                                    <!-- Aceptación TyC -->
-                                    <Link
-                                        :href="route('admin.reports.terms-acceptance')"
-                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-pink-50 transition-colors group"
-                                    >
-                                        <svg class="w-5 h-5 mr-3 text-pink-400 group-hover:text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                        </svg>
-                                        <span class="text-gray-700 group-hover:text-pink-700">Aceptación TyC</span>
-                                    </Link>
-
-                                    <!-- Cuotas Pagadas -->
-                                    <Link
-                                        :href="route('admin.reports.paid-installments')"
-                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-teal-50 transition-colors group"
-                                    >
-                                        <svg class="w-5 h-5 mr-3 text-teal-400 group-hover:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                        </svg>
-                                        <span class="text-gray-700 group-hover:text-teal-700">Cuotas Pagadas</span>
-                                    </Link>
-
                                     <!-- Recaudación Global -->
                                     <Link
                                         :href="route('admin.reports.it-simple')"
@@ -83,6 +50,39 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
                                         </svg>
                                         <span class="text-gray-700 group-hover:text-slate-700">Recaudación Global</span>
+                                    </Link>
+
+                                    <!-- Integración Softland -->
+                                    <Link
+                                        :href="route('admin.reports.softland')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-indigo-50 transition-colors group"
+                                    >
+                                        <svg class="w-5 h-5 mr-3 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <span class="text-gray-700 group-hover:text-indigo-700">Integración Softland</span>
+                                    </Link>
+
+                                    <!-- Registro de Cuotas -->
+                                    <Link
+                                        :href="route('admin.reports.paid-installments')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-teal-50 transition-colors group"
+                                    >
+                                        <svg class="w-5 h-5 mr-3 text-teal-400 group-hover:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        </svg>
+                                        <span class="text-gray-700 group-hover:text-teal-700">Registro de Cuotas</span>
+                                    </Link>
+
+                                    <!-- Aceptación de Términos -->
+                                    <Link
+                                        :href="route('admin.reports.terms-acceptance')"
+                                        class="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-pink-50 transition-colors group"
+                                    >
+                                        <svg class="w-5 h-5 mr-3 text-pink-400 group-hover:text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        <span class="text-gray-700 group-hover:text-pink-700">Aceptación de Términos</span>
                                     </Link>
                                 </nav>
                             </div>

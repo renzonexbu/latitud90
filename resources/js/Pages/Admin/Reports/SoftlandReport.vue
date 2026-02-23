@@ -1,6 +1,6 @@
 <template>
     <AdminLayout>
-        <Head title="Softland" />
+        <Head title="Integración Softland" />
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
@@ -10,7 +10,7 @@
                         <div class="flex items-center justify-between mb-6">
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-900">
-                                    Softland
+                                    Integración Softland
                                 </h2>
                             </div>
                             <Link

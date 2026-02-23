@@ -1,12 +1,12 @@
 <template>
-    <AdminLayout title="Aceptación de Términos y Condiciones">
-        <Head title="Aceptación de Términos y Condiciones" />
+    <AdminLayout title="Aceptación de Términos">
+        <Head title="Aceptación de Términos" />
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header con botones de acción -->
                 <div class="flex items-center justify-between">
                     <ReportsHeader
-                        title="Aceptación de Términos y Condiciones"
+                        title="Aceptación de Términos"
                         subtitle="Registro de quienes aceptaron los términos y condiciones comerciales"
                     />
 

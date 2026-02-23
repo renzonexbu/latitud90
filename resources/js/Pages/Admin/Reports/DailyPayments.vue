@@ -1,12 +1,12 @@
 <template>
   <AdminLayout>
-    <Head title="Reporte de Pagos Diarios" />
+    <Head title="Transacciones Diarias" />
 
     <div class="py-12">
       <div class="max-w-full mx-auto sm:px-6 lg:px-8">
         <!-- Header -->
         <DailyPaymentsHeader
-            title="Reporte de Pagos Diarios"
+            title="Transacciones Diarias"
             subtitle="Pagos recibidos diariamente con información detallada"
             :show-export-button="true"
             @export-clicked="openExportModal"

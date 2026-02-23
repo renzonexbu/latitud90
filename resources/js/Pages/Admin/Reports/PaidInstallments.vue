@@ -1,12 +1,12 @@
 <template>
-    <AdminLayout title="Cuotas Pagadas">
-        <Head title="Cuotas Pagadas" />
+    <AdminLayout title="Registro de Cuotas">
+        <Head title="Registro de Cuotas" />
         <div class="py-12">
             <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header con botones de acción -->
                 <div class="flex items-center justify-between">
                     <ReportsHeader
-                        title="Cuotas Pagadas"
+                        title="Registro de Cuotas"
                         subtitle="Registro de cuotas de suscripción pagadas"
                     />
 
