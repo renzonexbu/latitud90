@@ -393,7 +393,7 @@
                         <!-- Formulario de importación -->
                         <form @submit.prevent="submitPreview" class="space-y-6">
                             <!-- Selección de archivo -->
-                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#e74c3c] transition-colors">
+                            <label for="excel_file" class="block border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#e74c3c] transition-colors cursor-pointer">
                                 <div class="space-y-4">
                                     <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                                         <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -402,24 +402,22 @@
                                     </div>
 
                                     <div>
-                                        <label for="excel_file" class="cursor-pointer">
-                                            <span class="text-lg font-medium text-gray-700">Seleccionar archivo Excel</span>
-                                            <input
-                                                id="excel_file"
-                                                type="file"
-                                                accept=".xlsx,.xls"
-                                                @change="handleFileSelect"
-                                                class="hidden"
-                                                ref="fileInput"
-                                            />
-                                        </label>
+                                        <span class="text-lg font-medium text-gray-700">Seleccionar archivo Excel</span>
+                                        <input
+                                            id="excel_file"
+                                            type="file"
+                                            accept=".xlsx,.xls"
+                                            @change="handleFileSelect"
+                                            class="hidden"
+                                            ref="fileInput"
+                                        />
                                         <p class="text-sm text-gray-500 mt-2">
                                             Formatos soportados: .xlsx, .xls
                                         </p>
                                     </div>
 
                                     <div v-if="selectedFile" class="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                                        <div class="flex items-center">
+                                        <div class="flex items-center justify-center">
                                             <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                             </svg>
@@ -432,7 +430,7 @@
                                         </p>
                                     </div>
                                 </div>
-                            </div>
+                            </label>
 
                             <!-- Botones -->
                             <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">

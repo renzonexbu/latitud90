@@ -5,6 +5,9 @@
                 <!-- Table Header -->
                 <thead class="bg-[#007e93] sticky top-0 z-10">
                     <tr>
+                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[90px]">
+                            Fecha de Pago
+                        </th>
                         <th class="px-2 py-2 text-left text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                             Cód. Inscripción
                         </th>
@@ -46,6 +49,13 @@
                         ]"
                         @click="$emit('view-details', payment)"
                     >
+                        <!-- Fecha de Pago -->
+                        <td class="px-2 py-2 whitespace-nowrap text-center">
+                            <div class="text-[10px] text-gray-600">
+                                {{ formatDate(payment.payment_date) }}
+                            </div>
+                        </td>
+
                         <!-- Código de Inscripción -->
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs font-medium text-[#1c4f4a]">
@@ -162,6 +172,16 @@ const formatPrice = (price) => {
     // Convertir a número, redondear y formatear sin decimales
     const numericPrice = Math.round(Number(price) || 0);
     return numericPrice.toLocaleString("es-CL");
+};
+
+const formatDate = (date) => {
+    if (!date) return '-';
+    try {
+        const d = new Date(date);
+        return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+        return date;
+    }
 };
 
 const formatRut = (rut) => {

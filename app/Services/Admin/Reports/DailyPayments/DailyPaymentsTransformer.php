@@ -113,6 +113,7 @@ class DailyPaymentsTransformer
 
         // Columnas en el mismo orden que la tabla del frontend
         $orderedColumns = [
+            ['section' => 'table', 'field' => 'paymentDate', 'header' => 'Fecha de Pago', 'value' => $this->formatDate($transformed['payment_date'])],
             ['section' => 'table', 'field' => 'enrollmentCode', 'header' => 'Cód. Inscripción', 'value' => $transformed['enrollment_code']],
             ['section' => 'table', 'field' => 'participant', 'header' => 'Participante', 'value' => $transformed['participant_name']],
             ['section' => 'table', 'field' => 'paymentForm', 'header' => 'Forma de Pago', 'value' => $transformed['payment_form_code']],
@@ -140,9 +141,10 @@ class DailyPaymentsTransformer
             }
         }
 
-        // Si no hay campos seleccionados, incluir las 8 columnas de la tabla
+        // Si no hay campos seleccionados, incluir las columnas de la tabla
         if (empty($selectedFields)) {
             $row = [
+                'Fecha de Pago' => $this->formatDate($transformed['payment_date']),
                 'Cód. Inscripción' => $transformed['enrollment_code'],
                 'Participante' => $transformed['participant_name'],
                 'Forma de Pago' => $transformed['payment_form_code'],
