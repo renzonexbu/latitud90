@@ -108,6 +108,12 @@ class ImportManualPaymentsService
                         'participante' => $result['data']['participant_name'] ?? 'N/A',
                         'monto' => $rowData['payment_amount'] ?? $rawData['monto'] ?? $rowData['monto'] ?? 'N/A',
                     ]);
+                } elseif ($result['status'] === 'updated') {
+                    $stats['updated'] = ($stats['updated'] ?? 0) + 1;
+                    Log::info("🔄 PAGO ACTUALIZADO - Fila {$rowNumber}", [
+                        'payment_id' => $result['data']['existing_payment_id'] ?? 'N/A',
+                        'campos' => $result['data']['updated_fields'] ?? [],
+                    ]);
                 } elseif ($result['status'] === 'duplicate') {
                     $stats['duplicates']++;
                 } elseif ($result['status'] === 'skipped') {
@@ -246,11 +252,7 @@ class ImportManualPaymentsService
         );
 
         if ($existingPayment) {
-            return [
-                'status' => 'duplicate',
-                'message' => "Pago duplicado para {$participant->full_name}",
-                'data' => ['existing_payment_id' => $existingPayment->id]
-            ];
+            return $this->updateExistingPaymentFields($existingPayment, $rowData, $rawData);
         }
 
         // 6. Obtener payment option
@@ -382,9 +384,8 @@ class ImportManualPaymentsService
 
             Log::info('Archivo Excel guardado temporalmente para preview', ['path' => $fullPath]);
 
-            // Load the spreadsheet with memory optimization
+            // Load the spreadsheet (sin ReadDataOnly para preservar cache de fórmulas)
             $reader = IOFactory::createReaderForFile($fullPath);
-            $reader->setReadDataOnly(true);
             $spreadsheet = $reader->load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
@@ -446,7 +447,7 @@ class ImportManualPaymentsService
 
                 $rowData = [];
                 foreach ($cellIterator as $cell) {
-                    $rowData[] = $cell->getValue();
+                    $rowData[] = $this->getCellResolvedValue($cell);
                 }
 
                 // Skip empty rows
@@ -565,6 +566,8 @@ class ImportManualPaymentsService
 
                 if ($result['status'] === 'success') {
                     $stats['successful']++;
+                } elseif ($result['status'] === 'updated') {
+                    $stats['updated'] = ($stats['updated'] ?? 0) + 1;
                 } elseif ($result['status'] === 'duplicate') {
                     $stats['duplicates']++;
                 } elseif ($result['status'] === 'skipped') {
@@ -625,9 +628,8 @@ class ImportManualPaymentsService
 
             Log::info('Archivo Excel guardado temporalmente', ['path' => $fullPath]);
 
-            // Load the spreadsheet with memory optimization
+            // Load the spreadsheet (sin ReadDataOnly para preservar cache de fórmulas)
             $reader = IOFactory::createReaderForFile($fullPath);
-            $reader->setReadDataOnly(true); // Only read data, skip styles/formatting
             $spreadsheet = $reader->load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
 
@@ -693,7 +695,7 @@ class ImportManualPaymentsService
 
                 $rowData = [];
                 foreach ($cellIterator as $cell) {
-                    $rowData[] = $cell->getValue();
+                    $rowData[] = $this->getCellResolvedValue($cell);
                 }
 
                 // Skip empty rows
@@ -891,6 +893,12 @@ class ImportManualPaymentsService
                         'monto' => $rowData['monto'] ?? 'N/A',
                         'programa' => $result['data']['program_code'] ?? 'N/A',
                     ]);
+                } elseif ($result['status'] === 'updated') {
+                    $stats['updated'] = ($stats['updated'] ?? 0) + 1;
+                    Log::info("🔄 PAGO ACTUALIZADO - Fila {$rowNumber}", [
+                        'payment_id' => $result['data']['existing_payment_id'] ?? 'N/A',
+                        'campos' => $result['data']['updated_fields'] ?? [],
+                    ]);
                 } elseif ($result['status'] === 'duplicate') {
                     $stats['duplicates']++;
                 } elseif ($result['status'] === 'skipped') {
@@ -1023,9 +1031,14 @@ class ImportManualPaymentsService
             );
 
             if ($existingPayment) {
+                // En preview: detectar si hay campos actualizables, sin guardar
+                $referencia = $rowData['referencia'] ?? null;
+                $hasUpdatableFields = ($referencia && empty($existingPayment->payment_code) && empty($existingPayment->bsale_number));
                 return [
-                    'status' => 'duplicate',
-                    'message' => "Pago ya existe para {$participant->full_name} (${paymentAmount} el {$paymentDate->format('d/m/Y')})",
+                    'status' => $hasUpdatableFields ? 'updated' : 'duplicate',
+                    'message' => $hasUpdatableFields
+                        ? "Pago existente se actualizará con datos faltantes para {$participant->full_name}"
+                        : "Pago ya existe para {$participant->full_name} (${paymentAmount} el {$paymentDate->format('d/m/Y')})",
                     'data' => [
                         'row_data' => $rowData,
                         'enrollment_code' => $enrollmentCode,
@@ -1036,7 +1049,7 @@ class ImportManualPaymentsService
                         'payment_amount' => $paymentAmount,
                         'payment_date' => $paymentDate->format('Y-m-d'),
                         'existing_payment_id' => $existingPayment->id,
-                        'reason' => 'duplicate'
+                        'reason' => $hasUpdatableFields ? 'update' : 'duplicate'
                     ]
                 ];
             }
@@ -1418,11 +1431,7 @@ class ImportManualPaymentsService
             );
 
             if ($existingPayment) {
-                return [
-                    'status' => 'duplicate',
-                    'message' => "Pago duplicado para {$participant->full_name}",
-                    'data' => ['existing_payment_id' => $existingPayment->id]
-                ];
+                return $this->updateExistingPaymentFields($existingPayment, $rowData);
             }
 
             // 6. Obtener payment option
@@ -2110,6 +2119,28 @@ class ImportManualPaymentsService
      * @param string|null $authorizationCode Nro. Aut. from Excel
      * @return \App\Models\Payment|null
      */
+
+    /**
+     * Obtener el valor resuelto de una celda, usando el cache de Excel para fórmulas externas
+     */
+    private function getCellResolvedValue($cell)
+    {
+        $value = $cell->getValue();
+        if (is_string($value) && str_starts_with($value, '=')) {
+            $cached = $cell->getOldCalculatedValue();
+            if ($cached !== null) {
+                return $cached;
+            }
+            try {
+                return $cell->getCalculatedValue();
+            } catch (\Exception $e) {
+                Log::warning("Fórmula no resuelta: {$value}");
+                return null;
+            }
+        }
+        return $value;
+    }
+
     private function checkIfPaymentExists(
         int $participantId,
         int $programCourseId,
@@ -2139,5 +2170,65 @@ class ImportManualPaymentsService
         }
 
         return $query->first();
+    }
+
+    /**
+     * Actualiza campos faltantes de un pago existente (duplicado).
+     * Útil cuando se re-importa un Excel para completar datos como Nro. Boleta.
+     */
+    private function updateExistingPaymentFields(
+        \App\Models\Payment $existingPayment,
+        array $rowData,
+        array $rawData = []
+    ): array {
+        $updated = [];
+
+        // Referencia / Nro. Boleta
+        $referencia = $rawData['referencia'] ?? $rowData['referencia'] ?? $rowData['reference'] ?? null;
+        if ($referencia) {
+            $referencia = trim((string)$referencia);
+            if ($referencia !== '' && empty($existingPayment->payment_code) && empty($existingPayment->bsale_number)) {
+                if ($existingPayment->document_type === 'B2') {
+                    $existingPayment->bsale_number = $referencia;
+                    $updated[] = 'bsale_number';
+                } else {
+                    $existingPayment->payment_code = $referencia;
+                    $updated[] = 'payment_code';
+                }
+            }
+        }
+
+        // Nro. Autorización
+        $authCode = $rawData['nro_aut'] ?? $rowData['nro_aut'] ?? null;
+        if ($authCode && empty($existingPayment->authorization_code)) {
+            $existingPayment->authorization_code = trim((string)$authCode);
+            $updated[] = 'authorization_code';
+        }
+
+        // Contacto pagador (en order_details)
+        $buyerName = $rawData['contacto_pagador'] ?? $rowData['contacto_pagador'] ?? null;
+        if ($buyerName) {
+            $orderDetail = $existingPayment->orderDetail;
+            if ($orderDetail && (empty($orderDetail->name) || $orderDetail->name === ($existingPayment->order?->participant?->full_name ?? ''))) {
+                $orderDetail->name = trim((string)$buyerName);
+                $orderDetail->save();
+                $updated[] = 'contacto_pagador';
+            }
+        }
+
+        if (!empty($updated)) {
+            $existingPayment->save();
+            return [
+                'status' => 'updated',
+                'message' => "Pago existente actualizado (" . implode(', ', $updated) . ")",
+                'data' => ['existing_payment_id' => $existingPayment->id, 'updated_fields' => $updated]
+            ];
+        }
+
+        return [
+            'status' => 'duplicate',
+            'message' => "Pago duplicado, sin campos nuevos para actualizar",
+            'data' => ['existing_payment_id' => $existingPayment->id]
+        ];
     }
 }

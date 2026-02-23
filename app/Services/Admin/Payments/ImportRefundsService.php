@@ -63,7 +63,7 @@ class ImportRefundsService
 
             $spreadsheet = IOFactory::load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
+            $rows = $this->worksheetToArrayResolved($worksheet);
 
             // Buscar dinámicamente la fila de headers
             $headerInfo = $this->findHeaderRow($rows);
@@ -178,7 +178,7 @@ class ImportRefundsService
 
             $spreadsheet = IOFactory::load($fullPath);
             $worksheet = $spreadsheet->getActiveSheet();
-            $rows = $worksheet->toArray();
+            $rows = $this->worksheetToArrayResolved($worksheet);
 
             $headerInfo = $this->findHeaderRow($rows);
 
@@ -802,5 +802,41 @@ class ImportRefundsService
             Log::error('Error parseando fecha: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Leer worksheet a array resolviendo fórmulas con cache de Excel
+     */
+    private function worksheetToArrayResolved($worksheet): array
+    {
+        $rows = [];
+        $highestRow = $worksheet->getHighestRow();
+        $highestColumn = $worksheet->getHighestColumn();
+
+        for ($row = 1; $row <= $highestRow; $row++) {
+            $rowData = [];
+            $colIterator = $worksheet->getRowIterator($row, $row)->current()->getCellIterator('A', $highestColumn);
+            $colIterator->setIterateOnlyExistingCells(false);
+            foreach ($colIterator as $cell) {
+                $value = $cell->getValue();
+                if (is_string($value) && str_starts_with($value, '=')) {
+                    $cached = $cell->getOldCalculatedValue();
+                    if ($cached !== null) {
+                        $value = $cached;
+                    } else {
+                        try {
+                            $value = $cell->getCalculatedValue();
+                        } catch (\Exception $e) {
+                            Log::warning("Fórmula no resuelta en celda {$cell->getCoordinate()}: {$value}");
+                            $value = null;
+                        }
+                    }
+                }
+                $rowData[] = $value;
+            }
+            $rows[] = $rowData;
+        }
+
+        return $rows;
     }
 }

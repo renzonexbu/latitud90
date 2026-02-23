@@ -40,6 +40,10 @@
                             <div class="text-lg font-nexa-bold text-verde-oscuro">{{ progressData.stats.successful || 0 }}</div>
                             <div class="text-xs text-gray-600 font-nexa-regular">Guardados</div>
                         </div>
+                        <div v-if="progressData.stats.updated" class="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
+                            <div class="text-lg font-nexa-bold text-blue-600">{{ progressData.stats.updated || 0 }}</div>
+                            <div class="text-xs text-gray-600 font-nexa-regular">Actualizados</div>
+                        </div>
                         <div class="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
                             <div class="text-lg font-nexa-bold text-red-600">{{ progressData.stats.failed || 0 }}</div>
                             <div class="text-xs text-gray-600 font-nexa-regular">Errores</div>
@@ -254,6 +258,10 @@
                             <div class="text-2xl font-nexa-bold text-orange-600">{{ previewData.stats.duplicates || 0 }}</div>
                             <div class="text-sm text-gray-600 font-nexa-regular">Duplicados</div>
                         </div>
+                        <div v-if="previewData.stats.updated" class="bg-white rounded-lg p-4 border border-blue-200">
+                            <div class="text-2xl font-nexa-bold text-blue-600">{{ previewData.stats.updated || 0 }}</div>
+                            <div class="text-sm text-gray-600 font-nexa-regular">Actualizables</div>
+                        </div>
                         <div class="bg-white rounded-lg p-4 border border-green-200">
                             <div class="text-2xl font-nexa-bold text-verde-oscuro">{{ previewData.stats.successful }}</div>
                             <div class="text-sm text-gray-600 font-nexa-regular">Pagos válidos</div>
@@ -337,6 +345,45 @@
                                                     <div><span class="font-semibold">Código:</span> {{ detail.data?.program_code }}</div>
                                                     <div><span class="font-semibold">Programa:</span> {{ detail.data?.program_name }}</div>
                                                     <div><span class="font-semibold">Fecha:</span> {{ detail.data?.payment_date }}</div>
+                                                    <div><span class="font-semibold">Monto:</span> ${{ formatNumber(detail.data?.payment_amount) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 1.5. UPDATABLE SECTION -->
+                        <div v-if="previewData.details.filter(d => d.status === 'updated').length > 0" class="bg-white rounded-lg border border-blue-300">
+                            <div class="bg-blue-50 px-4 py-3 border-b border-blue-200 flex justify-between items-center">
+                                <h4 class="font-nexa-bold text-blue-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Actualizables - Se actualizarán datos faltantes ({{ previewData.details.filter(d => d.status === 'updated').length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-96 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in previewData.details.filter(d => d.status === 'updated')" :key="'updated-' + index"
+                                        class="p-3 bg-blue-50 rounded border border-blue-200 text-sm">
+                                        <div class="flex gap-3 items-start">
+                                            <input
+                                                type="checkbox"
+                                                :checked="selectedRows.has(detail.row)"
+                                                @change="toggleRowSelection(detail.row)"
+                                                class="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <div class="flex-1">
+                                                <div class="font-nexa-bold text-blue-900 mb-1">
+                                                    Fila {{ detail.row }}: {{ detail.data?.participant_name }}
+                                                </div>
+                                                <div class="text-blue-800 font-nexa-regular mb-2">{{ detail.message }}</div>
+                                                <div class="text-blue-700 font-nexa-regular grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                                    <div><span class="font-semibold">RUT:</span> {{ detail.data?.participant_rut }}</div>
+                                                    <div><span class="font-semibold">Código:</span> {{ detail.data?.program_code }}</div>
+                                                    <div><span class="font-semibold">Programa:</span> {{ detail.data?.program_name }}</div>
                                                     <div><span class="font-semibold">Monto:</span> ${{ formatNumber(detail.data?.payment_amount) }}</div>
                                                 </div>
                                             </div>
@@ -484,7 +531,7 @@
                             Cancelar
                         </button>
                         <button @click="confirmImport"
-                            :disabled="!previewData || previewData.stats.successful === 0 || isConfirming"
+                            :disabled="!previewData || (previewData.stats.successful === 0 && !(previewData.stats.updated > 0)) || isConfirming"
                             class="px-6 py-2 bg-turquesa hover:bg-turquesa-dark text-white font-nexa-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                             <svg v-if="isConfirming" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -872,11 +919,11 @@ const submitPreview = async () => {
                 sample_data: Object.values(rawRowsData.value)[0]
             });
 
-            // Auto-select all valid (success) rows by default
+            // Auto-select all valid (success) and updatable rows by default
             selectedRows.value = new Set();
             if (response.data.details) {
                 response.data.details.forEach(detail => {
-                    if (detail.status === 'success') {
+                    if (detail.status === 'success' || detail.status === 'updated') {
                         selectedRows.value.add(detail.row);
                     }
                 });
@@ -984,7 +1031,7 @@ const confirmImport = async () => {
     console.log(`📦 Procesando ${rowsDataArray.length} filas en ${batches.length} lotes de ${BATCH_SIZE}`);
 
     // Acumular estadísticas y failures
-    const totalStats = { successful: 0, duplicates: 0, skipped: 0, failed: 0 };
+    const totalStats = { successful: 0, updated: 0, duplicates: 0, skipped: 0, failed: 0 };
     const collectedFailures = [];
     let processedRows = 0;
 
@@ -1023,6 +1070,7 @@ const confirmImport = async () => {
             if (response.data.success) {
                 const batchStats = response.data.stats || {};
                 totalStats.successful += batchStats.successful || 0;
+                totalStats.updated += batchStats.updated || 0;
                 totalStats.duplicates += batchStats.duplicates || 0;
                 totalStats.skipped += batchStats.skipped || 0;
                 totalStats.failed += batchStats.failed || 0;
@@ -1073,10 +1121,15 @@ const confirmImport = async () => {
         console.log('🎉 Importación completada:', totalStats);
         console.log('📋 Pagos fallidos:', collectedFailures);
 
-        if (totalStats.successful > 0) {
+        if (totalStats.successful > 0 || totalStats.updated > 0) {
+            const parts = [];
+            if (totalStats.successful > 0) parts.push(`${totalStats.successful} pagos nuevos`);
+            if (totalStats.updated > 0) parts.push(`${totalStats.updated} actualizados`);
+            if (totalStats.duplicates > 0) parts.push(`${totalStats.duplicates} duplicados`);
+            if (totalStats.failed > 0) parts.push(`${totalStats.failed} fallidos`);
             alertWrapper.value?.showSuccess(
                 'Importación completada',
-                `Se importaron ${totalStats.successful} pagos exitosamente. ${totalStats.duplicates} duplicados, ${totalStats.failed} fallidos.`
+                parts.join(', ') + '.'
             );
         } else {
             alertWrapper.value?.showWarning(
