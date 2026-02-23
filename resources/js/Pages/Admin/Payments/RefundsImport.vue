@@ -40,6 +40,104 @@
             </div>
         </div>
 
+        <!-- Results Modal (after import) -->
+        <div v-if="showResultsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl w-full max-w-7xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+                <!-- Modal Header -->
+                <div class="bg-[#e74c3c] text-white px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-2xl font-bold">Resultado de la Importación</h3>
+                        <p class="text-sm mt-1 opacity-90">
+                            Detalle de las devoluciones procesadas
+                        </p>
+                    </div>
+                    <button @click="closeResults" class="text-white hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Stats Summary -->
+                <div v-if="importResults" class="px-6 py-4 bg-gray-50 border-b">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-bold text-blue-600">{{ importResults.processed }}</div>
+                            <div class="text-sm text-gray-600">Total procesadas</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-bold text-green-600">{{ importResults.successful }}</div>
+                            <div class="text-sm text-gray-600">Insertadas correctamente</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-4 border border-gray-200">
+                            <div class="text-2xl font-bold text-red-600">{{ importResults.errors }}</div>
+                            <div class="text-sm text-gray-600">Con errores</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Content -->
+                <div class="flex-1 overflow-y-auto px-6 py-4">
+                    <div v-if="importResults && importResults.details" class="space-y-4">
+                        <!-- Success Records -->
+                        <div v-if="importSuccessDetails.length > 0" class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-green-50 px-4 py-3 border-b border-green-200">
+                                <h4 class="font-bold text-green-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Devoluciones Insertadas ({{ importSuccessDetails.length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-60 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in importSuccessDetails" :key="'isuccess-' + index"
+                                        class="p-3 bg-green-50 rounded border border-green-200 text-sm">
+                                        <div class="font-bold text-green-900">
+                                            Fila {{ detail.row }}: {{ detail.participant_name }}
+                                            — ${{ formatNumber(detail.refund_amount) }}
+                                        </div>
+                                        <div v-if="detail.warning" class="mt-1 text-yellow-700 text-xs">
+                                            {{ detail.warning_message }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Failed Records -->
+                        <div v-if="importFailedDetails.length > 0" class="bg-white rounded-lg border border-gray-200">
+                            <div class="bg-red-50 px-4 py-3 border-b border-red-200">
+                                <h4 class="font-bold text-red-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Devoluciones con Error ({{ importFailedDetails.length }})
+                                </h4>
+                            </div>
+                            <div class="p-4 max-h-60 overflow-y-auto">
+                                <div class="space-y-2">
+                                    <div v-for="(detail, index) in importFailedDetails" :key="'ifailed-' + index"
+                                        class="p-3 bg-red-50 rounded border border-red-200 text-sm">
+                                        <div class="font-bold text-red-900 mb-1">Fila {{ detail.row }}</div>
+                                        <div class="text-red-800">{{ detail.error }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-gray-50 border-t flex justify-end">
+                    <button @click="closeResults"
+                        class="px-6 py-2 bg-[#e74c3c] hover:bg-[#c0392b] text-white font-bold rounded-lg transition-colors">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Preview Modal -->
         <div v-if="showPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div class="bg-white rounded-xl w-full max-w-7xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
@@ -377,6 +475,8 @@ const fileInput = ref(null);
 const showPreviewModal = ref(false);
 const previewData = ref(null);
 const isConfirming = ref(false);
+const showResultsModal = ref(false);
+const importResults = ref(null);
 
 const form = useForm({
     file: null
@@ -391,6 +491,16 @@ const successfulDetails = computed(() => {
 const failedDetails = computed(() => {
     if (!previewData.value || !previewData.value.results.details) return [];
     return previewData.value.results.details.filter(detail => detail.success === false);
+});
+
+const importSuccessDetails = computed(() => {
+    if (!importResults.value || !importResults.value.details) return [];
+    return importResults.value.details.filter(detail => detail.success === true);
+});
+
+const importFailedDetails = computed(() => {
+    if (!importResults.value || !importResults.value.details) return [];
+    return importResults.value.details.filter(detail => detail.success === false);
 });
 
 const handleFileSelect = (event) => {
@@ -468,28 +578,49 @@ const closePreview = () => {
     showPreviewModal.value = false;
 };
 
-const confirmImport = () => {
+const confirmImport = async () => {
     isConfirming.value = true;
-    form.file = selectedFile.value;
-    form.post(route('admin.payments.refunds.import-store'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            showPreviewModal.value = false;
-            isConfirming.value = false;
+    form.processing = true;
 
-            // Limpiar el archivo seleccionado
-            selectedFile.value = null;
-            if (fileInput.value) {
-                fileInput.value.value = '';
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedFile.value);
+
+        const response = await axios.post(route('admin.payments.refunds.import-store'), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
             }
-            previewData.value = null;
-        },
-        onError: (errors) => {
-            isConfirming.value = false;
-            showPreviewModal.value = false;
-            console.error('Errores de validación:', errors);
+        });
+
+        showPreviewModal.value = false;
+
+        if (response.data.success) {
+            importResults.value = response.data.results;
+            showResultsModal.value = true;
+        } else {
+            alert('Error en la importación: ' + (response.data.error || 'Error desconocido'));
         }
-    });
+    } catch (error) {
+        showPreviewModal.value = false;
+        console.error('Error en la importación:', error);
+        const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al procesar la importación.';
+        alert('Error en la importación: ' + errorMessage);
+    } finally {
+        isConfirming.value = false;
+        form.processing = false;
+    }
+};
+
+const closeResults = () => {
+    showResultsModal.value = false;
+    importResults.value = null;
+
+    // Limpiar el archivo seleccionado
+    selectedFile.value = null;
+    if (fileInput.value) {
+        fileInput.value.value = '';
+    }
+    previewData.value = null;
 };
 </script>
 

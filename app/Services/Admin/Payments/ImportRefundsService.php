@@ -13,6 +13,7 @@ use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Traits\AdminLogging;
 use App\Helpers\RutHelper;
+use App\Helpers\InstallmentRoundingHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -436,11 +437,10 @@ class ImportRefundsService
                 return $result;
             }
 
-            // Encontrar el ProgramCourse
+            // participant_program.program_id almacena el program_courses.id directamente
+            $programCourseId = $participantProgram->program_id;
             $order = Order::where('participant_id', $participantProgram->participant_id)
-                ->whereHas('programCourse', function ($q) use ($participantProgram) {
-                    $q->where('program_id', $participantProgram->program_id);
-                })
+                ->where('program_id', $programCourseId)
                 ->first();
 
             if (!$order) {
@@ -448,7 +448,6 @@ class ImportRefundsService
                 return $result;
             }
 
-            $programCourseId = $order->program_id;
             $participant = Participant::find($participantProgram->participant_id);
             $programCourse = ProgramCourse::find($programCourseId);
 
@@ -539,13 +538,12 @@ class ImportRefundsService
                 return $result;
             }
 
-            Log::info("Enrollment code encontrado: participant_id={$participantProgram->participant_id}, program_template_id={$participantProgram->program_id}");
+            Log::info("Enrollment code encontrado: participant_id={$participantProgram->participant_id}, program_course_id={$participantProgram->program_id}");
 
-            // Encontrar el ProgramCourse
+            // participant_program.program_id almacena el program_courses.id directamente
+            $programCourseId = $participantProgram->program_id;
             $order = Order::where('participant_id', $participantProgram->participant_id)
-                ->whereHas('programCourse', function ($q) use ($participantProgram) {
-                    $q->where('program_id', $participantProgram->program_id);
-                })
+                ->where('program_id', $programCourseId)
                 ->first();
 
             if (!$order) {
@@ -554,7 +552,6 @@ class ImportRefundsService
                 return $result;
             }
 
-            $programCourseId = $order->program_id;
             $participant = Participant::find($participantProgram->participant_id);
 
             // Parsear monto y tipo reembolso
@@ -591,14 +588,19 @@ class ImportRefundsService
             $documentNumber = trim($rowData['n_documento'] ?? '');
             $clientName = trim($rowData['nombre_cliente'] ?? '') ?: ($participant->first_name . ' ' . $participant->first_last_name);
 
+            // Defaults para campos opcionales (RA no tiene datos fiscales SII)
+            $paymentCode = $siiCode ?: ('BULK-' . now()->format('YmdHis') . '-' . $rowNumber);
+            $siiCodeFinal = $siiCode ?: $paymentCode;
+            $documentNumberFinal = $documentNumber ?: $paymentCode;
+
             $refundData = [
                 'program_id' => $programCourseId,
                 'participant_id' => $participantProgram->participant_id,
                 'amount' => $refundAmount,
                 'transaction_date' => $this->parseDate($rowData['fecha']),
-                'payment_code' => $siiCode ?: ('BULK-' . now()->format('YmdHis') . '-' . $rowNumber),
-                'sii_code' => $siiCode,
-                'document_number' => $documentNumber,
+                'payment_code' => $paymentCode,
+                'sii_code' => $siiCodeFinal,
+                'document_number' => $documentNumberFinal,
                 'total_amount' => $refundAmount,
                 'client_rut' => $cleanRut,
                 'client_name' => $clientName,
@@ -650,7 +652,14 @@ class ImportRefundsService
             return ['valid' => false, 'error' => 'Formato de fecha inválido'];
         }
 
-        // Validar monto (debe ser positivo)
+        // Validar que el monto no sea negativo en el Excel
+        $rawMonto = is_numeric($data['monto']) ? (float) $data['monto'] : null;
+        if ($rawMonto !== null && $rawMonto < 0) {
+            Log::error("Monto negativo en fila {$rowNumber}: {$rawMonto}. Los montos deben ser positivos");
+            return ['valid' => false, 'error' => 'El monto debe ser positivo (no ingrese valores negativos)'];
+        }
+
+        // Validar monto (debe ser mayor a 0)
         $monto = $this->parseAmount($data['monto']);
         if ($monto <= 0) {
             Log::error("Monto debe ser mayor a 0 en fila {$rowNumber}: {$monto}");
@@ -690,24 +699,27 @@ class ImportRefundsService
     /**
      * Calcular monto pagado por participante y programa
      */
-    private function calculatePaidAmount($participantId, $programId): float
+    private function calculatePaidAmount($participantId, $programId): int
     {
-        return Payment::whereHas('order', function ($query) use ($participantId, $programId) {
+        $sum = Payment::whereHas('order', function ($query) use ($participantId, $programId) {
             $query->where('participant_id', $participantId)
                   ->where('program_id', $programId);
         })
         ->whereIn('status', ['approved', 'completed'])
         ->where('amount', '>', 0)
         ->sum('amount');
+
+        // Ley de redondeo: CLP sin decimales
+        return InstallmentRoundingHelper::round((float) $sum);
     }
 
     /**
      * Parsear monto desde varios formatos
      */
-    private function parseAmount($value): float
+    private function parseAmount($value): int
     {
         if (is_numeric($value)) {
-            return abs((float) $value);
+            return InstallmentRoundingHelper::round(abs((float) $value));
         }
 
         // Remover símbolos de moneda y espacios
@@ -727,7 +739,8 @@ class ImportRefundsService
             $cleaned = str_replace(',', '.', $cleaned);
         }
 
-        return abs((float) $cleaned);
+        // Ley de redondeo: CLP no tiene decimales (.0-.59 abajo, .6-.99 arriba)
+        return InstallmentRoundingHelper::round(abs((float) $cleaned));
     }
 
     /**

@@ -96,7 +96,10 @@ class CreateRefundController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first()
+            ], 422);
         }
 
         try {
@@ -106,16 +109,22 @@ class CreateRefundController extends Controller
             $result = $this->importRefundsService->processExcel($file);
 
             if ($result['success']) {
-                $successCount = $result['results']['successful'];
-                $totalCount = $result['results']['processed'];
-                
-                return back()->with('success', "Importación exitosa: {$successCount} de {$totalCount} devoluciones procesadas correctamente.");
+                return response()->json([
+                    'success' => true,
+                    'results' => $result['results'],
+                ]);
             } else {
-                return back()->withErrors(['error' => $result['error']])->withInput();
+                return response()->json([
+                    'success' => false,
+                    'error' => $result['error']
+                ], 422);
             }
 
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Error al procesar el archivo: ' . $e->getMessage()])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al procesar el archivo: ' . $e->getMessage()
+            ], 500);
         }
     }
 
