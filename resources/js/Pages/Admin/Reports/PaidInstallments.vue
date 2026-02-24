@@ -2,7 +2,7 @@
     <AdminLayout title="Registro de Cuotas">
         <Head title="Registro de Cuotas" />
         <div class="py-12">
-            <div class="max-w-full mx-auto sm:px-6 lg:px-8 space-y-6">
+            <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 space-y-6">
                 <!-- Header con botones de acción -->
                 <div class="flex items-center justify-between">
                     <ReportsHeader
@@ -129,7 +129,7 @@
                         <!-- Table Container -->
                         <div class="flex flex-col gap-0 overflow-x-auto">
                             <!-- Table Header -->
-                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] grid grid-cols-[110px_1fr_130px_120px_90px_110px_120px_100px] items-center gap-2 min-w-[1000px] h-[61.51px]">
+                            <div class="bg-turquesa rounded-t-[20px] px-5 py-[11px] grid grid-cols-[90px_1fr_150px_100px_80px_70px_100px_90px] items-center gap-2 min-w-[850px] h-[61.51px]">
                                 <div class="text-white font-nexa-bold text-[13px] leading-[18px] text-center">
                                     Fecha
                                 </div>
@@ -157,12 +157,12 @@
                             </div>
 
                             <!-- Table Body -->
-                            <div class="flex flex-col min-w-[1000px]">
+                            <div class="flex flex-col min-w-[850px]">
                                 <div
                                     v-for="(record, index) in paidInstallmentsData.data"
                                     :key="record.id"
                                     :class="[
-                                        'px-5 py-[12px] grid grid-cols-[110px_1fr_130px_120px_90px_110px_120px_100px] items-center gap-2',
+                                        'px-5 py-[12px] grid grid-cols-[90px_1fr_150px_100px_80px_70px_100px_90px] items-center gap-2',
                                         index % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f9]',
                                     ]"
                                 >

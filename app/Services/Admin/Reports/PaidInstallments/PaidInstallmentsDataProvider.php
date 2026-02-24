@@ -117,7 +117,7 @@ class PaidInstallmentsDataProvider
                 'enrollment_code' => $enrollmentCode,
                 'amount' => $installment->amount,
                 'bsale_number' => $bsaleNumber,
-                'installment_label' => "Cuota {$installment->installment_number} de " . ($plan?->total_installments ?? '?'),
+                'installment_label' => "{$installment->installment_number} de " . ($plan?->total_installments ?? '?'),
                 'total_paid' => $totalPaid,
                 'saldo' => $saldo,
                 // Mantener para compatibilidad
