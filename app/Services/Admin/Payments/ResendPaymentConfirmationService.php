@@ -146,32 +146,41 @@ class ResendPaymentConfirmationService
             }
         }
 
-        // Si no hay documentos en logs, intentar regenerarlos
+        // Si no hay documentos en logs, regenerar según PaymentDocumentTypeHelper
         if (empty($attachments)) {
-            $this->logInfo('ResendPaymentConfirmationService: No hay logs, regenerando documentos', [
+            $documentTypes = \App\Helpers\PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
+
+            $this->logInfo('ResendPaymentConfirmationService: No hay logs, regenerando documentos según tipo', [
                 'payment_id' => $payment->id,
+                'document_types' => $documentTypes,
             ]);
 
-            // Generar comprobante de pago
-            try {
-                $receiptPath = $this->documentService->generatePdfFromTemplate(
-                    \App\Models\DocumentTemplate::TYPE_PAYMENT_RECEIPT,
-                    $orderDetail,
-                    $payment
-                );
-                if ($receiptPath && file_exists($receiptPath)) {
-                    $attachments[] = [
-                        'path' => $receiptPath,
-                        'name' => 'Comprobante_Pago_' . $orderDetail->order->order_number . '.pdf',
-                        'type' => 'payment_receipt_generated',
-                    ];
+            $shouldSendBoleta = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_BOLETA, $documentTypes);
+            $shouldSendContract = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_CONTRATO, $documentTypes);
+            $shouldSendReceipt = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_ANTICIPO, $documentTypes);
+
+            // Generar comprobante de pago solo si corresponde (AC - año siguiente)
+            if ($shouldSendReceipt) {
+                try {
+                    $receiptPath = $this->documentService->generatePdfFromTemplate(
+                        \App\Models\DocumentTemplate::TYPE_PAYMENT_RECEIPT,
+                        $orderDetail,
+                        $payment
+                    );
+                    if ($receiptPath && file_exists($receiptPath)) {
+                        $attachments[] = [
+                            'path' => $receiptPath,
+                            'name' => 'Comprobante_Pago_' . $orderDetail->order->order_number . '.pdf',
+                            'type' => 'payment_receipt_generated',
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    $this->logError('Error generando comprobante de pago', ['error' => $e->getMessage()]);
                 }
-            } catch (\Exception $e) {
-                $this->logError('Error generando comprobante de pago', ['error' => $e->getMessage()]);
             }
 
-            // Generar contrato si es primera cuota
-            if ($orderDetail->installment_number == 1) {
+            // Generar contrato solo si corresponde (CR - primera cuota año siguiente)
+            if ($shouldSendContract) {
                 try {
                     $contractPath = $this->documentService->generatePdfFromTemplate(
                         \App\Models\DocumentTemplate::TYPE_CONTRACT,
@@ -190,8 +199,8 @@ class ResendPaymentConfirmationService
                 }
             }
 
-            // Intentar obtener boleta Bsale si existe
-            if ($payment->bsale_document_id && $payment->bsale_token) {
+            // Intentar obtener boleta Bsale si corresponde (B2 - mismo año)
+            if ($shouldSendBoleta && $payment->bsale_document_id && $payment->bsale_token) {
                 try {
                     $bsalePath = $this->getBsalePdfPath($payment);
                     if ($bsalePath && file_exists($bsalePath)) {

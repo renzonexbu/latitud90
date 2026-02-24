@@ -857,7 +857,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Get list of all generated documents (comprobantes, contratos, boletas Bsale)
+     * Get list of all payment documents (based on payments table)
      */
     public function bsaleDocumentsList(Request $request)
     {
@@ -868,8 +868,9 @@ class ReportController extends Controller
             $documentType = $request->get('document_type');
             $perPage = (int) $request->get('per_page', 50);
 
-            // Query generated_documents table
-            $query = \App\Models\GeneratedDocument::with(['payment', 'orderDetail', 'participant', 'program'])
+            $query = \App\Models\Payment::with(['order.participant', 'order.programCourse', 'orderDetail'])
+                ->whereIn('status', ['completed', 'approved'])
+                ->whereIn('document_type', ['B2', 'AC'])
                 ->orderBy('created_at', 'desc');
 
             // Filter by date range
@@ -881,50 +882,73 @@ class ReportController extends Controller
             }
 
             // Filter by document type
-            if ($documentType) {
-                $query->where('document_type', $documentType);
+            if ($documentType === 'bsale_invoice') {
+                $query->where('document_type', 'B2')->whereNotNull('bsale_number');
+            } elseif ($documentType === 'contract') {
+                $query->where('document_type', 'AC');
             }
+            // payment_receipt: no additional filter (any completed payment)
 
             // Filter by search term
             if ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('file_name', 'like', "%{$search}%")
-                      ->orWhere('email_sent_to', 'like', "%{$search}%")
-                      ->orWhereHas('participant', function ($pq) use ($search) {
+                    $q->where('bsale_number', 'like', "%{$search}%")
+                      ->orWhereHas('order.participant', function ($pq) use ($search) {
                           $pq->where('first_name', 'like', "%{$search}%")
                              ->orWhere('first_last_name', 'like', "%{$search}%")
                              ->orWhere('second_last_name', 'like', "%{$search}%");
                       })
-                      ->orWhereHas('program', function ($pgq) use ($search) {
+                      ->orWhereHas('order.programCourse', function ($pgq) use ($search) {
                           $pgq->where('name', 'like', "%{$search}%");
                       });
                 });
             }
 
-            // Paginate
             $paginated = $query->paginate($perPage);
 
-            // Format documents for frontend
-            $documents = $paginated->map(function ($doc) {
+            $documentTypeLabels = [
+                'B2' => 'Boleta',
+                'AC' => 'Anticipo',
+                'VC' => 'Nota de Crédito',
+                'FF' => 'Factura',
+                'RA' => 'Reverso Administrativo',
+                'CT' => 'Crédito Temporal',
+            ];
+
+            $documents = $paginated->map(function ($payment) use ($documentTypeLabels) {
+                $order = $payment->order;
+                $orderDetail = $payment->orderDetail;
+
+                // Determine available document types
+                $availableDocuments = ['payment_receipt'];
+
+                if ($payment->bsale_number) {
+                    $availableDocuments[] = 'bsale_invoice';
+                }
+
+                if ($orderDetail) {
+                    try {
+                        $types = \App\Helpers\PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
+                        if (in_array('CR', $types)) {
+                            $availableDocuments[] = 'contract';
+                        }
+                    } catch (\Exception $e) {
+                        // Silently skip contract determination errors
+                    }
+                }
+
                 return [
-                    'id' => $doc->id,
-                    'filename' => $doc->file_name,
-                    'document_type' => $doc->document_type,
-                    'document_type_label' => $doc->getTypeLabel(),
-                    'file_size' => $doc->file_size,
-                    'size_formatted' => $doc->getFileSizeFormatted(),
-                    'created_at' => $doc->created_at?->format('d/m/Y H:i'),
-                    'email_sent' => $doc->email_sent,
-                    'email_sent_at' => $doc->email_sent_at?->format('d/m/Y H:i'),
-                    'email_sent_to' => $doc->email_sent_to,
-                    'email_send_count' => $doc->email_send_count,
-                    'payment_id' => $doc->payment_id,
-                    'order_number' => $doc->orderDetail?->order?->order_number,
-                    'participant_name' => $doc->participant?->full_name,
-                    'program_name' => $doc->program?->name,
-                    'bsale_number' => $doc->metadata['bsale_number'] ?? null,
-                    'year' => $doc->created_at?->year,
-                    'file_exists' => $doc->exists(),
+                    'id' => $payment->id,
+                    'participant_name' => $order?->participant?->full_name ?? '-',
+                    'program_name' => $order?->programCourse?->name ?? '-',
+                    'order_number' => $order?->order_number,
+                    'amount' => $payment->amount,
+                    'amount_formatted' => '$' . number_format($payment->amount, 0, ',', '.'),
+                    'bsale_number' => $payment->bsale_number,
+                    'document_type' => $payment->document_type,
+                    'document_type_label' => $documentTypeLabels[$payment->document_type] ?? $payment->document_type,
+                    'available_documents' => $availableDocuments,
+                    'created_at' => $payment->created_at?->format('d/m/Y H:i'),
                 ];
             });
 
@@ -937,12 +961,119 @@ class ReportController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error listing generated documents: ' . $e->getMessage(), [
+            Log::error('Error listing payment documents: ' . $e->getMessage(), [
                 'exception' => $e,
                 'trace' => $e->getTraceAsString()
             ]);
             return response()->json(['error' => 'Error al listar documentos: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Download/generate a document on-demand for a specific payment
+     */
+    public function downloadPaymentDocument($paymentId, $documentType)
+    {
+        try {
+            $payment = \App\Models\Payment::with(['orderDetail.order.participant', 'orderDetail.order.programCourse', 'order.participant'])
+                ->findOrFail($paymentId);
+
+            switch ($documentType) {
+                case 'bsale_invoice':
+                    return $this->serveBsaleInvoice($payment);
+                case 'payment_receipt':
+                    return $this->servePaymentReceipt($payment);
+                case 'contract':
+                    return $this->serveContract($payment);
+                default:
+                    abort(400, 'Tipo de documento no válido');
+            }
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Pago no encontrado');
+        } catch (\Exception $e) {
+            Log::error('Error downloading payment document: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'document_type' => $documentType,
+                'exception' => $e,
+            ]);
+            abort(500, 'Error al generar el documento: ' . $e->getMessage());
+        }
+    }
+
+    private function serveBsaleInvoice(\App\Models\Payment $payment)
+    {
+        if (!$payment->bsale_number) {
+            abort(404, 'Este pago no tiene número de boleta BSale');
+        }
+
+        // 1. Check if PDF already stored locally
+        $year = $payment->created_at->year;
+        $filename = 'bsale_' . $payment->bsale_number . '_payment_' . $payment->id . '.pdf';
+        $filePath = storage_path("app/bsale_documents/{$year}/{$filename}");
+
+        if (file_exists($filePath)) {
+            return response()->download($filePath, $filename, ['Content-Type' => 'application/pdf']);
+        }
+
+        // 2. Need token to download from BSale API
+        if (empty($payment->bsale_token)) {
+            $bsaleService = app(\App\Services\Client\Integration\BsaleService::class);
+            $bsaleService->syncPaymentToken($payment);
+            $payment->refresh();
+        }
+
+        if (empty($payment->bsale_token)) {
+            abort(404, 'No se pudo obtener el token de BSale para descargar el PDF');
+        }
+
+        // 3. Download from BSale
+        $bsaleUrl = "https://app2.bsale.cl/view/90370/{$payment->bsale_token}.pdf?sfd=99";
+        $response = \Illuminate\Support\Facades\Http::timeout(30)->get($bsaleUrl);
+
+        if (!$response->successful()) {
+            abort(502, 'Error al descargar PDF desde BSale (HTTP ' . $response->status() . ')');
+        }
+
+        // 4. Store locally for future requests
+        $dir = storage_path("app/bsale_documents/{$year}");
+        if (!file_exists($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        file_put_contents($filePath, $response->body());
+
+        return response()->download($filePath, $filename, ['Content-Type' => 'application/pdf']);
+    }
+
+    private function servePaymentReceipt(\App\Models\Payment $payment)
+    {
+        $orderDetail = $payment->orderDetail;
+        if (!$orderDetail) {
+            abort(404, 'No se encontró detalle de orden para este pago');
+        }
+
+        $receiptService = new \App\Services\PDF\PaymentReceiptService();
+        $tempPath = $receiptService->generatePaymentReceipt($orderDetail, $payment);
+
+        $filename = 'comprobante_pago_' . ($orderDetail->order?->order_number ?? $payment->id) . '.pdf';
+
+        return response()->download($tempPath, $filename, ['Content-Type' => 'application/pdf'])
+            ->deleteFileAfterSend(true);
+    }
+
+    private function serveContract(\App\Models\Payment $payment)
+    {
+        $orderDetail = $payment->orderDetail;
+        if (!$orderDetail) {
+            abort(404, 'No se encontró detalle de orden para este pago');
+        }
+
+        $contractService = new \App\Services\PDF\ContractService();
+        $tempPath = $contractService->generateContract($orderDetail, $payment);
+
+        $filename = 'contrato_reserva_' . ($orderDetail->order?->order_number ?? $payment->id) . '.pdf';
+
+        return response()->download($tempPath, $filename, ['Content-Type' => 'application/pdf'])
+            ->deleteFileAfterSend(true);
     }
 
     /**

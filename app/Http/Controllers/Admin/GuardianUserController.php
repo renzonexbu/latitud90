@@ -106,6 +106,44 @@ class GuardianUserController extends Controller
     }
 
     /**
+     * Actualizar nombre y/o email de un guardian user
+     */
+    public function update(Request $request, GuardianUser $guardianUser)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:guardian_users,email,' . $guardianUser->id,
+        ], [
+            'email.unique' => 'Ya existe un usuario registrado con ese correo electrónico.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El correo electrónico no tiene un formato válido.',
+            'name.required' => 'El nombre es obligatorio.',
+        ]);
+
+        $changes = [];
+        if ($guardianUser->name !== $validated['name']) {
+            $changes[] = "nombre: '{$guardianUser->name}' → '{$validated['name']}'";
+        }
+        if ($guardianUser->email !== $validated['email']) {
+            $changes[] = "email: '{$guardianUser->email}' → '{$validated['email']}'";
+        }
+
+        if (empty($changes)) {
+            return back()->with('info', 'No se detectaron cambios.');
+        }
+
+        $guardianUser->update($validated);
+
+        \Log::info('Guardian user actualizado desde admin', [
+            'guardian_user_id' => $guardianUser->id,
+            'changes' => $changes,
+            'updated_by' => auth()->user()?->email,
+        ]);
+
+        return back()->with('success', "Usuario actualizado: " . implode(', ', $changes));
+    }
+
+    /**
      * Verificar email manualmente desde el panel admin
      */
     public function verifyEmail(GuardianUser $guardianUser)
