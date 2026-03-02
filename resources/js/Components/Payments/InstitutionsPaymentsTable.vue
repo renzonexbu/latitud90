@@ -49,6 +49,48 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Filtro Institución con Autocomplete -->
+                    <div class="relative" ref="institutionDropdown">
+                        <div class="relative w-[220px]">
+                            <input
+                                v-model="institutionSearch"
+                                type="text"
+                                placeholder="Filtrar por institución"
+                                @focus="showInstitutionDropdown = true"
+                                @input="handleInstitutionInput"
+                                class="w-full h-[45.79px] bg-white rounded-[50px] border border-[#f0f0f0] px-[17px] py-2 text-[#434343] text-left font-nexa-bold text-[12px] leading-[18px] font-bold pr-10 outline-none shadow-[0px_0.83px_3.33px_0px_rgba(25,33,61,0.08)]"
+                            />
+                            <button
+                                v-if="selectedInstitution"
+                                @click="clearInstitutionFilter"
+                                type="button"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <span v-else class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </span>
+                        </div>
+                        <!-- Dropdown opciones -->
+                        <div
+                            v-if="showInstitutionDropdown && filteredInstitutions.length > 0"
+                            class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                        >
+                            <div
+                                v-for="inst in filteredInstitutions"
+                                :key="inst"
+                                @click="selectInstitution(inst)"
+                                class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
+                            >
+                                {{ capitalize(inst) }}
+                            </div>
+                        </div>
+                    </div>
                     <!-- Buscador general -->
                     <div class="relative w-[310px]">
                         <input
@@ -238,17 +280,46 @@ export default {
             executiveSearch: "",
             selectedExecutiveId: this.filters?.salesExecutiveId || null,
             showExecutiveDropdown: false,
+            institutionSearch: "",
+            selectedInstitution: null,
+            showInstitutionDropdown: false,
         };
     },
     computed: {
         filteredRows() {
+            let result = this.rows;
+
+            // Filtro por institución
+            if (this.selectedInstitution) {
+                const instName = this.selectedInstitution.toLowerCase();
+                result = result.filter((r) => {
+                    return (r.institutionName || "").toLowerCase() === instName;
+                });
+            }
+
+            // Filtro por código de programa
             const term = this.search.trim().toLowerCase();
-            if (!term) return this.rows;
-            // Priorizar búsqueda por código de programa (contiene)
-            return this.rows.filter((r) => {
-                const programCode = (r.programCode || "").toLowerCase();
-                return programCode.includes(term);
-            });
+            if (term) {
+                result = result.filter((r) => {
+                    const programCode = (r.programCode || "").toLowerCase();
+                    return programCode.includes(term);
+                });
+            }
+
+            return result;
+        },
+        uniqueInstitutions() {
+            const names = this.rows
+                .map((r) => r.institutionName)
+                .filter((name) => name && name.trim() !== "" && name !== "—");
+            return [...new Set(names)].sort();
+        },
+        filteredInstitutions() {
+            const term = this.institutionSearch.trim().toLowerCase();
+            if (!term) return this.uniqueInstitutions;
+            return this.uniqueInstitutions.filter((inst) =>
+                inst.toLowerCase().includes(term)
+            );
         },
         paginatedRows() {
             const start = (this.currentPage - 1) * this.perPage;
@@ -302,10 +373,33 @@ export default {
     },
     methods: {
         handleClickOutside(event) {
-            const dropdown = this.$refs.executiveDropdown;
-            if (dropdown && !dropdown.contains(event.target)) {
+            const execDropdown = this.$refs.executiveDropdown;
+            if (execDropdown && !execDropdown.contains(event.target)) {
                 this.showExecutiveDropdown = false;
             }
+            const instDropdown = this.$refs.institutionDropdown;
+            if (instDropdown && !instDropdown.contains(event.target)) {
+                this.showInstitutionDropdown = false;
+            }
+        },
+        handleInstitutionInput() {
+            this.showInstitutionDropdown = true;
+            // Si el usuario borra el texto, limpiar la selección
+            if (!this.institutionSearch.trim()) {
+                this.selectedInstitution = null;
+                this.currentPage = 1;
+            }
+        },
+        selectInstitution(name) {
+            this.selectedInstitution = name;
+            this.institutionSearch = name;
+            this.showInstitutionDropdown = false;
+            this.currentPage = 1;
+        },
+        clearInstitutionFilter() {
+            this.selectedInstitution = null;
+            this.institutionSearch = "";
+            this.currentPage = 1;
         },
         selectExecutive(exec) {
             this.selectedExecutiveId = exec.id;
@@ -322,6 +416,8 @@ export default {
             this.search = "";
             this.selectedExecutiveId = null;
             this.executiveSearch = "";
+            this.selectedInstitution = null;
+            this.institutionSearch = "";
             this.currentPage = 1;
             router.get(route('admin.dashboard'), {}, {
                 preserveState: false,

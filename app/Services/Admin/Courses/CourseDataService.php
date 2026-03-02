@@ -63,7 +63,20 @@ class CourseDataService
             }
 
             $participants = $course->participants ?? collect();
-            $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
+
+            // Obtener IDs de participantes "de baja" en participant_program
+            $bajaParticipantIds = $programCourse
+                ? DB::table('participant_program')
+                    ->where('program_id', $programCourse->id)
+                    ->where('is_active', false)
+                    ->pluck('participant_id')
+                    ->toArray()
+                : [];
+
+            $activeParticipants = $participants->filter(fn($p) =>
+                ($p->pivot->status ?? 'active') !== 'cancelled' &&
+                !in_array($p->id, $bajaParticipantIds)
+            );
 
             $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants, $program, $programCourse);
             $coursePaidAmount = $this->calculatePaidAmount($course, $program, $programCourse);
@@ -170,7 +183,18 @@ class CourseDataService
 
             // Calculate total amount from active participants (considering discounts)
             $participants = $course->participants ?? collect();
-            $activeParticipants = $participants->filter(fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled');
+
+            // Obtener IDs de participantes "de baja" en participant_program
+            $bajaParticipantIds = DB::table('participant_program')
+                ->where('program_id', $programCourse->id)
+                ->where('is_active', false)
+                ->pluck('participant_id')
+                ->toArray();
+
+            $activeParticipants = $participants->filter(fn($p) =>
+                ($p->pivot->status ?? 'active') !== 'cancelled' &&
+                !in_array($p->id, $bajaParticipantIds)
+            );
 
             // Total del curso = suma del precio final de cada participante (con descuentos)
             $courseTotalAmount = 0.0;

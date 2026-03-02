@@ -52,18 +52,45 @@
 
                     <!-- Filtros Row -->
                     <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-                        <!-- Programas -->
-                        <div class="relative flex-1 min-w-[200px]">
-                            <select
-                                v-model="filters.program_id"
-                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                                @change="applyFilters"
+                        <!-- Programas (Autocomplete) -->
+                        <div class="relative flex-1 min-w-[250px]" ref="programDropdown">
+                            <input
+                                v-model="programSearch"
+                                type="text"
+                                placeholder="Todos los programas"
+                                @focus="showProgramDropdown = true"
+                                @input="showProgramDropdown = true"
+                                class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
+                            />
+                            <button
+                                v-if="filters.program_id"
+                                @click="clearProgramFilter"
+                                type="button"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
-                                <option value="">Todos los programas</option>
-                                <option v-for="program in programs" :key="program.id" :value="program.id">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <span v-else class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </span>
+                            <!-- Dropdown opciones -->
+                            <div
+                                v-if="showProgramDropdown && filteredPrograms.length > 0"
+                                class="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                            >
+                                <div
+                                    v-for="program in filteredPrograms"
+                                    :key="program.id"
+                                    @click="selectProgram(program)"
+                                    class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
+                                >
                                     {{ program.code }} - {{ program.name }}
-                                </option>
-                            </select>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Fecha Desde -->
@@ -256,7 +283,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import ReportsHeader from '@/Components/Reports/ReportsHeader.vue'
@@ -279,6 +306,56 @@ const filters = reactive({
 
 const isExporting = ref(false)
 let searchTimeout = null
+
+// Program autocomplete
+const programSearch = ref('')
+const showProgramDropdown = ref(false)
+const programDropdown = ref(null)
+
+// Inicializar texto del programa seleccionado
+if (props.filters?.program_id) {
+    const selected = props.programs?.find(p => p.id == props.filters.program_id)
+    if (selected) {
+        programSearch.value = `${selected.code} - ${selected.name}`
+    }
+}
+
+const filteredPrograms = computed(() => {
+    const term = programSearch.value.trim().toLowerCase()
+    if (!term) return props.programs || []
+    return (props.programs || []).filter(p => {
+        const code = (p.code || '').toLowerCase()
+        const name = (p.name || '').toLowerCase()
+        return code.includes(term) || name.includes(term)
+    })
+})
+
+const selectProgram = (program) => {
+    filters.program_id = program.id
+    programSearch.value = `${program.code} - ${program.name}`
+    showProgramDropdown.value = false
+    applyFilters()
+}
+
+const clearProgramFilter = () => {
+    filters.program_id = ''
+    programSearch.value = ''
+    applyFilters()
+}
+
+const handleClickOutsideProgram = (event) => {
+    if (programDropdown.value && !programDropdown.value.contains(event.target)) {
+        showProgramDropdown.value = false
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutsideProgram)
+})
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleClickOutsideProgram)
+})
 
 // Methods
 const formatCurrency = (amount) => {
@@ -339,6 +416,7 @@ const clearFilters = () => {
     filters.date_to = ''
     filters.search = ''
     filters.participant_status = ''
+    programSearch.value = ''
     applyFilters()
 }
 

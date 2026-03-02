@@ -29,18 +29,45 @@
 
         <!-- Filters Row -->
         <div class="flex flex-wrap gap-[15px] items-center justify-start w-full relative">
-            <!-- Institution Dropdown -->
-            <div class="relative w-[200px]">
-                <select
-                    v-model="filters.institution"
-                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none appearance-none pr-8"
-                    @change="performSearch"
+            <!-- Institution Autocomplete -->
+            <div class="relative w-[220px]" ref="institutionDropdown">
+                <input
+                    v-model="institutionSearch"
+                    type="text"
+                    placeholder="Institución"
+                    @focus="showInstitutionDropdown = true"
+                    @input="showInstitutionDropdown = true"
+                    class="w-full h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-black text-left font-nexa-regular text-[12px] leading-[18px] font-normal shadow-[0px_1px_4px_0px_rgba(25,33,61,0.08)] outline-none pr-10"
+                />
+                <button
+                    v-if="filters.institution"
+                    @click="clearInstitutionFilter"
+                    type="button"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                    <option value="">Institución</option>
-                    <option v-for="institution in uniqueInstitutions" :key="institution" :value="institution">
-                        {{ capitalizeWords(institution) }}
-                    </option>
-                </select>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <span v-else class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </span>
+                <!-- Dropdown opciones -->
+                <div
+                    v-if="showInstitutionDropdown && filteredInstitutions.length > 0"
+                    class="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                >
+                    <div
+                        v-for="inst in filteredInstitutions"
+                        :key="inst"
+                        @click="selectInstitution(inst)"
+                        class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
+                    >
+                        {{ capitalizeWords(inst) }}
+                    </div>
+                </div>
             </div>
 
             <!-- Year Dropdown -->
@@ -155,6 +182,8 @@ export default {
             },
             executiveSearch: "",
             showExecutiveDropdown: false,
+            institutionSearch: this.initialFilters.institution || "",
+            showInstitutionDropdown: false,
         };
     },
     computed: {
@@ -172,6 +201,15 @@ export default {
                 .map(course => course.year)
                 .filter(year => year && year.toString().trim() !== '');
             return [...new Set(years)].sort();
+        },
+
+        // Filtrar instituciones por búsqueda
+        filteredInstitutions() {
+            const term = this.institutionSearch.trim().toLowerCase();
+            if (!term) return this.uniqueInstitutions;
+            return this.uniqueInstitutions.filter(inst =>
+                inst.toLowerCase().includes(term)
+            );
         },
 
         // Filtrar ejecutivos por búsqueda
@@ -194,10 +232,25 @@ export default {
     },
     methods: {
         handleClickOutside(event) {
-            const dropdown = this.$refs.executiveDropdown;
-            if (dropdown && !dropdown.contains(event.target)) {
+            const execDropdown = this.$refs.executiveDropdown;
+            if (execDropdown && !execDropdown.contains(event.target)) {
                 this.showExecutiveDropdown = false;
             }
+            const instDropdown = this.$refs.institutionDropdown;
+            if (instDropdown && !instDropdown.contains(event.target)) {
+                this.showInstitutionDropdown = false;
+            }
+        },
+        selectInstitution(name) {
+            this.filters.institution = name;
+            this.institutionSearch = name;
+            this.showInstitutionDropdown = false;
+            this.performSearch();
+        },
+        clearInstitutionFilter() {
+            this.filters.institution = "";
+            this.institutionSearch = "";
+            this.performSearch();
         },
         selectExecutive(exec) {
             this.filters.salesExecutiveId = exec.id;
@@ -223,6 +276,7 @@ export default {
                 salesExecutiveId: null,
             };
             this.executiveSearch = "";
+            this.institutionSearch = "";
             this.performSearch();
         },
 
