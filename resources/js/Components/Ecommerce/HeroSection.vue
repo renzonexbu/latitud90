@@ -585,7 +585,9 @@ const performSearch = async () => {
                     token: token,
                 });
             } else {
-                emit("participant-not-found");
+                emit("participant-not-found", {
+                    isInactive: response.data.is_inactive || false
+                });
             }
         } catch (error) {
             console.error("Error en la búsqueda:", error);

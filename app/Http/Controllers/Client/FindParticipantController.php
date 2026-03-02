@@ -41,9 +41,20 @@ class FindParticipantController extends Controller
         
         $participant = $this->findParticipantService->findByDocument($document, $documentType);
 
+        if ($participant) {
+            return response()->json([
+                'found' => true,
+                'participant' => $participant,
+                'session_id' => $sessionId
+            ]);
+        }
+
+        // Verificar si el participante existe pero está en baja (is_active = false)
+        $isInactive = $this->findParticipantService->existsInactiveByDocument($document, $documentType);
+
         return response()->json([
-            'found' => !is_null($participant),
-            'participant' => $participant,
+            'found' => false,
+            'is_inactive' => $isInactive,
             'session_id' => $sessionId
         ]);
     }

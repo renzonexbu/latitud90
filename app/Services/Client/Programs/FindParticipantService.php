@@ -27,6 +27,26 @@ class FindParticipantService
             ->where('participants.is_active', true)
             ->select('participants.*')
             ->first();
+
+        if (!$participant) {
+            return null;
+        }
+
+        // Verificar que tenga al menos un programa activo (no todos en baja)
+        $hasActiveProgram = \DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->where('is_active', true)
+            ->exists();
+
+        $hasAnyProgram = \DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->exists();
+
+        // Si tiene programas pero ninguno activo, no lo retornamos (está en baja)
+        if ($hasAnyProgram && !$hasActiveProgram) {
+            return null;
+        }
+
         return $participant;
     }
     
@@ -34,6 +54,50 @@ class FindParticipantService
     {
         // Mantener compatibilidad con el método anterior
         return $this->findByDocument($rut, 'RUT');
+    }
+
+    /**
+     * Verificar si un participante existe pero tiene todos sus programas en baja
+     * (participant_program.is_active = false en todas sus inscripciones)
+     */
+    public function existsInactiveByDocument(string $documentNumber, ?string $documentType = null): bool
+    {
+        if (!$documentType) {
+            $documentType = $this->detectDocumentType($documentNumber);
+        }
+
+        $cleanDocument = $this->cleanDocument($documentNumber);
+
+        $participant = Participant::join('document', 'participants.document_type', '=', 'document.id')
+            ->where('participants.document_number', $cleanDocument)
+            ->where('document.name', $documentType)
+            ->select('participants.id', 'participants.is_active')
+            ->first();
+
+        if (!$participant) {
+            return false;
+        }
+
+        // Si el participante mismo está inactivo, es baja
+        if (!$participant->is_active) {
+            return true;
+        }
+
+        // Verificar si tiene programas y todos están en baja
+        $totalPrograms = \DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->count();
+
+        if ($totalPrograms === 0) {
+            return false;
+        }
+
+        $activePrograms = \DB::table('participant_program')
+            ->where('participant_id', $participant->id)
+            ->where('is_active', true)
+            ->count();
+
+        return $activePrograms === 0;
     }
     
     private function detectDocumentType(string $documentNumber): string

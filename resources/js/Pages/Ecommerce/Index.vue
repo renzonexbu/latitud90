@@ -19,6 +19,14 @@
         />
 
         <Alerts
+            :show="showParticipantInactiveAlert"
+            type="error"
+            title="Participante no encontrado"
+            message="No se pudo encontrar la información del participante. Consulte con el Ejecutivo Comercial a cargo del programa."
+            @close="showParticipantInactiveAlert = false"
+        />
+
+        <Alerts
             :show="showContactAlert"
             type="success"
             title="¡Mensaje enviado!"
@@ -259,6 +267,7 @@ export default {
         const showContactAlert = ref(false);
         const showNewsletterAlert = ref(false);
         const showParticipantErrorAlert = ref(false);
+        const showParticipantInactiveAlert = ref(false);
         const showNewsletterErrorAlert = ref(false);
 
         // Métodos para manejar alertas
@@ -278,8 +287,12 @@ export default {
             showNewsletterErrorAlert.value = true;
         };
 
-        const handleParticipantNotFound = () => {
-            showParticipantErrorAlert.value = true;
+        const handleParticipantNotFound = (payload) => {
+            if (payload?.isInactive) {
+                showParticipantInactiveAlert.value = true;
+            } else {
+                showParticipantErrorAlert.value = true;
+            }
         };
 
         // Función para manejar el scroll
@@ -355,6 +368,7 @@ export default {
             showContactAlert,
             showNewsletterAlert,
             showParticipantErrorAlert,
+            showParticipantInactiveAlert,
             showNewsletterErrorAlert,
             siteContent: props.siteContent,
             formatServiceType,
