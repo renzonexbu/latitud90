@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restablecer contraseña - Latitud 90</title>
+    <title>Solicitud de acceso - Latitud 90</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -145,7 +145,7 @@
             <!-- Header -->
             <div class="header">
                 <img src="{{ $message->embedData(file_get_contents(public_path('images/logo-color.png')), 'logo.png', 'image/png') }}" alt="Latitud 90" class="logo">
-                <div class="subject">Restablecer contraseña</div>
+                <div class="subject">Acceso a tu cuenta</div>
             </div>
 
             <!-- Content -->
@@ -157,19 +157,19 @@
 
                 <!-- Message -->
                 <div class="message">
-                    <p>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Latitud 90.</p>
+                    <p>Hemos recibido una solicitud para acceder a tu cuenta en Latitud 90. Haz clic en el siguiente enlace para continuar con el proceso.</p>
                 </div>
 
                 <!-- CTA Button -->
                 <div style="text-align: center;">
                     <a href="{{ $resetUrl }}" class="cta-button">
-                        Restablecer mi contraseña
+                        Acceder a mi cuenta
                     </a>
                 </div>
 
                 <!-- Alternative URL -->
                 <div class="message">
-                    <p style="font-size: 14px; color: #555;">Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
+                    <p style="font-size: 14px; color: #555;">Si el enlace no funciona, copia y pega la siguiente direcci&oacute;n en tu navegador:</p>
                     <div class="url-box">
                         <a href="{{ $resetUrl }}">{{ $resetUrl }}</a>
                     </div>
@@ -177,17 +177,17 @@
 
                 <!-- Warning -->
                 <div class="warning">
-                    <strong>⏰ Importante:</strong> Este enlace expirará en 1 hora por razones de seguridad.
+                    <strong>Importante:</strong> Este enlace tiene una validez de 1 hora.
                 </div>
 
                 <!-- Info -->
                 <div class="info">
-                    <strong>🔒 Seguridad:</strong> Si no solicitaste restablecer tu contraseña, puedes ignorar este correo de forma segura. Tu contraseña actual no será modificada.
+                    <strong>Seguridad:</strong> Si no realizaste esta solicitud, puedes ignorar este correo de forma segura. Tu cuenta no ser&aacute; modificada.
                 </div>
 
                 <!-- Additional Message -->
                 <div class="message">
-                    <p style="font-size: 14px; color: #555;">Si tienes problemas o no solicitaste este cambio, por favor contacta a nuestro equipo de soporte de inmediato.</p>
+                    <p style="font-size: 14px; color: #555;">Si tienes dudas o necesitas ayuda, no dudes en contactar a nuestro equipo de soporte.</p>
                 </div>
             </div>
 
@@ -199,7 +199,7 @@
                     <a href="{{ url('/') }}">www.latitud90.com</a>
                 </p>
                 <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
-                    Este es un correo automático, por favor no respondas a este mensaje.
+                    Este es un correo autom&aacute;tico, por favor no respondas a este mensaje.
                 </p>
             </div>
         </div>

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ProgramSubscription;
 use App\Models\Installment;
+use App\Models\InstallmentPlan;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\Payment;
@@ -120,7 +121,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $query = ProgramSubscription::query()
             ->whereNotNull('virtualpos_subscription_id')
-            ->where('status', 'ACTIVA');
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO']);
 
         if ($this->subscriptionId) {
             $query->where('id', $this->subscriptionId);
@@ -237,87 +238,100 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      */
     protected function checkAndCancelIfFirstChargeRejected(ProgramSubscription $subscription, array $currentCharges): bool
     {
+        $shouldCancel = false;
+
+        // Caso 1: charge_program vacío = suscripción falló desde el inicio (tarjeta nunca se inscribió)
         if (empty($currentCharges)) {
-            return false;
-        }
-
-        // Buscar la primera cuota (cargo 1 de N)
-        $firstCharge = null;
-        foreach ($currentCharges as $charge) {
-            $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
-            if ($installmentNumber === 1) {
-                $firstCharge = $charge;
-                break;
+            // Verificar si VirtualPos ya marcó la suscripción como fallida
+            if ($subscription->status === 'SUSCRIPCION_FALLIDA') {
+                $shouldCancel = true;
+                Log::warning('SyncSubscriptionPayments: Suscripción fallida con charge_program vacío', [
+                    'subscription_id' => $subscription->id,
+                ]);
+            } else {
+                return false;
             }
         }
 
-        // Si no encontramos el cargo 1 por descripción, usar el primero del array
-        if (!$firstCharge) {
-            $firstCharge = $currentCharges[0];
-        }
-
-        $firstChargeStatus = strtolower($firstCharge['status'] ?? '');
-
-        // Estados que indican rechazo
-        $rejectedStatuses = ['rechazado', 'rejected', 'failed', 'cancelado', 'cancelled', 'error'];
-
-        // Si la primera cuota NO está rechazada, no hacer nada
-        if (!in_array($firstChargeStatus, $rejectedStatuses)) {
-            return false;
-        }
-
-        // Verificar que ninguna cuota haya sido pagada
-        $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
-        $hasAnyPaidCharge = false;
-
-        foreach ($currentCharges as $charge) {
-            $status = strtolower($charge['status'] ?? '');
-            if (in_array($status, $approvedStatuses)) {
-                $hasAnyPaidCharge = true;
-                break;
-            }
-        }
-
-        // Si hay alguna cuota pagada, no cancelar (la suscripción ya funcionó)
-        if ($hasAnyPaidCharge) {
-            return false;
-        }
-
-        // La primera cuota está rechazada y no hay pagos - cancelar suscripción
-        Log::warning('SyncSubscriptionPayments: Primera cuota rechazada, cancelando suscripción', [
-            'subscription_id' => $subscription->id,
-            'first_charge_id' => $firstCharge['id'] ?? null,
-            'first_charge_status' => $firstChargeStatus
-        ]);
-
-        try {
-            // 1. Cancelar suscripción en VirtualPos
-            $this->virtualPosService->cancelSubscription($subscription->virtualpos_subscription_id);
-
-            // 2. Marcar suscripción como SUSCRIPCION_FALLIDA (no CANCELADA, porque nunca funcionó)
-            $subscription->update([
-                'status' => 'SUSCRIPCION_FALLIDA',
-            ]);
-
-            // 3. Cancelar orden y cuotas (NO el plan)
-            $order = $subscription->order;
-            if ($order && $order->status !== 'cancelled') {
-                $order->update(['status' => 'cancelled']);
-
-                $installmentPlan = $order->installmentPlan;
-                if ($installmentPlan) {
-                    // Solo cancelar las cuotas, NO el plan
-                    $installmentPlan->installments()->update(['status' => 'cancelled']);
-
-                    Log::info('SyncSubscriptionPayments: Cuotas canceladas por primera cuota rechazada', [
-                        'subscription_id' => $subscription->id,
-                        'order_id' => $order->id,
-                        'installment_plan_id' => $installmentPlan->id
-                    ]);
+        // Caso 2: charge_program tiene datos - verificar si primera cuota fue rechazada
+        if (!$shouldCancel && !empty($currentCharges)) {
+            // Buscar la primera cuota (cargo 1 de N)
+            $firstCharge = null;
+            foreach ($currentCharges as $charge) {
+                $installmentNumber = $this->extractInstallmentNumber($charge['description'] ?? '');
+                if ($installmentNumber === 1) {
+                    $firstCharge = $charge;
+                    break;
                 }
             }
 
-            Log::info('SyncSubscriptionPayments: Suscripción cancelada por primera cuota rechazada', [
+            // Si no encontramos el cargo 1 por descripción, usar el primero del array
+            if (!$firstCharge) {
+                $firstCharge = $currentCharges[0];
+            }
+
+            $firstChargeStatus = strtolower($firstCharge['status'] ?? '');
+
+            // Estados que indican rechazo
+            $rejectedStatuses = ['rechazado', 'rejected', 'failed', 'cancelado', 'cancelled', 'error'];
+
+            // Si la primera cuota NO está rechazada, no hacer nada
+            if (!in_array($firstChargeStatus, $rejectedStatuses)) {
+                return false;
+            }
+
+            // Verificar que ninguna cuota haya sido pagada
+            $approvedStatuses = ['pagado', 'cobrado', 'aprobado', 'approved', 'paid', 'success'];
+            $hasAnyPaidCharge = false;
+
+            foreach ($currentCharges as $charge) {
+                $status = strtolower($charge['status'] ?? '');
+                if (in_array($status, $approvedStatuses)) {
+                    $hasAnyPaidCharge = true;
+                    break;
+                }
+            }
+
+            // Si hay alguna cuota pagada, no cancelar (la suscripción ya funcionó)
+            if ($hasAnyPaidCharge) {
+                return false;
+            }
+
+            $shouldCancel = true;
+            Log::warning('SyncSubscriptionPayments: Primera cuota rechazada, cancelando suscripción', [
+                'subscription_id' => $subscription->id,
+                'first_charge_id' => $firstCharge['id'] ?? null,
+                'first_charge_status' => $firstChargeStatus
+            ]);
+        }
+
+        if (!$shouldCancel) {
+            return false;
+        }
+
+        try {
+            // 1. Cancelar suscripción en VirtualPos (si no está ya fallida)
+            if ($subscription->status !== 'SUSCRIPCION_FALLIDA') {
+                $this->virtualPosService->cancelSubscription($subscription->virtualpos_subscription_id);
+            }
+
+            // 2. Marcar suscripción como SUSCRIPCION_FALLIDA
+            if ($subscription->status !== 'SUSCRIPCION_FALLIDA') {
+                $subscription->update([
+                    'status' => 'SUSCRIPCION_FALLIDA',
+                ]);
+            }
+
+            // 3. Cancelar orden y limpiar cuotas
+            $order = $subscription->order;
+            if ($order && $order->status !== 'cancelled') {
+                $order->update(['status' => 'cancelled']);
+            }
+
+            // 4. Limpiar installments huérfanos (cuotas sin pago real)
+            $this->cancelOrphanedInstallments($subscription);
+
+            Log::info('SyncSubscriptionPayments: Suscripción cancelada correctamente', [
                 'subscription_id' => $subscription->id
             ]);
 
@@ -330,6 +344,64 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             ]);
             return false;
         }
+    }
+
+    /**
+     * Cancelar y limpiar installments huérfanos de una suscripción fallida.
+     * Solo cancela cuotas que no tienen un pago real asociado.
+     */
+    protected function cancelOrphanedInstallments(ProgramSubscription $subscription): void
+    {
+        // Buscar el plan de cuotas vinculado
+        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->where('status', 'active')
+            ->whereBetween('created_at', [
+                $subscription->created_at->subSeconds(10),
+                $subscription->created_at->addSeconds(10)
+            ])
+            ->first();
+
+        if (!$installmentPlan) {
+            // Intentar por order
+            $order = $subscription->order;
+            if ($order) {
+                $installmentPlan = $order->installmentPlan;
+            }
+        }
+
+        if (!$installmentPlan) {
+            return;
+        }
+
+        // Cancelar cuotas sin pago real
+        $updated = $installmentPlan->installments()
+            ->whereNull('payment_id')
+            ->where('status', '!=', 'cancelled')
+            ->update([
+                'status' => 'cancelled',
+                'is_paid' => false,
+                'paid_at' => null,
+                'payment_order_id' => null,
+                'payment_order_detail_id' => null,
+                'virtualpos_charge_id' => null,
+                'updated_at' => now(),
+            ]);
+
+        // Limpiar virtualpos_charge_id de cuotas que sí tienen pago real (por otra vía)
+        $installmentPlan->installments()
+            ->whereNotNull('payment_id')
+            ->whereNotNull('virtualpos_charge_id')
+            ->update([
+                'virtualpos_charge_id' => null,
+                'updated_at' => now(),
+            ]);
+
+        Log::info('SyncSubscriptionPayments: Installments huérfanos limpiados', [
+            'subscription_id' => $subscription->id,
+            'installment_plan_id' => $installmentPlan->id,
+            'cancelled_count' => $updated,
+        ]);
     }
 
     /**

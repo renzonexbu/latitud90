@@ -919,21 +919,39 @@ class ReportController extends Controller
                 $order = $payment->order;
                 $orderDetail = $payment->orderDetail;
 
-                // Determine available document types
-                $availableDocuments = ['payment_receipt'];
-
-                if ($payment->bsale_number) {
-                    $availableDocuments[] = 'bsale_invoice';
-                }
+                // Determine available document types using PaymentDocumentTypeHelper
+                $availableDocuments = [];
 
                 if ($orderDetail) {
                     try {
                         $types = \App\Helpers\PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
-                        if (in_array('CR', $types)) {
+
+                        // B2 (Boleta) = solo boleta BSale
+                        if (in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_BOLETA, $types) && $payment->bsale_number) {
+                            $availableDocuments[] = 'bsale_invoice';
+                        }
+
+                        // AC (Anticipo) = comprobante de pago
+                        if (in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_ANTICIPO, $types)) {
+                            $availableDocuments[] = 'payment_receipt';
+                        }
+
+                        // CR (Contrato) = contrato de reserva
+                        if (in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_CONTRATO, $types)) {
                             $availableDocuments[] = 'contract';
                         }
                     } catch (\Exception $e) {
-                        // Silently skip contract determination errors
+                        // Fallback: si hay bsale_number mostrar boleta, sino comprobante
+                        if ($payment->bsale_number) {
+                            $availableDocuments[] = 'bsale_invoice';
+                        } else {
+                            $availableDocuments[] = 'payment_receipt';
+                        }
+                    }
+                } else {
+                    // Sin orderDetail, fallback básico
+                    if ($payment->bsale_number) {
+                        $availableDocuments[] = 'bsale_invoice';
                     }
                 }
 

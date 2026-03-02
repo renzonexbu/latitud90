@@ -28,7 +28,10 @@ class GuardianPasswordReset extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Restablecer contraseña - Latitud90',
+            subject: 'Solicitud de acceso a tu cuenta - Latitud90',
+            replyTo: [
+                new \Illuminate\Mail\Mailables\Address(config('lat90.company.email', 'contacto@latitud90.com'), 'Soporte Latitud 90'),
+            ],
         );
     }
 
@@ -37,7 +40,7 @@ class GuardianPasswordReset extends Mailable
      */
     public function content(): Content
     {
-        $resetUrl = url("/guardian/reset-password/{$this->user->id}/{$this->token}");
+        $resetUrl = url("/guardian/account-access/{$this->user->id}/{$this->token}");
 
         return new Content(
             view: 'emails.guardian.reset-password',

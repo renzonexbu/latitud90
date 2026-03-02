@@ -57,10 +57,10 @@ Route::prefix('guardian')->name('guardian.')->group(function () {
         Route::post('/forgot-password', [GuardianAuthController::class, 'forgotPassword'])
             ->name('forgot-password.post');
 
-        Route::get('/reset-password/{userId}/{token}', [GuardianAuthController::class, 'showResetPasswordForm'])
+        Route::get('/account-access/{userId}/{token}', [GuardianAuthController::class, 'showResetPasswordForm'])
             ->name('reset-password');
 
-        Route::post('/reset-password', [GuardianAuthController::class, 'resetPassword'])
+        Route::post('/account-access', [GuardianAuthController::class, 'resetPassword'])
             ->name('reset-password.post');
     });
 
