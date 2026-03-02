@@ -4,6 +4,8 @@ namespace App\Services\Admin\Courses;
 
 use App\Models\Course;
 use App\Models\Institution;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Program;
 use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +66,12 @@ class CourseDataService
 
             $participants = $course->participants ?? collect();
 
-            // Obtener IDs de participantes "de baja" en participant_program
+            // Filtrar solo cancelled (no baja - se manejan aparte en calculateTotalAmount)
+            $nonCancelledParticipants = $participants->filter(fn($p) =>
+                ($p->pivot->status ?? 'active') !== 'cancelled'
+            );
+
+            // Contar participantes activos (excluyendo baja) para mostrar en la tabla
             $bajaParticipantIds = $programCourse
                 ? DB::table('participant_program')
                     ->where('program_id', $programCourse->id)
@@ -73,19 +80,18 @@ class CourseDataService
                     ->toArray()
                 : [];
 
-            $activeParticipants = $participants->filter(fn($p) =>
-                ($p->pivot->status ?? 'active') !== 'cancelled' &&
+            $activeCount = $nonCancelledParticipants->filter(fn($p) =>
                 !in_array($p->id, $bajaParticipantIds)
-            );
+            )->count();
 
-            $courseTotalAmount = $this->calculateTotalAmount($course, $activeParticipants, $program, $programCourse);
+            $courseTotalAmount = $this->calculateTotalAmount($course, $nonCancelledParticipants, $program, $programCourse);
             $coursePaidAmount = $this->calculatePaidAmount($course, $program, $programCourse);
             $coursePaymentPercentage = $this->calculatePaymentPercentage($courseTotalAmount, $coursePaidAmount);
 
             $course->course_total_amount = $courseTotalAmount;
             $course->course_paid_amount = $coursePaidAmount;
             $course->course_payment_percentage = $coursePaymentPercentage;
-            $course->total_students = $activeParticipants->count();
+            $course->total_students = $activeCount;
 
             // Agregar código del programa directamente para facilitar búsqueda en frontend
             $course->program_code = $programCourse?->code ?? '';
@@ -102,21 +108,115 @@ class CourseDataService
         return $courses->map($transform);
     }
 
-    private function calculateTotalAmount($course, $activeParticipants, $program = null, $programCourse = null): float
+    /**
+     * Calcula el total esperado usando la misma lógica del reporte Estado de Cuenta Parcial:
+     * Total Esperado = Sum(Precio) - Sum(Liberado)
+     * Donde Precio = basePrice - descuentos simples (sin beca ni liberado)
+     * Para participantes de baja: Precio ajustado según abono
+     */
+    private function calculateTotalAmount($course, $participants, $program = null, $programCourse = null): float
     {
         if (!$programCourse) {
             return 0.0;
         }
 
-        // Calcular el total sumando el precio final de cada participante (considerando descuentos)
+        // Obtener IDs de participantes "de baja"
+        $bajaParticipantIds = DB::table('participant_program')
+            ->where('program_id', $programCourse->id)
+            ->where('is_active', false)
+            ->pluck('participant_id')
+            ->toArray();
+
         $totalAmount = 0.0;
 
-        foreach ($activeParticipants as $participant) {
+        foreach ($participants as $participant) {
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-            $totalAmount += $priceData['final_price'] ?? 0;
+            $basePrice = $priceData['base_price'];
+
+            // Obtener participant_program para desglosar descuentos por tipo
+            $pp = DB::table('participant_program')
+                ->where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->first();
+
+            $simpleDiscounts = 0.0;
+            $released = 0.0;
+
+            if ($pp) {
+                $discounts = DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $pp->id)
+                    ->get();
+
+                foreach ($discounts as $disc) {
+                    $discAmount = 0.0;
+                    if ($disc->percent && $disc->percent > 0) {
+                        $discAmount += ($basePrice * $disc->percent) / 100;
+                    }
+                    if ($disc->amount && $disc->amount > 0) {
+                        $discAmount += (float) $disc->amount;
+                    }
+
+                    if ($disc->discount_type === 'released') {
+                        $released += $discAmount;
+                    } elseif ($disc->discount_type !== 'scholarship') {
+                        $simpleDiscounts += $discAmount;
+                    }
+                    // scholarship no se resta del precio (se cuenta como aporte en recaudado)
+                }
+            }
+
+            // Precio = basePrice - descuentos simples
+            $precio = $basePrice - $simpleDiscounts;
+
+            // Ajuste para participantes de baja
+            if (in_array($participant->id, $bajaParticipantIds)) {
+                $abono = $this->calculateParticipantAbono($participant->id, $programCourse->id);
+                $precio = ($abono >= $precio) ? 0 : $abono;
+            }
+
+            $totalAmount += $precio - $released;
         }
 
         return $totalAmount;
+    }
+
+    /**
+     * Calcula el abono (pagos sin aportes) de un participante para un programa
+     */
+    private function calculateParticipantAbono(int $participantId, int $programCourseId): float
+    {
+        $orderIds = Order::where('participant_id', $participantId)
+            ->where('program_id', $programCourseId)
+            ->pluck('id')->all();
+
+        if (empty($orderIds)) {
+            return 0.0;
+        }
+
+        // Pagos normales (sin aportes ni suscripciones)
+        $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
+            ->whereIn('status', ['approved', 'completed'])
+            ->where(function($q) {
+                $q->whereNull('payment_source')
+                  ->orWhere('payment_source', '!=', 'subscription');
+            })
+            ->where(function($q) {
+                $q->whereNull('payment_option_id')
+                  ->orWhereHas('paymentOption', function($sq) {
+                      $sq->where('report_code', '!=', 'AP');
+                  });
+            })
+            ->sum('amount');
+
+        // Cuotas de suscripción pagadas
+        $subscriptionPayments = (float) DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.participant_id', $participantId)
+            ->where('installment_plans.program_id', $programCourseId)
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
+
+        return $normalPayments + $subscriptionPayments;
     }
 
     private function calculatePaidAmount($course, $program = null, $programCourse = null): float
@@ -181,27 +281,13 @@ class CourseDataService
         if ($program && $programCourse) {
             $program->makeVisible(['trip_price', 'name', 'destination']);
 
-            // Calculate total amount from active participants (considering discounts)
+            // Calculate total amount using same logic as Estado de Cuenta Parcial report
             $participants = $course->participants ?? collect();
-
-            // Obtener IDs de participantes "de baja" en participant_program
-            $bajaParticipantIds = DB::table('participant_program')
-                ->where('program_id', $programCourse->id)
-                ->where('is_active', false)
-                ->pluck('participant_id')
-                ->toArray();
-
-            $activeParticipants = $participants->filter(fn($p) =>
-                ($p->pivot->status ?? 'active') !== 'cancelled' &&
-                !in_array($p->id, $bajaParticipantIds)
+            $nonCancelledParticipants = $participants->filter(fn($p) =>
+                ($p->pivot->status ?? 'active') !== 'cancelled'
             );
 
-            // Total del curso = suma del precio final de cada participante (con descuentos)
-            $courseTotalAmount = 0.0;
-            foreach ($activeParticipants as $participant) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-                $courseTotalAmount += $priceData['final_price'] ?? 0;
-            }
+            $courseTotalAmount = $this->calculateTotalAmount($course, $nonCancelledParticipants, $program, $programCourse);
 
             // Calculate paid amount (pagos normales + cuotas de suscripciones + aportes)
             // IMPORTANTE: orders.program_id hace referencia a program_courses.id, NO a programs.id

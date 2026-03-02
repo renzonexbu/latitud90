@@ -2,6 +2,8 @@
 
 namespace App\Services\Admin\Reports\ITSimple;
 
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\ProgramCourse;
 use App\Helpers\ParticipantPriceHelper;
 use Illuminate\Support\Collection;
@@ -52,31 +54,26 @@ class ITSimpleReportDataProvider
         $programCourses = $query->orderBy('code', 'asc')->get();
 
         $result = $programCourses->map(function ($programCourse) {
-            // Participantes activos (no cancelados)
+            // Participantes no cancelados (baja se maneja en calculateTotalToCollect)
             $participants = $programCourse->course?->participants ?? collect();
-            $activeParticipants = $participants->filter(
+            $nonCancelledParticipants = $participants->filter(
                 fn($p) => ($p->pivot->status ?? 'active') !== 'cancelled'
             );
 
-            // 1. Total a Recaudar = suma de precios finales individuales
-            $totalToCollect = 0.0;
-            foreach ($activeParticipants as $participant) {
-                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-                $totalToCollect += $priceData['final_price'] ?? 0;
-            }
+            // 1. Total a Recaudar = Sum(Precio) - Sum(Liberado) con ajuste baja
+            //    Misma lógica que Estado de Cuenta Parcial
+            $totalToCollect = $this->calculateTotalToCollect($programCourse, $nonCancelledParticipants);
 
             // 2. Abono Pagadores = pagos normales + cuotas suscripción (sin aportes)
             $payerPayments = $this->calculatePayerPayments($programCourse);
 
             // 3. Aporte/Beca = pagos presential_aporte + descuentos tipo scholarship (columna informativa)
-            $aporteBeca = $this->calculateAporteBeca($programCourse, $activeParticipants);
+            $aporteBeca = $this->calculateAporteBeca($programCourse, $nonCancelledParticipants);
 
             // 4. Monto Liberado = descuentos tipo 'released' (columna informativa)
-            $released = $this->calculateReleased($programCourse, $activeParticipants);
+            $released = $this->calculateReleased($programCourse, $nonCancelledParticipants);
 
-            // 5. Saldo = Total a Recaudar - Abono Pagadores - Pagos aporte (solo pagos reales)
-            // Nota: Total a Recaudar (final_price) ya tiene descontados scholarship y released,
-            // por lo que NO se restan de nuevo. Solo se restan pagos efectivos.
+            // 5. Saldo = Total a Recaudar - (Abono + Aportes)
             $aportePaymentsOnly = $this->calculateAportePaymentsOnly($programCourse);
             $balance = round($totalToCollect - $payerPayments - $aportePaymentsOnly, 2);
 
@@ -100,6 +97,106 @@ class ITSimpleReportDataProvider
             : $result->sortBy($sortBy);
 
         return $sorted->values();
+    }
+
+    /**
+     * Calcula el Total a Recaudar usando la misma lógica del Estado de Cuenta Parcial:
+     * Total = Sum(Precio) - Sum(Liberado), con ajuste para participantes de baja
+     * Donde Precio = basePrice - descuentos simples (sin beca ni liberado)
+     */
+    private function calculateTotalToCollect(ProgramCourse $programCourse, $participants): float
+    {
+        $bajaParticipantIds = DB::table('participant_program')
+            ->where('program_id', $programCourse->id)
+            ->where('is_active', false)
+            ->pluck('participant_id')
+            ->toArray();
+
+        $totalAmount = 0.0;
+
+        foreach ($participants as $participant) {
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+            $basePrice = $priceData['base_price'];
+
+            $pp = DB::table('participant_program')
+                ->where('participant_id', $participant->id)
+                ->where('program_id', $programCourse->id)
+                ->first();
+
+            $simpleDiscounts = 0.0;
+            $released = 0.0;
+
+            if ($pp) {
+                $discounts = DB::table('participant_program_discounts')
+                    ->where('participant_program_id', $pp->id)
+                    ->get();
+
+                foreach ($discounts as $disc) {
+                    $discAmount = 0.0;
+                    if ($disc->percent && $disc->percent > 0) {
+                        $discAmount += ($basePrice * $disc->percent) / 100;
+                    }
+                    if ($disc->amount && $disc->amount > 0) {
+                        $discAmount += (float) $disc->amount;
+                    }
+
+                    if ($disc->discount_type === 'released') {
+                        $released += $discAmount;
+                    } elseif ($disc->discount_type !== 'scholarship') {
+                        $simpleDiscounts += $discAmount;
+                    }
+                }
+            }
+
+            $precio = $basePrice - $simpleDiscounts;
+
+            // Ajuste para participantes de baja
+            if (in_array($participant->id, $bajaParticipantIds)) {
+                $abono = $this->calculateParticipantAbono($participant->id, $programCourse->id);
+                $precio = ($abono >= $precio) ? 0 : $abono;
+            }
+
+            $totalAmount += $precio - $released;
+        }
+
+        return $totalAmount;
+    }
+
+    /**
+     * Calcula el abono (pagos sin aportes) de un participante para un programa
+     */
+    private function calculateParticipantAbono(int $participantId, int $programCourseId): float
+    {
+        $orderIds = Order::where('participant_id', $participantId)
+            ->where('program_id', $programCourseId)
+            ->pluck('id')->all();
+
+        if (empty($orderIds)) {
+            return 0.0;
+        }
+
+        $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
+            ->whereIn('status', ['approved', 'completed'])
+            ->where(function($q) {
+                $q->whereNull('payment_source')
+                  ->orWhere('payment_source', '!=', 'subscription');
+            })
+            ->where(function($q) {
+                $q->whereNull('payment_option_id')
+                  ->orWhereHas('paymentOption', function($sq) {
+                      $sq->where('report_code', '!=', 'AP');
+                  });
+            })
+            ->sum('amount');
+
+        $subscriptionPayments = (float) DB::table('installments')
+            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+            ->where('installment_plans.participant_id', $participantId)
+            ->where('installment_plans.program_id', $programCourseId)
+            ->where('installments.status', 'paid')
+            ->sum('installments.amount');
+
+        return $normalPayments + $subscriptionPayments;
     }
 
     /**
