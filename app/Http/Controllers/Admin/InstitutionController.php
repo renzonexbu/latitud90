@@ -19,13 +19,15 @@ class InstitutionController extends Controller
     {
         try {
             $institutions = Institution::withCount('courses')
-                ->orderBy('name', 'asc')
+                ->orderBy('code', 'desc')
                 ->get()
                 ->map(function ($institution) {
                     return [
                         'id' => $institution->id,
                         'code' => $institution->code,
                         'name' => $institution->name,
+                        'razon_social' => $institution->razon_social,
+                        'rut' => $institution->rut,
                         'type' => $institution->type,
                         'address' => $institution->address,
                         'phone' => $institution->phone,
@@ -62,7 +64,9 @@ class InstitutionController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'code' => 'nullable|string|max:50',
-                'name' => 'required|string|max:255',
+                'name' => 'required|string|max:255|unique:institutions,name',
+                'razon_social' => 'nullable|string|max:255',
+                'rut' => 'nullable|string|max:20|unique:institutions,rut',
                 'type' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
                 'phone' => 'nullable|string|max:20',
@@ -70,6 +74,8 @@ class InstitutionController extends Controller
                 'website' => 'nullable|url|max:255',
             ], [
                 'name.required' => 'El nombre de la institución es obligatorio.',
+                'name.unique' => 'Ya existe una institución con este nombre.',
+                'rut.unique' => 'Ya existe una institución con este RUT.',
                 'email.email' => 'El formato del email no es válido.',
                 'website.url' => 'El formato del sitio web no es válido.',
             ]);
@@ -93,6 +99,8 @@ class InstitutionController extends Controller
             $institution = Institution::create([
                 'code' => $request->code,
                 'name' => $request->name,
+                'razon_social' => $request->razon_social,
+                'rut' => $request->rut,
                 'type' => $request->type,
                 'address' => $request->address,
                 'phone' => $request->phone,
@@ -157,6 +165,8 @@ class InstitutionController extends Controller
                     'id' => $institution->id,
                     'code' => $institution->code,
                     'name' => $institution->name,
+                    'razon_social' => $institution->razon_social,
+                    'rut' => $institution->rut,
                     'type' => $institution->type,
                     'address' => $institution->address,
                     'phone' => $institution->phone,
@@ -179,7 +189,9 @@ class InstitutionController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'code' => 'nullable|string|max:50',
-                'name' => 'required|string|max:255',
+                'name' => 'required|string|max:255|unique:institutions,name,' . $institution->id,
+                'razon_social' => 'nullable|string|max:255',
+                'rut' => 'nullable|string|max:20|unique:institutions,rut,' . $institution->id,
                 'type' => 'nullable|string|max:255',
                 'address' => 'nullable|string|max:255',
                 'phone' => 'nullable|string|max:20',
@@ -187,6 +199,8 @@ class InstitutionController extends Controller
                 'website' => 'nullable|url|max:255',
             ], [
                 'name.required' => 'El nombre de la institución es obligatorio.',
+                'name.unique' => 'Ya existe una institución con este nombre.',
+                'rut.unique' => 'Ya existe una institución con este RUT.',
                 'email.email' => 'El formato del email no es válido.',
                 'website.url' => 'El formato del sitio web no es válido.',
             ]);
@@ -201,6 +215,8 @@ class InstitutionController extends Controller
             $institution->update([
                 'code' => $request->code,
                 'name' => $request->name,
+                'razon_social' => $request->razon_social,
+                'rut' => $request->rut,
                 'type' => $request->type,
                 'address' => $request->address,
                 'phone' => $request->phone,
@@ -275,6 +291,75 @@ class InstitutionController extends Controller
                 'success' => false,
                 'message' => 'Error al importar instituciones: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Export institutions to Excel
+     */
+    public function export()
+    {
+        try {
+            $institutions = Institution::withCount('courses')
+                ->orderBy('code', 'desc')
+                ->get();
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Instituciones');
+
+            // Headers
+            $headers = ['Código', 'Nombre Fantasía', 'Razón Social', 'RUT', 'Tipo', 'Dirección', 'Teléfono', 'Email', 'Sitio Web', 'N° Cursos'];
+            foreach ($headers as $i => $header) {
+                $col = chr(65 + $i);
+                $sheet->setCellValue($col . '1', $header);
+            }
+
+            // Style headers
+            $headerRange = 'A1:' . chr(65 + count($headers) - 1) . '1';
+            $sheet->getStyle($headerRange)->applyFromArray([
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '4472C4']],
+            ]);
+
+            // Data
+            foreach ($institutions as $rowIndex => $inst) {
+                $row = $rowIndex + 2;
+                $sheet->setCellValue('A' . $row, $inst->code ?? '');
+                $sheet->setCellValue('B' . $row, $inst->name ?? '');
+                $sheet->setCellValue('C' . $row, $inst->razon_social ?? '');
+                $sheet->setCellValue('D' . $row, $inst->rut ?? '');
+                $sheet->setCellValue('E' . $row, $inst->type ?? '');
+                $sheet->setCellValue('F' . $row, $inst->address ?? '');
+                $sheet->setCellValue('G' . $row, $inst->phone ?? '');
+                $sheet->setCellValue('H' . $row, $inst->email ?? '');
+                $sheet->setCellValue('I' . $row, $inst->website ?? '');
+                $sheet->setCellValue('J' . $row, $inst->courses_count);
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'J') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $filename = 'instituciones_' . date('Y-m-d') . '.xlsx';
+
+            return new \Symfony\Component\HttpFoundation\StreamedResponse(
+                function () use ($writer) {
+                    if (ob_get_level()) ob_end_clean();
+                    $writer->save('php://output');
+                },
+                200,
+                [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+                    'Cache-Control' => 'max-age=0',
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Error al exportar instituciones: ' . $e->getMessage());
+            return back()->with('error', 'Error al exportar las instituciones.');
         }
     }
 

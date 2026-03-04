@@ -12,6 +12,8 @@ class Institution extends Model
     protected $fillable = [
         'code',
         'name',
+        'razon_social',
+        'rut',
         'type',
         'address',
         'phone',

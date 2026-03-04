@@ -20,6 +20,15 @@
                             </svg>
                             Volver a Cursos
                         </Link>
+                        <a
+                            :href="route('admin.institutions.export')"
+                            class="px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-600 hover:text-white font-nexa-bold transition-colors flex items-center gap-2"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Exportar
+                        </a>
                         <button
                             @click="showImportModal = true"
                             class="px-4 py-2 border border-turquesa text-turquesa rounded-lg hover:bg-turquesa hover:text-white font-nexa-bold transition-colors flex items-center gap-2"
@@ -79,6 +88,32 @@
                     </div>
                 </div>
 
+                <!-- Search Filter -->
+                <div class="mb-4">
+                    <div class="relative w-full max-w-md">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <input
+                            v-model="searchQuery"
+                            type="text"
+                            placeholder="Buscar por nombre, razón social o RUT..."
+                            class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-[50px] focus:ring-2 focus:ring-turquesa focus:border-transparent font-nexa-regular text-sm"
+                        />
+                        <button
+                            v-if="searchQuery"
+                            @click="searchQuery = ''"
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Institutions Table -->
                 <div class="bg-white shadow-sm rounded-lg overflow-hidden">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -88,7 +123,13 @@
                                     Código
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
-                                    Nombre
+                                    Nombre Fantasía
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                    Razón Social
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                    RUT
                                 </th>
                                 <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Tipo
@@ -105,17 +146,23 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-if="institutions.length === 0">
-                                <td colspan="6" class="px-6 py-12 text-center text-gray-500 font-nexa-regular">
-                                    No hay instituciones registradas
+                            <tr v-if="filteredInstitutions.length === 0">
+                                <td colspan="8" class="px-6 py-12 text-center text-gray-500 font-nexa-regular">
+                                    {{ searchQuery ? 'No se encontraron instituciones con esa búsqueda' : 'No hay instituciones registradas' }}
                                 </td>
                             </tr>
-                            <tr v-for="institution in institutions" :key="institution.id" class="hover:bg-gray-50">
+                            <tr v-for="institution in filteredInstitutions" :key="institution.id" class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.code || '-' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-nexa-bold text-verde-oscuro">{{ institution.name }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.razon_social || '-' }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.rut || '-' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.type || '-' }}</div>
@@ -269,12 +316,24 @@
 
 <script setup>
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import axios from 'axios';
 
 const props = defineProps({
     institutions: Array
+});
+
+const searchQuery = ref('');
+
+const filteredInstitutions = computed(() => {
+    if (!searchQuery.value) return props.institutions;
+    const query = searchQuery.value.toLowerCase().trim();
+    return props.institutions.filter(inst => {
+        return (inst.name && inst.name.toLowerCase().includes(query))
+            || (inst.razon_social && inst.razon_social.toLowerCase().includes(query))
+            || (inst.rut && inst.rut.toLowerCase().includes(query));
+    });
 });
 
 const showImportModal = ref(false);
