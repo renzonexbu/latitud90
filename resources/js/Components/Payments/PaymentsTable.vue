@@ -159,6 +159,16 @@
                                 {{ payment.bsale_number }}
                             </span>
                             <span
+                                v-else-if="payment.document_type === 'FF' && payment.payment_code"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-800"
+                                :title="'Factura #' + payment.payment_code"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+                                </svg>
+                                F-{{ payment.payment_code }}
+                            </span>
+                            <span
                                 v-else-if="payment.bsale_error_code"
                                 class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800"
                                 :title="payment.bsale_error || 'Error al generar boleta'"
@@ -667,6 +677,11 @@ export default {
             if (payment.document_type === 'RA' ||
                 payment.payment_option?.code === 'refund_admin_reversal' ||
                 payment.paymentOption?.code === 'refund_admin_reversal') {
+                return 'none';
+            }
+
+            // Factura Electrónica (FF) NO genera boleta BSale
+            if (payment.document_type === 'FF') {
                 return 'none';
             }
 

@@ -11,6 +11,7 @@ use App\Models\OrderDetail;
 use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\Region;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Services\Admin\Payments\CreateParticularPaymentService;
 use App\Services\Admin\Installments\RegisterManualPaymentService;
 use Illuminate\Http\Request;
@@ -71,7 +72,8 @@ class CreateParticularPaymentController extends Controller
             'countries' => $countries,
             'regions' => $regions,
             'documentTypes' => $documentTypes,
-            'paymentTypeOptions' => $paymentTypeOptions
+            'paymentTypeOptions' => $paymentTypeOptions,
+            'fiscalDocumentTypes' => PaymentDocumentTypeHelper::getSelectableDocumentTypes(),
         ]);
     }
 
@@ -98,6 +100,7 @@ class CreateParticularPaymentController extends Controller
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'nullable|email|max:255',
+            'fiscal_document_type' => 'nullable|in:B2,FF',
         ]);
 
         if ($validator->fails()) {
@@ -128,6 +131,7 @@ class CreateParticularPaymentController extends Controller
                 'buyer_country' => $request->buyer_country,
                 'buyer_region' => $request->buyer_region,
                 'buyer_city' => $request->buyer_city,
+                'fiscal_document_type' => $request->fiscal_document_type,
             ];
 
             // Ejecutar el servicio

@@ -405,10 +405,15 @@ class CreateParticularPaymentService
      */
     private function createPayment(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
     {
-        // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
-        $documentType = $paymentOption->code === 'presential_credit_temp'
-            ? 'CT'
-            : PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        // Resolver tipo de documento fiscal
+        if ($paymentOption->code === 'presential_credit_temp') {
+            $documentType = 'CT';
+        } elseif (!empty($data['fiscal_document_type'])) {
+            $mapped = PaymentDocumentTypeHelper::mapUserDocumentType($data['fiscal_document_type']);
+            $documentType = $mapped ?? PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        } else {
+            $documentType = PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        }
 
         return Payment::create([
             'order_id' => $order->id,

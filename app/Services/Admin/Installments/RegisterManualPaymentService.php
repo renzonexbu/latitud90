@@ -6,6 +6,7 @@ use App\Models\Installment;
 use App\Models\Payment;
 use App\Models\Order;
 use App\Models\OrderDetail;
+use App\Helpers\PaymentDocumentTypeHelper;
 use App\Traits\AdminLogging;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -134,7 +135,7 @@ class RegisterManualPaymentService
                 'payment_option_id' => $paymentOptionId, // Asociar con la opción de pago correcta
                 'transaction_date' => $paymentDate,
                 'installments_number' => 1,
-                'document_type' => 'B2', // Boleta por defecto para pagos manuales
+                'document_type' => $this->resolveFiscalDocumentType($paymentData),
             ]);
 
             // 6. Actualizar la cuota
@@ -284,5 +285,16 @@ class RegisterManualPaymentService
         $paymentOption = \App\Models\PaymentOption::where('code', $paymentOptionCode)->first();
 
         return $paymentOption?->id;
+    }
+
+    private function resolveFiscalDocumentType(array $paymentData): string
+    {
+        if (!empty($paymentData['fiscal_document_type'])) {
+            $mapped = PaymentDocumentTypeHelper::mapUserDocumentType($paymentData['fiscal_document_type']);
+            if ($mapped) {
+                return $mapped;
+            }
+        }
+        return 'B2';
     }
 }

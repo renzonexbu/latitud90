@@ -112,6 +112,7 @@ class PaymentController extends Controller
             'buyer_document_type' => 'required|exists:document,id',
             'buyer_document_number' => 'required|string|max:255',
             'buyer_email' => 'required|email|max:255',
+            'fiscal_document_type' => 'nullable|in:B2,FF',
         ]);
 
         try {

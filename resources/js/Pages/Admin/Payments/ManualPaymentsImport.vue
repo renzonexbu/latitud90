@@ -176,6 +176,16 @@
                                             <option value="AP">Aporte</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label class="block text-xs font-nexa-bold text-gray-700 mb-1">Tipo de Documento</label>
+                                        <select
+                                            v-model="failure.data.tipo_documento"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded text-sm font-nexa-regular focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="">Automático (según programa)</option>
+                                            <option value="B2">Boleta</option>
+                                            <option value="FF">Factura</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="mt-3 flex justify-end gap-2">
                                     <button
@@ -457,6 +467,7 @@
                                                     <div><span class="font-semibold">Fecha:</span> {{ detail.data?.payment_date }}</div>
                                                     <div><span class="font-semibold">Saldo Anterior:</span> ${{ formatNumber(detail.data?.previous_balance) }}</div>
                                                     <div><span class="font-semibold">Nuevo Saldo:</span> ${{ formatNumber(detail.data?.new_balance) }}</div>
+                                                    <div v-if="detail.data?.document_type_label"><span class="font-semibold">Tipo Doc:</span> {{ detail.data?.document_type_label }}</div>
                                                 </div>
                                             </div>
                                         </div>

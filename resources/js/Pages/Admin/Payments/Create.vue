@@ -629,6 +629,32 @@
                                         >
                                     </div>
 
+                                    <!-- Tipo de Documento Fiscal -->
+                                    <div class="mb-4">
+                                        <label
+                                            class="block text-sm font-medium text-gray-700 mb-2"
+                                        >
+                                            Tipo de Documento Fiscal
+                                        </label>
+                                        <select
+                                            v-model="form.fiscal_document_type"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                            :disabled="form.presential_payment_type === 'CT'"
+                                        >
+                                            <option value="">Automático (según programa)</option>
+                                            <option
+                                                v-for="docType in fiscalDocumentTypes"
+                                                :key="docType.code"
+                                                :value="docType.code"
+                                            >
+                                                {{ docType.label }}
+                                            </option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            Dejar en "Automático" para que el sistema determine el tipo según el año del programa.
+                                        </p>
+                                    </div>
+
                                     <!-- Código de Pago/Boleta/Factura -->
                                     <div class="mb-4">
                                         <label
@@ -824,6 +850,10 @@
                                             <span class="text-sm text-gray-600">Tipo de Pago:</span>
                                             <span class="text-sm font-semibold text-gray-900">{{ getPaymentTypeLabel(form.presential_payment_type) }}</span>
                                         </div>
+                                        <div v-if="form.fiscal_document_type" class="flex justify-between">
+                                            <span class="text-sm text-gray-600">Tipo Documento:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ getFiscalDocTypeLabel(form.fiscal_document_type) }}</span>
+                                        </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600">Código de Pago:</span>
                                             <span class="text-sm font-semibold text-gray-900">{{ form.payment_code }}</span>
@@ -894,7 +924,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 
@@ -908,6 +938,10 @@ const props = defineProps({
         default: () => [],
     },
     paymentTypeOptions: {
+        type: Array,
+        default: () => [],
+    },
+    fiscalDocumentTypes: {
         type: Array,
         default: () => [],
     },
@@ -932,12 +966,20 @@ const form = useForm({
     participant_id: "",
     amount: "",
     presential_payment_type: "", // Nuevo campo para tipo de pago presencial
+    fiscal_document_type: "", // Tipo de documento fiscal (Boleta/Factura)
     payment_code: "", // Código de boleta/factura
     transaction_date: new Date()
         .toLocaleString("sv-SE", { timeZone: "America/Santiago" })
         .slice(0, 16),
     authorization_code: "",
     notes: "",
+});
+
+// Limpiar tipo de documento fiscal cuando se selecciona CT (Crédito Temporal)
+watch(() => form.presential_payment_type, (newVal) => {
+    if (newVal === 'CT') {
+        form.fiscal_document_type = '';
+    }
 });
 
 const availableParticipants = ref([]);
@@ -1462,6 +1504,11 @@ const closeConfirmationModal = () => {
 const getPaymentTypeLabel = (code) => {
     const option = props.paymentTypeOptions.find(opt => opt.report_code === code);
     return option ? option.label : code;
+};
+
+const getFiscalDocTypeLabel = (code) => {
+    const labels = { B2: 'Boleta', FF: 'Factura' };
+    return labels[code] || 'Automático';
 };
 
 const formatTransactionDate = (dateString) => {

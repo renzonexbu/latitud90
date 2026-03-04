@@ -14,6 +14,7 @@ class PaymentDocumentTypeHelper
      * Tipos de documento disponibles
      */
     const TYPE_BOLETA = 'B2';           // Boleta BSale - mismo año del programa
+    const TYPE_FACTURA = 'FF';           // Factura Electrónica
     const TYPE_CONTRATO = 'CR';          // Contrato de Reserva - primera cuota suscripción año siguiente
     const TYPE_ANTICIPO = 'AC';          // Comprobante de Anticipo - año siguiente
 
@@ -205,10 +206,49 @@ class PaymentDocumentTypeHelper
     {
         $descriptions = [
             self::TYPE_BOLETA => 'Boleta Electrónica (BSale)',
+            self::TYPE_FACTURA => 'Factura Electrónica',
             self::TYPE_CONTRATO => 'Contrato de Reserva',
             self::TYPE_ANTICIPO => 'Comprobante de Anticipo',
         ];
 
         return array_map(fn($type) => $descriptions[$type] ?? $type, $types);
+    }
+
+    /**
+     * Mapea un texto ingresado por el usuario a un código de tipo de documento válido.
+     * Case-insensitive. Acepta nombres y códigos.
+     * Retorna null si no se reconoce.
+     */
+    public static function mapUserDocumentType(?string $input): ?string
+    {
+        if (empty($input)) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($input));
+
+        $mapping = [
+            'b2' => self::TYPE_BOLETA,
+            'boleta' => self::TYPE_BOLETA,
+            'boleta electronica' => self::TYPE_BOLETA,
+            'boleta electrónica' => self::TYPE_BOLETA,
+            'ff' => self::TYPE_FACTURA,
+            'factura' => self::TYPE_FACTURA,
+            'factura electronica' => self::TYPE_FACTURA,
+            'factura electrónica' => self::TYPE_FACTURA,
+        ];
+
+        return $mapping[$normalized] ?? null;
+    }
+
+    /**
+     * Opciones seleccionables de tipo de documento fiscal para formularios
+     */
+    public static function getSelectableDocumentTypes(): array
+    {
+        return [
+            ['code' => self::TYPE_BOLETA, 'label' => 'Boleta'],
+            ['code' => self::TYPE_FACTURA, 'label' => 'Factura'],
+        ];
     }
 }

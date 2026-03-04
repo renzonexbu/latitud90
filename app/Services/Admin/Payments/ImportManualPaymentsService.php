@@ -46,6 +46,7 @@ class ImportManualPaymentsService
         'Referencia/Comprobante',
         'Notas',
         'Nombre del Participante',
+        'Tipo de Documento',
     ];
 
     public function __construct(RegisterManualPaymentService $registerManualPaymentService)
@@ -301,10 +302,8 @@ class ImportManualPaymentsService
 
         // 9. Crear Payment
         $referencia = $rawData['referencia'] ?? $rowData['referencia'] ?? $rowData['reference'] ?? null;
-        // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
-        $documentType = ($paymentOption?->code === 'presential_credit_temp')
-            ? 'CT'
-            : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+        $tipoDocumento = $rawData['tipo_documento'] ?? $rowData['tipo_documento'] ?? null;
+        $documentType = $this->resolveDocumentType($tipoDocumento, $paymentOption, $programCourse->id);
 
         $payment = Payment::create([
             'order_id' => $order->id,
@@ -1102,6 +1101,8 @@ class ImportManualPaymentsService
                         : $participant->email,
                     'reference' => $rowData['referencia'] ?? null,
                     'notes' => $rowData['notas'] ?? null,
+                    'document_type' => $this->resolveDocumentType($rowData['tipo_documento'] ?? null, null, $programCourse->id),
+                    'document_type_label' => $this->getDocumentTypeLabel($this->resolveDocumentType($rowData['tipo_documento'] ?? null, null, $programCourse->id)),
                 ]
             ];
 
@@ -1268,10 +1269,8 @@ class ImportManualPaymentsService
             $existingPaymentsCount = Payment::where('order_id', $order->id)->count();
             $paymentNumber = $existingPaymentsCount + 1;
             $referencia = $rowData['referencia'] ?? null;
-            // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
-            $documentType = ($paymentOption?->code === 'presential_credit_temp')
-                ? 'CT'
-                : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+            $tipoDocumento = $rowData['tipo_documento'] ?? null;
+            $documentType = $this->resolveDocumentType($tipoDocumento, $paymentOption, $programCourse->id);
 
             $payment = Payment::create([
                 'order_id' => $order->id,
@@ -1478,10 +1477,8 @@ class ImportManualPaymentsService
 
             // 9. Crear Payment
             $referencia = $rowData['referencia'] ?? null;
-            // CT (Crédito Temporal) usa document_type 'CT', no genera boleta
-            $documentType = ($paymentOption?->code === 'presential_credit_temp')
-                ? 'CT'
-                : PaymentDocumentTypeHelper::determineDocumentType($programCourse->id);
+            $tipoDocumento = $rowData['tipo_documento'] ?? null;
+            $documentType = $this->resolveDocumentType($tipoDocumento, $paymentOption, $programCourse->id);
 
             $payment = Payment::create([
                 'order_id' => $order->id,
@@ -1912,6 +1909,7 @@ class ImportManualPaymentsService
             'contacto_pagador' => ['contacto pagador', 'nombre pagador', 'pagador'],
             'email_contacto_pagador' => ['email contacto pagador', 'email pagador', 'correo pagador', 'correo contacto pagador'],
             'cuotas' => ['# cuotas', 'cuotas', 'numero cuotas', 'nro cuotas', 'nro. cuotas'],
+            'tipo_documento' => ['tipo de documento', 'tipo documento', 'tipo doc', 'documento fiscal', 'document type'],
         ];
 
         foreach ($fieldMappings as $field => $possibleHeaders) {
@@ -2071,6 +2069,35 @@ class ImportManualPaymentsService
         ];
 
         return $mapping[$type] ?? 'presential_pos_office';
+    }
+
+    /**
+     * Resuelve el tipo de documento fiscal para un pago.
+     * CT siempre gana, luego override del usuario, luego auto-determinación.
+     */
+    private function resolveDocumentType(?string $userDocType, ?PaymentOption $paymentOption, int $programCourseId): string
+    {
+        // CT (Crédito Temporal) siempre fuerza CT
+        if ($paymentOption?->code === 'presential_credit_temp') {
+            return 'CT';
+        }
+
+        // Si el usuario especificó un tipo de documento, usarlo
+        if (!empty($userDocType)) {
+            $mapped = PaymentDocumentTypeHelper::mapUserDocumentType($userDocType);
+            if ($mapped) {
+                return $mapped;
+            }
+        }
+
+        // Fallback: auto-determinación por año del programa
+        return PaymentDocumentTypeHelper::determineDocumentType($programCourseId);
+    }
+
+    private function getDocumentTypeLabel(string $code): string
+    {
+        $labels = ['B2' => 'Boleta', 'FF' => 'Factura', 'AC' => 'Anticipo', 'CR' => 'Contrato', 'CT' => 'Crédito Temporal'];
+        return $labels[$code] ?? $code;
     }
 
     /**
