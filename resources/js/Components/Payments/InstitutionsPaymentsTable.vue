@@ -87,7 +87,7 @@
                                 @click="selectInstitution(inst)"
                                 class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
                             >
-                                {{ capitalize(inst) }}
+                                {{ inst }}
                             </div>
                         </div>
                     </div>
@@ -166,7 +166,7 @@
                             <!-- Institución -->
                             <td class="px-2 py-2 whitespace-nowrap">
                                 <div class="text-xs font-medium text-gray-900">
-                                    {{ capitalize(row.institutionName) }}
+                                    {{ row.institutionName }}
                                 </div>
                             </td>
                             <!-- Código de Programa -->

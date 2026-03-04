@@ -65,7 +65,7 @@
                         @click="selectInstitution(inst)"
                         class="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-700"
                     >
-                        {{ capitalizeWords(inst) }}
+                        {{ inst }}
                     </div>
                 </div>
             </div>

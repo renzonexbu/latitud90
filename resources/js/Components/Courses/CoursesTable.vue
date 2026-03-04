@@ -58,7 +58,7 @@
                         <!-- Institución -->
                         <td class="px-2 py-2 whitespace-nowrap">
                             <div class="text-xs text-gray-900">
-                                {{ capitalizeWords(course.institution?.name || 'Sin institución') }}
+                                {{ course.institution?.name || 'Sin institución' }}
                             </div>
                         </td>
                         <!-- Destino -->

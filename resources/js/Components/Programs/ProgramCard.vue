@@ -212,7 +212,7 @@
             <div class="text-white mb-3">
                 <div class="flex items-center mt-2 text-[10px] sm:text-xs opacity-90 justify-end">
                     <span v-if="program.course?.institution?.name">{{
-                        capitalizeFirst(program.course.institution.name)
+                        program.course.institution.name
                     }}</span>
                     <span v-if="program.course?.institution?.name && program.course?.education_level" class="mx-2">|</span>
                     <span v-if="program.course?.education_level">{{
