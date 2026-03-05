@@ -35,10 +35,10 @@ class ImportManualPaymentsService
     // Expected column headers in the Excel file (at least one variation of each must be present)
     protected $expectedHeaders = [
         'rut' => ['rut', 'rut alumno', 'rut alumno (a)'],
-        'nro_negocio' => ['nro. negocio', 'nro negocio', 'numero negocio'],
+        'nro_negocio' => ['nro. negocio', 'nro negocio', 'nro_negocio', 'numero negocio'],
         'monto' => ['monto', 'valor', 'pago y/o dev.', 'pago', 'precio'],
-        'fecha_pago' => ['fecha de pago', 'fecha pago', 'fecha'],
-        'tipo_pago' => ['tipo de pago', 'tipo pago', 'forma pago', 'forma de pago'],
+        'fecha_pago' => ['fecha de pago', 'fecha pago', 'fecha_pago', 'fecha'],
+        'tipo_pago' => ['tipo de pago', 'tipo pago', 'tipo_pago', 'forma pago', 'forma de pago'],
     ];
 
     // Optional headers
@@ -1898,11 +1898,11 @@ class ImportManualPaymentsService
 
         $fieldMappings = [
             'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno', 'rut participante'],
-            'nro_negocio' => ['nro. negocio', 'nro negocio', 'numero negocio', 'numero de negocio'],
+            'nro_negocio' => ['nro. negocio', 'nro negocio', 'nro_negocio', 'numero negocio', 'numero de negocio'],
             'nro_aut' => ['nro. aut.', 'nro aut', 'nro. aut', 'numero autorizacion', 'num. aut.', 'nro. autorización', 'nro autorizacion', 'nro. autorizacion'],
             'monto' => ['monto', 'valor', 'pago y/o dev.', 'pago y/o dev', 'pago', 'precio'],
             'fecha_pago' => ['fecha de pago', 'fecha pago', 'fecha_pago', 'fecha', 'fecha de pag'],
-            'tipo_pago' => ['tipo de pago', 'tipo pago', 'tipo_pago', 'tipo', 'forma pago', 'forma de pago'],
+            'tipo_pago' => ['tipo de pago', 'tipo pago', 'tipo_pago', 'forma pago', 'forma de pago'],
             'referencia' => ['referencia/comprobante', 'referencia', 'comprobante', 'nro. boleta', 'nro boleta', 'numero boleta', 'num. boleta'],
             'notas' => ['notas', 'observaciones'],
             'nombre' => ['nombre del participante', 'nombre participante', 'nombre', 'alumno (a)', 'alumno'],
