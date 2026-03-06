@@ -181,11 +181,12 @@ class GetParticipantsService
                     })
                     ->sum('amount');
 
-                // 2. Cuotas de suscripción pagadas (installments)
+                // 2. Cuotas de suscripción pagadas (installments) - solo de planes activos
                 $subscriptionPayments = DB::table('installments')
                     ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                     ->where('installment_plans.participant_id', $enrollment->participant_id)
                     ->where('installment_plans.program_id', $enrollment->program_course_id)
+                    ->where('installment_plans.status', '!=', 'cancelled')
                     ->where('installments.status', 'paid')
                     ->sum('installments.amount');
 

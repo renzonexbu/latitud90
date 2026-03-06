@@ -208,11 +208,12 @@ class CourseDataService
             })
             ->sum('amount');
 
-        // Cuotas de suscripción pagadas
+        // Cuotas de suscripción pagadas - solo de planes activos
         $subscriptionPayments = (float) DB::table('installments')
             ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
             ->where('installment_plans.participant_id', $participantId)
             ->where('installment_plans.program_id', $programCourseId)
+            ->where('installment_plans.status', '!=', 'cancelled')
             ->where('installments.status', 'paid')
             ->sum('installments.amount');
 
@@ -243,11 +244,12 @@ class CourseDataService
             })
             ->sum('payments.amount');
 
-        // Sumar cuotas de suscripciones pagadas (installments)
+        // Sumar cuotas de suscripciones pagadas (installments) - solo de planes activos
         // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
         $subscriptionPayments = (float) DB::table('installments')
             ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
             ->where('installment_plans.program_id', $programCourse->id)
+            ->where('installment_plans.status', '!=', 'cancelled')
             ->where('installments.status', 'paid')
             ->sum('installments.amount');
 
@@ -307,10 +309,11 @@ class CourseDataService
             })
             ->sum('amount');
 
-            // Sumar cuotas de suscripciones pagadas
+            // Sumar cuotas de suscripciones pagadas - solo de planes activos
             $subscriptionPayments = (float) DB::table('installments')
                 ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                 ->where('installment_plans.program_id', $programCourse->id)
+                ->where('installment_plans.status', '!=', 'cancelled')
                 ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 

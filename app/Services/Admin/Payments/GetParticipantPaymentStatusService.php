@@ -151,10 +151,11 @@ class GetParticipantPaymentStatusService
                     ->sum('amount');
             }
 
-            // 2. Cuotas de suscripción pagadas (installments)
+            // 2. Cuotas de suscripción pagadas (installments) - solo de planes activos
             $subscriptionPayments = (float) \App\Models\Installment::whereHas('installmentPlan', function ($q) use ($participantId, $programCourseId) {
                     $q->where('participant_id', $participantId)
-                      ->where('program_id', $programCourseId);
+                      ->where('program_id', $programCourseId)
+                      ->where('status', '!=', 'cancelled');
                 })
                 ->where('status', 'paid')
                 ->sum('amount');
