@@ -121,7 +121,10 @@
                         <!-- Total Pagado / Saldo -->
                         <td class="px-2 py-2 whitespace-nowrap text-right">
                             <div class="text-xs font-bold text-gray-900">
-                                {{ formatPaidVsSaldo(participant) }}
+                                {{ formatPaidAmount(participant) }} /
+                                <span :class="getSaldo(participant) > 0 ? 'text-red-600' : 'text-gray-900'">
+                                    {{ formatSaldo(participant) }}
+                                </span>
                             </div>
                         </td>
 
@@ -335,11 +338,27 @@ export default {
             }).format(amount);
         },
 
-        formatPaidVsSaldo(participant) {
+        formatPaidAmount(participant) {
+            const paid = this.getPaidAmount(participant);
+            return this.formatCurrency(paid);
+        },
+
+        getSaldo(participant) {
             const paid = this.getPaidAmount(participant);
             const total = this.getTotalDue(participant);
-            const saldo = Math.max(0, total - paid);
-            return `${this.formatCurrency(paid)} / ${this.formatCurrency(saldo)}`;
+            return total - paid;
+        },
+
+        formatSaldo(participant) {
+            const saldo = this.getSaldo(participant);
+            if (saldo > 0) {
+                // Saldo deudor: rojo con paréntesis
+                return `(${this.formatCurrency(saldo)})`;
+            } else if (saldo < 0) {
+                // Saldo a favor: negro, mostrar valor absoluto
+                return this.formatCurrency(Math.abs(saldo));
+            }
+            return this.formatCurrency(0);
         },
 
         capitalizeWords(string) {

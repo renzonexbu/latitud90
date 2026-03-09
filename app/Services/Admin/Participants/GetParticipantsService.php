@@ -196,7 +196,7 @@ class GetParticipantsService
 
                 // Calcular el saldo/balance
                 // Balance = Precio total - Total pagado
-                $enrollment->balance = max(0, round($enrollment->total_due - $enrollment->paid_amount, 2));
+                $enrollment->balance = round($enrollment->total_due - $enrollment->paid_amount, 2);
 
                 // Calcular porcentaje de pago
                 $enrollment->payment_percentage = ($enrollment->total_due > 0)
