@@ -3,7 +3,7 @@
         <Head title="Gestión de Instituciones" />
 
         <div class="py-6 lg:py-12">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Header -->
                 <div class="flex justify-between items-center mb-6">
                     <div>
@@ -115,67 +115,67 @@
                 </div>
 
                 <!-- Institutions Table -->
-                <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+                <div class="bg-white shadow-sm rounded-lg overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-turquesa">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Código
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Nombre Fantasía
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Razón Social
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     RUT
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Tipo
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-left text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Email
                                 </th>
-                                <th class="px-6 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Cursos
                                 </th>
-                                <th class="px-6 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
+                                <th class="px-3 py-3 text-center text-xs font-nexa-bold text-white uppercase tracking-wider">
                                     Acciones
                                 </th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr v-if="filteredInstitutions.length === 0">
-                                <td colspan="8" class="px-6 py-12 text-center text-gray-500 font-nexa-regular">
+                                <td colspan="8" class="px-3 py-12 text-center text-gray-500 font-nexa-regular">
                                     {{ searchQuery ? 'No se encontraron instituciones con esa búsqueda' : 'No hay instituciones registradas' }}
                                 </td>
                             </tr>
                             <tr v-for="institution in filteredInstitutions" :key="institution.id" class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.code || '-' }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm font-nexa-bold text-verde-oscuro">{{ institution.name }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.razon_social || '-' }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.rut || '-' }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.type || '-' }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-3 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900 font-nexa-regular">{{ institution.email || '-' }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                <td class="px-3 py-3 whitespace-nowrap text-center">
                                     <span class="px-2 inline-flex text-xs leading-5 font-nexa-bold rounded-full bg-blue-100 text-blue-800">
                                         {{ institution.courses_count }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                <td class="px-3 py-3 whitespace-nowrap text-center text-sm font-medium">
                                     <div class="flex justify-center gap-2">
                                         <Link
                                             :href="route('admin.institutions.edit', institution.id)"

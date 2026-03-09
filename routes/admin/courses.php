@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Admin\Courses\CourseController;
 use App\Http\Controllers\Admin\Courses\PaymentOptionsProgramController;
-use App\Http\Controllers\Admin\InstitutionsController;
 use Illuminate\Support\Facades\Route;
 
 // Courses Management
@@ -44,9 +43,3 @@ Route::prefix('courses')->name('courses.')->group(function () {
     });
 });
 
-// Institutions Management
-Route::prefix('institutions')->name('institutions.')->group(function () {
-    Route::get('/', [InstitutionsController::class, 'index'])->name('index');
-    Route::get('/create', [InstitutionsController::class, 'create'])->name('create');
-    Route::post('/', [InstitutionsController::class, 'store'])->name('store');
-});
