@@ -194,6 +194,16 @@ class GetParticipantsService
                 $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
                 $enrollment->paid_amount = round($paidAmount, 2);
 
+                // Ajuste para participantes de baja: el precio se ajusta al abono
+                // (misma lógica que CourseDataService / Estado de Cuenta Parcial)
+                if (!$enrollment->is_active) {
+                    // Si pagó igual o más que el precio → total_due = 0 (sin deuda)
+                    // Si pagó menos → total_due = lo que pagó (saldo = 0)
+                    $enrollment->total_due = ($enrollment->paid_amount >= $enrollment->total_due)
+                        ? 0
+                        : $enrollment->paid_amount;
+                }
+
                 // Calcular el saldo/balance
                 // Balance = Precio total - Total pagado
                 $enrollment->balance = round($enrollment->total_due - $enrollment->paid_amount, 2);
