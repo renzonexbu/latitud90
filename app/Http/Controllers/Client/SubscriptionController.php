@@ -271,6 +271,22 @@ class SubscriptionController extends Controller
                 throw new Exception('Participante no encontrado. Debe estar inscrito en el programa primero.');
             }
 
+            // Validar que no exista ya una suscripción activa para este participante+programa
+            $existingSubscription = ProgramSubscription::where('participant_id', $participant->id)
+                ->where('program_id', $programCourseId)
+                ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO'])
+                ->first();
+
+            if ($existingSubscription) {
+                Log::warning('Intento de crear PAT duplicado', [
+                    'participant_id' => $participant->id,
+                    'program_id' => $programCourseId,
+                    'existing_subscription_id' => $existingSubscription->id,
+                    'existing_status' => $existingSubscription->status,
+                ]);
+                throw new Exception('Este participante ya cuenta con un plan de pago activo para este programa.');
+            }
+
             // Validación de canPayFor deshabilitada - la autorización se maneja
             // en el flujo previo (selección de programa). Si el guardian llegó hasta
             // la confirmación de pago, ya fue validado.
