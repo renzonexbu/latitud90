@@ -80,6 +80,11 @@ class SendPendingPaymentEmails extends Command
             $this->warn("🔍 [DRY-RUN] Modo simulación - NO se procesarán pagos");
         }
 
+        // Resolver pagos en estado 'pending' consultando la pasarela
+        if (!$isDryRun) {
+            $this->resolvePendingGatewayPayments();
+        }
+
         $this->info("🔍 Buscando pagos pendientes (delay: {$delayMinutes} min)...");
 
         try {
@@ -781,5 +786,130 @@ class SendPendingPaymentEmails extends Command
 
         // Por defecto, es pago total
         return false;
+    }
+
+    /**
+     * Resolver pagos en estado 'pending' consultando la pasarela de pago.
+     * - Si Virtualpos reporta 'pagado' → actualiza a 'completed'
+     * - Si lleva más de 2 horas en 'pending' y la pasarela no lo aprobó → marca como 'failed'
+     */
+    protected function resolvePendingGatewayPayments(): void
+    {
+        $staleThresholdHours = 2;
+
+        // Obtener pagos pending de las últimas 48 horas que tengan token (Virtualpos)
+        // Excluir pagos de suscripción (payment_source puede ser null o distinto de 'subscription')
+        $pendingPayments = Payment::where('status', 'pending')
+            ->where('created_at', '>=', Carbon::now()->subHours(48))
+            ->whereNotNull('token')
+            ->where('token', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('payment_source')
+                  ->orWhere('payment_source', '!=', 'subscription');
+            })
+            ->with(['orderDetail.order'])
+            ->limit(20)
+            ->get();
+
+        if ($pendingPayments->isEmpty()) {
+            return;
+        }
+
+        $this->info("🔄 Verificando {$pendingPayments->count()} pagos en estado 'pending' con la pasarela...");
+
+        $resolved = 0;
+        $markedFailed = 0;
+
+        foreach ($pendingPayments as $payment) {
+            try {
+                $token = $payment->external_payment_id ?? $payment->token;
+                if (!$token) {
+                    continue;
+                }
+
+                $result = $this->virtualPosService->confirmTransaction($token);
+                $gatewayStatus = $result['status'] ?? 'unknown';
+                $isApproved = in_array($gatewayStatus, VirtualPosService::APPROVED_STATUSES);
+                $isRejected = in_array($gatewayStatus, VirtualPosService::REJECTED_STATUSES);
+
+                if ($isApproved) {
+                    // Pago aprobado en pasarela → actualizar a completed
+                    $payment->update([
+                        'status' => 'completed',
+                        'authorization_code' => $result['authorization_code'] ?? $payment->authorization_code,
+                        'external_payment_id' => $result['transaction_id'] ?? $payment->external_payment_id,
+                        'installments_number' => $result['installments'] ?? $payment->installments_number,
+                        'installment_amount' => $result['installment_amount'] ?? $payment->installment_amount,
+                        'gateway_response' => json_encode($result['full_response'] ?? $result),
+                    ]);
+
+                    // Actualizar order_detail y order
+                    if ($payment->orderDetail) {
+                        $payment->orderDetail->update([
+                            'status' => 'paid',
+                            'is_paid' => true,
+                            'paid_at' => $payment->orderDetail->paid_at ?? now(),
+                        ]);
+                        if ($payment->orderDetail->order) {
+                            $payment->orderDetail->order->update(['status' => 'paid']);
+                        }
+                    }
+
+                    $resolved++;
+                    $this->line("  ✅ Payment #{$payment->id} → completed (pasarela: {$gatewayStatus})");
+
+                } elseif ($isRejected) {
+                    // Rechazado explícitamente
+                    $this->markPaymentAsFailed($payment, $gatewayStatus);
+                    $markedFailed++;
+                    $this->line("  ❌ Payment #{$payment->id} → failed (pasarela: {$gatewayStatus})");
+
+                } else {
+                    // Sigue pendiente en pasarela: si lleva más de 2h, marcar como failed
+                    $ageHours = Carbon::now()->diffInHours($payment->created_at);
+                    if ($ageHours >= $staleThresholdHours) {
+                        $this->markPaymentAsFailed($payment, "stale_pending_{$ageHours}h");
+                        $markedFailed++;
+                        $this->line("  ⏰ Payment #{$payment->id} → failed (pendiente por {$ageHours}h, pasarela: {$gatewayStatus})");
+                    }
+                }
+            } catch (Exception $e) {
+                Log::warning('Error verificando pago pending con pasarela', [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($resolved > 0 || $markedFailed > 0) {
+            $this->info("   Resultado: {$resolved} aprobados, {$markedFailed} marcados como fallidos");
+        }
+        $this->newLine();
+    }
+
+    /**
+     * Marcar un pago y sus registros asociados como failed
+     */
+    protected function markPaymentAsFailed(Payment $payment, string $reason): void
+    {
+        $payment->update([
+            'status' => 'failed',
+            'error_message' => "Auto-resolved: {$reason}",
+        ]);
+
+        if ($payment->orderDetail) {
+            $payment->orderDetail->update([
+                'status' => 'failed',
+                'is_paid' => false,
+            ]);
+            if ($payment->orderDetail->order && $payment->orderDetail->order->status === 'pending') {
+                $payment->orderDetail->order->update(['status' => 'cancelled']);
+            }
+        }
+
+        Log::info('Pago pending resuelto automáticamente como failed', [
+            'payment_id' => $payment->id,
+            'reason' => $reason,
+        ]);
     }
 }
