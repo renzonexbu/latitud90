@@ -162,6 +162,7 @@
                                 </label>
                                 <input
                                     type="email"
+                                    required
                                     placeholder="Escriba su correo electrónico"
                                     class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
                                     v-model="formData.email"
@@ -482,7 +483,7 @@ export default {
                 apellidos: this.formData.apellidos.trim() !== "",
                 documentType: this.formData.documentType !== "",
                 documentNumber: this.formData.documentNumber.trim() !== "",
-                email: this.formData.email.trim() !== "",
+                email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email.trim()),
                 phone: this.formData.phone.trim() !== "",
                 country: this.formData.country !== "",
                 region: this.formData.region !== "",

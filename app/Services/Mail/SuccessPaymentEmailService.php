@@ -43,6 +43,16 @@ class SuccessPaymentEmailService
         try {
             $emailData = $this->prepareEmailData($orderDetail, $payment);
 
+            // Validar que exista un email destino antes de continuar
+            if (empty($emailData['customer_email'])) {
+                $this->logError('SuccessPaymentEmailService: No se puede enviar email - customer_email vacío', [
+                    'payment_id' => $payment->id,
+                    'order_detail_id' => $orderDetail->id,
+                    'customer_name' => $emailData['customer_name'] ?? 'N/A',
+                ]);
+                return false;
+            }
+
             // Usar los tipos de documento pre-calculados del Payment (si existen)
             // Estos son establecidos por el comando payments:send-pending-emails
             $documentTypes = $payment->generated_document_types ?? [];
