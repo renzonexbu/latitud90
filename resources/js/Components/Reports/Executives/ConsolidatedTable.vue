@@ -77,7 +77,7 @@
 
                         <!-- Estado -->
                         <td class="px-2 py-2 whitespace-nowrap">
-                            <span class="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-full" :class="getStatusClass(item.status)">
+                            <span class="inline-flex px-2 py-0.5 text-xs font-bold rounded-full" :class="getStatusClass(item.status)">
                                 {{ getStatusLabel(item.status) }}
                             </span>
                         </td>
@@ -231,10 +231,9 @@ const formatRut = (rut) => {
 const getStatusClass = (status) => {
     const statusLower = status?.toLowerCase() || '';
     const classes = {
-        'activo': 'bg-green-100 text-green-800',
-        'inactivo': 'bg-red-100 text-red-800',
-        'pending': 'bg-yellow-100 text-yellow-800',
-        'completed': 'bg-blue-100 text-blue-800',
+        'activo': 'bg-[#4b8d7f] text-white',
+        'baja': 'bg-[#d54b44] text-white',
+        'inactivo': 'bg-[#d54b44] text-white',
     };
     return classes[statusLower] || 'bg-gray-100 text-gray-800';
 };
@@ -243,9 +242,8 @@ const getStatusLabel = (status) => {
     const statusLower = status?.toLowerCase() || '';
     const labels = {
         'activo': 'Activo',
-        'inactivo': 'Inactivo',
-        'pending': 'Pendiente',
-        'completed': 'Completado',
+        'baja': 'Baja',
+        'inactivo': 'Baja',
     };
     return labels[statusLower] || status || 'N/A';
 };

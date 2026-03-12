@@ -153,7 +153,7 @@
                 </div>
             </div>
 
-            <!-- Filtro Estado Activo/Inactivo -->
+            <!-- Filtro Estado Activo/Baja -->
             <div class="relative min-w-[160px]">
                 <select
                     v-model="filters.status"
@@ -162,7 +162,7 @@
                 >
                     <option value="">Todos los estados</option>
                     <option value="active">Activo</option>
-                    <option value="inactive">Inactivo</option>
+                    <option value="inactive">Baja</option>
                 </select>
                 <div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

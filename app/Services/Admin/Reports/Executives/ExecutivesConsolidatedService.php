@@ -38,6 +38,12 @@ class ExecutivesConsolidatedService
 
             if (!$participant || !$programCourse) continue;
 
+            // Buscar participant_program directamente (la order de NC puede no tener participant_program_id)
+            $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participantId)
+                ->where('program_id', $programId)
+                ->first();
+            $isDeBaja = $participantProgram && !$participantProgram->is_active;
+
             // Precio final del participante (después de descuentos)
             $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
             $price = $priceData['final_price'] ?? 0;
@@ -56,7 +62,8 @@ class ExecutivesConsolidatedService
             $runningBalance = $price;
             foreach ($allPayments as $p) {
                 $runningBalance -= $p->amount;
-                $balanceMap[$p->id] = round($runningBalance, 0);
+                // Si está de baja, saldo queda en $0 (ya no debe nada)
+                $balanceMap[$p->id] = $isDeBaja ? 0 : round($runningBalance, 0);
             }
         }
 
@@ -119,10 +126,10 @@ class ExecutivesConsolidatedService
                 $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
-        // Filtro por estado activo/inactivo del participante
+        // Filtro por estado activo/inactivo del participante en el programa
         if (!empty($filters['status'])) {
             $isActive = $filters['status'] === 'active';
-            $query->whereHas('order.participant', function ($q) use ($isActive) {
+            $query->whereHas('order.participantProgram', function ($q) use ($isActive) {
                 $q->where('is_active', $isActive);
             });
         }
@@ -164,7 +171,13 @@ class ExecutivesConsolidatedService
             $order = $payment->order;
             $participant = $order?->participant;
             $program = $order?->programCourse;
-            $participantProgram = $order?->participantProgram;
+
+            // Buscar participant_program directamente (la order de NC puede no tener participant_program_id)
+            $participantProgram = ($participant && $program)
+                ? \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->first()
+                : null;
 
             // Saldo progresivo: refleja el impacto de cada pago/devolución
             $saldo = $balanceMap[$payment->id] ?? 0;
@@ -214,7 +227,7 @@ class ExecutivesConsolidatedService
                 'program_number' => $program?->code ?? 'N/A',
                 'identification_number' => $participant?->document_number ?? 'N/A',
                 'full_name' => $participantFullName,
-                'status' => $participant?->is_active ? 'Activo' : 'Inactivo',
+                'status' => $participantProgram?->is_active ? 'Activo' : 'Baja',
                 'payment_or_refund' => $payment->amount ?? 0,
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
@@ -312,10 +325,10 @@ class ExecutivesConsolidatedService
                 $q->whereRaw("REPLACE(REPLACE(document_number, '.', ''), '-', '') LIKE ?", ["%{$documentSearch}%"]);
             });
         }
-        // Filtro por estado activo/inactivo del participante
+        // Filtro por estado activo/inactivo del participante en el programa
         if (!empty($normalizedFilters['status'])) {
             $isActive = $normalizedFilters['status'] === 'active';
-            $query->whereHas('order.participant', function ($q) use ($isActive) {
+            $query->whereHas('order.participantProgram', function ($q) use ($isActive) {
                 $q->where('is_active', $isActive);
             });
         }
@@ -354,7 +367,13 @@ class ExecutivesConsolidatedService
             $order = $payment->order;
             $participant = $order?->participant;
             $program = $order?->programCourse;
-            $participantProgram = $order?->participantProgram;
+
+            // Buscar participant_program directamente (la order de NC puede no tener participant_program_id)
+            $participantProgram = ($participant && $program)
+                ? \App\Models\ParticipantProgram::where('participant_id', $participant->id)
+                    ->where('program_id', $program->id)
+                    ->first()
+                : null;
 
             // Saldo progresivo: refleja el impacto de cada pago/devolución
             $saldo = $balanceMap[$payment->id] ?? 0;
@@ -404,7 +423,7 @@ class ExecutivesConsolidatedService
                 'program_number' => $program?->code ?? 'N/A',
                 'identification_number' => $participant?->document_number ?? 'N/A',
                 'full_name' => $participantFullName,
-                'status' => $participant?->is_active ? 'Activo' : 'Inactivo',
+                'status' => $participantProgram?->is_active ? 'Activo' : 'Baja',
                 'payment_or_refund' => $payment->amount ?? 0,
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
