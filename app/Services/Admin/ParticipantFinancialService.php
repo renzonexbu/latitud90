@@ -84,7 +84,11 @@ class ParticipantFinancialService
 
     /**
      * Calcula el total pagado por un participante en un programa.
-     * Prioriza plan de cuotas (installments); si no hay, suma pagos directos.
+     * Suma todos los pagos reales (approved/completed) de todas las órdenes.
+     *
+     * No se usa el installment plan porque puede tener cuotas marcadas
+     * como "paid" sin cobro real (ej: suscripción fallida) o con montos
+     * distintos al pago vinculado, e ignora pagos en otras órdenes.
      */
     private static function calculateTotalPaid(Participant $participant, ProgramCourse $programCourse): float
     {
@@ -97,20 +101,10 @@ class ParticipantFinancialService
             return 0;
         }
 
-        // Prioridad: plan de cuotas
-        $installmentPlan = InstallmentPlan::whereIn('order_id', $orderIds)->first();
-
-        if ($installmentPlan) {
-            return (float) $installmentPlan->installments()
-                ->where('status', 'paid')
-                ->sum('amount');
-        }
-
-        // Fallback: pagos directos aprobados/completados
         return (float) DB::table('payments')
             ->whereIn('order_id', $orderIds)
             ->whereIn('status', ['approved', 'completed'])
-            ->where('amount', '>', 0)  // Solo pagos, no NC
+            ->where('amount', '>', 0)
             ->sum('amount');
     }
 
