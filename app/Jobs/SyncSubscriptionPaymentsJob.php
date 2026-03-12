@@ -34,6 +34,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
 
     protected $subscriptionId;
     protected $sendEmails;
+    protected $dryRun;
     protected $virtualPosService;
     protected $emailService;
     protected $bsaleService;
@@ -45,11 +46,13 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      *
      * @param int|null $subscriptionId ID de suscripción específica, null para procesar todas
      * @param bool $sendEmails Si se deben enviar correos de pago exitoso (default: true)
+     * @param bool $dryRun Si es true, los logs mostrarán lo que se haría (la transacción se revierte externamente)
      */
-    public function __construct(?int $subscriptionId = null, bool $sendEmails = true)
+    public function __construct(?int $subscriptionId = null, bool $sendEmails = true, bool $dryRun = false)
     {
         $this->subscriptionId = $subscriptionId;
         $this->sendEmails = $sendEmails;
+        $this->dryRun = $dryRun;
     }
 
     /**
@@ -69,7 +72,8 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         $this->bsaleQueueService = $bsaleQueueService;
         $this->createChargeService = $createChargeService;
 
-        Log::info('SyncSubscriptionPayments: Iniciando sincronización de pagos de suscripciones');
+        $prefix = $this->dryRun ? '[DRY-RUN] ' : '';
+        Log::info($prefix . 'SyncSubscriptionPayments: Iniciando sincronización de pagos de suscripciones');
 
         try {
             // Obtener suscripciones a procesar
@@ -121,7 +125,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $query = ProgramSubscription::query()
             ->whereNotNull('virtualpos_subscription_id')
-            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO']);
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO', 'SUSCRIPCION_FALLIDA']);
 
         if ($this->subscriptionId) {
             $query->where('id', $this->subscriptionId);
@@ -473,7 +477,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         // VirtualPOS devuelve los datos bajo la clave 'suscription'
         $subscriptionData = $virtualPosData['suscription'] ?? $virtualPosData;
         $virtualPosStatus = $subscriptionData['status'] ?? $subscription->status;
-        $newStatus = $this->mapVirtualPosStatus($virtualPosStatus);
+        $newStatus = $this->mapVirtualPosStatus($virtualPosStatus, $subscription->status);
 
         if ($newStatus !== $subscription->status) {
             Log::info('SyncSubscriptionPayments: Actualizando estado de suscripción', [
@@ -495,7 +499,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     /**
      * Mapear status de VirtualPos a status del modelo
      */
-    protected function mapVirtualPosStatus(string $virtualPosStatus): string
+    protected function mapVirtualPosStatus(string $virtualPosStatus, string $currentStatus = 'ACTIVA'): string
     {
         $statusMap = [
             'OK' => 'ACTIVA',
@@ -511,9 +515,15 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'FINALIZADA' => 'FINALIZADA',
             'FINISHED' => 'FINALIZADA',
             'COMPLETED' => 'FINALIZADA',
+            // Estados de reintento/pausa: la suscripción sigue activa
+            'REINTENTANDO' => 'ACTIVA',
+            'RETRYING' => 'ACTIVA',
+            'PAUSADA' => 'ACTIVA',
+            'PAUSED' => 'ACTIVA',
         ];
 
-        return $statusMap[strtoupper($virtualPosStatus)] ?? 'ACTIVA';
+        // Si el estado no se reconoce, mantener el estado actual en vez de asumir ACTIVA
+        return $statusMap[strtoupper($virtualPosStatus)] ?? $currentStatus;
     }
 
     /**
@@ -1346,6 +1356,14 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 return;
             }
 
+            // En dry-run no encolar boletas
+            if ($this->dryRun) {
+                Log::info('[DRY-RUN] SyncSubscriptionPayments: Se encolaría boleta BSale', [
+                    'payment_id' => $payment->id,
+                ]);
+                return;
+            }
+
             // Usar BsaleQueueService para encolar la solicitud
             // El servicio maneja automáticamente:
             // - Verificación de estado de pago confirmado
@@ -1445,8 +1463,8 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             $chargeId = $charge['id'] ?? null;
             $status = strtolower($charge['status'] ?? '');
 
-            // Verificar si el charge está rechazado y no ha sido procesado
-            if ($chargeId && $status === 'rechazado' && !in_array($chargeId, $processedIds)) {
+            // Verificar si el charge está rechazado o reintentando y no ha sido procesado
+            if ($chargeId && in_array($status, ['rechazado', 'reintentando']) && !in_array($chargeId, $processedIds)) {
                 $failedCharges[] = $charge;
             }
         }
@@ -1455,19 +1473,33 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     }
 
     /**
-     * Procesar un charge rechazado
+     * Procesar un charge rechazado o en reintento
      */
     protected function processFailedCharge(ProgramSubscription $subscription, array $charge): void
     {
         $chargeId = $charge['id'];
         $amount = $charge['amount'] ?? 0;
+        $chargeStatus = strtolower($charge['status'] ?? 'rechazado');
 
-        Log::info('SyncSubscriptionPayments: Procesando charge rechazado', [
+        Log::info('SyncSubscriptionPayments: Procesando charge rechazado/reintentando', [
             'subscription_id' => $subscription->id,
             'charge_id' => $chargeId,
             'amount' => $amount,
+            'charge_status' => $chargeStatus,
             'charge_date' => $charge['charge_date'] ?? null
         ]);
+
+        // Si el cobro está en estado 'reintentando', VirtualPos ya está gestionando el reintento.
+        // Solo registrar y marcar como procesado, NO crear retry propio.
+        if ($chargeStatus === 'reintentando') {
+            Log::info('SyncSubscriptionPayments: Cobro en reintento por VirtualPos, no se crea retry propio', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId,
+            ]);
+            $this->registerChargeAttempt($subscription, $charge, 'pending');
+            $this->markChargeAsProcessed($subscription, $chargeId);
+            return;
+        }
 
         // NUEVO: Registrar el pago rechazado en la tabla payments para reportes
         // Solo crear si no existe ya un Payment con este charge_id
@@ -1662,6 +1694,17 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'max_attempts' => $maxAttempts,
             'amount' => $amount
         ]);
+
+        // En dry-run no crear cargos reales en VirtualPOS
+        if ($this->dryRun) {
+            Log::info('[DRY-RUN] SyncSubscriptionPayments: Se crearía reintento de cobro en VirtualPOS', [
+                'subscription_id' => $subscription->id,
+                'original_charge_id' => $chargeId,
+                'attempt_number' => $attemptNumber,
+                'amount' => $amount,
+            ]);
+            return;
+        }
 
         // Crear nuevo cargo vía VirtualPOS
         $retryDescription = "Reintento {$attemptNumber}/{$maxAttempts} - {$description}";
