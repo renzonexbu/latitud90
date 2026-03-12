@@ -38,9 +38,9 @@
                     <option value="all">Todos los Estados</option>
                     <option value="ACTIVA">Activa</option>
                     <option value="SUSCRIBIENDO">Suscribiendo</option>
-                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="SUSCRIPCION_FALLIDA">Suscripción Fallida</option>
                     <option value="CANCELADA">Cancelada</option>
-                    <option value="RECHAZADA">Rechazada</option>
+                    <option value="FINALIZADA">Finalizada</option>
                 </select>
             </div>
 

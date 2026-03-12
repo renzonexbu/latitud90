@@ -198,8 +198,8 @@ class GetSubscriptionsService
         return [
             'total' => ProgramSubscription::count(),
             'active' => ProgramSubscription::where('status', 'ACTIVA')->count(),
-            'subscribing' => ProgramSubscription::whereIn('status', ['SUSCRIBIENDO', 'PENDIENTE'])->count(),
-            'cancelled' => ProgramSubscription::whereIn('status', ['CANCELADA', 'RECHAZADA'])->count(),
+            'subscribing' => ProgramSubscription::where('status', 'SUSCRIBIENDO')->count(),
+            'cancelled' => ProgramSubscription::whereIn('status', ['CANCELADA', 'SUSCRIPCION_FALLIDA'])->count(),
         ];
     }
 }

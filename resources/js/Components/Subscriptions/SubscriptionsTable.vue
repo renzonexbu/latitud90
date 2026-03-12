@@ -247,9 +247,9 @@ export default {
             const classes = {
                 'ACTIVA': "bg-[#4b8d7f]", // Verde
                 'SUSCRIBIENDO': "bg-[#3b82f6]", // Azul
-                'PENDIENTE': "bg-[#ffb232]", // Amarillo
+                'SUSCRIPCION_FALLIDA': "bg-[#d54b44]", // Rojo
                 'CANCELADA': "bg-[#6b7280]", // Gris
-                'RECHAZADA': "bg-[#d54b44]", // Rojo
+                'FINALIZADA': "bg-[#ffb232]", // Amarillo
             };
             return classes[status] || "bg-[#ffb232]";
         },
@@ -258,9 +258,9 @@ export default {
             const labels = {
                 'ACTIVA': "Activa",
                 'SUSCRIBIENDO': "Suscribiendo",
-                'PENDIENTE': "Pendiente",
+                'SUSCRIPCION_FALLIDA': "Suscripción Fallida",
                 'CANCELADA': "Cancelada",
-                'RECHAZADA': "Rechazada",
+                'FINALIZADA': "Finalizada",
             };
             return labels[status] || status;
         },
