@@ -204,82 +204,36 @@ class PartialAccountTransformer
     }
 
     /**
-     * Calcula los datos financieros del participante
+     * Calcula los datos financieros del participante.
+     * Delega al servicio centralizado ParticipantFinancialService.
      */
     private function calculateFinancialData($participant, $programCourse, $enrollment): array
     {
-        $priceData = null;
         if ($participant && $programCourse) {
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-        }
+            $data = \App\Services\Admin\ParticipantFinancialService::calculate(
+                $participant->id,
+                $programCourse->id
+            );
 
-        // Use individual_price from participant_program as base price
-        $totalAmount = (float) ($enrollment->individual_price ?? ($programCourse->trip_price ?? 0));
-        
-        // Calculate discounts properly
-        $totalDiscounts = 0;
-        if ($priceData && isset($priceData['discounts'])) {
-            $totalDiscounts = (float) $priceData['discounts'];
+            return [
+                'total_amount' => $data['base_price'],
+                'total_discounts' => $data['discounts'],
+                'net_amount' => $data['net_amount'],
+                'total_paid' => $data['total_paid'],
+                'pending_amount' => $data['pending_amount'],
+                'progress_percentage' => $data['progress_percentage'],
+                'status' => $data['status'],
+            ];
         }
-        
-        // Net amount is total amount minus discounts
-        $netAmount = $totalAmount - $totalDiscounts;
-        if ($priceData && isset($priceData['final_price'])) {
-            $netAmount = (float) $priceData['final_price'];
-        }
-        
-        // Get actual paid amount - check installments first
-        $totalPaid = 0;
-
-        if ($participant && $programCourse) {
-            // Obtener las órdenes del participante para este programa
-            $orderIds = Order::where('participant_id', $participant->id)
-                ->where('program_id', $programCourse->id)
-                ->pluck('id')->all();
-
-            if (!empty($orderIds)) {
-                // Buscar plan de cuotas
-                $installmentPlan = InstallmentPlan::whereIn('order_id', $orderIds)->first();
-
-                if ($installmentPlan) {
-                    // Si hay plan de cuotas, sumar las cuotas pagadas
-                    $totalPaid = (float) $installmentPlan->installments()
-                        ->where('status', 'paid')
-                        ->sum('amount');
-                } else {
-                    // Si no hay plan de cuotas, usar el monto pagado directo (pago único/contado)
-                    $totalPaid = (float) ($enrollment->paid_amount ?? 0);
-                }
-            } else {
-                // Sin órdenes, usar el monto del enrollment
-                $totalPaid = (float) ($enrollment->paid_amount ?? 0);
-            }
-        } else {
-            $totalPaid = (float) ($enrollment->paid_amount ?? 0);
-        }
-        
-        // Calculate pending amount (can't be negative)
-        $pendingAmount = max($netAmount - $totalPaid, 0);
-        
-        // Determine status
-        $status = 'pending';
-        if ($pendingAmount <= 0) {
-            $status = 'paid';
-        } elseif ($totalPaid > 0) {
-            $status = 'partial';
-        }
-
-        // Calculate progress percentage
-        $progressPercentage = $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 0;
 
         return [
-            'total_amount' => $totalAmount,
-            'total_discounts' => $totalDiscounts,
-            'net_amount' => $netAmount,
-            'total_paid' => $totalPaid,
-            'pending_amount' => $pendingAmount,
-            'progress_percentage' => $progressPercentage,
-            'status' => $status,
+            'total_amount' => 0,
+            'total_discounts' => 0,
+            'net_amount' => 0,
+            'total_paid' => 0,
+            'pending_amount' => 0,
+            'progress_percentage' => 0,
+            'status' => 'pending',
         ];
     }
 

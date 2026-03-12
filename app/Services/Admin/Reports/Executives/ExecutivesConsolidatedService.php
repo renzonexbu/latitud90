@@ -33,20 +33,14 @@ class ExecutivesConsolidatedService
 
             if (!$participantId || !$programId) continue;
 
-            $participant = $groupPayments->first()->order?->participant;
-            $programCourse = $groupPayments->first()->order?->programCourse;
+            // Usar servicio centralizado para obtener datos financieros
+            $financialData = \App\Services\Admin\ParticipantFinancialService::calculate(
+                (int) $participantId,
+                (int) $programId
+            );
 
-            if (!$participant || !$programCourse) continue;
-
-            // Buscar participant_program directamente (la order de NC puede no tener participant_program_id)
-            $participantProgram = \App\Models\ParticipantProgram::where('participant_id', $participantId)
-                ->where('program_id', $programId)
-                ->first();
-            $isDeBaja = $participantProgram && !$participantProgram->is_active;
-
-            // Precio final del participante (después de descuentos)
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
-            $price = $priceData['final_price'] ?? 0;
+            $isDeBaja = $financialData['is_de_baja'];
+            $price = $financialData['net_amount'];
 
             // Obtener TODOS los pagos de este participante+programa en orden cronológico
             $allPayments = Payment::whereHas('order', function ($q) use ($participantId, $programId) {
@@ -63,7 +57,7 @@ class ExecutivesConsolidatedService
             foreach ($allPayments as $p) {
                 $runningBalance -= $p->amount;
                 // Si está de baja, saldo queda en $0 (ya no debe nada)
-                $balanceMap[$p->id] = $isDeBaja ? 0 : round($runningBalance, 0);
+                $balanceMap[$p->id] = $isDeBaja ? 0 : round(max($runningBalance, 0), 0);
             }
         }
 

@@ -401,11 +401,24 @@ export default {
                 });
             }
 
-            // Filtro por estado de pago
+            // Filtro por estado de pago (basado en porcentaje real)
             if (this.localFilters.paymentStatus) {
-                filtered = filtered.filter(participant => 
-                    this.getFirstCoursePivotStatus(participant) === this.localFilters.paymentStatus
-                );
+                filtered = filtered.filter(participant => {
+                    const paid = Number(participant.__paid_amount || 0);
+                    const due = Number(participant.__total_due || 0);
+                    const percentage = due > 0 ? (paid / due) * 100 : 0;
+
+                    switch (this.localFilters.paymentStatus) {
+                        case 'paid':
+                            return percentage >= 100;
+                        case 'partial':
+                            return paid > 0 && percentage < 100;
+                        case 'pending':
+                            return paid <= 0;
+                        default:
+                            return true;
+                    }
+                });
             }
 
             // Filtro por estado activo/inactivo

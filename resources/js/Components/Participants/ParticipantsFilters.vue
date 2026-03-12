@@ -38,7 +38,7 @@
                 >
                     <option value="">Estado del participante</option>
                     <option :value="true">Activo</option>
-                    <option :value="false">Inactivo</option>
+                    <option :value="false">De Baja</option>
                 </select>
             </div>
 
@@ -50,9 +50,9 @@
                     @change="performSearch"
                 >
                     <option value="">Estado de pago</option>
-                    <option value="pending_payment">Pendiente de Pago</option>
-                    <option value="confirmed">Completado</option>
-                    <option value="cancelled">Liberado</option>
+                    <option value="pending">Pendiente de Pago</option>
+                    <option value="partial">Pago Parcial</option>
+                    <option value="paid">Completado</option>
                 </select>
             </div>
 
