@@ -125,7 +125,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     {
         $query = ProgramSubscription::query()
             ->whereNotNull('virtualpos_subscription_id')
-            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO', 'SUSCRIPCION_FALLIDA']);
+            ->whereIn('status', ['ACTIVA', 'SUSCRIBIENDO', 'SUSCRIPCION_FALLIDA', 'CANCELADA']);
 
         if ($this->subscriptionId) {
             $query->where('id', $this->subscriptionId);
@@ -170,6 +170,25 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'total_charges' => count($currentCharges),
             'charges' => $currentCharges
         ]);
+
+        // Enriquecer charges en "procesando" consultando el detalle individual
+        // El charge_program puede mostrar "procesando" cuando el cobro real está
+        // rechazado/reintentando/cancelado. Solo el endpoint /charge/{id} tiene el estado real.
+        $currentCharges = $this->enrichChargesWithRealStatus($subscription, $currentCharges);
+
+        // Para suscripciones CANCELADAS: solo actualizar charge_program con estados reales
+        // No crear reintentos, pagos ni notificaciones (la suscripción ya está terminada)
+        if ($subscription->status === 'CANCELADA') {
+            $subscription->update([
+                'charge_program' => $currentCharges
+            ]);
+
+            Log::info('SyncSubscriptionPayments: Suscripción CANCELADA - solo se actualizó charge_program', [
+                'subscription_id' => $subscription->id,
+            ]);
+
+            return 0;
+        }
 
         // IMPORTANTE: Verificar si la primera cuota está rechazada
         // Si es así, cancelar la suscripción automáticamente
@@ -490,10 +509,85 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             $subscription->update(['status' => $newStatus]);
         }
 
-        // También actualizar el charge_program guardado
-        if (isset($subscriptionData['charge_program'])) {
-            $subscription->update(['charge_program' => $subscriptionData['charge_program']]);
+        // No actualizar charge_program aquí: se actualiza al final de syncSubscription
+        // después de enriquecer los charges con el estado real de cada uno
+    }
+
+    /**
+     * Enriquecer charges en "procesando" consultando el detalle individual de cada uno.
+     *
+     * El charge_program de la suscripción puede mostrar "procesando" cuando el cobro
+     * real está rechazado, reintentando o cancelado. El endpoint /charge/{id} devuelve
+     * el estado real de la transacción y el rejected_object si aplica.
+     */
+    protected function enrichChargesWithRealStatus(ProgramSubscription $subscription, array $charges): array
+    {
+        foreach ($charges as &$charge) {
+            $chargeId = $charge['id'] ?? null;
+            $status = strtolower($charge['status'] ?? '');
+
+            // Solo consultar detalle de charges en "procesando"
+            // Los que están pagado/pendiente/cancelado ya tienen estado definitivo
+            if (!$chargeId || $status !== 'procesando') {
+                continue;
+            }
+
+            try {
+                $chargeDetail = $this->virtualPosService->getCharge($chargeId);
+                $chargeData = $chargeDetail['charge'] ?? [];
+                $realChargeStatus = strtolower($chargeData['status'] ?? $status);
+                $orderStatus = strtolower($chargeData['payment']['order']['status'] ?? '');
+
+                // Determinar el estado real del cobro
+                // La API puede devolver:
+                //   charge.status = "cancelado" + payment.order.status = "rechazado" → rechazado
+                //   charge.status = "procesando" + payment = null → reintentando (VP reintenta)
+                //   charge.status = "pagado" + payment.order.status = "pagado" → pagado
+                $resolvedStatus = $status; // mantener "procesando" por defecto
+
+                if (in_array($realChargeStatus, ['pagado', 'paid', 'completed'])) {
+                    $resolvedStatus = 'pagado';
+                } elseif (in_array($orderStatus, ['pagado', 'paid', 'completed'])) {
+                    $resolvedStatus = 'pagado';
+                } elseif (in_array($realChargeStatus, ['cancelado', 'rechazado', 'rejected', 'failed'])) {
+                    $resolvedStatus = 'rechazado';
+                } elseif ($orderStatus === 'rechazado' || $orderStatus === 'rejected') {
+                    $resolvedStatus = 'rechazado';
+                } elseif ($realChargeStatus === 'procesando' && $chargeData['payment'] === null) {
+                    // Procesando sin payment = VP está reintentando el cobro
+                    $resolvedStatus = 'reintentando';
+                }
+
+                if ($resolvedStatus !== $status) {
+                    Log::info('SyncSubscriptionPayments: Estado real de charge difiere del charge_program', [
+                        'subscription_id' => $subscription->id,
+                        'charge_id' => $chargeId,
+                        'charge_program_status' => $status,
+                        'real_charge_status' => $realChargeStatus,
+                        'order_status' => $orderStatus,
+                        'resolved_status' => $resolvedStatus,
+                        'rejected_object' => $chargeData['rejected_object'] ?? null,
+                    ]);
+
+                    $charge['status'] = $resolvedStatus;
+                    // Guardar info adicional para que processFailedCharge tenga contexto
+                    $charge['_real_status'] = $realChargeStatus;
+                    $charge['_order_status'] = $orderStatus;
+                    $charge['_rejected_object'] = $chargeData['rejected_object'] ?? null;
+                }
+
+            } catch (Exception $e) {
+                Log::warning('SyncSubscriptionPayments: No se pudo obtener detalle de charge', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'error' => $e->getMessage(),
+                ]);
+                // Si falla la consulta, mantener el status original del charge_program
+            }
         }
+        unset($charge); // romper referencia del foreach
+
+        return $charges;
     }
 
     /**

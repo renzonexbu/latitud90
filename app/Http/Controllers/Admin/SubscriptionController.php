@@ -241,6 +241,7 @@ class SubscriptionController extends Controller
                 'total_installments' => $totalInstallments,
                 'paid_installments' => $paidInstallments,
                 'additional_charges' => $additionalCharges,
+                'charge_program' => $subscription->charge_program ?? [],
             ]
         ]);
     }

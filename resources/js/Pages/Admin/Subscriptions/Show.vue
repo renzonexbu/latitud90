@@ -791,9 +791,35 @@ const getDiscountTypeLabel = (discountType) => {
     return labels[discountType] || discountType || 'Descuento';
 };
 
+// Obtener el estado real del charge de VP vinculado al installment
+const getChargeStatusForInstallment = (installment) => {
+    if (!installment.virtualpos_charge_id || !props.subscription.charge_program) {
+        return null;
+    }
+    const charge = props.subscription.charge_program.find(
+        (c) => c.id === installment.virtualpos_charge_id
+    );
+    return charge ? charge.status?.toLowerCase() : null;
+};
+
 const getInstallmentStatusLabel = (installment) => {
     if (installment.is_paid) {
         return "Pagado";
+    }
+
+    // Cruzar con el estado real del charge en VP
+    const chargeStatus = getChargeStatusForInstallment(installment);
+    if (chargeStatus) {
+        const vpStatuses = {
+            rechazado: "Rechazado",
+            reintentando: "Reintentando",
+            cancelado: "Cancelado",
+            pagado: "Pagado",
+            procesando: "Procesando",
+        };
+        if (vpStatuses[chargeStatus]) {
+            return vpStatuses[chargeStatus];
+        }
     }
 
     const statuses = {
@@ -809,6 +835,21 @@ const getInstallmentStatusLabel = (installment) => {
 const getInstallmentStatusClass = (installment) => {
     if (installment.is_paid) {
         return "bg-green-100 text-green-800";
+    }
+
+    // Cruzar con el estado real del charge en VP
+    const chargeStatus = getChargeStatusForInstallment(installment);
+    if (chargeStatus) {
+        const vpClasses = {
+            rechazado: "bg-red-100 text-red-800",
+            reintentando: "bg-orange-100 text-orange-800",
+            cancelado: "bg-red-100 text-red-800",
+            pagado: "bg-green-100 text-green-800",
+            procesando: "bg-blue-100 text-blue-800",
+        };
+        if (vpClasses[chargeStatus]) {
+            return vpClasses[chargeStatus];
+        }
     }
 
     const classes = {
@@ -831,6 +872,8 @@ const getChargeStatusLabel = (status) => {
         cancelled: "Cancelado",
         rechazado: "Rechazado",
         rejected: "Rechazado",
+        reintentando: "Reintentando",
+        procesando: "Procesando",
     };
     return labels[status?.toLowerCase()] || status || "Desconocido";
 };
