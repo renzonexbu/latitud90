@@ -219,14 +219,27 @@ class SendPendingPaymentEmails extends Command
         ]);
 
         // PASO 5: Enviar email con los documentos
-        $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+        $emailSent = $this->emailService->sendSuccessPaymentEmail($orderDetail, $payment);
 
-        // PASO 6: Marcar como enviado
-        $payment->update([
-            'email_sent' => true,
-            'email_sent_at' => now(),
-            'email_attempts' => ($payment->email_attempts ?? 0) + 1,
-        ]);
+        // PASO 6: Marcar como enviado solo si el email se envió correctamente
+        if ($emailSent) {
+            $payment->update([
+                'email_sent' => true,
+                'email_sent_at' => now(),
+                'email_attempts' => ($payment->email_attempts ?? 0) + 1,
+            ]);
+        } else {
+            // Email no enviado (ej: email destino null) - incrementar intentos para no bloquear la cola
+            $payment->update([
+                'email_attempts' => ($payment->email_attempts ?? 0) + 1,
+                'email_last_error' => 'Email no enviado - dirección de correo vacía o inválida',
+            ]);
+            Log::warning('Pago procesado pero email no enviado', [
+                'payment_id' => $payment->id,
+                'order_detail_id' => $orderDetail->id,
+            ]);
+            return 'skipped';
+        }
 
         Log::info('=== FIN: Pago procesado exitosamente ===', [
             'payment_id' => $payment->id,
@@ -626,7 +639,9 @@ class SendPendingPaymentEmails extends Command
             ->count();
 
         // Pagos pendientes de envío de email (cumplen condiciones)
+        // Excluir gateway 4 (presencial) para que coincida con getPendingPayments()
         $pendingEmails = Payment::where('status', 'completed')
+            ->where('payment_gateway_id', '!=', 4)
             ->where(function ($q) {
                 $q->where('email_sent', false)->orWhereNull('email_sent');
             })
@@ -878,6 +893,17 @@ class SendPendingPaymentEmails extends Command
                     'payment_id' => $payment->id,
                     'error' => $e->getMessage(),
                 ]);
+
+                // Si la API falla pero el pago lleva más de 2h, marcarlo como failed
+                // para evitar que quede atascado indefinidamente
+                $ageHours = Carbon::now()->diffInHours($payment->created_at);
+                if ($ageHours >= $staleThresholdHours) {
+                    $this->markPaymentAsFailed($payment, "stale_pending_{$ageHours}h_api_error");
+                    $markedFailed++;
+                    $this->line("  ⏰ Payment #{$payment->id} → failed (pendiente por {$ageHours}h, error API: {$e->getMessage()})");
+                } else {
+                    $this->line("  ⚠️  Payment #{$payment->id} → error API ({$ageHours}h), reintentará");
+                }
             }
         }
 
