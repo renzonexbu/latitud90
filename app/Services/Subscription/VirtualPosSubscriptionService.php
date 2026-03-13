@@ -105,7 +105,7 @@ class VirtualPosSubscriptionService
      * @return array
      * @throws Exception
      */
-    public function getSubscription(string $subscriptionId): array
+    public function getSubscription(string $subscriptionId): ?array
     {
         try {
             $endpoint = "/suscription/{$subscriptionId}";

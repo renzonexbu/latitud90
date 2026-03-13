@@ -11,6 +11,21 @@
                 subtitle="Visualización y administración de suscripciones"
             />
 
+            <!-- Tabs -->
+            <div class="px-8 pt-4 border-b border-gray-200">
+                <div class="flex gap-6">
+                    <span class="pb-3 text-sm font-medium text-[#007e93] border-b-2 border-[#007e93]">
+                        Suscripciones
+                    </span>
+                    <a
+                        href="/admin/subscriptions/charges"
+                        class="pb-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent"
+                    >
+                        Cuotas
+                    </a>
+                </div>
+            </div>
+
             <!-- Estadísticas -->
             <div class="px-8 py-6 bg-gray-50">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">

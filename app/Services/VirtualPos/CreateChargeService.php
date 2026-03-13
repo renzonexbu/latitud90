@@ -153,19 +153,138 @@ class CreateChargeService
     }
 
     /**
-     * Reintentar un cargo fallido
+     * Reintentar un cargo fallido usando el endpoint de retry de VirtualPos
+     * API: GET /charge/{charge_id}/retry
+     *
+     * VP reintenta la autorización diariamente por 3 días consecutivos.
+     * Si no se autoriza en ninguno de los 3 intentos, se considera rechazado definitivamente.
      */
     public function retryCharge(ProgramSubscription $subscription, Installment $installment): array
     {
-        // Si ya tiene un charge_id, intentar obtener su estado primero
-        if (!empty($installment->virtualpos_charge_id)) {
-            Log::info('VirtualPos: Reintentando cargo existente', [
-                'charge_id' => $installment->virtualpos_charge_id,
+        $chargeId = $installment->virtualpos_charge_id;
+        $maxRetries = 3;
+
+        // Verificar que la cuota tenga un charge_id para reintentar
+        if (empty($chargeId)) {
+            Log::channel('charge_retries')->warning('Reintento fallido: cuota sin charge_id', [
+                'subscription_id' => $subscription->id,
+                'installment_id' => $installment->id,
             ]);
+
+            Log::channel('charge_retries')->info('Creando cargo nuevo en vez de reintentar', [
+                'subscription_id' => $subscription->id,
+                'installment_id' => $installment->id,
+            ]);
+            return $this->createCharge($subscription, $installment);
         }
 
-        // Crear un nuevo cargo
-        return $this->createCharge($subscription, $installment);
+        // Verificar límite de reintentos
+        if ($installment->retry_count >= $maxRetries) {
+            Log::channel('charge_retries')->warning('Límite de reintentos alcanzado', [
+                'subscription_id' => $subscription->id,
+                'installment_id' => $installment->id,
+                'charge_id' => $chargeId,
+                'retry_count' => $installment->retry_count,
+                'max_retries' => $maxRetries,
+                'last_retry_at' => $installment->last_retry_at,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => "Se alcanzó el límite de {$maxRetries} reintentos para esta cuota. Último reintento: " . ($installment->last_retry_at ? $installment->last_retry_at->format('d/m/Y H:i') : 'N/A'),
+            ];
+        }
+
+        try {
+            $currentAttempt = $installment->retry_count + 1;
+
+            Log::channel('charge_retries')->info('=== INICIO REINTENTO DE CARGO ===', [
+                'subscription_id' => $subscription->id,
+                'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
+                'installment_id' => $installment->id,
+                'installment_number' => $installment->installment_number,
+                'charge_id' => $chargeId,
+                'amount' => $installment->amount,
+                'intento' => "{$currentAttempt}/{$maxRetries}",
+            ]);
+
+            $headers = $this->getHeaders();
+            $endpoint = "{$this->apiUrl}/charge/{$chargeId}/retry";
+
+            Log::channel('charge_retries')->info('Enviando request a VirtualPos', [
+                'endpoint' => $endpoint,
+                'method' => 'GET',
+                'charge_id' => $chargeId,
+            ]);
+
+            $response = Http::withHeaders($headers)->get($endpoint);
+
+            $responseData = $response->json();
+
+            Log::channel('charge_retries')->info('Respuesta de VirtualPos', [
+                'charge_id' => $chargeId,
+                'http_status' => $response->status(),
+                'response_body' => $responseData,
+            ]);
+
+            // Incrementar contador independientemente del resultado de VP
+            $installment->update([
+                'retry_count' => $currentAttempt,
+                'last_retry_at' => now(),
+            ]);
+
+            if ($response->successful() && ($responseData['status'] ?? '') === 'OK') {
+                $remaining = $maxRetries - $currentAttempt;
+
+                Log::channel('charge_retries')->info('Reintento exitoso', [
+                    'subscription_id' => $subscription->id,
+                    'charge_id' => $chargeId,
+                    'intento' => "{$currentAttempt}/{$maxRetries}",
+                    'reintentos_restantes' => $remaining,
+                    'message' => $responseData['message'] ?? 'Sin mensaje',
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Reintento {$currentAttempt}/{$maxRetries} iniciado exitosamente. VirtualPos reintentará durante 3 días." . ($remaining > 0 ? " Quedan {$remaining} reintentos disponibles." : " Este fue el último reintento disponible."),
+                    'data' => $responseData,
+                ];
+            }
+
+            // Error de VP (ej: E-081 = cargo no cumple condiciones para reintento)
+            $errorMessage = $responseData['error']['message'] ?? $responseData['message'] ?? 'Error desconocido';
+            $errorCode = $responseData['error']['error_code'] ?? 'N/A';
+            $remaining = $maxRetries - $currentAttempt;
+
+            Log::channel('charge_retries')->error('Reintento rechazado por VirtualPos', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId,
+                'http_status' => $response->status(),
+                'error_code' => $errorCode,
+                'error_message' => $errorMessage,
+                'intento' => "{$currentAttempt}/{$maxRetries}",
+                'reintentos_restantes' => $remaining,
+                'full_response' => $responseData,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => "VirtualPos rechazó el reintento ({$currentAttempt}/{$maxRetries}): [{$errorCode}] {$errorMessage}" . ($remaining > 0 ? " Quedan {$remaining} reintentos." : " No quedan reintentos disponibles."),
+            ];
+
+        } catch (\Exception $e) {
+            Log::channel('charge_retries')->error('Excepción al reintentar cargo', [
+                'subscription_id' => $subscription->id,
+                'charge_id' => $chargeId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al procesar el reintento: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**

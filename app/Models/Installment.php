@@ -25,6 +25,8 @@ class Installment extends Model
         'payment_id',
         'payment_source', // Fuente/método de pago de la cuota
         'notes',
+        'retry_count',
+        'last_retry_at',
         'adjusted_at',
         'adjustment_reason',
     ];
@@ -33,6 +35,7 @@ class Installment extends Model
         'amount' => 'decimal:2',
         'due_date' => 'date',
         'paid_at' => 'datetime',
+        'last_retry_at' => 'datetime',
         'adjusted_at' => 'datetime',
     ];
 

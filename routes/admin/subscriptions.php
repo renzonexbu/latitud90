@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\SubscriptionController;
 
 Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
     Route::get('/', [SubscriptionController::class, 'index'])->name('index');
+    Route::get('/charges', [SubscriptionController::class, 'charges'])->name('charges');
     Route::get('/charge-attempts', [SubscriptionController::class, 'chargeAttempts'])->name('charge-attempts');
     Route::get('/charge-attempts/export', [SubscriptionController::class, 'exportChargeAttempts'])->name('charge-attempts.export');
     Route::get('/{subscription}', [SubscriptionController::class, 'show'])->name('show');

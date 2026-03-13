@@ -134,6 +134,14 @@ return [
             'days' => 30,
             'replace_placeholders' => true,
         ],
+
+        'charge_retries' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/charge_retries/charge_retries.log'),
+            'level' => 'debug',
+            'days' => 30,
+            'replace_placeholders' => true,
+        ],
     ],
 
 ];

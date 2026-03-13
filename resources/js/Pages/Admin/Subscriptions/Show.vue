@@ -461,10 +461,21 @@
                                             <button
                                                 v-if="canShowChargeButton(installment)"
                                                 @click="createCharge(installment)"
-                                                class="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-                                                :disabled="isProcessing"
+                                                class="px-3 py-1 text-xs font-medium text-white rounded transition-colors"
+                                                :class="installment.virtualpos_charge_id && installment.retry_count >= 3
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : 'bg-blue-600 hover:bg-blue-700'"
+                                                :disabled="isProcessing || (installment.virtualpos_charge_id && installment.retry_count >= 3)"
+                                                :title="installment.virtualpos_charge_id && installment.retry_count >= 3
+                                                    ? 'Se alcanzó el límite de 3 reintentos'
+                                                    : ''"
                                             >
-                                                {{ installment.virtualpos_charge_id ? 'Reintentar' : 'Cobrar' }}
+                                                <template v-if="installment.virtualpos_charge_id">
+                                                    Reintentar ({{ installment.retry_count || 0 }}/3)
+                                                </template>
+                                                <template v-else>
+                                                    Cobrar
+                                                </template>
                                             </button>
                                             <!-- Botón Eliminar Cargo -->
                                             <button
@@ -970,10 +981,13 @@ const resendPaymentEmail = (installment) => {
 
 const createCharge = (installment) => {
     const action = installment.virtualpos_charge_id ? 'reintentar el cobro de' : 'crear un cobro para';
+    const retryInfo = installment.virtualpos_charge_id
+        ? `\nReintentos usados: ${installment.retry_count || 0}/3`
+        : '';
 
     if (
         confirm(
-            `¿Estás seguro de que deseas ${action} la cuota ${installment.installment_number}?\n\nMonto: $${new Intl.NumberFormat("es-CL").format(installment.amount)}`
+            `¿Estás seguro de que deseas ${action} la cuota ${installment.installment_number}?\n\nMonto: $${new Intl.NumberFormat("es-CL").format(installment.amount)}${retryInfo}`
         )
     ) {
         isProcessing.value = true;

@@ -315,6 +315,14 @@
                             Ver Suscripciones
                         </NavLink>
                         <NavLink
+                            :href="route('admin.subscriptions.charges')"
+                            :active="route().current('admin.subscriptions.charges')"
+                            class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"
+                            @click="showingSubscriptionsMenu = false"
+                        >
+                            Cuotas / Cargos
+                        </NavLink>
+                        <NavLink
                             :href="route('admin.guardian-users.index')"
                             :active="route().current('admin.guardian-users.*')"
                             class="block px-4 py-2 text-xs text-gray-600 hover:text-turquesa hover:bg-gray-100 transition-colors"

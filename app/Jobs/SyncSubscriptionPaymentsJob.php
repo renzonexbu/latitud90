@@ -92,7 +92,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                     $newPayments = $this->syncSubscription($subscription);
                     $newPaymentsCount += $newPayments;
                     $processedCount++;
-                } catch (Exception $e) {
+                } catch (\Throwable $e) {
                     $errorCount++;
                     Log::error('SyncSubscriptionPayments: Error procesando suscripción', [
                         'subscription_id' => $subscription->id,

@@ -49,6 +49,143 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Listado de cuotas (charges) de todas las suscripciones
+     */
+    public function charges(Request $request): Response
+    {
+        $query = ProgramSubscription::query()
+            ->whereNotNull('virtualpos_subscription_id')
+            ->whereNotNull('charge_program')
+            ->with(['participant', 'programCourse.program']);
+
+        $subscriptions = $query->get();
+
+        // Extraer todos los charges de charge_program y aplanarlos
+        $allCharges = [];
+        foreach ($subscriptions as $sub) {
+            $charges = $sub->charge_program ?? [];
+            foreach ($charges as $index => $charge) {
+                $status = strtolower($charge['status'] ?? 'pendiente');
+
+                $allCharges[] = [
+                    'charge_id' => $charge['id'] ?? null,
+                    'subscription_id' => $sub->id,
+                    'subscription_status' => $sub->status,
+                    'participant_name' => $sub->participant?->full_name ?? 'N/A',
+                    'program_name' => $sub->programCourse?->name ?? 'N/A',
+                    'program_code' => $sub->programCourse?->program?->code ?? 'N/A',
+                    'installment_number' => $index + 1,
+                    'amount' => $charge['amount'] ?? 0,
+                    'charge_date' => $charge['charge_date'] ?? null,
+                    'status' => $status,
+                    'description' => $charge['description'] ?? null,
+                ];
+            }
+        }
+
+        // Filtros
+        $filterStatus = $request->get('charge_status', 'all');
+        $filterSearch = $request->get('search', '');
+        $filterSubStatus = $request->get('subscription_status', 'all');
+
+        $filtered = collect($allCharges);
+
+        if ($filterStatus && $filterStatus !== 'all') {
+            $filtered = $filtered->filter(fn($c) => $c['status'] === $filterStatus);
+        }
+
+        if ($filterSubStatus && $filterSubStatus !== 'all') {
+            $filtered = $filtered->filter(fn($c) => $c['subscription_status'] === $filterSubStatus);
+        }
+
+        if ($filterSearch) {
+            $search = strtolower($filterSearch);
+            $filtered = $filtered->filter(fn($c) =>
+                str_contains(strtolower($c['participant_name']), $search) ||
+                str_contains(strtolower($c['program_code']), $search) ||
+                str_contains((string) $c['subscription_id'], $search) ||
+                str_contains((string) $c['charge_id'], $search)
+            );
+        }
+
+        // Estadísticas
+        $allCollection = collect($allCharges);
+        $stats = [
+            'total' => $allCollection->count(),
+            'pagado' => $allCollection->where('status', 'pagado')->count(),
+            'pendiente' => $allCollection->where('status', 'pendiente')->count(),
+            'rechazado' => $allCollection->where('status', 'rechazado')->count(),
+            'reintentando' => $allCollection->where('status', 'reintentando')->count(),
+            'cancelado' => $allCollection->where('status', 'cancelado')->count(),
+            'procesando' => $allCollection->where('status', 'procesando')->count(),
+        ];
+
+        // Paginación manual
+        $page = (int) $request->get('page', 1);
+        $perPage = 20;
+        $sorted = $filtered->sortByDesc('charge_date')->values();
+        $paginated = $sorted->slice(($page - 1) * $perPage, $perPage)->values();
+        $totalPages = (int) ceil($sorted->count() / $perPage);
+
+        // Construir links para paginación
+        $links = [];
+        $baseUrl = route('admin.subscriptions.charges');
+        $queryParams = $request->except('page');
+
+        $links[] = [
+            'url' => $page > 1 ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page - 1])) : null,
+            'label' => '&laquo; Anterior',
+            'active' => false,
+        ];
+
+        // Mostrar máximo 7 páginas alrededor de la actual
+        $windowSize = 3;
+        $startPage = max(1, $page - $windowSize);
+        $endPage = min($totalPages, $page + $windowSize);
+
+        if ($startPage > 1) {
+            $links[] = ['url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => 1])), 'label' => '1', 'active' => false];
+            if ($startPage > 2) {
+                $links[] = ['url' => null, 'label' => '...', 'active' => false];
+            }
+        }
+
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            $links[] = [
+                'url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $i])),
+                'label' => (string) $i,
+                'active' => $i === $page,
+            ];
+        }
+
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                $links[] = ['url' => null, 'label' => '...', 'active' => false];
+            }
+            $links[] = ['url' => $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $totalPages])), 'label' => (string) $totalPages, 'active' => false];
+        }
+
+        $links[] = [
+            'url' => $page < $totalPages ? $baseUrl . '?' . http_build_query(array_merge($queryParams, ['page' => $page + 1])) : null,
+            'label' => 'Siguiente &raquo;',
+            'active' => false,
+        ];
+
+        return Inertia::render('Admin/Subscriptions/Charges', [
+            'charges' => [
+                'data' => $paginated->all(),
+                'links' => $links,
+            ],
+            'stats' => $stats,
+            'filters' => [
+                'charge_status' => $filterStatus,
+                'search' => $filterSearch,
+                'subscription_status' => $filterSubStatus,
+            ],
+        ]);
+    }
+
+    /**
      * Mostrar detalles de una suscripción
      */
     public function show(ProgramSubscription $subscription): Response
@@ -112,6 +249,8 @@ class SubscriptionController extends Controller
                     'is_paid' => $installment->is_paid,
                     'paid_at' => $installment->paid_at ? \Carbon\Carbon::parse($installment->paid_at)->format('d-m-Y H:i') : null,
                     'virtualpos_charge_id' => $installment->virtualpos_charge_id,
+                    'retry_count' => $installment->retry_count ?? 0,
+                    'last_retry_at' => $installment->last_retry_at ? \Carbon\Carbon::parse($installment->last_retry_at)->format('d-m-Y H:i') : null,
                 ];
             })->toArray();
         }
@@ -614,11 +753,12 @@ class SubscriptionController extends Controller
      */
     public function retryCharge(ProgramSubscription $subscription, Request $request)
     {
-        Log::channel('daily')->info('=== ADMIN: Reintentar cargo de cuota ===', [
+        Log::channel('charge_retries')->info('=== ADMIN: Reintentar cargo de cuota ===', [
             'subscription_id' => $subscription->id,
             'virtualpos_subscription_id' => $subscription->virtualpos_subscription_id,
             'installment_id' => $request->installment_id,
             'user_id' => auth()->id(),
+            'user_email' => auth()->user()->email ?? 'N/A',
         ]);
 
         $request->validate([
@@ -627,11 +767,12 @@ class SubscriptionController extends Controller
 
         $installment = Installment::findOrFail($request->installment_id);
 
-        Log::channel('daily')->info('ADMIN: Datos de la cuota para reintento', [
+        Log::channel('charge_retries')->info('ADMIN: Datos de la cuota para reintento', [
             'installment_id' => $installment->id,
             'installment_number' => $installment->installment_number,
             'amount' => $installment->amount,
             'current_charge_id' => $installment->virtualpos_charge_id,
+            'current_status' => $installment->status,
         ]);
 
         // Verificar que la cuota pertenece a la suscripción
@@ -640,15 +781,19 @@ class SubscriptionController extends Controller
             ->first();
 
         if (!$installmentPlan || $installment->installment_plan_id !== $installmentPlan->id) {
-            Log::channel('daily')->warning('ADMIN: Cuota no pertenece a la suscripción en reintento');
+            Log::channel('charge_retries')->warning('ADMIN: Cuota no pertenece a la suscripción en reintento', [
+                'subscription_id' => $subscription->id,
+                'installment_id' => $installment->id,
+            ]);
             return back()->with('error', 'La cuota no pertenece a esta suscripción.');
         }
 
         $result = $this->createChargeService->retryCharge($subscription, $installment);
 
-        Log::channel('daily')->info('ADMIN: Resultado de reintentar cargo', [
+        Log::channel('charge_retries')->info('ADMIN: Resultado de reintentar cargo', [
             'subscription_id' => $subscription->id,
             'installment_id' => $installment->id,
+            'charge_id' => $installment->virtualpos_charge_id,
             'success' => $result['success'],
             'message' => $result['message'],
         ]);
