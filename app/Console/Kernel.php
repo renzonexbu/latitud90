@@ -37,26 +37,29 @@ class Kernel extends ConsoleKernel
         // 1. Enviar emails pendientes de pagos exitosos - cada minuto
         // El comando aplica un delay configurable (default 10 min) antes de enviar
         // para permitir que BSale genere la boleta
+        // withoutOverlapping(5) = lock expira en 5 min para evitar bloqueos permanentes
         $schedule->command('payments:send-pending-emails')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping(5)
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('pending_payment_emails'));
 
         // 2. Sincronizar pagos de suscripciones con VirtualPos cada 5 minutos
         // Detecta pagos nuevos (estado 'pagado' o 'procesando') y envía emails
+        // withoutOverlapping(15) = lock expira en 15 min (puede tardar con muchas suscripciones)
         $schedule->command('subscriptions:sync-payments --all')
             ->everyFiveMinutes()
-            ->withoutOverlapping()
+            ->withoutOverlapping(15)
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('subscription_payments_sync'));
 
         // 3. Procesar cola de solicitudes BSale cada 5 minutos
         // Genera boletas electrónicas para los pagos encolados
         // Separado del flujo de emails para evitar problemas si BSale falla
+        // withoutOverlapping(10) = lock expira en 10 min (BSale puede ser lento)
         $schedule->command('bsale:process --limit=30')
             ->everyFiveMinutes()
-            ->withoutOverlapping()
+            ->withoutOverlapping(10)
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('bsale_process'));
 
@@ -64,7 +67,7 @@ class Kernel extends ConsoleKernel
         // Sincroniza emails de clientes para campañas de marketing
         $schedule->command('marketing:process-emails')
             ->twiceDaily(6, 18)
-            ->withoutOverlapping()
+            ->withoutOverlapping(30)
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('marketing_emails'));
 
