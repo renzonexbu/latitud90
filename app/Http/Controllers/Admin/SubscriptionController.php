@@ -281,28 +281,31 @@ class SubscriptionController extends Controller
                 $subscription->programCourse
             );
 
-            // 1. Pagos normales desde payments - EXCLUIR pagos de suscripción para evitar doble conteo
-            $normalPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
-                    $q->where('participant_id', $subscription->participant_id)
-                      ->where('program_id', $subscription->program_id);
+            // 1. Pagos asociados directamente a esta suscripción (órdenes con subscription_id)
+            $subscriptionOrderPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
+                    $q->where('subscription_id', $subscription->id);
                 })
                 ->whereIn('status', ['completed', 'approved'])
-                ->where(function($query) {
-                    // Excluir pagos de suscripción (se cuentan abajo en installments)
-                    $query->whereNull('payment_source')
-                          ->orWhere('payment_source', '!=', 'subscription');
-                })
                 ->sum('amount');
 
-            // 2. Cuotas de suscripción pagadas (installments)
+            // 2. Cuotas de suscripción pagadas (installments) - solo de esta suscripción
             $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
                 ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-                ->where('installment_plans.participant_id', $subscription->participant_id)
-                ->where('installment_plans.program_id', $subscription->program_id)
+                ->where('installment_plans.program_subscription_id', $subscription->id)
                 ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 
-            $paidAmount = (float) $normalPayments + (float) $subscriptionPayments;
+            // Si no hay installment_plan vinculado directamente, buscar por participant + program
+            if ($subscriptionPayments == 0) {
+                $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
+                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                    ->where('installment_plans.participant_id', $subscription->participant_id)
+                    ->where('installment_plans.program_id', $subscription->program_id)
+                    ->where('installments.status', 'paid')
+                    ->sum('installments.amount');
+            }
+
+            $paidAmount = (float) $subscriptionOrderPayments + (float) $subscriptionPayments;
 
             // Obtener descuentos aplicados del participant_program
             $participantProgram = \Illuminate\Support\Facades\DB::table('participant_program')

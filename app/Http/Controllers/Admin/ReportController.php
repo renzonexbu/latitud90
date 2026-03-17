@@ -735,9 +735,10 @@ class ReportController extends Controller
     public function previewSoftlandAuxiliares(Request $request)
     {
         try {
-            Log::info('Generando preview JSON de auxiliares Softland');
-            
-            $jsonData = $this->auxiliaresService->generateJsonData();
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId']);
+            Log::info('Generando preview JSON de auxiliares Softland', ['filters' => $filters]);
+
+            $jsonData = $this->auxiliaresService->generateJsonData($filters);
             
             Log::info('JSON generado exitosamente con ' . $jsonData['total_auxiliares'] . ' auxiliares');
             
@@ -753,17 +754,18 @@ class ReportController extends Controller
     public function exportSoftlandAuxiliares(Request $request)
     {
         try {
-            Log::info('Iniciando exportación de auxiliares Softland');
+            $filters = $request->only(['dateFrom', 'dateTo', 'programId']);
+            Log::info('Iniciando exportación de auxiliares Softland', ['filters' => $filters]);
             $format = $request->get('format', 'excel'); // Por defecto Excel
             Log::info('Formato solicitado: ' . $format);
-            
+
             // Limpiar archivos temporales antiguos
             Log::info('Limpiando archivos temporales antiguos');
             $this->auxiliaresExporter->cleanTempFiles();
-            
+
             if ($format === 'csv') {
                 Log::info('Generando archivo CSV');
-                $filepath = $this->auxiliaresExporter->exportToCsv();
+                $filepath = $this->auxiliaresExporter->exportToCsv($filters);
                 $filename = basename($filepath);
                 $mimeType = 'text/csv';
                 
@@ -788,7 +790,7 @@ class ReportController extends Controller
                 ])->deleteFileAfterSend(true);
             } else {
                 Log::info('Generando archivo Excel con StreamedResponse');
-                $response = $this->auxiliaresExporter->exportToExcel();
+                $response = $this->auxiliaresExporter->exportToExcel($filters);
                 Log::info('StreamedResponse creado exitosamente');
                 return $response;
             }

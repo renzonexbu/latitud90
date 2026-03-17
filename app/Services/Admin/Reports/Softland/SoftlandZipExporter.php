@@ -58,8 +58,8 @@ class SoftlandZipExporter
                 throw new \Exception("No se pudo crear el archivo ZIP: {$zipPath}");
             }
 
-            // 1. Generar archivo de Auxiliares
-            $auxiliaresFileName = $this->generateAuxiliaresFile($format, $timestamp);
+            // 1. Generar archivo de Auxiliares (con filtros de fecha)
+            $auxiliaresFileName = $this->generateAuxiliaresFile($format, $timestamp, $filters);
             if ($auxiliaresFileName && file_exists($auxiliaresFileName)) {
                 $auxiliaresContent = file_get_contents($auxiliaresFileName);
                 $zip->addFromString(basename($auxiliaresFileName), $auxiliaresContent);
@@ -95,14 +95,14 @@ class SoftlandZipExporter
     /**
      * Genera el archivo de auxiliares
      */
-    private function generateAuxiliaresFile(string $format, string $timestamp): ?string
+    private function generateAuxiliaresFile(string $format, string $timestamp, array $filters = []): ?string
     {
         try {
             $fileName = "auxiliares_softland_{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
             $filePath = storage_path("app/temp/{$fileName}");
 
-            // Obtener datos de auxiliares directamente
-            $data = $this->auxiliaresService->generateAuxiliaresData();
+            // Obtener datos de auxiliares con filtros de fecha
+            $data = $this->auxiliaresService->generateAuxiliaresData($filters);
             $headers = $this->auxiliaresService->getHeaders();
 
             Log::info('SoftlandZipExporter: Auxiliares generados para archivo', [

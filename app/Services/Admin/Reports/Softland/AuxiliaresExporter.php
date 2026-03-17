@@ -25,12 +25,12 @@ class AuxiliaresExporter
     /**
      * Exporta los auxiliares en formato Excel
      */
-    public function exportToExcel(): StreamedResponse
+    public function exportToExcel(array $filters = []): StreamedResponse
     {
         try {
-            Log::info('Iniciando exportación de auxiliares Excel');
-            
-            $data = $this->auxiliaresService->generateAuxiliaresData();
+            Log::info('Iniciando exportación de auxiliares Excel', ['filters' => $filters]);
+
+            $data = $this->auxiliaresService->generateAuxiliaresData($filters);
             $headers = $this->auxiliaresService->getHeaders();
             Log::info('Headers obtenidos: ' . count($headers) . ' columnas');
             Log::info('Datos obtenidos: ' . $data->count() . ' auxiliares');
@@ -127,12 +127,12 @@ class AuxiliaresExporter
     /**
      * Exporta los auxiliares en formato CSV
      */
-    public function exportToCsv(): string
+    public function exportToCsv(array $filters = []): string
     {
         try {
-            Log::info('Iniciando exportación de auxiliares CSV');
-            
-            $data = $this->auxiliaresService->generateAuxiliaresData();
+            Log::info('Iniciando exportación de auxiliares CSV', ['filters' => $filters]);
+
+            $data = $this->auxiliaresService->generateAuxiliaresData($filters);
             $headers = $this->auxiliaresService->getHeaders();
             Log::info('Headers obtenidos: ' . count($headers) . ' columnas');
             Log::info('Datos obtenidos: ' . $data->count() . ' auxiliares');

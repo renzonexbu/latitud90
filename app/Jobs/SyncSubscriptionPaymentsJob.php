@@ -159,6 +159,60 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         // Actualizar estado de la suscripción
         $this->updateSubscriptionStatus($subscription, $virtualPosData);
 
+        // Si la suscripción sigue en SUSCRIBIENDO o SUSCRIPCION_FALLIDA,
+        // verificar si debe marcarse como fallida automáticamente:
+        // 1. El participante ya pagó el programa por otro medio (tarjeta)
+        // 2. Lleva más de 3 días en SUSCRIBIENDO sin ningún cargo pagado (VP no autorizó)
+        if (in_array($subscription->status, ['SUSCRIBIENDO', 'SUSCRIPCION_FALLIDA'])) {
+            $shouldMarkFailed = false;
+            $reason = '';
+
+            // Caso 1: Ya pagó por otro medio
+            if ($this->participantAlreadyPaidByOtherMeans($subscription)) {
+                $shouldMarkFailed = true;
+                $reason = 'participante ya pagó por otro medio';
+            }
+
+            // Caso 2: Lleva más de 3 días en SUSCRIBIENDO sin cargos pagados
+            if (!$shouldMarkFailed && $subscription->status === 'SUSCRIBIENDO') {
+                $daysSinceCreation = Carbon::now()->diffInDays($subscription->created_at);
+                $charges = ($virtualPosData['suscription'] ?? $virtualPosData)['charge_program'] ?? [];
+                $hasPaidCharge = collect($charges)->contains(function ($c) {
+                    return in_array(strtolower($c['status'] ?? ''), ['pagado', 'paid', 'cobrado', 'approved']);
+                });
+
+                if ($daysSinceCreation >= 3 && !$hasPaidCharge) {
+                    $shouldMarkFailed = true;
+                    $reason = "lleva {$daysSinceCreation} días en SUSCRIBIENDO sin cargos pagados";
+                }
+            }
+
+            if ($shouldMarkFailed) {
+                $subscription->update([
+                    'status' => 'SUSCRIPCION_FALLIDA',
+                    'charge_program' => ($virtualPosData['suscription'] ?? $virtualPosData)['charge_program'] ?? [],
+                ]);
+
+                // Cancelar orden asociada a la suscripción
+                $order = $subscription->order;
+                if ($order && !in_array($order->status, ['cancelled', 'paid'])) {
+                    $order->update(['status' => 'cancelled']);
+                }
+
+                // Limpiar installments huérfanos (cuotas sin pago real)
+                $this->cancelOrphanedInstallments($subscription);
+
+                Log::info('SyncSubscriptionPayments: Suscripción marcada como FALLIDA', [
+                    'subscription_id' => $subscription->id,
+                    'participant_id' => $subscription->participant_id,
+                    'program_id' => $subscription->program_id,
+                    'reason' => $reason,
+                ]);
+
+                return 0;
+            }
+        }
+
         // Obtener charges actuales vs guardados
         // NOTA: VirtualPOS devuelve los datos bajo la clave 'suscription'
         $subscriptionData = $virtualPosData['suscription'] ?? $virtualPosData;
@@ -397,25 +451,29 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             return;
         }
 
-        // Cancelar cuotas sin pago real
+        // Cancelar TODAS las cuotas de este plan de suscripción fallida
+        // Incluye cuotas sin payment_id Y cuotas cuyo payment_id pertenece a otra orden
+        // (caso: pago por tarjeta se vinculó erróneamente a cuota de suscripción)
+        $subscriptionOrderId = $subscription->order?->id;
+
         $updated = $installmentPlan->installments()
-            ->whereNull('payment_id')
             ->where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($subscriptionOrderId) {
+                // Cuotas sin pago real
+                $q->whereNull('payment_id')
+                  // O cuotas cuyo pago NO pertenece a la orden de la suscripción
+                  // (el payment_id fue asignado por un pago de otra orden/tarjeta)
+                  ->orWhereHas('payment', function ($pq) use ($subscriptionOrderId) {
+                      $pq->where('order_id', '!=', $subscriptionOrderId);
+                  });
+            })
             ->update([
                 'status' => 'cancelled',
                 'is_paid' => false,
                 'paid_at' => null,
+                'payment_id' => null,
                 'payment_order_id' => null,
                 'payment_order_detail_id' => null,
-                'virtualpos_charge_id' => null,
-                'updated_at' => now(),
-            ]);
-
-        // Limpiar virtualpos_charge_id de cuotas que sí tienen pago real (por otra vía)
-        $installmentPlan->installments()
-            ->whereNotNull('payment_id')
-            ->whereNotNull('virtualpos_charge_id')
-            ->update([
                 'virtualpos_charge_id' => null,
                 'updated_at' => now(),
             ]);
@@ -588,6 +646,28 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
         unset($charge); // romper referencia del foreach
 
         return $charges;
+    }
+
+    /**
+     * Verifica si el participante ya pagó el mismo programa por otro medio (ej. tarjeta).
+     * Busca órdenes completadas para el mismo participante+programa que NO sean de esta suscripción.
+     */
+    protected function participantAlreadyPaidByOtherMeans(ProgramSubscription $subscription): bool
+    {
+        $hasPaidOrder = \App\Models\Order::where('participant_id', $subscription->participant_id)
+            ->where('program_id', $subscription->program_id)
+            ->where(function ($q) use ($subscription) {
+                // Órdenes que NO pertenecen a esta suscripción
+                $q->whereNull('subscription_id')
+                  ->orWhere('subscription_id', '!=', $subscription->id);
+            })
+            ->where('status', 'paid')
+            ->whereHas('payments', function ($q) {
+                $q->whereIn('status', ['completed', 'approved']);
+            })
+            ->exists();
+
+        return $hasPaidOrder;
     }
 
     /**

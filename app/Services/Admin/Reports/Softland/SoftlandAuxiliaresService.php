@@ -37,26 +37,45 @@ class SoftlandAuxiliaresService
 
     /**
      * Genera los datos de auxiliares contables para Softland desde orders_detail y suscripciones
+     * @param array $filters Filtros opcionales: dateFrom, dateTo, programId
      */
-    public function generateAuxiliaresData(): Collection
+    public function generateAuxiliaresData(array $filters = []): Collection
     {
         $auxiliares = collect();
 
         // 1. Obtener compradores únicos de orders_detail con joins a las tablas relacionadas
-        $orderDetails = OrderDetail::with([
+        $query = OrderDetail::with([
             'documentType',
             'country',
             'region',
             'city',
-            'order.participant' // Agregar relación con participant
-        ])
-            ->get()
+            'order.participant'
+        ]);
+
+        // Filtrar por fecha: usar la fecha del pago asociado (order → payment)
+        if (!empty($filters['dateFrom'])) {
+            $query->whereHas('order.payments', function ($q) use ($filters) {
+                $q->where('status', 'completed')
+                  ->whereDate('created_at', '>=', $filters['dateFrom']);
+            });
+        }
+        if (!empty($filters['dateTo'])) {
+            $query->whereHas('order.payments', function ($q) use ($filters) {
+                $q->where('status', 'completed')
+                  ->whereDate('created_at', '<=', $filters['dateTo']);
+            });
+        }
+        if (!empty($filters['programId'])) {
+            $query->whereHas('order', function ($q) use ($filters) {
+                $q->where('program_id', $filters['programId']);
+            });
+        }
+
+        $orderDetails = $query->get()
             ->groupBy(function ($item) {
-                // Normalizar el document_number para evitar duplicados por caracteres especiales
                 return $this->normalizeDocumentNumber($item->document_number);
             })
             ->map(function ($group) {
-                // Tomar el primer registro de cada grupo (document_number único normalizado)
                 return $group->first();
             });
 
@@ -66,9 +85,26 @@ class SoftlandAuxiliaresService
         }
 
         // 2. Obtener compradores únicos de suscripciones (buyer_data)
-        $subscriptions = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
-            ->with('participant')
-            ->get();
+        $subscriptionQuery = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
+            ->with('participant');
+
+        // Filtrar suscripciones por fecha de pago (payments completados en el rango)
+        if (!empty($filters['dateFrom']) || !empty($filters['dateTo'])) {
+            $subscriptionQuery->whereHas('orders.payments', function ($q) use ($filters) {
+                $q->where('status', 'completed');
+                if (!empty($filters['dateFrom'])) {
+                    $q->whereDate('created_at', '>=', $filters['dateFrom']);
+                }
+                if (!empty($filters['dateTo'])) {
+                    $q->whereDate('created_at', '<=', $filters['dateTo']);
+                }
+            });
+        }
+        if (!empty($filters['programId'])) {
+            $subscriptionQuery->where('program_id', $filters['programId']);
+        }
+
+        $subscriptions = $subscriptionQuery->get();
 
         $subscriptionBuyers = $subscriptions
             ->filter(function ($subscription) {
@@ -481,9 +517,9 @@ class SoftlandAuxiliaresService
     /**
      * Genera un JSON con los datos para verificación
      */
-    public function generateJsonData(): array
+    public function generateJsonData(array $filters = []): array
     {
-        $data = $this->generateAuxiliaresData();
+        $data = $this->generateAuxiliaresData($filters);
         
         return [
             'total_auxiliares' => $data->count(),

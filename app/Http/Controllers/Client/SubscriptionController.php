@@ -243,6 +243,25 @@ class SubscriptionController extends Controller
             $participantData = $request->input('participant');
             $installments = $request->input('installments');
 
+            // Bloquear datos genéricos/de prueba que causan problemas con Bsale y VirtualPos
+            $blockedEmails = ['pagos@latitud90.cl', 'pagos@latitud90.com'];
+            $blockedRuts = ['123456789'];
+            $cleanedBuyerDoc = preg_replace('/[.\-\s]/', '', $buyerData['document_number'] ?? '');
+
+            if (in_array(strtolower(trim($buyerData['email'] ?? '')), $blockedEmails)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El correo electrónico ingresado no está permitido. Use su correo personal.'
+                ], 422);
+            }
+
+            if (in_array(strtoupper($cleanedBuyerDoc), $blockedRuts)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El RUT ingresado no está permitido. Use su RUT personal.'
+                ], 422);
+            }
+
             // Cargar program_course con sus relaciones
             $programCourse = ProgramCourse::with(['program', 'course'])->findOrFail($programCourseId);
 

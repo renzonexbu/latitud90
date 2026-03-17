@@ -37,6 +37,27 @@ class UpdateBuyerDataService
             $documentType = $this->resolveDocumentTypeId($formData['documentType'] ?? null);
             $documentNumber = $formData['documentNumber'] ?? null;
 
+            // Bloquear datos genéricos/de prueba que causan problemas con Bsale
+            $blockedEmails = ['pagos@latitud90.cl', 'pagos@latitud90.com'];
+            $blockedRuts = ['123456789'];
+            $cleanedDoc = preg_replace('/[.\-\s]/', '', $documentNumber ?? '');
+
+            if ($email && in_array(strtolower(trim($email)), $blockedEmails)) {
+                $this->logError('UpdateBuyerData: Email bloqueado detectado', [
+                    'order_detail_id' => $orderDetail->id,
+                    'blocked_email' => $email,
+                ]);
+                throw new \InvalidArgumentException('El correo electrónico ingresado no está permitido. Use su correo personal.');
+            }
+
+            if ($cleanedDoc && in_array(strtoupper($cleanedDoc), $blockedRuts)) {
+                $this->logError('UpdateBuyerData: RUT bloqueado detectado', [
+                    'order_detail_id' => $orderDetail->id,
+                    'blocked_rut' => $documentNumber,
+                ]);
+                throw new \InvalidArgumentException('El RUT ingresado no está permitido. Use su RUT personal.');
+            }
+
             $country = $this->resolveCountryId($formData['countryId'] ?? ($formData['country'] ?? null));
             $region = $this->resolveRegionId($formData['regionId'] ?? ($formData['region'] ?? null));
             $city = $this->resolveCityId($formData['cityId'] ?? ($formData['city'] ?? null));

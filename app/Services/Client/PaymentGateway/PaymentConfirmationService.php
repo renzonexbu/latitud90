@@ -923,13 +923,22 @@ class PaymentConfirmationService
     private function processInstallments(OrderDetail $orderDetail, Payment $payment): void
     {
         // Buscar cuotas asociadas a este order detail usando installment_number
-        // Filtrar por orden activa para no vincular pagos a planes de suscripciones fallidas/canceladas
+        // IMPORTANTE: Solo vincular a planes de la MISMA orden para no cruzar
+        // pagos por tarjeta con planes de suscripción del mismo participante/programa
         $installments = Installment::where('installment_number', $orderDetail->installment_number)
             ->whereHas('installmentPlan', function ($query) use ($orderDetail) {
                 $query->where('participant_id', $orderDetail->order->participant_id)
                     ->where('program_id', $orderDetail->order->program_id)
-                    ->whereHas('order', function ($q) {
-                        $q->whereNotIn('status', ['cancelled']);
+                    ->where(function ($q) use ($orderDetail) {
+                        // Priorizar plan vinculado a la misma orden
+                        $q->where('order_id', $orderDetail->order_id)
+                          // O planes sin suscripción (pago directo) cuya orden no esté cancelada
+                          ->orWhere(function ($q2) use ($orderDetail) {
+                              $q2->whereNull('program_subscription_id')
+                                 ->whereHas('order', function ($q3) {
+                                     $q3->whereNotIn('status', ['cancelled']);
+                                 });
+                          });
                     });
             })
             ->where('status', 'pending')

@@ -109,7 +109,13 @@
                                     @blur="handleDocumentBlur"
                                 />
                                 <div
-                                    v-if="
+                                    v-if="isBlockedDocument"
+                                    class="text-red-500 text-xs mt-1"
+                                >
+                                    Este RUT no está permitido. Ingrese su RUT personal.
+                                </div>
+                                <div
+                                    v-else-if="
                                         (isRutDocument || isDniDocument) && documentValidation.message
                                     "
                                     class="text-xs mt-1 validation-message"
@@ -164,9 +170,15 @@
                                     type="email"
                                     required
                                     placeholder="Escriba su correo electrónico"
-                                    class="w-full h-[46px] bg-white rounded-lg border border-[#5B5B5B] px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]"
+                                    :class="[
+                                        'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
+                                        isBlockedEmail ? 'border-red-500' : 'border-[#5B5B5B]'
+                                    ]"
                                     v-model="formData.email"
                                 />
+                                <div v-if="isBlockedEmail" class="text-red-500 text-xs mt-1">
+                                    Este correo no está permitido. Ingrese su correo personal.
+                                </div>
                             </div>
 
                             <!-- Número de celular -->
@@ -484,6 +496,8 @@ export default {
                 documentType: this.formData.documentType !== "",
                 documentNumber: this.formData.documentNumber.trim() !== "",
                 email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email.trim()),
+                emailNotBlocked: !this.isBlockedEmail,
+                documentNotBlocked: !this.isBlockedDocument,
                 phone: this.formData.phone.trim() !== "",
                 country: this.formData.country !== "",
                 region: this.formData.region !== "",
@@ -498,6 +512,15 @@ export default {
                 ? this.documentValidation.isValid === true
                 : true;
             return basicValidation && documentOk;
+        },
+        isBlockedEmail() {
+            const blockedEmails = ['pagos@latitud90.cl', 'pagos@latitud90.com'];
+            return blockedEmails.includes(this.formData.email.trim().toLowerCase());
+        },
+        isBlockedDocument() {
+            const cleaned = this.formData.documentNumber.replace(/[.\-\s]/g, '').toUpperCase();
+            const blockedRuts = ['123456789'];
+            return blockedRuts.includes(cleaned);
         },
     },
     mounted() {
