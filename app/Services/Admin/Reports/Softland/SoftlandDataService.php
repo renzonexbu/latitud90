@@ -149,9 +149,13 @@ class SoftlandDataService
                     $debitMovements->push($this->createACDebitMovement($payment));
                     $creditMovements->push($this->createACCreditMovement($payment));
                 } else {
-                    // B2 o cualquier otro tipo
+                    // B2/FF: Comprobante 1 (emisión) + Comprobante 2 (pago)
+                    // Comprobante 1: cargo boleta + abono ingresos
                     $debitMovements->push($this->createDebitMovement($payment));
                     $creditMovements->push($this->createCreditMovement($payment));
+                    // Comprobante 2: cargo pagador + abono boleta pagada
+                    $debitMovements->push($this->createPaymentDebitMovement($payment));
+                    $creditMovements->push($this->createPaymentCreditMovement($payment));
                 }
             }
         }
@@ -163,9 +167,18 @@ class SoftlandDataService
                 'amount' => $installment['amount'],
             ]);
 
-            // Los installments se procesan como boletas (B2)
-            $debitMovements->push($this->createInstallmentDebitMovement($installment));
-            $creditMovements->push($this->createInstallmentCreditMovement($installment));
+            $documentType = $installment['document_type'] ?? 'B2';
+
+            if ($documentType === 'AC') {
+                $debitMovements->push($this->createInstallmentDebitMovement($installment));
+                $creditMovements->push($this->createInstallmentCreditMovement($installment));
+            } else {
+                // B2/FF: Comprobante 1 + Comprobante 2
+                $debitMovements->push($this->createInstallmentDebitMovement($installment));
+                $creditMovements->push($this->createInstallmentCreditMovement($installment));
+                $debitMovements->push($this->createInstallmentPaymentDebitMovement($installment));
+                $creditMovements->push($this->createInstallmentPaymentCreditMovement($installment));
+            }
         }
 
         // Combinar movimientos: primero todos los DEBE, luego todos los HABER
@@ -184,46 +197,48 @@ class SoftlandDataService
     }
 
     /**
-     * Crea el movimiento de cobro (DEBE)
+     * Crea el movimiento de cargo boleta (DEBE) - Comprobante 1
+     * Cuenta 1-1-02-010, código auxiliar = alumno sin DV, tipo doc = B2/FF
      */
     private function createDebitMovement(Payment $payment): array
     {
         $participant = $payment->order->participant;
-        $paymentOption = $payment->paymentOption;
-        $participantProgram = $payment->order->participantProgram;
+        $documentType = $payment->document_type ?? 'B2';
+        $boletaNumber = $payment->bsale_number ?? $payment->buy_order ?? $payment->id;
+        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
 
         return [
             // Información básica
-            'codigo_plan_cuenta' => '1-1-02-010', // Cuenta de cobranzas
-            'debe' => (int) abs($payment->amount), // Siempre usar valor absoluto sin decimales
-            'haber' => 0, // Vacío para DEBE
-            'descripcion_movimiento' => $this->formatDescription($payment, $participant, $paymentOption),
-            'equivalencia_moneda' => '', // Columna 5 - Equivalencia Moneda
-            'monto_debe_moneda_adicional' => '', // Columna 6 - Monto al Debe Moneda Adicional
-            'monto_haber_moneda_adicional' => '', // Columna 7 - Monto al Haber Moneda Adicional
+            'codigo_plan_cuenta' => '1-1-02-010',
+            'debe' => (int) abs($payment->amount),
+            'haber' => 0,
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName}",
+            'equivalencia_moneda' => '',
+            'monto_debe_moneda_adicional' => '',
+            'monto_haber_moneda_adicional' => '',
 
             // Códigos (columnas 8-16)
-            'codigo_condicion_venta' => '', // Columna 8 - Código Condición de Venta
-            'codigo_vendedor' => '', // Columna 9 - Código Vendedor
-            'codigo_ubicacion' => '', // Columna 10 - Código Ubicación
-            'codigo_concepto_caja' => '', // Columna 11 - Código Concepto de Caja
-            'codigo_instrumento_financiero' => '', // Columna 12 - Código Instrumento Financiero
-            'cantidad_instrumento_financiero' => '', // Columna 13 - Cantidad Instrumento Financiero
-            'codigo_detalle_gasto' => '', // Columna 14 - Código Detalle de Gasto
-            'cantidad_concepto_gasto' => '', // Columna 15 - Cantidad Concepto de Gasto
-            'codigo_centro_costo' => '', // Columna 16 - Código Centro de Costo (vacía para DEBE)
+            'codigo_condicion_venta' => '',
+            'codigo_vendedor' => '',
+            'codigo_ubicacion' => '',
+            'codigo_concepto_caja' => '',
+            'codigo_instrumento_financiero' => '',
+            'cantidad_instrumento_financiero' => '',
+            'codigo_detalle_gasto' => '',
+            'cantidad_concepto_gasto' => '',
+            'codigo_centro_costo' => '',
 
             // Documentación (columnas 17-26)
-            'tipo_docto_conciliacion' => '', // Columna 17 - Tipo Docto. Conciliación
-            'nro_docto_conciliacion' => '', // Columna 18 - Nro. Docto. Conciliación
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - Código Auxiliar
-            'tipo_documento' => ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') ? 'VP' : ($payment->document_type ?? 'B2'), // Columna 20 - VP para VirtualPos
-            'nro_documento' => $payment->authorization_code ?? ($payment->bsale_number ?? $payment->id), // Columna 21 - Nro. Documento (authorization_code)
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 22 - Fecha Emisión Docto.
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna 23 - Fecha Vencimiento Docto.
-            'tipo_docto_referencia' => ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') ? 'VP' : ($payment->document_type ?? 'B2'), // Columna 24 - VP para VirtualPos
-            'nro_docto_referencia' => $payment->authorization_code ?? ($payment->bsale_number ?? $payment->id), // Columna 25 - Nro. Docto. Referencia (authorization_code)
-            'nro_correlativo_interno' => '', // Columna 26 - Nro. Correlativo Interno
+            'tipo_docto_conciliacion' => '',
+            'nro_docto_conciliacion' => '',
+            'codigo_auxiliar' => $this->formatParticipantAuxiliaryCode($payment),
+            'tipo_documento' => $documentType,
+            'nro_documento' => $boletaNumber,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'tipo_docto_referencia' => $documentType,
+            'nro_docto_referencia' => $boletaNumber,
+            'nro_correlativo_interno' => '',
 
             // Montos detalle libro (columnas 27-36)
             'monto_1_detalle_libro' => '', // Columna 27 - Monto 1 Detalle Libro
@@ -422,67 +437,218 @@ class SoftlandDataService
     }
 
     /**
-     * Formatea la descripción del movimiento de cobro (DEBE)
-     */
-    private function formatDescription(Payment $payment, $participant, $paymentOption): string
-    {
-        $documentType = $payment->document_type ?? 'B2';
-        $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
-        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'PARTICIPANTE-NO-ENCONTRADO';
-
-        // Para VirtualPos usar "VP", para otros usar el report_code
-        $paymentMethod = 'SIN-METODO';
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            $paymentMethod = 'VP';
-        } elseif ($paymentOption) {
-            $paymentMethod = $paymentOption->report_code ?? 'SIN-METODO';
-        }
-
-        return "{$documentType}-{$boletaNumber}-{$participantName}/{$paymentMethod}";
-    }
-
-    /**
-     * Formatea la descripción del movimiento de ingreso (HABER)
+     * Formatea la descripción del movimiento de ingreso (HABER) - Comprobante 1
+     * Formato: "{programCode} {documentType}-{boletaNumber}" (sin N al inicio, sin VP, con tipo doc emitido)
      */
     private function formatCreditDescription(Payment $payment, $participant, $program, $paymentOption): string
     {
         $programCode = $program ? ($program->code ?? 'SIN-CODIGO') : 'SIN-CODIGO';
-
-        // Determinar el tipo de documento según el gateway de pago
-        $documentType = '';
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            $documentType = 'VP'; // VirtualPOS
-        } else {
-            $documentType = $payment->document_type ?? 'B2';
-        }
-
+        $documentType = $payment->document_type ?? 'B2'; // Tipo doc emitido (B2/FF/VC), NO VP
         $boletaNumber = $payment->bsale_number ?? ($payment->buy_order ?? $payment->id);
 
-        return "N{$programCode}/Programa educación/{$documentType}-{$boletaNumber}";
+        return "{$programCode} {$documentType}-{$boletaNumber}";
     }
 
     /**
-     * Formatea el código auxiliar (RUT del comprador de order_details sin puntos ni guiones, siempre en mayúsculas)
+     * Comprobante 2 - Cargo pagador (DEBE) - Cuenta 1-1-02-014
+     * Descripción: nombre del pagador solamente
+     * Código auxiliar: RUT pagador sin DV
+     * Tipo doc: método de pago (VP/KH/TC/TE/DP)
+     * Nro doc: ID transacción
      */
-    private function formatAuxiliaryCode($payment): string
+    private function createPaymentDebitMovement(Payment $payment): array
     {
-        if (!$payment || !$payment->order || !$payment->order->orderDetails) {
+        $orderDetail = $payment->orderDetail ?? $payment->order->orderDetails->first();
+        $payerName = $orderDetail ? ucwords(strtolower($orderDetail->name ?? '')) : '';
+        $paymentMethod = $this->getPaymentMethodCode($payment);
+        $transactionId = $this->getTransactionId($payment);
+
+        return $this->buildMovementRow([
+            'codigo_plan_cuenta' => '1-1-02-014',
+            'debe' => (int) abs($payment->amount),
+            'haber' => 0,
+            'descripcion_movimiento' => $payerName,
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
+            'tipo_documento' => $paymentMethod,
+            'nro_documento' => $transactionId,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'tipo_docto_referencia' => $paymentMethod,
+            'nro_docto_referencia' => $transactionId,
+        ]);
+    }
+
+    /**
+     * Comprobante 2 - Abono boleta pagada (HABER) - Cuenta 1-1-02-010
+     * Descripción: tipo+nro doc + nombre alumno + método pago
+     * Código auxiliar: RUT alumno sin DV
+     * Tipo doc: método de pago
+     * Nro doc: ID transacción
+     * Tipo doc referencia: B2/FF (tipo doc emitido)
+     * Nro doc referencia: nro boleta
+     */
+    private function createPaymentCreditMovement(Payment $payment): array
+    {
+        $participant = $payment->order->participant;
+        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
+        $documentType = $payment->document_type ?? 'B2';
+        $boletaNumber = $payment->bsale_number ?? $payment->buy_order ?? $payment->id;
+        $paymentMethod = $this->getPaymentMethodCode($payment);
+        $transactionId = $this->getTransactionId($payment);
+
+        return $this->buildMovementRow([
+            'codigo_plan_cuenta' => '1-1-02-010',
+            'debe' => 0,
+            'haber' => (int) abs($payment->amount),
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} {$paymentMethod}",
+            'codigo_auxiliar' => $this->formatParticipantAuxiliaryCode($payment),
+            'tipo_documento' => $paymentMethod,
+            'nro_documento' => $transactionId,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'tipo_docto_referencia' => $documentType,
+            'nro_docto_referencia' => $boletaNumber,
+        ]);
+    }
+
+    /**
+     * Construye una fila de movimiento con todos los campos, usando defaults vacíos
+     */
+    private function buildMovementRow(array $data): array
+    {
+        $defaults = [
+            'codigo_plan_cuenta' => '', 'debe' => 0, 'haber' => 0,
+            'descripcion_movimiento' => '', 'equivalencia_moneda' => '',
+            'monto_debe_moneda_adicional' => '', 'monto_haber_moneda_adicional' => '',
+            'codigo_condicion_venta' => '', 'codigo_vendedor' => '',
+            'codigo_ubicacion' => '', 'codigo_concepto_caja' => '',
+            'codigo_instrumento_financiero' => '', 'cantidad_instrumento_financiero' => '',
+            'codigo_detalle_gasto' => '', 'cantidad_concepto_gasto' => '',
+            'codigo_centro_costo' => '', 'tipo_docto_conciliacion' => '',
+            'nro_docto_conciliacion' => '', 'codigo_auxiliar' => '',
+            'tipo_documento' => '', 'nro_documento' => '',
+            'fecha_emision_docto' => '', 'fecha_vencimiento_docto' => '',
+            'tipo_docto_referencia' => '', 'nro_docto_referencia' => '',
+            'nro_correlativo_interno' => '',
+            'monto_1_detalle_libro' => '', 'monto_2_detalle_libro' => '',
+            'monto_3_detalle_libro' => '', 'monto_4_detalle_libro' => '',
+            'monto_5_detalle_libro' => '', 'monto_6_detalle_libro' => '',
+            'monto_7_detalle_libro' => '', 'monto_8_detalle_libro' => '',
+            'monto_9_detalle_libro' => '', 'monto_suma_detalle_libro' => '',
+            'graba_detalle_libro' => '', 'documento_nulo' => '',
+            'codigo_flujo_efectivo_1' => '', 'monto_flujo_1' => '',
+            'codigo_flujo_efectivo_2' => '', 'monto_flujo_2' => '',
+            'codigo_flujo_efectivo_3' => '', 'monto_flujo_3' => '',
+            'codigo_flujo_efectivo_4' => '', 'monto_flujo_4' => '',
+            'codigo_flujo_efectivo_5' => '', 'monto_flujo_5' => '',
+            'codigo_flujo_efectivo_6' => '', 'monto_flujo_6' => '',
+            'codigo_flujo_efectivo_7' => '', 'monto_flujo_7' => '',
+            'codigo_flujo_efectivo_8' => '', 'monto_flujo_8' => '',
+            'codigo_flujo_efectivo_9' => '', 'monto_flujo_9' => '',
+            'codigo_flujo_efectivo_10' => '', 'monto_flujo_10' => '',
+            'numero_cuota_pago' => '', 'numero_documento_desde' => '',
+            'numero_documento_hasta' => '',
+            'centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_1' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_1' => '',
+            'centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_2' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_2' => '',
+            'centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_3' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_3' => '',
+            'centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_4' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_4' => '',
+            'centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_5' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_5' => '',
+            'centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_6' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_6' => '',
+            'centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_7' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_7' => '',
+            'centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_8' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_8' => '',
+            'centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_9' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_9' => '',
+            'centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '',
+            'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '',
+        ];
+
+        return array_merge($defaults, $data);
+    }
+
+    /**
+     * Quita puntos, guiones y dígito verificador de un RUT para código auxiliar Softland
+     */
+    private function removeRutDV(string $documentNumber): string
+    {
+        $clean = preg_replace('/[^0-9kK]/', '', $documentNumber);
+        if (strlen($clean) >= 2) {
+            return substr($clean, 0, -1); // Sin dígito verificador
+        }
+        return strtoupper($clean);
+    }
+
+    /**
+     * Código auxiliar del ALUMNO (participant) sin DV
+     */
+    private function formatParticipantAuxiliaryCode($payment): string
+    {
+        $participant = $payment->order->participant ?? null;
+        if (!$participant || !$participant->document_number) {
             return '';
         }
+        return $this->removeRutDV($participant->document_number);
+    }
 
-        // Obtener el primer order_detail para obtener el documento del comprador
-        $orderDetail = $payment->order->orderDetails->first();
-        if (!$orderDetail) {
+    /**
+     * Código auxiliar del PAGADOR (order_detail) sin DV
+     */
+    private function formatPayerAuxiliaryCode($payment): string
+    {
+        $orderDetail = $payment->order->orderDetails->first() ?? null;
+        if (!$orderDetail || !$orderDetail->document_number) {
             return '';
         }
+        return $this->removeRutDV($orderDetail->document_number);
+    }
 
-        // Obtener el número de documento del comprador
-        $documentNumber = $orderDetail->document_number ?? '';
+    /**
+     * Obtiene el método de pago en 2 letras para Softland
+     */
+    private function getPaymentMethodCode($payment): string
+    {
+        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
+            return 'VP';
+        }
+        if ($payment->paymentOption) {
+            $code = $payment->paymentOption->report_code ?? '';
+            // Softland solo acepta 2 letras
+            return substr($code, 0, 2);
+        }
+        return 'VP';
+    }
 
-        // Limpiar puntos y guiones y convertir a mayúsculas
-        $cleanDocument = str_replace(['.', '-'], '', $documentNumber);
-
-        return strtoupper($cleanDocument);
+    /**
+     * Obtiene el ID de transacción del gateway
+     */
+    private function getTransactionId($payment): string
+    {
+        // Para Khipu usar external_payment_id
+        if ($payment->paymentOption && $payment->paymentOption->report_code === 'KP' && !empty($payment->external_payment_id)) {
+            return $payment->external_payment_id;
+        }
+        // Para VP usar token/external_payment_id
+        if (!empty($payment->external_payment_id)) {
+            return $payment->external_payment_id;
+        }
+        return $payment->authorization_code ?? $payment->buy_order ?? (string) $payment->id;
     }
 
     /**
@@ -1175,53 +1341,40 @@ class SoftlandDataService
     }
 
     /**
-     * Crea el movimiento de cobro de installment (DEBE)
+     * Crea el movimiento de cargo boleta de installment (DEBE) - Comprobante 1
      */
     private function createInstallmentDebitMovement(array $installment): array
     {
         $participant = $installment['participant'];
+        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
         $buyerData = $installment['buyer_data'];
 
-        // Nombre del comprador en capital case
-        $buyerName = '';
-        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
-            $firstName = ucwords(strtolower($buyerData['first_name']));
-            $lastName = ucwords(strtolower($buyerData['first_last_name']));
-            $buyerName = "{$firstName} {$lastName}";
-        } elseif ($participant) {
-            $buyerName = $participant->full_name ?? 'N/A';
-        }
-
-        // Código auxiliar (RUT del comprador sin puntos ni guiones)
+        // Código auxiliar del ALUMNO sin DV
         $auxiliarCode = '';
-        if (!empty($buyerData['document_number'])) {
-            $auxiliarCode = strtoupper(str_replace(['.', '-'], '', $buyerData['document_number']));
+        if ($participant && $participant->document_number) {
+            $auxiliarCode = $this->removeRutDV($participant->document_number);
         }
 
-        // Número de documento: usar authorization_code del Payment
-        $authorizationCode = $installment['authorization_code'] ?? null;
         $documentType = $installment['document_type'] ?? 'B2';
-        $documentNumber = $authorizationCode ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
-
-        // Determinar cuenta y tipo de documento según el Payment asociado
         $payment = $installment['payment'] ?? null;
-        $isVirtualPos = $payment && $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
-        $paymentMethod = $isVirtualPos ? 'VP' : 'SUSCRIPCION';
+
+        // Para B2: usar bsale_number como nro documento
+        $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
 
         // Si el Payment tiene document_type='AC', usar cuenta 014, sino 010
         $accountCode = ($documentType === 'AC') ? '1-1-02-014' : '1-1-02-010';
 
-        // Si es VirtualPos, tipo de documento es VP
-        $displayDocumentType = $isVirtualPos ? 'VP' : $documentType;
-
-        // Descripción: para AC solo el nombre del pagador, para B2 el formato completo
-        $description = '';
+        // Descripción según tipo
         if ($documentType === 'AC') {
-            // Para AC (cuenta 014): solo el nombre del pagador
+            $buyerName = '';
+            if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+                $buyerName = ucwords(strtolower($buyerData['first_name'])) . ' ' . ucwords(strtolower($buyerData['first_last_name']));
+            } elseif ($participant) {
+                $buyerName = $participantName;
+            }
             $description = $buyerName;
         } else {
-            // Para B2 (cuenta 010): formato completo
-            $description = "{$displayDocumentType}-{$documentNumber}-{$buyerName}/{$paymentMethod}";
+            $description = "{$documentType}-{$boletaNumber} {$participantName}";
         }
 
         return [
@@ -1249,12 +1402,12 @@ class SoftlandDataService
             'tipo_docto_conciliacion' => '',
             'nro_docto_conciliacion' => '',
             'codigo_auxiliar' => $auxiliarCode,
-            'tipo_documento' => $displayDocumentType,
-            'nro_documento' => $documentNumber,
+            'tipo_documento' => $documentType,
+            'nro_documento' => $boletaNumber,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
             'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
-            'tipo_docto_referencia' => $displayDocumentType,
-            'nro_docto_referencia' => $documentNumber,
+            'tipo_docto_referencia' => $documentType,
+            'nro_docto_referencia' => $boletaNumber,
             'nro_correlativo_interno' => '',
 
             // Montos detalle libro (columnas 27-36)
@@ -1390,8 +1543,9 @@ class SoftlandDataService
 
             $description = "{$enrollmentCode}/{$payerName}/{$displayDocumentType}";
         } else {
-            // Para B2 (cuenta 021): formato de programa educación
-            $description = "N{$programCode}/Programa educación/{$displayDocumentType}-{$documentNumber}";
+            // Para B2 (cuenta 021): código programa + tipo doc emitido (sin N, sin VP)
+            $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+            $description = "{$programCode} {$documentType}-{$boletaNumber}";
         }
 
         return [
@@ -1502,5 +1656,94 @@ class SoftlandDataService
             'monto_moneda_base_centro_costo_concepto_presupuesto_caja_10' => '',
             'monto_moneda_adicional_centro_costo_concepto_presupuesto_caja_10' => '',
         ];
+    }
+
+    /**
+     * Comprobante 2 - Cargo pagador installment (DEBE) - Cuenta 1-1-02-014
+     */
+    private function createInstallmentPaymentDebitMovement(array $installment): array
+    {
+        $buyerData = $installment['buyer_data'] ?? [];
+        $participant = $installment['participant'];
+        $payment = $installment['payment'] ?? null;
+
+        // Nombre del pagador
+        $payerName = '';
+        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+            $payerName = ucwords(strtolower($buyerData['first_name'])) . ' ' . ucwords(strtolower($buyerData['first_last_name']));
+        } elseif ($participant) {
+            $payerName = $participant->full_name ?? '';
+        }
+
+        // RUT pagador sin DV
+        $payerAuxiliarCode = '';
+        if (!empty($buyerData['document_number'])) {
+            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
+        }
+
+        // Método de pago 2 letras
+        $paymentMethod = 'VP';
+        if ($payment) {
+            $isVirtualPos = $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
+            $paymentMethod = $isVirtualPos ? 'VP' : substr($payment->paymentOption->report_code ?? 'VP', 0, 2);
+        }
+
+        // ID transacción
+        $transactionId = $payment->external_payment_id ?? ($payment->authorization_code ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id'])));
+
+        return $this->buildMovementRow([
+            'codigo_plan_cuenta' => '1-1-02-014',
+            'debe' => (int) abs($installment['amount']),
+            'haber' => 0,
+            'descripcion_movimiento' => $payerName,
+            'codigo_auxiliar' => $payerAuxiliarCode,
+            'tipo_documento' => $paymentMethod,
+            'nro_documento' => $transactionId,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'tipo_docto_referencia' => $paymentMethod,
+            'nro_docto_referencia' => $transactionId,
+        ]);
+    }
+
+    /**
+     * Comprobante 2 - Abono boleta pagada installment (HABER) - Cuenta 1-1-02-010
+     */
+    private function createInstallmentPaymentCreditMovement(array $installment): array
+    {
+        $participant = $installment['participant'];
+        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
+        $payment = $installment['payment'] ?? null;
+        $documentType = $installment['document_type'] ?? 'B2';
+        $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
+
+        // RUT alumno sin DV
+        $participantAuxiliarCode = '';
+        if ($participant && $participant->document_number) {
+            $participantAuxiliarCode = $this->removeRutDV($participant->document_number);
+        }
+
+        // Método de pago
+        $paymentMethod = 'VP';
+        if ($payment) {
+            $isVirtualPos = $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
+            $paymentMethod = $isVirtualPos ? 'VP' : substr($payment->paymentOption->report_code ?? 'VP', 0, 2);
+        }
+
+        $transactionId = $payment->external_payment_id ?? ($payment->authorization_code ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id'])));
+
+        return $this->buildMovementRow([
+            'codigo_plan_cuenta' => '1-1-02-010',
+            'debe' => 0,
+            'haber' => (int) abs($installment['amount']),
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} {$paymentMethod}",
+            'codigo_auxiliar' => $participantAuxiliarCode,
+            'tipo_documento' => $paymentMethod,
+            'nro_documento' => $transactionId,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),
+            'tipo_docto_referencia' => $documentType,
+            'nro_docto_referencia' => $boletaNumber,
+        ]);
     }
 }
