@@ -74,6 +74,26 @@
                                         {{ payment.email_sent ? 'Sí' : 'No' }}
                                     </span>
                                 </div>
+                                <!-- Botón Reconfirmar Pago -->
+                                <div v-if="canReconfirm(payment)" class="pt-3">
+                                    <button
+                                        @click="reconfirmPayment(payment)"
+                                        :disabled="reconfirming"
+                                        class="w-full flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                                    >
+                                        <svg v-if="reconfirming" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        {{ reconfirming ? 'Reconfirmando...' : 'Reconfirmar Pago' }}
+                                    </button>
+                                    <p v-if="reconfirmMessage" :class="reconfirmSuccess ? 'text-green-600' : 'text-red-600'" class="text-sm mt-2 text-center">
+                                        {{ reconfirmMessage }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -210,6 +230,26 @@
                                         </p>
                                     </div>
                                 </div>
+                                <!-- Botón Generar Boleta -->
+                                <div v-if="canRetryBsale(payment)" class="pt-3">
+                                    <button
+                                        @click="retryBsale(payment)"
+                                        :disabled="retryingBsale"
+                                        class="w-full flex items-center justify-center px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                                    >
+                                        <svg v-if="retryingBsale" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        {{ retryingBsale ? 'Generando...' : 'Generar Boleta' }}
+                                    </button>
+                                    <p v-if="bsaleRetryMessage" :class="bsaleRetrySuccess ? 'text-green-600' : 'text-red-600'" class="text-sm mt-2 text-center">
+                                        {{ bsaleRetryMessage }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
@@ -301,6 +341,8 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
+
 const props = defineProps({
     payment: {
         type: [Object, null],
@@ -313,7 +355,97 @@ const props = defineProps({
     }
 });
 
-defineEmits(['close']);
+const emit = defineEmits(['close', 'payment-updated']);
+
+const retryingBsale = ref(false);
+const bsaleRetryMessage = ref('');
+const bsaleRetrySuccess = ref(false);
+
+const reconfirming = ref(false);
+const reconfirmMessage = ref('');
+const reconfirmSuccess = ref(false);
+
+const canReconfirm = (payment) => {
+    if (!payment) return false;
+    return payment.status === 'pending' && (payment.token || payment.external_payment_id);
+};
+
+const reconfirmPayment = async (payment) => {
+    reconfirming.value = true;
+    reconfirmMessage.value = '';
+    reconfirmSuccess.value = false;
+
+    try {
+        const response = await fetch(`/admin/payments/${payment.id}/reconfirm`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                'Accept': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            reconfirmSuccess.value = true;
+            reconfirmMessage.value = data.message || 'Pago reconfirmado exitosamente';
+            if (data.payment) {
+                Object.assign(payment, data.payment);
+            }
+            emit('payment-updated', payment);
+        } else {
+            reconfirmMessage.value = data.message || 'No se pudo reconfirmar el pago';
+        }
+    } catch (error) {
+        reconfirmMessage.value = 'Error de conexión al reconfirmar el pago';
+    } finally {
+        reconfirming.value = false;
+    }
+};
+
+const canRetryBsale = (payment) => {
+    if (!payment) return false;
+    // Solo para pagos completados sin boleta generada
+    const isCompleted = ['completed', 'approved'].includes(payment.status);
+    const hasNoBoleta = !payment.bsale_document_id && !payment.bsale_number;
+    return isCompleted && hasNoBoleta;
+};
+
+const retryBsale = async (payment) => {
+    retryingBsale.value = true;
+    bsaleRetryMessage.value = '';
+    bsaleRetrySuccess.value = false;
+
+    try {
+        const response = await fetch(`/admin/payments/${payment.id}/retry-bsale`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                'Accept': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            bsaleRetrySuccess.value = true;
+            bsaleRetryMessage.value = `Boleta generada: N° ${data.bsale_number}`;
+            // Actualizar datos del payment en el modal
+            payment.bsale_document_id = data.bsale_document_id;
+            payment.bsale_number = data.bsale_number;
+            payment.bsale_token = data.bsale_token;
+            emit('payment-updated', payment);
+        } else {
+            bsaleRetryMessage.value = data.message || 'Error al generar la boleta';
+        }
+    } catch (error) {
+        bsaleRetryMessage.value = 'Error de conexión al generar la boleta';
+    } finally {
+        retryingBsale.value = false;
+    }
+};
 
 const getParticipantName = (payment) => {
     // Si es un installment

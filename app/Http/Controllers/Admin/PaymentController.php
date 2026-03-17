@@ -20,6 +20,8 @@ use App\Services\Admin\Payments\GetInstallmentScheduleService;
 use App\Services\Admin\Payments\GetAccountStatementService;
 use App\Services\Admin\Payments\GetParticipantPaymentStatusService;
 use App\Services\Admin\Payments\ReconfirmPaymentService;
+use App\Models\BsaleRequest;
+use App\Services\Bsale\BsaleQueueService;
 
 class PaymentController extends Controller
 {
@@ -217,6 +219,95 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el estado de pagos: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Regenerar boleta BSale para un pago
+     */
+    public function retryBsale(Payment $payment)
+    {
+        try {
+            // Validar que el pago esté completado
+            if (!in_array($payment->status, ['completed', 'approved'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Solo se puede generar boleta para pagos completados.',
+                ], 422);
+            }
+
+            // Validar que no tenga boleta ya generada
+            if (!empty($payment->bsale_document_id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este pago ya tiene una boleta generada.',
+                ], 422);
+            }
+
+            $queueService = app(BsaleQueueService::class);
+
+            // Buscar solicitud existente
+            $existingRequest = BsaleRequest::where('payment_id', $payment->id)
+                ->where('document_type', BsaleRequest::DOC_TYPE_BOLETA)
+                ->latest()
+                ->first();
+
+            if ($existingRequest) {
+                // Si está atascada en processing o falló, forzar reproceso
+                if (in_array($existingRequest->status, ['processing', 'failed', 'cancelled'])) {
+                    $queueService->forceReprocess($existingRequest, auth()->id());
+                    $bsaleRequest = $existingRequest;
+                } elseif ($existingRequest->status === 'pending') {
+                    // Ya está pendiente, procesarla directamente
+                    $bsaleRequest = $existingRequest;
+                } elseif ($existingRequest->status === 'completed') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Ya existe una solicitud completada para este pago.',
+                    ], 422);
+                } else {
+                    $bsaleRequest = $existingRequest;
+                }
+            } else {
+                // Crear nueva solicitud
+                $bsaleRequest = BsaleRequest::createFromPayment(
+                    $payment,
+                    BsaleRequest::DOC_TYPE_BOLETA,
+                    'manual_retry',
+                    ['manual_retry_by' => auth()->id(), 'manual_retry_at' => now()->toIso8601String()]
+                );
+            }
+
+            // Refrescar para asegurar estado pending
+            $bsaleRequest->refresh();
+
+            // Procesar inmediatamente
+            $success = $queueService->processRequest($bsaleRequest);
+
+            // Recargar payment para obtener datos actualizados
+            $payment->refresh();
+
+            if ($success) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Boleta generada exitosamente.',
+                    'bsale_number' => $payment->bsale_number,
+                    'bsale_document_id' => $payment->bsale_document_id,
+                    'bsale_token' => $payment->bsale_token,
+                ]);
+            } else {
+                $bsaleRequest->refresh();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo generar la boleta: ' . ($bsaleRequest->error_message ?? 'Error desconocido'),
+                ], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar boleta: ' . $e->getMessage(),
             ], 500);
         }
     }

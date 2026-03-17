@@ -61,4 +61,5 @@ Route::prefix('payments')->name('payments.')->group(function () {
     Route::patch('{payment}/cancel', [PaymentController::class, 'cancel'])->name('cancel');
     Route::post('{payment}/refund', [PaymentController::class, 'refund'])->name('refund');
     Route::post('{payment}/reconfirm', [PaymentController::class, 'reconfirm'])->name('reconfirm');
+    Route::post('{payment}/retry-bsale', [PaymentController::class, 'retryBsale'])->name('retry-bsale');
 });
