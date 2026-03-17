@@ -148,7 +148,7 @@ class SoftlandAuxiliaresService
         if ($orderDetail->order && $orderDetail->order->participant) {
             $participantName = $orderDetail->order->participant->name ?? '';
         }
-        $nombreAuxiliar = $this->truncateString($participantName ?: $orderDetail->name, 60);
+        $nombreAuxiliar = $this->truncateString($this->cleanName($participantName ?: $orderDetail->name), 60);
         
         // Construir dirección: "País, Región"
         $direccion = '';
@@ -187,7 +187,7 @@ class SoftlandAuxiliaresService
             'fax_1_auxiliar' => '',
             'fax_2_auxiliar' => '',
             'clasificacion_cliente' => 'S', // Siempre S
-            'clasificacion_proveedor' => 'S', // Siempre S
+            'clasificacion_proveedor' => 'S',
             'clasificacion_empleado' => '',
             'clasificacion_socio' => '',
             'clasificacion_distribuidor' => '',
@@ -281,26 +281,31 @@ class SoftlandAuxiliaresService
     }
 
     /**
-     * Genera un código único para el auxiliar (RUT sin puntos ni guiones, o pasaporte)
+     * Genera el código auxiliar: número de identificación sin dígito verificador, sin punto y sin guión
      */
     private function generateAuxiliarCode($orderDetail): string
     {
         if (!$orderDetail->document_number) {
             return 'SIN_DOC_' . $orderDetail->id;
         }
-        
+
         $documentNumber = $orderDetail->document_number;
-        
+
         // Si es pasaporte, usar tal como está
         if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'PASAPORTE') {
             return strtoupper($documentNumber);
         }
-        
-        // Si es RUT, quitar puntos y guiones
+
+        // Si es RUT, quitar puntos, guiones y dígito verificador
         if ($orderDetail->documentType && is_object($orderDetail->documentType) && $orderDetail->documentType->name === 'RUT') {
-            return preg_replace('/[^0-9kK]/', '', $documentNumber);
+            $cleanNumber = preg_replace('/[^0-9kK]/', '', $documentNumber);
+            // Quitar el dígito verificador (último carácter)
+            if (strlen($cleanNumber) >= 2) {
+                return substr($cleanNumber, 0, -1);
+            }
+            return $cleanNumber;
         }
-        
+
         // Para otros tipos de documento, usar tal como está
         return $documentNumber;
     }
@@ -318,6 +323,24 @@ class SoftlandAuxiliaresService
     }
 
     /**
+     * Limpia un nombre para Softland: quita acentos y comas, respeta mayúsculas/minúsculas
+     */
+    private function cleanName(?string $name): string
+    {
+        if (!$name) {
+            return '';
+        }
+
+        // Quitar comas
+        $name = str_replace(',', '', $name);
+
+        // Quitar acentos
+        $name = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+
+        return trim($name);
+    }
+
+    /**
      * Mapea una suscripción (buyer_data) a los campos de auxiliar de Softland
      */
     private function mapSubscriptionToAuxiliar($subscription): array
@@ -328,13 +351,19 @@ class SoftlandAuxiliaresService
         // Formatear el número de documento
         $documentNumber = $this->formatSubscriptionDocumentNumber($buyerData);
 
-        // Generar código auxiliar (RUT sin puntos ni guiones)
-        $auxiliarCode = strtoupper(str_replace(['.', '-', ' '], '', $buyerData['document_number'] ?? ''));
+        // Generar código auxiliar: sin DV, sin puntos, sin guiones
+        $rawDoc = preg_replace('/[^0-9kK]/', '', $buyerData['document_number'] ?? '');
+        $documentType = $buyerData['document_type'] ?? 'RUT';
+        if ($documentType === 'RUT' && strlen($rawDoc) >= 2) {
+            $auxiliarCode = substr($rawDoc, 0, -1); // Sin dígito verificador
+        } else {
+            $auxiliarCode = strtoupper($rawDoc);
+        }
 
-        // Nombre del auxiliar en capital case
+        // Nombre del auxiliar: sin acentos ni comas
         $firstName = ucwords(strtolower($buyerData['first_name'] ?? ''));
         $lastName = ucwords(strtolower($buyerData['first_last_name'] ?? ''));
-        $nombreAuxiliar = $this->truncateString("{$firstName} {$lastName}", 60);
+        $nombreAuxiliar = $this->truncateString($this->cleanName("{$firstName} {$lastName}"), 60);
 
         // Email del comprador
         $email = $buyerData['email'] ?? '';
@@ -464,8 +493,8 @@ class SoftlandAuxiliaresService
             'Teléfono 3 Auxiliar',
             'Fax 1 Auxiliar',
             'Fax 2 Auxiliar',
-            'Clasificación Cliente',
-            'Clasificación Proveedor',
+            'Clasificación Clientes',
+            'Clasificación Proveedores',
             'Clasificación Empleado',
             'Clasificación Socio',
             'Clasificación Distribuidor',
