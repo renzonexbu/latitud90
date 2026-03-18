@@ -91,13 +91,64 @@ class ToggleProgramActiveStatusService
                 ]
             );
 
+            // Si se dio de baja y no tiene ningún otro programa activo, desactivar al participante
+            $participantDeactivated = false;
+            if (!$newStatus) {
+                $activeProgramsCount = ParticipantProgram::where('participant_id', $participantId)
+                    ->where('is_active', true)
+                    ->count();
+
+                if ($activeProgramsCount === 0 && $participant->is_active) {
+                    $participant->update(['is_active' => false]);
+                    $participantDeactivated = true;
+
+                    Log::info('Participante desactivado automáticamente (sin programas activos)', [
+                        'participant_id' => $participantId,
+                        'participant_name' => $participantName,
+                        'changed_by' => Auth::id()
+                    ]);
+
+                    $this->logStatusChange(
+                        'participants',
+                        'Participant',
+                        $participant->id,
+                        'activo',
+                        'baja',
+                        "Participante {$participantName} desactivado automáticamente (sin programas activos)",
+                        [
+                            'participant_id' => $participantId,
+                            'participant_name' => $participantName,
+                            'reason' => 'no_active_programs',
+                            'comment' => $comment
+                        ]
+                    );
+                }
+            }
+
+            // Si se reactivó en un programa, reactivar al participante si estaba inactivo
+            if ($newStatus && !$participant->is_active) {
+                $participant->update(['is_active' => true]);
+
+                Log::info('Participante reactivado automáticamente al reactivar en programa', [
+                    'participant_id' => $participantId,
+                    'participant_name' => $participantName,
+                    'changed_by' => Auth::id()
+                ]);
+            }
+
+            $finalMessage = $message;
+            if ($participantDeactivated) {
+                $finalMessage .= ' El participante fue desactivado automáticamente al no tener programas activos.';
+            }
+
             return [
                 'success' => true,
-                'message' => $message,
+                'message' => $finalMessage,
                 'action' => $action,
                 'participant_program_id' => $participantProgram->id,
                 'previous_status' => $previousStatus,
-                'new_status' => $newStatus
+                'new_status' => $newStatus,
+                'participant_deactivated' => $participantDeactivated,
             ];
         });
     }

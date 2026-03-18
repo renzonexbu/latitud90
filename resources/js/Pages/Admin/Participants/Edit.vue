@@ -75,7 +75,7 @@
                                         : 'bg-red-100 text-red-800 border border-red-200'
                                 ]"
                             >
-                                {{ participant.is_active ? 'Activo' : 'Baja' }}
+                                {{ participant.is_active ? 'Activo' : 'Inactivo' }}
                             </div>
                             <!-- Info Tooltip -->
                             <div class="relative group">
