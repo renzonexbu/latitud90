@@ -142,7 +142,8 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub ID</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cód. Inscripción</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Suscriptor</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuota</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Cobro</th>
@@ -161,8 +162,11 @@
                                 <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-blue-600">
                                     #{{ charge.subscription_id }}
                                 </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">
+                                    {{ charge.enrollment_code || '-' }}
+                                </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                    {{ charge.participant_name }}
+                                    {{ charge.subscriber_name }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                                     {{ charge.installment_number }}
@@ -188,7 +192,7 @@
                                 </td>
                             </tr>
                             <tr v-if="charges.data.length === 0">
-                                <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                                     No se encontraron cuotas con los filtros seleccionados.
                                 </td>
                             </tr>

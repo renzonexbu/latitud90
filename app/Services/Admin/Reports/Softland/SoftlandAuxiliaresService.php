@@ -52,19 +52,17 @@ class SoftlandAuxiliaresService
             'order.participant'
         ]);
 
-        // Filtrar por fecha: usar la fecha del pago asociado (order → payment)
-        if (!empty($filters['dateFrom'])) {
-            $query->whereHas('order.payments', function ($q) use ($filters) {
-                $q->where('status', 'completed')
-                  ->whereDate('created_at', '>=', $filters['dateFrom']);
-            });
-        }
-        if (!empty($filters['dateTo'])) {
-            $query->whereHas('order.payments', function ($q) use ($filters) {
-                $q->where('status', 'completed')
-                  ->whereDate('created_at', '<=', $filters['dateTo']);
-            });
-        }
+        // Filtrar por pagos completados B2 en el rango de fechas (presenciales + pasarela)
+        $query->whereHas('order.payments', function ($q) use ($filters) {
+            $q->where('status', 'completed')
+              ->where('document_type', 'B2');
+            if (!empty($filters['dateFrom'])) {
+                $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
+            }
+            if (!empty($filters['dateTo'])) {
+                $q->whereDate('transaction_date', '<=', $filters['dateTo']);
+            }
+        });
         if (!empty($filters['programId'])) {
             $query->whereHas('order', function ($q) use ($filters) {
                 $q->where('program_id', $filters['programId']);
@@ -88,18 +86,17 @@ class SoftlandAuxiliaresService
         $subscriptionQuery = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
             ->with('participant');
 
-        // Filtrar suscripciones por fecha de pago (payments completados en el rango)
-        if (!empty($filters['dateFrom']) || !empty($filters['dateTo'])) {
-            $subscriptionQuery->whereHas('orders.payments', function ($q) use ($filters) {
-                $q->where('status', 'completed');
-                if (!empty($filters['dateFrom'])) {
-                    $q->whereDate('created_at', '>=', $filters['dateFrom']);
-                }
-                if (!empty($filters['dateTo'])) {
-                    $q->whereDate('created_at', '<=', $filters['dateTo']);
-                }
-            });
-        }
+        // Filtrar suscripciones por pagos completados B2 en el rango (presenciales + pasarela)
+        $subscriptionQuery->whereHas('orders.payments', function ($q) use ($filters) {
+            $q->where('status', 'completed')
+              ->where('document_type', 'B2');
+            if (!empty($filters['dateFrom'])) {
+                $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
+            }
+            if (!empty($filters['dateTo'])) {
+                $q->whereDate('transaction_date', '<=', $filters['dateTo']);
+            }
+        });
         if (!empty($filters['programId'])) {
             $subscriptionQuery->where('program_id', $filters['programId']);
         }
@@ -334,8 +331,10 @@ class SoftlandAuxiliaresService
         // Quitar comas
         $name = str_replace(',', '', $name);
 
-        // Quitar acentos
-        $name = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        // Quitar acentos manualmente
+        $search  = ['á','é','í','ó','ú','Á','É','Í','Ó','Ú','ñ','Ñ','ü','Ü','à','è','ì','ò','ù','À','È','Ì','Ò','Ù','ä','ë','ï','ö','Ä','Ë','Ï','Ö'];
+        $replace = ['a','e','i','o','u','A','E','I','O','U','n','N','u','U','a','e','i','o','u','A','E','I','O','U','a','e','i','o','A','E','I','O'];
+        $name = str_replace($search, $replace, $name);
 
         return trim($name);
     }
@@ -493,8 +492,8 @@ class SoftlandAuxiliaresService
             'Teléfono 3 Auxiliar',
             'Fax 1 Auxiliar',
             'Fax 2 Auxiliar',
-            'Clasificación Clientes',
-            'Clasificación Proveedores',
+            'Clasificación Cliente',
+            'Clasificación Proveedor',
             'Clasificación Empleado',
             'Clasificación Socio',
             'Clasificación Distribuidor',

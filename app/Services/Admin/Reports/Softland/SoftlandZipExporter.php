@@ -172,6 +172,9 @@ class SoftlandZipExporter
                 // Congelar la fila de encabezado
                 $sheet->freezePane('A2');
 
+                // Ocultar columnas vacías
+                $this->hideEmptyColumns($sheet, $lastColumnIndex, $rowIndex - 1);
+
                 // Guardar archivo directamente
                 $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
                 $writer->setPreCalculateFormulas(false);
@@ -290,6 +293,9 @@ class SoftlandZipExporter
                         'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
                     ],
                 ]);
+
+                // Ocultar columnas vacías
+                $this->hideEmptyColumns($sheet, $lastColumnIndex, $lastRow);
 
                 // Guardar archivo directamente
                 $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
@@ -604,7 +610,10 @@ class SoftlandZipExporter
                         'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER
                     ],
                 ]);
-                
+
+                // Ocultar columnas vacías
+                $this->hideEmptyColumns($sheet, $lastColumnIndex, $lastRow);
+
                 // Guardar archivo
                 $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
                 $writer->setPreCalculateFormulas(false);
@@ -633,6 +642,29 @@ class SoftlandZipExporter
                 'error' => $e->getMessage()
             ]);
             return null;
+        }
+    }
+
+    /**
+     * Oculta columnas que no tienen datos en ninguna fila
+     */
+    private function hideEmptyColumns($sheet, int $totalColumns, int $totalRows): void
+    {
+        for ($col = 1; $col <= $totalColumns; $col++) {
+            $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $hasData = false;
+
+            for ($row = 2; $row <= $totalRows; $row++) {
+                $value = $sheet->getCell($columnLetter . $row)->getValue();
+                if ($value !== null && $value !== '') {
+                    $hasData = true;
+                    break;
+                }
+            }
+
+            if (!$hasData) {
+                $sheet->getColumnDimension($columnLetter)->setVisible(false);
+            }
         }
     }
 

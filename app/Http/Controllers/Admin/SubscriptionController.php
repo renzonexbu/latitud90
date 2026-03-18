@@ -67,11 +67,27 @@ class SubscriptionController extends Controller
             foreach ($charges as $index => $charge) {
                 $status = strtolower($charge['status'] ?? 'pendiente');
 
+                // Obtener código de inscripción
+                $enrollmentCode = null;
+                if ($sub->participant_id && $sub->program_id) {
+                    $enrollmentCode = \App\Models\ParticipantProgram::where('participant_id', $sub->participant_id)
+                        ->where('program_id', $sub->program_id)
+                        ->value('enrollment_code');
+                }
+
+                // Nombre del suscriptor (pagador) desde buyer_data
+                $buyerData = $sub->buyer_data ?? [];
+                $subscriberName = trim(($buyerData['first_name'] ?? '') . ' ' . ($buyerData['first_last_name'] ?? '') . ' ' . ($buyerData['second_last_name'] ?? ''));
+                if (empty(trim($subscriberName))) {
+                    $subscriberName = $sub->participant?->full_name ?? 'N/A';
+                }
+
                 $allCharges[] = [
                     'charge_id' => $charge['id'] ?? null,
                     'subscription_id' => $sub->id,
                     'subscription_status' => $sub->status,
-                    'participant_name' => $sub->participant?->full_name ?? 'N/A',
+                    'enrollment_code' => $enrollmentCode ?? 'N/A',
+                    'subscriber_name' => $subscriberName,
                     'program_name' => $sub->programCourse?->name ?? 'N/A',
                     'program_code' => $sub->programCourse?->program?->code ?? 'N/A',
                     'installment_number' => $index + 1,
@@ -101,7 +117,8 @@ class SubscriptionController extends Controller
         if ($filterSearch) {
             $search = strtolower($filterSearch);
             $filtered = $filtered->filter(fn($c) =>
-                str_contains(strtolower($c['participant_name']), $search) ||
+                str_contains(strtolower($c['subscriber_name']), $search) ||
+                str_contains(strtolower($c['enrollment_code'] ?? ''), $search) ||
                 str_contains(strtolower($c['program_code']), $search) ||
                 str_contains((string) $c['subscription_id'], $search) ||
                 str_contains((string) $c['charge_id'], $search)
