@@ -129,7 +129,6 @@ class CreateParticularPaymentService
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount + $data['amount'],
                     'remaining_balance' => $previousBalance - $data['amount'],
-                    'payment_code' => $data['payment_code'] ?? null,
                     'is_aporte' => $isAporte,
                     'bsale_generated' => $bsaleResult !== null,
                     'bsale_number' => $bsaleResult['number'] ?? null,
@@ -143,7 +142,6 @@ class CreateParticularPaymentService
                 'program_course_id' => $programCourse->id,
                 'program_id' => $programCourse->program->id ?? null,
                 'amount' => $data['amount'],
-                'payment_code' => $data['payment_code'] ?? null,
                 'is_aporte' => $isAporte,
                 'bsale_generated' => $bsaleResult !== null,
                 'bsale_number' => $bsaleResult['number'] ?? null,
@@ -181,7 +179,7 @@ class CreateParticularPaymentService
     private function validateData(array $data): void
     {
         $required = [
-            'participant_id', 'program_id', 'amount', 'transaction_date', 'payment_code'
+            'participant_id', 'program_id', 'amount', 'transaction_date', 'authorization_code'
         ];
 
         foreach ($required as $field) {
@@ -424,15 +422,14 @@ class CreateParticularPaymentService
             'amount' => $data['amount'],
             'status' => 'completed',
             'transaction_date' => Carbon::parse($data['transaction_date']),
-            'authorization_code' => $data['authorization_code'] ?? null,
-            // payment_code SIEMPRE guarda el código manual ingresado por el usuario
-            // bsale_number se llena SOLO cuando BSale genera la boleta automáticamente
-            'payment_code' => $data['payment_code'],
+            'authorization_code' => $data['authorization_code'],
+            'payment_code' => null, // Se genera automáticamente por BSale
             'bsale_number' => null, // Se llenará al generar la boleta BSale
             'gateway_response' => [
                 'notes' => $data['notes'] ?? null,
                 'created_manually' => true,
                 'payment_type' => 'presential',
+                'installments' => $data['installments'] ?? 1,
                 'buyer_data' => [
                     'first_name' => $data['buyer_first_name'] ?? null,
                     'last_name' => $data['buyer_last_name'] ?? null,

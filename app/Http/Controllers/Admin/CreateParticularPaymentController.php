@@ -89,8 +89,8 @@ class CreateParticularPaymentController extends Controller
             'participant_id' => 'required|exists:participants,id',
             'amount' => 'required|numeric|min:0',
             'transaction_date' => 'required|date',
-            'payment_code' => 'required|string|max:255',
-            'authorization_code' => 'nullable|string|max:255',
+            'authorization_code' => 'required|string|max:255',
+            'installments' => 'required|integer|min:1|max:12',
             'notes' => 'nullable|string',
             'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP,CT',
 
@@ -114,8 +114,8 @@ class CreateParticularPaymentController extends Controller
                 'participant_id' => $request->participant_id,
                 'amount' => $request->amount,
                 'transaction_date' => $request->transaction_date,
-                'payment_code' => $request->payment_code,
                 'authorization_code' => $request->authorization_code,
+                'installments' => $request->installments,
                 'notes' => $request->notes,
                 'presential_payment_type' => $request->presential_payment_type,
 

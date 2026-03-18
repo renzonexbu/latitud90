@@ -655,38 +655,9 @@
                                         </p>
                                     </div>
 
-                                    <!-- Código de Pago/Boleta/Factura -->
-                                    <div class="mb-4">
-                                        <label
-                                            class="block text-sm font-medium text-gray-700 mb-2"
-                                        >
-                                            Código de Pago/Boleta/Factura *
-                                        </label>
-                                        <input
-                                            v-model="form.payment_code"
-                                            type="text"
-                                            placeholder="Ej: B001-2024, F2024-001, P2024-001"
-                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
-                                            :class="{
-                                                'border-red-500':
-                                                    errors.payment_code,
-                                            }"
-                                        />
-                                        <p class="text-sm text-gray-500 mt-1">
-                                            Ingrese el código de la boleta,
-                                            factura o comprobante de pago
-                                            presencial
-                                        </p>
-                                        <span
-                                            v-if="errors.payment_code"
-                                            class="text-red-500 text-sm mt-1"
-                                            >{{ errors.payment_code }}</span
-                                        >
-                                    </div>
-
-                                    <!-- Fecha de Transacción y Código de Autorización -->
+                                    <!-- Fecha de Transacción, Código de Autorización y N° de Cuotas -->
                                     <div
-                                        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+                                        class="grid grid-cols-1 md:grid-cols-3 gap-6"
                                     >
                                         <div>
                                             <label
@@ -716,14 +687,14 @@
                                             <label
                                                 class="block text-sm font-medium text-gray-700 mb-2"
                                             >
-                                                Código de Autorización
+                                                Código de Autorización *
                                             </label>
                                             <input
                                                 v-model="
                                                     form.authorization_code
                                                 "
                                                 type="text"
-                                                placeholder="Código de autorización (opcional)"
+                                                placeholder="Código de autorización"
                                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
                                                 :class="{
                                                     'border-red-500':
@@ -735,6 +706,32 @@
                                                 class="text-red-500 text-sm mt-1"
                                                 >{{
                                                     errors.authorization_code
+                                                }}</span
+                                            >
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                class="block text-sm font-medium text-gray-700 mb-2"
+                                            >
+                                                N° de Cuotas *
+                                            </label>
+                                            <select
+                                                v-model="form.installments"
+                                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#007e93] focus:border-transparent"
+                                                :class="{
+                                                    'border-red-500':
+                                                        errors.installments,
+                                                }"
+                                            >
+                                                <option value="" disabled>Seleccione</option>
+                                                <option v-for="n in 12" :key="n" :value="n">{{ n }}</option>
+                                            </select>
+                                            <span
+                                                v-if="errors.installments"
+                                                class="text-red-500 text-sm mt-1"
+                                                >{{
+                                                    errors.installments
                                                 }}</span
                                             >
                                         </div>
@@ -855,8 +852,12 @@
                                             <span class="text-sm font-semibold text-gray-900">{{ getFiscalDocTypeLabel(form.fiscal_document_type) }}</span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-sm text-gray-600">Código de Pago:</span>
-                                            <span class="text-sm font-semibold text-gray-900">{{ form.payment_code }}</span>
+                                            <span class="text-sm text-gray-600">Código de Autorización:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ form.authorization_code }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-600">N° de Cuotas:</span>
+                                            <span class="text-sm font-semibold text-gray-900">{{ form.installments }}</span>
                                         </div>
                                         <div class="flex justify-between">
                                             <span class="text-sm text-gray-600">Fecha:</span>
@@ -967,11 +968,11 @@ const form = useForm({
     amount: "",
     presential_payment_type: "", // Nuevo campo para tipo de pago presencial
     fiscal_document_type: "", // Tipo de documento fiscal (Boleta/Factura)
-    payment_code: "", // Código de boleta/factura
     transaction_date: new Date()
         .toLocaleString("sv-SE", { timeZone: "America/Santiago" })
         .slice(0, 16),
     authorization_code: "",
+    installments: 1,
     notes: "",
 });
 
@@ -1032,7 +1033,8 @@ const isBuyerFormValid = computed(() => {
         participant_id: form.participant_id !== "",
         amount: form.amount !== "" && parseFloat(form.amount) > 0,
         presential_payment_type: form.presential_payment_type !== "",
-        payment_code: form.payment_code.trim() !== "",
+        authorization_code: form.authorization_code.trim() !== "",
+        installments: form.installments !== "" && form.installments >= 1 && form.installments <= 12,
         transaction_date: form.transaction_date !== "",
     };
 
