@@ -112,8 +112,8 @@ class SoftlandB2DataService
         $boletaNumber = $payment->bsale_number ?? '';
         $programCode = $this->getProgramCode($payment);
 
-        // Descripción: "{código_programa} B2-{boleta}"
-        $description = "{$programCode} B2-{$boletaNumber}";
+        // Descripción: "{código_programa}/B2-{boleta}"
+        $description = "{$programCode}/B2-{$boletaNumber}";
 
         return $this->buildRow([
             'codigo_plan_cuenta' => '3-1-01-021',
