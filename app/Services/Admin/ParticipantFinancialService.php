@@ -104,7 +104,6 @@ class ParticipantFinancialService
         return (float) DB::table('payments')
             ->whereIn('order_id', $orderIds)
             ->whereIn('status', ['approved', 'completed'])
-            ->where('amount', '>', 0)
             ->sum('amount');
     }
 

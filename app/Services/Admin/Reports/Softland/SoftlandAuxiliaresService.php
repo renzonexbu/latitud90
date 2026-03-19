@@ -77,9 +77,32 @@ class SoftlandAuxiliaresService
                 return $group->first();
             });
 
-        // Mapear order_details a auxiliares
+        // Mapear order_details a auxiliares (compradores)
         foreach ($orderDetails as $orderDetail) {
             $auxiliares->push($this->mapOrderDetailToAuxiliar($orderDetail));
+        }
+
+        // 1b. Agregar participantes (alumnos) que pueden ser distintos al comprador
+        $participants = $query->get()
+            ->filter(function ($item) {
+                return $item->order && $item->order->participant;
+            })
+            ->groupBy(function ($item) {
+                $participant = $item->order->participant;
+                $doc = $participant->document_number ?? '';
+                return $this->normalizeDocumentNumber($doc);
+            })
+            ->map(function ($group) {
+                return $group->first()->order->participant;
+            });
+
+        foreach ($participants as $normalizedDoc => $participant) {
+            // Solo agregar si no existe ya en auxiliares
+            if (!$auxiliares->contains(function ($aux) use ($normalizedDoc) {
+                return $this->normalizeDocumentNumber($aux['rut_auxiliar']) === $normalizedDoc;
+            })) {
+                $auxiliares->push($this->mapParticipantToAuxiliar($participant));
+            }
         }
 
         // 2. Obtener compradores únicos de suscripciones (buyer_data)
@@ -117,7 +140,7 @@ class SoftlandAuxiliaresService
                 return $group->first();
             });
 
-        // Mapear subscriptions a auxiliares
+        // Mapear subscriptions a auxiliares (pagadores)
         foreach ($subscriptionBuyers as $subscription) {
             $normalizedDoc = $this->normalizeDocumentNumber($subscription->buyer_data['document_number']);
 
@@ -126,6 +149,20 @@ class SoftlandAuxiliaresService
                 return $this->normalizeDocumentNumber($aux['rut_auxiliar']) === $normalizedDoc;
             })) {
                 $auxiliares->push($this->mapSubscriptionToAuxiliar($subscription));
+            }
+        }
+
+        // 2b. Agregar participantes de suscripciones (alumnos)
+        foreach ($subscriptions as $subscription) {
+            $participant = $subscription->participant;
+            if (!$participant || !$participant->document_number) {
+                continue;
+            }
+            $normalizedDoc = $this->normalizeDocumentNumber($participant->document_number);
+            if (!$auxiliares->contains(function ($aux) use ($normalizedDoc) {
+                return $this->normalizeDocumentNumber($aux['rut_auxiliar']) === $normalizedDoc;
+            })) {
+                $auxiliares->push($this->mapParticipantToAuxiliar($participant));
             }
         }
 
@@ -337,6 +374,97 @@ class SoftlandAuxiliaresService
         $name = str_replace($search, $replace, $name);
 
         return trim($name);
+    }
+
+    /**
+     * Mapea un participante (alumno) a los campos de auxiliar de Softland
+     */
+    private function mapParticipantToAuxiliar($participant): array
+    {
+        $documentNumber = $participant->document_number ?? '';
+        $cleanNumber = preg_replace('/[^0-9kK]/', '', $documentNumber);
+
+        // Código auxiliar: sin DV
+        $auxiliarCode = (strlen($cleanNumber) >= 2) ? substr($cleanNumber, 0, -1) : $cleanNumber;
+
+        // RUT con guión
+        if (strlen($cleanNumber) >= 8) {
+            $number = substr($cleanNumber, 0, -1);
+            $dv = strtoupper(substr($cleanNumber, -1));
+            $rutFormateado = $number . '-' . $dv;
+        } else {
+            $rutFormateado = $documentNumber;
+        }
+
+        $fullName = trim(($participant->first_name ?? '') . ' ' . ($participant->first_last_name ?? '') . ' ' . ($participant->second_last_name ?? ''));
+        $nombreAuxiliar = $this->truncateString($this->cleanName($fullName), 60);
+
+        return [
+            'codigo_auxiliar' => $auxiliarCode,
+            'nombre_auxiliar' => $nombreAuxiliar,
+            'nombre_fantasia' => $nombreAuxiliar,
+            'rut_auxiliar' => $this->truncateString($rutFormateado, 11),
+            'activo' => 'S',
+            'codigo_giro_comercial' => '',
+            'codigo_pais_auxiliar' => '',
+            'codigo_region' => '',
+            'codigo_ciudad_auxiliar' => '',
+            'codigo_comuna_auxiliar' => '',
+            'direccion_auxiliar' => '',
+            'numero_dir_auxiliar' => '',
+            'telefono_1_auxiliar' => '',
+            'telefono_2_auxiliar' => '',
+            'telefono_3_auxiliar' => '',
+            'fax_1_auxiliar' => '',
+            'fax_2_auxiliar' => '',
+            'clasificacion_cliente' => 'S',
+            'clasificacion_proveedor' => 'S',
+            'clasificacion_empleado' => '',
+            'clasificacion_socio' => '',
+            'clasificacion_distribuidor' => '',
+            'clasificacion_otro' => '',
+            'casilla_auxiliar' => '',
+            'email_auxiliar' => '',
+            'sitio_web_auxiliar' => '',
+            'notas_auxiliar' => '',
+            'nombre_contacto' => '',
+            'codigo_cargo_contacto' => '',
+            'telefono_contacto' => '',
+            'fax_contacto' => '',
+            'email_contacto' => '',
+            'codigo_vendedor' => '',
+            'condicion_venta' => '',
+            'monto_autorizado' => '',
+            'codigo_categoria_cliente' => '',
+            'codigo_zona_vendedor' => '',
+            'codigo_canal_venta' => '',
+            'lugar_despacho' => '',
+            'direccion_despacho' => '',
+            'codigo_comuna_despacho' => '',
+            'codigo_ciudad_despacho' => '',
+            'codigo_pais_despacho' => '',
+            'telefono_1_despacho' => '',
+            'telefono_2_despacho' => '',
+            'telefono_3_despacho' => '',
+            'fax_despacho' => '',
+            'atencion_despacho' => '',
+            'codigo_cobrador' => '',
+            'direccion_cobranza' => '',
+            'codigo_comuna_cobranza' => '',
+            'codigo_ciudad_cobranza' => '',
+            'codigo_pais_cobranza' => '',
+            'telefono' => '',
+            'dia_pago' => '',
+            'codigo_lista_precio' => '',
+            'email_dte' => $participant->email ?? '',
+            'es_emisor_receptor_dte' => 'S',
+            'codigo_clasificacion_negocio' => '',
+            'cuenta_clientes_doctos_moneda_base' => '',
+            'cuenta_clientes_doctos_moneda_extranjera' => '',
+            'codigo_banco' => '',
+            'cuenta_corriente' => '',
+            'codigo_condicion_pago_proveedor' => '',
+        ];
     }
 
     /**
