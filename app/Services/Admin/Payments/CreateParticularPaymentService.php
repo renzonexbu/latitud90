@@ -423,6 +423,7 @@ class CreateParticularPaymentService
             'status' => 'completed',
             'transaction_date' => Carbon::parse($data['transaction_date']),
             'authorization_code' => $data['authorization_code'],
+            'installments_number' => $data['installments'] ?? 1,
             'payment_code' => null, // Se genera automáticamente por BSale
             'bsale_number' => null, // Se llenará al generar la boleta BSale
             'gateway_response' => [

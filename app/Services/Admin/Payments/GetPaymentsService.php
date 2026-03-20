@@ -115,11 +115,17 @@ class GetPaymentsService
             });
         }
 
-        // Filtro de método de pago (gateway)
+        // Filtro de método de pago (por report_code de payment_option)
         if ($request->payment_method && $request->payment_method !== 'all') {
-            $query->whereHas('paymentGateway', function ($q) use ($request) {
-                $q->where('code', $request->payment_method);
-            });
+            if ($request->payment_method === 'refund') {
+                $query->whereHas('paymentOption', function ($q) {
+                    $q->whereIn('report_code', ['NC', 'RA']);
+                });
+            } else {
+                $query->whereHas('paymentOption', function ($q) use ($request) {
+                    $q->where('report_code', $request->payment_method);
+                });
+            }
         }
 
         // Filtro de origen del pago (payment_source)

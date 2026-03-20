@@ -201,12 +201,17 @@ class Payment extends Model
      */
     public function getTransactionDateFormattedAttribute()
     {
-        if (!$this->transaction_date) {
-            return null;
-        }
-        
         try {
-            // Mantener el timezone America/Santiago pero formatear para JSON
+            // Para pagos de suscripción, usar created_at como fecha de pago real
+            // ya que transaction_date puede contener la fecha de vencimiento de la cuota
+            if ($this->payment_source === 'subscription' && $this->created_at) {
+                return $this->created_at->setTimezone('America/Santiago')->format('Y-m-d H:i:s');
+            }
+
+            if (!$this->transaction_date) {
+                return null;
+            }
+
             return $this->transaction_date->setTimezone('America/Santiago')->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return null;

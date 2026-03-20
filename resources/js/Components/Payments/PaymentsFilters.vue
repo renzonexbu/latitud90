@@ -74,10 +74,14 @@
                     @change="performSearch"
                 >
                     <option value="all">Todos los Métodos</option>
-                    <option value="transbank">Webpay (Tarjeta)</option>
-                    <option value="khipu">Transferencia Khipu</option>
-                    <option value="presencial">Pago Offline</option>
-                    <option value="virtualpos">VirtualPos (Suscripciones)</option>
+                    <option value="VP">VirtualPos (Tarjeta)</option>
+                    <option value="KP">Transferencia Khipu</option>
+                    <option value="WP">Webpay Link</option>
+                    <option value="VPI">VirtualPos Internacional</option>
+                    <option value="TC">POS Oficina</option>
+                    <option value="TE">Transferencia Banco</option>
+                    <option value="DP">Depósito</option>
+                    <option value="PAT">Suscripciones</option>
                     <option value="refund">Devoluciones</option>
                 </select>
             </div>

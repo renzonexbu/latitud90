@@ -1413,17 +1413,31 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
     protected function parseTransactionDate(array $charge): ?Carbon
     {
         $paymentData = $charge['payment'] ?? [];
+        $orderData = $paymentData['order'] ?? [];
 
+        // Prioridad 1: authorized_at del order (fecha real de pago)
+        if (isset($orderData['authorized_at'])) {
+            try {
+                return Carbon::parse($orderData['authorized_at']);
+            } catch (Exception $e) {
+                Log::warning('SyncSubscriptionPayments: Error parseando order.authorized_at', [
+                    'authorized_at' => $orderData['authorized_at']
+                ]);
+            }
+        }
+
+        // Prioridad 2: authorized_at del payment (compatibilidad)
         if (isset($paymentData['authorized_at'])) {
             try {
                 return Carbon::parse($paymentData['authorized_at']);
             } catch (Exception $e) {
-                Log::warning('SyncSubscriptionPayments: Error parseando authorized_at', [
+                Log::warning('SyncSubscriptionPayments: Error parseando payment.authorized_at', [
                     'authorized_at' => $paymentData['authorized_at']
                 ]);
             }
         }
 
+        // Prioridad 3: charge_date (fecha de vencimiento - fallback)
         if (isset($charge['charge_date'])) {
             try {
                 return Carbon::parse($charge['charge_date']);

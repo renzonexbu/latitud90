@@ -1493,6 +1493,8 @@ class ImportManualPaymentsService
                 // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
                 'payment_code' => $documentType !== 'B2' ? $referencia : null,
                 'bsale_number' => $documentType === 'B2' ? $referencia : null,
+                'installments_number' => $rowData['cuotas'] ?? null,
+                'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
                 'gateway_response' => [
                     'created_manually' => true,
                     'payment_type' => 'presential',
