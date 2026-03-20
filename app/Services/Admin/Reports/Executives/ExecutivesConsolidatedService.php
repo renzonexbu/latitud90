@@ -48,7 +48,7 @@ class ExecutivesConsolidatedService
                       ->where('program_id', $programId);
                 })
                 ->whereIn('status', ['approved', 'completed'])
-                ->orderBy('transaction_date', 'asc')
+                ->orderByRaw('CASE WHEN payment_source = "subscription" THEN created_at ELSE COALESCE(transaction_date, created_at) END ASC')
                 ->orderBy('id', 'asc')
                 ->get(['id', 'amount']);
 
@@ -95,12 +95,12 @@ class ExecutivesConsolidatedService
             'order.payments'
         ])->whereIn('payments.status', ['approved', 'completed']);
 
-        // Aplicar filtros
+        // Aplicar filtros (para suscripciones usar created_at en vez de transaction_date)
         if (!empty($filters['dateFrom'])) {
-            $query->whereDate('payments.transaction_date', '>=', $filters['dateFrom']);
+            $query->whereRaw('DATE(CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END) >= ?', [$filters['dateFrom']]);
         }
         if (!empty($filters['dateTo'])) {
-            $query->whereDate('payments.transaction_date', '<=', $filters['dateTo']);
+            $query->whereRaw('DATE(CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END) <= ?', [$filters['dateTo']]);
         }
         if (!empty($filters['programId'])) {
             $query->whereHas('order', function ($q) use ($filters) {
@@ -137,7 +137,7 @@ class ExecutivesConsolidatedService
 
         // Obtener pagos con paginación, ordenados por fecha de transacción (más reciente primero)
         $payments = $query
-            ->orderBy('payments.transaction_date', 'desc')
+            ->orderByRaw('CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END DESC')
             ->orderBy('payments.id', 'desc')
             ->select('payments.*')
             ->paginate($perPage, ['*'], 'page', $page);
@@ -226,7 +226,7 @@ class ExecutivesConsolidatedService
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
                 'payment_form' => $payment->paymentOption?->report_code ?: 'N/A',
-                'payment_date' => $payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A',
+                'payment_date' => ($payment->payment_source === 'subscription' ? ($payment->created_at ? Carbon::parse($payment->created_at)->format('d/m/Y') : 'N/A') : ($payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A')),
                 'payer_contact' => $payerContact ?: 'N/A',
                 'payer_email' => $payerEmail ?: 'N/A',
                 'liberated' => $liberatedAmount,
@@ -295,12 +295,12 @@ class ExecutivesConsolidatedService
             'order.payments'
         ])->whereIn('payments.status', ['approved', 'completed']);
 
-        // Aplicar filtros
+        // Aplicar filtros (para suscripciones usar created_at en vez de transaction_date)
         if (!empty($normalizedFilters['dateFrom'])) {
-            $query->whereDate('payments.transaction_date', '>=', $normalizedFilters['dateFrom']);
+            $query->whereRaw('DATE(CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END) >= ?', [$normalizedFilters['dateFrom']]);
         }
         if (!empty($normalizedFilters['dateTo'])) {
-            $query->whereDate('payments.transaction_date', '<=', $normalizedFilters['dateTo']);
+            $query->whereRaw('DATE(CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END) <= ?', [$normalizedFilters['dateTo']]);
         }
         if (!empty($normalizedFilters['programId'])) {
             $query->whereHas('order', function ($q) use ($normalizedFilters) {
@@ -342,7 +342,7 @@ class ExecutivesConsolidatedService
             ->orderBy('p_sort.second_last_name', 'asc')
             ->orderBy('p_sort.first_name', 'asc')
             ->orderBy('p_sort.second_name', 'asc')
-            ->orderBy('payments.transaction_date', 'asc')
+            ->orderByRaw('CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END ASC')
             ->select('payments.*')
             ->get();
 
@@ -422,7 +422,7 @@ class ExecutivesConsolidatedService
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
                 'payment_form' => $payment->paymentOption?->report_code ?: 'N/A',
-                'payment_date' => $payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A',
+                'payment_date' => ($payment->payment_source === 'subscription' ? ($payment->created_at ? Carbon::parse($payment->created_at)->format('d/m/Y') : 'N/A') : ($payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A')),
                 'payer_contact' => $payerContact ?: 'N/A',
                 'payer_email' => $payerEmail ?: 'N/A',
                 'liberated' => $liberatedAmount,

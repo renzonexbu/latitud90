@@ -88,48 +88,23 @@ class DailyPaymentsFilters
             });
         }
 
-        // Filtro por fecha desde (priorizando fecha de pago exitoso)
+        // Filtro por fecha desde (para suscripciones usar created_at en vez de transaction_date)
         if (!empty($filters['dateFrom'])) {
-            $query->where(function($q) use ($filters) {
-                $q->whereDate('od.paid_at', '>=', $filters['dateFrom'])
-                  ->orWhere(function($subQ) use ($filters) {
-                      $subQ->whereNull('od.paid_at')
-                           ->whereDate('pay.transaction_date', '>=', $filters['dateFrom']);
-                  });
-            });
+            $query->whereRaw('DATE(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) >= ?', [$filters['dateFrom']]);
         }
 
-        // Filtro por fecha hasta (priorizando fecha de pago exitoso)
+        // Filtro por fecha hasta
         if (!empty($filters['dateTo'])) {
-            $query->where(function($q) use ($filters) {
-                $q->whereDate('od.paid_at', '<=', $filters['dateTo'])
-                  ->orWhere(function($subQ) use ($filters) {
-                      $subQ->whereNull('od.paid_at')
-                           ->whereDate('pay.transaction_date', '<=', $filters['dateTo']);
-                  });
-            });
+            $query->whereRaw('DATE(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) <= ?', [$filters['dateTo']]);
         }
 
         // Si no hay filtros de fecha, aplicar rango por defecto (últimos 5 días)
         if (empty($filters['dateFrom']) && empty($filters['dateTo'])) {
             $endDate = Carbon::now();
             $startDate = Carbon::now()->subDays(4);
-            
-            $query->where(function($q) use ($startDate, $endDate) {
-                $q->where(function($subQ) use ($startDate) {
-                    $subQ->whereDate('od.paid_at', '>=', $startDate->format('Y-m-d'))
-                         ->orWhere(function($innerQ) use ($startDate) {
-                             $innerQ->whereNull('od.paid_at')
-                                    ->whereDate('pay.transaction_date', '>=', $startDate->format('Y-m-d'));
-                         });
-                })->where(function($subQ) use ($endDate) {
-                    $subQ->whereDate('od.paid_at', '<=', $endDate->format('Y-m-d'))
-                         ->orWhere(function($innerQ) use ($endDate) {
-                             $innerQ->whereNull('od.paid_at')
-                                    ->whereDate('pay.transaction_date', '<=', $endDate->format('Y-m-d'));
-                         });
-                });
-            });
+
+            $query->whereRaw('DATE(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) >= ?', [$startDate->format('Y-m-d')])
+                  ->whereRaw('DATE(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) <= ?', [$endDate->format('Y-m-d')]);
         }
 
         return $query;

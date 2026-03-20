@@ -105,7 +105,7 @@ class ConsolidatedPaymentsDataProvider
                 'pg.code as payment_method_code',
                 'pg.name as payment_method_name',
                 'pay.installments_number',
-                DB::raw('COALESCE(od.paid_at, pay.transaction_date, pay.created_at) as payment_date'),
+                DB::raw('COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at) as payment_date'),
                 
                 // Datos del pagador (con fallback para pagos sin cuotas)
                 DB::raw('COALESCE(od.name, CONCAT_WS(" ", p.first_name, p.second_name, p.first_last_name, p.second_last_name)) as payer_name'),
@@ -130,7 +130,7 @@ class ConsolidatedPaymentsDataProvider
                 'pay.order_id',
                 'pay.order_detail_id',
             ])
-            ->orderBy(DB::raw('COALESCE(od.paid_at, pay.transaction_date, pay.created_at)'), 'desc');
+            ->orderBy(DB::raw('COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)'), 'desc');
     }
 
     public function getConsolidatedPayments(Builder $query, int $page = 1): LengthAwarePaginator
@@ -160,8 +160,8 @@ class ConsolidatedPaymentsDataProvider
             SUM(CASE WHEN pay.amount > 0 THEN pay.amount ELSE 0 END) as total_payments_amount,
             SUM(CASE WHEN pay.amount < 0 THEN ABS(pay.amount) ELSE 0 END) as total_refunds_amount,
             SUM(pay.amount) as net_amount,
-            MIN(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as first_payment_date,
-            MAX(COALESCE(od.paid_at, pay.transaction_date, pay.created_at)) as last_payment_date
+            MIN(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) as first_payment_date,
+            MAX(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) as last_payment_date
         ')->first();
 
         return [

@@ -29,7 +29,7 @@ class DailyPaymentsDataProvider
             ->select([
                 'pay.id as payment_id',
                 'pay.amount as payment_amount',
-                'pay.transaction_date as payment_date',
+                DB::raw('CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END as payment_date'),
                 'pay.status as payment_status',
                 'pay.authorization_code',
                 'pay.response_code',
@@ -87,7 +87,7 @@ class DailyPaymentsDataProvider
                 'od.status as installment_status',
                 'od.paid_at as installment_paid_at',
             ])
-            ->orderByRaw('COALESCE(od.paid_at, pay.transaction_date) DESC');
+            ->orderByRaw('COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END) DESC');
     }
 
     public function getDailyPayments(Builder $query, int $page = 1, int|string $perPage = 25): LengthAwarePaginator
@@ -135,8 +135,8 @@ class DailyPaymentsDataProvider
             COUNT(pay.id) as total_payments,
             SUM(pay.amount) as total_amount_paid,
             AVG(pay.amount) as average_payment,
-            MIN(pay.transaction_date) as first_payment_date,
-            MAX(pay.transaction_date) as last_payment_date
+            MIN(CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END) as first_payment_date,
+            MAX(CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END) as last_payment_date
         ')->first();
 
         // Calcular pagos de hoy (solo pagos completados)
@@ -161,11 +161,7 @@ class DailyPaymentsDataProvider
             ->where(function ($q) {
                 $q->whereNull('pay.document_type')->orWhere('pay.document_type', '!=', 'VC');
             })
-            ->where(function($q) {
-                $q->whereDate('pay.transaction_date', now()->toDateString())
-                  ->orWhereDate('pay.created_at', now()->toDateString())
-                  ->orWhereDate('od.paid_at', now()->toDateString());
-            })
+            ->whereRaw('DATE(COALESCE(od.paid_at, CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END, pay.created_at)) = ?', [now()->toDateString()])
             ->count();
 
         // Calcular total de registros (pagos completados y rechazados, sin filtros de fecha)

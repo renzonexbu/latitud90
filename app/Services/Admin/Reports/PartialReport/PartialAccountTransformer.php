@@ -378,7 +378,7 @@ class PartialAccountTransformer
                 'payments.status',
                 'payments.payment_method',
                 'payment_gateways.name as method',
-                DB::raw('COALESCE(payments.transaction_date, payments.created_at) as date'),
+                DB::raw('CASE WHEN payments.payment_source = "subscription" THEN payments.created_at ELSE COALESCE(payments.transaction_date, payments.created_at) END as date'),
                 'payments.authorization_code',
                 'payments.external_payment_id',
                 'payments.bsale_document_id',

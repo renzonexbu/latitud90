@@ -429,7 +429,7 @@ class ReportsSummaryService
             $paymentHistory = $payments->whereIn('status', ['approved', 'completed', 'paid'])->map(function ($payment) {
                 return [
                     'id' => $payment->id,
-                    'date' => $payment->transaction_date ?? $payment->created_at,
+                    'date' => $payment->payment_source === 'subscription' ? $payment->created_at : ($payment->transaction_date ?? $payment->created_at),
                     'amount' => (float) $payment->amount,
                     'method' => $payment->paymentGateway->name ?? 'N/A',
                     'status' => 'Pagado',

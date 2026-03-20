@@ -50,7 +50,7 @@ class PaymentScheduleSummaryDataProvider
                 // Datos del pago
                 'pay.id as payment_id',
                 'pay.amount as payment_amount',
-                'pay.transaction_date',
+                DB::raw('CASE WHEN pay.payment_source = "subscription" THEN pay.created_at ELSE pay.transaction_date END as transaction_date'),
                 'pg.code as gateway_code',
                 'po.mode as payment_mode',
 
