@@ -27,9 +27,6 @@ class SoftlandDataService
         $query = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails', 'orderDetail', 'paymentGateway'])
             ->where('status', 'completed')
             ->whereIn('document_type', ['B2', 'AC'])
-            ->whereHas('paymentOption', function ($q) {
-                $q->where('mode', '!=', 'presential');
-            })
             ->when(isset($filters['dateFrom']), function ($q) use ($filters) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
             })
@@ -118,8 +115,16 @@ class SoftlandDataService
         }
         Log::info('============================================');
 
-        $debitMovements = collect();  // Movimientos DEBE
-        $creditMovements = collect(); // Movimientos HABER
+        $movements014 = collect();  // 1-1-02-014 (cargo pagador DEBE - pasarela)
+        $movements034 = collect();  // 1-1-01-034 (cargo pagador DEBE - banco: TE, DP)
+        $movements009 = collect();  // 1-1-02-009 (cargo pagador DEBE - oficina: TC, WP, VP)
+        $movements010 = collect();  // 1-1-02-010 (abono boleta HABER)
+        $movementsOther = collect(); // AC, reembolsos, etc.
+
+        // Códigos presenciales que van a cuenta bancaria (1-1-01-034)
+        $bankCodes = ['presential_bank_transfer', 'presential_deposit'];
+        // Códigos presenciales que van a cuenta oficina (1-1-02-009)
+        $officeCodes = ['presential_pos_office', 'presential_webpay', 'presential_debit_credit'];
 
         foreach ($payments as $payment) {
             // Solo verificar que tenga orden
@@ -140,22 +145,28 @@ class SoftlandDataService
             ]);
 
             if ($isRefund) {
-                // Para reembolsos: separar DEBE y HABER
-                $debitMovements->push($this->createRefundDebitMovement($payment));
-                $creditMovements->push($this->createRefundCreditMovement($payment));
+                $movementsOther->push($this->createRefundDebitMovement($payment));
+                $movementsOther->push($this->createRefundCreditMovement($payment));
             } else {
-                // Para pagos normales: separar DEBE y HABER según tipo de documento
                 if ($payment->document_type === 'AC') {
-                    $debitMovements->push($this->createACDebitMovement($payment));
-                    $creditMovements->push($this->createACCreditMovement($payment));
+                    $movementsOther->push($this->createACDebitMovement($payment));
+                    $movementsOther->push($this->createACCreditMovement($payment));
                 } else {
-                    // B2/FF: Comprobante 1 (emisión) + Comprobante 2 (pago)
-                    // Comprobante 1: cargo boleta + abono ingresos
-                    $debitMovements->push($this->createDebitMovement($payment));
-                    $creditMovements->push($this->createCreditMovement($payment));
-                    // Comprobante 2: cargo pagador + abono boleta pagada
-                    $debitMovements->push($this->createPaymentDebitMovement($payment));
-                    $creditMovements->push($this->createPaymentCreditMovement($payment));
+                    $optionCode = $payment->paymentOption->code ?? '';
+
+                    if (in_array($optionCode, $bankCodes)) {
+                        // Presencial banco: cuenta 1-1-01-034
+                        $movements034->push($this->createPresentialDebitMovement($payment, '1-1-01-034'));
+                        $movements010->push($this->createPaymentCreditMovement($payment));
+                    } elseif (in_array($optionCode, $officeCodes)) {
+                        // Presencial oficina: cuenta 1-1-02-009
+                        $movements009->push($this->createPresentialDebitMovement($payment, '1-1-02-009'));
+                        $movements010->push($this->createPaymentCreditMovement($payment));
+                    } else {
+                        // Pasarela: cuenta 1-1-02-014
+                        $movements014->push($this->createPaymentDebitMovement($payment));
+                        $movements010->push($this->createPaymentCreditMovement($payment));
+                    }
                 }
             }
         }
@@ -170,27 +181,32 @@ class SoftlandDataService
             $documentType = $installment['document_type'] ?? 'B2';
 
             if ($documentType === 'AC') {
-                $debitMovements->push($this->createInstallmentDebitMovement($installment));
-                $creditMovements->push($this->createInstallmentCreditMovement($installment));
+                $movementsOther->push($this->createInstallmentDebitMovement($installment));
+                $movementsOther->push($this->createInstallmentCreditMovement($installment));
             } else {
-                // B2/FF: Comprobante 1 + Comprobante 2
-                $debitMovements->push($this->createInstallmentDebitMovement($installment));
-                $creditMovements->push($this->createInstallmentCreditMovement($installment));
-                $debitMovements->push($this->createInstallmentPaymentDebitMovement($installment));
-                $creditMovements->push($this->createInstallmentPaymentCreditMovement($installment));
+                // Comprobante 2: cargo pagador (014) + abono boleta pagada (010)
+                $movements014->push($this->createInstallmentPaymentDebitMovement($installment));
+                $movements010->push($this->createInstallmentPaymentCreditMovement($installment));
             }
         }
 
-        // Combinar movimientos: primero todos los DEBE, luego todos los HABER
-        $movements = $debitMovements->concat($creditMovements);
+        // Agrupar por cuenta: 014, 034, 009, luego 010, luego otros
+        $movements = $movements014
+            ->concat($movements034)
+            ->concat($movements009)
+            ->concat($movements010)
+            ->concat($movementsOther);
 
         Log::info('SoftlandDataService: Movimientos generados', [
             'total_payments' => $payments->count(),
             'total_installments' => $installments->count(),
-            'total_debit_movements' => $debitMovements->count(),
-            'total_credit_movements' => $creditMovements->count(),
+            'total_014' => $movements014->count(),
+            'total_034' => $movements034->count(),
+            'total_009' => $movements009->count(),
+            'total_010' => $movements010->count(),
+            'total_other' => $movementsOther->count(),
             'total_movements' => $movements->count(),
-            'organization' => 'DEBE primero, luego HABER'
+            'organization' => '014, 034, 009, 010, otros'
         ]);
 
         return $movements;
@@ -450,6 +466,32 @@ class SoftlandDataService
     }
 
     /**
+     * Comprobante 2 - Cargo pagador presencial (DEBE) - Cuenta variable (034 o 009)
+     * Nro documento: código de autorización del pago offline
+     */
+    private function createPresentialDebitMovement(Payment $payment, string $accountCode): array
+    {
+        $orderDetail = $payment->orderDetail ?? $payment->order->orderDetails->first();
+        $payerName = $orderDetail ? ucwords(strtolower($orderDetail->name ?? '')) : '';
+        $paymentMethod = $this->getPaymentMethodCode($payment);
+        $authCode = $payment->authorization_code ?? (string) $payment->id;
+
+        return $this->buildMovementRow([
+            'codigo_plan_cuenta' => $accountCode,
+            'debe' => (int) abs($payment->amount),
+            'haber' => 0,
+            'descripcion_movimiento' => $payerName,
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
+            'tipo_documento' => $paymentMethod,
+            'nro_documento' => $authCode,
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'tipo_docto_referencia' => $paymentMethod,
+            'nro_docto_referencia' => $authCode,
+        ]);
+    }
+
+    /**
      * Comprobante 2 - Cargo pagador (DEBE) - Cuenta 1-1-02-014
      * Descripción: nombre del pagador solamente
      * Código auxiliar: RUT pagador sin DV
@@ -490,7 +532,7 @@ class SoftlandDataService
     private function createPaymentCreditMovement(Payment $payment): array
     {
         $participant = $payment->order->participant;
-        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
+        $participantName = $participant ? ucwords(strtolower($participant->full_name ?? '')) : '';
         $documentType = $payment->document_type ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? $payment->buy_order ?? $payment->id;
         $paymentMethod = $this->getPaymentMethodCode($payment);
@@ -500,7 +542,7 @@ class SoftlandDataService
             'codigo_plan_cuenta' => '1-1-02-010',
             'debe' => 0,
             'haber' => (int) abs($payment->amount),
-            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} {$paymentMethod}",
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} / {$paymentMethod}",
             'codigo_auxiliar' => $this->formatParticipantAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
@@ -624,11 +666,12 @@ class SoftlandDataService
      */
     private function getPaymentMethodCode($payment): string
     {
-        if ($payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos') {
-            return 'VP';
-        }
         if ($payment->paymentOption) {
-            $code = $payment->paymentOption->report_code ?? '';
+            $code = $payment->paymentOption->report_code ?? 'VP';
+            // PAT (suscripciones) debe ser VP en Softland
+            if ($code === 'PAT') {
+                return 'VP';
+            }
             // Softland solo acepta 2 letras
             return substr($code, 0, 2);
         }
@@ -640,15 +683,26 @@ class SoftlandDataService
      */
     private function getTransactionId($payment): string
     {
-        // Para Khipu usar external_payment_id
-        if ($payment->paymentOption && $payment->paymentOption->report_code === 'KP' && !empty($payment->external_payment_id)) {
-            return $payment->external_payment_id;
+        // Intentar obtener uuid del gateway_response de virtualpos
+        $gatewayResponse = $payment->gateway_response;
+        if (is_string($gatewayResponse)) {
+            $gatewayResponse = json_decode($gatewayResponse, true);
         }
-        // Para VP usar token/external_payment_id
+
+        // VirtualPos: uuid está en payment.order.uuid
+        $uuid = $gatewayResponse['payment']['order']['uuid'] ?? null;
+        if ($uuid) {
+            return substr($uuid, 0, 8);
+        }
+
+        // Khipu: usar external_payment_id
         if (!empty($payment->external_payment_id)) {
-            return $payment->external_payment_id;
+            return substr($payment->external_payment_id, 0, 8);
         }
-        return $payment->authorization_code ?? $payment->buy_order ?? (string) $payment->id;
+
+        // Fallback: authorization_code o buy_order
+        $fallback = $payment->authorization_code ?? $payment->buy_order ?? (string) $payment->id;
+        return substr($fallback, 0, 8);
     }
 
     /**
@@ -1288,7 +1342,8 @@ class SoftlandDataService
     {
         $query = \App\Models\Installment::with([
             'installmentPlan.participant',
-            'payment',  // Incluir el Payment para obtener authorization_code y document_type
+            'payment.paymentOption',
+            'payment.paymentGateway',
         ])
         ->where('is_paid', true);
 
@@ -1309,7 +1364,7 @@ class SoftlandDataService
 
         $installments = $query->orderBy('paid_at')->get();
 
-        // Transformar installments a formato estándar
+        // Transformar installments a formato estándar, filtrando solo suscripciones activas
         return $installments->map(function ($installment) {
             $plan = $installment->installmentPlan;
             $participant = $plan->participant ?? null;
@@ -1318,11 +1373,17 @@ class SoftlandDataService
             $programCourse = \App\Models\ProgramCourse::with('course.institution')->find($plan->program_id);
 
             // Obtener la suscripción para los datos del comprador
-            $subscription = \App\Models\ProgramSubscription::where('participant_id', $participant->id ?? null)
-                ->where('program_id', $plan->program_id)
-                ->first();
+            $subscription = $plan->programSubscription
+                ?? \App\Models\ProgramSubscription::where('participant_id', $participant->id ?? null)
+                    ->where('program_id', $plan->program_id)
+                    ->first();
 
-            $buyerData = $subscription?->buyer_data ?? [];
+            // Solo incluir si la suscripción está activa
+            if (!$subscription || $subscription->status !== 'ACTIVA') {
+                return null;
+            }
+
+            $buyerData = $subscription->buyer_data ?? [];
 
             return [
                 'installment_id' => $installment->id,
@@ -1333,11 +1394,11 @@ class SoftlandDataService
                 'program_course' => $programCourse,
                 'buyer_data' => $buyerData,
                 'virtualpos_charge_id' => $installment->virtualpos_charge_id,
-                'payment' => $installment->payment,  // Incluir el Payment completo
+                'payment' => $installment->payment,
                 'authorization_code' => $installment->payment?->authorization_code,
                 'document_type' => $installment->payment?->document_type ?? 'B2',
             ];
-        });
+        })->filter();
     }
 
     /**
@@ -1681,15 +1742,16 @@ class SoftlandDataService
             $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
         }
 
-        // Método de pago 2 letras
+        // Método de pago: suscripciones siempre VP
         $paymentMethod = 'VP';
-        if ($payment) {
-            $isVirtualPos = $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
-            $paymentMethod = $isVirtualPos ? 'VP' : substr($payment->paymentOption->report_code ?? 'VP', 0, 2);
+        if ($payment && $payment->paymentOption) {
+            $code = $payment->paymentOption->report_code ?? 'VP';
+            // PAT (suscripciones) debe ser VP
+            $paymentMethod = ($code === 'PAT') ? 'VP' : substr($code, 0, 2);
         }
 
-        // ID transacción
-        $transactionId = $payment->external_payment_id ?? ($payment->authorization_code ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id'])));
+        // ID transacción: primeros 8 dígitos del uuid de gateway_response
+        $transactionId = $this->getInstallmentTransactionId($installment);
 
         return $this->buildMovementRow([
             'codigo_plan_cuenta' => '1-1-02-014',
@@ -1723,20 +1785,20 @@ class SoftlandDataService
             $participantAuxiliarCode = $this->removeRutDV($participant->document_number);
         }
 
-        // Método de pago
+        // Método de pago: suscripciones siempre VP
         $paymentMethod = 'VP';
-        if ($payment) {
-            $isVirtualPos = $payment->paymentGateway && $payment->paymentGateway->code === 'virtualpos';
-            $paymentMethod = $isVirtualPos ? 'VP' : substr($payment->paymentOption->report_code ?? 'VP', 0, 2);
+        if ($payment && $payment->paymentOption) {
+            $code = $payment->paymentOption->report_code ?? 'VP';
+            $paymentMethod = ($code === 'PAT') ? 'VP' : substr($code, 0, 2);
         }
 
-        $transactionId = $payment->external_payment_id ?? ($payment->authorization_code ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id'])));
+        $transactionId = $this->getInstallmentTransactionId($installment);
 
         return $this->buildMovementRow([
             'codigo_plan_cuenta' => '1-1-02-010',
             'debe' => 0,
             'haber' => (int) abs($installment['amount']),
-            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} {$paymentMethod}",
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} / {$paymentMethod}",
             'codigo_auxiliar' => $participantAuxiliarCode,
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
@@ -1745,5 +1807,35 @@ class SoftlandDataService
             'tipo_docto_referencia' => $documentType,
             'nro_docto_referencia' => $boletaNumber,
         ]);
+    }
+
+    /**
+     * Obtiene el ID de transacción de un installment (primeros 8 dígitos del uuid)
+     */
+    private function getInstallmentTransactionId(array $installment): string
+    {
+        $payment = $installment['payment'] ?? null;
+
+        if ($payment) {
+            // Usar el uuid del gateway_response del payment
+            $gatewayResponse = $payment->gateway_response;
+            if (is_string($gatewayResponse)) {
+                $gatewayResponse = json_decode($gatewayResponse, true);
+            }
+
+            $uuid = $gatewayResponse['payment']['order']['uuid'] ?? null;
+            if ($uuid) {
+                return substr($uuid, 0, 8);
+            }
+        }
+
+        // Fallback: virtualpos_charge_id (quitar prefijo cid_)
+        $chargeId = $installment['virtualpos_charge_id'] ?? '';
+        if ($chargeId) {
+            $clean = str_replace('cid_', '', $chargeId);
+            return substr($clean, 0, 8);
+        }
+
+        return (string) $installment['installment_id'];
     }
 }

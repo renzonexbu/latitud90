@@ -48,8 +48,8 @@ class SoftlandZipExporter
             }
 
             // Generar timestamp para nombres únicos
-            $timestamp = now()->format('Y-m-d_H-i-s');
-            $zipFileName = "softland_completo_{$timestamp}.zip";
+            $timestamp = now()->format('Ymd_His');
+            $zipFileName = "softlandCompleto{$timestamp}.zip";
             $zipPath = "{$tempDir}/{$zipFileName}";
 
             // Crear archivo ZIP
@@ -98,7 +98,7 @@ class SoftlandZipExporter
     private function generateAuxiliaresFile(string $format, string $timestamp, array $filters = []): ?string
     {
         try {
-            $fileName = "auxiliares_softland_{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
+            $fileName = "auxiliaresSoftland{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
             $filePath = storage_path("app/temp/{$fileName}");
 
             // Obtener datos de auxiliares con filtros de fecha
@@ -205,7 +205,7 @@ class SoftlandZipExporter
     private function generateMovimientosFile(array $filters, string $format, string $timestamp): ?string
     {
         try {
-            $fileName = "movimientos_softland_{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
+            $fileName = "movimientosSoftland{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
             $filePath = storage_path("app/temp/{$fileName}");
 
             // Generar datos de movimientos directamente
@@ -435,7 +435,7 @@ class SoftlandZipExporter
     private function generateMovimientosB2File(array $filters, string $format, string $timestamp): ?string
     {
         try {
-            $fileName = "movimientos_b2_softland_{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
+            $fileName = "movimientosB2Softland{$timestamp}." . ($format === 'excel' ? 'xlsx' : 'csv');
             $filePath = storage_path("app/temp/{$fileName}");
 
             // Generar datos B2 usando el nuevo servicio
