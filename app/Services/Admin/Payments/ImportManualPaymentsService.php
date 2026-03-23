@@ -305,6 +305,11 @@ class ImportManualPaymentsService
         $tipoDocumento = $rawData['tipo_documento'] ?? $rowData['tipo_documento'] ?? null;
         $documentType = $this->resolveDocumentType($tipoDocumento, $paymentOption, $programCourse->id);
 
+        $cuotas = $rawData['cuotas'] ?? $rowData['cuotas'] ?? null;
+        if ($cuotas !== null) {
+            $cuotas = (int) $cuotas;
+        }
+
         $payment = Payment::create([
             'order_id' => $order->id,
             'order_detail_id' => $orderDetail->id,
@@ -318,13 +323,13 @@ class ImportManualPaymentsService
             // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
             'payment_code' => $documentType !== 'B2' ? $referencia : null,
             'bsale_number' => $documentType === 'B2' ? $referencia : null,
-            'installments_number' => $rowData['cuotas'] ?? null,
-            'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
+            'installments_number' => $cuotas,
+            'installment_amount' => $cuotas && $cuotas > 0 ? round($paymentAmount / $cuotas, 2) : null,
             'gateway_response' => [
                 'created_manually' => true,
                 'payment_type' => 'presential',
                 'import_row' => $rowNumber,
-                'installments' => $rowData['cuotas'] ?? null,
+                'installments' => $cuotas,
             ],
             'currency' => 'CLP',
             'document_type' => $documentType,
@@ -1482,6 +1487,11 @@ class ImportManualPaymentsService
             $tipoDocumento = $rowData['tipo_documento'] ?? null;
             $documentType = $this->resolveDocumentType($tipoDocumento, $paymentOption, $programCourse->id);
 
+            $cuotas = $rowData['cuotas'] ?? null;
+            if ($cuotas !== null) {
+                $cuotas = (int) $cuotas;
+            }
+
             $payment = Payment::create([
                 'order_id' => $order->id,
                 'order_detail_id' => $orderDetail->id,
@@ -1495,12 +1505,13 @@ class ImportManualPaymentsService
                 // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
                 'payment_code' => $documentType !== 'B2' ? $referencia : null,
                 'bsale_number' => $documentType === 'B2' ? $referencia : null,
-                'installments_number' => $rowData['cuotas'] ?? null,
-                'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
+                'installments_number' => $cuotas,
+                'installment_amount' => $cuotas && $cuotas > 0 ? round($paymentAmount / $cuotas, 2) : null,
                 'gateway_response' => [
                     'created_manually' => true,
                     'payment_type' => 'presential',
-                    'import_row' => $rowNumber
+                    'import_row' => $rowNumber,
+                    'installments' => $cuotas,
                 ],
                 'currency' => 'CLP',
                 'document_type' => $documentType,
