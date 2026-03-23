@@ -266,11 +266,7 @@ class ExecutivesPartialAccountService
                 $displayPrice = $price;
                 if (!$row->is_active) {
                     $saldo = 0;
-                    if ($abono >= $price) {
-                        $displayPrice = 0;
-                    } else {
-                        $displayPrice = $abono;
-                    }
+                    $displayPrice = min($price, $abono);
                 }
 
                 // Forma de pago

@@ -429,18 +429,12 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
      */
     protected function cancelOrphanedInstallments(ProgramSubscription $subscription): void
     {
-        // Buscar el plan de cuotas vinculado
-        $installmentPlan = InstallmentPlan::where('participant_id', $subscription->participant_id)
-            ->where('program_id', $subscription->program_id)
-            ->where('status', 'active')
-            ->whereBetween('created_at', [
-                $subscription->created_at->subSeconds(10),
-                $subscription->created_at->addSeconds(10)
-            ])
+        // Buscar el plan de cuotas vinculado directamente a esta suscripción
+        $installmentPlan = InstallmentPlan::where('program_subscription_id', $subscription->id)
             ->first();
 
         if (!$installmentPlan) {
-            // Intentar por order
+            // Fallback: buscar por order_id
             $order = $subscription->order;
             if ($order) {
                 $installmentPlan = $order->installmentPlan;
@@ -1483,6 +1477,22 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             ->where('installment_number', $installmentNumber)
             ->whereIn('status', ['pending', 'overdue'])
             ->first();
+
+        // Si no se encontró pendiente, buscar si fue cancelada erróneamente
+        if (!$installment) {
+            $installment = $installmentPlan->installments()
+                ->where('installment_number', $installmentNumber)
+                ->where('status', 'cancelled')
+                ->first();
+
+            if ($installment) {
+                Log::info('SyncSubscriptionPayments: Recuperando installment cancelada erróneamente', [
+                    'installment_id' => $installment->id,
+                    'installment_number' => $installmentNumber,
+                    'subscription_id' => $subscription->id
+                ]);
+            }
+        }
 
         if ($installment) {
             $installment->markAsPaid(

@@ -599,17 +599,11 @@ class ExportService
 
             // Ajuste para participantes DE BAJA:
             // - Saldo siempre es $0
-            // - Precio = lo que abonaron (si no pagaron todo) o $0 (si pagaron todo)
+            // - Precio = min(precio, abono) para no generar superávit
             $displayPrice = $price;
             if (!$pp->is_active) {
                 $saldo = 0;
-                // Si pagaron todo el monto del programa, precio = 0
-                // Si no pagaron todo, precio = lo que abonaron
-                if ($abono >= $price) {
-                    $displayPrice = 0;
-                } else {
-                    $displayPrice = $abono;
-                }
+                $displayPrice = min($price, $abono);
             }
 
             // Estado del participante en el programa

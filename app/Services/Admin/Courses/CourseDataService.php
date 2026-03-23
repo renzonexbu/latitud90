@@ -171,7 +171,7 @@ class CourseDataService
             // Ajuste para participantes de baja
             if (in_array($participant->id, $bajaParticipantIds)) {
                 $abono = $this->calculateParticipantAbono($participant->id, $programCourse->id);
-                $precio = ($abono >= $precio) ? 0 : $abono;
+                $precio = min($precio, $abono);
             }
 
             $totalAmount += $precio - $released;

@@ -315,14 +315,16 @@ class ImportManualPaymentsService
             'status' => 'approved',
             'transaction_date' => $paymentDate,
             'authorization_code' => $authorizationCode,
-            // payment_code SIEMPRE guarda la referencia manual ingresada
-            // bsale_number se llena SOLO cuando BSale genera la boleta automáticamente
-            'payment_code' => $referencia,
-            'bsale_number' => null,
+            // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
+            'payment_code' => $documentType !== 'B2' ? $referencia : null,
+            'bsale_number' => $documentType === 'B2' ? $referencia : null,
+            'installments_number' => $rowData['cuotas'] ?? null,
+            'installment_amount' => isset($rowData['cuotas']) && $rowData['cuotas'] > 0 ? round($paymentAmount / $rowData['cuotas'], 2) : null,
             'gateway_response' => [
                 'created_manually' => true,
                 'payment_type' => 'presential',
-                'import_row' => $rowNumber
+                'import_row' => $rowNumber,
+                'installments' => $rowData['cuotas'] ?? null,
             ],
             'currency' => 'CLP',
             'document_type' => $documentType,
@@ -1916,13 +1918,9 @@ class ImportManualPaymentsService
 
         foreach ($fieldMappings as $field => $possibleHeaders) {
             foreach ($normalizedHeaders as $index => $normalizedHeader) {
-                foreach ($possibleHeaders as $possibleHeader) {
-                    if ($normalizedHeader === $possibleHeader ||
-                        stripos($normalizedHeader, $possibleHeader) !== false ||
-                        stripos($possibleHeader, $normalizedHeader) !== false) {
-                        $indices[$field] = $index;
-                        break 2;
-                    }
+                if (in_array($normalizedHeader, $possibleHeaders, true)) {
+                    $indices[$field] = $index;
+                    break;
                 }
             }
         }
