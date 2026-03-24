@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mysql:*)"
+      "Bash(mysql:*)",
+      "Bash(grep -r \"participant.*course\\\\|course.*participant\" /Users/nexbuescl/Sites/latitud90/app/Jobs --include=*.php)"
     ]
   }
 }

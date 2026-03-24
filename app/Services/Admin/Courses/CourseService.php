@@ -1481,6 +1481,31 @@ class CourseService
                     'updated_at' => now(),
                 ]);
 
+            // También actualizar participant_course (tiene prioridad en ParticipantPriceHelper)
+            $courseId = $programCourse->course_id;
+            if ($courseId) {
+                $participantIds = DB::table('participant_program')
+                    ->where('program_id', $programCourse->id)
+                    ->pluck('participant_id');
+
+                if ($participantIds->isNotEmpty()) {
+                    $updatedPivotCount = DB::table('participant_course')
+                        ->whereIn('participant_id', $participantIds)
+                        ->where('course_id', $courseId)
+                        ->update([
+                            'individual_price' => $newPrice,
+                            'updated_at' => now(),
+                        ]);
+
+                    Log::info('Precios en participant_course actualizados', [
+                        'program_course_id' => $programCourse->id,
+                        'course_id' => $courseId,
+                        'new_price' => $newPrice,
+                        'updated_pivot_count' => $updatedPivotCount,
+                    ]);
+                }
+            }
+
             Log::info('Precios de participantes actualizados', [
                 'program_course_id' => $programCourse->id,
                 'new_price' => $newPrice,
