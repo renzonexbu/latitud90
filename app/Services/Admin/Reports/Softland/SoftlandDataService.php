@@ -27,6 +27,13 @@ class SoftlandDataService
         $query = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails', 'orderDetail', 'paymentGateway'])
             ->where('status', 'completed')
             ->whereIn('document_type', ['B2', 'AC'])
+            // Excluir pagos que ya se procesan como cuotas de suscripción (evitar duplicados)
+            ->whereNotIn('id', function ($q) {
+                $q->select('payment_id')
+                    ->from('installments')
+                    ->where('is_paid', true)
+                    ->whereNotNull('payment_id');
+            })
             ->when(isset($filters['dateFrom']), function ($q) use ($filters) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
             })
@@ -214,7 +221,7 @@ class SoftlandDataService
 
     /**
      * Crea el movimiento de cargo boleta (DEBE) - Comprobante 1
-     * Cuenta 1-1-02-010, código auxiliar = alumno sin DV, tipo doc = B2/FF
+     * Cuenta 1-1-02-010, código auxiliar = pagador/apoderado sin DV, tipo doc = B2/FF
      */
     private function createDebitMovement(Payment $payment): array
     {
@@ -247,7 +254,7 @@ class SoftlandDataService
             // Documentación (columnas 17-26)
             'tipo_docto_conciliacion' => '',
             'nro_docto_conciliacion' => '',
-            'codigo_auxiliar' => $this->formatParticipantAuxiliaryCode($payment),
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $documentType,
             'nro_documento' => $boletaNumber,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
@@ -523,7 +530,7 @@ class SoftlandDataService
     /**
      * Comprobante 2 - Abono boleta pagada (HABER) - Cuenta 1-1-02-010
      * Descripción: tipo+nro doc + nombre alumno + método pago
-     * Código auxiliar: RUT alumno sin DV
+     * Código auxiliar: RUT pagador/apoderado sin DV
      * Tipo doc: método de pago
      * Nro doc: ID transacción
      * Tipo doc referencia: B2/FF (tipo doc emitido)
@@ -543,7 +550,7 @@ class SoftlandDataService
             'debe' => 0,
             'haber' => (int) abs($payment->amount),
             'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} / {$paymentMethod}",
-            'codigo_auxiliar' => $this->formatParticipantAuxiliaryCode($payment),
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
@@ -637,17 +644,6 @@ class SoftlandDataService
         return strtoupper($clean);
     }
 
-    /**
-     * Código auxiliar del ALUMNO (participant) sin DV
-     */
-    private function formatParticipantAuxiliaryCode($payment): string
-    {
-        $participant = $payment->order->participant ?? null;
-        if (!$participant || !$participant->document_number) {
-            return '';
-        }
-        return $this->removeRutDV($participant->document_number);
-    }
 
     /**
      * Código auxiliar del PAGADOR (order_detail) sin DV
