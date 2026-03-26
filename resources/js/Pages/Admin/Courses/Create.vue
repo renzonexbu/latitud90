@@ -1028,16 +1028,11 @@ const fullPaymentChoices = computed(() => {
         return fullPaymentChoicesBase;
     }
 
+    // Tarjeta de crédito: cuenta por mes calendario, no por días exactos
+    // Marzo → Agosto = 6 meses (incluye mes actual y mes de salida)
     const now = new Date();
-    now.setHours(0, 0, 0, 0); // Normalizar a inicio del día
-    const end = new Date(form.value.departure_date + 'T00:00:00');
-
-    // Calcular días exactos de diferencia
-    const diffTime = end.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    // Cada cuota = 30 días aproximadamente
-    const availableMonths = Math.max(0, Math.floor(diffDays / 30));
+    const [year, month] = form.value.departure_date.split('-').map(Number);
+    const availableMonths = Math.max(0, (year - now.getFullYear()) * 12 + (month - (now.getMonth() + 1)) + 1);
 
     return fullPaymentChoicesBase.filter(option => {
         if (option.installments === null || option.installments === 0) {

@@ -120,13 +120,12 @@ class Kernel extends ConsoleKernel
         //     ->runInBackground()
         //     ->appendOutputTo($this->getScheduleLogPath('system_health'));
 
-        // // Actualizar opciones de pago diariamente a las 6:00 AM
-        // // NOTA: Puede no ser necesario si el cálculo se hace al cargar pasarela
-        // $schedule->command('payment-options:update')
-        //     ->dailyAt('06:00')
-        //     ->withoutOverlapping()
-        //     ->runInBackground()
-        //     ->appendOutputTo($this->getScheduleLogPath('payment_options_update'));
+        // Actualizar opciones de pago diariamente a las 6:00 AM
+        $schedule->command('payment-options:update')
+            ->dailyAt('06:00')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo($this->getScheduleLogPath('payment_options_update'));
 
         // // Reporte mensual de participantes sin pagos
         // $schedule->command('participants:monthly-without-payments')

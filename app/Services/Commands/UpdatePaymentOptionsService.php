@@ -73,10 +73,11 @@ class UpdatePaymentOptionsService
         $departureDate = Carbon::parse($programCourse->departure_date);
         $finalPaymentDate = Carbon::parse($programCourse->final_payment_date);
 
-        // Para pago total: días hasta fecha de salida
-        $availableMonthsForFullPayment = $this->calculateAvailableMonths($today, $departureDate);
+        // Para pago total (tarjeta de crédito): cuenta por mes calendario
+        // Marzo → Agosto = 6 meses (el día exacto no importa, solo el mes)
+        $availableMonthsForFullPayment = $this->calculateAvailableMonthsByCalendar($today, $departureDate);
 
-        // Para suscripción: días hasta fecha final de pago
+        // Para suscripción (PAT): cuenta por días exactos (cada 30 días)
         $availableMonthsForSubscription = $this->calculateAvailableMonths($today, $finalPaymentDate);
 
         // Actualizar opciones de pago existentes (NO crear nuevas)
@@ -91,25 +92,35 @@ class UpdatePaymentOptionsService
     }
     
     /**
-     * Calcular cuotas disponibles hasta la fecha final de pago
-     * Usa días exactos: cada cuota = 30 días aproximadamente
-     *
-     * La fórmula incluye +1 porque la primera cuota se paga el día de suscripción (día 0),
-     * y luego cada 30 días se paga la siguiente cuota.
-     * Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
+     * Calcular meses disponibles por calendario (para pago total / tarjeta de crédito)
+     * Solo cuenta la diferencia en meses, sin importar el día exacto.
+     * Ejemplo: Marzo 2026 → Agosto 2026 = 6 meses (incluye mes actual y mes destino)
+     */
+    private function calculateAvailableMonthsByCalendar(Carbon $today, Carbon $departureDate): int
+    {
+        if ($departureDate->lt($today)) {
+            return 0;
+        }
+
+        // Diferencia en meses calendario + 1 (incluye mes actual)
+        $diffMonths = ($departureDate->year - $today->year) * 12 + ($departureDate->month - $today->month);
+
+        return $diffMonths + 1;
+    }
+
+    /**
+     * Calcular cuotas disponibles por días exactos (para suscripción / PAT)
+     * Cada cuota = 30 días aproximadamente.
+     * +1 porque la primera cuota se paga el día 0 (hoy).
      */
     private function calculateAvailableMonths(Carbon $today, Carbon $finalPaymentDate): int
     {
-        // Calcular días exactos de diferencia
         $diffDays = $today->diffInDays($finalPaymentDate, false);
 
-        // Si la fecha ya pasó, no hay cuotas disponibles
         if ($diffDays < 0) {
             return 0;
         }
 
-        // Cada cuota = 30 días aproximadamente
-        // +1 porque la primera cuota se paga el día 0 (hoy)
         return (int) floor($diffDays / 30) + 1;
     }
     

@@ -186,7 +186,9 @@ class ProgramDetailService
         // Calcular cuotas disponibles en tiempo real
         // Para pago total: usar departure_date como referencia
         // Para suscripción: usar final_payment_date como referencia
-        $availableInstallmentsForFull = $this->calculateAvailableInstallments($programCourse->departure_date);
+        // Tarjeta de crédito: cuenta por mes calendario (marzo→agosto = 6)
+        $availableInstallmentsForFull = $this->calculateAvailableMonthsByCalendar($programCourse->departure_date);
+        // Suscripción/PAT: cuenta por días exactos (cada 30 días)
         $availableInstallmentsForSubscription = $this->calculateAvailableInstallments($programCourse->final_payment_date);
 
         Log::info('ProgramDetail: Cuotas calculadas en tiempo real', [
@@ -325,10 +327,31 @@ class ProgramDetailService
     }
 
     /**
-     * Calcular cuotas disponibles hasta una fecha límite
-     * La fórmula incluye +1 porque la primera cuota se paga el día de suscripción (día 0),
-     * y luego cada 30 días se paga la siguiente cuota.
-     * Ejemplo: 184 días = floor(184/30) + 1 = 6 + 1 = 7 cuotas
+     * Calcular meses disponibles por calendario (para pago total / tarjeta de crédito)
+     * Solo cuenta la diferencia en meses, sin importar el día exacto.
+     * Ejemplo: Marzo 2026 → Agosto 2026 = 6 meses
+     */
+    private function calculateAvailableMonthsByCalendar(?string $endDate): int
+    {
+        if (!$endDate) {
+            return 12;
+        }
+
+        $today = Carbon::today()->setTimezone('America/Santiago');
+        $departureDate = Carbon::parse($endDate)->setTimezone('America/Santiago');
+
+        if ($departureDate->lt($today)) {
+            return 0;
+        }
+
+        $diffMonths = ($departureDate->year - $today->year) * 12 + ($departureDate->month - $today->month);
+
+        return min(12, $diffMonths + 1);
+    }
+
+    /**
+     * Calcular cuotas disponibles por días exactos (para suscripción / PAT)
+     * Cada cuota = 30 días. +1 porque la primera se paga el día 0.
      */
     private function calculateAvailableInstallments(?string $endDate): int
     {

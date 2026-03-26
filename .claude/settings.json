@@ -15,7 +15,8 @@
       "Bash(grep -rn \"FECHA INICIO\\\\|fecha_inicio\\\\|fechaInicio\\\\|departure_date\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Courses --include=*.vue)",
       "Bash(grep -rn \"departure_date\\\\|FECHA INICIO\\\\|fecha.*inicio\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin --include=*.vue)",
       "Bash(grep -rn \"PaymentOptionsProgramFilters\\\\|PaymentOptionsProgram\\\\|departure_date\\\\|FECHA\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Courses --include=*.vue)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(sqlite3 :memory:)"
     ]
   }
 }
