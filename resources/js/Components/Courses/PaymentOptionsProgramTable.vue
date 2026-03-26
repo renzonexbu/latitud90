@@ -103,12 +103,11 @@ export default {
     methods: {
         formatDate(dateString) {
             if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('es-CL', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
+            // Extraer solo YYYY-MM-DD para evitar conversión UTC → Chile que resta un día
+            const dateOnly = String(dateString).split('T')[0].split(' ')[0];
+            const [year, month, day] = dateOnly.split('-');
+            if (!year || !month || !day) return 'N/A';
+            return `${day}-${month}-${year}`;
         },
         formatPrice(price) {
             if (!price) return '0';
