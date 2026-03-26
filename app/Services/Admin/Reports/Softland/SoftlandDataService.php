@@ -1770,15 +1770,25 @@ class SoftlandDataService
     private function createInstallmentPaymentCreditMovement(array $installment): array
     {
         $participant = $installment['participant'];
-        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
+        $buyerData = $installment['buyer_data'] ?? [];
         $payment = $installment['payment'] ?? null;
         $documentType = $installment['document_type'] ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
 
-        // RUT alumno sin DV
-        $participantAuxiliarCode = '';
-        if ($participant && $participant->document_number) {
-            $participantAuxiliarCode = $this->removeRutDV($participant->document_number);
+        // Nombre del pagador (buyer_data), fallback al participante
+        $payerName = '';
+        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+            $payerName = ucwords(strtolower($buyerData['first_name'])) . ' ' . ucwords(strtolower($buyerData['first_last_name']));
+        } elseif ($participant) {
+            $payerName = $participant->full_name ?? 'N/A';
+        }
+
+        // RUT pagador (buyer_data) sin DV, fallback al participante
+        $payerAuxiliarCode = '';
+        if (!empty($buyerData['document_number'])) {
+            $payerAuxiliarCode = $this->removeRutDV($buyerData['document_number']);
+        } elseif ($participant && $participant->document_number) {
+            $payerAuxiliarCode = $this->removeRutDV($participant->document_number);
         }
 
         // Método de pago: suscripciones siempre VP
@@ -1794,8 +1804,8 @@ class SoftlandDataService
             'codigo_plan_cuenta' => '1-1-02-010',
             'debe' => 0,
             'haber' => (int) abs($installment['amount']),
-            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} / {$paymentMethod}",
-            'codigo_auxiliar' => $participantAuxiliarCode,
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$payerName} / {$paymentMethod}",
+            'codigo_auxiliar' => $payerAuxiliarCode,
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($installment['paid_at']),

@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(mysql:*)",
-      "Bash(grep -r \"participant.*course\\\\|course.*participant\" /Users/nexbuescl/Sites/latitud90/app/Jobs --include=*.php)"
+      "Bash(grep -r \"participant.*course\\\\|course.*participant\" /Users/nexbuescl/Sites/latitud90/app/Jobs --include=*.php)",
+      "Bash(find . -name \"*.php\" -type f -exec grep -l \"refund\\\\|nota de crédito\\\\|credit note\\\\|NC\\\\|VC\" {})",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(grep -r \"medio de pago\\\\|medio_de_pago\\\\|MedioPago\\\\|payment_method\" /Users/nexbuescl/Sites/latitud90/app --include=*.php -l)",
+      "Bash(grep -r \"cuotas\\\\|installments\\\\|tarjeta.*credito\\\\|credit.*card\\\\|6.*cuotas\\\\|cuotas_sin_interes\" /Users/nexbuescl/Sites/latitud90/app --include=*.php -l)",
+      "Bash(grep -r \"fecha.*inicio\\\\|trip_date\\\\|departure_date\\\\|program_date\\\\|programas.*medio\\\\|medio.*pago\" /Users/nexbuescl/Sites/latitud90/resources/js --include=*.tsx --include=*.jsx --include=*.vue -rl)",
+      "Bash(grep -r \"Programas por medio\\\\|payment_method\\\\|medio.*pago\\\\|programas.*pago\" /Users/nexbuescl/Sites/latitud90/resources/js --include=*.tsx --include=*.jsx --include=*.vue -rl)",
+      "Bash(grep -r \"fecha_inicio\\\\|trip_date\\\\|departure_date\\\\|fechaInicio\\\\|fechaDeInicio\" /Users/nexbuescl/Sites/latitud90/resources/js --include=*.vue --include=*.tsx --include=*.jsx -rn)",
+      "Bash(grep -rn \"departure_date\\\\|fechaInicio\\\\|fecha.*inicio\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin --include=*.vue --include=*.tsx)",
+      "Bash(grep -rn \"FECHA INICIO\\\\|fecha_inicio\\\\|fechaInicio\\\\|departure_date\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Courses --include=*.vue)",
+      "Bash(grep -rn \"departure_date\\\\|FECHA INICIO\\\\|fecha.*inicio\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin --include=*.vue)",
+      "Bash(grep -rn \"PaymentOptionsProgramFilters\\\\|PaymentOptionsProgram\\\\|departure_date\\\\|FECHA\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Courses --include=*.vue)",
+      "Bash(npm run:*)"
     ]
   }
 }
