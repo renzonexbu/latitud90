@@ -225,10 +225,9 @@ class SoftlandDataService
      */
     private function createDebitMovement(Payment $payment): array
     {
-        $participant = $payment->order->participant;
         $documentType = $payment->document_type ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? $payment->buy_order ?? $payment->id;
-        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
+        $participantName = $this->getPayerName($payment);
 
         return [
             // Información básica
@@ -538,8 +537,7 @@ class SoftlandDataService
      */
     private function createPaymentCreditMovement(Payment $payment): array
     {
-        $participant = $payment->order->participant;
-        $participantName = $participant ? ucwords(strtolower($participant->full_name ?? '')) : '';
+        $payerName = $this->getPayerName($payment);
         $documentType = $payment->document_type ?? 'B2';
         $boletaNumber = $payment->bsale_number ?? $payment->buy_order ?? $payment->id;
         $paymentMethod = $this->getPaymentMethodCode($payment);
@@ -549,7 +547,7 @@ class SoftlandDataService
             'codigo_plan_cuenta' => '1-1-02-010',
             'debe' => 0,
             'haber' => (int) abs($payment->amount),
-            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$participantName} / {$paymentMethod}",
+            'descripcion_movimiento' => "{$documentType}-{$boletaNumber} {$payerName} / {$paymentMethod}",
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
@@ -658,6 +656,45 @@ class SoftlandDataService
     }
 
     /**
+     * Obtiene el nombre del pagador desde buyer_data (suscripciones/installments), fallback al participante
+     */
+    private function getBuyerNameFromData(array $buyerData, $participant): string
+    {
+        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
+            $name = $buyerData['first_name'] . ' ' . $buyerData['first_last_name'];
+            if (!empty($buyerData['second_last_name'])) {
+                $name .= ' ' . $buyerData['second_last_name'];
+            }
+            return mb_convert_case(trim($name), MB_CASE_TITLE, 'UTF-8');
+        }
+
+        if ($participant && !empty($participant->full_name)) {
+            return mb_convert_case(trim($participant->full_name), MB_CASE_TITLE, 'UTF-8');
+        }
+
+        return '';
+    }
+
+    /**
+     * Obtiene el nombre del pagador/apoderado desde orderDetail, fallback al participante
+     */
+    private function getPayerName(Payment $payment): string
+    {
+        $orderDetail = $payment->order?->orderDetails?->first();
+
+        if ($orderDetail && !empty($orderDetail->name)) {
+            return mb_convert_case(trim($orderDetail->name), MB_CASE_TITLE, 'UTF-8');
+        }
+
+        $participant = $payment->order?->participant;
+        if ($participant && !empty($participant->full_name)) {
+            return mb_convert_case(trim($participant->full_name), MB_CASE_TITLE, 'UTF-8');
+        }
+
+        return '';
+    }
+
+    /**
      * Obtiene el método de pago en 2 letras para Softland
      */
     private function getPaymentMethodCode($payment): string
@@ -746,7 +783,7 @@ class SoftlandDataService
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna Q - vacía
             'nro_docto_conciliacion' => '', // Columna R - vacía
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
             'tipo_documento' => 'NC', // Columna T - Nota de crédito
             'nro_documento' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna U - bsale_number
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
@@ -865,7 +902,7 @@ class SoftlandDataService
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna Q - vacía
             'nro_docto_conciliacion' => '', // Columna R - vacía
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
             'tipo_documento' => '', // Columna T - vacío para HABER
             'nro_documento' => '', // Columna U - vacío para HABER
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
@@ -1056,7 +1093,7 @@ class SoftlandDataService
             // Documentación (columnas 17-26)
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, o payment_option.report_code
             'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
@@ -1183,7 +1220,7 @@ class SoftlandDataService
             // Documentación
             'tipo_docto_conciliacion' => '', // Columna 17 - vacía
             'nro_docto_conciliacion' => '', // Columna 18 - vacía
-            'codigo_auxiliar' => $this->formatAuxiliaryCode($payment), // Columna 19 - mismo que haber
+            'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, AC por defecto
             'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
             'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
@@ -1403,7 +1440,6 @@ class SoftlandDataService
     private function createInstallmentDebitMovement(array $installment): array
     {
         $participant = $installment['participant'];
-        $participantName = $participant ? ($participant->full_name ?? 'N/A') : 'N/A';
         $buyerData = $installment['buyer_data'];
 
         // Código auxiliar del ALUMNO sin DV
@@ -1421,17 +1457,14 @@ class SoftlandDataService
         // Si el Payment tiene document_type='AC', usar cuenta 014, sino 010
         $accountCode = ($documentType === 'AC') ? '1-1-02-014' : '1-1-02-010';
 
+        // Nombre del pagador (buyer_data), fallback al participante
+        $buyerName = $this->getBuyerNameFromData($buyerData, $participant);
+
         // Descripción según tipo
         if ($documentType === 'AC') {
-            $buyerName = '';
-            if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
-                $buyerName = ucwords(strtolower($buyerData['first_name'])) . ' ' . ucwords(strtolower($buyerData['first_last_name']));
-            } elseif ($participant) {
-                $buyerName = $participantName;
-            }
             $description = $buyerName;
         } else {
-            $description = "{$documentType}-{$boletaNumber} {$participantName}";
+            $description = "{$documentType}-{$boletaNumber} {$buyerName}";
         }
 
         return [
@@ -1776,12 +1809,7 @@ class SoftlandDataService
         $boletaNumber = $payment->bsale_number ?? ($installment['virtualpos_charge_id'] ?? ('INST-' . $installment['installment_id']));
 
         // Nombre del pagador (buyer_data), fallback al participante
-        $payerName = '';
-        if (!empty($buyerData['first_name']) && !empty($buyerData['first_last_name'])) {
-            $payerName = ucwords(strtolower($buyerData['first_name'])) . ' ' . ucwords(strtolower($buyerData['first_last_name']));
-        } elseif ($participant) {
-            $payerName = $participant->full_name ?? 'N/A';
-        }
+        $payerName = $this->getBuyerNameFromData($buyerData, $participant);
 
         // RUT pagador (buyer_data) sin DV, fallback al participante
         $payerAuxiliarCode = '';
