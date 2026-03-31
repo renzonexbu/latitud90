@@ -12,7 +12,6 @@ use App\Models\ParticipantProgram;
 use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Traits\AdminLogging;
-use App\Helpers\RutHelper;
 use App\Helpers\InstallmentRoundingHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,17 +30,18 @@ class ImportRefundsService
      */
     private array $fieldMappings = [
         // Requeridos
-        'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno', 'rut participante'],
+        'rut' => ['rut', 'rut alumno', 'rut alumno (a)', 'rut_alumno', 'rut participante', 'nro. de documento', 'nro de documento', 'numero de documento', 'nro documento cliente', 'documento'],
         'nro_negocio' => ['nro. negocio', 'nro negocio', 'numero negocio', 'numero de negocio'],
         'monto' => ['monto', 'total', 'valor', 'precio'],
         'fecha' => ['fecha', 'fecha de pago', 'fecha pago', 'fecha_pago'],
-        'tipo_reembolso' => ['tipo reembolso', 'tipo de reembolso', 'tipo'],
+        'tipo_reembolso' => ['tipo reembolso', 'tipo de reembolso'],
 
         // Opcionales
         'aplicar_a' => ['aplicar a', 'aplicar', 'aplicar a:'],
         'cod_sii' => ['cod. sii', 'codigo sii', 'cod sii', 'código sii'],
         'n_documento' => ['n. documento', 'nro documento', 'numero documento', 'nro. documento', 'n documento'],
         'nombre_cliente' => ['nombre del cliente', 'nombre cliente', 'nombre', 'nombre del participante'],
+        'tipo_documento_cliente' => ['tipo de doc.', 'tipo de doc', 'tipo doc.', 'tipo doc', 'tipo documento', 'tipo de documento', 'tipo_documento', 'tipo documento cliente', 'tipo doc cliente', 'tipo_documento_cliente', 'document type'],
         'notas' => ['notas', 'observaciones', 'nota'],
     ];
 
@@ -297,6 +297,7 @@ class ImportRefundsService
                 return strtolower(trim($cell ?? ''));
             }, $row);
 
+            Log::info("Fila {$rowIndex} headers raw: " . json_encode($normalizedRow, JSON_UNESCAPED_UNICODE));
             $indices = $this->getColumnIndices($normalizedRow);
 
             // Verificar que al menos 4 de 5 campos requeridos estén presentes
@@ -328,9 +329,14 @@ class ImportRefundsService
                 if (empty($normalizedHeader)) continue;
 
                 foreach ($possibleHeaders as $possibleHeader) {
+                    // Normalizar puntos para comparación (ej: "n. documento" == "n documento")
+                    $cleanHeader = str_replace('.', '', $normalizedHeader);
+                    $cleanPossible = str_replace('.', '', $possibleHeader);
+
                     if ($normalizedHeader === $possibleHeader ||
-                        stripos($normalizedHeader, $possibleHeader) !== false ||
-                        stripos($possibleHeader, $normalizedHeader) !== false) {
+                        $cleanHeader === $cleanPossible ||
+                        // Solo match parcial si el posible header tiene 5+ chars (evita matches genéricos como 'tipo')
+                        (strlen($possibleHeader) >= 5 && stripos($normalizedHeader, $possibleHeader) !== false)) {
                         $indices[$field] = $index;
                         break 2;
                     }
@@ -436,7 +442,7 @@ class ImportRefundsService
             }
 
             // Construir enrollment_code: RUT-NroNegocio
-            $cleanRut = RutHelper::clean(trim($rowData['rut']));
+            $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
             $nroNegocio = trim($rowData['nro_negocio']);
             $enrollmentCode = $cleanRut . '-' . $nroNegocio;
 
@@ -535,7 +541,7 @@ class ImportRefundsService
             }
 
             // Construir enrollment_code: RUT-NroNegocio
-            $cleanRut = RutHelper::clean(trim($rowData['rut']));
+            $cleanRut = str_replace(['.', '-', ' '], '', trim($rowData['rut']));
             $nroNegocio = trim($rowData['nro_negocio']);
             $enrollmentCode = $cleanRut . '-' . $nroNegocio;
 
@@ -604,6 +610,9 @@ class ImportRefundsService
             $siiCodeFinal = $siiCode ?: $paymentCode;
             $documentNumberFinal = $documentNumber ?: $paymentCode;
 
+            // Resolver tipo de documento del cliente (RUT por defecto)
+            $clientDocumentTypeId = $this->resolveClientDocumentType($rowData['tipo_documento_cliente'] ?? null);
+
             $refundData = [
                 'program_id' => $programCourseId,
                 'participant_id' => $participantProgram->participant_id,
@@ -613,6 +622,7 @@ class ImportRefundsService
                 'sii_code' => $siiCodeFinal,
                 'document_number' => $documentNumberFinal,
                 'total_amount' => $refundAmount,
+                'client_document_type' => $clientDocumentTypeId,
                 'client_rut' => $cleanRut,
                 'client_name' => $clientName,
                 'refund_type' => $refundTypeInfo['refund_type'],
@@ -685,7 +695,7 @@ class ImportRefundsService
         }
 
         // Validar RUT
-        $cleanRut = RutHelper::clean($data['rut']);
+        $cleanRut = str_replace(['.', '-', ' '], '', trim($data['rut']));
         Log::info("RUT limpio en fila {$rowNumber}: " . $data['rut'] . " -> " . $cleanRut);
 
         Log::info("Validación de fila {$rowNumber} exitosa");
@@ -838,5 +848,23 @@ class ImportRefundsService
         }
 
         return $rows;
+    }
+
+    /**
+     * Resuelve el tipo de documento del cliente desde el Excel.
+     * Acepta: RUT, PASAPORTE, DNI. Default: RUT (id=1).
+     */
+    private function resolveClientDocumentType(?string $tipo): ?int
+    {
+        if (empty($tipo)) {
+            // Default: RUT
+            $doc = \App\Models\Document::where('name', 'RUT')->first();
+            return $doc?->id;
+        }
+
+        $tipo = strtoupper(trim($tipo));
+        $doc = \App\Models\Document::whereRaw('UPPER(name) = ?', [$tipo])->first();
+
+        return $doc?->id;
     }
 }

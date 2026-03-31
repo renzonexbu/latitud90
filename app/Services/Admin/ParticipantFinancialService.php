@@ -40,6 +40,8 @@ class ParticipantFinancialService
         $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
         $basePrice = (float) ($priceData['base_price'] ?? 0);
         $discounts = (float) ($priceData['discounts'] ?? 0);
+        $regularDiscounts = (float) ($priceData['regular_discounts'] ?? $discounts);
+        $releasedDiscounts = (float) ($priceData['released_discounts'] ?? 0);
         $netAmount = (float) ($priceData['final_price'] ?? ($basePrice - $discounts));
 
         // 2. Estado de baja
@@ -73,6 +75,8 @@ class ParticipantFinancialService
         return [
             'base_price' => $basePrice,
             'discounts' => $discounts,
+            'regular_discounts' => $regularDiscounts,
+            'released_discounts' => $releasedDiscounts,
             'net_amount' => $netAmount,
             'total_paid' => $totalPaid,
             'pending_amount' => $pendingAmount,
@@ -115,6 +119,8 @@ class ParticipantFinancialService
         return [
             'base_price' => 0,
             'discounts' => 0,
+            'regular_discounts' => 0,
+            'released_discounts' => 0,
             'net_amount' => 0,
             'total_paid' => 0,
             'pending_amount' => 0,

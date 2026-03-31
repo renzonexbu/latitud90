@@ -86,8 +86,27 @@ class CreateRefundService
                 $data['amount']
             );
 
-            // Actualizar estado de la orden
+            // Actualizar estado de la orden del reembolso
             $order->refreshStatus();
+
+            // Si el reembolso cubre todo lo pagado, actualizar la(s) orden(es) original(es)
+            // para que el participante quede liberado para un nuevo pago
+            if ($newPaidAmount <= 0) {
+                $originalOrders = Order::where('participant_id', $participant->id)
+                    ->where('program_id', $programCourse->id)
+                    ->where('id', '!=', $order->id)
+                    ->where('status', 'paid')
+                    ->get();
+
+                foreach ($originalOrders as $originalOrder) {
+                    $originalOrder->update(['status' => 'refunded']);
+                    OrderDetail::where('order_id', $originalOrder->id)
+                        ->where('is_paid', true)
+                        ->update(['is_paid' => false, 'status' => 'cancelled']);
+
+                    Log::info("Orden original #{$originalOrder->id} marcada como refunded por reembolso total");
+                }
+            }
 
             DB::commit();
 
@@ -367,7 +386,7 @@ class CreateRefundService
             'code_phone' => '+56',
             'phone' => null,
             // Tipo de documento del cliente
-            'document_type' => null,
+            'document_type' => $data['client_document_type'] ?? null,
             'document_number' => $data['client_rut'] ?? null,
             
             // Información de la cuota (para reembolsos, usamos valores por defecto)

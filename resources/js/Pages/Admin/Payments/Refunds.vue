@@ -51,27 +51,53 @@
                             <!-- SECCIÓN 1: DATOS DEL CLIENTE -->
                             <div class="border-b border-gray-200 pb-6">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-6">Datos del Cliente</h3>
-                                
+
+                                <!-- Tipo de Documento -->
+                                <div class="mb-6">
+                                    <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal mb-3 block">
+                                        Tipo de documento *
+                                    </label>
+                                    <div class="flex gap-6">
+                                        <label class="flex items-center gap-3 cursor-pointer group" v-for="docType in ['RUT', 'Pasaporte', 'DNI']" :key="docType">
+                                            <div class="relative">
+                                                <input
+                                                    type="radio"
+                                                    name="clientDocumentType"
+                                                    :value="getDocumentTypeId(docType)"
+                                                    v-model="clientForm.documentType"
+                                                    class="sr-only peer"
+                                                />
+                                                <div class="w-5 h-5 border-2 border-[#5B5B5B] rounded-full peer-checked:border-[#FBBD51] peer-checked:bg-[#FBBD51] transition-all duration-200 flex items-center justify-center">
+                                                    <div class="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                                                </div>
+                                            </div>
+                                            <span class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal group-hover:text-[#FBBD51] transition-colors duration-200">
+                                                {{ docType }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <!-- RUT del Cliente -->
+                                    <!-- Número de Documento -->
                                     <div class="flex flex-col gap-[12px]">
                                         <label class="text-[#434343] font-nexa text-[14px] leading-[18px] font-normal">
-                                            RUT del Cliente *
+                                            {{ getDocumentLabel() }} *
                                         </label>
                                         <input
                                             type="text"
-                                            placeholder="Ej: 12.345.678-9"
+                                            :placeholder="getDocumentPlaceholder()"
                                             :class="[
                                                 'w-full h-[46px] bg-white rounded-lg border px-4 py-2 text-left font-nexa-bold text-[12px] leading-[18px] font-bold outline-none placeholder-[#c7c7c7]',
-                                                rutValidation.isValid === false ? 'border-red-500' : '',
-                                                rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]',
+                                                isRutDocument && rutValidation.isValid === false ? 'border-red-500' : '',
+                                                isRutDocument && rutValidation.isValid === true ? 'border-green-500' : 'border-[#5B5B5B]',
                                             ]"
-                                            v-model="clientForm.rut"
-                                            @input="handleRutInput"
-                                            @blur="handleRutBlur"
+                                            v-model="clientForm.documentNumber"
+                                            @input="isRutDocument ? handleRutInput() : null"
+                                            @blur="isRutDocument ? handleRutBlur() : null"
                                         />
                                         <div
-                                            v-if="rutValidation.message"
+                                            v-if="isRutDocument && rutValidation.message"
                                             class="text-xs mt-1 validation-message"
                                             :class="[
                                                 rutValidation.isValid === true ? 'text-green-500' : 'text-red-500',
@@ -503,9 +529,17 @@ const props = defineProps({
 
 // Formulario de datos del cliente
 const clientForm = reactive({
-    rut: "",
+    documentType: null,
+    documentNumber: "",
     name: "",
 });
+
+// Inicializar tipo de documento por defecto (RUT)
+const initDocumentType = () => {
+    const rutType = props.documentTypes.find(d => d.name.toLowerCase() === 'rut');
+    if (rutType) clientForm.documentType = rutType.id;
+};
+initDocumentType();
 
 // Formulario de información del reembolso
 const form = useForm({
@@ -581,12 +615,12 @@ const updateRefundType = () => {
 };
 
 const filteredComunes = computed(() => {
-    if (!buyerForm.region) {
+    if (!clientForm.region) {
         return [];
     }
 
     const selectedRegion = props.regions.find(
-        (r) => r.id == buyerForm.region
+        (r) => r.id == clientForm.region
     );
 
     if (!selectedRegion || !selectedRegion.comunes) {
@@ -597,9 +631,9 @@ const filteredComunes = computed(() => {
 });
 
 const isRutDocument = computed(() => {
-    if (!buyerForm.documentType) return false;
+    if (!clientForm.documentType) return false;
     const selectedDocType = props.documentTypes.find(
-        (doc) => doc.id == buyerForm.documentType
+        (doc) => doc.id == clientForm.documentType
     );
     return (
         selectedDocType && selectedDocType.name.toLowerCase() === "rut"
@@ -608,14 +642,16 @@ const isRutDocument = computed(() => {
 
 const isFormValid = computed(() => {
     const clientValidations = {
-        rut: clientForm.rut.trim() !== "",
+        documentType: clientForm.documentType !== null,
+        documentNumber: clientForm.documentNumber.trim() !== "",
         name: clientForm.name.trim() !== "",
     };
 
     const clientValidation = Object.values(clientValidations).every(
         (v) => v === true
     );
-    const rutOk = rutValidation.isValid === true;
+    // Solo validar RUT si el tipo de documento es RUT
+    const rutOk = isRutDocument.value ? rutValidation.isValid === true : true;
     
     // Validar también los campos del formulario de reembolso
     const refundValidations = {
@@ -636,11 +672,18 @@ const isFormValid = computed(() => {
 });
 
 // Methods
+const getDocumentTypeId = (typeName) => {
+    const docType = props.documentTypes.find(
+        (d) => d.name.toLowerCase() === typeName.toLowerCase()
+    );
+    return docType ? docType.id : null;
+};
+
 const getDocumentLabel = () => {
-    if (!buyerForm.documentType) return "Número de documento";
+    if (!clientForm.documentType) return "Número de documento";
 
     const selectedDocType = props.documentTypes.find(
-        (doc) => doc.id == buyerForm.documentType
+        (doc) => doc.id == clientForm.documentType
     );
 
     return selectedDocType
@@ -649,11 +692,11 @@ const getDocumentLabel = () => {
 };
 
 const getDocumentPlaceholder = () => {
-    if (!buyerForm.documentType)
+    if (!clientForm.documentType)
         return "Ingresa tu número de documento";
 
     const selectedDocType = props.documentTypes.find(
-        (doc) => doc.id == buyerForm.documentType
+        (doc) => doc.id == clientForm.documentType
     );
 
     if (!selectedDocType) return "Ingresa tu número de documento";
@@ -663,16 +706,11 @@ const getDocumentPlaceholder = () => {
             return "Ej: 12.345.678-9";
         case "pasaporte":
             return "Ej: A12345678";
+        case "dni":
+            return "Ej: 12345678";
         default:
             return "Ingresa tu número de documento";
     }
-};
-
-const getDocumentTypeId = (name) => {
-    const docType = props.documentTypes.find(
-        (doc) => doc.name.toLowerCase() === name.toLowerCase()
-    );
-    return docType ? docType.id : "";
 };
 
 const handleRutInput = () => {
@@ -692,8 +730,8 @@ const searchFrequentClient = async () => {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
             body: JSON.stringify({
-                document_id: buyerForm.documentType,
-                document: buyerForm.documentNumber.trim()
+                document_id: clientForm.documentType,
+                document: clientForm.documentNumber.trim()
             })
         });
 
@@ -709,30 +747,10 @@ const searchFrequentClient = async () => {
 };
 
 const autocompleteForm = (clientData) => {
-    // Autocompletar todos los campos del formulario
-    buyerForm.fullName = clientData.full_name;
-    buyerForm.email = clientData.email;
-    buyerForm.phone = clientData.phone;
-    buyerForm.code_phone = clientData.phone_code;
-    buyerForm.country = clientData.country_id;
-    buyerForm.region = clientData.region_id;
-
-    // Para la comuna, esperar a que se carguen las comunas después de establecer la región
-    nextTick(() => {
-        // Esperar un poco más para que las comunas se carguen completamente
-        setTimeout(() => {
-            if (filteredComunes.value.length > 0) {
-                buyerForm.city = clientData.comune_id;
-            } else {
-                // Reintentar si las comunas no están disponibles
-                setTimeout(() => {
-                    if (filteredComunes.value.length > 0) {
-                        buyerForm.city = clientData.comune_id;
-                    }
-                }, 200);
-            }
-        }, 300);
-    });
+    // Autocompletar nombre del cliente
+    if (clientData.full_name) {
+        clientForm.name = clientData.full_name;
+    }
 };
 
 const validateDocument = () => {
@@ -743,7 +761,7 @@ const validateDocument = () => {
 
 const formatRut = () => {
     // Remover todos los caracteres no numéricos excepto K
-    let rut = clientForm.rut.replace(/[^0-9kK]/g, "");
+    let rut = clientForm.documentNumber.replace(/[^0-9kK]/g, "");
 
     if (rut.length > 0) {
         rut = rut.toUpperCase();
@@ -763,9 +781,9 @@ const formatRut = () => {
             }
 
             // Combinar cuerpo formateado con dígito verificador
-            clientForm.rut = `${formattedBody}-${dv}`;
+            clientForm.documentNumber = `${formattedBody}-${dv}`;
         } else {
-            clientForm.rut = rut;
+            clientForm.documentNumber = rut;
         }
     }
 
@@ -774,7 +792,7 @@ const formatRut = () => {
 };
 
 const validateRut = () => {
-    const rut = clientForm.rut
+    const rut = clientForm.documentNumber
         .replace(/\./g, "")
         .replace(/-/g, "");
 
@@ -825,12 +843,12 @@ const calculateDv = (body) => {
 };
 
 const handleCountryChange = (countryId) => {
-    buyerForm.country = countryId;
+    clientForm.country = countryId;
 };
 
 const handleRegionChange = (regionId) => {
-    buyerForm.region = regionId;
-    buyerForm.city = ""; // Limpiar comuna
+    clientForm.region = regionId;
+    clientForm.city = ""; // Limpiar comuna
 
     // Verificar las comunas disponibles
     if (regionId) {
@@ -841,7 +859,7 @@ const handleRegionChange = (regionId) => {
 };
 
 const handleCityChange = (cityId) => {
-    buyerForm.city = cityId;
+    clientForm.city = cityId;
 };
 
 // Métodos del formulario de reembolso
@@ -1139,7 +1157,8 @@ const submit = () => {
     // Combinar los datos del cliente con los datos del reembolso
     const combinedData = {
         ...form.data(),
-        client_rut: clientForm.rut,
+        client_document_type: clientForm.documentType,
+        client_rut: clientForm.documentNumber,
         client_name: clientForm.name,
         refund_type: form.refund_type,
     };

@@ -223,8 +223,16 @@ class ProgramService
 
                 // IMPORTANTE: Si hay pagos registrados en la tabla payments, usar ese monto
                 // Esto es la fuente de verdad y funciona para todos los tipos de pago
-                if ($paidAmountFromPayments > 0) {
-                    $paidAmount = round($paidAmountFromPayments, 2);
+                // Usar exists() en vez de sum > 0 para cubrir el caso de reembolso total (sum = 0)
+                $hasPayments = Payment::whereHas('order', function ($q) use ($participant, $programCourse) {
+                        $q->where('participant_id', $participant->id)
+                          ->where('program_id', $programCourse->id);
+                    })
+                    ->whereIn('status', ['completed', 'approved'])
+                    ->exists();
+
+                if ($hasPayments) {
+                    $paidAmount = max(round($paidAmountFromPayments, 2), 0);
                     $participantBalance = max(round($finalPrice - $paidAmount, 2), 0);
                     $paymentPercentage = $finalPrice > 0 ? round(($paidAmount / $finalPrice) * 100, 2) : 0;
                 }

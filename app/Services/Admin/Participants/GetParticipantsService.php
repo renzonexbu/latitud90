@@ -167,21 +167,14 @@ class GetParticipantsService
             );
 
             $enrollment->base_price = $data['base_price'];
-            $enrollment->discounts = $data['discounts'];
+            $enrollment->discounts = $data['regular_discounts'];
             $enrollment->total_due = $data['net_amount'];
             $enrollment->paid_amount = $data['total_paid'];
             $enrollment->balance = $data['pending_amount'];
             $enrollment->payment_percentage = $data['progress_percentage'];
 
-            // Campos adicionales que no están en el servicio centralizado
-            // Monto liberado (reembolsos)
-            $refundedAmount = Payment::whereHas('order', function($q) use ($enrollment) {
-                    $q->where('participant_id', $enrollment->participant_id)
-                      ->where('program_id', $enrollment->program_course_id);
-                })
-                ->whereIn('status', ['refunded', 'partially_refunded'])
-                ->sum('amount');
-            $enrollment->released_amount = round(abs($refundedAmount ?? 0), 2);
+            // Monto liberado (desde descuentos tipo 'released')
+            $enrollment->released_amount = round((float) $data['released_discounts'], 2);
 
             // Aporte (contribución con report_code 'AP')
             $contributionAmount = Payment::whereHas('order', function($q) use ($enrollment) {

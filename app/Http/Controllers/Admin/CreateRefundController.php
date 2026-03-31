@@ -201,6 +201,7 @@ class CreateRefundController extends Controller
             'refund_type' => 'required|string|in:refund_credit_note,refund_aporte_credit_note,refund_admin_reversal',
 
             // Validar datos del cliente
+            'client_document_type' => 'nullable|exists:document,id',
             'client_rut' => 'required|string|max:255',
             'client_name' => 'required|string|max:255',
         ]);
@@ -225,6 +226,7 @@ class CreateRefundController extends Controller
                 'total_amount' => $request->total_amount,
 
                 // Datos del cliente
+                'client_document_type' => $request->client_document_type,
                 'client_rut' => $request->client_rut,
                 'client_name' => $request->client_name,
             ];

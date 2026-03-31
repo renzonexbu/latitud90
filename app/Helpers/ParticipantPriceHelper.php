@@ -25,8 +25,9 @@ class ParticipantPriceHelper
         // 2. Obtener ajustes del pivote (si existen)
         $adjustments = self::getAdjustments($participant, $programCourse);
 
-        // 3. Calcular descuentos aplicados
-        $discounts = self::calculateDiscounts($participant, $programCourse, $basePrice);
+        // 3. Calcular descuentos aplicados (separados por tipo)
+        $discountBreakdown = self::calculateDiscounts($participant, $programCourse, $basePrice);
+        $discounts = $discountBreakdown['total'];
 
         // 4. Calcular precio final (redondeado a entero, CLP no tiene centavos)
         $finalPrice = (int) round(max(0, $basePrice + $adjustments - $discounts));
@@ -41,6 +42,8 @@ class ParticipantPriceHelper
             'PRECIO_BASE' => $basePrice,
             'AJUSTES' => $adjustments,
             'DESCUENTOS' => $discounts,
+            'DESCUENTOS_REGULARES' => $discountBreakdown['regular'],
+            'MONTO_LIBERADO' => $discountBreakdown['released'],
             'PRECIO_FINAL' => $finalPrice,
         ]);
 
@@ -48,6 +51,8 @@ class ParticipantPriceHelper
             'base_price' => $basePrice,
             'adjustments' => $adjustments,
             'discounts' => $discounts,
+            'regular_discounts' => $discountBreakdown['regular'],
+            'released_discounts' => $discountBreakdown['released'],
             'final_price' => $finalPrice
         ];
     }
@@ -154,26 +159,30 @@ class ParticipantPriceHelper
     }
     
     /**
-     * Calcula el total de descuentos aplicados al participante para este programa
+     * Calcula los descuentos aplicados al participante, separados por tipo.
+     *
+     * @return array ['total' => float, 'regular' => float, 'released' => float]
      */
-    private static function calculateDiscounts(Participant $participant, ProgramCourse|Program $programCourse, float $basePrice): float
+    private static function calculateDiscounts(Participant $participant, ProgramCourse|Program $programCourse, float $basePrice): array
     {
+        $empty = ['total' => 0.0, 'regular' => 0.0, 'released' => 0.0];
+
         // Determinar si es ProgramCourse o Program
         $isProgramCourse = $programCourse instanceof ProgramCourse;
         $programCourseId = $isProgramCourse ? $programCourse->id : null;
 
         if (!$programCourseId) {
-            return 0.0; // No hay descuentos para programas sin ID
+            return $empty;
         }
 
         // Buscar el participant_program_id (program_id apunta a program_courses)
         $pp = DB::table('participant_program')
             ->where('participant_id', $participant->id)
-            ->where('program_id', $programCourseId) // program_id ahora apunta a program_courses
+            ->where('program_id', $programCourseId)
             ->first();
 
         if (!$pp) {
-            return 0.0;
+            return $empty;
         }
 
         // Obtener todos los descuentos activos
@@ -181,21 +190,32 @@ class ParticipantPriceHelper
             ->where('participant_program_id', $pp->id)
             ->get();
 
-        $totalDiscount = 0.0;
+        $regularDiscount = 0.0;
+        $releasedDiscount = 0.0;
 
         foreach ($discounts as $discount) {
-            // Descuento por porcentaje
+            $amount = 0.0;
+
             if ($discount->percent && $discount->percent > 0) {
-                $totalDiscount += ($basePrice * $discount->percent) / 100;
+                $amount += ($basePrice * $discount->percent) / 100;
             }
 
-            // Descuento por monto fijo
             if ($discount->amount && $discount->amount > 0) {
-                $totalDiscount += $discount->amount;
+                $amount += $discount->amount;
+            }
+
+            if ($discount->discount_type === 'released') {
+                $releasedDiscount += $amount;
+            } else {
+                $regularDiscount += $amount;
             }
         }
 
-        return $totalDiscount;
+        return [
+            'total' => $regularDiscount + $releasedDiscount,
+            'regular' => $regularDiscount,
+            'released' => $releasedDiscount,
+        ];
     }
 
     /**
