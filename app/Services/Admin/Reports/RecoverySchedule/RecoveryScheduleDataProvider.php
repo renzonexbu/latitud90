@@ -25,9 +25,9 @@ class RecoveryScheduleDataProvider
                 'i.id',
                 'p.id as participant_id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
                 'prog.id as program_id', 'prog.name as program_name',
-                'prog.departure_date as program_departure_date',
+                'pgc.departure_date as program_departure_date',
                 'pgc.final_payment_date as final_payment_date',
-                'prog.sales_executive_id',
+                'pgc.sales_executive_id',
                 'se.name as sales_executive_name',
                 'se.email as sales_executive_email',
                 'se.phone as sales_executive_phone',
@@ -61,7 +61,7 @@ class RecoveryScheduleDataProvider
             ])
             ->groupBy([
                 'i.id', 'p.id', 'p.first_last_name', 'p.second_last_name', 'p.first_name', 'p.second_name', 'p.email', 'p.document_number', 'p.phone',
-                'prog.id', 'prog.name', 'prog.departure_date', 'pgc.final_payment_date', 'prog.sales_executive_id',
+                'prog.id', 'prog.name', 'pgc.departure_date', 'pgc.final_payment_date', 'pgc.sales_executive_id',
                 'se.name', 'se.email', 'se.phone',
                 'i.installment_number', 'i.due_date', 'i.amount', 'i.status', 'i.paid_at',
                 'o.order_number', 'o.total_amount', 'o.final_amount'

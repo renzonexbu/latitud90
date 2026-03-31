@@ -96,7 +96,7 @@ class ReportController extends Controller
     {
         try {
             $filters = $request->only(['dateFrom', 'dateTo', 'programId', 'status']);
-            $format = $request->get('format', 'excel');
+            $format = $request->get('format', 'xlsx');
             
             // Obtener los datos para exportar
             $data = $this->recoveryScheduleService->getAllPaymentSchedules($filters);

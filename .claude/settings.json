@@ -17,7 +17,10 @@
       "Bash(grep -rn \"PaymentOptionsProgramFilters\\\\|PaymentOptionsProgram\\\\|departure_date\\\\|FECHA\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Courses --include=*.vue)",
       "Bash(npm run:*)",
       "Bash(sqlite3 :memory:)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -r \"CUOTAS PAGADAS\\\\|cuotas.*pagadas\" /Users/nexbuescl/Sites/latitud90/app --include=*.php)",
+      "Bash(grep -n \"Reporte Consolidado\\\\|reporte.consolidado\\\\|consolidado\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Reports/Executives*.vue 2)",
+      "Bash(/dev/null -i)"
     ]
   }
 }

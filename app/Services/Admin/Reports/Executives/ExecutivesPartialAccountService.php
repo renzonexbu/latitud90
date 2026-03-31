@@ -221,12 +221,13 @@ class ExecutivesPartialAccountService
                         ->sum('amount');
                 }
 
-                // 2. Cuotas de suscripción pagadas (installments) - solo de planes activos
+                // 2. Cuotas de suscripción pagadas (installments)
+                // Se filtran por estado de la CUOTA (paid), no del plan, porque el plan puede estar
+                // cancelado después de reestructuración pero las cuotas ya pagadas siguen vigentes.
                 $subscriptionPayments = (float) DB::table('installments')
                     ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                     ->where('installment_plans.participant_id', $row->participant_id)
                     ->where('installment_plans.program_id', $rowProgramCourseId)
-                    ->where('installment_plans.status', '!=', 'cancelled')
                     ->where('installments.status', 'paid')
                     ->sum('installments.amount');
 
