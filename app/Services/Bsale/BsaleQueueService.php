@@ -2,6 +2,7 @@
 
 namespace App\Services\Bsale;
 
+use App\Jobs\SendBsaleEmailJob;
 use App\Models\BsaleRequest;
 use App\Models\Payment;
 use App\Models\OrderDetail;
@@ -214,6 +215,11 @@ class BsaleQueueService
                     $bsaleResult['number'] ?? null,
                     $bsaleResult['token'] ?? null
                 );
+
+                // Despachar email de boleta con 1 hora de delay
+                $payment->refresh();
+                SendBsaleEmailJob::dispatch($payment->id, $orderDetail->id)
+                    ->delay(now()->addHour());
 
                 Log::channel('bsale')->info('BsaleQueueService: Boleta generada exitosamente', [
                     'bsale_request_id' => $request->id,

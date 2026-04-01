@@ -76,11 +76,9 @@ class SuccessPaymentEmailService
             $shouldSendContract = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_CONTRATO, $documentTypes);
             $shouldSendReceipt = in_array(\App\Helpers\PaymentDocumentTypeHelper::TYPE_ANTICIPO, $documentTypes);
 
-            // Descargar/obtener PDF de Bsale si corresponde
+            // La boleta BSale se envía en un email separado 1 hora después (SendBsaleEmailJob)
+            // El email inmediato NO adjunta la boleta
             $bsalePdfPath = null;
-            if ($shouldSendBoleta && $payment->bsale_document_id && $payment->bsale_number) {
-                $bsalePdfPath = $this->downloadBsalePdf($payment);
-            }
 
             $this->logInfo('SuccessPaymentEmailService: Documentos a adjuntar', [
                 'order_detail_id' => $orderDetail->id,
