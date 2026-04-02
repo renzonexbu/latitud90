@@ -62,7 +62,7 @@ class StoreCourseRequest extends CourseRequest
             'program_id' => ['required', 'exists:programs,id'],
             'code' => ['required', 'string', 'max:50', 'unique:program_courses,code'],
             'destination' => ['required', 'string', 'max:255'],
-            'departure_date' => ['required', 'date', 'after_or_equal:today'],
+            'departure_date' => array_values(array_filter(['required', 'date', auth()->user()?->hasRole('super_admin') ? null : 'after_or_equal:today'])),
             'trip_price' => ['required', 'numeric', 'min:0'],
             'final_payment_date' => ['required', 'date'],
 

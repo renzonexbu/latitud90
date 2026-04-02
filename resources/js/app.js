@@ -32,11 +32,20 @@ if (document.readyState === 'loading') {
 }
 
 import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+// Google Analytics: trackear cambios de página en SPA
+router.on('navigate', (event) => {
+    if (typeof window.gtag === 'function') {
+        window.gtag('event', 'page_view', {
+            page_path: event.detail.page.url,
+        });
+    }
+});
 
 createInertiaApp({
     title: (title) => title,

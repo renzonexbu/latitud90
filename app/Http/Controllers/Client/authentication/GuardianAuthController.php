@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class GuardianAuthController extends Controller
@@ -76,7 +77,12 @@ class GuardianAuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'document_type_id' => 'required|exists:document,id',
-            'document_number' => 'required|string|max:50',
+            'document_number' => [
+                'required', 'string', 'max:50',
+                Rule::unique('guardian_users', 'document')
+                    ->where('document_id', $request->document_type_id)
+                    ->whereNull('deleted_at'),
+            ],
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:guardian_users,email',
             'phone_code' => 'required|string|max:10',
@@ -90,6 +96,7 @@ class GuardianAuthController extends Controller
             'document_type_id.required' => 'El tipo de documento es obligatorio',
             'document_type_id.exists' => 'El tipo de documento seleccionado no es válido',
             'document_number.required' => 'El número de documento es obligatorio',
+            'document_number.unique' => 'Este RUT/documento ya tiene una cuenta registrada. Si olvidaste tu contraseña, usa la opción de recuperación.',
             'name.required' => 'El nombre completo es obligatorio',
             'email.required' => 'El email es obligatorio',
             'email.email' => 'El email debe ser válido',

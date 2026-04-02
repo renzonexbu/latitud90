@@ -32,6 +32,17 @@ class RegisterGuardianService
                 ];
             }
 
+            // Verificar si el RUT/documento ya está registrado para ese tipo
+            if (GuardianUser::where('document_id', $data['document_type_id'])
+                ->where('document', $data['document_number'])
+                ->whereNull('deleted_at')
+                ->exists()) {
+                return [
+                    'success' => false,
+                    'message' => 'Este RUT/documento ya tiene una cuenta registrada. Si olvidaste tu contraseña, usa la opción de recuperación.'
+                ];
+            }
+
             // Crear el guardian user con todos los datos del formulario
             $guardianUser = GuardianUser::create([
                 'document_id' => $data['document_type_id'],

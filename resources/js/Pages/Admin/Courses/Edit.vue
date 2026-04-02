@@ -174,11 +174,14 @@
                                                                 type="date"
                                                                 v-model="form.departure_date"
                                                                 class="admin-input-text"
-                                                                :class="{ 'border-red-500': errors.departure_date || departureDateError }"
-                                                                :min="todayDate"
+                                                                :class="{ 'border-red-500': errors.departure_date || departureDateError, 'border-yellow-500': departureDateWarning }"
+                                                                :min="isSuperAdmin ? '' : todayDate"
                                                             />
                                                             <span v-if="departureDateError" class="text-red-500 text-sm mt-1">
                                                                 {{ departureDateError }}
+                                                            </span>
+                                                            <span v-else-if="departureDateWarning" class="text-yellow-600 text-sm mt-1">
+                                                                {{ departureDateWarning }}
                                                             </span>
                                                             <span v-else-if="errors.departure_date" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.departure_date }}
@@ -1317,6 +1320,11 @@ const calculatedFinalPaymentDate = computed(() => {
 });
 
 // Fecha de hoy en formato YYYY-MM-DD para el atributo min del input
+const isSuperAdmin = computed(() => {
+    const roles = page.props.auth?.user?.roles ?? [];
+    return roles.includes('super_admin');
+});
+
 const todayDate = computed(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -1341,6 +1349,7 @@ const finalPaymentDateWarning = computed(() => {
 });
 
 // Validación en tiempo real de la fecha de inicio (departure_date)
+// Super admin: solo advertencia, no bloquea
 const departureDateError = computed(() => {
     if (!form.value.departure_date) {
         return null;
@@ -1350,7 +1359,24 @@ const departureDateError = computed(() => {
     today.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
+        if (isSuperAdmin.value) {
+            return null;
+        }
         return 'La fecha de inicio no puede ser anterior a hoy';
+    }
+    return null;
+});
+
+const departureDateWarning = computed(() => {
+    if (!form.value.departure_date || !isSuperAdmin.value) {
+        return null;
+    }
+    const selectedDate = new Date(form.value.departure_date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        return 'Advertencia: La fecha de inicio es anterior a hoy';
     }
     return null;
 });

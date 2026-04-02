@@ -18,6 +18,8 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'ga_measurement_id' => env('GA_MEASUREMENT_ID'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
