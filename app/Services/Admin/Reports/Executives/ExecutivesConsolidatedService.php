@@ -287,6 +287,7 @@ class ExecutivesConsolidatedService
         // Incluir 'approved' (pagos offline/manuales) y 'completed' (pasarelas de pago)
         $query = Payment::with([
             'paymentOption',
+            'paymentGateway',
             'order.participant',
             'order.programCourse.salesExecutive',
             'order.orderDetails',
@@ -412,9 +413,28 @@ class ExecutivesConsolidatedService
                 $participantFullName = ucwords(strtolower($participantFullName));
             }
 
+            // NRO AUTORIZACIÓN:
+            // - Presencial → authorization_code ingresado en la ficha
+            // - Resto de pasarelas → primeros 8 chars de order.uuid del gateway_response
+            $authorizationNumber = 'N/A';
+            if (($payment->paymentGateway?->code ?? '') === 'presencial') {
+                $authorizationNumber = $payment->authorization_code ?: 'N/A';
+            } elseif (!empty($payment->gateway_response)) {
+                $gatewayData = is_string($payment->gateway_response)
+                    ? json_decode($payment->gateway_response, true)
+                    : (array) $payment->gateway_response;
+                $uuid = $gatewayData['full_response']['payment']['order']['uuid']
+                    ?? $gatewayData['payment']['order']['uuid']
+                    ?? null;
+                if ($uuid) {
+                    $authorizationNumber = substr($uuid, 0, 8);
+                }
+            }
+
             return [
                 'id' => $payment->id,
                 'program_number' => $program?->code ?? 'N/A',
+                'authorization_number' => $authorizationNumber,
                 'identification_number' => $participant?->document_number ?? 'N/A',
                 'full_name' => $participantFullName,
                 'status' => $participantProgram?->is_active ? 'Activo' : 'Baja',
@@ -422,6 +442,7 @@ class ExecutivesConsolidatedService
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
                 'payment_form' => $payment->paymentOption?->report_code ?: 'N/A',
+                'installments_number' => $payment->installments_number ?? 1,
                 'payment_date' => ($payment->payment_source === 'subscription' ? ($payment->created_at ? Carbon::parse($payment->created_at)->format('d/m/Y') : 'N/A') : ($payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A')),
                 'payer_contact' => $payerContact ?: 'N/A',
                 'payer_email' => $payerEmail ?: 'N/A',

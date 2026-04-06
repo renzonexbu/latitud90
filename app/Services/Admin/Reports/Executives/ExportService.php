@@ -72,20 +72,22 @@ class ExportService
             // Cabecera de la tabla
             $headers = [
                 "A{$startRow}" => 'Nro. Programa',
-                "B{$startRow}" => 'N° de Identificación',
-                "C{$startRow}" => 'Nombres y Apellidos',
-                "D{$startRow}" => 'Estado',
-                "E{$startRow}" => 'Pago y/o Dev.',
-                "F{$startRow}" => 'Nro. Documento',
-                "G{$startRow}" => 'Tipo de Documento',
-                "H{$startRow}" => 'Forma Pago',
-                "I{$startRow}" => 'Fecha de Pago',
-                "J{$startRow}" => 'Contacto Pagador',
-                "K{$startRow}" => 'Liberado',
-                "L{$startRow}" => 'Saldo'
+                "B{$startRow}" => 'Nro. Autorización',
+                "C{$startRow}" => 'N° de Identificación',
+                "D{$startRow}" => 'Nombres y Apellidos',
+                "E{$startRow}" => 'Estado',
+                "F{$startRow}" => 'Pago y/o Dev.',
+                "G{$startRow}" => 'Nro. Documento',
+                "H{$startRow}" => 'Tipo de Documento',
+                "I{$startRow}" => 'Forma Pago',
+                "J{$startRow}" => 'N° Cuotas',
+                "K{$startRow}" => 'Fecha de Pago',
+                "L{$startRow}" => 'Contacto Pagador',
+                "M{$startRow}" => 'Liberado',
+                "N{$startRow}" => 'Saldo'
             ];
-            $headerRange = "A{$startRow}:L{$startRow}";
-            $lastColumn = 'L';
+            $headerRange = "A{$startRow}:N{$startRow}";
+            $lastColumn = 'N';
 
             foreach ($headers as $cell => $header) {
                 $sheet->setCellValue($cell, $header);
@@ -113,23 +115,25 @@ class ExportService
             $row = $startRow + 1;
             foreach ($resolvedItems as $item) {
                 $sheet->setCellValue('A' . $row, $item['program_number'] ?? 'N/A');
-                $sheet->setCellValue('B' . $row, isset($item['identification_number']) ? $this->formatRut($item['identification_number']) : 'N/A');
-                $sheet->setCellValue('C' . $row, $item['full_name'] ?? 'N/A');
-                $sheet->setCellValue('D' . $row, $item['status'] ?? 'N/A');
-                $sheet->setCellValue('E' . $row, $item['payment_or_refund'] ?? 0);
-                $sheet->setCellValue('F' . $row, $item['document_number'] ?? 'N/A');
-                $sheet->setCellValue('G' . $row, $item['document_type'] ?? 'N/A');
-                $sheet->setCellValue('H' . $row, $item['payment_form'] ?? 'N/A');
-                $sheet->setCellValue('I' . $row, $item['payment_date'] ?? 'N/A');
-                $sheet->setCellValue('J' . $row, $item['payer_contact'] ?? 'N/A');
-                $sheet->setCellValue('K' . $row, $item['liberated'] ?? 0);
-                $sheet->setCellValue('L' . $row, $item['saldo'] ?? 0);
+                $sheet->setCellValue('B' . $row, $item['authorization_number'] ?? 'N/A');
+                $sheet->setCellValue('C' . $row, isset($item['identification_number']) ? $this->formatRut($item['identification_number']) : 'N/A');
+                $sheet->setCellValue('D' . $row, $item['full_name'] ?? 'N/A');
+                $sheet->setCellValue('E' . $row, $item['status'] ?? 'N/A');
+                $sheet->setCellValue('F' . $row, $item['payment_or_refund'] ?? 0);
+                $sheet->setCellValue('G' . $row, $item['document_number'] ?? 'N/A');
+                $sheet->setCellValue('H' . $row, $item['document_type'] ?? 'N/A');
+                $sheet->setCellValue('I' . $row, $item['payment_form'] ?? 'N/A');
+                $sheet->setCellValue('J' . $row, $item['installments_number'] ?? 1);
+                $sheet->setCellValue('K' . $row, $item['payment_date'] ?? 'N/A');
+                $sheet->setCellValue('L' . $row, $item['payer_contact'] ?? 'N/A');
+                $sheet->setCellValue('M' . $row, $item['liberated'] ?? 0);
+                $sheet->setCellValue('N' . $row, $item['saldo'] ?? 0);
 
                 // Aplicar formato de moneda a las columnas numéricas
-                $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
-                $sheet->getStyle('K' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('M' . $row)->getNumberFormat()->setFormatCode('#,##0');
                 // Saldo: positivo (deuda) en rojo con paréntesis, negativo (excedente) en azul
-                $sheet->getStyle('L' . $row)->getNumberFormat()->setFormatCode('[Red]\(#,##0\);[Blue]#,##0;0');
+                $sheet->getStyle('N' . $row)->getNumberFormat()->setFormatCode('[Red]\(#,##0\);[Blue]#,##0;0');
 
                 $row++;
             }
