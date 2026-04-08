@@ -20,7 +20,11 @@
       "Read(//tmp/**)",
       "Bash(grep -r \"CUOTAS PAGADAS\\\\|cuotas.*pagadas\" /Users/nexbuescl/Sites/latitud90/app --include=*.php)",
       "Bash(grep -n \"Reporte Consolidado\\\\|reporte.consolidado\\\\|consolidado\" /Users/nexbuescl/Sites/latitud90/resources/js/Pages/Admin/Reports/Executives*.vue 2)",
-      "Bash(/dev/null -i)"
+      "Bash(/dev/null -i)",
+      "Bash(grep -r \"superuser\\\\|super_user\\\\|superadmin\\\\|super_admin\\\\|isSuperuser\\\\|is_superuser\\\\|hasRole\\\\|role.*super\" /Users/nexbuescl/Sites/latitud90/app --include=*.php -l)",
+      "Bash(xargs cat:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(grep -n \"uuid\\\\|buy_order\\\\|authorization\" /Users/nexbuescl/Sites/latitud90/database/migrations/2024*orders*.php /Users/nexbuescl/Sites/latitud90/database/migrations/2025*orders*.php)"
     ]
   }
 }

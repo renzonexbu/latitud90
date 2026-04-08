@@ -84,7 +84,7 @@ class UpdateCourseRequest extends CourseRequest
             'full_payment_options.*' => ['nullable', 'string'],
             'subscription_payment_options' => ['nullable', 'array'],
             'subscription_payment_options.*' => ['nullable', 'string'],
-            'subscription_max_months' => ['nullable', 'integer', 'min:1', 'max:12', 'required_if:enable_subscription_payment,true'],
+            'subscription_max_months' => ['nullable', 'integer', 'min:1', 'max:36', 'required_if:enable_subscription_payment,true'],
             'immediate_first_charge' => ['nullable', 'boolean'],
 
             // Descuentos
@@ -145,7 +145,7 @@ class UpdateCourseRequest extends CourseRequest
             // Suscripción
             'subscription_max_months.required_if' => 'Debe especificar el máximo de meses cuando el pago por suscripción está habilitado',
             'subscription_max_months.min' => 'El máximo de meses debe ser al menos 1',
-            'subscription_max_months.max' => 'El máximo de meses no puede exceder 12',
+            'subscription_max_months.max' => 'El máximo de meses no puede exceder 36',
 
             // Descuentos
             'discount_type.in' => 'El tipo de descuento debe ser porcentaje o monto fijo',

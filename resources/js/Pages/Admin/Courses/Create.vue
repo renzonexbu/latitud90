@@ -352,11 +352,13 @@
                                                                 class="admin-select-small"
                                                                 :class="{ 'border-red-500': errors.year }"
                                                             >
-                                                                <option value="2023">2023</option>
-                                                                <option value="2024">2024</option>
-                                                                <option value="2025">2025</option>
                                                                 <option value="2026">2026</option>
                                                                 <option value="2027">2027</option>
+                                                                <option value="2028">2028</option>
+                                                                <option value="2029">2029</option>
+                                                                <option value="2030">2030</option>
+                                                                <option value="2031">2031</option>
+                                                                <option value="2032">2032</option>
                                                             </select>
                                                             <span v-if="errors.year" class="text-red-500 text-sm mt-1">
                                                                 {{ errors.year }}
@@ -678,7 +680,7 @@
                                                             <div v-if="errors.subscription_max_months" class="error-message">
                                                                 {{ errors.subscription_max_months }}
                                                             </div>
-                                                            <div v-if="maxInstallmentChoices.length < 12 && form.subscription_max_months" class="text-blue-600 text-sm mt-1">
+                                                            <div v-if="maxInstallmentChoices.length < 36 && form.subscription_max_months" class="text-blue-600 text-sm mt-1">
                                                                 ℹ️ Máximo {{ maxInstallmentChoices.length }} cuotas disponibles hasta la fecha de pago final
                                                             </div>
                                                             <div class="text-xs text-gray-500 mt-2">
@@ -1062,7 +1064,7 @@ const maxInstallmentChoices = computed(() => {
         maxByDate = Math.max(0, Math.floor(diffDays / 30) + 1);
     }
 
-    const hardMax = 12;
+    const hardMax = 36;
     const max = Math.min(hardMax, maxByDate);
     for (let i = 1; i <= max; i++) {
         choices.push({ value: i.toString(), label: `${i}` });

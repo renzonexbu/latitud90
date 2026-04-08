@@ -235,7 +235,7 @@ class SubscriptionController extends Controller
                 'participant' => 'required|array',
                 'participant.document_number' => 'required|string',
                 'participant.name' => 'required|string',
-                'installments' => 'required|integer|min:1|max:12',
+                'installments' => 'required|integer|min:1|max:36',
             ]);
 
             $programCourseId = $request->input('program_course_id');

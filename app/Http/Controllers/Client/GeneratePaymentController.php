@@ -95,7 +95,7 @@ class GeneratePaymentController extends Controller
         $validatedData = $request->validate([
             'payment_type' => 'required|in:total,monthly',
             'payment_method' => 'required|in:debit,credit,khipu',
-            'installments' => 'required_if:payment_type,monthly|integer|min:1|max:12',
+            'installments' => 'required_if:payment_type,monthly|integer|min:1|max:36',
         ]);
 
         $result = $this->generatePaymentService->generatePayment($programId, $validatedData);

@@ -90,7 +90,7 @@ class CreateParticularPaymentController extends Controller
             'amount' => 'required|numeric|min:0',
             'transaction_date' => 'required|date',
             'authorization_code' => 'required|string|max:255',
-            'installments' => 'required|integer|min:1|max:12',
+            'installments' => 'required|integer|min:1|max:36',
             'notes' => 'nullable|string',
             'presential_payment_type' => 'required|in:TC,KP,PAT,TE,VP,VPI,DP,WP,AP,CT',
 
