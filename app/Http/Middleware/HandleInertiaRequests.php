@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -72,7 +73,15 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
+                'conversion_results' => fn () => $request->session()->get('conversion_results'),
             ],
+            'ac_conversion_pending' => fn () => $user ? Payment::where('document_type', 'AC')
+                ->whereNull('bsale_number')
+                ->where('status', 'completed')
+                ->whereHas('order.programCourse', function ($q) {
+                    $q->whereYear('departure_date', '<=', now()->year);
+                })
+                ->count() : 0,
         ];
     }
 }

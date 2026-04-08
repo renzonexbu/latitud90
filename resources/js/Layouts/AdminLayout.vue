@@ -189,15 +189,21 @@
                         class="flex items-center w-full px-6 py-3 group transition-colors mt-4"
                         :class="route().current('admin.payments.*') ? 'bg-gray-50' : ''"
                     >
-                        <PaymentsIcon
-                            class="w-6 h-6 transition-colors flex-shrink-0"
-                            :class="
-                                route().current('admin.payments.*')
-                                    ? 'text-turquesa'
-                                    : 'text-gray-400 group-hover:text-turquesa'
-                            "
-                            stroke-color="currentColor"
-                        />
+                        <div class="relative flex-shrink-0">
+                            <PaymentsIcon
+                                class="w-6 h-6 transition-colors"
+                                :class="
+                                    route().current('admin.payments.*')
+                                        ? 'text-turquesa'
+                                        : 'text-gray-400 group-hover:text-turquesa'
+                                "
+                                stroke-color="currentColor"
+                            />
+                            <span
+                                v-if="$page.props.ac_conversion_pending > 0 && !sidebarExpanded"
+                                class="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                            >{{ $page.props.ac_conversion_pending > 9 ? '9+' : $page.props.ac_conversion_pending }}</span>
+                        </div>
                         <span
                             class="ml-4 text-sm font-medium whitespace-nowrap transition-all duration-300"
                             :class="[
@@ -206,6 +212,10 @@
                             ]"
                         >
                             Pagos
+                            <span
+                                v-if="$page.props.ac_conversion_pending > 0"
+                                class="ml-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            >{{ $page.props.ac_conversion_pending }}</span>
                         </span>
                         <svg
                             v-if="sidebarExpanded"
@@ -258,6 +268,18 @@
                             @click="showingPaymentsMenu = false"
                         >
                             Registrar Pago Offline
+                        </NavLink>
+                        <NavLink
+                            v-if="$page.props.ac_conversion_pending > 0"
+                            :href="route('admin.payments.ac-conversion.index')"
+                            :active="route().current('admin.payments.ac-conversion.*')"
+                            class="block px-4 py-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 transition-colors font-semibold"
+                            @click="showingPaymentsMenu = false"
+                        >
+                            Convertir AC → Boleta
+                            <span class="ml-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                                {{ $page.props.ac_conversion_pending }}
+                            </span>
                         </NavLink>
                     </div>
                 </div>

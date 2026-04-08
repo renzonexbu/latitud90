@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\CreateParticularPaymentController;
 use App\Http\Controllers\Admin\CreateRefundController;
 use App\Http\Controllers\Admin\ImportManualPaymentsController;
+use App\Http\Controllers\Admin\AcConversionController;
 use App\Http\Controllers\Admin\Reports\PaymentConfirmationLogsController;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +40,12 @@ Route::prefix('payments')->name('payments.')->group(function () {
         Route::post('participant-status', [CreateParticularPaymentController::class, 'getParticipantPaymentStatus'])->name('participant-status');
         Route::get('payment-type-options', [CreateParticularPaymentController::class, 'getPaymentTypeOptions'])->name('payment-type-options');
         Route::get('search-participants', [CreateParticularPaymentController::class, 'searchEnrolledParticipants'])->name('search-participants');
+    });
+
+    // Rutas para conversión AC → Boleta
+    Route::prefix('ac-conversion')->name('ac-conversion.')->group(function () {
+        Route::get('/', [AcConversionController::class, 'index'])->name('index');
+        Route::post('/execute', [AcConversionController::class, 'execute'])->name('execute');
     });
 
     // Rutas para reembolsos
