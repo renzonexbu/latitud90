@@ -270,14 +270,13 @@
                             Registrar Pago Offline
                         </NavLink>
                         <NavLink
-                            v-if="$page.props.ac_conversion_pending > 0"
                             :href="route('admin.payments.ac-conversion.index')"
                             :active="route().current('admin.payments.ac-conversion.*')"
                             class="block px-4 py-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50 transition-colors font-semibold"
                             @click="showingPaymentsMenu = false"
                         >
                             Convertir AC → Boleta
-                            <span class="ml-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            <span v-if="$page.props.ac_conversion_pending > 0" class="ml-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                                 {{ $page.props.ac_conversion_pending }}
                             </span>
                         </NavLink>

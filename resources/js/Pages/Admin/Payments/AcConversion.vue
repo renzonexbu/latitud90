@@ -31,6 +31,42 @@
             </div>
 
             <template v-else>
+                <!-- Filtros -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex flex-wrap gap-4 items-center">
+                    <div class="relative">
+                        <input
+                            v-model="filterParticipant"
+                            type="text"
+                            placeholder="Buscar por RUT o Apellido"
+                            class="h-[42px] w-[260px] bg-white rounded-[50px] border border-gray-200 px-4 py-2 text-sm outline-none pr-10"
+                        />
+                        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.486-4.494M19 10.5a8.5 8.5 0 11-17 0 8.5 8.5 0 0117 0z"/>
+                        </svg>
+                    </div>
+                    <div class="relative">
+                        <input
+                            v-model="filterProgram"
+                            type="text"
+                            placeholder="Código de Programa"
+                            class="h-[42px] w-[200px] bg-white rounded-[50px] border border-gray-200 px-4 py-2 text-sm outline-none"
+                        />
+                    </div>
+                    <button
+                        v-if="filterParticipant || filterProgram"
+                        @click="filterParticipant = ''; filterProgram = ''"
+                        class="h-[42px] px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-[50px] border border-gray-300 text-sm flex items-center gap-2 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Limpiar
+                    </button>
+                    <span v-if="filterParticipant || filterProgram" class="text-xs text-gray-500">
+                        {{ filteredPayments.length }} resultado{{ filteredPayments.length !== 1 ? 's' : '' }}
+                    </span>
+                </div>
+
                 <!-- Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div class="bg-white rounded-lg border border-gray-200 p-4">
@@ -83,7 +119,7 @@
                             @change="toggleAll"
                             class="h-4 w-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
                         />
-                        <span class="text-sm font-medium text-gray-700">Seleccionar todos ({{ payments.length }})</span>
+                        <span class="text-sm font-medium text-gray-700">Seleccionar todos ({{ filteredPayments.length }})</span>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -100,7 +136,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 <tr
-                                    v-for="payment in payments"
+                                    v-for="payment in filteredPayments"
                                     :key="payment.id"
                                     class="hover:bg-gray-50 transition-colors"
                                     :class="selectedIds.includes(payment.id) ? 'bg-orange-50' : ''"
@@ -215,12 +251,33 @@ const selectedIds = ref([]);
 const showConfirmModal = ref(false);
 const processing = ref(false);
 const currentYear = new Date().getFullYear();
+const filterParticipant = ref('');
+const filterProgram = ref('');
 
 const conversionResults = computed(() => {
     return page.props.flash?.conversion_results ?? [];
 });
 
-const allSelected = computed(() => selectedIds.value.length === props.payments.length && props.payments.length > 0);
+const filteredPayments = computed(() => {
+    let list = props.payments;
+    if (filterParticipant.value) {
+        const q = filterParticipant.value.toLowerCase();
+        list = list.filter(p =>
+            p.participant.full_name.toLowerCase().includes(q) ||
+            p.participant.document_number?.toLowerCase().includes(q)
+        );
+    }
+    if (filterProgram.value) {
+        const q = filterProgram.value.toLowerCase();
+        list = list.filter(p =>
+            p.program.code.toLowerCase().includes(q) ||
+            p.program.name.toLowerCase().includes(q)
+        );
+    }
+    return list;
+});
+
+const allSelected = computed(() => selectedIds.value.length === filteredPayments.value.length && filteredPayments.value.length > 0);
 const someSelected = computed(() => selectedIds.value.length > 0);
 
 const selectedPayments = computed(() => props.payments.filter(p => selectedIds.value.includes(p.id)));
@@ -230,7 +287,7 @@ const toggleAll = () => {
     if (allSelected.value) {
         selectedIds.value = [];
     } else {
-        selectedIds.value = props.payments.map(p => p.id);
+        selectedIds.value = filteredPayments.value.map(p => p.id);
     }
 };
 
