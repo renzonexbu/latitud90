@@ -88,7 +88,9 @@ class ContractService
      */
     private function prepareContractData(OrderDetail $orderDetail, Payment $payment): array
     {
-        $program = $orderDetail->order->program;
+        // En la arquitectura nueva, program_id en Order apunta a ProgramCourse
+        $programCourse = $orderDetail->order->programCourse;
+        $program = $programCourse; // alias para compatibilidad con el resto del método
         $participant = $orderDetail->order->participant;
 
         // Obtener el tipo de documento del participante desde la tabla document

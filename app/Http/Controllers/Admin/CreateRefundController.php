@@ -199,6 +199,7 @@ class CreateRefundController extends Controller
             'transaction_date' => 'required|date',
             'total_amount' => 'required|numeric|min:1',
             'refund_type' => 'required|string|in:refund_credit_note,refund_aporte_credit_note,refund_admin_reversal',
+            'ra_imputation_type' => 'nullable|string|in:CT,AC',
 
             // Validar datos del cliente
             'client_document_type' => 'nullable|exists:document,id',
@@ -219,6 +220,7 @@ class CreateRefundController extends Controller
                 'transaction_date' => $request->transaction_date,
                 'payment_code' => $request->sii_code,
                 'refund_type' => $request->refund_type,
+                'ra_imputation_type' => $request->ra_imputation_type,
 
                 // Datos fiscales
                 'sii_code' => $request->sii_code,

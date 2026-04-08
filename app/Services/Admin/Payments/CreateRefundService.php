@@ -424,8 +424,14 @@ class CreateRefundService
     private function createRefund(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
     {
         // Determinar el tipo de documento fiscal según el tipo de reembolso
-        // NC (Nota de Crédito) usa 'VC', RA (Reverso Administrativo) usa 'RA'
-        $documentType = $paymentOption->code === 'refund_admin_reversal' ? 'RA' : 'VC';
+        // NC (Nota de Crédito) usa 'VC'
+        // RA usa 'RA' por defecto, pero si la imputación es AC (Anticipo de Cliente) se registra como 'AC'
+        if ($paymentOption->code === 'refund_admin_reversal') {
+            $raImputationType = $data['ra_imputation_type'] ?? 'CT';
+            $documentType = ($raImputationType === 'AC') ? 'AC' : 'RA';
+        } else {
+            $documentType = 'VC';
+        }
         $refundReasons = [
             'refund_admin_reversal' => 'Reverso administrativo procesado manualmente',
             'refund_aporte_credit_note' => 'Nota de crédito a aporte procesada manualmente',

@@ -397,6 +397,48 @@
                                     </div>
                                 </div>
 
+                                <!-- Sub-selector: Tipo de imputación para RA -->
+                                <div v-if="selectedBaseRefundType === 'refund_admin_reversal'" class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Tipo de imputación:</h4>
+                                    <div class="flex gap-4">
+                                        <label
+                                            class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                            :class="{
+                                                'border-[#e74c3c] bg-red-50 font-semibold': raImputationType === 'CT',
+                                                'border-gray-300 hover:border-gray-400': raImputationType !== 'CT'
+                                            }"
+                                        >
+                                            <input
+                                                type="radio"
+                                                value="CT"
+                                                v-model="raImputationType"
+                                                @change="form.ra_imputation_type = 'CT'"
+                                                class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                            />
+                                            <span class="text-sm">Crédito Temporal (CT)</span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 px-4 py-2 border rounded-lg cursor-pointer transition-all duration-200"
+                                            :class="{
+                                                'border-[#e74c3c] bg-red-50 font-semibold': raImputationType === 'AC',
+                                                'border-gray-300 hover:border-gray-400': raImputationType !== 'AC'
+                                            }"
+                                        >
+                                            <input
+                                                type="radio"
+                                                value="AC"
+                                                v-model="raImputationType"
+                                                @change="form.ra_imputation_type = 'AC'"
+                                                class="h-4 w-4 text-[#e74c3c] border-gray-300 focus:ring-[#e74c3c]"
+                                            />
+                                            <span class="text-sm">Anticipo de Cliente (AC)</span>
+                                        </label>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">
+                                        Seleccione <strong>AC</strong> cuando el reverso corresponde a un anticipo de cliente de programa de año siguiente.
+                                    </p>
+                                </div>
+
                                 <span v-if="errors.refund_type" class="text-red-500 text-sm mt-2 block">{{ errors.refund_type }}</span>
                             </div>
 
@@ -546,6 +588,7 @@ const form = useForm({
     program_id: '',
     participant_id: '',
     refund_type: 'refund_credit_note', // Default: Nota de Crédito (NC)
+    ra_imputation_type: 'CT', // CT = Crédito Temporal, AC = Anticipo de Cliente (solo para RA)
     sii_code: '',
     document_number: '',
     transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 10),
@@ -569,6 +612,7 @@ let searchTimeout = null;
 // Variables para tipo de reembolso y sub-selector
 const selectedBaseRefundType = ref('refund_credit_note');
 const refundAppliesTo = ref('abono');
+const raImputationType = ref('CT'); // CT = Crédito Temporal, AC = Anticipo de Cliente
 
 const rutValidation = reactive({
     isValid: null,
@@ -603,6 +647,7 @@ const selectRefundType = (code) => {
         // Para RA u otros, usar directamente
         form.refund_type = code;
         refundAppliesTo.value = 'abono'; // reset
+        raImputationType.value = 'CT'; // reset
     }
 };
 
@@ -1161,6 +1206,7 @@ const submit = () => {
         client_rut: clientForm.documentNumber,
         client_name: clientForm.name,
         refund_type: form.refund_type,
+        ra_imputation_type: form.refund_type === 'refund_admin_reversal' ? raImputationType.value : null,
     };
 
     // Crear un nuevo formulario con los datos combinados

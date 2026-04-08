@@ -71,6 +71,9 @@ class CreateParticularPaymentService
             $paidAmount = $this->calculatePaidAmount($participant->id, $programCourse->id);
             $previousBalance = max($totalAmount - $paidAmount, 0);
 
+            // Determinar si es el primer pago del participante en este programa
+            $isFirstPayment = ($paidAmount == 0);
+
             // Validar monto del pago considerando suscripciones activas
             $validationResult = $this->validatePaymentAmount($participant->id, $programCourse->id, $data['amount'], $previousBalance);
             if (!$validationResult['valid']) {
@@ -81,10 +84,10 @@ class CreateParticularPaymentService
             $order = $this->findOrCreateOrder($participant, $programCourse, $totalAmount, $data['amount']);
 
             // Crear el detalle de la orden
-            $orderDetail = $this->createOrderDetail($order, $paymentOption, $paymentGateway, $data);
+            $orderDetail = $this->createOrderDetail($order, $paymentOption, $paymentGateway, $data, $isFirstPayment);
 
             // Crear el pago
-            $payment = $this->createPayment($order, $orderDetail, $paymentGateway, $paymentOption, $data);
+            $payment = $this->createPayment($order, $orderDetail, $paymentGateway, $paymentOption, $data, $isFirstPayment, $programCourse);
 
             // Reestructurar cuotas existentes si hay un plan de cuotas activo
             $this->handleInstallmentRestructure($participant, $programCourse, $data['amount']);
@@ -109,6 +112,20 @@ class CreateParticularPaymentService
 
             // Generar boleta BSale (fuera de la transacción para que el pago quede registrado aunque BSale falle)
             $bsaleResult = $this->generateBsaleInvoiceForPayment($orderDetail, $payment);
+
+            // Enviar email de comprobante para pagos presenciales de programas año siguiente (AC)
+            // Para B2 el email lo maneja SendBsaleEmailJob con 1h de delay
+            if ($payment->document_type === 'AC' && !empty($orderDetail->email)) {
+                try {
+                    $emailService = app(\App\Services\Mail\SuccessPaymentEmailService::class);
+                    $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+                } catch (\Exception $emailEx) {
+                    Log::warning('Pago presencial AC: Error enviando email de comprobante', [
+                        'payment_id' => $payment->id,
+                        'error' => $emailEx->getMessage(),
+                    ]);
+                }
+            }
 
             // Log the payment creation
             $isAporte = $presentialPaymentType === 'AP';
@@ -362,7 +379,7 @@ class CreateParticularPaymentService
     /**
      * Crear el detalle de la orden
      */
-    private function createOrderDetail(Order $order, PaymentOption $paymentOption, PaymentGateway $paymentGateway, array $data): OrderDetail
+    private function createOrderDetail(Order $order, PaymentOption $paymentOption, PaymentGateway $paymentGateway, array $data, bool $isFirstPayment = true): OrderDetail
     {
         return OrderDetail::create([
             'order_id' => $order->id,
@@ -377,7 +394,7 @@ class CreateParticularPaymentService
             'phone' => $data['buyer_phone'] ?? null,
             'document_type' => $data['buyer_document_type'] ?? null,
             'document_number' => RutHelper::clean($data['buyer_document_number'] ?? null),
-            'installment_number' => null, // Pago presencial no es una cuota
+            'installment_number' => $isFirstPayment ? 1 : null, // 1 en primer pago para detectar envío de contrato
             'installments_number' => null,
             'base_amount' => $data['amount'],
             'discount_amount' => 0,
@@ -401,7 +418,7 @@ class CreateParticularPaymentService
     /**
      * Crear el pago
      */
-    private function createPayment(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data): Payment
+    private function createPayment(Order $order, OrderDetail $orderDetail, PaymentGateway $paymentGateway, PaymentOption $paymentOption, array $data, bool $isFirstPayment = true, ?ProgramCourse $programCourse = null): Payment
     {
         // Resolver tipo de documento fiscal
         if ($paymentOption->code === 'presential_credit_temp') {
@@ -411,6 +428,15 @@ class CreateParticularPaymentService
             $documentType = $mapped ?? PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
         } else {
             $documentType = PaymentDocumentTypeHelper::determineDocumentType($order->program_id);
+        }
+
+        // Para programas de año siguiente (AC), determinar los tipos de documento completos
+        // Primer pago → CR (Contrato de Reserva) + AC; pagos siguientes → solo AC
+        $generatedDocumentTypes = null;
+        if ($documentType === PaymentDocumentTypeHelper::TYPE_ANTICIPO) {
+            $generatedDocumentTypes = $isFirstPayment
+                ? [PaymentDocumentTypeHelper::TYPE_CONTRATO, PaymentDocumentTypeHelper::TYPE_ANTICIPO]
+                : [PaymentDocumentTypeHelper::TYPE_ANTICIPO];
         }
 
         return Payment::create([
@@ -446,6 +472,7 @@ class CreateParticularPaymentService
             ],
             'currency' => 'CLP',
             'document_type' => $documentType,
+            'generated_document_types' => $generatedDocumentTypes,
         ]);
     }
 
