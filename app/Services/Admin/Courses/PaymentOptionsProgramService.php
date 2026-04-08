@@ -121,7 +121,7 @@ class PaymentOptionsProgramService
                 'program',
                 'course.institution',
                 'paymentOptions',
-                'participantPrograms.orders.payments',
+                'participantPrograms',
                 'salesExecutive'
             ])
             ->where('active', true) // Siempre mostrar solo programas activos
@@ -176,14 +176,12 @@ class PaymentOptionsProgramService
                 return (float) ($pp->individual_price ?: $tripPrice);
             });
 
-            // Calcular monto pagado (suma de pagos aprobados/completados)
-            $paidAmount = $program->participantPrograms->sum(function ($pp) {
-                return $pp->orders->sum(function ($order) {
-                    return $order->payments
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->sum('amount');
-                });
-            });
+            // Calcular monto pagado usando orders.program_id (incluye órdenes con y sin participant_program_id)
+            $paidAmount = (float) DB::table('payments')
+                ->join('orders', 'payments.order_id', '=', 'orders.id')
+                ->where('orders.program_id', $program->id)
+                ->whereIn('payments.status', ['approved', 'completed'])
+                ->sum('payments.amount');
 
             // Calcular porcentaje de pago
             $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100) : 0;
