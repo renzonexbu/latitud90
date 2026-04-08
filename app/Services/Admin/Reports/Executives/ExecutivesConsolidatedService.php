@@ -442,7 +442,7 @@ class ExecutivesConsolidatedService
                 'document_number' => $payment->bsale_number ?: $payment->payment_code ?: $order?->order_number ?: 'N/A',
                 'document_type' => $payment->document_type ?: 'N/A',
                 'payment_form' => $payment->paymentOption?->report_code ?: 'N/A',
-                'installments_number' => $payment->installments_number ?? 1,
+                'installments_number' => max(1, (int) ($payment->installments_number ?? 1)),
                 'payment_date' => ($payment->payment_source === 'subscription' ? ($payment->created_at ? Carbon::parse($payment->created_at)->format('d/m/Y') : 'N/A') : ($payment->transaction_date ? Carbon::parse($payment->transaction_date)->format('d/m/Y') : 'N/A')),
                 'payer_contact' => $payerContact ?: 'N/A',
                 'payer_email' => $payerEmail ?: 'N/A',
