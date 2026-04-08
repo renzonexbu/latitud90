@@ -189,7 +189,10 @@ class ProgramDetailService
         // Tarjeta de crédito: cuenta por mes calendario (marzo→agosto = 6)
         $availableInstallmentsForFull = $this->calculateAvailableMonthsByCalendar($programCourse->departure_date);
         // Suscripción/PAT: cuenta por días exactos (cada 30 días)
-        $availableInstallmentsForSubscription = $this->calculateAvailableInstallments($programCourse->final_payment_date);
+        $availableInstallmentsForSubscription = $this->calculateAvailableInstallments(
+            $programCourse->final_payment_date,
+            $programCourse->subscription_max_months ?? 12
+        );
 
         Log::info('ProgramDetail: Cuotas calculadas en tiempo real', [
             'program_course_id' => $programCourse->id,
@@ -353,10 +356,10 @@ class ProgramDetailService
      * Calcular cuotas disponibles por días exactos (para suscripción / PAT)
      * Cada cuota = 30 días. +1 porque la primera se paga el día 0.
      */
-    private function calculateAvailableInstallments(?string $endDate): int
+    private function calculateAvailableInstallments(?string $endDate, int $maxInstallments = 12): int
     {
         if (!$endDate) {
-            return 12; // Sin fecha límite, permitir máximo 12 cuotas
+            return $maxInstallments;
         }
 
         $today = Carbon::today()->setTimezone('America/Santiago');
@@ -368,7 +371,7 @@ class ProgramDetailService
         }
 
         // +1 porque la primera cuota se paga el día 0 (hoy)
-        return min(12, (int) floor($diffDays / 30) + 1);
+        return min($maxInstallments, (int) floor($diffDays / 30) + 1);
     }
 
     private function calculateDuration($departureDate)

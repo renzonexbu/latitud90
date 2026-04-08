@@ -78,6 +78,7 @@ class HandleInertiaRequests extends Middleware
             'ac_conversion_pending' => fn () => $user ? Payment::where('document_type', 'AC')
                 ->whereNull('bsale_number')
                 ->where('status', 'completed')
+                ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
                 ->whereHas('order.programCourse', function ($q) {
                     $q->whereYear('departure_date', '<=', now()->year);
                 })

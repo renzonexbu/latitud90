@@ -44,7 +44,10 @@ class PaymentOptionsProgramService
 
         // Si es una suscripción y tenemos el programa, calcular cuotas en tiempo real
         if ($code === 'subscription_virtualpos' && $program) {
-            $availableMonths = $this->calculateAvailableInstallments($program->final_payment_date);
+            $availableMonths = $this->calculateAvailableInstallments(
+                $program->final_payment_date,
+                $program->subscription_max_months ?? 12
+            );
 
             if ($availableMonths > 0) {
                 $baseLabel .= " - hasta {$availableMonths} cuotas";
@@ -59,10 +62,10 @@ class PaymentOptionsProgramService
     /**
      * Calcular cuotas disponibles hasta una fecha límite (misma fórmula que el ecommerce)
      */
-    protected function calculateAvailableInstallments(?string $endDate): int
+    protected function calculateAvailableInstallments(?string $endDate, int $maxInstallments = 12): int
     {
         if (!$endDate) {
-            return 12;
+            return $maxInstallments;
         }
 
         $today = Carbon::today()->setTimezone('America/Santiago');
@@ -73,7 +76,7 @@ class PaymentOptionsProgramService
             return 0;
         }
 
-        return min(12, (int) floor($diffDays / 30) + 1);
+        return min($maxInstallments, (int) floor($diffDays / 30) + 1);
     }
 
     /**

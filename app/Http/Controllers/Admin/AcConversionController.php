@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Services\Bsale\BsaleQueueService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
@@ -19,6 +20,7 @@ class AcConversionController extends Controller
         $payments = Payment::where('document_type', 'AC')
             ->whereNull('bsale_number')
             ->where('status', 'completed')
+            ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
             ->whereHas('order.programCourse', function ($q) {
                 $q->whereYear('departure_date', '<=', now()->year);
             })
@@ -67,7 +69,14 @@ class AcConversionController extends Controller
     }
 
     /**
-     * Ejecutar la conversión de pagos AC seleccionados a boleta B2
+     * Ejecutar la conversión de pagos AC seleccionados a boleta B2.
+     *
+     * Por cada pago AC:
+     *   1. Se registra un Reverso Administrativo (RA) interno — cancela el AC contablemente.
+     *   2. Se crea un nuevo pago B2 con los mismos datos — equivale a un pago offline nuevo.
+     *   3. Se genera la boleta BSale para el pago B2.
+     *
+     * El pago AC original queda intacto como registro histórico.
      */
     public function execute(Request $request)
     {
@@ -80,13 +89,14 @@ class AcConversionController extends Controller
         $results = [];
 
         foreach ($request->payment_ids as $paymentId) {
-            $payment = Payment::where('id', $paymentId)
+            $acPayment = Payment::where('id', $paymentId)
                 ->where('document_type', 'AC')
                 ->whereNull('bsale_number')
                 ->where('status', 'completed')
+                ->with(['order.programCourse', 'orderDetail', 'paymentGateway', 'paymentOption'])
                 ->first();
 
-            if (!$payment) {
+            if (!$acPayment) {
                 $results[] = [
                     'payment_id' => $paymentId,
                     'success' => false,
@@ -96,80 +106,131 @@ class AcConversionController extends Controller
             }
 
             try {
-                // Cambiar document_type a B2 para que BSale genere la boleta
-                $payment->document_type = 'B2';
-                $payment->save();
+                DB::beginTransaction();
 
-                // Encolar y procesar inmediatamente
-                $bsaleRequest = $bsaleQueueService->queueBoleta($payment, 'ac_conversion');
+                // 1. Registrar Reverso Administrativo (RA) — cancela el AC internamente
+                $raPayment = Payment::create([
+                    'order_id'           => $acPayment->order_id,
+                    'order_detail_id'    => $acPayment->order_detail_id,
+                    'payment_gateway_id' => $acPayment->payment_gateway_id,
+                    'payment_option_id'  => $acPayment->payment_option_id,
+                    'buy_order'          => $acPayment->buy_order,
+                    'amount'             => -abs($acPayment->amount),
+                    'status'             => 'completed',
+                    'transaction_date'   => now(),
+                    'document_type'      => 'RA',
+                    'currency'           => $acPayment->currency ?? 'CLP',
+                    'gateway_response'   => [
+                        'created_manually'    => true,
+                        'payment_type'        => 'ac_conversion_reversal',
+                        'original_payment_id' => $acPayment->id,
+                        'notes'               => 'Reverso Administrativo — Conversión AC→Boleta',
+                    ],
+                ]);
+
+                // 2. Crear nuevo pago B2 — mismo monto y datos del pagador original
+                // En el año de ejecución del programa (2027+), determineDocumentTypes()
+                // retorna B2 automáticamente porque paymentYear >= programYear
+                $b2Payment = Payment::create([
+                    'order_id'           => $acPayment->order_id,
+                    'order_detail_id'    => $acPayment->order_detail_id,
+                    'payment_gateway_id' => $acPayment->payment_gateway_id,
+                    'payment_option_id'  => $acPayment->payment_option_id,
+                    'buy_order'          => $acPayment->buy_order,
+                    'amount'             => abs($acPayment->amount),
+                    'status'             => 'completed',
+                    'transaction_date'   => now(),
+                    'document_type'      => 'B2',
+                    'currency'           => $acPayment->currency ?? 'CLP',
+                    'gateway_response'   => [
+                        'created_manually'    => true,
+                        'payment_type'        => 'ac_conversion_boleta',
+                        'original_payment_id' => $acPayment->id,
+                        'ra_payment_id'       => $raPayment->id,
+                        'notes'               => 'Boleta generada por conversión AC→B2',
+                    ],
+                ]);
+
+                DB::commit();
+
+                // 3. Generar boleta BSale para el nuevo pago B2 (fuera de la transacción)
+                $bsaleRequest = $bsaleQueueService->queueBoleta($b2Payment, 'ac_conversion');
 
                 if (!$bsaleRequest) {
-                    // Revertir si no se pudo encolar
-                    $payment->document_type = 'AC';
-                    $payment->save();
+                    Log::warning('AcConversionController: No se pudo encolar en BSale', [
+                        'original_payment_id' => $paymentId,
+                        'b2_payment_id'       => $b2Payment->id,
+                        'ra_payment_id'       => $raPayment->id,
+                    ]);
 
                     $results[] = [
                         'payment_id' => $paymentId,
-                        'success' => false,
-                        'message' => 'No se pudo encolar en BSale (ya existe o no aplica)',
+                        'success'    => false,
+                        'message'    => 'RA y pago B2 registrados, pero no se pudo encolar en BSale.',
                     ];
                     continue;
                 }
 
                 $success = $bsaleQueueService->processRequest($bsaleRequest);
-                $payment->refresh();
+                $b2Payment->refresh();
 
-                if ($success && $payment->bsale_number) {
-                    Log::info('AcConversionController: Boleta generada exitosamente', [
-                        'payment_id' => $paymentId,
-                        'bsale_number' => $payment->bsale_number,
+                if ($success && $b2Payment->bsale_number) {
+                    // Marcar el AC original como convertido para excluirlo del listado
+                    $acPayment->gateway_response = array_merge($acPayment->gateway_response ?? [], [
+                        'ac_converted'  => true,
+                        'converted_at'  => now()->toISOString(),
+                        'ra_payment_id' => $raPayment->id,
+                        'b2_payment_id' => $b2Payment->id,
+                    ]);
+                    $acPayment->save();
+
+                    Log::info('AcConversionController: Conversión completada', [
+                        'original_payment_id' => $paymentId,
+                        'ra_payment_id'       => $raPayment->id,
+                        'b2_payment_id'       => $b2Payment->id,
+                        'bsale_number'        => $b2Payment->bsale_number,
                     ]);
 
                     $results[] = [
-                        'payment_id' => $paymentId,
-                        'success' => true,
-                        'bsale_number' => $payment->bsale_number,
-                        'message' => "Boleta #{$payment->bsale_number} generada",
+                        'payment_id'   => $paymentId,
+                        'success'      => true,
+                        'bsale_number' => $b2Payment->bsale_number,
+                        'message'      => "RA registrado + Boleta #{$b2Payment->bsale_number} generada",
                     ];
                 } else {
-                    // Revertir document_type si falló
-                    $payment->document_type = 'AC';
-                    $payment->save();
-
                     $results[] = [
                         'payment_id' => $paymentId,
-                        'success' => false,
-                        'message' => 'Error al generar boleta en BSale: ' . ($payment->bsale_error ?? 'Error desconocido'),
+                        'success'    => false,
+                        'message'    => 'RA y pago B2 registrados, pero BSale falló: ' . ($b2Payment->bsale_error ?? 'Error desconocido'),
                     ];
                 }
-            } catch (\Exception $e) {
-                // Revertir document_type en caso de excepción
-                $payment->document_type = 'AC';
-                $payment->save();
 
-                Log::error('AcConversionController: Excepción al convertir pago', [
+            } catch (\Exception $e) {
+                DB::rollBack();
+
+                Log::error('AcConversionController: Error en conversión', [
                     'payment_id' => $paymentId,
-                    'error' => $e->getMessage(),
+                    'error'      => $e->getMessage(),
                 ]);
 
                 $results[] = [
                     'payment_id' => $paymentId,
-                    'success' => false,
-                    'message' => 'Error: ' . $e->getMessage(),
+                    'success'    => false,
+                    'message'    => 'Error: ' . $e->getMessage(),
                 ];
             }
         }
 
         $successCount = collect($results)->where('success', true)->count();
-        $errorCount = collect($results)->where('success', false)->count();
+        $errorCount   = collect($results)->where('success', false)->count();
 
         return redirect()->route('admin.payments.ac-conversion.index')->with([
             'conversion_results' => $results,
             'success' => $successCount > 0
-                ? "Se generaron {$successCount} boleta(s) exitosamente." . ($errorCount > 0 ? " {$errorCount} con error." : '')
+                ? "Se convirtieron {$successCount} pago(s) exitosamente." . ($errorCount > 0 ? " {$errorCount} con error." : '')
                 : null,
             'error' => $successCount === 0
-                ? "No se pudo generar ninguna boleta. Revisa los errores."
+                ? 'No se pudo convertir ningún pago. Revisa los errores.'
                 : null,
         ]);
     }
