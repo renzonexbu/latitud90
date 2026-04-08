@@ -87,8 +87,8 @@ class UpdatePaymentOptionsService
             $availableMonthsForSubscription
         );
 
-        // Actualizar número máximo de cuotas para suscripción
-        $this->updateMaxInstallments($programCourse, $availableMonthsForSubscription);
+        // subscription_max_months lo configura el admin manualmente; no se sobreescribe aquí.
+        // El límite por fecha se aplica dinámicamente en ProgramDetailService y PaymentOptionsProgramService.
     }
     
     /**
