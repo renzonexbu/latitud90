@@ -17,7 +17,7 @@
                 </svg>
                 <div class="text-sm text-blue-800">
                     <p class="font-semibold mb-1">¿Por qué aparecen estos pagos?</p>
-                    <p>Estos abonos fueron registrados en <strong>{{ currentYear - 1 }}</strong> para programas con salida en <strong>{{ currentYear }}</strong>. En su momento se emitió un comprobante de anticipo (AC) porque BSale no genera boleta hasta el año de ejecución del programa. Ahora que estamos en {{ currentYear }}, corresponde generar la boleta oficial.</p>
+                    <p>Estos abonos fueron registrados como anticipos (AC) antes del año de ejecución del programa. En su momento BSale no generó boleta porque el programa aún no había salido. Ahora que el año de salida ya llegó, corresponde emitir la boleta oficial.</p>
                 </div>
             </div>
 
