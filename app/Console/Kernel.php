@@ -63,7 +63,15 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('bsale_process'));
 
-        // 4. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
+        // 4. Expirar suscripciones atascadas en SUSCRIBIENDO (>60 min)
+        // Libera al cliente para reintentar el pago sin intervención manual
+        $schedule->command('subscriptions:expire-stale --minutes=60')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(5)
+            ->runInBackground()
+            ->appendOutputTo($this->getScheduleLogPath('expire_stale_subscriptions'));
+
+        // 5. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
         // Sincroniza emails de clientes para campañas de marketing
         $schedule->command('marketing:process-emails')
             ->twiceDaily(6, 18)
