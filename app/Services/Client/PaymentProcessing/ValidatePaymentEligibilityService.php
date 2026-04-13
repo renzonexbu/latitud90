@@ -18,14 +18,13 @@ class ValidatePaymentEligibilityService
      */
     public function execute(int $programId, string $rut, array $paymentData): array
     {
-        // Buscar el participante (solo activos)
-        $participant = \App\Models\Participant::where('document_number', $rut)
-            ->where('is_active', true)
-            ->first();
+        // Buscar el participante (validación de programa activo se hace después)
+        $cleanRut = preg_replace('/[.-]/', '', $rut);
+        $participant = \App\Models\Participant::where('document_number', $cleanRut)->first();
         if (!$participant) {
             return [
                 'success' => false,
-                'error' => 'Participante no encontrado o inactivo'
+                'error' => 'Participante no encontrado'
             ];
         }
 

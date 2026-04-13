@@ -34,24 +34,21 @@ class ConfirmPaymentService
             // Limpiar el documento de puntos y guiones
             $cleanDocument = preg_replace('/[.-]/', '', $rut);
             
-            // Buscar primero por RUT (compatibilidad) - solo activos
+            // Buscar primero por RUT (compatibilidad)
+            // No filtrar por is_active — se valida a nivel de participant_program
             $participant = Participant::where('document_number', $cleanDocument)
-                ->where('is_active', true)
                 ->whereHas('documentType', function($query) {
                     $query->where('name', 'RUT');
                 })
                 ->first();
 
-            // Si no se encuentra por RUT, buscar por cualquier tipo de documento - solo activos
+            // Si no se encuentra por RUT, buscar por cualquier tipo de documento
             if (!$participant) {
                 $participant = Participant::where('document_number', $cleanDocument)
-                    ->where('is_active', true)
                     ->first();
             }
         } elseif ($participantId) {
-            $participant = Participant::where('id', $participantId)
-                ->where('is_active', true)
-                ->first();
+            $participant = Participant::find($participantId);
         }
 
         // NOTA: La validación de permisos de guardian se hace SOLO en el flujo de suscripciones

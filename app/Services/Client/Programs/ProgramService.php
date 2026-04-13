@@ -24,11 +24,11 @@ class ProgramService
         // Limpiar el documento de puntos y guiones
         $cleanDocument = $this->cleanDocument($document);
         
-        // Buscar el participante en la base de datos usando join con la tabla document (solo activos)
+        // No filtrar por participants.is_active — la validación real es
+        // participant_program.is_active por programa (getAvailablePrograms ya filtra)
         $participant = Participant::join('document', 'participants.document_type', '=', 'document.id')
             ->where('participants.document_number', $cleanDocument)
             ->where('document.name', $documentType)
-            ->where('participants.is_active', true)
             ->select('participants.*')
             ->with(['courses', 'emergencyContacts'])
             ->first();

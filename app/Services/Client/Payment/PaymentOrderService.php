@@ -86,12 +86,11 @@ class PaymentOrderService
         try {
             DB::beginTransaction();
 
-            // Buscar el participante por RUT (solo activos)
-            $participant = Participant::where('document_number', $rut)
-                ->where('is_active', true)
-                ->first();
+            // Buscar el participante por RUT (validación de programa activo se hace por participant_program)
+            $cleanRut = preg_replace('/[.-]/', '', $rut);
+            $participant = Participant::where('document_number', $cleanRut)->first();
             if (!$participant) {
-                throw new \Exception('Participante no encontrado o inactivo');
+                throw new \Exception('Participante no encontrado');
             }
 
             // Buscar el ProgramCourse (no Program)

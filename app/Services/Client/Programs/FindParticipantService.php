@@ -21,10 +21,12 @@ class FindParticipantService
         
         // Buscar el participante en la base de datos usando join con la tabla document
         // Solo buscar participantes activos
+        // No filtrar por participants.is_active aquí — la validación real es
+        // participant_program.is_active (un participante puede estar de baja en un
+        // programa pero activo en otro tras un traslado de colegio)
         $participant = Participant::join('document', 'participants.document_type', '=', 'document.id')
             ->where('participants.document_number', $cleanDocument)
             ->where('document.name', $documentType)
-            ->where('participants.is_active', true)
             ->select('participants.*')
             ->first();
 

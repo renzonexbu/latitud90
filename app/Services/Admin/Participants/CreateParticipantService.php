@@ -70,6 +70,16 @@ class CreateParticipantService
                         'updated_at' => now()
                     ]);
 
+                    // Si el participante estaba inactivo (ej: trasladado de otro programa),
+                    // reactivarlo al inscribirlo en un programa nuevo
+                    if (!$participant->is_active) {
+                        $participant->update(['is_active' => true]);
+                        Log::info('Participante reactivado automáticamente al inscribir en programa nuevo', [
+                            'participant_id' => $participant->id,
+                            'program_course_id' => $programCourse->id,
+                        ]);
+                    }
+
                     Log::info('Participante asociado automáticamente al curso del programa', [
                         'participant_id' => $participant->id,
                         'program_course_id' => $programCourse->id,
