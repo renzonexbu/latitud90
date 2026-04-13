@@ -4,6 +4,7 @@ namespace App\Services\Admin\Courses;
 
 use App\Models\PaymentOption;
 use App\Models\ProgramCourse;
+use App\Services\Admin\ParticipantFinancialService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -167,31 +168,19 @@ class PaymentOptionsProgramService
                 ])
                 ->values();
 
-            // Calcular participantes, monto total y monto pagado
-            $participantsCount = $program->participantPrograms->count();
-            $tripPrice = (float) ($program->trip_price ?? 0);
-
-            // Calcular total (suma de precios individuales o precio del programa * participantes)
-            $totalAmount = $program->participantPrograms->sum(function ($pp) use ($tripPrice) {
-                return (float) ($pp->individual_price ?: $tripPrice);
-            });
-
-            // Calcular monto pagado usando orders.program_id (incluye órdenes con y sin participant_program_id)
-            $paidAmount = (float) DB::table('payments')
-                ->join('orders', 'payments.order_id', '=', 'orders.id')
-                ->where('orders.program_id', $program->id)
-                ->whereIn('payments.status', ['approved', 'completed'])
-                ->sum('payments.amount');
-
-            // Calcular porcentaje de pago
-            $paymentPercentage = $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100) : 0;
+            // Cálculo centralizado: precios, abonos, descuentos, NC/RA/CT, etc
+            $totals = ParticipantFinancialService::calculateProgramTotals($program->id);
+            $participantsCount = $totals['participants_count'];
+            $totalAmount = $totals['total_amount'];
+            $paidAmount = $totals['total_paid'];
+            $paymentPercentage = (int) round($totals['payment_percentage']);
 
             return [
                 'id' => $program->id,
                 'code' => $program->code,
                 'name' => $program->name,
                 'destination' => $program->program?->destination ?? $program->destination,
-                'trip_price' => $tripPrice,
+                'trip_price' => (float) ($program->trip_price ?? 0),
                 'departure_date' => $program->departure_date?->format('Y-m-d'),
                 'sales_executive_name' => $program->salesExecutive?->name ?? 'Sin asignar',
                 'active' => $program->active,

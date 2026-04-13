@@ -4,6 +4,7 @@ namespace App\Services\Admin\Reports\Executives;
 
 use App\Helpers\ParticipantPriceHelper;
 use App\Models\Payment;
+use App\Services\Admin\ParticipantFinancialService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
@@ -137,29 +138,26 @@ class ExecutivesPartialAccountService
                 $rowProgramCourseId = $programCourseId ?? $row->program_course_id;
 
                 // ============================================================
-                // PRECIO: Usar ParticipantPriceHelper (misma lógica que vista Participantes)
+                // CÁLCULO CENTRALIZADO via ParticipantFinancialService
+                // Fuente única de verdad para precio, abono, aportes, NC, RA, CT, saldo
                 // ============================================================
-                $participant = \App\Models\Participant::find($row->participant_id);
-                $rowProgramCourse = \App\Models\ProgramCourse::find($rowProgramCourseId);
+                $financial = ParticipantFinancialService::calculate(
+                    (int) $row->participant_id,
+                    (int) $rowProgramCourseId
+                );
 
-                $totalDue = 0;
-                $basePrice = (float) $row->price;
-                if ($participant && $rowProgramCourse) {
-                    $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $rowProgramCourse);
-                    $totalDue = $priceData['final_price'];
-                    $basePrice = $priceData['base_price'];
-                } else {
-                    $totalDue = $basePrice;
-                }
+                $basePrice = $financial['base_price'];
+                $price = $basePrice - ($financial['regular_discounts'] - $financial['released_discounts']);
+                // Descuentos para columnas de visualización (separados por tipo)
+                $released = $financial['released_discounts'];
 
-                // Calcular descuentos desglosados para las columnas de visualización
+                // Reconstruir scholarship y simpleDiscounts desde participant_program_discounts
+                // (necesario porque ParticipantPriceHelper no separa beca de descuentos regulares)
                 $scholarship = 0.0;
-                $released = 0.0;
                 $simpleDiscounts = 0.0;
                 $ppDiscounts = DB::table('participant_program_discounts')
                     ->where('participant_program_id', $row->participant_program_id)
                     ->get();
-
                 foreach ($ppDiscounts as $disc) {
                     $discAmount = 0.0;
                     if ($disc->percent && $disc->percent > 0) {
@@ -170,80 +168,24 @@ class ExecutivesPartialAccountService
                     }
                     if ($disc->discount_type === 'scholarship') {
                         $scholarship += $discAmount;
-                    } elseif ($disc->discount_type === 'released') {
-                        $released += $discAmount;
-                    } else {
+                    } elseif ($disc->discount_type !== 'released') {
                         $simpleDiscounts += $discAmount;
                     }
                 }
-
-                // PRECIO mostrado = base - descuentos simples (sin incluir beca ni liberado)
                 $price = $basePrice - $simpleDiscounts;
 
-                // ============================================================
-                // ABONO: Misma lógica que vista Participantes (GetParticipantsService)
-                // normalPayments (excl. subscription source) + subscriptionPayments (cuotas pagadas)
-                // ============================================================
+                $abono = $financial['abono'];
+                $aporteAmount = $financial['aporte'];
+                $totalPaid = $financial['total_paid'];
+                $saldo = round(-$financial['pending_amount'], 2);
+                if ($financial['pending_amount'] <= 0 && $totalPaid > $price) {
+                    $saldo = round($totalPaid - $price, 2);
+                }
+
+                // Cuotas pagadas y vencidas
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $rowProgramCourseId)
                     ->pluck('id')->all();
-
-                // 1. Pagos normales (excluir pagos de suscripción para evitar doble conteo)
-                //    Y excluir aportes (AP) para la columna ABONO
-                $normalPayments = 0.0;
-                $aporteAmount = 0.0;
-                if (!empty($orderIds)) {
-                    // Pagos normales sin aportes ni suscripciones
-                    $normalPayments = (float) Payment::whereIn('order_id', $orderIds)
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->where(function($query) {
-                            $query->whereNull('payment_source')
-                                  ->orWhere('payment_source', '!=', 'subscription');
-                        })
-                        ->where(function($q) {
-                            $q->whereNull('payment_option_id')
-                              ->orWhereHas('paymentOption', function($sq) {
-                                  $sq->where('report_code', '!=', 'AP');
-                              });
-                        })
-                        ->sum('amount');
-
-                    // Aportes (pagos con report_code 'AP', excluyendo subscription source)
-                    $aporteAmount = (float) Payment::whereIn('order_id', $orderIds)
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->where(function($query) {
-                            $query->whereNull('payment_source')
-                                  ->orWhere('payment_source', '!=', 'subscription');
-                        })
-                        ->whereHas('paymentOption', function($q) {
-                            $q->where('report_code', 'AP');
-                        })
-                        ->sum('amount');
-                }
-
-                // 2. Cuotas de suscripción pagadas (installments)
-                // Se filtran por estado de la CUOTA (paid), no del plan, porque el plan puede estar
-                // cancelado después de reestructuración pero las cuotas ya pagadas siguen vigentes.
-                $subscriptionPayments = (float) DB::table('installments')
-                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-                    ->where('installment_plans.participant_id', $row->participant_id)
-                    ->where('installment_plans.program_id', $rowProgramCourseId)
-                    ->where('installments.status', 'paid')
-                    ->sum('installments.amount');
-
-                // Abono = pagos normales (sin aportes) + cuotas de suscripción
-                $abono = $normalPayments + $subscriptionPayments;
-
-                // Total pagado real (incluyendo aportes) - para calcular saldo igual que Participantes
-                $totalPaid = $abono + $aporteAmount;
-
-                // ============================================================
-                // SALDO: (Abono + Aporte/Beca + Liberado) - Precio
-                // Positivo = excedente, Negativo = saldo deudor
-                // ============================================================
-                $saldo = round(($abono + $scholarship + $aporteAmount + $released) - $price, 2);
-
-                // Cuotas pagadas y vencidas
                 $paidInstallments = 0;
                 $overdueInstallments = 0;
                 $totalInstallments = 0;
