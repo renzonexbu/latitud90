@@ -59,10 +59,46 @@ class ExcelExporter
                         $value = (string) $value;
                     }
 
-                    // Asegurar que columnas específicas sean tratadas como texto
-                    if (in_array($key, ['Documento', 'ID Suscripción VirtualPos', 'ID Cargo VirtualPos', 'Código Plan', 'ID Cuota'])) {
+                    // Columnas que deben tratarse como texto (IDs, códigos, RUTs)
+                    $textColumns = [
+                        'Documento', 'RUT Suscriptor',
+                        'ID Suscripción', 'ID Suscripción VirtualPos',
+                        'ID Cargo', 'ID Cargo VirtualPos',
+                        'Código Plan', 'ID Cuota',
+                        'Cód. Inscripción', 'Cód. Programa',
+                    ];
+                    if (in_array($key, $textColumns, true)) {
                         $sheet->getStyle($cellCoordinate)->getNumberFormat()->setFormatCode('@');
                         $value = (string) $value;
+                    }
+
+                    // Columnas de fecha: convertir a fecha real de Excel con formato dd-mm-yyyy
+                    $dateColumns = ['Fecha Cobro', 'Fecha de Cobro', 'Fecha Pago', 'Fecha de Pago', 'Fecha Vencimiento', 'Fecha Salida', 'Fecha'];
+                    $dateTimeColumns = ['Fecha Intento', 'Fecha Resolución'];
+
+                    if (!empty($value) && in_array($key, $dateColumns, true)) {
+                        try {
+                            $dt = \Carbon\Carbon::parse($value);
+                            $excelDate = \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($dt);
+                            $sheet->setCellValue($cellCoordinate, $excelDate);
+                            $sheet->getStyle($cellCoordinate)->getNumberFormat()->setFormatCode('DD-MM-YYYY');
+                            $colIndex++;
+                            continue;
+                        } catch (\Exception $e) {
+                            // Si no se puede parsear, dejar como texto
+                        }
+                    }
+                    if (!empty($value) && in_array($key, $dateTimeColumns, true)) {
+                        try {
+                            $dt = \Carbon\Carbon::parse($value);
+                            $excelDate = \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($dt);
+                            $sheet->setCellValue($cellCoordinate, $excelDate);
+                            $sheet->getStyle($cellCoordinate)->getNumberFormat()->setFormatCode('DD-MM-YYYY HH:MM');
+                            $colIndex++;
+                            continue;
+                        } catch (\Exception $e) {
+                            // Si no se puede parsear, dejar como texto
+                        }
                     }
 
                     $sheet->setCellValue($cellCoordinate, $value);

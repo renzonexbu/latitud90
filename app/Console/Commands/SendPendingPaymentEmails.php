@@ -553,7 +553,10 @@ class SendPendingPaymentEmails extends Command
         ->where('status', 'completed')
         // Excluir pagos presenciales (gateway 4): su boleta se genera al registrarlos
         // y no requieren envío de email al cliente
-        ->where('payment_gateway_id', '!=', 4);
+        ->where('payment_gateway_id', '!=', 4)
+        // Excluir reversos administrativos (RA) y montos negativos: nunca generan email al cliente
+        ->where('document_type', '!=', 'RA')
+        ->where('amount', '>', 0);
 
         // Si se especifica un payment ID
         if ($paymentId = $this->option('payment')) {

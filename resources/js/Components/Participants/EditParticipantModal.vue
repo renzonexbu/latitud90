@@ -415,7 +415,8 @@
                                             >
                                                 <option value="percent">Porcentaje (%)</option>
                                                 <option value="amount">Monto fijo (CLP)</option>
-                                                <option value="liberado">Liberado</option>
+                                                <option value="liberado">Liberado (%)</option>
+                                                <option value="liberado_amount">Liberado (Monto fijo CLP)</option>
                                             </select>
                                         </div>
 
@@ -433,6 +434,12 @@
                                                 :placeholder="getDiscountValuePlaceholder(discount.type)"
                                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-turquesa focus:border-transparent"
                                             />
+                                            <p
+                                                v-if="discount.type === 'liberado_amount' && Number(discount.value || 0) > Number(form.individual_price || 0) && Number(form.individual_price || 0) > 0"
+                                                class="mt-1 text-xs text-red-600"
+                                            >
+                                                El monto liberado no puede superar el precio del programa.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -459,6 +466,11 @@
                                     ({{ discount.value || 0 }}%)
                                     <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
                                         LIBERADO
+                                    </span>
+                                </span>
+                                <span v-if="discount.type === 'liberado_amount'" class="inline-flex items-center">
+                                    <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-semibold rounded-full">
+                                        LIBERADO (MONTO FIJO)
                                     </span>
                                 </span>
                             </div>
@@ -926,10 +938,15 @@ const loadExistingDiscounts = () => {
             let type = "percent";
             let value = discount.percent || 0;
 
-            // Si discount_type es 'released', es un liberado (con cualquier porcentaje)
+            // Si discount_type es 'released', distinguir entre liberado por % y por monto fijo
             if (discount.discount_type === 'released') {
-                type = "liberado";
-                value = discount.percent || 100; // Usar el porcentaje almacenado
+                if (discount.amount && discount.amount > 0) {
+                    type = "liberado_amount";
+                    value = discount.amount;
+                } else {
+                    type = "liberado";
+                    value = discount.percent || 100;
+                }
             } else if (discount.amount && discount.amount > 0) {
                 type = "amount";
                 value = discount.amount;
@@ -1063,6 +1080,7 @@ const getDiscountValueLabel = (type) => {
         case "percent": return "Porcentaje (%)";
         case "amount": return "Monto (CLP)";
         case "liberado": return "Porcentaje (%)";
+        case "liberado_amount": return "Monto (CLP)";
         default: return "Valor";
     }
 };
@@ -1072,6 +1090,7 @@ const getDiscountValuePlaceholder = (type) => {
         case "percent": return "Ej: 10";
         case "amount": return "Ej: 50000";
         case "liberado": return "Ej: 50 (%)";
+        case "liberado_amount": return "Ej: 50000";
         default: return "";
     }
 };
@@ -1080,12 +1099,11 @@ const calculateDiscountAmount = (discount) => {
     const basePrice = Number(form.value.individual_price || 0);
 
     if (discount.type === "liberado" || discount.type === "percent") {
-        // Liberado ahora usa porcentaje variable (igual que percent)
         const percentage = Math.max(0, Math.min(100, Number(discount.value || 0)));
         return (basePrice * percentage) / 100;
     }
 
-    if (discount.type === "amount") {
+    if (discount.type === "amount" || discount.type === "liberado_amount") {
         return Math.min(basePrice, Math.max(0, Number(discount.value || 0)));
     }
 

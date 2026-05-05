@@ -367,32 +367,30 @@ class ExportService
             'C10' => 'Precio',
             'D10' => 'Abono',
             'E10' => "Cuotas\nPagadas",
-            'F10' => "Cuotas\nVencidas",
-            'G10' => "Forma de\nPago",
-            'H10' => 'Aporte/Beca',
-            'I10' => 'Monto Liberado',
-            'J10' => 'Saldo',
+            'F10' => "Forma de\nPago",
+            'G10' => 'Aporte/Beca',
+            'H10' => 'Monto Liberado',
+            'I10' => 'Saldo',
         ];
         foreach ($headers as $cell => $label) {
             $sheet->setCellValue($cell, $label);
         }
-        $this->styleHeader($sheet, 'A10:J10');
-        $sheet->setAutoFilter('A10:J10');
-        
+        $this->styleHeader($sheet, 'A10:I10');
+        $sheet->setAutoFilter('A10:I10');
+
         // Configurar altura de fila para headers con salto de línea
         $sheet->getRowDimension(10)->setRowHeight(40);
-        
+
         // Anchos fijos para que la tabla quepa en una página Carta
         $sheet->getColumnDimension('A')->setWidth(32); // Alumno
         $sheet->getColumnDimension('B')->setWidth(10); // Estado
         $sheet->getColumnDimension('C')->setWidth(12); // Precio
         $sheet->getColumnDimension('D')->setWidth(12); // Abono
         $sheet->getColumnDimension('E')->setWidth(14); // Cuotas Pagadas
-        $sheet->getColumnDimension('F')->setWidth(14); // Cuotas Vencidas
-        $sheet->getColumnDimension('G')->setWidth(16); // Forma de Pago
-        $sheet->getColumnDimension('H')->setWidth(14); // Aporte/Beca
-        $sheet->getColumnDimension('I')->setWidth(14); // Monto Liberado
-        $sheet->getColumnDimension('J')->setWidth(12); // Saldo
+        $sheet->getColumnDimension('F')->setWidth(16); // Forma de Pago
+        $sheet->getColumnDimension('G')->setWidth(14); // Aporte/Beca
+        $sheet->getColumnDimension('H')->setWidth(14); // Monto Liberado
+        $sheet->getColumnDimension('I')->setWidth(12); // Saldo
 
         // ========================
         // Datos dinámicos por participante (A11 en adelante)
@@ -486,26 +484,48 @@ class ExportService
             // normalPayments (excl. subscription source, excl. aportes) + subscriptionPayments
             // ============================================================
             $paidInstallments = 0;
-            $overdueInstallments = 0;
             $totalInstallments = 0;
             $normalPayments = 0.0;
             $aporteAmount = 0.0;
 
             if (!empty($orderIds)) {
-                // Obtener el plan de cuotas
-                $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+                // Fuente de verdad: payment_type de la orden.
+                // 'total' → 1 cuota (intentos fallidos no cuentan).
+                // 'monthly'/PAT → installment_plan + installments.
+                $primaryOrder = $orders->first();
+                $paymentType = $primaryOrder->payment_type ?? null;
 
-                if ($installmentPlan) {
-                    $totalInstallments = $installmentPlan->installments()->count();
-                    $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-                    $overdueInstallments = $installmentPlan->installments()
-                        ->where(function($query) {
-                            $query->where('status', 'overdue')
-                                  ->orWhere(function($q) {
-                                      $q->where('status', 'pending')
-                                        ->where('due_date', '<', now());
-                                  });
-                        })->count();
+                if ($paymentType === 'total') {
+                    $totalInstallments = 1;
+                    $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->where('amount', '>', 0)
+                        ->exists();
+                    $paidInstallments = $hasCompletedPayment ? 1 : 0;
+                } else {
+                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+
+                    if ($installmentPlan) {
+                        $totalInstallments = $installmentPlan->installments()->count();
+                        $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
+                    }
+
+                    if ($totalInstallments === 0 || $paidInstallments === 0) {
+                        $orderDetails = \App\Models\OrderDetail::whereIn('order_id', $orderIds)->get();
+                        if ($totalInstallments === 0) {
+                            $totalInstallments = max(
+                                $orderDetails->pluck('installment_number')->filter()->unique()->count(),
+                                1
+                            );
+                        }
+                        if ($paidInstallments === 0) {
+                            $paidInstallments = $orderDetails->where('is_paid', true)
+                                ->pluck('installment_number')
+                                ->filter()
+                                ->unique()
+                                ->count();
+                        }
+                    }
                 }
 
                 // 1. Pagos normales (excluir suscripción Y excluir aportes)
@@ -619,22 +639,21 @@ class ExportService
             $sheet->setCellValue('C' . $row, $displayPrice);
             $sheet->setCellValue('D' . $row, $abono);
             $sheet->setCellValue('E' . $row, $paidInstallments . '/' . ($totalInstallments ?: 0));
-            $sheet->setCellValue('F' . $row, $overdueInstallments);
-            $sheet->setCellValue('G' . $row, $paymentMethod);
-            $sheet->setCellValue('H' . $row, $scholarship);
-            $sheet->setCellValue('I' . $row, $released);
-            $sheet->setCellValue('J' . $row, $saldo);
+            $sheet->setCellValue('F' . $row, $paymentMethod);
+            $sheet->setCellValue('G' . $row, $scholarship);
+            $sheet->setCellValue('H' . $row, $released);
+            $sheet->setCellValue('I' . $row, $saldo);
 
             // Aplicar formato de moneda a las columnas numéricas
-            foreach (['C','D','H','I'] as $col) {
+            foreach (['C','D','G','H'] as $col) {
                 $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
             }
             // Saldo: paréntesis para negativos
-            $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
+            $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
 
-            // Centrar contenido en columnas B, E, F, G (Estado, Cuotas Pagadas, Cuotas Vencidas, Forma de Pago)
+            // Centrar contenido en columnas B, E, F (Estado, Cuotas Pagadas, Forma de Pago)
             $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-            $sheet->getStyle('E' . $row . ':G' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('E' . $row . ':F' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $totals['price'] += $displayPrice;
             $totals['abono'] += $abono;
@@ -649,14 +668,14 @@ class ExportService
         $sheet->setCellValue('A' . $row, 'Total General');
         $sheet->setCellValue('C' . $row, $totals['price']);
         $sheet->setCellValue('D' . $row, $totals['abono']);
-        $sheet->setCellValue('H' . $row, $totals['scholarship']);
-        $sheet->setCellValue('I' . $row, $totals['released']);
-        $sheet->setCellValue('J' . $row, $totals['por_pagar']);
-        foreach (['C','D','H','I'] as $col) {
+        $sheet->setCellValue('G' . $row, $totals['scholarship']);
+        $sheet->setCellValue('H' . $row, $totals['released']);
+        $sheet->setCellValue('I' . $row, $totals['por_pagar']);
+        foreach (['C','D','G','H'] as $col) {
             $sheet->getStyle($col . $row)->getNumberFormat()->setFormatCode('#,##0');
         }
-        $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
-        $sheet->getStyle('A' . $row . ':J' . $row)->applyFromArray([
+        $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0;(#,##0)');
+        $sheet->getStyle('A' . $row . ':I' . $row)->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1C4F4A']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER]

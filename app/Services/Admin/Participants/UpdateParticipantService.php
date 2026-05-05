@@ -247,8 +247,12 @@ class UpdateParticipantService
                         $amount = $discountData['value'] ?? null;
                         $discountType = 'discount'; // Descuento simple, se resta del precio total
                     } elseif ($discountData['type'] === 'liberado') {
-                        // Liberado ahora acepta cualquier porcentaje
+                        // Liberado por porcentaje
                         $percent = $discountData['value'] ?? 100;
+                        $discountType = 'released';
+                    } elseif ($discountData['type'] === 'liberado_amount') {
+                        // Liberado por monto fijo (CLP)
+                        $amount = $discountData['value'] ?? null;
                         $discountType = 'released';
                     }
 
@@ -274,8 +278,12 @@ class UpdateParticipantService
                     $amount = $discountData['value'] ?? null;
                     $discountType = 'discount'; // Descuento simple, se resta del precio total
                 } elseif ($discountData['type'] === 'liberado') {
-                    // Liberado ahora acepta cualquier porcentaje
+                    // Liberado por porcentaje
                     $percent = $discountData['value'] ?? 100;
+                    $discountType = 'released';
+                } elseif ($discountData['type'] === 'liberado_amount') {
+                    // Liberado por monto fijo (CLP)
+                    $amount = $discountData['value'] ?? null;
                     $discountType = 'released';
                 }
 
@@ -464,7 +472,7 @@ class UpdateParticipantService
 
                 if (!empty($discount['value']) || $discount['type'] === 'liberado') {
                     $hasValidDiscount = true;
-                    if ($discount['type'] === 'liberado') {
+                    if ($discount['type'] === 'liberado' || $discount['type'] === 'liberado_amount') {
                         $discountType = 'released';
                     }
                     $discountComment = $discount['comment'] ?? $discountComment;

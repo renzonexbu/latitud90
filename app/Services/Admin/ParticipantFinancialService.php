@@ -224,8 +224,9 @@ class ParticipantFinancialService
             $participantsCount++;
         }
 
+        // floor() en vez de round() para no mostrar 100% cuando aún falta por cobrar
         $paymentPercentage = $totalAmount > 0
-            ? round(($totalPaid / $totalAmount) * 100, 2)
+            ? (int) floor(($totalPaid / $totalAmount) * 100)
             : 0;
 
         return [

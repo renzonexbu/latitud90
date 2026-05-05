@@ -16,26 +16,43 @@ class LogCleanupService
             'total_space_freed' => 0,
             'errors' => []
         ];
-        
+
         try {
             $logPath = storage_path('logs');
-            $files = glob($logPath . '/*.log');
-            
-            foreach ($files as $file) {
-                if (filemtime($file) < strtotime("-{$daysOld} days")) {
-                    $fileSize = filesize($file);
-                    
-                    if (unlink($file)) {
+            $cutoff = strtotime("-{$daysOld} days");
+
+            if (!is_dir($logPath)) {
+                return $results;
+            }
+
+            // Recorrido recursivo: captura logs/, logs/bsale/, logs/schedules/, logs/charge_retries/, etc.
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($logPath, \RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+                $ext = strtolower($file->getExtension());
+                if (!in_array($ext, ['log', 'txt'], true)) {
+                    continue;
+                }
+
+                $path = $file->getPathname();
+                if (filemtime($path) < $cutoff) {
+                    $size = (int) filesize($path);
+                    if (@unlink($path)) {
                         $results['files_deleted']++;
-                        $results['total_space_freed'] += $fileSize;
+                        $results['total_space_freed'] += $size;
                     } else {
-                        $results['errors'][] = "No se pudo eliminar: {$file}";
+                        $results['errors'][] = "No se pudo eliminar: {$path}";
                     }
                 }
             }
-            
+
             Log::info('Logs antiguos limpiados', $results);
-            
+
         } catch (\Exception $e) {
             Log::error('Error limpiando logs antiguos', [
                 'error' => $e->getMessage(),
@@ -43,7 +60,7 @@ class LogCleanupService
             ]);
             throw $e;
         }
-        
+
         return $results;
     }
 }

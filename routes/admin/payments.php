@@ -26,6 +26,7 @@ Route::prefix('payments')->name('payments.')->group(function () {
     Route::get('confirmations', [PaymentConfirmationLogsController::class, 'index'])->name('confirmations.index');
     Route::get('confirmations/{payment}', [PaymentConfirmationLogsController::class, 'show'])->name('confirmations.show');
     Route::post('confirmations/{payment}/resend', [PaymentConfirmationLogsController::class, 'resend'])->name('confirmations.resend');
+    Route::post('confirmations/{payment}/resend-contract', [PaymentConfirmationLogsController::class, 'resendContract'])->name('confirmations.resend-contract');
 
     // Rutas para pagos presenciales
     Route::prefix('presential')->name('presential.')->group(function () {

@@ -169,6 +169,36 @@
                                 F-{{ payment.payment_code }}
                             </span>
                             <span
+                                v-else-if="payment.document_type === 'VC' && payment.payment_code"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-100 text-rose-800"
+                                :title="'Nota de Crédito ' + payment.payment_code"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                                NC-{{ payment.payment_code }}
+                            </span>
+                            <span
+                                v-else-if="payment.document_type === 'RA' && payment.payment_code"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-800"
+                                :title="'Reverso Administrativo ' + payment.payment_code"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                                RA-{{ payment.payment_code }}
+                            </span>
+                            <span
+                                v-else-if="payment.document_type === 'CT' && payment.payment_code"
+                                class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-800"
+                                :title="'Crédito Temporal ' + payment.payment_code"
+                            >
+                                <svg class="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
+                                </svg>
+                                CT-{{ payment.payment_code }}
+                            </span>
+                            <span
                                 v-else-if="payment.bsale_error_code"
                                 class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-800"
                                 :title="payment.bsale_error || 'Error al generar boleta'"

@@ -71,7 +71,16 @@ class Kernel extends ConsoleKernel
             ->runInBackground()
             ->appendOutputTo($this->getScheduleLogPath('expire_stale_subscriptions'));
 
-        // 5. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
+        // 5. Limpieza de logs cada noche a las 3:00 AM
+        // Conserva últimos 7 días; libera espacio en disco
+        $schedule->command('logs:cleanup --days=7')
+            ->dailyAt('03:00')
+            ->timezone('America/Santiago')
+            ->withoutOverlapping()
+            ->runInBackground()
+            ->appendOutputTo($this->getScheduleLogPath('logs_cleanup'));
+
+        // 6. Procesar emails de marketing 2 veces al día (6:00 AM y 6:00 PM)
         // Sincroniza emails de clientes para campañas de marketing
         $schedule->command('marketing:process-emails')
             ->twiceDaily(6, 18)

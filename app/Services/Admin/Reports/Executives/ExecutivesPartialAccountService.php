@@ -182,26 +182,55 @@ class ExecutivesPartialAccountService
                     $saldo = round($totalPaid - $price, 2);
                 }
 
-                // Cuotas pagadas y vencidas
-                $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
+                // Cuotas pagadas y totales
+                // La fuente de verdad es el payment_type de la orden:
+                // - 'total': siempre 1 cuota (sin importar intentos fallidos)
+                // - 'monthly'/PAT: usar installment_plan
+                // - otros: fallback a OrderDetails distintos por installment_number
+                $orders = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $rowProgramCourseId)
-                    ->pluck('id')->all();
+                    ->get();
+                $orderIds = $orders->pluck('id')->all();
                 $paidInstallments = 0;
-                $overdueInstallments = 0;
                 $totalInstallments = 0;
+
                 if (!empty($orderIds)) {
-                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
-                    if ($installmentPlan) {
-                        $totalInstallments = $installmentPlan->installments()->count();
-                        $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-                        $overdueInstallments = $installmentPlan->installments()
-                            ->where(function($query) {
-                                $query->where('status', 'overdue')
-                                      ->orWhere(function($q) {
-                                          $q->where('status', 'pending')
-                                            ->where('due_date', '<', now());
-                                      });
-                            })->count();
+                    $primaryOrder = $orders->first();
+                    $paymentType = $primaryOrder->payment_type ?? null;
+
+                    if ($paymentType === 'total') {
+                        // Pago Total: 1 cuota. Pagada si existe algún payment completed con monto > 0.
+                        $totalInstallments = 1;
+                        $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
+                            ->whereIn('status', ['approved', 'completed'])
+                            ->where('amount', '>', 0)
+                            ->exists();
+                        $paidInstallments = $hasCompletedPayment ? 1 : 0;
+                    } else {
+                        // Mensual / PAT: usar installment_plan
+                        $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+                        if ($installmentPlan) {
+                            $totalInstallments = $installmentPlan->installments()->count();
+                            $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
+                        }
+                        // Fallback: OrderDetails distintos por installment_number
+                        // (ignora duplicados creados por reintentos fallidos)
+                        if ($totalInstallments === 0 || $paidInstallments === 0) {
+                            $orderDetails = \App\Models\OrderDetail::whereIn('order_id', $orderIds)->get();
+                            if ($totalInstallments === 0) {
+                                $totalInstallments = max(
+                                    $orderDetails->pluck('installment_number')->filter()->unique()->count(),
+                                    1
+                                );
+                            }
+                            if ($paidInstallments === 0) {
+                                $paidInstallments = $orderDetails->where('is_paid', true)
+                                    ->pluck('installment_number')
+                                    ->filter()
+                                    ->unique()
+                                    ->count();
+                            }
+                        }
                     }
                 }
 
@@ -236,7 +265,6 @@ class ExecutivesPartialAccountService
                     'abono' => $abono,
                     'paid_installments' => $paidInstallments,
                     'total_installments' => $totalInstallments,
-                    'overdue_installments' => $overdueInstallments,
                     'payment_method' => $paymentMethod,
                     'scholarship' => $scholarship + $aporteAmount,
                     'released' => $released,

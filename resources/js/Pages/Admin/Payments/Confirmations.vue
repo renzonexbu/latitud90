@@ -62,21 +62,44 @@
                             />
                         </div>
 
-                        <!-- Programa -->
-                        <div>
+                        <!-- Programa (predictivo por código) -->
+                        <div class="relative" ref="programFilterRef">
                             <label class="block text-sm font-medium text-gray-700 mb-1">
                                 Programa
                             </label>
-                            <select
-                                v-model="filters.program_id"
-                                class="w-full border-gray-300 rounded-md shadow-sm focus:border-turquesa focus:ring-turquesa"
-                                @change="applyFilters"
+                            <input
+                                v-model="programSearch"
+                                type="text"
+                                placeholder="Código de programa (ej: V0120)"
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:border-turquesa focus:ring-turquesa pr-8"
+                                @input="showProgramDropdown = true"
+                                @focus="showProgramDropdown = true"
+                                @keydown.escape="showProgramDropdown = false"
+                            />
+                            <button
+                                v-if="programSearch"
+                                type="button"
+                                @click="clearProgramFilter"
+                                class="absolute right-2 top-[34px] text-gray-400 hover:text-gray-600"
                             >
-                                <option value="">Todos los programas</option>
-                                <option v-for="program in programs" :key="program.id" :value="program.id">
-                                    {{ program.label }}
-                                </option>
-                            </select>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                            <div
+                                v-if="showProgramDropdown && filteredPrograms.length > 0"
+                                class="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                            >
+                                <div
+                                    v-for="program in filteredPrograms"
+                                    :key="program.id"
+                                    @mousedown.prevent="selectProgram(program)"
+                                    class="px-3 py-2 cursor-pointer hover:bg-turquesa hover:text-white text-sm border-b border-gray-100"
+                                >
+                                    <span class="font-semibold">{{ program.code || program.label }}</span>
+                                    <span v-if="program.name" class="ml-1 text-xs opacity-80">— {{ program.name }}</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Participante -->
@@ -307,6 +330,15 @@
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                             </svg>
                                         </button>
+                                        <button
+                                            @click="sendContract(payment)"
+                                            class="text-purple-600 hover:text-purple-800"
+                                            title="Enviar Contrato de Reserva"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -419,7 +451,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import AlertWrapper from '@/Components/Admin/AlertWrapper.vue';
@@ -466,6 +498,54 @@ const selectedPaymentId = ref(null);
 const showResendModal = ref(false);
 const selectedPayment = ref(null);
 const alertWrapper = ref(null);
+
+// Filtro predictivo de programa
+const programSearch = ref('');
+const showProgramDropdown = ref(false);
+const programFilterRef = ref(null);
+
+const filteredPrograms = computed(() => {
+    if (!programSearch.value) return props.programs.slice(0, 30);
+    const q = programSearch.value.toLowerCase();
+    return props.programs.filter(p =>
+        (p.code && p.code.toLowerCase().includes(q)) ||
+        (p.label && p.label.toLowerCase().includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q))
+    );
+});
+
+const selectProgram = (program) => {
+    filters.program_id = program.id;
+    programSearch.value = program.code || program.label || '';
+    showProgramDropdown.value = false;
+    applyFilters();
+};
+
+const clearProgramFilter = () => {
+    filters.program_id = '';
+    programSearch.value = '';
+    showProgramDropdown.value = false;
+    applyFilters();
+};
+
+const handleProgramClickOutside = (event) => {
+    if (programFilterRef.value && !programFilterRef.value.contains(event.target)) {
+        showProgramDropdown.value = false;
+    }
+};
+
+onMounted(() => {
+    // Restaurar texto si viene con filtro inicial
+    if (filters.program_id) {
+        const program = props.programs.find(p => p.id == filters.program_id);
+        if (program) programSearch.value = program.code || program.label || '';
+    }
+    document.addEventListener('click', handleProgramClickOutside);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', handleProgramClickOutside);
+});
 
 // Selección múltiple
 const selectedPayments = ref([]);
@@ -550,6 +630,7 @@ const clearFilters = () => {
     filters.date_from = '';
     filters.date_to = '';
     filters.program_id = '';
+    programSearch.value = '';
     filters.participant_search = '';
     filters.status = 'all';
     filters.payment_type = 'all';
@@ -600,6 +681,24 @@ const resendEmail = async () => {
         }
     } catch (error) {
         const message = error.response?.data?.message || 'Error al reenviar el email';
+        alertWrapper.value?.showError('Error', message);
+    }
+};
+
+const sendContract = async (payment) => {
+    if (!confirm('¿Enviar el Contrato de Reserva al pagador (' + (payment.email_recipient || payment.buyer_email || 'email del pagador') + ')?')) {
+        return;
+    }
+    try {
+        const response = await axios.post(
+            route('admin.payments.confirmations.resend-contract', payment.payment_id)
+        );
+        if (response.data.success) {
+            alertWrapper.value?.showSuccess('Éxito', response.data.message);
+            router.reload();
+        }
+    } catch (error) {
+        const message = error.response?.data?.message || 'Error al enviar el contrato';
         alertWrapper.value?.showError('Error', message);
     }
 };

@@ -223,6 +223,17 @@ class ProcessPaymentService
                 'gateway_token' => $gatewayToken,
                 'gateway_type' => $frontendGatewayType
             ];
+        } catch (\InvalidArgumentException $e) {
+            // Validación de negocio (datos del comprador inválidos): mostrar mensaje
+            // claro al usuario sin el prefijo "Error interno del servidor".
+            $this->logError('Validación de datos rechazó el pago', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         } catch (\Exception $e) {
             $this->logError('Error processing payment', [
                 'error' => $e->getMessage(),

@@ -96,10 +96,10 @@ class ChargeAttemptsTransformer
                 'ID Cuota' => $item->installment_id ?? '',
                 'Número Cuota' => $item->installment_number ?? '',
                 'Monto Cuota' => (float) $item->amount,
-                'Fecha Vencimiento' => $item->installment_due_date,
+                'Fecha Vencimiento' => $item->installment_due_date ?? '',
                 'Estado Cuota' => $this->getInstallmentStatusLabel($item->installment_status),
                 'Cuota Pagada' => $item->installment_is_paid ? 'Sí' : 'No',
-                'Fecha Pago' => $item->paid_at ? Carbon::parse($item->paid_at)->format('d-m-Y H:i') : '',
+                'Fecha Pago' => $item->paid_at ?? '',
                 'Fuente Pago' => $this->getPaymentSourceLabel($item->installment_payment_source),
 
                 // Información del participante
@@ -109,7 +109,7 @@ class ChargeAttemptsTransformer
 
                 // Información del programa
                 'Programa' => $item->program_name,
-                'Fecha Salida' => $item->program_departure_date,
+                'Fecha Salida' => $item->program_departure_date ?? '',
                 'Ejecutivo' => $item->sales_executive_name ?? 'Sin asignar',
 
                 // Información del intento de cobro (si existe)
@@ -121,8 +121,8 @@ class ChargeAttemptsTransformer
                 'Estado VirtualPos' => $item->virtualpos_status ?? '',
                 'ID Cargo VirtualPos' => $item->virtualpos_charge_id ?? '',
                 'ID Cargo Original' => $item->original_charge_id ?? '',
-                'Fecha Intento' => $item->attempted_at ? Carbon::parse($item->attempted_at)->format('d-m-Y H:i') : '',
-                'Fecha Resolución' => $item->resolved_at ? Carbon::parse($item->resolved_at)->format('d-m-Y H:i') : '',
+                'Fecha Intento' => $item->attempted_at ?? '',
+                'Fecha Resolución' => $item->resolved_at ?? '',
                 'Descripción Intento' => $item->description ?? '',
 
                 // Información de la suscripción

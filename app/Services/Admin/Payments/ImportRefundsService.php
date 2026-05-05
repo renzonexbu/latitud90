@@ -37,6 +37,7 @@ class ImportRefundsService
         'tipo_reembolso' => ['tipo reembolso', 'tipo de reembolso'],
 
         // Opcionales
+        'nro_aut' => ['nro. aut.', 'nro aut', 'nro. aut', 'numero autorizacion', 'num. aut.', 'nro. autorización', 'nro autorizacion', 'nro. autorizacion', 'codigo autorizacion', 'código autorización', 'authorization_code'],
         'aplicar_a' => ['aplicar a', 'aplicar', 'aplicar a:'],
         'cod_sii' => ['cod. sii', 'codigo sii', 'cod sii', 'código sii'],
         'n_documento' => ['n. documento', 'nro documento', 'numero documento', 'nro. documento', 'n documento'],
@@ -626,6 +627,7 @@ class ImportRefundsService
                 'client_rut' => $cleanRut,
                 'client_name' => $clientName,
                 'refund_type' => $refundTypeInfo['refund_type'],
+                'authorization_code' => !empty($rowData['nro_aut']) ? trim((string) $rowData['nro_aut']) : null,
             ];
 
             Log::info("Ejecutando CreateRefundService con datos: " . json_encode($refundData, JSON_UNESCAPED_UNICODE));

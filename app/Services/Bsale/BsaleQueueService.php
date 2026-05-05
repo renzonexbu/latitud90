@@ -78,9 +78,11 @@ class BsaleQueueService
             return null;
         }
 
-        // VALIDACIÓN 5: Verificar tipo de documento según PaymentDocumentTypeHelper
+        // VALIDACIÓN 5: Verificar tipo de documento según PaymentDocumentTypeHelper.
+        // Excepción: si el pago tiene document_type = 'B2' explícito (ej: conversión AC→Boleta),
+        // se genera la boleta sin importar lo que calcule el helper por fecha de programa.
         $orderDetail = $payment->orderDetail;
-        if ($orderDetail) {
+        if ($orderDetail && $payment->document_type !== 'B2') {
             $documentTypes = PaymentDocumentTypeHelper::determineDocumentTypes($payment, $orderDetail);
             if (!in_array(PaymentDocumentTypeHelper::TYPE_BOLETA, $documentTypes)) {
                 Log::channel('bsale')->info('BsaleQueueService: Este payment no requiere boleta BSale', [

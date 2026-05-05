@@ -17,19 +17,19 @@ class AcConversionController extends Controller
      */
     public function index()
     {
+        // Muestra TODOS los pagos AC pendientes (incluidos programas de año siguiente)
+        // para que el admin pueda revisar/convertir antes de la fecha del programa
+        // (ej: emitir boleta ante un reembolso por baja)
         $payments = Payment::where('document_type', 'AC')
             ->whereNull('bsale_number')
             ->where('status', 'completed')
             ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
-            ->whereHas('order.programCourse', function ($q) {
-                $q->whereYear('departure_date', '<=', now()->year);
-            })
             ->with([
                 'order.participant.documentType',
                 'order.programCourse',
                 'orderDetail',
             ])
-            ->orderBy('transaction_date', 'asc')
+            ->orderBy('transaction_date', 'desc')
             ->get()
             ->map(function ($payment) {
                 $participant = $payment->order->participant;
@@ -120,6 +120,10 @@ class AcConversionController extends Controller
                     'transaction_date'   => now(),
                     'document_type'      => 'RA',
                     'currency'           => $acPayment->currency ?? 'CLP',
+                    // Marcar como enviado para que el scheduler de emails lo omita:
+                    // los reversos administrativos no generan comunicación al cliente.
+                    'email_sent'         => true,
+                    'email_sent_at'      => now(),
                     'gateway_response'   => [
                         'created_manually'    => true,
                         'payment_type'        => 'ac_conversion_reversal',
@@ -129,8 +133,6 @@ class AcConversionController extends Controller
                 ]);
 
                 // 2. Crear nuevo pago B2 — mismo monto y datos del pagador original
-                // En el año de ejecución del programa (2027+), determineDocumentTypes()
-                // retorna B2 automáticamente porque paymentYear >= programYear
                 $b2Payment = Payment::create([
                     'order_id'           => $acPayment->order_id,
                     'order_detail_id'    => $acPayment->order_detail_id,
@@ -142,6 +144,10 @@ class AcConversionController extends Controller
                     'transaction_date'   => now(),
                     'document_type'      => 'B2',
                     'currency'           => $acPayment->currency ?? 'CLP',
+                    // Marcar como enviado para que el scheduler de emails lo omita:
+                    // el email de la boleta lo despacha SendBsaleEmailJob con 1h de delay.
+                    'email_sent'         => true,
+                    'email_sent_at'      => now(),
                     'gateway_response'   => [
                         'created_manually'    => true,
                         'payment_type'        => 'ac_conversion_boleta',

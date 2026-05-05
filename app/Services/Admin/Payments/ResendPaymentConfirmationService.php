@@ -27,6 +27,90 @@ class ResendPaymentConfirmationService
     }
 
     /**
+     * Reenviar solamente el contrato de reserva (CR) al pagador.
+     * Útil para pagos previos donde el contrato no se adjuntó.
+     */
+    public function resendContract(int $paymentId, int $userId): array
+    {
+        try {
+            $payment = Payment::with(['orderDetail.order.participant', 'orderDetail.order.programCourse'])
+                ->findOrFail($paymentId);
+
+            $orderDetail = $payment->orderDetail;
+            if (!$orderDetail) {
+                throw new \Exception('No se encontró el detalle de la orden asociado al pago');
+            }
+
+            // Generar el contrato
+            $contractPath = $this->documentService->generatePdfFromTemplate(
+                \App\Models\DocumentTemplate::TYPE_CONTRACT,
+                $orderDetail,
+                $payment
+            );
+            if (!$contractPath || !file_exists($contractPath)) {
+                throw new \Exception('No se pudo generar el contrato de reserva');
+            }
+
+            $attachments = [[
+                'path' => $contractPath,
+                'name' => 'Contrato_Reserva_' . $orderDetail->order->order_number . '.pdf',
+                'type' => 'contract_generated',
+            ]];
+
+            $emailData = $this->prepareEmailData($orderDetail, $payment);
+            $emailData['subject'] = 'Contrato de Reserva - Latitud 90';
+
+            Mail::send('Mails.success_payment', $emailData, function ($message) use ($emailData, $attachments) {
+                $message->to($emailData['customer_email'], $emailData['customer_name'])
+                    ->subject($emailData['subject']);
+                foreach ($attachments as $attachment) {
+                    $message->attach($attachment['path'], [
+                        'as' => $attachment['name'],
+                        'mime' => 'application/pdf',
+                    ]);
+                }
+            });
+
+            PaymentConfirmationLog::logEmailResent(
+                $payment,
+                $orderDetail,
+                $emailData['customer_email'],
+                $attachments,
+                $userId,
+                ['attachments_count' => 1, 'resend_type' => 'contract_only']
+            );
+
+            $user = \App\Models\User::find($userId);
+            AdminLog::create([
+                'user_id' => $userId,
+                'user_name' => $user->name ?? 'Sistema',
+                'user_email' => $user->email ?? '',
+                'action' => 'resend_contract',
+                'module' => 'payments',
+                'resource_type' => 'payment',
+                'resource_id' => $payment->id,
+                'description' => 'Contrato de reserva reenviado a ' . $emailData['customer_email'],
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Contrato enviado exitosamente a ' . $emailData['customer_email'],
+            ];
+        } catch (\Exception $e) {
+            $this->logError('ResendPaymentConfirmationService: Error reenviando contrato', [
+                'payment_id' => $paymentId,
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ], $e);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Reenviar email de confirmación de pago
      */
     public function resendConfirmation(int $paymentId, int $userId): array

@@ -122,6 +122,24 @@
                         <option value="CANCELADA">Cancelada</option>
                     </select>
 
+                    <!-- Rango de fechas -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-[11px] text-gray-500">Desde</label>
+                        <input
+                            v-model="localFilters.date_from"
+                            type="date"
+                            class="h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-[12px] font-normal outline-none w-[150px]"
+                            @change="performSearch"
+                        />
+                        <label class="text-[11px] text-gray-500">Hasta</label>
+                        <input
+                            v-model="localFilters.date_to"
+                            type="date"
+                            class="h-[46px] bg-white rounded-[50px] border border-[#f0f0f0] px-4 py-2 text-[12px] font-normal outline-none w-[150px]"
+                            @change="performSearch"
+                        />
+                    </div>
+
                     <!-- Limpiar -->
                     <button
                         @click="clearFilters"
@@ -132,6 +150,17 @@
                         </svg>
                         Limpiar Filtros
                     </button>
+
+                    <!-- Exportar Excel -->
+                    <a
+                        :href="exportUrl"
+                        class="h-[46px] px-6 bg-green-600 hover:bg-green-700 text-white rounded-[50px] text-[12px] font-medium transition-colors flex items-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Exportar Excel
+                    </a>
                 </div>
             </div>
 
@@ -143,6 +172,7 @@
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub ID</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cód. Inscripción</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RUT</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Suscriptor</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuota</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
@@ -164,6 +194,9 @@
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 font-mono">
                                     {{ charge.enrollment_code || '-' }}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-mono">
+                                    {{ charge.subscriber_document || '-' }}
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                     {{ charge.subscriber_name }}
@@ -192,7 +225,7 @@
                                 </td>
                             </tr>
                             <tr v-if="charges.data.length === 0">
-                                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                                <td colspan="10" class="px-4 py-8 text-center text-gray-500">
                                     No se encontraron cuotas con los filtros seleccionados.
                                 </td>
                             </tr>
@@ -210,7 +243,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { Head, router } from "@inertiajs/vue3";
 import AdminLayout from "@/Layouts/AdminLayout.vue";
 import Pagination from "@/Components/Pagination.vue";
@@ -235,6 +268,29 @@ const localFilters = ref({
     charge_status: props.filters.charge_status || "all",
     search: props.filters.search || "",
     subscription_status: props.filters.subscription_status || "all",
+    date_from: props.filters.date_from || "",
+    date_to: props.filters.date_to || "",
+});
+
+const exportUrl = computed(() => {
+    const params = new URLSearchParams();
+    if (localFilters.value.charge_status && localFilters.value.charge_status !== 'all') {
+        params.set('charge_status', localFilters.value.charge_status);
+    }
+    if (localFilters.value.subscription_status && localFilters.value.subscription_status !== 'all') {
+        params.set('subscription_status', localFilters.value.subscription_status);
+    }
+    if (localFilters.value.search) {
+        params.set('search', localFilters.value.search);
+    }
+    if (localFilters.value.date_from) {
+        params.set('date_from', localFilters.value.date_from);
+    }
+    if (localFilters.value.date_to) {
+        params.set('date_to', localFilters.value.date_to);
+    }
+    const qs = params.toString();
+    return '/admin/subscriptions/charges/export' + (qs ? '?' + qs : '');
 });
 
 const performSearch = _.debounce(() => {
@@ -254,6 +310,8 @@ const clearFilters = () => {
         charge_status: "all",
         search: "",
         subscription_status: "all",
+        date_from: "",
+        date_to: "",
     };
     performSearch();
 };

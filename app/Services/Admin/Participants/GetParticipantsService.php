@@ -29,8 +29,8 @@ class GetParticipantsService
             ->paginate(10)
             ->withQueryString();
 
-        // Obtener todos los participantes para los filtros (sin paginación)
-        $allParticipants = Participant::with(['courses', 'courses.institution', 'courses.programCourses.program'])
+        // Listado mínimo para filtros frontend (sin relaciones pesadas)
+        $allParticipants = Participant::select('id', 'first_name', 'second_name', 'first_last_name', 'second_last_name', 'document_number', 'document_type', 'is_active')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -155,38 +155,98 @@ class GetParticipantsService
             ->orderByDesc('pc.created_at')
             ->get();
 
-        // Calcular precios finales usando el servicio centralizado
-        return $enrollmentsBase->map(function ($enrollment) {
+        // Pre-cargar totales de pagos por (participant_id, program_id) en UNA sola query
+        $pairs = $enrollmentsBase
+            ->filter(fn($e) => $e->participant_id && $e->program_course_id)
+            ->map(fn($e) => [(int) $e->participant_id, (int) $e->program_course_id])
+            ->unique(fn($p) => $p[0] . '_' . $p[1])
+            ->values();
+
+        $paidMap = [];       // key: "pid_pgid" → total_paid
+        $contributionMap = []; // key: "pid_pgid" → aportes AP
+
+        // Pre-cargar modelos en batch para evitar N+1 en find()
+        $participantsById = collect();
+        $programCoursesById = collect();
+
+        if ($pairs->isNotEmpty()) {
+            $participantIds = $pairs->pluck(0)->unique()->values()->all();
+            $programIds = $pairs->pluck(1)->unique()->values()->all();
+
+            $participantsById = \App\Models\Participant::whereIn('id', $participantIds)->get()->keyBy('id');
+            $programCoursesById = \App\Models\ProgramCourse::with('course')->whereIn('id', $programIds)->get()->keyBy('id');
+
+            // Total pagado agregado en 1 query
+            $paidRows = DB::table('payments')
+                ->join('orders', 'payments.order_id', '=', 'orders.id')
+                ->whereIn('orders.participant_id', $participantIds)
+                ->whereIn('orders.program_id', $programIds)
+                ->whereIn('payments.status', ['approved', 'completed'])
+                ->selectRaw('orders.participant_id as pid, orders.program_id as pgid, SUM(payments.amount) as total')
+                ->groupBy('orders.participant_id', 'orders.program_id')
+                ->get();
+            foreach ($paidRows as $r) {
+                $paidMap[$r->pid . '_' . $r->pgid] = (float) $r->total;
+            }
+
+            // Aportes (AP) en 1 query
+            $contributionRows = DB::table('payments')
+                ->join('orders', 'payments.order_id', '=', 'orders.id')
+                ->join('payment_options', 'payments.payment_option_id', '=', 'payment_options.id')
+                ->whereIn('orders.participant_id', $participantIds)
+                ->whereIn('orders.program_id', $programIds)
+                ->whereIn('payments.status', ['approved', 'completed'])
+                ->where('payment_options.report_code', 'AP')
+                ->selectRaw('orders.participant_id as pid, orders.program_id as pgid, SUM(payments.amount) as total')
+                ->groupBy('orders.participant_id', 'orders.program_id')
+                ->get();
+            foreach ($contributionRows as $r) {
+                $contributionMap[$r->pid . '_' . $r->pgid] = (float) $r->total;
+            }
+        }
+
+        // Calcular precios usando el helper con modelos ya cargados en memoria
+        return $enrollmentsBase->map(function ($enrollment) use ($paidMap, $contributionMap, $participantsById, $programCoursesById) {
             if (!$enrollment->participant_id || !$enrollment->program_course_id) {
                 return $enrollment;
             }
 
-            $data = \App\Services\Admin\ParticipantFinancialService::calculate(
-                (int) $enrollment->participant_id,
-                (int) $enrollment->program_course_id
-            );
+            $key = $enrollment->participant_id . '_' . $enrollment->program_course_id;
+            $totalPaid = $paidMap[$key] ?? 0.0;
 
-            $enrollment->base_price = $data['base_price'];
-            $enrollment->discounts = $data['regular_discounts'];
-            $enrollment->total_due = $data['net_amount'];
-            $enrollment->paid_amount = $data['total_paid'];
-            $enrollment->balance = $data['pending_amount'];
-            $enrollment->payment_percentage = $data['progress_percentage'];
+            $participant = $participantsById->get($enrollment->participant_id);
+            $programCourse = $programCoursesById->get($enrollment->program_course_id);
 
-            // Monto liberado (desde descuentos tipo 'released')
-            $enrollment->released_amount = round((float) $data['released_discounts'], 2);
+            if ($participant && $programCourse) {
+                $priceData = ParticipantPriceHelper::calculateParticipantPrice($participant, $programCourse);
+                $basePrice = (float) ($priceData['base_price'] ?? 0);
+                $regularDiscounts = (float) ($priceData['regular_discounts'] ?? 0);
+                $releasedDiscounts = (float) ($priceData['released_discounts'] ?? 0);
+                $netAmount = (float) ($priceData['final_price'] ?? 0);
 
-            // Aporte (contribución con report_code 'AP')
-            $contributionAmount = Payment::whereHas('order', function($q) use ($enrollment) {
-                    $q->where('participant_id', $enrollment->participant_id)
-                      ->where('program_id', $enrollment->program_course_id);
-                })
-                ->whereIn('status', ['approved', 'completed'])
-                ->whereHas('paymentOption', function($q) {
-                    $q->where('report_code', 'AP');
-                })
-                ->sum('amount');
-            $enrollment->contribution = round((float) $contributionAmount, 2);
+                // Si está de baja, capear precio al abono
+                if ($enrollment->is_active == 0) {
+                    $netAmount = min($netAmount, max($totalPaid, 0));
+                }
+
+                $enrollment->base_price = $basePrice;
+                $enrollment->discounts = $regularDiscounts;
+                $enrollment->total_due = $netAmount;
+                $enrollment->paid_amount = $totalPaid;
+                $enrollment->balance = max($netAmount - $totalPaid, 0);
+                $enrollment->payment_percentage = $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 0;
+                $enrollment->released_amount = round($releasedDiscounts, 2);
+            } else {
+                $enrollment->base_price = 0;
+                $enrollment->discounts = 0;
+                $enrollment->total_due = 0;
+                $enrollment->paid_amount = $totalPaid;
+                $enrollment->balance = 0;
+                $enrollment->payment_percentage = 0;
+                $enrollment->released_amount = 0;
+            }
+
+            $enrollment->contribution = round($contributionMap[$key] ?? 0.0, 2);
 
             return $enrollment;
         });

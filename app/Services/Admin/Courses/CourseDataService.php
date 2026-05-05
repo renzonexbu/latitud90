@@ -268,7 +268,9 @@ class CourseDataService
 
     private function calculatePaymentPercentage(float $total, float $paid): int
     {
-        return $total > 0 ? (int) round(($paid / $total) * 100, 0) : 0;
+        // Usar floor() en vez de round() para evitar mostrar 100% cuando aún hay saldo pendiente
+        // (ej: 99.6% debe mostrarse como 99%, no 100%, para que ejecutivos no abandonen la gestión)
+        return $total > 0 ? (int) floor(($paid / $total) * 100) : 0;
     }
 
     public function getCourseForEdit(Course $course): array

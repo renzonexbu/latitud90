@@ -61,12 +61,13 @@ Artisan::command('installments:check-overdue', function () {
     $this->info('✅ Verificación completada');
 })->purpose('Verificar y actualizar cuotas vencidas');
 
-// Comando para limpiar logs antiguos (ejecutar cada 12 horas)
-Artisan::command('logs:cleanup', function () {
+// Comando para limpiar logs antiguos (agendado cada noche)
+Artisan::command('logs:cleanup {--days=7 : Días de logs a conservar}', function () {
+    $days = (int) $this->option('days');
     $service = new LogCleanupService();
-    $results = $service->cleanupOldLogs();
+    $results = $service->cleanupOldLogs($days);
 
-    $this->info('🧹 Limpiando logs antiguos...');
+    $this->info("🧹 Limpiando logs con antigüedad > {$days} días...");
     $this->info("✅ Eliminados {$results['files_deleted']} archivos de log");
     $this->info("💾 Espacio liberado: " . number_format($results['total_space_freed'] / 1024 / 1024, 2) . " MB");
 

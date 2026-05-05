@@ -510,6 +510,21 @@
                                         />
                                         <span v-if="errors.total_amount" class="text-red-500 text-sm mt-1">{{ errors.total_amount }}</span>
                                     </div>
+
+                                    <!-- Código de Autorización -->
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Código de Autorización
+                                        </label>
+                                        <input
+                                            v-model="form.authorization_code"
+                                            type="text"
+                                            placeholder="Código de autorización"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e74c3c] focus:border-transparent"
+                                            :class="{ 'border-red-500': errors.authorization_code }"
+                                        />
+                                        <span v-if="errors.authorization_code" class="text-red-500 text-sm mt-1">{{ errors.authorization_code }}</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -592,7 +607,8 @@ const form = useForm({
     sii_code: '',
     document_number: '',
     transaction_date: new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 10),
-    total_amount: ''
+    total_amount: '',
+    authorization_code: ''
 });
 
 const availableParticipants = ref([]);

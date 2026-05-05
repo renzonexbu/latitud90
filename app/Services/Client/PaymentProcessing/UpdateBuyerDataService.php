@@ -37,12 +37,27 @@ class UpdateBuyerDataService
             $documentType = $this->resolveDocumentTypeId($formData['documentType'] ?? null);
             $documentNumber = $formData['documentNumber'] ?? null;
 
+            // Validar que email y documento NO vengan vacíos (sino el gateway usaría datos genéricos)
+            if (empty(trim($email ?? ''))) {
+                $this->logError('UpdateBuyerData: Email vacío', [
+                    'order_detail_id' => $orderDetail->id,
+                ]);
+                throw new \InvalidArgumentException('El correo electrónico del pagador es obligatorio.');
+            }
+
+            if (empty(trim($documentNumber ?? ''))) {
+                $this->logError('UpdateBuyerData: Documento vacío', [
+                    'order_detail_id' => $orderDetail->id,
+                ]);
+                throw new \InvalidArgumentException('El RUT/documento del pagador es obligatorio.');
+            }
+
             // Bloquear datos genéricos/de prueba que causan problemas con Bsale
             $blockedEmails = ['pagos@latitud90.cl', 'pagos@latitud90.com'];
             $blockedRuts = ['123456789'];
-            $cleanedDoc = preg_replace('/[.\-\s]/', '', $documentNumber ?? '');
+            $cleanedDoc = preg_replace('/[.\-\s]/', '', $documentNumber);
 
-            if ($email && in_array(strtolower(trim($email)), $blockedEmails)) {
+            if (in_array(strtolower(trim($email)), $blockedEmails)) {
                 $this->logError('UpdateBuyerData: Email bloqueado detectado', [
                     'order_detail_id' => $orderDetail->id,
                     'blocked_email' => $email,
@@ -50,7 +65,7 @@ class UpdateBuyerDataService
                 throw new \InvalidArgumentException('El correo electrónico ingresado no está permitido. Use su correo personal.');
             }
 
-            if ($cleanedDoc && in_array(strtoupper($cleanedDoc), $blockedRuts)) {
+            if (in_array(strtoupper($cleanedDoc), $blockedRuts)) {
                 $this->logError('UpdateBuyerData: RUT bloqueado detectado', [
                     'order_detail_id' => $orderDetail->id,
                     'blocked_rut' => $documentNumber,
@@ -110,6 +125,14 @@ class UpdateBuyerDataService
                 'buyer_name' => $name,
                 'buyer_email' => $email
             ]);
+        } catch (\InvalidArgumentException $e) {
+            // Validación de negocio (email/documento vacío, datos bloqueados):
+            // re-lanzar para que el controlador detenga el flujo antes del gateway.
+            $this->logError('UpdateBuyerData: Validación de datos del comprador falló', [
+                'error' => $e->getMessage(),
+                'order_detail_id' => $orderDetail->id,
+            ]);
+            throw $e;
         } catch (\Throwable $e) {
             $this->logError('Error updating buyer data on OrderDetail', [
                 'error' => $e->getMessage(),

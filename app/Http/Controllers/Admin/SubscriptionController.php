@@ -53,77 +53,23 @@ class SubscriptionController extends Controller
      */
     public function charges(Request $request): Response
     {
-        $query = ProgramSubscription::query()
-            ->whereNotNull('virtualpos_subscription_id')
-            ->whereNotNull('charge_program')
-            ->with(['participant', 'programCourse.program']);
-
-        $subscriptions = $query->get();
-
-        // Extraer todos los charges de charge_program y aplanarlos
-        $allCharges = [];
-        foreach ($subscriptions as $sub) {
-            $charges = $sub->charge_program ?? [];
-            foreach ($charges as $index => $charge) {
-                $status = strtolower($charge['status'] ?? 'pendiente');
-
-                // Obtener código de inscripción
-                $enrollmentCode = null;
-                if ($sub->participant_id && $sub->program_id) {
-                    $enrollmentCode = \App\Models\ParticipantProgram::where('participant_id', $sub->participant_id)
-                        ->where('program_id', $sub->program_id)
-                        ->value('enrollment_code');
-                }
-
-                // Nombre del suscriptor (pagador) desde buyer_data
-                $buyerData = $sub->buyer_data ?? [];
-                $subscriberName = trim(($buyerData['first_name'] ?? '') . ' ' . ($buyerData['first_last_name'] ?? '') . ' ' . ($buyerData['second_last_name'] ?? ''));
-                if (empty(trim($subscriberName))) {
-                    $subscriberName = $sub->participant?->full_name ?? 'N/A';
-                }
-
-                $allCharges[] = [
-                    'charge_id' => $charge['id'] ?? null,
-                    'subscription_id' => $sub->id,
-                    'subscription_status' => $sub->status,
-                    'enrollment_code' => $enrollmentCode ?? 'N/A',
-                    'subscriber_name' => $subscriberName,
-                    'program_name' => $sub->programCourse?->name ?? 'N/A',
-                    'program_code' => $sub->programCourse?->program?->code ?? 'N/A',
-                    'installment_number' => $index + 1,
-                    'amount' => $charge['amount'] ?? 0,
-                    'charge_date' => $charge['charge_date'] ?? null,
-                    'status' => $status,
-                    'description' => $charge['description'] ?? null,
-                ];
-            }
-        }
+        $allCharges = $this->getAllCharges();
 
         // Filtros
-        $filterStatus = $request->get('charge_status', 'all');
-        $filterSearch = $request->get('search', '');
-        $filterSubStatus = $request->get('subscription_status', 'all');
+        $filterStatus = $request->get('charge_status') ?: 'all';
+        $filterSearch = $request->get('search') ?: '';
+        $filterSubStatus = $request->get('subscription_status') ?: 'all';
+        $filterDateFrom = $request->get('date_from') ?: null;
+        $filterDateTo = $request->get('date_to') ?: null;
 
-        $filtered = collect($allCharges);
-
-        if ($filterStatus && $filterStatus !== 'all') {
-            $filtered = $filtered->filter(fn($c) => $c['status'] === $filterStatus);
-        }
-
-        if ($filterSubStatus && $filterSubStatus !== 'all') {
-            $filtered = $filtered->filter(fn($c) => $c['subscription_status'] === $filterSubStatus);
-        }
-
-        if ($filterSearch) {
-            $search = strtolower($filterSearch);
-            $filtered = $filtered->filter(fn($c) =>
-                str_contains(strtolower($c['subscriber_name']), $search) ||
-                str_contains(strtolower($c['enrollment_code'] ?? ''), $search) ||
-                str_contains(strtolower($c['program_code']), $search) ||
-                str_contains((string) $c['subscription_id'], $search) ||
-                str_contains((string) $c['charge_id'], $search)
-            );
-        }
+        $filtered = $this->applyChargeFilters(
+            $allCharges,
+            $filterStatus,
+            $filterSubStatus,
+            $filterSearch,
+            $filterDateFrom,
+            $filterDateTo
+        );
 
         // Estadísticas
         $allCollection = collect($allCharges);
@@ -198,8 +144,160 @@ class SubscriptionController extends Controller
                 'charge_status' => $filterStatus,
                 'search' => $filterSearch,
                 'subscription_status' => $filterSubStatus,
+                'date_from' => $filterDateFrom,
+                'date_to' => $filterDateTo,
             ],
         ]);
+    }
+
+    /**
+     * Exportar cuotas de suscripciones a Excel respetando los filtros activos
+     */
+    public function exportCharges(Request $request)
+    {
+        $allCharges = $this->getAllCharges();
+
+        $filterStatus = $request->get('charge_status') ?: 'all';
+        $filterSearch = $request->get('search') ?: '';
+        $filterSubStatus = $request->get('subscription_status') ?: 'all';
+        $filterDateFrom = $request->get('date_from') ?: null;
+        $filterDateTo = $request->get('date_to') ?: null;
+
+        $filtered = $this->applyChargeFilters(
+            $allCharges,
+            $filterStatus,
+            $filterSubStatus,
+            $filterSearch,
+            $filterDateFrom,
+            $filterDateTo
+        );
+        $sorted = $filtered->sortByDesc('charge_date')->values();
+
+        // Mapear a formato exportable con encabezados en español
+        $exportData = $sorted->map(fn($c) => [
+            'ID Suscripción' => $c['subscription_id'],
+            'ID Cargo' => $c['charge_id'],
+            'Cód. Inscripción' => $c['enrollment_code'],
+            'RUT Suscriptor' => $c['subscriber_document'],
+            'Suscriptor' => $c['subscriber_name'],
+            'Cód. Programa' => $c['program_code'],
+            'Programa' => $c['program_name'],
+            'Cuota Nº' => $c['installment_number'],
+            'Monto' => (float) $c['amount'],
+            'Fecha Cobro' => $c['charge_date'] ?? '',
+            'Estado Cuota' => $c['status'],
+            'Estado Suscripción' => $c['subscription_status'],
+            'Descripción' => $c['description'],
+        ]);
+
+        $exporter = new \App\Services\Admin\Subscriptions\ChargeAttempts\ExcelExporter();
+        $filename = 'cuotas_suscripciones_' . now('America/Santiago')->format('Y-m-d_His') . '.xlsx';
+
+        return $exporter->export($exportData, $filename);
+    }
+
+    /**
+     * Construye el array completo de cargos desde charge_program de todas las suscripciones.
+     */
+    private function getAllCharges(): array
+    {
+        $subscriptions = ProgramSubscription::query()
+            ->whereNotNull('virtualpos_subscription_id')
+            ->whereNotNull('charge_program')
+            ->with(['participant', 'programCourse.program'])
+            ->get();
+
+        $allCharges = [];
+        foreach ($subscriptions as $sub) {
+            $charges = $sub->charge_program ?? [];
+            foreach ($charges as $index => $charge) {
+                $status = strtolower($charge['status'] ?? 'pendiente');
+
+                $enrollmentCode = null;
+                if ($sub->participant_id && $sub->program_id) {
+                    $enrollmentCode = \App\Models\ParticipantProgram::where('participant_id', $sub->participant_id)
+                        ->where('program_id', $sub->program_id)
+                        ->value('enrollment_code');
+                }
+
+                $buyerData = $sub->buyer_data ?? [];
+                $subscriberName = trim(($buyerData['first_name'] ?? '') . ' ' . ($buyerData['first_last_name'] ?? '') . ' ' . ($buyerData['second_last_name'] ?? ''));
+                if (empty(trim($subscriberName))) {
+                    $subscriberName = $sub->participant?->full_name ?? 'N/A';
+                }
+
+                $subscriberDocument = $buyerData['document_number']
+                    ?? $buyerData['rut']
+                    ?? $sub->participant?->document_number
+                    ?? 'N/A';
+
+                $allCharges[] = [
+                    'charge_id' => $charge['id'] ?? null,
+                    'subscription_id' => $sub->id,
+                    'subscription_status' => $sub->status,
+                    'enrollment_code' => $enrollmentCode ?? 'N/A',
+                    'subscriber_name' => $subscriberName,
+                    'subscriber_document' => $subscriberDocument,
+                    'program_name' => $sub->programCourse?->name ?? 'N/A',
+                    'program_code' => $sub->programCourse?->code ?? 'N/A',
+                    'installment_number' => $index + 1,
+                    'amount' => $charge['amount'] ?? 0,
+                    'charge_date' => $charge['charge_date'] ?? null,
+                    'status' => $status,
+                    'description' => $charge['description'] ?? null,
+                ];
+            }
+        }
+
+        return $allCharges;
+    }
+
+    /**
+     * Aplica los filtros de status/sub status/búsqueda/fechas al array de cargos.
+     */
+    private function applyChargeFilters(
+        array $allCharges,
+        ?string $filterStatus = null,
+        ?string $filterSubStatus = null,
+        ?string $filterSearch = null,
+        ?string $filterDateFrom = null,
+        ?string $filterDateTo = null
+    ): \Illuminate\Support\Collection {
+        $filtered = collect($allCharges);
+
+        if ($filterStatus && $filterStatus !== 'all') {
+            $filtered = $filtered->filter(fn($c) => $c['status'] === $filterStatus);
+        }
+
+        if ($filterSubStatus && $filterSubStatus !== 'all') {
+            $filtered = $filtered->filter(fn($c) => $c['subscription_status'] === $filterSubStatus);
+        }
+
+        if ($filterSearch) {
+            $search = strtolower($filterSearch);
+            $filtered = $filtered->filter(fn($c) =>
+                str_contains(strtolower($c['subscriber_name']), $search) ||
+                str_contains(strtolower($c['subscriber_document'] ?? ''), $search) ||
+                str_contains(strtolower($c['enrollment_code'] ?? ''), $search) ||
+                str_contains(strtolower($c['program_code']), $search) ||
+                str_contains((string) $c['subscription_id'], $search) ||
+                str_contains((string) $c['charge_id'], $search)
+            );
+        }
+
+        // Filtros por rango de fecha (charge_date en formato YYYY-MM-DD)
+        if ($filterDateFrom) {
+            $filtered = $filtered->filter(fn($c) =>
+                !empty($c['charge_date']) && substr((string) $c['charge_date'], 0, 10) >= $filterDateFrom
+            );
+        }
+        if ($filterDateTo) {
+            $filtered = $filtered->filter(fn($c) =>
+                !empty($c['charge_date']) && substr((string) $c['charge_date'], 0, 10) <= $filterDateTo
+            );
+        }
+
+        return $filtered;
     }
 
     /**

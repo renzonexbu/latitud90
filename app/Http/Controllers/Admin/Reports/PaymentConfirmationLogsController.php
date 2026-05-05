@@ -78,4 +78,27 @@ class PaymentConfirmationLogsController extends Controller
             'message' => $result['message'],
         ], 400);
     }
+
+    /**
+     * Reenviar solo el contrato de reserva (sin adjuntar otros documentos).
+     * Útil para pagos antiguos donde el contrato no se envió.
+     */
+    public function resendContract(Request $request, $paymentId)
+    {
+        $userId = auth()->id();
+
+        $result = $this->resendService->resendContract($paymentId, $userId);
+
+        if ($result['success']) {
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['message'],
+        ], 400);
+    }
 }

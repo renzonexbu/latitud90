@@ -42,8 +42,16 @@ class VirtualPosService
             $configKey = $this->getConfigKey($paymentType, $installments);
             $config = $this->config[$configKey] ?? $this->config['no_cuotes'];
 
-            // Usar email del cliente si está disponible, sino usar email por defecto
-            $email = $customerEmail ?: 'pagos@latitud90.cl';
+            // Validar datos obligatorios del comprador para evitar pagos con datos genéricos
+            // que luego BSale rechaza al emitir boleta
+            if (empty(trim($customerEmail ?? ''))) {
+                throw new \InvalidArgumentException('El correo electrónico del pagador es obligatorio.');
+            }
+            if (empty(trim($customerDocument ?? ''))) {
+                throw new \InvalidArgumentException('El RUT/documento del pagador es obligatorio.');
+            }
+
+            $email = $customerEmail;
 
             // Usar nombres/apellidos separados si están disponibles, sino separar nombre completo
             if ($buyerNombres && $buyerApellidos) {
@@ -65,7 +73,7 @@ class VirtualPosService
             $payload = [
                 'amount' => (int) $amount,
                 'email' => $email,
-                'social_id' => $customerDocument ?: '12345678-9',
+                'social_id' => $customerDocument,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'phone' => $formattedPhone,

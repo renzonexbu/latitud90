@@ -152,12 +152,15 @@ class PaymentConfirmationLogsService
     public function getProgramsForFilter(): array
     {
         return ProgramCourse::where('active', true)
-            ->orderBy('departure_date', 'desc')
-            ->get(['id', 'name', 'destination', 'departure_date'])
+            ->orderBy('code', 'desc')
+            ->get(['id', 'code', 'name', 'destination', 'departure_date'])
             ->map(function ($program) {
+                $year = $program->departure_date ? $program->departure_date->format('Y') : 'N/A';
                 return [
                     'id' => $program->id,
-                    'label' => $program->name . ' - ' . $program->destination . ' (' . $program->departure_date->format('Y') . ')',
+                    'code' => $program->code,
+                    'name' => $program->name,
+                    'label' => ($program->code ? $program->code . ' - ' : '') . $program->name . ' (' . $year . ')',
                 ];
             })
             ->toArray();

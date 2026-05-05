@@ -173,7 +173,8 @@ class PaymentOptionsProgramService
             $participantsCount = $totals['participants_count'];
             $totalAmount = $totals['total_amount'];
             $paidAmount = $totals['total_paid'];
-            $paymentPercentage = (int) round($totals['payment_percentage']);
+            // El porcentaje ya viene floor-eado desde ParticipantFinancialService
+            $paymentPercentage = (int) $totals['payment_percentage'];
 
             return [
                 'id' => $program->id,

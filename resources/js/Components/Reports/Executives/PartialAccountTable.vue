@@ -9,7 +9,6 @@
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Precio</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Abono</th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Cuotas Pagadas</th>
-                        <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Cuotas Vencidas</th>
                         <th class="px-2 py-2 text-center text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Forma Pago</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Aporte/Beca</th>
                         <th class="px-2 py-2 text-right text-[10px] font-medium text-white uppercase tracking-wider whitespace-nowrap">Liberado</th>
@@ -42,9 +41,6 @@
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">{{ row.paid_installments }}/{{ row.total_installments }}</div>
-                        </td>
-                        <td class="px-2 py-2 whitespace-nowrap text-center">
-                            <div class="text-xs text-gray-900">{{ row.overdue_installments }}</div>
                         </td>
                         <td class="px-2 py-2 whitespace-nowrap text-center">
                             <div class="text-xs text-gray-900">{{ row.payment_method || 'N/A' }}</div>

@@ -146,18 +146,20 @@ class PaymentDocumentTypeHelper
             }
 
             // REGLA 2: El pago es en año ANTERIOR al del programa
-            // Verificar si es suscripción (payment_type = 'monthly')
-            $isSubscription = $order->payment_type === 'monthly';
             $installmentNumber = $orderDetail->installment_number ?? 1;
 
-            if ($isSubscription && $installmentNumber === 1) {
-                // Primera cuota de suscripción para programa del año siguiente
+            // Verificar si es el primer pago del participante para este programa
+            // (necesario para pagos contado donde installment_number no aplica)
+            $isFirstPayment = self::isFirstPaymentForEnrollment($order, $payment);
+
+            if ($installmentNumber === 1 || $isFirstPayment) {
+                // Primer pago (PAT 1ra cuota o contado inicial) para programa del año siguiente
                 // → Contrato de Reserva + Comprobante de Anticipo
-                Log::info('PaymentDocumentTypeHelper: CR + AC - Primera cuota suscripción año anterior', $logContext);
+                Log::info('PaymentDocumentTypeHelper: CR + AC - Primer pago año anterior', $logContext);
                 return [self::TYPE_CONTRATO, self::TYPE_ANTICIPO];
             }
 
-            // Cuotas siguientes o pago único para programa del año siguiente
+            // Cuotas siguientes para programa del año siguiente
             // → Solo Comprobante de Anticipo
             Log::info('PaymentDocumentTypeHelper: AC (Anticipo) - Pago año anterior al programa', $logContext);
             return [self::TYPE_ANTICIPO];
@@ -170,6 +172,24 @@ class PaymentDocumentTypeHelper
             ]);
             return [self::TYPE_BOLETA];
         }
+    }
+
+    /**
+     * Determina si este es el primer pago del participante para el programa.
+     * Usado para decidir si enviar Contrato de Reserva (CR) en pagos contado de año anterior.
+     */
+    private static function isFirstPaymentForEnrollment(\App\Models\Order $order, Payment $currentPayment): bool
+    {
+        $priorApprovedPayments = Payment::whereHas('order', function ($q) use ($order) {
+                $q->where('participant_id', $order->participant_id)
+                  ->where('program_id', $order->program_id);
+            })
+            ->whereIn('status', ['approved', 'completed'])
+            ->where('id', '!=', $currentPayment->id)
+            ->where('amount', '>', 0)
+            ->count();
+
+        return $priorApprovedPayments === 0;
     }
 
     /**
@@ -236,6 +256,16 @@ class PaymentDocumentTypeHelper
             'factura' => self::TYPE_FACTURA,
             'factura electronica' => self::TYPE_FACTURA,
             'factura electrónica' => self::TYPE_FACTURA,
+            // Anticipo de Cliente (programa de año posterior)
+            'ac' => self::TYPE_ANTICIPO,
+            'anticipo' => self::TYPE_ANTICIPO,
+            'anticipo cliente' => self::TYPE_ANTICIPO,
+            'anticipo de cliente' => self::TYPE_ANTICIPO,
+            // Contrato de Reserva
+            'cr' => self::TYPE_CONTRATO,
+            'contrato' => self::TYPE_CONTRATO,
+            'contrato reserva' => self::TYPE_CONTRATO,
+            'contrato de reserva' => self::TYPE_CONTRATO,
         ];
 
         return $mapping[$normalized] ?? null;

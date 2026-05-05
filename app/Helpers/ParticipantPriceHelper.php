@@ -32,21 +32,6 @@ class ParticipantPriceHelper
         // 4. Calcular precio final (redondeado a entero, CLP no tiene centavos)
         $finalPrice = (int) round(max(0, $basePrice + $adjustments - $discounts));
 
-        // LOG para depuración
-        \Illuminate\Support\Facades\Log::info('ParticipantPriceHelper::calculateParticipantPrice', [
-            'participant_id' => $participant->id,
-            'participant_name' => $participant->full_name,
-            'program_course_id' => $programCourse->id ?? 'N/A',
-            'program_course_name' => $programCourse->name ?? 'N/A',
-            'trip_price' => $programCourse->trip_price ?? 0,
-            'PRECIO_BASE' => $basePrice,
-            'AJUSTES' => $adjustments,
-            'DESCUENTOS' => $discounts,
-            'DESCUENTOS_REGULARES' => $discountBreakdown['regular'],
-            'MONTO_LIBERADO' => $discountBreakdown['released'],
-            'PRECIO_FINAL' => $finalPrice,
-        ]);
-
         return [
             'base_price' => $basePrice,
             'adjustments' => $adjustments,
@@ -78,13 +63,6 @@ class ParticipantPriceHelper
                 ->where('course_id', $course->id)
                 ->first();
 
-            \Illuminate\Support\Facades\Log::info('getBasePrice - Buscando en participant_course', [
-                'participant_id' => $participant->id,
-                'course_id' => $course->id,
-                'pivot_encontrado' => $pivot ? 'SI' : 'NO',
-                'pivot_individual_price' => $pivot->individual_price ?? 'NULL',
-            ]);
-
             if ($pivot && $pivot->individual_price && $pivot->individual_price > 0) {
                 $source = 'participant_course.individual_price';
                 $price = (float) $pivot->individual_price;
@@ -97,13 +75,6 @@ class ParticipantPriceHelper
                 ->where('participant_id', $participant->id)
                 ->where('program_id', $programCourseId)
                 ->first();
-
-            \Illuminate\Support\Facades\Log::info('getBasePrice - Buscando en participant_program', [
-                'participant_id' => $participant->id,
-                'program_course_id' => $programCourseId,
-                'pp_encontrado' => $pp ? 'SI' : 'NO',
-                'pp_individual_price' => $pp->individual_price ?? 'NULL',
-            ]);
 
             if ($pp && $pp->individual_price && $pp->individual_price > 0) {
                 $source = 'participant_program.individual_price';
@@ -122,13 +93,6 @@ class ParticipantPriceHelper
             $source = 'programCourse.trip_price';
             $price = (float) ($programCourse->trip_price ?? 0);
         }
-
-        \Illuminate\Support\Facades\Log::info('getBasePrice - RESULTADO FINAL', [
-            'participant_id' => $participant->id,
-            'FUENTE_DEL_PRECIO' => $source,
-            'PRECIO_BASE_FINAL' => $price,
-            'trip_price_programa' => $programCourse->trip_price ?? 0,
-        ]);
 
         return $price;
     }
