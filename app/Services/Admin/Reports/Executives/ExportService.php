@@ -503,7 +503,10 @@ class ExportService
                         ->exists();
                     $paidInstallments = $hasCompletedPayment ? 1 : 0;
                 } else {
-                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+                    // Tomar el installment_plan más reciente (el activo)
+                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
+                        ->orderByDesc('id')
+                        ->first();
 
                     if ($installmentPlan) {
                         $totalInstallments = $installmentPlan->installments()->count();

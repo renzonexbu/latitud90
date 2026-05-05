@@ -208,7 +208,11 @@ class ExecutivesPartialAccountService
                         $paidInstallments = $hasCompletedPayment ? 1 : 0;
                     } else {
                         // Mensual / PAT: usar installment_plan
-                        $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)->first();
+                        // Tomar el más reciente (el activo); el participante puede tener
+                        // planes anteriores que fueron cancelados/superados.
+                        $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
+                            ->orderByDesc('id')
+                            ->first();
                         if ($installmentPlan) {
                             $totalInstallments = $installmentPlan->installments()->count();
                             $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
