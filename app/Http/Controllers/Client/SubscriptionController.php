@@ -1539,18 +1539,31 @@ class SubscriptionController extends Controller
             $participantId = $request->input('participant_id');
             $programId = $request->input('program_id');
 
-            // Buscar SOLO suscripción ACTIVA para este participante y programa
+            // Buscar SOLO suscripción ACTIVA para este participante y programa.
             // NOTA: Solo detectamos estado ACTIVA porque:
             // - SUSCRIBIENDO: proceso incompleto, VirtualPos no permite cancelar, usuario puede reintentar
             // - SUSCRIPCION_FALLIDA: primera cuota rechazada, usuario puede reintentar
             // - CANCELADA: suscripción terminada, usuario puede crear otra
-            // En todos estos casos el usuario debe poder continuar con el flujo normal de ecommerce
+            // En todos estos casos el usuario debe poder continuar con el flujo normal de ecommerce.
             $subscription = ProgramSubscription::where('participant_id', $participantId)
                 ->where('program_id', $programId)
                 ->where('status', 'ACTIVA')
                 ->first();
 
-            $hasActiveSubscription = $subscription !== null;
+            // Adicional: incluso con status='ACTIVA', si NO hay ninguna cuota efectivamente
+            // pagada, tratar como si no existiera. Caso típico: la primera cuota nunca se
+            // confirmó y la suscripción quedó en limbo (status ACTIVA por sync incompleto).
+            // En esa situación el usuario debe poder iniciar un nuevo flujo de pago.
+            $hasPaidInstallment = false;
+            if ($subscription) {
+                $hasPaidInstallment = \Illuminate\Support\Facades\DB::table('installments')
+                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
+                    ->where('installment_plans.program_subscription_id', $subscription->id)
+                    ->where('installments.status', 'paid')
+                    ->exists();
+            }
+
+            $hasActiveSubscription = $subscription !== null && $hasPaidInstallment;
 
             // Verificar estado del guardian logueado respecto a este participante
             $guardianLoggedIn = auth('guardian')->check();
