@@ -336,13 +336,17 @@ class SubscriptionController extends Controller
             }])
             ->first();
 
-        // Fallback para suscripciones antiguas sin program_subscription_id
+        // Fallback para suscripciones antiguas sin program_subscription_id linkeado.
+        // Tomar el plan más reciente excluyendo cancelados (evita mostrar cuotas
+        // de suscripciones previas fallidas).
         if (!$installmentPlan) {
             $installmentPlan = \App\Models\InstallmentPlan::where('participant_id', $subscription->participant_id)
                 ->where('program_id', $subscription->program_id)
+                ->where('status', '!=', 'cancelled')
                 ->with(['installments' => function ($query) {
                     $query->orderBy('installment_number');
                 }])
+                ->orderByDesc('id')
                 ->first();
         }
 
@@ -410,14 +414,25 @@ class SubscriptionController extends Controller
                 ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 
-            // Si no hay installment_plan vinculado directamente, buscar por participant + program
+            // Fallback solo para suscripciones legacy (sin program_subscription_id linkeado).
+            // Antes el fallback buscaba por participant_id + program_id, lo que sumaba
+            // cuotas pagadas de OTRAS suscripciones del mismo participante (intentos
+            // fallidos previos). Ahora se restringe al installment_plan más reciente
+            // y se excluyen explícitamente los planes cancelados.
             if ($subscriptionPayments == 0) {
-                $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
-                    ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-                    ->where('installment_plans.participant_id', $subscription->participant_id)
-                    ->where('installment_plans.program_id', $subscription->program_id)
-                    ->where('installments.status', 'paid')
-                    ->sum('installments.amount');
+                $latestPlanId = \Illuminate\Support\Facades\DB::table('installment_plans')
+                    ->where('participant_id', $subscription->participant_id)
+                    ->where('program_id', $subscription->program_id)
+                    ->where('status', '!=', 'cancelled')
+                    ->orderByDesc('id')
+                    ->value('id');
+
+                if ($latestPlanId) {
+                    $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
+                        ->where('installment_plan_id', $latestPlanId)
+                        ->where('status', 'paid')
+                        ->sum('amount');
+                }
             }
 
             $paidAmount = (float) $subscriptionOrderPayments + (float) $subscriptionPayments;
