@@ -489,14 +489,31 @@ class ExportService
             $aporteAmount = 0.0;
 
             if (!empty($orderIds)) {
-                // Heurística robusta (independiente de qué order sea $orders->first()):
-                // - Si existe un installment_plan activo (no cancelado) → es PAT/monthly,
-                //   usar las installments de ese plan.
-                // - Si NO existe ningún plan activo → es Pago Total (1 cuota).
-                $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
-                    ->where('status', '!=', 'cancelled')
+                // Heurística por capas:
+                // 1. Suscripción ACTIVA → su plan (aunque tenga status='cancelled' por
+                //    inconsistencia de datos).
+                // 2. Si no, plan más reciente no cancelado vinculado a algún order.
+                // 3. Si no, Pago Total (1 cuota).
+                $activePlan = null;
+
+                $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $pp->participant_id)
+                    ->where('program_id', $programCourse->id)
+                    ->where('status', 'ACTIVA')
                     ->orderByDesc('id')
                     ->first();
+
+                if ($activeSubscription) {
+                    $activePlan = \App\Models\InstallmentPlan::where('program_subscription_id', $activeSubscription->id)
+                        ->orderByDesc('id')
+                        ->first();
+                }
+
+                if (!$activePlan) {
+                    $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
+                        ->where('status', '!=', 'cancelled')
+                        ->orderByDesc('id')
+                        ->first();
+                }
 
                 if ($activePlan) {
                     $totalInstallments = $activePlan->installments()->count();

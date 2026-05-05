@@ -182,38 +182,50 @@ class ExecutivesPartialAccountService
                     $saldo = round($totalPaid - $price, 2);
                 }
 
-                // Cuotas pagadas y totales.
-                // Heurística robusta (independiente de qué order sea ->first()):
-                // - Si existe un installment_plan activo (no cancelado) → es PAT/monthly,
-                //   usar las installments de ese plan.
-                // - Si NO existe ningún plan activo → es Pago Total (1 cuota).
-                // Esto evita que un participante con múltiples orders (intento total fallido
-                // + PAT activo) muestre 1/1 cuando en realidad debería ser X/N de su PAT.
+                // Cuotas pagadas y totales — heurística por capas:
+                // 1. Si existe una ProgramSubscription ACTIVA → usar su installment_plan
+                //    (aunque el plan tenga status='cancelled' por inconsistencia de datos).
+                // 2. Si no, buscar el plan más reciente no cancelado vinculado a algún order.
+                // 3. Si no, es Pago Total (1 cuota).
                 $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $rowProgramCourseId)
                     ->pluck('id')->all();
                 $paidInstallments = 0;
                 $totalInstallments = 0;
+                $activePlan = null;
 
-                if (!empty($orderIds)) {
+                // Capa 1: Suscripción ACTIVA → su plan, sin importar el status del plan
+                $activeSubscription = \App\Models\ProgramSubscription::where('participant_id', $row->participant_id)
+                    ->where('program_id', $rowProgramCourseId)
+                    ->where('status', 'ACTIVA')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($activeSubscription) {
+                    $activePlan = \App\Models\InstallmentPlan::where('program_subscription_id', $activeSubscription->id)
+                        ->orderByDesc('id')
+                        ->first();
+                }
+
+                // Capa 2: si no hay suscripción ACTIVA con plan, buscar plan no cancelado por orders
+                if (!$activePlan && !empty($orderIds)) {
                     $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
                         ->where('status', '!=', 'cancelled')
                         ->orderByDesc('id')
                         ->first();
+                }
 
-                    if ($activePlan) {
-                        // PAT/monthly: usar installments del plan activo
-                        $totalInstallments = $activePlan->installments()->count();
-                        $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
-                    } else {
-                        // Pago Total: 1 cuota, pagada si existe algún payment completed
-                        $totalInstallments = 1;
-                        $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
-                            ->whereIn('status', ['approved', 'completed'])
-                            ->where('amount', '>', 0)
-                            ->exists();
-                        $paidInstallments = $hasCompletedPayment ? 1 : 0;
-                    }
+                if ($activePlan) {
+                    $totalInstallments = $activePlan->installments()->count();
+                    $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
+                } elseif (!empty($orderIds)) {
+                    // Capa 3: Pago Total. 1 cuota, pagada si existe algún payment completed.
+                    $totalInstallments = 1;
+                    $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
+                        ->whereIn('status', ['approved', 'completed'])
+                        ->where('amount', '>', 0)
+                        ->exists();
+                    $paidInstallments = $hasCompletedPayment ? 1 : 0;
                 }
 
                 // Ajuste para participantes DE BAJA
