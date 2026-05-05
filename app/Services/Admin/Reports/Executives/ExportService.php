@@ -489,46 +489,25 @@ class ExportService
             $aporteAmount = 0.0;
 
             if (!empty($orderIds)) {
-                // Fuente de verdad: payment_type de la orden.
-                // 'total' → 1 cuota (intentos fallidos no cuentan).
-                // 'monthly'/PAT → installment_plan + installments.
-                $primaryOrder = $orders->first();
-                $paymentType = $primaryOrder->payment_type ?? null;
+                // Heurística robusta (independiente de qué order sea $orders->first()):
+                // - Si existe un installment_plan activo (no cancelado) → es PAT/monthly,
+                //   usar las installments de ese plan.
+                // - Si NO existe ningún plan activo → es Pago Total (1 cuota).
+                $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
+                    ->where('status', '!=', 'cancelled')
+                    ->orderByDesc('id')
+                    ->first();
 
-                if ($paymentType === 'total') {
+                if ($activePlan) {
+                    $totalInstallments = $activePlan->installments()->count();
+                    $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
+                } else {
                     $totalInstallments = 1;
                     $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
                         ->whereIn('status', ['approved', 'completed'])
                         ->where('amount', '>', 0)
                         ->exists();
                     $paidInstallments = $hasCompletedPayment ? 1 : 0;
-                } else {
-                    // Tomar el installment_plan más reciente (el activo)
-                    $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
-                        ->orderByDesc('id')
-                        ->first();
-
-                    if ($installmentPlan) {
-                        $totalInstallments = $installmentPlan->installments()->count();
-                        $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-                    }
-
-                    if ($totalInstallments === 0 || $paidInstallments === 0) {
-                        $orderDetails = \App\Models\OrderDetail::whereIn('order_id', $orderIds)->get();
-                        if ($totalInstallments === 0) {
-                            $totalInstallments = max(
-                                $orderDetails->pluck('installment_number')->filter()->unique()->count(),
-                                1
-                            );
-                        }
-                        if ($paidInstallments === 0) {
-                            $paidInstallments = $orderDetails->where('is_paid', true)
-                                ->pluck('installment_number')
-                                ->filter()
-                                ->unique()
-                                ->count();
-                        }
-                    }
                 }
 
                 // 1. Pagos normales (excluir suscripción Y excluir aportes)

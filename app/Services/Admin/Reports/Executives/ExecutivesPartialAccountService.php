@@ -182,59 +182,37 @@ class ExecutivesPartialAccountService
                     $saldo = round($totalPaid - $price, 2);
                 }
 
-                // Cuotas pagadas y totales
-                // La fuente de verdad es el payment_type de la orden:
-                // - 'total': siempre 1 cuota (sin importar intentos fallidos)
-                // - 'monthly'/PAT: usar installment_plan
-                // - otros: fallback a OrderDetails distintos por installment_number
-                $orders = \App\Models\Order::where('participant_id', $row->participant_id)
+                // Cuotas pagadas y totales.
+                // Heurística robusta (independiente de qué order sea ->first()):
+                // - Si existe un installment_plan activo (no cancelado) → es PAT/monthly,
+                //   usar las installments de ese plan.
+                // - Si NO existe ningún plan activo → es Pago Total (1 cuota).
+                // Esto evita que un participante con múltiples orders (intento total fallido
+                // + PAT activo) muestre 1/1 cuando en realidad debería ser X/N de su PAT.
+                $orderIds = \App\Models\Order::where('participant_id', $row->participant_id)
                     ->where('program_id', $rowProgramCourseId)
-                    ->get();
-                $orderIds = $orders->pluck('id')->all();
+                    ->pluck('id')->all();
                 $paidInstallments = 0;
                 $totalInstallments = 0;
 
                 if (!empty($orderIds)) {
-                    $primaryOrder = $orders->first();
-                    $paymentType = $primaryOrder->payment_type ?? null;
+                    $activePlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
+                        ->where('status', '!=', 'cancelled')
+                        ->orderByDesc('id')
+                        ->first();
 
-                    if ($paymentType === 'total') {
-                        // Pago Total: 1 cuota. Pagada si existe algún payment completed con monto > 0.
+                    if ($activePlan) {
+                        // PAT/monthly: usar installments del plan activo
+                        $totalInstallments = $activePlan->installments()->count();
+                        $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
+                    } else {
+                        // Pago Total: 1 cuota, pagada si existe algún payment completed
                         $totalInstallments = 1;
                         $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
                             ->whereIn('status', ['approved', 'completed'])
                             ->where('amount', '>', 0)
                             ->exists();
                         $paidInstallments = $hasCompletedPayment ? 1 : 0;
-                    } else {
-                        // Mensual / PAT: usar installment_plan
-                        // Tomar el más reciente (el activo); el participante puede tener
-                        // planes anteriores que fueron cancelados/superados.
-                        $installmentPlan = \App\Models\InstallmentPlan::whereIn('order_id', $orderIds)
-                            ->orderByDesc('id')
-                            ->first();
-                        if ($installmentPlan) {
-                            $totalInstallments = $installmentPlan->installments()->count();
-                            $paidInstallments = $installmentPlan->installments()->where('status', 'paid')->count();
-                        }
-                        // Fallback: OrderDetails distintos por installment_number
-                        // (ignora duplicados creados por reintentos fallidos)
-                        if ($totalInstallments === 0 || $paidInstallments === 0) {
-                            $orderDetails = \App\Models\OrderDetail::whereIn('order_id', $orderIds)->get();
-                            if ($totalInstallments === 0) {
-                                $totalInstallments = max(
-                                    $orderDetails->pluck('installment_number')->filter()->unique()->count(),
-                                    1
-                                );
-                            }
-                            if ($paidInstallments === 0) {
-                                $paidInstallments = $orderDetails->where('is_paid', true)
-                                    ->pluck('installment_number')
-                                    ->filter()
-                                    ->unique()
-                                    ->count();
-                            }
-                        }
                     }
                 }
 
