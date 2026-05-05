@@ -555,14 +555,16 @@ class ExportService
                     ->sum('amount');
             }
 
-            // 2. Cuotas de suscripción pagadas (installments) - solo de planes activos
-            $subscriptionPayments = (float) DB::table('installments')
-                ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-                ->where('installment_plans.participant_id', $pp->participant_id)
-                ->where('installment_plans.program_id', $programCourse->id)
-                ->where('installment_plans.status', '!=', 'cancelled')
-                ->where('installments.status', 'paid')
-                ->sum('installments.amount');
+            // 2. Cuotas de suscripción pagadas: reusar $activePlan (misma fuente que cuotas pagadas).
+            // Esto soluciona el caso de planes con status='cancelled' vinculados a suscripciones
+            // ACTIVA (inconsistencia de datos) — sin esta lógica el abono no contabilizaba las
+            // cuotas pagadas del PAT y el saldo aparecía completo aunque ya hubiera abonos.
+            $subscriptionPayments = 0.0;
+            if ($activePlan) {
+                $subscriptionPayments = (float) $activePlan->installments()
+                    ->where('status', 'paid')
+                    ->sum('amount');
+            }
 
             // Abono = pagos normales (sin aportes) + cuotas de suscripción
             $abono = $normalPayments + $subscriptionPayments;
