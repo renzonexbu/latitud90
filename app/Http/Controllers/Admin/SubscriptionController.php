@@ -400,25 +400,19 @@ class SubscriptionController extends Controller
                 $subscription->programCourse
             );
 
-            // 1. Pagos asociados directamente a esta suscripción (órdenes con subscription_id)
-            $subscriptionOrderPayments = \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
-                    $q->where('subscription_id', $subscription->id);
-                })
-                ->whereIn('status', ['completed', 'approved'])
-                ->sum('amount');
-
-            // 2. Cuotas de suscripción pagadas (installments) - solo de esta suscripción
+            // FUENTE ÚNICA DE VERDAD: cuotas con status='paid' del installment_plan
+            // de esta suscripción. NO sumar Payments del order también, porque cada
+            // cuota PAT crea (1) un Payment y (2) un Installment vinculados al mismo
+            // pago — sumar ambos era doble-contabilización.
             $subscriptionPayments = \Illuminate\Support\Facades\DB::table('installments')
                 ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
                 ->where('installment_plans.program_subscription_id', $subscription->id)
                 ->where('installments.status', 'paid')
                 ->sum('installments.amount');
 
-            // Fallback solo para suscripciones legacy (sin program_subscription_id linkeado).
-            // Antes el fallback buscaba por participant_id + program_id, lo que sumaba
-            // cuotas pagadas de OTRAS suscripciones del mismo participante (intentos
-            // fallidos previos). Ahora se restringe al installment_plan más reciente
-            // y se excluyen explícitamente los planes cancelados.
+            // Fallback A: suscripciones legacy sin program_subscription_id linkeado.
+            // Tomar el plan más reciente del participante para este programa,
+            // excluyendo cancelados (evita arrastrar pagos de intentos previos).
             if ($subscriptionPayments == 0) {
                 $latestPlanId = \Illuminate\Support\Facades\DB::table('installment_plans')
                     ->where('participant_id', $subscription->participant_id)
@@ -435,7 +429,18 @@ class SubscriptionController extends Controller
                 }
             }
 
-            $paidAmount = (float) $subscriptionOrderPayments + (float) $subscriptionPayments;
+            // Fallback B: si NO hay installments (suscripciones muy antiguas o
+            // configuración atípica), usar Payments del order como último recurso.
+            // Solo aplica si no encontramos ningún installment pagado.
+            if ($subscriptionPayments == 0) {
+                $subscriptionPayments = (float) \App\Models\Payment::whereHas('order', function ($q) use ($subscription) {
+                        $q->where('subscription_id', $subscription->id);
+                    })
+                    ->whereIn('status', ['completed', 'approved'])
+                    ->sum('amount');
+            }
+
+            $paidAmount = (float) $subscriptionPayments;
 
             // Obtener descuentos aplicados del participant_program
             $participantProgram = \Illuminate\Support\Facades\DB::table('participant_program')
