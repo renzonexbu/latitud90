@@ -228,11 +228,19 @@ class ExecutivesPartialAccountService
                     $paidInstallments = $hasCompletedPayment ? 1 : 0;
                 }
 
-                // Ajuste para participantes DE BAJA
+                // Ajuste para participantes DE BAJA:
+                // - Baja con penalización (devolución parcial): precio y abono = monto retenido
+                //   (lo pagado menos lo devuelto via NC/RA).
+                // - Baja sin penalización (devolución total): retenido = 0, todo en cero.
+                // total_paid del ParticipantFinancialService ya considera abono + aporte +
+                // credito_temporal + nota_credito + reverso_admin (NC y RA restan automáticamente
+                // por estar guardados con monto negativo).
                 $displayPrice = $price;
                 if (!$row->is_active) {
                     $saldo = 0;
-                    $displayPrice = min($price, $abono);
+                    $retainedAmount = max((float) ($financial['total_paid'] ?? 0), 0);
+                    $displayPrice = $retainedAmount;
+                    $abono = $retainedAmount;
                 }
 
                 // Forma de pago

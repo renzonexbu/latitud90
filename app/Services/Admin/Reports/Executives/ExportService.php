@@ -623,12 +623,18 @@ class ExportService
             $scholarship += $aporteAmount;
 
             // Ajuste para participantes DE BAJA:
-            // - Saldo siempre es $0
-            // - Precio = min(precio, abono) para no generar superávit
+            // - Baja con penalización (devolución parcial): precio y abono = monto retenido
+            //   (todos los payments confirmados sumados; NC/RA con monto negativo restan).
+            // - Baja sin penalización (devolución total): retenido = 0.
+            // El saldo siempre es 0 porque el participante no está cobrable.
             $displayPrice = $price;
             if (!$pp->is_active) {
                 $saldo = 0;
-                $displayPrice = min($price, $abono);
+                $retainedAmount = max((float) Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->sum('amount'), 0);
+                $displayPrice = $retainedAmount;
+                $abono = $retainedAmount;
             }
 
             // Estado del participante en el programa
