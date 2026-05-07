@@ -519,12 +519,20 @@ class ExportService
                     $totalInstallments = $activePlan->installments()->count();
                     $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
                 } else {
-                    $totalInstallments = 1;
+                    // Pago Total:
+                    // - Con payment completed → 1/1 (cuota efectiva).
+                    // - Sin payment completed → 0/0 (intentos fallidos NO cuentan).
                     $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
                         ->whereIn('status', ['approved', 'completed'])
                         ->where('amount', '>', 0)
                         ->exists();
-                    $paidInstallments = $hasCompletedPayment ? 1 : 0;
+                    if ($hasCompletedPayment) {
+                        $totalInstallments = 1;
+                        $paidInstallments = 1;
+                    } else {
+                        $totalInstallments = 0;
+                        $paidInstallments = 0;
+                    }
                 }
 
                 // 1. Pagos normales (excluir suscripción Y excluir aportes)

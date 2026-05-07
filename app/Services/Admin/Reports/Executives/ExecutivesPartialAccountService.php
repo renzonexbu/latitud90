@@ -219,13 +219,20 @@ class ExecutivesPartialAccountService
                     $totalInstallments = $activePlan->installments()->count();
                     $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
                 } elseif (!empty($orderIds)) {
-                    // Capa 3: Pago Total. 1 cuota, pagada si existe algún payment completed.
-                    $totalInstallments = 1;
+                    // Capa 3: Pago Total.
+                    // - Con payment completed → 1/1 (cuota efectiva).
+                    // - Sin payment completed → 0/0 (los intentos fallidos NO cuentan como cuota).
                     $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
                         ->whereIn('status', ['approved', 'completed'])
                         ->where('amount', '>', 0)
                         ->exists();
-                    $paidInstallments = $hasCompletedPayment ? 1 : 0;
+                    if ($hasCompletedPayment) {
+                        $totalInstallments = 1;
+                        $paidInstallments = 1;
+                    } else {
+                        $totalInstallments = 0;
+                        $paidInstallments = 0;
+                    }
                 }
 
                 // Ajuste para participantes DE BAJA:
