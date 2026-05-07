@@ -57,7 +57,7 @@
                             >
                                 <!-- Percentage -->
                                 <div
-                                    class="text-[#4B8D7F] text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative"
+                                    :class="['text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative', percentageTextColor]"
                                 >
                                     {{ program.payment_percentage || 0 }}%
                                 </div>
@@ -67,12 +67,12 @@
                                     class="flex flex-row items-end justify-end flex-shrink-0 relative"
                                 >
                                     <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative min-w-0"
+                                        :class="['text-left font-nexa text-[18px] font-normal font-bold leading-[22px] relative min-w-0', percentageTextColor]"
                                     >
                                         {{ formatPrice(program.paid_amount || 0) }}
                                     </div>
                                     <div
-                                        class="text-[#4B8D7F] text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2"
+                                        :class="['text-left font-nexa text-[12px] font-normal font-bold leading-[13px] relative ml-2', percentageTextColor]"
                                     >
                                         /{{ formatPrice(program.total_amount || program.trip_price || 0) }}
                                     </div>
@@ -84,9 +84,9 @@
                                 class="rounded-[100px] border-[3px] border-gris-2 bg-white flex h-4 pr-[164px] items-center self-stretch relative overflow-hidden"
                             >
                                 <div
-                                    class="bg-[#4B8D7F] rounded-[100px] h-4 absolute left-0 top-1/2 translate-y-[-50%] overflow-hidden"
+                                    :class="['rounded-[100px] h-4 absolute left-0 top-1/2 translate-y-[-50%] overflow-hidden', progressBarBgColor]"
                                     :style="{
-                                        width: `${program.payment_percentage || 0}%`,
+                                        width: `${Math.min(program.payment_percentage || 0, 100)}%`,
                                     }"
                                 >
                                     <div
@@ -144,6 +144,17 @@ export default {
         program: {
             type: Object,
             required: true,
+        },
+    },
+    computed: {
+        hasExcess() {
+            return (this.program.payment_percentage || 0) > 100;
+        },
+        percentageTextColor() {
+            return this.hasExcess ? 'text-orange-600' : 'text-[#4B8D7F]';
+        },
+        progressBarBgColor() {
+            return this.hasExcess ? 'bg-orange-500' : 'bg-[#4B8D7F]';
         },
     },
     methods: {

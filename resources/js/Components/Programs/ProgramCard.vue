@@ -230,18 +230,19 @@
                         <div class="flex flex-col gap-3 items-start justify-start flex-1 relative">
                             <div class="flex flex-row items-start justify-between self-stretch flex-shrink-0 relative">
                                 <!-- Percentage or Installments -->
-                                <div class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative">
-                                    <span v-if="isFullyPaid" class="text-green-600 font-extrabold">PAGADO</span>
+                                <div :class="['text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative', percentageTextColor]">
+                                    <span v-if="hasExcess" class="font-extrabold">{{ program.paymentPercentage || 0 }}%</span>
+                                    <span v-else-if="isFullyPaid" class="text-green-600 font-extrabold">PAGADO</span>
                                     <span v-else-if="program.installments_summary">{{ program.installments_summary }}</span>
                                     <span v-else>{{ program.paymentPercentage || 0 }}%</span>
                                 </div>
 
                                 <!-- Money Values -->
                                 <div class="flex flex-row items-end justify-end flex-shrink-0 relative">
-                                    <div class="text-[#4B8D7F] text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative min-w-0">
+                                    <div :class="['text-left font-nexa text-base sm:text-lg font-normal font-bold leading-5 sm:leading-6 relative min-w-0', percentageTextColor]">
                                         {{ formatPrice(program.paidAmount || 0) }}
                                     </div>
-                                    <div class="text-[#4B8D7F] text-left font-nexa text-[10px] sm:text-xs font-normal font-bold leading-3 sm:leading-4 relative ml-2">
+                                    <div :class="['text-left font-nexa text-[10px] sm:text-xs font-normal font-bold leading-3 sm:leading-4 relative ml-2', percentageTextColor]">
                                         /{{ formatPrice(getDisplayTotalAmount()) }}
                                     </div>
                                 </div>
@@ -250,8 +251,8 @@
                             <!-- Progress Bar -->
                             <div class="rounded-[100px] border-[3px] border-gris-2 bg-white flex h-4 pr-[164px] items-center self-stretch relative overflow-hidden">
                                 <div
-                                    class="bg-[#4B8D7F] rounded-[100px] h-4 absolute left-0 top-1/2 translate-y-[-50%] overflow-hidden"
-                                    :style="{ width: `${program.paymentPercentage || 0}%` }"
+                                    :class="['rounded-[100px] h-4 absolute left-0 top-1/2 translate-y-[-50%] overflow-hidden', progressBarBgColor]"
+                                    :style="{ width: `${Math.min(program.paymentPercentage || 0, 100)}%` }"
                                 >
                                     <div class="flex flex-row items-center justify-start h-auto absolute left-[-3px] top-[-2px] overflow-visible">
                                         <!-- Diagonal stripes pattern -->
@@ -324,6 +325,20 @@ export default {
         isFullyPaid() {
             // Verificar si el programa está completamente pagado
             return (this.program.paymentPercentage || 0) >= 100;
+        },
+        hasExcess() {
+            // Cuando recauda MÁS que el total esperado (>100%)
+            return (this.program.paymentPercentage || 0) > 100;
+        },
+        percentageTextColor() {
+            // Color del texto del porcentaje y montos
+            if (this.hasExcess) return 'text-orange-600';
+            return 'text-[#4B8D7F]'; // verde por defecto
+        },
+        progressBarBgColor() {
+            // Color de la barra de progreso
+            if (this.hasExcess) return 'bg-orange-500';
+            return 'bg-[#4B8D7F]'; // verde por defecto
         },
     },
     methods: {
