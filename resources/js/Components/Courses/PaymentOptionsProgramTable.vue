@@ -138,7 +138,8 @@ export default {
             const percentage = isProgram ? (program.payment_percentage || 0) : (program || 0);
             const hasExcess = isProgram ? !!program.has_excess : false;
 
-            if (hasExcess) return 'bg-orange-500 text-white'; // Excedente (>100%): naranja
+            // Excedente: por flag explícito o porque el % > 100
+            if (hasExcess || percentage > 100) return 'bg-orange-500 text-white';
             if (percentage >= 100) return 'bg-green-500 text-white'; // 100% justo
             if (percentage >= 75) return 'bg-blue-500 text-white';
             if (percentage >= 51) return 'bg-yellow-500 text-white';

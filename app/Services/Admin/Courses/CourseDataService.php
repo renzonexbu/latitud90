@@ -268,9 +268,16 @@ class CourseDataService
 
     private function calculatePaymentPercentage(float $total, float $paid): int
     {
-        // Usar floor() en vez de round() para evitar mostrar 100% cuando aún hay saldo pendiente
-        // (ej: 99.6% debe mostrarse como 99%, no 100%, para que ejecutivos no abandonen la gestión)
-        return $total > 0 ? (int) floor(($paid / $total) * 100) : 0;
+        // - Sin excedente (≤100%): floor() para no mostrar 100% si aún falta cobrar.
+        //   (ej: 99.6% debe mostrarse como 99%, no 100%, para que ejecutivos no abandonen).
+        // - Con excedente (>100%): ceil() para que el sobrepago se vea (ej: 100.003% → 101%).
+        if ($total <= 0) {
+            return 0;
+        }
+        if ($paid > $total) {
+            return (int) ceil(($paid / $total) * 100);
+        }
+        return (int) floor(($paid / $total) * 100);
     }
 
     public function getCourseForEdit(Course $course): array

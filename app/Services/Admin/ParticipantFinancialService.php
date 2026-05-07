@@ -224,16 +224,21 @@ class ParticipantFinancialService
             $participantsCount++;
         }
 
-        // floor() en vez de round() para no mostrar 100% cuando aún falta por cobrar.
-        // Sin redondeo: el porcentaje siempre es entero (sin decimales).
-        $paymentPercentage = $totalAmount > 0
-            ? (int) floor(($totalPaid / $totalAmount) * 100)
-            : 0;
-
         // Flag de excedente: true cuando el programa recaudó MÁS que el total esperado.
-        // Permite al frontend distinguir visualmente entre 100% justo y >100% (sobrepago).
         $hasExcess = $totalAmount > 0 && $totalPaid > $totalAmount;
         $excessAmount = $hasExcess ? round($totalPaid - $totalAmount, 2) : 0.0;
+
+        // Porcentaje recaudado (entero, sin decimales):
+        // - Sin excedente (≤100%): floor() para no mostrar 100% si aún falta cobrar.
+        // - Con excedente (>100%): ceil() para que el sobrepago se vea reflejado
+        //   (ej: 100.003% → 101%) y la cliente identifique programas con sobrepago.
+        if ($totalAmount <= 0) {
+            $paymentPercentage = 0;
+        } elseif ($hasExcess) {
+            $paymentPercentage = (int) ceil(($totalPaid / $totalAmount) * 100);
+        } else {
+            $paymentPercentage = (int) floor(($totalPaid / $totalAmount) * 100);
+        }
 
         return [
             'participants_count' => $participantsCount,

@@ -186,8 +186,10 @@ export default {
 
             if (percentage === null || percentage === undefined) {
                 return 'bg-gray-300'; // Gris para ---
+            } else if (percentage > 100) {
+                return 'bg-orange-500'; // Naranja para excedente (>100%)
             } else if (percentage >= 100) {
-                return 'bg-green-500'; // Verde para 100%
+                return 'bg-green-500'; // Verde para 100% justo
             } else if (percentage >= 75) {
                 return 'bg-blue-500'; // Azul para 75-99%
             } else if (percentage >= 51) {
