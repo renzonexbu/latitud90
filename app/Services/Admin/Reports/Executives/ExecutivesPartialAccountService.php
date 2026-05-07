@@ -215,24 +215,27 @@ class ExecutivesPartialAccountService
                         ->first();
                 }
 
-                if ($activePlan) {
+                // Verificar si HAY algún pago exitoso. Es el criterio principal:
+                // sin pagos exitosos → no cuenta como cuota (regla de negocio: los
+                // intentos fallidos NO se cuentan, aunque exista un installment_plan
+                // 'active' que se quedó sin la primera cuota cobrada).
+                $hasCompletedPayment = !empty($orderIds) && Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where('amount', '>', 0)
+                    ->exists();
+
+                if (!$hasCompletedPayment) {
+                    // Sin pagos exitosos: 0/0 sin importar planes existentes.
+                    $totalInstallments = 0;
+                    $paidInstallments = 0;
+                } elseif ($activePlan) {
+                    // PAT con al menos 1 cuota pagada
                     $totalInstallments = $activePlan->installments()->count();
                     $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
-                } elseif (!empty($orderIds)) {
-                    // Capa 3: Pago Total.
-                    // - Con payment completed → 1/1 (cuota efectiva).
-                    // - Sin payment completed → 0/0 (los intentos fallidos NO cuentan como cuota).
-                    $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->where('amount', '>', 0)
-                        ->exists();
-                    if ($hasCompletedPayment) {
-                        $totalInstallments = 1;
-                        $paidInstallments = 1;
-                    } else {
-                        $totalInstallments = 0;
-                        $paidInstallments = 0;
-                    }
+                } else {
+                    // Pago Total exitoso: 1/1
+                    $totalInstallments = 1;
+                    $paidInstallments = 1;
                 }
 
                 // Ajuste para participantes DE BAJA:

@@ -515,24 +515,25 @@ class ExportService
                         ->first();
                 }
 
-                if ($activePlan) {
+                // Criterio principal: ¿hay algún pago exitoso?
+                // Sin pagos exitosos → 0/0 sin importar planes existentes.
+                // Esto cubre el caso de un installment_plan 'active' que se quedó
+                // sin la primera cuota cobrada (intento fallido de PAT).
+                $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
+                    ->whereIn('status', ['approved', 'completed'])
+                    ->where('amount', '>', 0)
+                    ->exists();
+
+                if (!$hasCompletedPayment) {
+                    $totalInstallments = 0;
+                    $paidInstallments = 0;
+                } elseif ($activePlan) {
                     $totalInstallments = $activePlan->installments()->count();
                     $paidInstallments = $activePlan->installments()->where('status', 'paid')->count();
                 } else {
-                    // Pago Total:
-                    // - Con payment completed → 1/1 (cuota efectiva).
-                    // - Sin payment completed → 0/0 (intentos fallidos NO cuentan).
-                    $hasCompletedPayment = Payment::whereIn('order_id', $orderIds)
-                        ->whereIn('status', ['approved', 'completed'])
-                        ->where('amount', '>', 0)
-                        ->exists();
-                    if ($hasCompletedPayment) {
-                        $totalInstallments = 1;
-                        $paidInstallments = 1;
-                    } else {
-                        $totalInstallments = 0;
-                        $paidInstallments = 0;
-                    }
+                    // Pago Total exitoso
+                    $totalInstallments = 1;
+                    $paidInstallments = 1;
                 }
 
                 // 1. Pagos normales (excluir suscripción Y excluir aportes)
