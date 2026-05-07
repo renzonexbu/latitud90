@@ -224,10 +224,16 @@ class ParticipantFinancialService
             $participantsCount++;
         }
 
-        // floor() en vez de round() para no mostrar 100% cuando aún falta por cobrar
+        // floor() en vez de round() para no mostrar 100% cuando aún falta por cobrar.
+        // Sin redondeo: el porcentaje siempre es entero (sin decimales).
         $paymentPercentage = $totalAmount > 0
             ? (int) floor(($totalPaid / $totalAmount) * 100)
             : 0;
+
+        // Flag de excedente: true cuando el programa recaudó MÁS que el total esperado.
+        // Permite al frontend distinguir visualmente entre 100% justo y >100% (sobrepago).
+        $hasExcess = $totalAmount > 0 && $totalPaid > $totalAmount;
+        $excessAmount = $hasExcess ? round($totalPaid - $totalAmount, 2) : 0.0;
 
         return [
             'participants_count' => $participantsCount,
@@ -240,6 +246,8 @@ class ParticipantFinancialService
             'reverso_admin' => $payments['reverso_admin'],
             'pending_amount' => max($totalAmount - $totalPaid, 0),
             'payment_percentage' => $paymentPercentage,
+            'has_excess' => $hasExcess,
+            'excess_amount' => $excessAmount,
         ];
     }
 
@@ -304,6 +312,8 @@ class ParticipantFinancialService
             'reverso_admin' => 0,
             'pending_amount' => 0,
             'payment_percentage' => 0,
+            'has_excess' => false,
+            'excess_amount' => 0.0,
         ];
     }
 }

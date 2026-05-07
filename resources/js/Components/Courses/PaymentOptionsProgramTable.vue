@@ -43,13 +43,17 @@
                     <td class="px-4 py-3 text-center">
                         <span
                             class="px-2 py-1 text-xs font-bold rounded-full"
-                            :class="getPercentageClass(program.payment_percentage)"
+                            :class="getPercentageClass(program)"
+                            :title="program.has_excess ? `Excedente: $${formatPrice(program.excess_amount)}` : ''"
                         >
                             {{ program.payment_percentage || 0 }}%
                         </span>
                     </td>
                     <td class="px-4 py-3 text-right whitespace-nowrap">
-                        <span class="font-medium text-gray-900">${{ formatPrice(program.paid_amount) }}</span>
+                        <span
+                            class="font-medium"
+                            :class="program.has_excess ? 'text-orange-600' : 'text-gray-900'"
+                        >${{ formatPrice(program.paid_amount) }}</span>
                         <span class="text-gray-500"> / ${{ formatPrice(program.total_amount) }}</span>
                     </td>
                     <!-- Columna Pago Total -->
@@ -128,8 +132,14 @@ export default {
         getSubscriptionOptions(options) {
             return options.filter(opt => opt.code?.startsWith('subscription_'));
         },
-        getPercentageClass(percentage) {
-            if (percentage >= 100) return 'bg-green-500 text-white';
+        getPercentageClass(program) {
+            // Compatibilidad: si llega un número (uso antiguo), tratarlo como percentage simple.
+            const isProgram = program && typeof program === 'object';
+            const percentage = isProgram ? (program.payment_percentage || 0) : (program || 0);
+            const hasExcess = isProgram ? !!program.has_excess : false;
+
+            if (hasExcess) return 'bg-orange-500 text-white'; // Excedente (>100%): naranja
+            if (percentage >= 100) return 'bg-green-500 text-white'; // 100% justo
             if (percentage >= 75) return 'bg-blue-500 text-white';
             if (percentage >= 51) return 'bg-yellow-500 text-white';
             if (percentage > 0) return 'bg-red-500 text-white';

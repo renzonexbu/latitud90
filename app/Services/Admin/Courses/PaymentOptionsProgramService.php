@@ -175,6 +175,8 @@ class PaymentOptionsProgramService
             $paidAmount = $totals['total_paid'];
             // El porcentaje ya viene floor-eado desde ParticipantFinancialService
             $paymentPercentage = (int) $totals['payment_percentage'];
+            $hasExcess = (bool) ($totals['has_excess'] ?? false);
+            $excessAmount = (float) ($totals['excess_amount'] ?? 0);
 
             return [
                 'id' => $program->id,
@@ -191,6 +193,8 @@ class PaymentOptionsProgramService
                 'total_amount' => $totalAmount,
                 'paid_amount' => $paidAmount,
                 'payment_percentage' => $paymentPercentage,
+                'has_excess' => $hasExcess,
+                'excess_amount' => $excessAmount,
             ];
         });
 
