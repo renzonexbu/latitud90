@@ -606,8 +606,12 @@ class ImportRefundsService
             $documentNumber = trim($rowData['n_documento'] ?? '');
             $clientName = trim($rowData['nombre_cliente'] ?? '') ?: ($participant->first_name . ' ' . $participant->first_last_name);
 
-            // Defaults para campos opcionales (RA no tiene datos fiscales SII)
-            $paymentCode = $siiCode ?: ('BULK-' . now()->format('YmdHis') . '-' . $rowNumber);
+            // RA no tiene datos fiscales SII: si Cod. SII viene vacío, usar el Nro. Negocio
+            // (replica el comportamiento histórico: aparece como "RA-V0154", "RA-C0070", etc.).
+            // Para NC sin SII se mantiene el fallback BULK (no debería ocurrir, NC requiere SII).
+            $isRA = ($refundTypeInfo['refund_type'] === 'refund_admin_reversal');
+            $paymentCode = $siiCode
+                ?: ($isRA ? $nroNegocio : ('BULK-' . now()->format('YmdHis') . '-' . $rowNumber));
             $siiCodeFinal = $siiCode ?: $paymentCode;
             $documentNumberFinal = $documentNumber ?: $paymentCode;
 
