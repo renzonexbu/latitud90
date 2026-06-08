@@ -244,14 +244,17 @@ class CourseDataService
             })
             ->sum('payments.amount');
 
-        // Sumar cuotas de suscripciones pagadas (installments) - solo de planes activos
-        // IMPORTANTE: installment_plans.program_id hace referencia a program_courses.id, NO a programs.id
-        $subscriptionPayments = (float) DB::table('installments')
-            ->join('installment_plans', 'installments.installment_plan_id', '=', 'installment_plans.id')
-            ->where('installment_plans.program_id', $programCourse->id)
-            ->where('installment_plans.status', '!=', 'cancelled')
-            ->where('installments.status', 'paid')
-            ->sum('installments.amount');
+        // Sumar cargos PAT registrados en payments (payment_source='subscription').
+        // ANTES sumábamos installments paid, pero si un cargo PAT entra al banco y
+        // SyncSubscriptionPaymentsJob no logra marcar la installment como paid, ese
+        // dinero quedaba invisible. Contar desde payments refleja lo realmente cobrado
+        // y queda consistente con el reporte "Programas por Medio de Pago".
+        $subscriptionPayments = (float) DB::table('payments')
+            ->join('orders', 'payments.order_id', '=', 'orders.id')
+            ->where('orders.program_id', $programCourse->id)
+            ->whereIn('payments.status', ['approved', 'completed'])
+            ->where('payments.payment_source', 'subscription')
+            ->sum('payments.amount');
 
         // Sumar aportes/becas (pagos con código presential_aporte)
         // Real Recaudado = Abono Pagadores + Aportes
