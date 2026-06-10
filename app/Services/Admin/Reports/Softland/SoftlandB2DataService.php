@@ -25,7 +25,7 @@ class SoftlandB2DataService
             'paymentOption',
             'paymentGateway',
         ])
-        ->where('status', 'completed')
+        ->whereIn('status', ['approved', 'completed'])
         ->where('document_type', 'B2'); // B2: presenciales + pasarela
 
         // Aplicar filtros de fecha si están presentes

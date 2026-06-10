@@ -52,9 +52,9 @@ class SoftlandAuxiliaresService
             'order.participant'
         ]);
 
-        // Filtrar por pagos completados B2 en el rango de fechas (presenciales + pasarela)
+        // Filtrar por pagos B2 (approved+completed) en el rango (presenciales + pasarela + masivo)
         $query->whereHas('order.payments', function ($q) use ($filters) {
-            $q->where('status', 'completed')
+            $q->whereIn('status', ['approved', 'completed'])
               ->where('document_type', 'B2');
             if (!empty($filters['dateFrom'])) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);
@@ -109,9 +109,9 @@ class SoftlandAuxiliaresService
         $subscriptionQuery = \App\Models\ProgramSubscription::whereNotNull('buyer_data')
             ->with('participant');
 
-        // Filtrar suscripciones por pagos completados B2 en el rango (presenciales + pasarela)
+        // Filtrar suscripciones por pagos B2 (approved+completed) en el rango
         $subscriptionQuery->whereHas('orders.payments', function ($q) use ($filters) {
-            $q->where('status', 'completed')
+            $q->whereIn('status', ['approved', 'completed'])
               ->where('document_type', 'B2');
             if (!empty($filters['dateFrom'])) {
                 $q->whereDate('transaction_date', '>=', $filters['dateFrom']);

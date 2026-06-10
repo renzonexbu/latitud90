@@ -25,7 +25,7 @@ class SoftlandDataService
 
         // Construir query y loggear SQL
         $query = Payment::with(['paymentOption', 'order.participant.emergencyContacts', 'order.program', 'order.participantProgram', 'order.orderDetails', 'orderDetail', 'paymentGateway'])
-            ->where('status', 'completed')
+            ->whereIn('status', ['approved', 'completed'])
             ->whereIn('document_type', ['B2', 'AC'])
             // Excluir pagos que ya se procesan como cuotas de suscripción (evitar duplicados)
             ->whereNotIn('id', function ($q) {
