@@ -280,12 +280,19 @@ class ImportManualPaymentsService
         $buyerName = $rowData['buyer_name'] ?? $rawData['contacto_pagador'] ?? $rowData['contacto_pagador'] ?? $participant->full_name;
         $buyerEmail = $rowData['buyer_email'] ?? $participant->email;
 
+        // RUT del pagador (sin DV lo aplica Softland). Fallback al RUT del participante
+        // si no viene en el Excel, así Softland nunca recibe document_number en NULL.
+        $buyerRut = RutHelper::clean(
+            $rawData['rut_pagador'] ?? $rowData['rut_pagador'] ?? $participant->document_number ?? null
+        );
+
         $orderDetail = OrderDetail::create([
             'order_id' => $order->id,
             'payment_option_id' => $paymentOption?->id,
             'payment_gateway_id' => $paymentGateway?->id,
             'name' => $buyerName,
             'email' => $buyerEmail,
+            'document_number' => $buyerRut,
             'base_amount' => $paymentAmount,
             'discount_amount' => 0,
             'amount' => $paymentAmount,
@@ -319,6 +326,9 @@ class ImportManualPaymentsService
             'amount' => $paymentAmount,
             'status' => 'approved',
             'transaction_date' => $paymentDate,
+            // accounting_date = fecha de EMISIÓN del documento (la usa Softland).
+            // En el masivo es 'hoy' (cuando se cargó), no la fecha del pago original.
+            'accounting_date' => now(),
             'authorization_code' => $authorizationCode,
             // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
             'payment_code' => $documentType !== 'B2' ? $referencia : null,
@@ -342,6 +352,20 @@ class ImportManualPaymentsService
         $isAporte = strtoupper(trim($tipoPago)) === 'AP' || ($rowData['is_aporte'] ?? false);
         if ($isAporte) {
             $this->handleAportePayment($participantProgram, $paymentAmount);
+        }
+
+        // 12. Enviar email de comprobante para AC (programas año siguiente).
+        // Para B2 el email lo maneja SendBsaleEmailJob luego de generar la boleta.
+        if ($payment->document_type === 'AC' && !empty($orderDetail->email)) {
+            try {
+                $emailService = app(\App\Services\Mail\SuccessPaymentEmailService::class);
+                $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+            } catch (\Exception $emailEx) {
+                \Illuminate\Support\Facades\Log::warning('ImportManualPayments AC: Error enviando email de comprobante', [
+                    'payment_id' => $payment->id,
+                    'error' => $emailEx->getMessage(),
+                ]);
+            }
         }
 
         return [
@@ -1241,6 +1265,11 @@ class ImportManualPaymentsService
             $buyerEmail = $this->validateEmail($rowData['email_contacto_pagador'] ?? null)
                 ? $rowData['email_contacto_pagador']
                 : $participant->email;
+            // RUT del pagador (Softland le quita el DV). Si no viene, fallback al RUT
+            // del participante para no dejar document_number en NULL.
+            $buyerRut = RutHelper::clean(
+                $rowData['rut_pagador'] ?? $participant->document_number ?? null
+            );
 
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
@@ -1254,7 +1283,7 @@ class ImportManualPaymentsService
                 'code_phone' => null,
                 'phone' => null,
                 'document_type' => null,
-                'document_number' => null,
+                'document_number' => $buyerRut,
                 'installment_number' => null,
                 'installments_number' => $rowData['cuotas'] ?? null,
                 'base_amount' => $paymentAmount,
@@ -1288,6 +1317,9 @@ class ImportManualPaymentsService
                 'amount' => $paymentAmount,
                 'status' => 'approved',
                 'transaction_date' => $paymentDate,
+                // accounting_date = fecha de EMISIÓN del documento (la usa Softland).
+                // En el masivo es 'hoy' (cuando se cargó), no la fecha del pago original.
+                'accounting_date' => now(),
                 'authorization_code' => $rowData['nro_aut'] ?? null,
                 // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
                 'payment_code' => $documentType !== 'B2' ? $referencia : null,
@@ -1322,6 +1354,20 @@ class ImportManualPaymentsService
 
             // 15. Update order status
             $order->refreshStatus();
+
+            // 16. Enviar email de comprobante para AC (programas año siguiente).
+            // Para B2 el email lo maneja SendBsaleEmailJob luego de generar la boleta.
+            if ($payment->document_type === 'AC' && !empty($orderDetail->email)) {
+                try {
+                    $emailService = app(\App\Services\Mail\SuccessPaymentEmailService::class);
+                    $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+                } catch (\Exception $emailEx) {
+                    Log::warning('ImportManualPayments AC: Error enviando email de comprobante', [
+                        'payment_id' => $payment->id,
+                        'error' => $emailEx->getMessage(),
+                    ]);
+                }
+            }
 
             $newPaidAmount = $paidAmount + $paymentAmount;
             $newBalance = max($totalAmount - $newPaidAmount, 0);
@@ -1461,6 +1507,11 @@ class ImportManualPaymentsService
 
             // 8. Crear OrderDetail
             $buyerName = $rowData['contacto_pagador'] ?? $participant->full_name;
+            // RUT del pagador (Softland le quita el DV). Si no viene, fallback al RUT
+            // del participante para no dejar document_number en NULL.
+            $buyerRut = RutHelper::clean(
+                $rowData['rut_pagador'] ?? $participant->document_number ?? null
+            );
 
             $orderDetail = OrderDetail::create([
                 'order_id' => $order->id,
@@ -1468,6 +1519,7 @@ class ImportManualPaymentsService
                 'payment_gateway_id' => $paymentGateway?->id,
                 'name' => $buyerName,
                 'email' => $participant->email,
+                'document_number' => $buyerRut,
                 'base_amount' => $paymentAmount,
                 'discount_amount' => 0,
                 'amount' => $paymentAmount,
@@ -1501,6 +1553,9 @@ class ImportManualPaymentsService
                 'amount' => $paymentAmount,
                 'status' => 'approved',
                 'transaction_date' => $paymentDate,
+                // accounting_date = fecha de EMISIÓN del documento (la usa Softland).
+                // En el masivo es 'hoy' (cuando se cargó), no la fecha del pago original.
+                'accounting_date' => now(),
                 'authorization_code' => $authorizationCode,
                 // Si es B2 (boleta), guardar en bsale_number; sino en payment_code
                 'payment_code' => $documentType !== 'B2' ? $referencia : null,
@@ -1523,6 +1578,20 @@ class ImportManualPaymentsService
             // 11. Manejar APORTE si aplica
             if (strtoupper(trim($rowData['tipo_pago'] ?? '')) === 'AP') {
                 $this->handleAportePayment($participantProgram, $paymentAmount);
+            }
+
+            // 12. Enviar email de comprobante para AC (programas año siguiente).
+            // Para B2 el email lo maneja SendBsaleEmailJob luego de generar la boleta.
+            if ($payment->document_type === 'AC' && !empty($orderDetail->email)) {
+                try {
+                    $emailService = app(\App\Services\Mail\SuccessPaymentEmailService::class);
+                    $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+                } catch (\Exception $emailEx) {
+                    Log::warning('ImportManualPayments AC: Error enviando email de comprobante', [
+                        'payment_id' => $payment->id,
+                        'error' => $emailEx->getMessage(),
+                    ]);
+                }
             }
 
             return [
@@ -1923,6 +1992,7 @@ class ImportManualPaymentsService
             'nombre' => ['nombre del participante', 'nombre participante', 'nombre', 'alumno (a)', 'alumno'],
             'contacto_pagador' => ['contacto pagador', 'nombre pagador', 'pagador'],
             'email_contacto_pagador' => ['email contacto pagador', 'email pagador', 'correo pagador', 'correo contacto pagador'],
+            'rut_pagador' => ['rut pagador', 'rut comprador', 'rut contacto pagador', 'rut del pagador', 'rut del comprador'],
             'cuotas' => ['# cuotas', 'cuotas', 'numero cuotas', 'nro cuotas', 'nro. cuotas'],
             'tipo_documento' => ['tipo de documento', 'tipo documento', 'tipo doc', 'documento fiscal', 'document type'],
         ];

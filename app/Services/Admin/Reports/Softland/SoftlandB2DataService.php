@@ -80,7 +80,7 @@ class SoftlandB2DataService
         $boletaNumber = $payment->bsale_number ?? '';
         $buyerName = $this->getBuyerName($payment);
         $auxiliaryCode = $this->formatAuxiliaryCode($payment);
-        $fecha = $this->formatDateDDMMYYYY($payment->created_at);
+        $fecha = $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->created_at);
 
         // Descripción: "B2-{boleta} {Nombre Pagador}"
         $description = "B2-{$boletaNumber} {$buyerName}";

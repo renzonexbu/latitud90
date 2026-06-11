@@ -256,8 +256,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $documentType,
             'nro_documento' => $boletaNumber,
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType,
             'nro_docto_referencia' => $boletaNumber,
             'nro_correlativo_interno' => '',
@@ -490,8 +490,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $authCode,
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $paymentMethod,
             'nro_docto_referencia' => $authCode,
         ]);
@@ -519,8 +519,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $paymentMethod,
             'nro_docto_referencia' => $transactionId,
         ]);
@@ -551,8 +551,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment),
             'tipo_documento' => $paymentMethod,
             'nro_documento' => $transactionId,
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType,
             'nro_docto_referencia' => $boletaNumber,
         ]);
@@ -786,8 +786,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
             'tipo_documento' => 'NC', // Columna T - Nota de crédito
             'nro_documento' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna U - bsale_number
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna W - formato DD-MM-YYYY
             'tipo_docto_referencia' => 'NC', // Columna X - NC para DEBE
             'nro_docto_referencia' => 'REEMB-' . ($payment->bsale_number ?? ($payment->buy_order ?? $payment->id)), // Columna Y - bsale_number
             'nro_correlativo_interno' => '', // Columna Z - vacía
@@ -905,8 +905,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna S - RUT del comprador sin puntos/guiones
             'tipo_documento' => '', // Columna T - vacío para HABER
             'nro_documento' => '', // Columna U - vacío para HABER
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna W - formato DD-MM-YYYY
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna W - formato DD-MM-YYYY
             'tipo_docto_referencia' => '', // Columna X - vacío para HABER
             'nro_docto_referencia' => '', // Columna Y - vacío para HABER
             'nro_correlativo_interno' => '', // Columna Z - vacía
@@ -1096,8 +1096,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, o payment_option.report_code
             'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, o payment_option.report_code
             'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
             'fecha_docto_referencia' => '', // Columna 26 - vacía
@@ -1223,8 +1223,8 @@ class SoftlandDataService
             'codigo_auxiliar' => $this->formatPayerAuxiliaryCode($payment), // Columna 19 - mismo que haber
             'tipo_documento' => $documentType, // Columna 20 - VP para VirtualPos, AC por defecto
             'nro_documento' => $this->getDocumentNumber($payment), // Columna 21 - authorization_code
-            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->transaction_date), // Columna V - formato DD-MM-YYYY
-            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->transaction_date),
+            'fecha_emision_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date), // Columna V - formato DD-MM-YYYY
+            'fecha_vencimiento_docto' => $this->formatDateDDMMYYYY($payment->accounting_date ?? $payment->transaction_date),
             'tipo_docto_referencia' => $documentType, // Columna 24 - VP para VirtualPos, AC por defecto
             'nro_docto_referencia' => $this->getDocumentNumber($payment), // Columna 25 - authorization_code
             'fecha_docto_referencia' => '', // Columna 26 - vacía
