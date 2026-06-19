@@ -381,7 +381,12 @@ const reconfirmSuccess = ref(false);
 
 const canReconfirm = (payment) => {
     if (!payment) return false;
-    return payment.status === 'pending' && (payment.token || payment.external_payment_id);
+    // Permitimos reconfirmar pendientes Y fallidos: cuando Transbank/VirtualPOS responde
+    // E-020 ("no encontrada") por timing en el momento del pago, el sistema marca el
+    // payment como failed aunque el cobro sí se haya efectuado. Reconsultar después
+    // suele devolver éxito y permite emitir la boleta sin tocar la BD a mano.
+    const reconfirmableStatus = payment.status === 'pending' || payment.status === 'failed';
+    return reconfirmableStatus && (payment.token || payment.external_payment_id);
 };
 
 const reconfirmPayment = async (payment) => {
