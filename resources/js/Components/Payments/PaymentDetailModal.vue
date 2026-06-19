@@ -395,16 +395,10 @@ const reconfirmPayment = async (payment) => {
     reconfirmSuccess.value = false;
 
     try {
-        const response = await fetch(`/admin/payments/${payment.id}/reconfirm`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-                'Accept': 'application/json',
-            },
-        });
-
-        const data = await response.json();
+        // Usar axios global (configurado con withXSRFToken=true en bootstrap.js).
+        // fetch + meta[csrf-token] fallaba con "CSRF token mismatch" cuando la sesión
+        // expiraba con el modal abierto. axios refresca el cookie XSRF automáticamente.
+        const { data } = await window.axios.post(`/admin/payments/${payment.id}/reconfirm`);
 
         if (data.success) {
             reconfirmSuccess.value = true;
@@ -417,7 +411,7 @@ const reconfirmPayment = async (payment) => {
             reconfirmMessage.value = data.message || 'No se pudo reconfirmar el pago';
         }
     } catch (error) {
-        reconfirmMessage.value = 'Error de conexión al reconfirmar el pago';
+        reconfirmMessage.value = error.response?.data?.message || 'Error de conexión al reconfirmar el pago';
     } finally {
         reconfirming.value = false;
     }
@@ -437,16 +431,8 @@ const retryBsale = async (payment) => {
     bsaleRetrySuccess.value = false;
 
     try {
-        const response = await fetch(`/admin/payments/${payment.id}/retry-bsale`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-                'Accept': 'application/json',
-            },
-        });
-
-        const data = await response.json();
+        // Usar axios (mismo motivo que reconfirmPayment: evitar CSRF mismatch).
+        const { data } = await window.axios.post(`/admin/payments/${payment.id}/retry-bsale`);
 
         if (data.success) {
             bsaleRetrySuccess.value = true;
@@ -460,7 +446,7 @@ const retryBsale = async (payment) => {
             bsaleRetryMessage.value = data.message || 'Error al generar la boleta';
         }
     } catch (error) {
-        bsaleRetryMessage.value = 'Error de conexión al generar la boleta';
+        bsaleRetryMessage.value = error.response?.data?.message || 'Error de conexión al generar la boleta';
     } finally {
         retryingBsale.value = false;
     }
