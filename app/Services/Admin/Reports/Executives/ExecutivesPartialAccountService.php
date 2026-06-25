@@ -174,9 +174,14 @@ class ExecutivesPartialAccountService
                 }
                 $price = $basePrice - $simpleDiscounts;
 
-                $abono = $financial['abono'];
                 $aporteAmount = $financial['aporte'];
                 $totalPaid = $financial['total_paid'];
+                // Abono mostrado en pantalla debe ser equivalente al "normalPayments
+                // + subscriptionPayments" del Excel: todos los pagos exitosos excepto
+                // los aportes. Antes usábamos $financial['abono'], que solo incluye
+                // los report_code VP/KP/TE/etc. y dejaba afuera CT (Crédito Temporal),
+                // generando montos visiblemente menores que el reporte exportado.
+                $abono = $totalPaid - $aporteAmount;
                 $saldo = round(-$financial['pending_amount'], 2);
                 if ($financial['pending_amount'] <= 0 && $totalPaid > $price) {
                     $saldo = round($totalPaid - $price, 2);
