@@ -668,6 +668,11 @@ class CourseService
             // Extraer los encabezados
             $headers = $rows[$headerRowIndex];
 
+            // Pre-procesar fechas de nacimiento leyendo el SERIAL Excel directamente
+            // (evita la ambigüedad de formatos visuales tipo "4/25/2011" vs "25/4/2011").
+            // Mapa: rowIndex (1-based en Excel) → 'YYYY-MM-DD'
+            $birthDatesByRow = $this->extractBirthDatesFromExcel($worksheet, $headers, $headerRowIndex);
+
             // Extraer información de la cabecera (opcional, para logs)
             $headerInfo = $this->extractHeaderInfo($worksheet->toArray(), $headerRowIndex);
 
@@ -747,6 +752,9 @@ class CourseService
                         continue;
                     }
 
+                    // Fecha de nacimiento leída del serial Excel (preferencia sobre el string formateado)
+                    $excelSerialBirthDate = $birthDatesByRow[$displayRowNumber] ?? null;
+
                 // Obtener tipo de documento del participante
                 $documentType = $getFieldValue([
                     'rut/pasaporte',
@@ -808,7 +816,7 @@ class CourseService
                                 'fono',
                                 'celular'
                             ]) ?? $existingParticipant->phone,
-                            'birth_date' => $this->parseBirthDate($getFieldValue([
+                            'birth_date' => $excelSerialBirthDate ?? $this->parseBirthDate($getFieldValue([
                                 'fecha de nacimiento',
                                 'fecha nacimiento',
                                 'nacimiento',
@@ -925,7 +933,7 @@ class CourseService
                         'document_type' => $documentTypeId,
                         'document_number' => $cleanRut,
                         'country' => 'CL', // Chile por defecto
-                        'birth_date' => $this->parseBirthDate($getFieldValue([
+                        'birth_date' => $excelSerialBirthDate ?? $this->parseBirthDate($getFieldValue([
                             'fecha de nacimiento',
                             'fecha nacimiento',
                             'nacimiento',
@@ -1348,8 +1356,68 @@ class CourseService
     }
 
     /**
-     * Parsear fecha de nacimiento en diferentes formatos
-     * Soporta: YYYY/MM/DD, DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY
+     * Lee directamente del Excel los seriales numéricos de la columna "fecha de nacimiento"
+     * y los convierte a YYYY-MM-DD. Esto evita la ambigüedad de formatos visuales
+     * (ej: "4/25/2011" puede ser abril 25 o mes 4 día 25 según la región).
+     *
+     * Retorna mapa: rowExcel (1-based) → 'YYYY-MM-DD'
+     */
+    private function extractBirthDatesFromExcel($worksheet, array $headers, int $headerRowIndex): array
+    {
+        // Buscar índice de la columna fecha de nacimiento (case-insensitive)
+        $birthDateColIndex = null;
+        $birthDateLabels = ['fecha de nacimiento', 'fecha nacimiento', 'nacimiento'];
+        foreach ($headers as $idx => $headerValue) {
+            if (in_array(strtolower(trim((string) $headerValue)), $birthDateLabels, true)) {
+                $birthDateColIndex = $idx;
+                break;
+            }
+        }
+
+        if ($birthDateColIndex === null) {
+            return [];
+        }
+
+        // Columna Excel basada en el índice (A=0, B=1, ...)
+        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($birthDateColIndex + 1);
+        $highestRow = $worksheet->getHighestRow();
+        $firstDataRow = $headerRowIndex + 2; // +1 para 1-based, +1 para saltar el header
+
+        $map = [];
+        for ($row = $firstDataRow; $row <= $highestRow; $row++) {
+            try {
+                $cell = $worksheet->getCell($colLetter . $row);
+                $rawValue = $cell->getValue();
+
+                if ($rawValue === null || $rawValue === '') {
+                    continue;
+                }
+
+                // Caso 1: valor numérico → serial Excel (formato más confiable)
+                if (is_numeric($rawValue) && \PhpOffice\PhpSpreadsheet\Shared\Date::isDateTime($cell)) {
+                    $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $rawValue);
+                    $map[$row] = $dt->format('Y-m-d');
+                    continue;
+                }
+
+                // Caso 2: valor string → usar parseBirthDate como fallback
+                $parsed = $this->parseBirthDate((string) $rawValue);
+                if ($parsed) {
+                    $map[$row] = $parsed;
+                }
+            } catch (\Exception $e) {
+                // Saltar fila con error de lectura
+                continue;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Parsear fecha de nacimiento en diferentes formatos.
+     * Soporta: YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, DD-MM-YYYY.
+     * Detecta MM/DD/YYYY (formato Excel/US) cuando una parte es > 12.
      */
     private function parseBirthDate(?string $dateString): ?string
     {
@@ -1359,44 +1427,44 @@ class CourseService
 
         $dateString = trim($dateString);
 
-        // Si ya es un formato válido de fecha, retornarlo
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateString)) {
-            return $dateString;
+        $buildAndValidate = function (int $year, int $month, int $day): ?string {
+            if ($month < 1 || $month > 12 || $day < 1 || $day > 31 || $year < 1900 || $year > 2100) {
+                return null;
+            }
+            if (!checkdate($month, $day, $year)) {
+                return null;
+            }
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        };
+
+        // Formato YYYY-MM-DD
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $m)) {
+            return $buildAndValidate((int)$m[1], (int)$m[2], (int)$m[3]);
         }
 
         // Formato YYYY/MM/DD
-        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $matches)) {
-            $year = $matches[1];
-            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
-            return "{$year}-{$month}-{$day}";
+        if (preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $dateString, $m)) {
+            return $buildAndValidate((int)$m[1], (int)$m[2], (int)$m[3]);
         }
 
-        // Formato DD/MM/YYYY
-        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $dateString, $matches)) {
-            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-            $year = $matches[3];
-            return "{$year}-{$month}-{$day}";
+        // Formato con año al final: puede ser DD/MM/YYYY (chileno) o MM/DD/YYYY (Excel/US)
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $dateString, $m)) {
+            $a = (int) $m[1];
+            $b = (int) $m[2];
+            $year = (int) $m[3];
+
+            // Si la primera parte es > 12, debe ser día (DD/MM/YYYY)
+            if ($a > 12 && $b <= 12) {
+                return $buildAndValidate($year, $b, $a);
+            }
+            // Si la segunda parte es > 12, debe ser día (MM/DD/YYYY)
+            if ($b > 12 && $a <= 12) {
+                return $buildAndValidate($year, $a, $b);
+            }
+            // Ambas <= 12: ambiguo. Asumir DD/MM/YYYY (formato chileno).
+            return $buildAndValidate($year, $b, $a);
         }
 
-        // Formato YYYY-MM-DD (con espacios)
-        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $dateString, $matches)) {
-            $year = $matches[1];
-            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-            $day = str_pad($matches[3], 2, '0', STR_PAD_LEFT);
-            return "{$year}-{$month}-{$day}";
-        }
-
-        // Formato DD-MM-YYYY
-        if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{4})$/', $dateString, $matches)) {
-            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
-            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
-            $year = $matches[3];
-            return "{$year}-{$month}-{$day}";
-        }
-
-        // Si no coincide con ningún formato, retornar null
         return null;
     }
 
@@ -1771,11 +1839,18 @@ class CourseService
             $participantProgram = \App\Models\ParticipantProgram::findOrFail($participantProgramId);
             $participant = $participantProgram->participant;
 
-            // Check if participant has payments
+            // Check if participant has CONFIRMED payments (approved/completed).
+            // Intentos pending/failed no cuentan: son intentos de pago abandonados o
+            // rechazados por la pasarela y deben poder eliminarse junto con el participante.
+            // Mismo criterio que getParticipantsWithPaymentStatus() para que la UI y la
+            // acción de borrado sean consistentes.
             $hasPayments = \App\Models\Payment::whereHas('order', function ($q) use ($participant, $participantProgram) {
                 $q->where('participant_id', $participant->id)
                   ->where('program_id', $participantProgram->program_id);
-            })->exists();
+            })
+            ->whereIn('status', ['completed', 'approved'])
+            ->where('amount', '>', 0)
+            ->exists();
 
             if ($hasPayments) {
                 return [
@@ -1783,6 +1858,13 @@ class CourseService
                     'message' => 'No se puede eliminar el participante porque tiene transacciones registradas.'
                 ];
             }
+
+            // Al no haber pagos confirmados, borrar también los intentos pending/failed
+            // que quedaron colgando (bloquearían el DELETE de orders por FK constraint).
+            \App\Models\Payment::whereHas('order', function ($q) use ($participant, $participantProgram) {
+                $q->where('participant_id', $participant->id)
+                  ->where('program_id', $participantProgram->program_id);
+            })->delete();
 
             // Get the ProgramCourse to find the Course
             $programCourse = ProgramCourse::find($participantProgram->program_id);
@@ -2174,5 +2256,152 @@ class CourseService
 
             throw new \Exception('Error al actualizar los códigos de inscripción de los participantes: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Generar preview de los cambios que producirá la importación de participantes
+     * sin escribir nada en la base de datos.
+     *
+     * Retorna:
+     *   - 'changes': filas con diferencias entre BD actual y datos del Excel
+     *   - 'new_participants': RUTs que no existen aún
+     *   - 'errors': filas con problemas (sin RUT, fecha inválida, etc.)
+     *   - 'summary': totales para el modal
+     */
+    public function previewParticipantsImport($file, ?Course $course = null): array
+    {
+        $tempPath = $file->getRealPath();
+        $spreadsheet = IOFactory::load($tempPath);
+        $worksheet = $spreadsheet->getActiveSheet();
+        $rows = $worksheet->toArray();
+
+        $headerRowIndex = $this->findHeaderRow($rows);
+        if ($headerRowIndex === null) {
+            throw new \Exception('No se pudo encontrar la fila de encabezados en el archivo.');
+        }
+
+        $headers = $rows[$headerRowIndex];
+        $birthDatesByRow = $this->extractBirthDatesFromExcel($worksheet, $headers, $headerRowIndex);
+        $dataRows = array_slice($rows, $headerRowIndex + 1);
+
+        $changes = [];
+        $newParticipants = [];
+        $errors = [];
+
+        foreach ($dataRows as $rowIndex => $row) {
+            $displayRowNumber = $rowIndex + $headerRowIndex + 2;
+
+            if (empty(array_filter($row))) {
+                continue;
+            }
+
+            while (count($row) < count($headers)) {
+                $row[] = '';
+            }
+
+            $participantData = array_combine($headers, $row);
+
+            $getFieldValue = function ($possibleNames) use ($participantData) {
+                $lowercaseMap = [];
+                foreach ($participantData as $key => $value) {
+                    $lowercaseMap[strtolower(trim((string) $key))] = $value;
+                }
+                foreach ($possibleNames as $name) {
+                    $nameLower = strtolower(trim($name));
+                    if (isset($lowercaseMap[$nameLower]) && $lowercaseMap[$nameLower] !== '' && $lowercaseMap[$nameLower] !== null) {
+                        return $lowercaseMap[$nameLower];
+                    }
+                }
+                return null;
+            };
+
+            $cleanRut = $this->cleanRut($getFieldValue([
+                'N° de documento', 'Rut del participante', 'RUT', 'Rut', 'rut', 'Documento'
+            ]));
+
+            if (empty($cleanRut)) {
+                $errors[] = [
+                    'row' => $displayRowNumber,
+                    'error' => 'Sin RUT en la fila',
+                ];
+                continue;
+            }
+
+            $newData = [
+                'first_last_name' => $this->toCapitalCase($getFieldValue(['Primer apellido', 'primer apellido', 'apellido paterno'])),
+                'second_last_name' => $this->toCapitalCase($getFieldValue(['Segundo apellido', 'segundo apellido', 'apellido materno'])),
+                'first_name' => $this->toCapitalCase($getFieldValue(['Primer Nombre', 'primer nombre', 'nombre'])),
+                'second_name' => $this->toCapitalCase($getFieldValue(['Segundo Nombre', 'segundo nombre'])),
+                'email' => $this->toLowercase($getFieldValue(['Email', 'email', 'correo', 'correo electronico'])),
+                'phone' => $getFieldValue(['Teléfono', 'telefono', 'fono', 'celular']),
+                'birth_date' => $birthDatesByRow[$displayRowNumber] ?? $this->parseBirthDate($getFieldValue(['fecha de nacimiento', 'fecha nacimiento', 'nacimiento'])),
+                'nationality' => $this->toLowercase($getFieldValue(['nacionalidad', 'pais'])),
+            ];
+
+            $existingParticipant = Participant::where('document_number', $cleanRut)->first();
+
+            if (!$existingParticipant) {
+                $newParticipants[] = [
+                    'row' => $displayRowNumber,
+                    'rut' => $cleanRut,
+                    'name' => trim(($newData['first_name'] ?? '') . ' ' . ($newData['first_last_name'] ?? '')),
+                    'birth_date' => $newData['birth_date'],
+                ];
+                continue;
+            }
+
+            // Comparar campos
+            $diffs = [];
+            $fieldLabels = [
+                'first_last_name' => 'Primer apellido',
+                'second_last_name' => 'Segundo apellido',
+                'first_name' => 'Primer nombre',
+                'second_name' => 'Segundo nombre',
+                'email' => 'Email',
+                'phone' => 'Teléfono',
+                'birth_date' => 'Fecha de nacimiento',
+                'nationality' => 'Nacionalidad',
+            ];
+
+            foreach ($fieldLabels as $key => $label) {
+                $newVal = $newData[$key];
+                if ($newVal === null || $newVal === '') {
+                    continue; // Si el Excel viene vacío, se mantiene lo actual (no es cambio)
+                }
+                $currentVal = $existingParticipant->{$key};
+                // Normalizar para comparar (las fechas vienen como Carbon, convertimos a string Y-m-d)
+                if ($key === 'birth_date') {
+                    $currentVal = $currentVal ? \Carbon\Carbon::parse($currentVal)->format('Y-m-d') : null;
+                }
+                if ((string) $newVal !== (string) ($currentVal ?? '')) {
+                    $diffs[] = [
+                        'field' => $label,
+                        'current' => $currentVal ?? '(vacío)',
+                        'new' => $newVal,
+                    ];
+                }
+            }
+
+            if (!empty($diffs)) {
+                $changes[] = [
+                    'row' => $displayRowNumber,
+                    'rut' => $cleanRut,
+                    'name' => trim(($existingParticipant->first_name ?? '') . ' ' . ($existingParticipant->first_last_name ?? '')),
+                    'diffs' => $diffs,
+                ];
+            }
+        }
+
+        return [
+            'summary' => [
+                'total_rows' => count($dataRows),
+                'with_changes' => count($changes),
+                'new' => count($newParticipants),
+                'errors' => count($errors),
+            ],
+            'changes' => $changes,
+            'new_participants' => $newParticipants,
+            'errors' => $errors,
+        ];
     }
 }
