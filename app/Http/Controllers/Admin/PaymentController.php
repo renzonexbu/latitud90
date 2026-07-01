@@ -254,8 +254,25 @@ class PaymentController extends Controller
                 ->first();
 
             if ($existingRequest) {
-                // Si está atascada en processing o falló, forzar reproceso
-                if (in_array($existingRequest->status, ['processing', 'failed', 'cancelled'])) {
+                // Si está en processing "reciente" (arrancó hace menos de PROCESSING_TIMEOUT_MINUTES),
+                // asumimos que el cron BSale la está procesando ahora — NO forzar reprocess
+                // para evitar generar boletas duplicadas.
+                // Caso reportado: payment 9705, boletas #28835 y #28836 emitidas con 2 seg de
+                // diferencia porque el cron y el retry manual corrieron simultáneamente.
+                $PROCESSING_TIMEOUT_MINUTES = 10;
+                if ($existingRequest->status === 'processing') {
+                    $startedAt = $existingRequest->processing_started_at;
+                    $isStuck = $startedAt && $startedAt->diffInMinutes(now()) >= $PROCESSING_TIMEOUT_MINUTES;
+                    if (!$isStuck) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'La boleta se está generando en este momento. Espera unos minutos y refresca la página.',
+                        ], 409);
+                    }
+                    // Está stuck (>= 10 min) → sí forzar
+                    $queueService->forceReprocess($existingRequest, auth()->id());
+                    $bsaleRequest = $existingRequest;
+                } elseif (in_array($existingRequest->status, ['failed', 'cancelled'])) {
                     $queueService->forceReprocess($existingRequest, auth()->id());
                     $bsaleRequest = $existingRequest;
                 } elseif ($existingRequest->status === 'pending') {
