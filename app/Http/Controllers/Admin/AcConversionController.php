@@ -22,7 +22,9 @@ class AcConversionController extends Controller
         // (ej: emitir boleta ante un reembolso por baja)
         $payments = Payment::where('document_type', 'AC')
             ->whereNull('bsale_number')
-            ->where('status', 'completed')
+            // Importación masiva crea pagos con 'approved'; pagos individuales con 'completed'.
+            // Aceptar ambos para que todos los AC válidos aparezcan en la conversión.
+            ->whereIn('status', ['approved', 'completed'])
             ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
             ->with([
                 'order.participant.documentType',
@@ -92,7 +94,7 @@ class AcConversionController extends Controller
             $acPayment = Payment::where('id', $paymentId)
                 ->where('document_type', 'AC')
                 ->whereNull('bsale_number')
-                ->where('status', 'completed')
+                ->whereIn('status', ['approved', 'completed'])
                 ->with(['order.programCourse', 'orderDetail', 'paymentGateway', 'paymentOption'])
                 ->first();
 
@@ -144,16 +146,18 @@ class AcConversionController extends Controller
                     'transaction_date'   => now(),
                     'document_type'      => 'B2',
                     'currency'           => $acPayment->currency ?? 'CLP',
-                    // Marcar como enviado para que el scheduler de emails lo omita:
-                    // el email de la boleta lo despacha SendBsaleEmailJob con 1h de delay.
+                    // Marcar todos los flags de email como enviados:
+                    // este es un movimiento contable interno; el pagador ya recibió comprobante
+                    // cuando hizo el pago original (AC). NO se debe duplicar comunicación.
                     'email_sent'         => true,
                     'email_sent_at'      => now(),
+                    'bsale_email_sent'   => true,
                     'gateway_response'   => [
                         'created_manually'    => true,
                         'payment_type'        => 'ac_conversion_boleta',
                         'original_payment_id' => $acPayment->id,
                         'ra_payment_id'       => $raPayment->id,
-                        'notes'               => 'Boleta generada por conversión AC→B2',
+                        'notes'               => 'Boleta generada por conversión AC→B2 (sin envío de email al pagador)',
                     ],
                 ]);
 
@@ -238,6 +242,123 @@ class AcConversionController extends Controller
             'error' => $successCount === 0
                 ? 'No se pudo convertir ningún pago. Revisa los errores.'
                 : null,
+        ]);
+    }
+
+    /**
+     * Devuelve la lista de pagos AC del masivo que aún NO tienen email enviado.
+     * Usado por el modal de previsualización antes de reenviar.
+     */
+    public function pendingEmailsList()
+    {
+        $payments = Payment::where('document_type', 'AC')
+            ->whereIn('status', ['approved', 'completed'])
+            ->where('amount', '>', 0)
+            ->where(function ($q) {
+                $q->where('email_sent', false)->orWhereNull('email_sent');
+            })
+            ->whereRaw("JSON_EXTRACT(gateway_response, '$.import_row') IS NOT NULL")
+            ->whereHas('orderDetail', function ($q) {
+                $q->whereNotNull('email')->where('email', '!=', '');
+            })
+            ->with([
+                'orderDetail',
+                'order.participant',
+                'order.programCourse',
+            ])
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($payment) {
+                $participant = $payment->order?->participant;
+                $programCourse = $payment->order?->programCourse;
+
+                return [
+                    'id' => $payment->id,
+                    'amount' => $payment->amount,
+                    'transaction_date' => $payment->transaction_date,
+                    'email' => $payment->orderDetail?->email,
+                    'recipient_name' => $payment->orderDetail?->name ?: ($participant?->full_name ?? 'N/A'),
+                    'participant' => [
+                        'full_name' => $participant
+                            ? trim(($participant->first_name ?? '') . ' ' . ($participant->first_last_name ?? ''))
+                            : 'N/A',
+                        'document_number' => $participant?->document_number ?? '',
+                    ],
+                    'program' => [
+                        'code' => $programCourse?->code ?? 'N/A',
+                        'name' => $programCourse?->name ?? 'N/A',
+                        'departure_year' => $programCourse?->departure_date
+                            ? $programCourse->departure_date->format('Y')
+                            : null,
+                    ],
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'payments' => $payments,
+            'total_amount' => $payments->sum('amount'),
+        ]);
+    }
+
+    /**
+     * Envía emails (Contrato + Comprobante AC) a los pagos seleccionados.
+     * Recibe array de payment_ids; valida que cumplan el criterio.
+     */
+    public function sendPendingEmails(Request $request)
+    {
+        $request->validate([
+            'payment_ids' => 'required|array|min:1',
+            'payment_ids.*' => 'integer|exists:payments,id',
+        ]);
+
+        $emailService = app(\App\Services\Mail\SuccessPaymentEmailService::class);
+
+        $payments = Payment::whereIn('id', $request->payment_ids)
+            ->where('document_type', 'AC')
+            ->whereIn('status', ['approved', 'completed'])
+            ->where('amount', '>', 0)
+            ->where(function ($q) {
+                $q->where('email_sent', false)->orWhereNull('email_sent');
+            })
+            ->with(['orderDetail'])
+            ->get();
+
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($payments as $payment) {
+            try {
+                $orderDetail = $payment->orderDetail;
+                if (!$orderDetail || empty($orderDetail->email)) {
+                    $failed++;
+                    continue;
+                }
+
+                $ok = $emailService->sendSuccessPaymentEmail($orderDetail, $payment);
+
+                if ($ok) {
+                    $payment->update([
+                        'email_sent' => true,
+                        'email_sent_at' => now(),
+                    ]);
+                    $sent++;
+                } else {
+                    $failed++;
+                }
+            } catch (\Exception $e) {
+                Log::warning('AcConversion sendPendingEmails: error en payment ' . $payment->id, [
+                    'error' => $e->getMessage(),
+                ]);
+                $failed++;
+            }
+        }
+
+        return redirect()->route('admin.payments.ac-conversion.index')->with([
+            'success' => $sent > 0
+                ? "Se enviaron {$sent} email(s) AC." . ($failed > 0 ? " {$failed} fallido(s)." : '')
+                : null,
+            'error' => $sent === 0 ? "No se pudo enviar ningún email. Errores: {$failed}." : null,
         ]);
     }
 }

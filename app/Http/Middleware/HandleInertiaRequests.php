@@ -77,7 +77,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'ac_conversion_pending' => fn () => $user ? Payment::where('document_type', 'AC')
                 ->whereNull('bsale_number')
-                ->where('status', 'completed')
+                // Importación masiva crea con 'approved'; individual con 'completed'.
+                ->whereIn('status', ['approved', 'completed'])
                 ->whereRaw("(gateway_response IS NULL OR JSON_EXTRACT(gateway_response, '$.ac_converted') IS NULL)")
                 ->count() : 0,
         ];

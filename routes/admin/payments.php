@@ -47,6 +47,8 @@ Route::prefix('payments')->name('payments.')->group(function () {
     Route::prefix('ac-conversion')->name('ac-conversion.')->group(function () {
         Route::get('/', [AcConversionController::class, 'index'])->name('index');
         Route::post('/execute', [AcConversionController::class, 'execute'])->name('execute');
+        Route::get('/pending-emails-list', [AcConversionController::class, 'pendingEmailsList'])->name('pending-emails-list');
+        Route::post('/send-pending-emails', [AcConversionController::class, 'sendPendingEmails'])->name('send-pending-emails');
     });
 
     // Rutas para reembolsos

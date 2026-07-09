@@ -65,6 +65,19 @@
                     <span v-if="filterParticipant || filterProgram" class="text-xs text-gray-500">
                         {{ filteredPayments.length }} resultado{{ filteredPayments.length !== 1 ? 's' : '' }}
                     </span>
+
+                    <!-- Reenviar emails AC pendientes (de la carga masiva) -->
+                    <button
+                        @click="sendPendingEmails"
+                        :disabled="isSendingEmails"
+                        class="ml-auto h-[42px] px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-[50px] text-sm flex items-center gap-2 transition-colors"
+                        title="Reenvía Contrato + Comprobante de Anticipo a los pagos AC del masivo que quedaron sin email"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        {{ isSendingEmails ? 'Enviando...' : 'Reenviar emails AC pendientes' }}
+                    </button>
                 </div>
 
                 <!-- Stats -->
@@ -232,6 +245,125 @@
                 </div>
             </div>
 
+            <!-- Modal: Previsualización de emails AC pendientes -->
+            <div v-if="showPendingEmailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showPendingEmailsModal = false">
+                <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Reenviar emails AC pendientes</h3>
+                            <p class="text-xs text-gray-500 mt-1">Selecciona los pagos a los que quieres enviar email con Contrato + Comprobante de Anticipo</p>
+                        </div>
+                        <button @click="showPendingEmailsModal = false" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div v-if="isLoadingPending" class="p-10 text-center text-gray-500">
+                        Cargando pagos pendientes...
+                    </div>
+
+                    <div v-else-if="pendingEmails.length === 0" class="p-10 text-center">
+                        <p class="text-gray-700 font-medium">No hay emails pendientes por enviar</p>
+                        <p class="text-xs text-gray-500 mt-1">Todos los pagos AC del masivo ya tienen su email enviado.</p>
+                    </div>
+
+                    <template v-else>
+                        <div class="px-6 py-3 border-b border-gray-200 bg-gray-50 grid grid-cols-3 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase">Disponibles</p>
+                                <p class="text-xl font-bold text-gray-900">{{ pendingEmails.length }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase">Seleccionados</p>
+                                <p class="text-xl font-bold text-blue-600">{{ selectedEmailIds.length }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase">Monto total seleccionado</p>
+                                <p class="text-xl font-bold text-gray-900">${{ formatPrice(selectedEmailsTotal) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-2 border-b border-gray-200 flex items-center gap-3 bg-white">
+                            <input
+                                type="checkbox"
+                                :checked="allEmailsSelected"
+                                :indeterminate="someEmailsSelected && !allEmailsSelected"
+                                @change="toggleAllEmails"
+                                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span class="text-sm font-medium text-gray-700">Seleccionar todos ({{ pendingEmails.length }})</span>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left w-10"></th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Participante</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Programa</th>
+                                        <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Monto</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Email destinatario</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr
+                                        v-for="p in pendingEmails"
+                                        :key="p.id"
+                                        class="hover:bg-gray-50 transition-colors"
+                                        :class="selectedEmailIds.includes(p.id) ? 'bg-blue-50' : ''"
+                                    >
+                                        <td class="px-4 py-2">
+                                            <input
+                                                type="checkbox"
+                                                :value="p.id"
+                                                v-model="selectedEmailIds"
+                                                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <p class="font-medium text-gray-900">{{ p.participant.full_name }}</p>
+                                            <p class="text-gray-400 text-xs">{{ p.participant.document_number }}</p>
+                                        </td>
+                                        <td class="px-4 py-2">
+                                            <p class="text-gray-900">{{ p.program.code }}</p>
+                                            <p class="text-gray-400 text-xs">{{ p.program.name }}</p>
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-semibold text-gray-900">${{ formatPrice(p.amount) }}</td>
+                                        <td class="px-4 py-2">
+                                            <p class="text-gray-700 text-xs">{{ p.email }}</p>
+                                            <p class="text-gray-400 text-xs">{{ p.recipient_name }}</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                            <p class="text-xs text-gray-500">
+                                Los pagos no seleccionados quedarán sin email (puedes enviarlos después).
+                            </p>
+                            <div class="flex gap-3">
+                                <button
+                                    @click="showPendingEmailsModal = false"
+                                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    @click="confirmSendEmails"
+                                    :disabled="selectedEmailIds.length === 0 || isSendingEmails"
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-sm font-semibold transition-colors"
+                                >
+                                    {{ isSendingEmails ? 'Enviando...' : `Confirmar y enviar (${selectedEmailIds.length})` }}
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
         </div>
     </AdminLayout>
 </template>
@@ -250,9 +382,74 @@ const page = usePage();
 const selectedIds = ref([]);
 const showConfirmModal = ref(false);
 const processing = ref(false);
+const isSendingEmails = ref(false);
 const currentYear = new Date().getFullYear();
 const filterParticipant = ref('');
 const filterProgram = ref('');
+
+// --- Reenvío de emails AC pendientes con preview + checkboxes ---
+const showPendingEmailsModal = ref(false);
+const pendingEmails = ref([]);
+const selectedEmailIds = ref([]);
+const isLoadingPending = ref(false);
+
+const allEmailsSelected = computed(() =>
+    pendingEmails.value.length > 0 && selectedEmailIds.value.length === pendingEmails.value.length
+);
+const someEmailsSelected = computed(() => selectedEmailIds.value.length > 0);
+const selectedEmailsTotal = computed(() =>
+    pendingEmails.value
+        .filter(p => selectedEmailIds.value.includes(p.id))
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+);
+
+const toggleAllEmails = () => {
+    if (allEmailsSelected.value) {
+        selectedEmailIds.value = [];
+    } else {
+        selectedEmailIds.value = pendingEmails.value.map(p => p.id);
+    }
+};
+
+const sendPendingEmails = async () => {
+    showPendingEmailsModal.value = true;
+    isLoadingPending.value = true;
+    pendingEmails.value = [];
+    selectedEmailIds.value = [];
+
+    try {
+        const response = await fetch(route('admin.payments.ac-conversion.pending-emails-list'), {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await response.json();
+        if (data.success) {
+            pendingEmails.value = data.payments || [];
+            // Preseleccionar todos por defecto
+            selectedEmailIds.value = pendingEmails.value.map(p => p.id);
+        }
+    } catch (error) {
+        alert('Error al cargar la lista de emails pendientes');
+    } finally {
+        isLoadingPending.value = false;
+    }
+};
+
+const confirmSendEmails = () => {
+    if (selectedEmailIds.value.length === 0) return;
+    if (!confirm(`¿Enviar ${selectedEmailIds.value.length} email(s) con Contrato + Comprobante? Esta acción no se puede deshacer.`)) {
+        return;
+    }
+    isSendingEmails.value = true;
+    router.post(route('admin.payments.ac-conversion.send-pending-emails'), {
+        payment_ids: selectedEmailIds.value,
+    }, {
+        preserveScroll: true,
+        onFinish: () => {
+            isSendingEmails.value = false;
+            showPendingEmailsModal.value = false;
+        }
+    });
+};
 
 const conversionResults = computed(() => {
     return page.props.flash?.conversion_results ?? [];
