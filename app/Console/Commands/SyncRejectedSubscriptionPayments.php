@@ -208,15 +208,16 @@ class SyncRejectedSubscriptionPayments extends Command
             $programCourse = $subscription->programCourse;
             $courseId = $programCourse ? $programCourse->course_id : null;
 
+            $finalAmount = $subscription->total_amount ?? 0;
             $order = Order::create([
                 'participant_id' => $subscription->participant_id,
                 'program_id' => $subscription->program_id,
                 'course_id' => $courseId,
                 'participant_program_id' => $participantProgram->id ?? null,
                 'order_number' => 'SUB-' . strtoupper(substr(md5(uniqid()), 0, 8)),
-                'total_amount' => 0,
+                'total_amount' => $finalAmount,
                 'discount' => 0,
-                'final_amount' => 0,
+                'final_amount' => $finalAmount,
                 'status' => 'pending',
                 'payment_type' => 'monthly',
                 'total_installments' => $subscription->total_installments ?? 0,

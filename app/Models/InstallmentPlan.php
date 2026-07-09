@@ -43,6 +43,15 @@ class InstallmentPlan extends Model
         return $this->belongsTo(Program::class);
     }
 
+    /**
+     * program_id apunta a program_courses.id (arquitectura nueva).
+     * Esta relación devuelve el ProgramCourse correcto.
+     */
+    public function programCourse(): BelongsTo
+    {
+        return $this->belongsTo(ProgramCourse::class, 'program_id');
+    }
+
     public function participant(): BelongsTo
     {
         return $this->belongsTo(Participant::class);

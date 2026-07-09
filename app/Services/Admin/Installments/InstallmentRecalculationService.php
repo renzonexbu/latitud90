@@ -23,10 +23,17 @@ class InstallmentRecalculationService
         DB::beginTransaction();
         
         try {
-            $plan = InstallmentPlan::with(['participant', 'program'])->findOrFail($installmentPlanId);
-            
+            $plan = InstallmentPlan::with(['participant', 'programCourse'])->findOrFail($installmentPlanId);
+
+            // program_id del plan apunta a program_courses.id (no a programs.id),
+            // por eso usamos la relación programCourse en vez de program.
+            $programCourse = $plan->programCourse;
+            if (!$programCourse) {
+                throw new Exception("No se encontró el program_course asociado al plan de cuotas (program_id: {$plan->program_id})");
+            }
+
             // Calcular el nuevo precio final con descuentos (entero, CLP sin centavos)
-            $priceData = ParticipantPriceHelper::calculateParticipantPrice($plan->participant, $plan->program);
+            $priceData = ParticipantPriceHelper::calculateParticipantPrice($plan->participant, $programCourse);
             $newTotalAmount = (int) round($priceData['final_price']);
             
             // Obtener cuotas pagadas
@@ -46,11 +53,47 @@ class InstallmentRecalculationService
             
             // Calcular nuevo saldo pendiente (entero)
             $newRemainingBalance = (int) round($newTotalAmount - $paidAmount);
-            
+
+            // CASO EXCEDENTE: el participante ya pagó igual o más que el nuevo precio
+            // (ej: PAT cancelado + descuento liberado que baja el precio bajo lo ya abonado).
+            // No se lanza excepción: se cancelan las cuotas pendientes, se actualiza el total
+            // y el excedente queda reflejado en los reportes (saldo a favor = pagado - precio).
             if ($newRemainingBalance <= 0) {
-                throw new Exception("No hay monto pendiente después del descuento");
+                $pendingInstallments->each(function ($installment) {
+                    $installment->update([
+                        'status' => 'cancelled',
+                        'notes' => 'Cancelada: el abono ya cubre el precio con descuento (saldo a favor)',
+                        'updated_at' => now(),
+                    ]);
+                });
+
+                $plan->update([
+                    'total_amount' => $newTotalAmount,
+                    'updated_at' => now(),
+                ]);
+
+                DB::commit();
+
+                Log::info('Recálculo con saldo a favor (excedente)', [
+                    'installment_plan_id' => $plan->id,
+                    'new_total_amount' => $newTotalAmount,
+                    'paid_amount' => $paidAmount,
+                    'excedente' => $paidAmount - $newTotalAmount,
+                ]);
+
+                return [
+                    'success' => true,
+                    'plan_id' => $plan->id,
+                    'new_total_amount' => $newTotalAmount,
+                    'paid_amount' => $paidAmount,
+                    'new_remaining_balance' => 0,
+                    'excedente' => $paidAmount - $newTotalAmount,
+                    'cuotas_eliminadas' => $pendingInstallments->count(),
+                    'cuotas_nuevas' => 0,
+                    'has_credit_balance' => true,
+                ];
             }
-            
+
             // Eliminar cuotas pendientes existentes
             $pendingInstallments->each(function ($installment) {
                 $installment->delete();

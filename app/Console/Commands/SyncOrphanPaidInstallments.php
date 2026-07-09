@@ -185,6 +185,7 @@ class SyncOrphanPaidInstallments extends Command
             $programCourse = $subscription->programCourse;
             $courseId = $programCourse ? $programCourse->course_id : null;
 
+            $finalAmount = $subscription->total_amount ?? 0;
             $order = Order::create([
                 'participant_id' => $subscription->participant_id,
                 'program_id' => $subscription->program_id,
@@ -193,9 +194,9 @@ class SyncOrphanPaidInstallments extends Command
                 'participant_program_id' => $participantProgram->id ?? null,
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
                 'session_id' => $subscription->virtualpos_subscription_id,
-                'total_amount' => 0,
+                'total_amount' => $finalAmount, // Mismo monto desde el inicio; ya no se acumula por cuota
                 'discount' => 0,
-                'final_amount' => $subscription->total_amount ?? 0,
+                'final_amount' => $finalAmount,
                 'total_installments' => $subscription->installments ?? 0,
                 'payment_type' => 'monthly',
                 'status' => 'pending',
@@ -243,7 +244,8 @@ class SyncOrphanPaidInstallments extends Command
             'due_date' => $installment->due_date,
         ], $buyerData));
 
-        $order->increment('total_amount', $amount);
+        // NOTA: NO incrementar total_amount. La orden ya se crea con el monto completo
+        // del programa; incrementar aquí inflaba el total una cuota por cada cobro confirmado.
 
         return $orderDetail;
     }

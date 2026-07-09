@@ -952,7 +952,7 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 'participant_program_id' => $participantProgram ? $participantProgram->id : null,
                 'order_number' => 'SUB-' . str_pad($subscription->id, 8, '0', STR_PAD_LEFT),
                 'session_id' => $subscription->virtualpos_subscription_id,
-                'total_amount' => 0,
+                'total_amount' => $totalAmount, // Mismo monto desde el inicio; ya no se acumula por cuota
                 'discount' => 0,
                 'final_amount' => $totalAmount,
                 'total_installments' => $totalInstallments,
@@ -1024,8 +1024,9 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
                 'due_date' => $charge['charge_date'] ? \Carbon\Carbon::parse($charge['charge_date']) : now(),
             ]);
 
-            // Actualizar total de la orden
-            $order->increment('total_amount', $amount);
+            // NOTA: NO incrementar total_amount. La orden ya se crea con el monto completo
+            // del programa desde SubscriptionController. Incrementar acá inflaba el total
+            // por una cuota más en cada cobro confirmado.
 
             Log::info('=== UPDATED EXISTING ORDER DETAIL FOR SUBSCRIPTION CHARGE ===', [
                 'order_detail_id' => $existingOrderDetail->id,
@@ -1162,8 +1163,9 @@ class SyncSubscriptionPaymentsJob implements ShouldQueue
             'copied_from_first_detail' => $firstOrderDetail ? true : false,
         ]);
 
-        // Actualizar total de la orden
-        $order->increment('total_amount', $amount);
+        // NOTA: NO incrementar total_amount. La orden ya se crea con el monto completo
+        // del programa desde SubscriptionController. Incrementar acá inflaba el total
+        // por una cuota más en cada cobro confirmado.
 
         return $orderDetail;
     }
